@@ -1,0 +1,149 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-CornerAttributes-CornerAttributes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      constructor: ''
+      inClass: 'CornerAttributes'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-CornerAttributes-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      field: 'colour'
+      inClass: 'CornerAttributes'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-EditMesh-colourOf'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      method: 'colourOf'
+      inClass: 'EditMesh'
+    changes:
+      - kind: 'rename'
+        newName: 'colorOf'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-EditMesh-setColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      method: 'setColour'
+      inClass: 'EditMesh'
+    changes:
+      - kind: 'rename'
+        newName: 'setColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-JournalledFloats'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      class: 'JournalledFloats'
+    changes:
+      - kind: 'rename'
+        newName: 'JournaledFloats'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-JournalledInts'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      class: 'JournalledInts'
+    changes:
+      - kind: 'rename'
+        newName: 'JournaledInts'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-bevelledCube'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/testing.dart']
+      function: 'bevelledCube'
+    changes:
+      - kind: 'rename'
+        newName: 'beveledCube'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-EditMesh-makeConsistent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      method: 'makeConsistent'
+      inClass: 'EditMesh'
+    changes:
+      - kind: 'rename'
+        newName: 'ensureConsistent'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-FaceTriangulator-fannedLastFace'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      getter: 'fannedLastFace'
+      inClass: 'FaceTriangulator'
+    changes:
+      - kind: 'rename'
+        newName: 'didFanLastFace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-ImportReport-worthReporting'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'worthReporting'
+      inClass: 'ImportReport'
+    changes:
+      - kind: 'rename'
+        newName: 'isWorthReporting'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-MergeReport-worthReporting'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      getter: 'worthReporting'
+      inClass: 'MergeReport'
+    changes:
+      - kind: 'rename'
+        newName: 'isWorthReporting'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-MeshLayoutPlan-fannedAnyFace'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      getter: 'fannedAnyFace'
+      inClass: 'MeshLayoutPlan'
+    changes:
+      - kind: 'rename'
+        newName: 'didFanAnyFace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-mesh-OpResult-ok'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      getter: 'ok'
+      inClass: 'OpResult'
+    changes:
+      - kind: 'rename'
+        newName: 'isOk'
+  - title: 'flutter3d 1.0.0-rc.1: b1-mesh-Brush'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Brush'
+    changes:
+      - kind: 'rename'
+        newName: 'MeshBrush'
+  - title: 'flutter3d 1.0.0-rc.1: b1-mesh-ImportReport'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'ImportReport'
+    changes:
+      - kind: 'rename'
+        newName: 'MeshImportReport'
+  - title: 'flutter3d 1.0.0-rc.1: c-model_core-mesh-library (WeightPair)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'WeightPair'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+          class: 'WeightPair'

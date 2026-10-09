@@ -171,7 +171,10 @@ final class ParametricPlane extends ParametricShape {
     this.depthSegments = 1,
   });
 
+  /// In metres, along X.
   final double width;
+
+  /// In metres, along Z.
   final double depth;
   final int widthSegments;
   final int depthSegments;
@@ -245,7 +248,11 @@ final class ParametricLathe extends ParametricShape {
   /// Points in the (radius, height) half-plane, bottom to top.
   final List<Vector2> profile;
   final int segments;
+
+  /// In radians about Y.
   final double startAngle;
+
+  /// In radians about Y.
   final double sweepAngle;
 
   /// Whether the last point joins back to the first, as a torus's does.
@@ -276,6 +283,7 @@ final class ParametricSphere extends ParametricShape {
     this.rings = 16,
   });
 
+  /// In metres.
   final double radius;
   final int segments;
   final int rings;
@@ -313,8 +321,13 @@ final class ParametricCylinder extends ParametricShape {
     this.capped = true,
   });
 
+  /// In metres.
   final double radiusTop;
+
+  /// In metres.
   final double radiusBottom;
+
+  /// In metres.
   final double height;
   final int segments;
   final bool capped;
@@ -367,7 +380,10 @@ final class ParametricTorus extends ParametricShape {
     this.tubeSegments = 24,
   });
 
+  /// From the centre to the middle of the tube, in metres.
   final double radius;
+
+  /// In metres.
   final double tubeRadius;
   final int segments;
   final int tubeSegments;
@@ -416,7 +432,10 @@ final class _Band {
   /// The same number everywhere except at the seam of a closed profile, where
   /// the tube comes back to where it started and the arc length has run all
   /// the way to one — which is exactly the place a torus needs two.
+  /// A UV coordinate, 0..1.
   final double lowV;
+
+  /// A UV coordinate, 0..1.
   final double highV;
 
   bool get onAxis => at.x == 0;

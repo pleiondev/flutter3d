@@ -169,7 +169,7 @@ void main() {
     test('the log is capped like the console, the oldest dropped', () {
       final log = GameEventLog();
       for (var i = 0; i < GameEventLog.limit + 3; i++) {
-        log.take(
+        log.record(
           Event(kind: 'Extension', timestamp: 0)
             ..extensionKind = 'flutter3d.tick',
         );

@@ -1,0 +1,226 @@
+# The public API of flutter3d_impeller.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_impeller/flutter3d_impeller.dart
+
+extension BlendFactorToGpu on BlendFactor
+  gpu.BlendFactor toGpu()
+
+extension BlendOperationToGpu on BlendOperation
+  gpu.BlendOperation toGpu()
+
+extension CompareFunctionToGpu on CompareFunction
+  gpu.CompareFunction toGpu()
+
+extension CullModeToGpu on CullMode
+  gpu.CullMode toGpu()
+
+final class GpuCommandEncoder implements CommandEncoder
+  GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame)
+  Never setBlendColor(Vector4 color)
+  bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
+  bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount)
+  void bindPipeline(PipelineHandle pipeline)
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount, {int slot = 0})
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0})
+  void clearBindings()
+  void draw({int instanceCount = 1})
+  void setBlend(BlendState? state, {int attachment = 0})
+  void setCullMode(CullMode mode)
+  void setDepthCompare(CompareFunction compare)
+  void setDepthWrite(bool enabled)
+  void setPolygonMode(PolygonMode mode)
+  void setPrimitiveType(PrimitiveType type)
+  void setScissor(ScreenRect rect)
+  void setStencil(StencilState front, {StencilState? back})
+  void setStencilReference(int value)
+  void setViewport(ScreenRect rect)
+  void setWindingOrder(WindingOrder order)
+  void submit()
+
+final class GpuFrame
+  bool encoded
+  final List<void Function()> whenDone
+  int encoding
+  int outstanding
+  void abandonUnsubmitted()
+  void settleIfDone()
+
+final class GpuFrameImage extends StatefulWidget
+  State<GpuFrameImage> createState()
+  const GpuFrameImage({super.key, required this.frame, required this.fit, required this.quality})
+  final BoxFit fit
+  final FilterQuality quality
+  final TextureHandle frame
+
+final class GpuLoadedShaderLibrary implements LoadedShaderLibrary
+  ShaderHandle? operator [](String name)
+  String get name
+  final String running
+  static Future<GpuLoadedShaderLibrary> load(ByteData bytes, {required String running})
+  void refresh(ByteData bytes)
+
+final class GpuRenderBackend implements GraphicsDevice
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
+  ComputeEncoder beginComputePass({String? label})
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader)
+  DepthRange get depthRange
+  FramebufferOrigin get framebufferOrigin
+  Future<ByteData> readBuffer(StorageBuffer buffer)
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
+  Future<ByteData?> readPixels(TextureHandle texture)
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
+  Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
+  List<TextureFormat> get hdrOutputFormats
+  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutSpec? layout})
+  ShaderLibrary get shaders
+  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false})
+  TextureFormat get defaultColorFormat
+  TextureFormat get defaultDepthStencilFormat
+  TextureFormat get hdrColorFormat
+  TextureHandle createTexture(RenderTargetSpec spec)
+  TextureHandle? createCubeRenderTarget({required int size, required TextureFormat format, int mipLevels = 1})
+  TextureHandle? createCubeTextureFromPixels({required int size, required TextureFormat format, required List<ByteData> faces, List<List<ByteData>>? mipLevels})
+  TextureHandle? createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
+  bool get supportsBlendColor
+  bool get supportsCompute
+  bool get supportsCubeTextures
+  bool get supportsFloat32Filtering
+  bool get supportsGpuTimestamps
+  bool get supportsIndependentBlend
+  bool get supportsMipmaps
+  bool get supportsOffscreenMsaa
+  bool get supportsRenderToMip
+  bool get supportsStencil
+  bool get supportsWireframe
+  bool supportsTextureFormat(TextureFormat format)
+  gpu.BufferView emplace(ByteData bytes)
+  int get debugReadbackStagingCount
+  int get debugTransientRecreations
+  int get maxAnisotropy
+  int get maxColorAttachments
+  int get preferredSampleCount
+  int get rejectedSubmissions
+  static Future<GpuRenderBackend> create({String bundleAsset = defaultBundleAsset, List<String> extraBundles = const <String>[]})
+  static const String defaultBundleAsset = 'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle'
+  static int get granule
+  void beginFrame()
+  void dispose()
+  void noteRejectedSubmission()
+  void onFrameComplete(void Function() whenDone)
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
+  void releaseGeometry(GeometryBuffer geometry)
+  void releaseStorageBuffer(StorageBuffer buffer)
+  void releaseTexture(TextureHandle texture)
+
+final class GpuShaderLibrary implements ShaderLibrary
+  GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]])
+  ShaderHandle? operator [](String name)
+
+extension GpuTextureHandle on TextureHandle
+  gpu.Texture get gpuTexture
+
+extension IndexTypeFromGpu on gpu.IndexType
+  IndexType toEngine()
+
+extension IndexTypeToGpu on IndexType
+  gpu.IndexType toGpu()
+
+extension LoadActionToGpu on LoadAction
+  gpu.LoadAction toGpu()
+
+extension MinMagFilterFromGpu on gpu.MinMagFilter
+  MinMagFilter toEngine()
+
+extension MinMagFilterToGpu on MinMagFilter
+  gpu.MinMagFilter toGpu()
+
+extension MipFilterFromGpu on gpu.MipFilter
+  MipFilter toEngine()
+
+extension MipFilterToGpu on MipFilter
+  gpu.MipFilter toGpu()
+
+extension PolygonModeToGpu on PolygonMode
+  gpu.PolygonMode toGpu()
+
+extension PrimitiveTypeToGpu on PrimitiveType
+  gpu.PrimitiveType toGpu()
+
+extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode
+  SamplerAddressMode toEngine()
+
+extension SamplerAddressModeToGpu on SamplerAddressMode
+  gpu.SamplerAddressMode toGpu()
+
+extension SamplerOptionsFromGpu on gpu.SamplerOptions
+  SamplerOptions toEngine()
+
+extension SamplerOptionsToGpu on SamplerOptions
+  gpu.SamplerOptions toGpu()
+
+extension StencilFaceToGpu on StencilFace
+  gpu.StencilFace toGpu()
+
+extension StencilOperationToGpu on StencilOperation
+  gpu.StencilOperation toGpu()
+
+extension StencilStateToGpu on StencilState
+  gpu.StencilConfig toGpu()
+
+extension StorageModeFromGpu on gpu.StorageMode
+  StorageMode toEngine()
+
+extension StorageModeToGpu on StorageMode
+  gpu.StorageMode toGpu()
+
+extension StoreActionToGpu on StoreAction
+  gpu.StoreAction toGpu()
+
+extension TextureFormatFromGpu on gpu.PixelFormat
+  TextureFormat toEngine()
+
+extension TextureFormatToGpu on TextureFormat
+  gpu.PixelFormat toGpu()
+
+extension TextureTypeToGpu on TextureType
+  gpu.TextureType toGpu()
+
+extension VertexFormatFromGpu on gpu.VertexFormat
+  VertexFormat toEngine()
+
+extension VertexFormatToGpu on VertexFormat
+  gpu.VertexFormat toGpu()
+
+extension VertexLayoutSpecToGpu on VertexLayoutSpec
+  gpu.VertexLayout toGpu()
+
+extension VertexStepModeFromGpu on gpu.VertexStepMode
+  VertexStepMode toEngine()
+
+extension VertexStepModeToGpu on VertexStepMode
+  gpu.VertexStepMode toGpu()
+
+extension WindingOrderToGpu on WindingOrder
+  gpu.WindingOrder toGpu()
+
+TextureFormat colorFormatOrFallback(TextureFormat reported)
+
+TextureHandle createGpuTexture(StorageMode storageMode, int width, int height, {TextureFormat format = TextureFormat.r8g8b8a8UNormInt, int sampleCount = 1, bool enableRenderTargetUsage = true, bool enableShaderReadUsage = true, int mipLevelCount = 1, TextureType type = TextureType.texture2D})
+
+TextureFormat get defaultColorFormatOfContext
+
+TextureFormat get defaultDepthStencilFormat
+
+void ensureGpuBackendRegistered()
+
+void forgetDefaultColorFormat()
+
+ByteData impellerSectionOf(ShaderBundle bundle, {required String running})
+
+String get runningSdk

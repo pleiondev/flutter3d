@@ -5,7 +5,7 @@
 ///     flutter test --reporter=silent test/fixtures/render_mcp_server.dart
 ///
 /// Not named `*_test.dart` on purpose, the same reason
-/// `flutter3d_sim_mcp/test/fixtures/sim_mcp_server.dart` gives for itself.
+/// `flutter3d_demo_content/test/sim_mcp/fixtures/sim_mcp_server.dart` gives for itself.
 library;
 
 import 'dart:io';

@@ -74,7 +74,7 @@ List<String>? treeKillCommand(int pid, {required bool windows}) =>
 /// `app.debugPort` says where the game's VM service is, the run opens a
 /// connection of its own there and listens for what the game posts, the way
 /// [AttachedRun] does; the connection goes when the game does.
-final class FlutterRun implements PlayedGame {
+final class FlutterRun with PlayedGame {
   FlutterRun({
     required this.projectRoot,
     this.device,

@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 

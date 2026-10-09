@@ -28,11 +28,19 @@
 /// source sitting directly under `assets_src/`, and a manifest for a project
 /// with no subdirectories excluded nothing. A test holds the current rule,
 /// so a later `glob` that changes it again fails there first.
+///
+/// **`format: 1` names the manifest's version**, the YAML spelling of the
+/// envelope every flutter3d document carries. A manifest without it is
+/// version 1, which is every manifest written before the key existed; a
+/// newer one is refused with the version that reads it, rather than read
+/// with keys this build would misunderstand.
 library;
 
 import 'dart:io';
 
-import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatSpec;
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 
@@ -43,9 +51,10 @@ import 'device_classes.dart';
 /// Thrown by [AssetManifest.parse] — always names the line the problem is
 /// on, because a manifest's own author is the one who reads this, not a
 /// user of the finished game.
-final class ManifestFormatException implements Exception {
+final class ManifestFormatException extends Flutter3dFormatException {
   const ManifestFormatException(this.message, this.line);
 
+  @override
   final String message;
 
   /// 1-indexed, the way an editor's own gutter counts.
@@ -90,7 +99,7 @@ final class AssetRule {
   final bool exclude;
 }
 
-const Set<String> _topLevelKeys = <String>{'rules', 'classes'};
+const Set<String> _topLevelKeys = <String>{'format', 'rules', 'classes'};
 const Set<String> _classKeys = <String>{
   'lods',
   'impostor',
@@ -119,6 +128,17 @@ final class AssetManifest {
   ]);
 
   static const AssetManifest empty = AssetManifest();
+
+  /// The manifest's version, read from `format:`; absent is 1.
+  static const int formatVersion = 1;
+
+  /// `flutter3d_assets.yaml` among the engine's formats.
+  static const FormatSpec spec = FormatSpec(
+    id: 'f3d.assets',
+    version: formatVersion,
+    suffixes: <String>['flutter3d_assets.yaml'],
+    fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml',
+  );
 
   final List<AssetRule> rules;
 
@@ -162,6 +182,24 @@ final class AssetManifest {
           'unknown key "$name" — the ones this reads are '
           '${_topLevelKeys.join(', ')}',
           key.span.start.line + 1,
+        );
+      }
+    }
+
+    final formatNode = document.nodes['format'];
+    if (formatNode != null) {
+      final said = formatNode is YamlScalar ? formatNode.value : null;
+      if (said is! int || said < 1) {
+        throw ManifestFormatException(
+          '"format" must be a whole number, the manifest\'s version',
+          formatNode.span.start.line + 1,
+        );
+      }
+      if (said > formatVersion) {
+        throw ManifestFormatException(
+          'format $said is newer than this build reads ($formatVersion): '
+          'update flutter3d_build to read it',
+          formatNode.span.start.line + 1,
         );
       }
     }
@@ -328,7 +366,7 @@ final class AssetManifest {
           }
         case 'textures':
           final text = _textOf(valueNode, 'textures');
-          final family = TextureFamily.parse(text);
+          final family = TextureFamily.tryParse(text);
           if (family == null) {
             throw ManifestFormatException(
               'unknown texture family "$text" — expected one of '
@@ -357,7 +395,7 @@ final class AssetManifest {
           impostor = _boolOf(valueNode, 'impostor');
         case 'chunks':
           chunks = switch (valueNode.value) {
-            true => kDefaultChunkThreshold,
+            true => defaultChunkThreshold,
             false => null,
             final int threshold when threshold > 0 => threshold,
             _ => throw ManifestFormatException(

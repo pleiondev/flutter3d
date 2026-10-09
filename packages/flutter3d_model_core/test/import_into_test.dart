@@ -7,6 +7,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -65,7 +66,7 @@ _Doc oneCube({
   materials: <SurfaceMaterial>[
     SurfaceMaterial(
       name: 'steel',
-      baseColor: Vector4(0.2, 0.3, 0.4, 1.0),
+      baseColor: LinearColor.fromSrgb(0.2, 0.3, 0.4, 1.0),
       metallic: 1.0,
       roughness: roughness,
       baseColorTexture: withTexture

@@ -12,6 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -421,7 +422,10 @@ void main() {
         fromModelDocument(document),
       ).computeBounds();
       final scaled = toModelDocument(
-        fromModelDocument(document, options: const ImportOptions(scale: 0.001)),
+        fromModelDocument(
+          document,
+          options: const ImportSettings(scale: 0.001),
+        ),
       ).computeBounds();
 
       final before = unscaled.max - unscaled.min;
@@ -438,7 +442,7 @@ void main() {
       final document = cubeAt(Vector3(0.0, 0.0, 1.0));
       final project = fromModelDocument(
         document,
-        options: const ImportOptions(upAxis: UpAxis.z),
+        options: const ImportSettings(upAxis: UpAxis.z),
       );
       final placed = project.objects.single.transform.getTranslation();
       // Mutation: rotate +90 instead of -90, or about the wrong axis. Both
@@ -468,7 +472,7 @@ void main() {
         );
         final project = fromModelDocument(
           document,
-          options: const ImportOptions(upAxis: UpAxis.z),
+          options: const ImportSettings(upAxis: UpAxis.z),
         );
         final child = project.objects.firstWhere((o) => o.name == 'child');
         // The child's own local transform is untouched — the rotation lives on
@@ -693,12 +697,15 @@ void main() {
       materials: <SurfaceMaterial>[
         SurfaceMaterial(
           name: 'steel',
-          baseColor: Vector4(0.2, 0.3, 0.4, 1.0),
+          baseColor: LinearColor.fromSrgb(0.2, 0.3, 0.4, 1.0),
           metallic: 1.0,
           roughness: 0.25,
           baseColorTexture: const TextureBinding(imageIndex: 0),
         ),
-        SurfaceMaterial(name: 'paint', baseColor: Vector4(0.9, 0.1, 0.1, 1.0)),
+        SurfaceMaterial(
+          name: 'paint',
+          baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
+        ),
       ],
       images: <EncodedImage>[
         EncodedImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), name: 'atlas'),
@@ -839,7 +846,10 @@ void main() {
         ],
         roots: <int>[0],
         materials: <SurfaceMaterial>[
-          SurfaceMaterial(name: 'steel', baseColor: Vector4(0.2, 0.3, 0.4, 1)),
+          SurfaceMaterial(
+            name: 'steel',
+            baseColor: LinearColor.fromSrgb(0.2, 0.3, 0.4, 1),
+          ),
         ],
       );
 

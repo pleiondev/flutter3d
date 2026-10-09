@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show choosePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -102,6 +103,8 @@ final class Playtest {
 
   /// How many steps without moving [stuckStride] metres counts as stuck.
   final int stuckAfter;
+
+  /// The distance that counts as moving, in metres.
   final double stuckStride;
 
   /// Plays [levelPath] [runs] times, seeded `0` through `runs - 1` so the
@@ -206,9 +209,9 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
   final level = Level.fromJson(
     jsonDecode(File(args.levelPath).readAsStringSync()) as Map<String, Object?>,
   );
-  final world = CollisionWorld();
+  final world = CollisionWorld(backend: usePhysics());
   level.addTo(world);
-  usePhysics().attach(world);
+  world.backend.attach(world);
   final input = InputState();
   final run = args.game.start(level, world, input);
   world.update();
@@ -219,7 +222,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
   );
   final positions = <(double, double)>[];
   var stuckSince = 0;
-  var lastStuckCheck = run.position.clone();
+  var lastStuckCheck = run.position;
 
   for (var step = 1; step <= args.maxSteps; step++) {
     driver.apply(input);
@@ -246,7 +249,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
     stuckSince++;
     if (stuckSince >= args.stuckAfter) {
       final now = run.position;
-      if ((now - lastStuckCheck).length < args.stuckStride) {
+      if (now.distanceTo(lastStuckCheck) < args.stuckStride) {
         return PlaytestRun(
           seed: args.seed,
           steps: step,
@@ -255,7 +258,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
         );
       }
       stuckSince = 0;
-      lastStuckCheck = now.clone();
+      lastStuckCheck = now;
     }
   }
 

@@ -73,7 +73,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.faceCount, 5);
       // Mutation: take the vertices of a deleted face with it, and a box loses
       // four corners that five other faces are still standing on.
@@ -168,7 +168,7 @@ void main() {
         result = deleteSelection(mesh, Selection.empty(ElementLevel.face));
       });
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('selected'));
       expect(mesh.faceCount, 6);
     });
@@ -259,7 +259,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.faceCount, 4);
       // Three of the quad's corners were shared with its neighbours; the fourth
       // is its own already.
@@ -290,7 +290,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('share'));
     });
   });

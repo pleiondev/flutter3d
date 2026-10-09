@@ -40,7 +40,7 @@ List<Vector3> _boxCorners(Vector3 halfExtents) => <Vector3>[
 /// from the result names both itself. [label] is the row's own "с
 /// подписью" — what a cache-status strip shows for a bake nothing else here
 /// distinguishes from another rigid body's.
-final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
+final class BakeRigidBodyJobRequest with SimulationBakeRequest {
   BakeRigidBodyJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -64,9 +64,13 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
   final int baseVersion;
   final Vector3 halfExtents;
   final Vector3 startPosition;
+
+  /// In kilograms.
   final double mass;
   @override
   final int frameCount;
+
+  /// In seconds.
   final double dt;
   final String label;
 

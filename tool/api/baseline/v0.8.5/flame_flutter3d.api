@@ -1,0 +1,638 @@
+# The public API of flame_flutter3d.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flame_flutter3d/flame_flutter3d.dart
+
+final class ActorComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
+  ActorComponent({required this.actor, required super.node, required super.scene, required super.plane, this.stepper, this.removesFrom, super.direction = SyncDirection.sceneToFlame, super.elevation, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
+  final Actor actor
+  final ActorSystem? removesFrom
+  final StepClock? stepper
+  void onMount()
+  void onRemove()
+  void rememberPlace()
+  void shiftScene(Vector3 by)
+  void update(double dt)
+
+final class ActorSystemComponent extends Component with FixedStepUpdate implements StepClock
+  ActorSystemComponent({required this.system, this.focus, this.focusBody, this.foci, FixedStep? step, super.priority = BridgePriority.actors})
+  double get alpha
+  final ActorSystem system
+  final Collider? Function()? focusBody
+  final FixedStep step
+  final List<FocusPoint> Function()? foci
+  final Vector3 Function()? focus
+  void fixedUpdate(double seconds)
+  void follow(StepFollower follower)
+  void onMount()
+  void onRemove()
+  void unfollow(StepFollower follower)
+  void update(double dt)
+
+class AtmosphereComponent extends Component
+  Atmosphere current
+  AtmosphereComponent({required this.cycle, this.sun, this.time = 0.0, this.rate = 1.0})
+  FogSettings get fog
+  double rate
+  double time
+  final AtmosphereCycle cycle
+  final LightNode? sun
+  void update(double dt)
+
+final class BillboardAtlas
+  BillboardAtlas(this.device)
+  DeviceMesh cardOf(Sprite sprite)
+  Future<engine.Material?> materialOf(ui.Image image, {bool smooth = false})
+  final GraphicsDevice device
+  static Future<Sprite> spriteOfText(String text, TextPaint paint, {double margin = 4.0})
+  void dispose({Renderer? drawing})
+
+final class BridgeClock extends Component
+  BridgeClock({required this.onTick})
+  final void Function(double dt) onTick
+  void update(double dt)
+
+final class BridgePlane implements BridgeSpace
+  Quaternion rotationFor(double angle)
+  Vector2 to2d(Vector3 point)
+  Vector3 get normal
+  Vector3 to3d(Vector2 flat, {double? at})
+  const BridgePlane({required this.axis, required this.constant, this.flipY = false})
+  double angleFor(Quaternion rotation)
+  factory BridgePlane.backdrop({double depth = 0.0, bool flipY = true})
+  factory BridgePlane.ground({double height = 0.0})
+  final PlaneAxis axis
+  final bool flipY
+  final double constant
+  void place(double x, double y, double lift, Vector3 out)
+  void rotationInto(double angle, Quaternion out)
+  void to3dInto(double x, double y, Vector3 out, {double? at})
+  void turn(double x, double y, double angle, Quaternion out)
+
+abstract final class BridgePriority
+  static const int actors = -1100
+  static const int afterFlameCamera = flameCamera + 1
+  static const int audio = (1 << 32) - 2
+  static const int camera = 1000
+  static const int clock = 1 << 32
+  static const int flameCamera = 0x7fffffff
+  static const int input = -(1 << 30)
+  static const int inputEnd = (1 << 32) - 1
+  static const int kinematic = -1200
+  static const int physics = -1000
+
+final class BridgeProjector
+  (Vector3, Vector3)? rayThrough(Vector2 screen)
+  BridgeProjector({required this.camera, required this.viewSize, this.viewport})
+  ScreenBounds? boundsOf(Aabb3 box)
+  Vector2? onPlane(Vector2 screen, BridgePlane plane)
+  Vector2? onPlaneOrHorizon(Vector2 screen, BridgePlane plane)
+  Vector2? toScreen(Vector3 point)
+  final CameraNode camera
+  final Vector2 Function() viewSize
+  final ViewportRect Function()? viewport
+
+abstract interface class BridgeSpace
+  void place(double x, double y, double lift, Vector3 out)
+  void turn(double x, double y, double angle, Quaternion out)
+
+abstract interface class Bridged3d implements Drawn3d
+  BridgePlane get plane
+  BridgeSpace? get space
+  Vector4 get tint
+  double get elevation
+
+final class CameraSyncComponent extends Component with UpdatesAtRoot
+  CameraSyncComponent({required this.controller, int? priority})
+  bool get needsRoot
+  final CameraSyncController controller
+  void rootUpdate(double dt)
+
+final class CameraSyncController
+  CameraSyncController({required this.camera, required this.viewfinder, required this.plane, this.direction = SyncDirection.sceneToFlame, this.viewportHeight, this.syncAngle = false, Vector3? eyeOffset})
+  final BridgePlane plane
+  final CameraNode camera
+  final SyncDirection direction
+  final Vector3? eyeOffset
+  final Viewfinder viewfinder
+  final bool syncAngle
+  final double Function()? viewportHeight
+  void advance(double dt)
+  void takeRest()
+
+class CellGridComponent extends Object3dComponent
+  (int, int) cellAt(Vector2 at)
+  CellGridComponent({required this.grid, required this.device, required super.scene, required super.plane, required this.material, this.depth, this.colour, this.instanced = false, this.hitboxes = false, super.position, super.elevation})
+  Vector2 centreOf(int column, int row)
+  bool hitAt(Vector2 at, {double radius = 0.6})
+  bool setCell(int column, int row, {bool alive = true})
+  final CellGrid grid
+  final GraphicsDevice device
+  final Vector4? colour
+  final bool hitboxes
+  final bool instanced
+  final double? depth
+  final engine.Material material
+  void onMount()
+  void onRemove()
+
+class CharacterBodyComponent extends Object3dComponent with CollisionCallbacks, FixedStepUpdate implements StepFollower
+  CharacterBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.drive, this.stepper, this.removeFrom, super.size, super.anchor, super.priority})
+  final CharacterController body
+  final CollisionWorld? removeFrom
+  final StepClock? stepper
+  final void Function(double dt)? drive
+  void fixedUpdate(double step)
+  void onMount()
+  void onRemove()
+  void rememberPlace()
+  void shiftScene(Vector3 by)
+  void update(double dt)
+
+final class ChaseCamera
+  ChaseCamera({required this.camera, required this.target, required this.offset, required this.lookOffset, this.followAcross = 1.0, this.lookAcross = 1.0, this.stiffness = 0.0, CollisionWorld? world})
+  final CameraNode camera
+  final CameraRig rig
+  final Object3dComponent target
+  final Vector3 lookOffset
+  final Vector3 offset
+  final double followAcross
+  final double lookAcross
+  final double stiffness
+  void advance(double dt)
+
+final class ChaseCameraComponent extends Component
+  ChaseCameraComponent(this.chase, {super.priority = BridgePriority.camera})
+  final ChaseCamera chase
+  void update(double dt)
+
+final class ChunkStreamer<C>
+  C? operator [](int index)
+  ChunkStreamer({required this.build, required this.drop})
+  Iterable<C> get chunks
+  Iterable<int> get indices
+  final C Function(int index) build
+  final void Function(int index, C chunk) drop
+  void clear()
+  void cover(int from, int to)
+
+final class ColliderRegistry
+  ({PositionComponent? component, Vector2 point, Collider collider})? raycast(CollisionWorld world, BridgePlane plane, Vector2 from, Vector2 to, {double lift = 0.0, int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
+  CollisionBridge bridge({required Collider collider, required CollisionCallbacks component, PhysicsStepComponent? stepper})
+  PositionComponent? componentFor(Collider collider)
+  void register(Collider collider, PositionComponent component)
+  void unregister(Collider collider)
+
+final class CollisionBridge with CollisionListener
+  CollisionBridge({required this.collider, required this.component, required this.resolveOther, this.stepper, BridgePlane? plane})
+  final BridgePlane plane
+  final Collider collider
+  final CollisionCallbacks component
+  final PhysicsStepComponent? stepper
+  final PositionComponent? Function(Collider other) resolveOther
+  void detach()
+  void onCollision(Collider self, Collider other)
+  void onCollisionEnd(Collider self, Collider other)
+  void onCollisionStart(Collider self, Collider other)
+
+final class CurvilinearSpace implements BridgeSpace
+  CurvilinearSpace(this.path)
+  final OpenPath path
+  void place(double x, double y, double lift, Vector3 out)
+  void turn(double x, double y, double angle, Quaternion out)
+
+abstract interface class Drawn3d
+  Aabb3? get drawnBounds3d
+  Vector4 get tint
+
+mixin FixedStepUpdate on Component
+  abstract void fixedUpdate(double step)
+  set priority(int value)
+  void onMount()
+  void onRemove()
+
+final class FixtureVisualsComponent extends Component
+  FixtureVisualsComponent(this.fixtures, {super.priority = BridgePriority.camera - 1})
+  final FixtureVisuals fixtures
+  void onRemove()
+  void update(double dt)
+
+final class FlameInputBridge
+  Component followJoystick(JoystickComponent stick, {double deadZone = 0.0})
+  Component followPad(PadInput pad)
+  Component listenToKeyboard()
+  Component stepEnd()
+  FlameInputBridge({required this.bindings, required this.inputState})
+  KeyEventResult onGameKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed)
+  PointerTrack pointer({GameAction? press})
+  SwipeInput swipes({GameAction? up, GameAction? down, GameAction? left, GameAction? right, double minDistance = 40.0})
+  bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed)
+  final Bindings bindings
+  final InputState inputState
+  void bindButton(ButtonComponent button, GameAction action)
+  void onDragUpdate(DragUpdateEvent event)
+
+class Flutter3dFlameWidget extends StatelessWidget
+  Widget build(BuildContext context)
+  const Flutter3dFlameWidget({super.key, required this.game, this.camera, this.buildScene, this.existing, this.onRendererReady, this.onTick, this.clearColor, this.settings, this.width = 1280, this.height = 720, this.overlayBuilderMap, this.initialActiveOverlays, this.focusNode, this.autofocus = true})
+  final ({GraphicsDevice device, Renderer renderer})? existing
+  final CameraNode? camera
+  final FlameGame game
+  final FocusNode? focusNode
+  final List<String>? initialActiveOverlays
+  final Map<String, OverlayWidgetBuilder<FlameGame>>? overlayBuilderMap
+  final RenderSettings Function()? settings
+  final Scene Function(GraphicsDevice device)? buildScene
+  final Vector4? clearColor
+  final bool autofocus
+  final int height
+  final int width
+  final void Function(Renderer renderer)? onRendererReady
+  final void Function(double dt)? onTick
+
+enum GridHeading
+  values: none, up, down, left, right
+  GridHeading get opposite
+  const GridHeading(this.dx, this.dy)
+  final int dx
+  final int dy
+
+class GridMover extends Component with FixedStepUpdate
+  (int, int) get cell
+  GridHeading heading
+  GridHeading wanted
+  GridMover({required this.grid, required this.speed, this.passable, this.wraps = false, this.onArrive})
+  double speed
+  final CellGridComponent grid
+  final bool Function(int column, int row)? passable
+  final bool wraps
+  final void Function(int column, int row)? onArrive
+  void fixedUpdate(double step)
+  void onMount()
+  void update(double dt)
+
+mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock
+  FixedStep fixedStep
+  double get alpha
+  double get frameSeconds
+  int get stepsThisFrame
+  void afterEachStep(void Function() end)
+  void beforeEachStep(void Function() start)
+  void beforeSteps(void Function() start)
+  void fixedUpdate(double step)
+  void follow(StepFollower follower)
+  void removeAfterEachStep(void Function() end)
+  void removeBeforeEachStep(void Function() start)
+  void removeBeforeSteps(void Function() start)
+  void unfollow(StepFollower follower)
+  void update(double dt)
+
+mixin HasFlutter3d<W extends World> on FlameGame<W>
+  CameraNode createCamera3d()
+  Color backgroundColor()
+  FogSettings fog3d
+  Future<void> onLoad()
+  GraphicsDevice get device
+  RenderSettings renderSettings()
+  Renderer? get renderer
+  Scene get scene
+  ViewportRect viewport3d
+  bool get debugHitboxes3d
+  bool get has3d
+  final List<RenderView> moreViews3d
+  final Vector4 clearColor
+  late final BridgeProjector projector
+  late final CameraNode camera3d
+  set debugHitboxes3d(bool on)
+  void Function()? redrawer3d
+  void attachRenderer(Renderer renderer)
+  void close3d()
+  void closeWith(void Function() release)
+  void dispose()
+  void onClose3d()
+  void onOpen3d()
+  void onRenderer3d(Renderer renderer)
+  void open3d(GraphicsDevice device, {Scene? scene})
+  void redraw3d()
+  void replaceScene3d(Scene next)
+
+class InstancedActorComponent extends Component implements StepFollower
+  InstanceHandle? get slot
+  InstancedActorComponent({required this.actor, required this.batch, this.stepper, this.removesFrom, this.lift = 0.0, super.priority})
+  final Actor actor
+  final ActorSystem? removesFrom
+  final InstancedMeshNode batch
+  final StepClock? stepper
+  final double lift
+  void onMount()
+  void onRemove()
+  void rememberPlace()
+  void update(double dt)
+
+class InstancedObject3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+  Aabb3? get drawnBounds3d
+  InstanceHandle? get slot
+  InstancedObject3dComponent({required this.batch, required this.plane, this.elevation = 0.0, this.color, this.space, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
+  Vector3 get scenePosition
+  double elevation
+  double opacity
+  final BridgePlane plane
+  final BridgeSpace? space
+  final InstancedMeshNode batch
+  final Vector4? color
+  late final Vector4 tint
+  void onMount()
+  void onRemove()
+  void removeFromParent()
+  void updateTree(double dt)
+
+class InstancedPoseComponent extends Component
+  InstancedPoseComponent({required this.batch, required this.place, super.priority})
+  final InstancedMeshNode batch
+  final bool Function(Vector3 at) place
+  void onMount()
+  void onRemove()
+  void update(double dt)
+
+class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate
+  KinematicBodyComponent({required this.collider, required super.node, required super.scene, required super.plane, this.removeFrom, super.elevation, super.position, super.size, super.anchor, super.angle, super.children, super.priority = BridgePriority.kinematic, super.key})
+  final Collider collider
+  final CollisionWorld? removeFrom
+  void fixedUpdate(double step)
+  void onMount()
+  void onRemove()
+  void updateTree(double dt)
+
+class MeshFlipbookComponent extends Component
+  MeshFlipbookComponent({required this.node, required this.frames, this.framesPerSecond = 2.0})
+  double framesPerSecond
+  final List<MeshGeometry> frames
+  final MeshNode node
+  int get frame
+  void onMount()
+  void update(double dt)
+
+class ModelAnimationComponent extends Component
+  ModelAnimationComponent(this.player, {this.crossFade = 0.15, String? start})
+  String? get current
+  bool has(String name)
+  bool play(String name, {double? fade, bool restart = false})
+  final AnimationPlayer player
+  final double crossFade
+  void update(double dt)
+
+class Move3dEffect extends ComponentEffect<Node3dComponent>
+  Move3dEffect.by(Vector3 offset, super.controller, {super.onComplete, super.key})
+  Move3dEffect.to(Vector3 destination, super.controller, {super.onComplete, super.key})
+  void apply(double progress)
+  void onStart()
+
+class Node3dComponent extends Component with HasVisibility implements OpacityProvider, Drawn3d
+  Aabb3? get drawnBounds3d
+  Node3dComponent({required this.node, required this.scene, Vector3? position, Quaternion? rotation, Vector3? scale, super.children, super.priority, super.key})
+  double opacity
+  final Quaternion rotation3
+  final Scene scene
+  final SceneNode node
+  final Vector3 position3
+  final Vector3 scale3
+  final Vector4 tint
+  void onMount()
+  void onRemove()
+  void updateTree(double dt)
+
+class Object3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+  Aabb3? get drawnBounds3d
+  Object3dComponent({required this.node, required this.scene, required this.plane, this.direction = SyncDirection.sceneToFlame, this.elevation = 0.0, this.owns = const <DeviceMesh>[], this.space, this.follows, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
+  SceneNode get visual
+  Vector3 get scenePosition
+  double elevation
+  double opacity
+  final BridgePlane plane
+  final BridgeSpace? space
+  final List<DeviceMesh> owns
+  final ReadOnlyPositionProvider? follows
+  final Scene scene
+  final SceneNode node
+  final SyncDirection direction
+  final Vector4 tint
+  void onMount()
+  void onRemove()
+  void placeNode(Vector3 at)
+  void removeFromParent()
+  void rewriteScene()
+  void shiftScene(Vector3 by)
+  void turnNodeTo(double yaw)
+  void update(double dt)
+  void updateTree(double dt)
+
+class Particles3dComponent extends Component
+  Particles3dComponent({required this.system, required this.plane})
+  final BridgePlane plane
+  final ParticleSystem system
+  int burstAt(ParticleEffect effect, Vector2 at, {double elevation = 0.0, Object? source})
+  void drawWith(Renderer renderer, DrawableGeometry mesh, {BlendState blend = BlendState.additive})
+  void onMount()
+  void onRemove()
+  void update(double dt)
+
+final class PhysicsStepComponent extends Component with FixedStepUpdate implements StepClock
+  PhysicsStepComponent({required this.dynamics, required this.world, this.afterStep, FixedStep? step, super.priority = BridgePriority.physics})
+  double get alpha
+  final CollisionWorld world
+  final Dynamics dynamics
+  final FixedStep step
+  final void Function()? afterStep
+  int get frame
+  void fixedUpdate(double seconds)
+  void follow(StepFollower body)
+  void onMount()
+  void unfollow(StepFollower body)
+  void update(double dt)
+
+enum PlaneAxis
+  values: y, z
+
+final class PlayerInputs
+  Component listenToKeyboard()
+  KeyEventResult onGameKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed)
+  List<Component> stepEnds()
+  PlayerInputs(this.players)
+  final List<FlameInputBridge> players
+
+final class PlayerSeats
+  Component listenToKeyboard()
+  Iterable<FlameInputBridge> get free
+  List<Component> stepEnds()
+  List<FlameInputBridge> get seated
+  PlayerSeats(this.candidates)
+  bool claim(FlameInputBridge candidate, {int limit = 4})
+  final List<FlameInputBridge> candidates
+  void release(FlameInputBridge candidate)
+  void releaseAll()
+
+final class PointerTrack extends PositionComponent with PointerMoveCallbacks, TapCallbacks, DragCallbacks
+  Vector2? get aim
+  bool containsLocalPoint(Vector2 point)
+  void onDragCancel(DragCancelEvent event)
+  void onDragEnd(DragEndEvent event)
+  void onDragStart(DragStartEvent event)
+  void onDragUpdate(DragUpdateEvent event)
+  void onPointerMove(PointerMoveEvent event)
+  void onTapCancel(TapCancelEvent event)
+  void onTapDown(TapDownEvent event)
+  void onTapUp(TapUpEvent event)
+
+class ProjectedViewfinder extends Viewfinder
+  ProjectedViewfinder({required this.projector, required this.plane})
+  Rect computeVisibleRect()
+  Vector2 globalToLocal(Vector2 point, {Vector2? output})
+  Vector2 localToGlobal(Vector2 point, {Vector2? output})
+  final BridgePlane plane
+  final BridgeProjector projector
+  void update(double dt)
+
+class RigidBodyComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
+  RigidBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.stepper, this.removeFrom, super.direction, super.elevation, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
+  final Dynamics? removeFrom
+  final PhysicsStepComponent? stepper
+  final RigidBody body
+  void onMount()
+  void onRemove()
+  void rememberPlace()
+  void shiftScene(Vector3 by)
+  void teleport(Vector3 to)
+  void update(double dt)
+
+class Rotate3dEffect extends ComponentEffect<Node3dComponent>
+  Rotate3dEffect.by(Vector3 axis, this.angle, super.controller, {super.onComplete, super.key})
+  final Vector3 axis
+  final double angle
+  void apply(double progress)
+
+class Scale3dEffect extends ComponentEffect<Node3dComponent>
+  Scale3dEffect.to(Vector3 scale, super.controller, {super.onComplete, super.key})
+  void apply(double progress)
+  void onStart()
+
+class SpriteBillboardComponent extends Object3dComponent
+  Future<void> onLoad()
+  Sprite get currentSprite
+  SpriteBillboardComponent({Sprite? sprite, SpriteAnimation? animation, required this.device, required super.scene, required super.plane, BillboardAtlas? atlas, this.cardHeight = 1.0, this.upright = true, this.faces, this.removeOnFinish = false, this.smooth = false, super.position, super.elevation, super.priority})
+  final CameraNode? faces
+  final GraphicsDevice device
+  final SpriteAnimationTicker? ticker
+  final bool removeOnFinish
+  final bool smooth
+  final bool upright
+  final double cardHeight
+  set sprite(Sprite next)
+  void onRemove()
+  void update(double dt)
+  void updateTree(double dt)
+
+abstract interface class StepClock
+  double get alpha
+  void follow(StepFollower follower)
+  void unfollow(StepFollower follower)
+
+abstract interface class StepFollower
+  void rememberPlace()
+
+final class SwipeInput extends PositionComponent with DragCallbacks
+  bool containsLocalPoint(Vector2 point)
+  void onDragEnd(DragEndEvent event)
+  void onDragStart(DragStartEvent event)
+  void onDragUpdate(DragUpdateEvent event)
+
+enum SyncDirection
+  values: sceneToFlame, flameToScene
+
+mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d
+  Iterable<Aabb3> drawnBoxes3d()
+  bool hitAt3d(Vector2 screen, BridgeProjector projector)
+  void onLongTap3d(Vector2 screen)
+  void onTap3d(Vector2 screen)
+  void onTapCancel3d()
+  void onTapUp3d(Vector2 screen)
+
+class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameReference<HasFlutter3d>
+  Tap3dCallbacks? nearestAt(Vector2 screen)
+  Taps3dComponent({super.priority})
+  bool containsLocalPoint(Vector2 point)
+  void onLongTapDown(TapDownEvent event)
+  void onTapCancel(TapCancelEvent event)
+  void onTapDown(TapDownEvent event)
+  void onTapUp(TapUpEvent event)
+
+class TiledWorld3d extends PositionComponent
+  Future<void> onLoad()
+  TiledWorld3d({required this.map, required this.device, required this.scene, required this.plane, required this.material, this.cell = 1.0, this.spawn, super.position})
+  final BridgePlane plane
+  final Component? Function(TiledObject object, Vector2 at)? spawn
+  final GraphicsDevice device
+  final Map<String, CellGridComponent> grids
+  final Scene scene
+  final TiledMap map
+  final double cell
+  final engine.Material Function(TileLayer layer) material
+
+class TintEffect extends ComponentEffect<Component>
+  TintEffect(Vector4 colour, super.controller, {super.onComplete, super.key})
+  void apply(double progress)
+  void onStart()
+
+class TrailComponent extends Component
+  LineStripNode? get line
+  TrailComponent({this.spacing = 0.5, this.length = 48, this.width = 3.0, Vector4? colour})
+  double? breakAt
+  final Vector4 colour
+  final double spacing
+  final double width
+  final int length
+  void onGameResize(Vector2 size)
+  void onMount()
+  void onRemove()
+  void reset()
+  void update(double dt)
+
+class TransparentFlameGame extends FlameGame
+  Color backgroundColor()
+
+mixin UpdatesAtRoot on Component
+  abstract void rootUpdate(double dt)
+  bool get needsRoot
+  void onMount()
+  void onRemove()
+  void update(double dt)
+
+final class ViewCamera
+  ViewCamera({required this.camera, required this.view, this.stiffness = 4.0, CollisionWorld? world})
+  final CameraNode camera
+  final CameraRig rig
+  final bool Function(Vector3 eye, Vector3 target) view
+  final double stiffness
+  void advance(double dt)
+
+final class ViewCameraComponent extends Component
+  ViewCameraComponent(this.viewCamera, {super.priority = BridgePriority.camera})
+  final ViewCamera viewCamera
+  void update(double dt)
+
+class WrapSpace extends Component
+  Iterable<Aabb3> ghostBoundsOf(Object3dComponent owner)
+  Vector2 shortestWay(Vector2 from, Vector2 to)
+  Vector2 wrap(Vector2 point)
+  WrapSpace({required this.min, required this.max, required this.scene, this.margin = 1.0})
+  double margin
+  final Scene scene
+  final Vector2 max
+  final Vector2 min
+  void onRemove()
+  void update(double dt)
+  void updateTree(double dt)
+
+void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24})
+
+bool shownInFlame(HasVisibility component)

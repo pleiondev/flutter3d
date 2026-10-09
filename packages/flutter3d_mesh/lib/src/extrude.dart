@@ -282,14 +282,14 @@ void _inheritWall(
       on: mesh.faceHas(source, FaceFlags.smooth),
     );
   }
-  if (mesh.hasLayer(MeshDomain.corner, MeshAttribute.colour)) {
-    final low = mesh.colourOf(atFrom);
-    final high = mesh.colourOf(atTo);
+  if (mesh.hasLayer(MeshDomain.corner, MeshAttribute.color)) {
+    final low = mesh.colorOf(atFrom);
+    final high = mesh.colorOf(atTo);
     mesh
-      ..setColour(first, low)
-      ..setColour(first + 1, high)
-      ..setColour(first + 2, high)
-      ..setColour(first + 3, low);
+      ..setColor(first, low)
+      ..setColor(first + 1, high)
+      ..setColor(first + 2, high)
+      ..setColor(first + 3, low);
   }
   if (mesh.hasLayer(MeshDomain.corner, MeshAttribute.uv0)) {
     mesh

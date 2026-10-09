@@ -23,7 +23,7 @@
 ///   giving one mesh vertex two numbers — rewiring a fan's own origin
 ///   pointers — which is a change to `EditMesh`'s own internals this row's
 ///   one operation did not need to make.
-/// - **`flipShells`** needed no new code at all: `EditMesh.makeConsistent`
+/// - **`flipShells`** needed no new code at all: `EditMesh.ensureConsistent`
 ///   already winds every closed island outward and says whether anything
 ///   turned, which is this sub-row exactly, under a different name —
 ///   `anim-26`'s own shape, a status flip rather than a function.

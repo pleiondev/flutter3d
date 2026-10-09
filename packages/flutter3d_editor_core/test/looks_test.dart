@@ -189,7 +189,7 @@ void main() {
 
       expect(parts.last.glows, isTrue);
       expect(parts.first.glows, isFalse);
-      expect(parts.last.colour.x, greaterThan(parts.last.colour.z));
+      expect(parts.last.color.x, greaterThan(parts.last.color.z));
     });
 
     test('and an angle, which is what holds a torch out of a wall', () {

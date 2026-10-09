@@ -1,0 +1,161 @@
+# The public API of flutter3d_audio_core.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_audio_core/flutter3d_audio_core.dart
+
+abstract base class Attenuation
+  abstract double gainAt(double distance)
+  bool carriesTo(double distance)
+  const Attenuation({this.reference = 1.0, this.maximum = 40.0})
+  final double maximum
+  final double reference
+
+abstract interface class AudioBackend
+  Future<void> preload(String asset)
+  VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  bool isAlive(VoiceId voice)
+  void stop(VoiceId voice)
+  void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+
+final class AudioBus
+  String toString()
+  bool operator ==(Object other)
+  const AudioBus(this.name)
+  final String name
+  int get hashCode
+  static const AudioBus master = AudioBus('master')
+  static const AudioBus music = AudioBus('music')
+  static const AudioBus sfx = AudioBus('sfx')
+
+final class AudioListener
+  AudioListener({Vector3? position, Vector3? forward, Vector3? up})
+  Vector3 get right
+  final Vector3 forward
+  final Vector3 position
+  final Vector3 up
+  void aimAlong(Vector3 at, Vector3 direction)
+  void aimAt(Vector3 at, double yaw)
+
+final class AudioScene
+  AudioScene({required this.backend, this.maxVoices = 24, this.occlusion, Mixer? mixer, math.Random? random})
+  Future<void> preload(Iterable<SoundDef> bank)
+  List<SoundEmitter> get emitters
+  SoundEmitter play(SoundDef sound, Vector3 at)
+  final AudioBackend backend
+  final Mixer mixer
+  final double Function(Vector3 from, Vector3 to)? occlusion
+  final int maxVoices
+  int get voiceCount
+  void stopAll()
+  void update(AudioListener listener)
+
+final class BlendedLoop
+  BlendedLoop({required this.scene, required List<LoopBand> bands, Vector3? at})
+  Vector3 get position
+  double gainOf(int index)
+  double rateOf(int index)
+  final AudioScene scene
+  final List<LoopBand> bands
+  void stop()
+  void update(double value, {double volume = 1.0, Vector3? at})
+
+final class ExponentialRolloff extends Attenuation
+  const ExponentialRolloff({super.reference, super.maximum, this.factor = 1.0})
+  double gainAt(double distance)
+  final double factor
+
+final class Heard
+  String toString()
+  const Heard(this.sound, this.at)
+  final SoundDef sound
+  final Vector3 at
+
+final class InverseRolloff extends Attenuation
+  const InverseRolloff({super.reference, super.maximum, this.factor = 1.0})
+  double gainAt(double distance)
+  final double factor
+
+final class LinearRolloff extends Attenuation
+  const LinearRolloff({super.reference, super.maximum})
+  double gainAt(double distance)
+
+final class LoopBand
+  const LoopBand({required this.sound, required this.centre, this.width = 0.35})
+  final SoundDef sound
+  final double centre
+  final double width
+
+final class Mixer
+  Iterable<AudioBus> get configured
+  Map<String, Object?> toJson()
+  Mixer([Map<AudioBus, double>? volumes])
+  double gainFor(AudioBus bus)
+  double volumeOf(AudioBus bus)
+  factory Mixer.fromJson(Map<String, Object?> json)
+  void setVolume(AudioBus bus, double volume)
+
+final class NoAttenuation extends Attenuation
+  bool carriesTo(double distance)
+  const NoAttenuation()
+  double gainAt(double distance)
+
+final class SilentBackend implements AudioBackend
+  Future<void> preload(String asset)
+  List<SilentVoice> get live
+  VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  bool isAlive(VoiceId voice)
+  final List<SilentVoice> started
+  final List<String> preloaded
+  void finish(VoiceId voice)
+  void stop(VoiceId voice)
+  void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+
+final class SilentVoice
+  SilentVoice(this.id, this.asset, this.gain, this.pan, this.rate, this.loop)
+  String toString()
+  bool alive
+  double gain
+  double muffle
+  double pan
+  double rate
+  final String asset
+  final bool loop
+  final int id
+  int updates
+
+final class SoundBank extends Iterable<SoundDef>
+  Iterable<String> get assets
+  Iterator<SoundDef> get iterator
+  SoundBank(Iterable<SoundDef> sounds)
+  final List<SoundDef> sounds
+
+final class SoundDef
+  const SoundDef({required this.name, required this.asset, this.gain = 1.0, this.loop = false, this.attenuation = const InverseRolloff(), this.priority = 0, this.maxInstances = 4, this.bus = AudioBus.sfx, this.rate = 1.0, this.rateVariance = 0.0})
+  final Attenuation attenuation
+  final AudioBus bus
+  final String asset
+  final String name
+  final bool loop
+  final double gain
+  final double rate
+  final double rateVariance
+  final int maxInstances
+  final int priority
+
+final class SoundEmitter
+  SoundEmitter({required this.sound, Vector3? at})
+  bool get isAudible
+  bool get isStopped
+  double audibleGain
+  double gain
+  double muffle
+  double pan
+  double rate
+  final SoundDef sound
+  final Vector3 position
+  void stop()
+
+typedef VoiceId = Object;
+
+double gainToDecibels(double gain)

@@ -177,7 +177,7 @@ EditMesh sharpAgainstSmooth() {
 /// shape; this is the same construction kept as a picture, since a count
 /// cannot say whether a corner cap landed at the right valence or a bridge
 /// quad came out inverted.
-EditMesh bevelledCube() {
+EditMesh beveledCube() {
   final mesh = EditMesh.cuboid();
   final edges = <int>[
     for (var half = 0; half < mesh.halfEdgeSlotCount; half++)

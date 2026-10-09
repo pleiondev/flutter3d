@@ -19,15 +19,20 @@ import 'gizmos.dart';
 /// keeps three plain lists, so removing entity 2 makes entity 3 into entity 2,
 /// and an index remembered across that change points at the wrong thing rather
 /// than at nothing.
-final class Listed {
-  const Listed({
+final class ListedPiece {
+  const ListedPiece({
     required this.kind,
     required this.index,
     required this.what,
     required this.at,
     this.size,
     this.name,
+    this.id,
   });
+
+  /// The row's id, which `Editing.selectId` takes and which does not move
+  /// when a row before it is deleted. Null only for a listing made by hand.
+  final String? id;
 
   /// Which of the document's three lists this is in.
   final Piece kind;
@@ -45,7 +50,7 @@ final class Listed {
   /// A brush's size, or an entity's when the document gave it one.
   ///
   /// Null for a light and for the entities that are a coordinate and a word:
-  /// writing "0.5 × 0.5 × 0.5" for a monster would be reporting `kGizmoSize`,
+  /// writing "0.5 × 0.5 × 0.5" for a monster would be reporting `gizmoSize`,
   /// which is a mark an editor draws rather than anything the document says.
   final Vector3? size;
 
@@ -71,6 +76,7 @@ final class Listed {
   Map<String, Object?> toJson() => <String, Object?>{
     'kind': kind.name,
     'index': index,
+    if (id != null) 'id': id,
     'what': what,
     'at': <double>[at.x, at.y, at.z],
     if (size != null) 'size': <double>[size!.x, size!.y, size!.z],
@@ -111,30 +117,86 @@ final class Listed {
 /// and the order they are written in the file, so the same document always
 /// produces the same listing and a diff of two listings is a diff of two
 /// documents.
-List<Listed> contentsOf(Level level) => <Listed>[
+List<ListedPiece> piecesOf(Level level) => <ListedPiece>[
   for (var i = 0; i < level.brushes.length; i++)
-    Listed(
+    ListedPiece(
       kind: Piece.brush,
       index: i,
+      id: level.brushes[i].id,
       what: level.brushes[i].material,
-      at: level.brushes[i].centre,
+      at: level.brushes[i].center,
       size: level.brushes[i].size,
     ),
   for (var i = 0; i < level.lights.length; i++)
-    Listed(
+    ListedPiece(
       kind: Piece.light,
       index: i,
-      what: level.lights[i].type.name,
+      id: level.lights[i].id,
+      what: level.lights[i].type.wireName,
       at: level.lights[i].position,
       name: level.lights[i].name,
     ),
   for (var i = 0; i < level.entities.length; i++)
-    Listed(
+    ListedPiece(
       kind: Piece.entity,
       index: i,
-      what: level.entities[i].type,
+      id: level.entities[i].id,
+      // An instance says which prefab, since `prefab` alone would read the
+      // same for every one of them.
+      what: switch (level.entities[i]) {
+        final EntityDef e when e.type == EntityTypes.prefab =>
+          'prefab ${e.properties['prefab']}',
+        final EntityDef e => e.type,
+      },
       at: level.entities[i].position,
       size: level.entities[i].vector('size'),
       name: level.entities[i].name,
     ),
 ];
+
+/// The level's prefabs, one block each: the id, then one line per entity of
+/// its template with the path an override addresses it by — what an agent
+/// needs before it can write `setOverride` or `setPrefabField`.
+///
+/// A nested instance's line names its prefab, and its own entities follow
+/// under the joined path, so every path an override can take is printed.
+String prefabListing(Level level) {
+  if (level.prefabs.isEmpty) return 'the level has no prefabs';
+  final lines = <String>[];
+  void walk(String id, String prefix, List<String> stack) {
+    final prefab = level.prefabs[id];
+    if (prefab == null) {
+      lines.add('  $prefix… prefab "$id" is missing');
+      return;
+    }
+    if (stack.contains(id)) {
+      lines.add('  $prefix… prefab "$id" contains itself');
+      return;
+    }
+    for (final entity in prefab.entities) {
+      final path = '$prefix${prefabSegment(entity)}';
+      final at = entity.position;
+      final nested = entity.type == EntityTypes.prefab
+          ? entity.properties['prefab']
+          : null;
+      lines.add(
+        '  $path${entity.name == null ? '' : ' "${entity.name}"'} · '
+        '${nested == null ? entity.type : 'prefab $nested'} at '
+        '${at.x}, ${at.y}, ${at.z}',
+      );
+      if (nested is String) walk(nested, '$path/', <String>[...stack, id]);
+    }
+  }
+
+  for (final id in level.prefabs.keys) {
+    final placed = level.entities
+        .where(
+          (EntityDef e) =>
+              e.type == EntityTypes.prefab && e.properties['prefab'] == id,
+        )
+        .length;
+    lines.add('prefab $id · $placed placed');
+    walk(id, '', const <String>[]);
+  }
+  return lines.join('\n');
+}

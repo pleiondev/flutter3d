@@ -1,6 +1,6 @@
 name: flutter3d_sim_mcp
 description: "A level an agent can play blind, of whatever game a host hands it — ai-00 — and why a frame of it is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran — par-02."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -15,55 +15,69 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: '>=3.44.0'
 
+# Declared rather than left to pub.dev's detector: an MCP server an agent starts
+# over stdio, playing levels headless in isolates through `dart:io` and
+# `dart:isolate`, on the desktop the game is made on.
+platforms:
+  linux:
+  macos:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter
 
   # The simulation every game steps through, and `HeadlessGame`/`HeadlessRun`
   # — what this server asks of a game. No genre: a host hands one in.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   # The physics a session's worlds run on: the core where it starts, the Dart
   # reference where it does not — and a recorded run replayed on whichever
   # it was recorded on.
-  flutter3d_physics_native: ^0.9.0
+  flutter3d_physics_native: ^1.0.0-rc.1
 
   # A level's own scene, a device with no GPU behind it, and the debug views
   # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
   # for `DiagnosticRenderer`, which draws both `frame`'s picture and the
   # diagnostic server's views. They were two packages, and a picture from the
   # sim server was already the diagnostic server's `lit` frame.
-  flutter3d: ^0.9.0
-  flutter3d_app: ^0.9.0
-  flutter3d_cpu: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_cpu: ^1.0.0-rc.1
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp_kit: ^0.9.0
+  flutter3d_mcp: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 
   dart_mcp: ">=0.5.2 <0.6.0"
 
+  # `Flutter3dFormatException`, which `ReadingPredicateException` extends.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-  # `@TestOn('vm')` and a plain `test()` — `test/sim_mcp_test.dart` and
-  # `test/fixtures/sim_mcp_server.dart`'s own launcher spawn a real
-  # subprocess and open a real socket, neither of which exists on the web,
-  # and `flutter_test`'s own re-export is not enough to name that
-  # dependency directly.
+  # `@TestOn('vm')` and a plain `test()` — the render server's test spawns a
+  # real subprocess and opens a real socket, neither of which exists on the
+  # web, and `flutter_test`'s own re-export is not enough to name that
+  # dependency directly. The crypt's playtests and the server that plays it
+  # (`sim_mcp_test.dart`, `claims_test.dart`, `playtest_test.dart`) live in
+  # `flutter3d_demo_content`'s `test/sim_mcp/`, beside the content they play,
+  # because pana resolves a dev dependency against pub.dev and that package
+  # is not published.
   test: ^1.25.0
 
-  # The game the suite plays: the shipped crypt, as `ShooterHeadlessGame`. A
-  # dev dependency, because composing a game with this server is a host's
-  # decision and the suite is the host here.
-  flutter3d_game_shooter: ^0.9.0
-
-# **Why this package needs Flutter, unlike `flutter3d_editor_mcp` and
-# `flutter3d_model_mcp`.** `frame` draws the level, and the renderer it draws
+# **Why this package needs Flutter, unlike `flutter3d_mcp/editor.dart` and
+# `flutter3d_mcp/model.dart`.** `frame` draws the level, and the renderer it draws
 # with (`flutter3d`, over `flutter3d_cpu`) needs `dart:ui`, which
 # does not compile under plain `dart run` — checked empirically, the same way
 # `rp-05` found it out for genre packages generally.

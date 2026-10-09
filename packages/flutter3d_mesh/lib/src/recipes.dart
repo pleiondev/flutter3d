@@ -189,8 +189,13 @@ List<Recipe> recipes() => <Recipe>[
 
 /// A turned column on a disc, under a tapered shade.
 EditMesh floorLamp({
+  /// In metres.
   double height = 1.55,
+
+  /// The shade's top radius, in metres.
   double shadeTop = 0.16,
+
+  /// The shade's bottom radius, in metres.
   double shadeBottom = 0.24,
 }) => joinMeshes(<PlacedMesh>[
   // The base is wide and shallow, because a lamp this tall falls over
@@ -304,14 +309,21 @@ EditMesh wallSconce() => joinMeshes(<PlacedMesh>[
 
 /// Four legs, a seat at 450 and a back a person can lean on.
 EditMesh diningChair({
+  /// The seat's height, in metres.
   double seat = 0.45,
+
+  /// In metres.
   double width = 0.44,
+
+  /// In metres.
   double depth = 0.44,
+
+  /// The top of the back, in metres.
   double back = 0.85,
 }) {
   const double leg = 0.035;
-  final double x = width / 2 - leg / 2;
-  final double z = depth / 2 - leg / 2;
+  final x = width / 2 - leg / 2;
+  final z = depth / 2 - leg / 2;
   return joinMeshes(<PlacedMesh>[
     for (final (double sx, double sz) in <(double, double)>[
       (-x, -z),
@@ -341,7 +353,7 @@ EditMesh diningChair({
 
 /// Three turned legs and a round top, at counter height.
 EditMesh stool({double height = 0.65, double top = 0.32}) {
-  final double radius = top / 2 - 0.05;
+  final radius = top / 2 - 0.05;
   return joinMeshes(<PlacedMesh>[
     for (var i = 0; i < 3; i++)
       PlacedMesh(
@@ -380,13 +392,18 @@ EditMesh stool({double height = 0.65, double top = 0.32}) {
 
 /// A 1600 by 900 top at 740, on four square legs.
 EditMesh diningTable({
+  /// In metres.
   double length = 1.6,
+
+  /// In metres.
   double width = 0.9,
+
+  /// In metres.
   double height = 0.74,
 }) {
   const double leg = 0.07;
-  final double x = length / 2 - leg;
-  final double z = width / 2 - leg;
+  final x = length / 2 - leg;
+  final z = width / 2 - leg;
   return joinMeshes(<PlacedMesh>[
     for (final (double sx, double sz) in <(double, double)>[
       (-x, -z),
@@ -425,8 +442,13 @@ EditMesh bench({double length = 1.4, double height = 0.45}) =>
 
 /// Two uprights and four shelves, open at the back.
 EditMesh shelfUnit({
+  /// In metres.
   double width = 0.8,
+
+  /// In metres.
   double height = 1.8,
+
+  /// In metres.
   double depth = 0.32,
   int shelves = 4,
 }) => joinMeshes(<PlacedMesh>[
@@ -448,8 +470,13 @@ EditMesh shelfUnit({
 
 /// A closed box on a plinth, with two doors and handles.
 EditMesh cabinet({
+  /// In metres.
   double width = 0.9,
+
+  /// In metres.
   double height = 0.85,
+
+  /// In metres.
   double depth = 0.45,
 }) => joinMeshes(<PlacedMesh>[
   PlacedMesh(

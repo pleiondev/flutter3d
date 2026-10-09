@@ -9,7 +9,7 @@ import 'package:vm_service/vm_service.dart';
 import 'play_state.dart';
 import 'watched.dart';
 
-/// One event a game posted with `flutter3d_game`'s `postGameEvent`.
+/// One event a game posted with `flutter3d_game`'s `postToolEvent`.
 final class PostedEvent {
   const PostedEvent({
     required this.sequence,
@@ -59,9 +59,9 @@ final class GameEventLog {
   int _last = 0;
 
   /// Listens to [service]'s `Extension` stream, where `postEvent` goes, and
-  /// keeps what [take] keeps. The subscription is the caller's to cancel.
+  /// keeps what [record] keeps. The subscription is the caller's to cancel.
   Future<StreamSubscription<Event>> listenTo(VmService service) async {
-    final listening = service.onExtensionEvent.listen(take);
+    final listening = service.onExtensionEvent.listen(record);
     try {
       await service.streamListen(EventStreams.kExtension);
     } on RPCError {
@@ -74,7 +74,7 @@ final class GameEventLog {
   /// Keeps [event] when the game posted it: an `Extension` event whose kind
   /// starts with [prefix]. Flutter's own (`Flutter.Frame`, `Flutter.Navigation`)
   /// and everything else on the stream are left out.
-  void take(Event event) {
+  void record(Event event) {
     final kind = event.extensionKind;
     if (kind == null || !kind.startsWith(prefix)) return;
     events.value = appendCapped(

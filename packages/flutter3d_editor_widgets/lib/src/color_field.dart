@@ -382,6 +382,8 @@ class _ChannelSlider extends StatelessWidget {
 
   final String label;
   final String semanticLabel;
+
+  /// Where the slider sits, a 0..1 fraction of its track.
   final double value;
   final ValueChanged<double> onChanged;
   final bool enabled;

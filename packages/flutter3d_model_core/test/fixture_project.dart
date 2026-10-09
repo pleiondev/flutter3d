@@ -17,6 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -60,7 +61,7 @@ ModelProject fixtureProject() {
                 version: 3,
                 surface: SurfaceMaterial(
                   name: 'brass',
-                  baseColor: Vector4(0.8, 0.6, 0.2, 1.0),
+                  baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.2, 1.0),
                   metallic: 0.75,
                   roughness: 0.125,
                   baseColorTexture: const TextureBinding(

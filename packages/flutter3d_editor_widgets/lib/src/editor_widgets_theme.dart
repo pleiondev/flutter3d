@@ -40,18 +40,19 @@ final class EditorWidgetsTheme extends ThemeExtension<EditorWidgetsTheme> {
   );
 
   /// The height of one row in a properties panel: a `NumberField`, a
-  /// `ColorField`'s own swatch, a slider row.
+  /// `ColorField`'s own swatch, a slider row. In logical pixels.
   final double rowHeight;
 
   /// How wide a row's own leading label column is — `FieldRow`'s own name
-  /// column, once it arrives.
+  /// column, once it arrives. In logical pixels.
   final double labelWidth;
 
-  /// The corner radius a text field or a swatch draws with.
+  /// The corner radius a text field or a swatch draws with, in logical
+  /// pixels.
   final double fieldRadius;
 
   /// The edge of a square texture thumbnail — `TextureSlotRow`'s own
-  /// preview, once it arrives.
+  /// preview, once it arrives. In logical pixels.
   final double thumbnailSize;
 
   /// The `EditorWidgetsTheme` registered on the ambient `ThemeData`, or

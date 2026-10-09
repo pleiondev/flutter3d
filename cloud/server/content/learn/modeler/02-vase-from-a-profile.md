@@ -202,7 +202,7 @@ The profile editor is the Lathe dialog as it opens, with the curve it starts
 from and the live preview of what turning it makes — which is what the step
 above describes before anything is dragged.
 
-**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+**Proving it.** `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case2_scenario.dart` builds exactly the project this page describes,
 against a live `ModelSession` — `session.select` then `session.run`, the
 same two calls an agent over MCP or a person clicking through the app

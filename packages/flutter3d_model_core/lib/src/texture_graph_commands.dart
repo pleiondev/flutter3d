@@ -49,7 +49,7 @@ TextureNode? _textureNodeWith(TextureNode node, String field, Object? value) {
   };
   try {
     return TextureNode.fromJson(json);
-  } on FormatException {
+  } on TextureGraphFormatException {
     return null;
   }
 }
@@ -138,7 +138,7 @@ final class AddNode extends ModelCommand {
         'kind': kind,
         ...fields,
       });
-    } on FormatException catch (error) {
+    } on TextureGraphFormatException catch (error) {
       return Outcome.refused('"$kind" did not make a node: ${error.message}');
     }
     final TextureGraph graph = material.graph ?? const TextureGraph();
@@ -162,6 +162,7 @@ final class AddNode extends ModelCommand {
         clips: project.clips,
         lighting: project.lighting,
         animationGraphs: project.animationGraphs,
+        unknown: project.unknown,
       ),
     );
   }
@@ -377,7 +378,11 @@ final class MoveNode extends ModelCommand {
 
   final int materialIndex;
   final int nodeId;
+
+  /// In logical pixels of the panel's canvas.
   final double x;
+
+  /// In logical pixels of the panel's canvas.
   final double y;
 
   @override

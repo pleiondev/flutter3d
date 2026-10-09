@@ -121,7 +121,7 @@ void main() {
       expect(plan.overlapAfter, 0.0);
       expect(plan.moves, hasLength(greaterThanOrEqualTo(2)));
       expect(plan.holds, isTrue);
-      expect(plan.changes, isTrue);
+      expect(plan.hasChanges, isTrue);
       expect(level.lights, hasLength(3), reason: 'the level was changed');
     });
 
@@ -147,7 +147,7 @@ void main() {
         previewAfter: Uint8List(4),
       );
 
-      expect(plan.changes, isFalse);
+      expect(plan.hasChanges, isFalse);
       expect(plan.says, contains('misses the bounds'));
     });
 

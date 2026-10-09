@@ -15,7 +15,7 @@
 /// an application-layer type `flutter3d_mesh` cannot import — this package
 /// sits *under* the app, not above it. [simplifyMesh] instead takes
 /// [onProgress] (called every 1000 collapses, the row's own batch size) and
-/// [isCancelled] (polled at the same cadence), a dependency-free surface the
+/// [isCanceled] (polled at the same cadence), a dependency-free surface the
 /// app's own `Job` can wrap without this package ever knowing `Job` exists —
 /// the same boundary call `anim-15`, `anim-20` and `anim-10` already made for
 /// the engine's `Pose`/`MorphSink`/`SkinBlend`.
@@ -53,15 +53,17 @@ import 'attributes.dart';
 /// itself, which overstates the true figure by roughly two (each collapse
 /// ordinarily removes two triangles, not one), close enough for a progress
 /// bar without pretending to know the exact count before the run finishes.
-/// [isCancelled], polled at the same cadence, stops the pass early and
+/// [isCanceled], polled at the same cadence, stops the pass early and
 /// returns whatever has been simplified so far — still a valid mesh, just
 /// not yet at [targetTriangleCount].
 MeshData simplifyMesh(
   MeshData mesh, {
   required int targetTriangleCount,
+
+  /// The cosine of the largest turn allowed, a unitless ratio.
   double flipThreshold = 0.0,
   void Function(int collapsesDone, int collapsesTotal)? onProgress,
-  bool Function()? isCancelled,
+  bool Function()? isCanceled,
 }) {
   if (mesh.triangleCount <= targetTriangleCount) return mesh;
 
@@ -70,7 +72,7 @@ MeshData simplifyMesh(
     targetTriangleCount: targetTriangleCount,
     flipThreshold: flipThreshold,
     onProgress: onProgress,
-    isCancelled: isCancelled,
+    isCanceled: isCanceled,
   );
   return simplifier.toMeshData();
 }
@@ -112,6 +114,8 @@ const int _quadricSize = 10;
 /// the two sides of a seam keep their own UV and normal.
 Int32List weldCoincidentPositions(
   Float64List positions, {
+
+  /// The weld distance as a fraction of the bounding box's diagonal.
   double epsilonScale = 1e-5,
 }) {
   final vertexCount = positions.length ~/ 3;
@@ -459,7 +463,7 @@ class _Simplifier {
     required int targetTriangleCount,
     required double flipThreshold,
     void Function(int collapsesDone, int collapsesTotal)? onProgress,
-    bool Function()? isCancelled,
+    bool Function()? isCanceled,
   }) {
     var liveTriangleCount = _triangleAlive.fold<int>(
       0,
@@ -555,7 +559,7 @@ class _Simplifier {
       collapsesDone++;
       if (collapsesDone % 1000 == 0) {
         onProgress?.call(collapsesDone, collapsesNeeded);
-        if (isCancelled?.call() ?? false) return;
+        if (isCanceled?.call() ?? false) return;
       }
     }
     onProgress?.call(collapsesDone, collapsesNeeded);
@@ -816,10 +820,14 @@ MeshData simplifyMeshWithAttributes(
   MeshData mesh, {
   required int targetTriangleCount,
   double? targetError,
+
+  /// The cosine of the largest turn allowed, a unitless ratio.
   double flipThreshold = 0.0,
+
+  /// A unitless multiplier on the boundary quadric.
   double boundaryWeight = 1000.0,
   void Function(int collapsesDone, int collapsesTotal)? onProgress,
-  bool Function()? isCancelled,
+  bool Function()? isCanceled,
 }) => simplifyMeshWithAttributesMeasured(
   mesh,
   targetTriangleCount: targetTriangleCount,
@@ -827,7 +835,7 @@ MeshData simplifyMeshWithAttributes(
   flipThreshold: flipThreshold,
   boundaryWeight: boundaryWeight,
   onProgress: onProgress,
-  isCancelled: isCancelled,
+  isCanceled: isCanceled,
 ).mesh;
 
 /// What [simplifyMeshWithAttributesMeasured] made, and how far it had to bend
@@ -864,10 +872,14 @@ SimplifiedMesh simplifyMeshWithAttributesMeasured(
   MeshData mesh, {
   required int targetTriangleCount,
   double? targetError,
+
+  /// The cosine of the largest turn allowed, a unitless ratio.
   double flipThreshold = 0.0,
+
+  /// A unitless multiplier on the boundary quadric.
   double boundaryWeight = 1000.0,
   void Function(int collapsesDone, int collapsesTotal)? onProgress,
-  bool Function()? isCancelled,
+  bool Function()? isCanceled,
 }) {
   if (mesh.triangleCount <= targetTriangleCount) {
     return (mesh: mesh, error: 0.0);
@@ -882,7 +894,7 @@ SimplifiedMesh simplifyMeshWithAttributesMeasured(
     targetError: targetError,
     flipThreshold: flipThreshold,
     onProgress: onProgress,
-    isCancelled: isCancelled,
+    isCanceled: isCanceled,
   );
   return (mesh: simplifier.toMeshData(), error: math.sqrt(worstCost));
 }
@@ -1391,7 +1403,7 @@ class _AttributedSimplifier {
     required double flipThreshold,
     double? targetError,
     void Function(int collapsesDone, int collapsesTotal)? onProgress,
-    bool Function()? isCancelled,
+    bool Function()? isCanceled,
   }) {
     var liveTriangleCount = _triangleAlive.fold<int>(
       0,
@@ -1530,7 +1542,7 @@ class _AttributedSimplifier {
       collapsesDone++;
       if (collapsesDone % 1000 == 0) {
         onProgress?.call(collapsesDone, collapsesNeeded);
-        if (isCancelled?.call() ?? false) return worstCost;
+        if (isCanceled?.call() ?? false) return worstCost;
       }
     }
     onProgress?.call(collapsesDone, collapsesNeeded);

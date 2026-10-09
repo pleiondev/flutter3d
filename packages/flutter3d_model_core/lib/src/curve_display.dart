@@ -57,6 +57,8 @@ List<(double, double)> curveSamples(
   KeyTable table,
   int keyIndex,
   int component, {
+
+  /// In seconds.
   double handleLength = 0.1,
 }) {
   final key = table.keys[keyIndex];

@@ -40,6 +40,8 @@ OpResult loopCut(
   EditMesh mesh,
   Selection selection, {
   int cuts = 1,
+
+  /// A 0..1 fraction of the edge, from the picked end.
   double factor = 0.5,
 }) {
   if (cuts < 1) {

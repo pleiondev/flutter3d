@@ -49,7 +49,11 @@ final class PlayStopped extends PlayState {
 /// same — read its console, swap in new code, open its timeline, send it the
 /// saved level — and a second panel would be a second place for that to
 /// drift.
-abstract interface class PlayedGame {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class PlayedGame {
   /// What the panel's title says: the project, or the address attached to.
   String get title;
 
@@ -61,7 +65,7 @@ abstract interface class PlayedGame {
   /// Every line the game has printed, oldest first, capped.
   Watched<List<String>> get console;
 
-  /// Every event the game posted with `postGameEvent` while it was watched,
+  /// Every event the game posted with `postToolEvent` while it was watched,
   /// oldest first, capped like [console]; [eventsSince] reads it by cursor.
   ///
   /// **Beside the console, not in it.** A line is for a person to read and
@@ -81,8 +85,13 @@ abstract interface class PlayedGame {
   Future<String?> hotRestart();
 
   /// Ends the game when [ownsTheGame], and lets go of it otherwise.
+  ///
+  /// A state transition, not a teardown: [start] may follow it, and this
+  /// object stays usable. [dispose] is the teardown.
   Future<void> stop();
 
+  /// Stops the run if there is one and lets go of everything this holds.
+  /// Nothing may be called after it.
   Future<void> dispose();
 }
 

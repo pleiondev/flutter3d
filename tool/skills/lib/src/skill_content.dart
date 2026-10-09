@@ -119,7 +119,7 @@ view can be switched on for one frame and off for the next with no
 `SkySettings`'s colours (`zenith`, `horizon`, `nadir`, `sunColor`) are
 linear and scene-referred: they are multiplied by `RenderSettings.exposure`
 and pass through the tone curve exactly like everything else in the frame.
-`RenderView.clearColor`, by contrast, is decoded from sRGB by the renderer.
+`RenderView.clearColorSrgb`, by contrast, is decoded from sRGB by the renderer.
 The first sky value copied from a colour picker will look far too bright,
 and it reads as a shader defect rather than as the units mismatch it is.
 
@@ -141,8 +141,8 @@ room away, so no single value worked as both "thick enough to be a surface a
 ray can land in" and "thin enough that a distant wall does not always
 count as a hit"). If a screen-space reflection or occlusion setting is
 being hand-tuned and nothing seems to respond, check which quantities are
-metres and which are texels or degrees before assuming the pass itself is
-broken — `SkySettings.sunAngularRadiusDegrees` and
+metres and which are texels or radians before assuming the pass itself is
+broken — `SkySettings.sunAngularRadius` and
 `AmbientOcclusionSettings.radius` are two more that look interchangeable
 and are not.
 
@@ -185,7 +185,7 @@ one; `LodGroup.select` takes an explicit `verticalFieldOfView` (or
 
 ## Anisotropy is one number, clamped for you
 
-`RenderSettings.anisotropy` is clamped to `GraphicsDevice.maxAnisotropy`
+`RenderSettings.anisotropy` is clamped to `DeviceLimits.maxSamplerAnisotropy`
 before it reaches a sampler, so asking for sixteen is always safe — a
 device that only filters isotropically simply draws the picture it always
 drew, with no branch a game has to write for it. The setting only touches

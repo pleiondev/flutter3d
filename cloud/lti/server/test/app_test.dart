@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 import 'package:flutter3d_lti_service/src/config.dart';
 import 'package:flutter3d_lti_service/src/http/app.dart';
 import 'package:http/http.dart' as http;
@@ -346,7 +346,7 @@ void main() {
           privateKey: toolPair.privateKey,
           publicKey: toolPair.publicKey,
         ),
-        lrs: XapiLrsConfig(
+        lrs: XapiLrsSettings(
           statementsEndpoint: Uri.parse('https://lrs.example.test/statements'),
           authorizationHeader: 'Basic dGVzdDp0ZXN0',
         ),

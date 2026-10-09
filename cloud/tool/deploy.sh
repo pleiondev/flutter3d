@@ -12,8 +12,21 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 host="${MODELS_HOST:-bob}"
 target="${MODELS_PATH:-/opt/flutter3d-models}"
 
+# Whether models can be edited is the unit's MODELS_EDITOR, and the viewer is
+# compiled to match it: a view-only build beside a server that accepts saves,
+# or the editor beside one that refuses them, is a page that lies. Read first,
+# so a unit that predates the setting stops the deploy before anything is
+# built.
+editor="$(ssh "$host" "systemctl show flutter3d-models -p Environment" | grep -o 'MODELS_EDITOR=[a-z]*' | cut -d= -f2 || true)"
+if [ -z "$editor" ]; then
+  echo "the unit on $host does not set MODELS_EDITOR." >&2
+  echo "copy cloud/deploy/flutter3d-models.service to /etc/systemd/system/, run" >&2
+  echo "'systemctl daemon-reload', and deploy again." >&2
+  exit 1
+fi
+
 "$here/tool/build_server.sh"
-"$here/tool/build_viewer.sh"
+MODELS_EDITOR="$editor" "$here/tool/build_viewer.sh"
 
 ssh "$host" "mkdir -p $target/assets $target/app $target/learn"
 

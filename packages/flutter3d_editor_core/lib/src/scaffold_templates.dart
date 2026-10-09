@@ -37,26 +37,22 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.9.0
-  flutter3d_game: ^0.9.0
-  flutter3d_sim: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
 
-  # The assembly layer, which this seed used to leave out — and with it the
-  # settings screen, the key rebinding, the pointer capture and the gamepad.
-  # A scaffolded project got a window and a level and no way to turn the
-  # volume down, which is not a starting point anybody would choose.
-  #
-  # It picks the game's backend the way the three demos do rather than naming
-  # Impeller here: a project that names one backend has no web build and no
-  # software fallback.
-  flutter3d_app: ^0.9.0
+  # The widgets over the game: the settings and rebinding screens, touch
+  # controls, the HUD, and the words they say in the player's language.
+  flutter3d_game_ui: ^1.0.0-rc.1
 
-  # Sound, which the seed also had none of.
-  flutter3d_audio: ^0.9.0
+  # The assembly layer under `Flutter3dView`: the backend chooser with its
+  # software fallback, the save file, the gamepad and the pointer capture.
+  flutter3d_app: ^1.0.0-rc.1
+
+  # Sound, placed where the view's camera is.
+  flutter3d_audio: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
-  flutter_bloc: ^9.1.1
 
 dev_dependencies:
   flutter_test:
@@ -101,10 +97,7 @@ assets/models/*.glb       a model per kind of thing
 
 ## Opening it again
 
-```sh
-cd <the flutter3d checkout>/apps/flutter3d_editor
-flutter run -d macos --dart-define=level=<this directory>/assets/levels/first.json
-```
+Open `assets/levels/first.json` in the flutter3d level editor.
 
 ## Running it
 
@@ -139,21 +132,25 @@ fallback's rather than the engine's. If you see that line, these keys are why.
 flutter run -d macos
 ```
 
-**Use the same Flutter the checkout uses.** A different one writes a macOS
-project targeting an older system than the packages support, and the build then
-fails with a deployment-target error that has nothing to do with this project.
-`flutter --version` in the checkout says which one that is.
+**Use a Flutter the packages support** (their `environment:` says which). An
+older one writes a macOS project targeting an older system than the packages
+support, and the build then fails with a deployment-target error that has
+nothing to do with this project.
 
 ## What `lib/main.dart` is, and is not
 
-**A seed, not a game.** It reads the level, builds it, and puts a body in it
-that walks, looks and jumps. What it deliberately does not do is anything a
-*genre* does: nothing to fight, nothing to collect, no doors that open, no
-score, no menu, no saving.
+**A seed, not a game.** It is a `Flutter3dView`, which opens the device, makes
+the renderer, runs the engine's loop and owns focus and the lifecycle. Into
+that loop it installs a small genre of its own, a body that walks, looks and
+jumps through the level, steered by an `ActionMap` and saying on the event bus
+when it lands. What it deliberately does not do is anything a real genre does:
+nothing to fight, nothing to collect, no doors that open, no score, no menu,
+no saving.
 
-Those live in `flutter3d_game_shooter` and `flutter3d_game_platformer`, and wiring one up
-is the next thing to do. Each of the three games in the flutter3d checkout keeps
-that wiring in its own `lib/src/staging.dart`, which is the file to read first.
+Those live in `flutter3d_game_shooter` and `flutter3d_game_platformer`, and
+installing one in place of the seed's own is the next thing to do: each is a
+`GenrePlugin` handed to the view's `plugins`, with the run it steps set when a
+level is up.
 
 ## What is wired, and what is only available
 
@@ -161,18 +158,17 @@ The `pubspec.yaml` brings `flutter3d_app`, which is the assembly layer: the
 settings and rebinding screens, the save file, the gamepad, and desktop pointer
 capture. It also brings `flutter3d_audio`.
 
-**None of that is wired into `lib/main.dart`.** The seed opens a device, reads
-a level, and walks a body around it — that is all. What the packages give you
-is that adding each of these is an import and a few lines rather than a
-package decision:
+**Not all of that is wired into `lib/main.dart`.** The seed reads a level and
+walks a body around it, on the keyboard through its `ActionMap`. What the
+packages give you is that adding each of the rest is an import and a few lines
+rather than a package decision:
 
-* a settings screen — `SettingsCubit`, `SettingsOverlay`, `SettingsFile`;
-* key and pad rebinding — the same screen, once `actions` is a list of what
-  this game lets a player change;
-* sound — `openSpeakers`, then `AudioScene.play` where something happens;
-* a gamepad — `PadInput`, ticked once a frame beside the keyboard;
+* a settings screen — `GameSettings` and `SettingsFile` from `flutter3d_game`,
+  `SettingsOverlay` from `flutter3d_game_ui`;
+* key and pad rebinding — the same screen, over the seed's `ActionMap`;
+* sound — `openSpeakers`, which throws when there is no audio device, then
+  `AudioScene.play` where something happens, with the listener placed from
+  the view's `onListenerMoved`;
+* a gamepad — `PadInput`, over the same `ActionMap`;
 * pointer capture for a first-person camera — `PointerLock`.
-
-The crypt's `lib/main.dart` in the flutter3d checkout wires all five, and is
-the worked example for each.
 ''';

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show PictureAnswer;
+import 'package:flutter3d_mcp/kit.dart' show PictureAnswer;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 

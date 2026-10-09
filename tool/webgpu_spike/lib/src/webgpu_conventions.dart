@@ -60,6 +60,29 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.astc8x8LDRSRGB => 'astc-8x8-unorm-srgb',
   TextureFormat.astc4x4HDR => null,
   TextureFormat.astc8x8HDR => null,
+  // The 1.0 tail, every one of which WebGPU spells. Named here so the table
+  // stays the whole answer; the spike allocates none of them — its
+  // `textureFormatSupport` answers none for each.
+  TextureFormat.r8g8b8a8SNormInt => 'rgba8snorm',
+  TextureFormat.r8g8b8a8UInt => 'rgba8uint',
+  TextureFormat.r8g8b8a8SInt => 'rgba8sint',
+  TextureFormat.r16Float => 'r16float',
+  TextureFormat.r16g16Float => 'rg16float',
+  TextureFormat.r16g16b16a16UInt => 'rgba16uint',
+  TextureFormat.r16g16b16a16SInt => 'rgba16sint',
+  TextureFormat.r32UInt => 'r32uint',
+  TextureFormat.r32SInt => 'r32sint',
+  TextureFormat.r32g32Float => 'rg32float',
+  TextureFormat.r32g32UInt => 'rg32uint',
+  TextureFormat.r32g32SInt => 'rg32sint',
+  TextureFormat.r32g32b32a32UInt => 'rgba32uint',
+  TextureFormat.r32g32b32a32SInt => 'rgba32sint',
+  TextureFormat.r10g10b10a2UNormInt => 'rgb10a2unorm',
+  TextureFormat.r11g11b10UFloat => 'rg11b10ufloat',
+  TextureFormat.r9g9b9e5UFloat => 'rgb9e5ufloat',
+  TextureFormat.d16UNormInt => 'depth16unorm',
+  TextureFormat.d32Float => 'depth32float',
+  _ => null,
 };
 
 /// The blend factor WebGPU calls [factor], or null where it has none.
@@ -97,12 +120,24 @@ String? gpuBlendFactor(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusBlendColor => 'one-minus-constant',
   BlendFactor.blendAlpha => null,
   BlendFactor.oneMinusBlendAlpha => null,
+  // WebGPU's `dual-source-blending` spellings. The spike reports no such
+  // feature and its `setBlend` refuses them first; the names are here so the
+  // table is the whole answer.
+  BlendFactor.source1Color => 'src1',
+  BlendFactor.oneMinusSource1Color => 'one-minus-src1',
+  BlendFactor.source1Alpha => 'src1-alpha',
+  BlendFactor.oneMinusSource1Alpha => 'one-minus-src1-alpha',
 };
 
+/// Every operation has a spelling; [BlendOperation.min] and
+/// [BlendOperation.max] are core in WebGPU, and refused by the spike's
+/// `setBlend` only because the spike lists no `minMaxBlend`.
 String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.add => 'add',
   BlendOperation.subtract => 'subtract',
   BlendOperation.reverseSubtract => 'reverse-subtract',
+  BlendOperation.min => 'min',
+  BlendOperation.max => 'max',
 };
 
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
@@ -242,6 +277,7 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.sint32x2 => 'sint32x2',
   VertexFormat.sint32x3 => 'sint32x3',
   VertexFormat.sint32x4 => 'sint32x4',
+  _ => throw UnsupportedError('WebGPU has no vertex format for $format'),
 };
 
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {

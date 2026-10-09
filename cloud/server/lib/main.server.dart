@@ -61,7 +61,8 @@ Future<void> main(List<String> arguments) async {
     blobs: FileBlobStore(config.blobDirectory),
     // No games: every genre in the repository needs Flutter, which a server
     // started with `dart run` does not have. A deploy that plays one builds
-    // its own entry point and names it here.
+    // its own entry point and passes `headlessGamesOf(genres)` here, which
+    // asks every genre plugin the same question.
     telemetryLevels: telemetryLevels,
   );
   Services.instance = services;

@@ -17,6 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -186,7 +187,7 @@ List<({int kind, int offset, int length, int count})> directoryOf(
   final view = ByteData.sublistView(file);
   final entries = <({int kind, int offset, int length, int count})>[];
   for (var i = 0; i < view.getUint32(8, Endian.little); i++) {
-    final at = kProjectHeaderBytes + i * kProjectSectionEntryBytes;
+    final at = projectHeaderBytes + i * projectSectionEntryBytes;
     entries.add((
       kind: view.getUint32(at, Endian.little),
       offset: view.getUint32(at + 4, Endian.little),
@@ -218,7 +219,7 @@ List<(int, Uint8List, int)> sectionsOf(
 Uint8List fileOf(List<(int, Uint8List, int)> sections, {int? claimSections}) {
   final offsets = <int>[];
   var at = align(
-    kProjectHeaderBytes + sections.length * kProjectSectionEntryBytes,
+    projectHeaderBytes + sections.length * projectSectionEntryBytes,
   );
   for (final (_, data, _) in sections) {
     offsets.add(at);
@@ -236,17 +237,17 @@ Uint8List fileOf(List<(int, Uint8List, int)> sections, {int? claimSections}) {
   final out = Uint8List(at);
   final view = ByteData.sublistView(out);
   view
-    ..setUint32(0, kProjectMagic, Endian.little)
-    ..setUint32(4, kProjectVersion, Endian.little)
+    ..setUint32(0, projectMagic, Endian.little)
+    ..setUint32(4, projectVersion, Endian.little)
     ..setUint32(8, claimSections ?? sections.length, Endian.little)
     ..setUint32(
-      kProjectChecksumOffset,
+      projectChecksumOffset,
       checksums.isEmpty ? 0 : crc32(checksums.first),
       Endian.little,
     );
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int count) = sections[i];
-    final entry = kProjectHeaderBytes + i * kProjectSectionEntryBytes;
+    final entry = projectHeaderBytes + i * projectSectionEntryBytes;
     view
       ..setUint32(entry, kind, Endian.little)
       ..setUint32(entry + 4, offsets[i], Endian.little)
@@ -408,9 +409,9 @@ void main() {
       final baseProject = sample();
       final before = baseProject.withObject(
         baseProject.objects.first.copyWith(
-          lods: const <LodSpec>[
-            LodSpec(ratio: 0.5, maxScreenFraction: 0.3),
-            LodSpec(ratio: 0.1, maxScreenFraction: 0.05),
+          lods: const <LodSettings>[
+            LodSettings(ratio: 0.5, maxScreenFraction: 0.3),
+            LodSettings(ratio: 0.1, maxScreenFraction: 0.05),
           ],
         ),
       );
@@ -761,7 +762,7 @@ void main() {
       expect(directory[4].length, 0);
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
-      expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
+      expect(directory[5].length, 5 * projectChecksumEntryBytes);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -772,9 +773,9 @@ void main() {
       // two below go red together.
       final view = ByteData.sublistView(bytes);
       final blob = directory[2];
-      for (var i = 0; i < directory[1].length ~/ kProjectMeshEntryBytes; i++) {
+      for (var i = 0; i < directory[1].length ~/ projectMeshEntryBytes; i++) {
         final at = view.getUint32(
-          directory[1].offset + i * kProjectMeshEntryBytes,
+          directory[1].offset + i * projectMeshEntryBytes,
           Endian.little,
         );
         expect(at % 4, 0, reason: 'mesh $i inside the blob');
@@ -787,12 +788,12 @@ void main() {
       // Every record is a whole number of four-byte fields, which is what lets
       // the layout above hold; and the kinds are numbers chosen once, because
       // they are in every file already saved.
-      expect(kProjectHeaderBytes % 4, 0);
-      expect(kProjectSectionEntryBytes % 4, 0);
-      expect(kProjectMeshEntryBytes % 4, 0);
-      expect(kProjectImportedEntryBytes % 4, 0);
-      expect(kProjectImageEntryBytes % 4, 0);
-      expect(kProjectChecksumEntryBytes % 4, 0);
+      expect(projectHeaderBytes % 4, 0);
+      expect(projectSectionEntryBytes % 4, 0);
+      expect(projectMeshEntryBytes % 4, 0);
+      expect(projectImportedEntryBytes % 4, 0);
+      expect(projectImageEntryBytes % 4, 0);
+      expect(projectChecksumEntryBytes % 4, 0);
       expect(
         <int>{
           ProjectSection.manifest,
@@ -804,7 +805,7 @@ void main() {
         },
         <int>{1, 2, 3, 4, 5, 6},
       );
-      expect(kProjectMagic, 0x50443346);
+      expect(projectMagic, 0x50443346);
     });
   });
 
@@ -944,7 +945,7 @@ void main() {
       final bytes = writeProject(sample());
       ByteData.sublistView(
         bytes,
-      ).setUint32(4, kProjectVersion + 1, Endian.little);
+      ).setUint32(4, projectVersion + 1, Endian.little);
       expect(
         refusal(bytes),
         'This project was written by version 2 and this build reads version 1. '
@@ -1221,7 +1222,7 @@ void main() {
       // sentence — but the sentence blames the mesh's bytes for a table entry
       // that is the thing pointing off the end. The guard buys the right
       // sentence rather than the refusal.
-      final table = Uint8List(kProjectMeshEntryBytes);
+      final table = Uint8List(projectMeshEntryBytes);
       ByteData.sublistView(table)
         ..setUint32(0, 0, Endian.little)
         ..setUint32(4, 64, Endian.little);
@@ -1241,7 +1242,7 @@ void main() {
       // Mutation: narrow the catch to `StateError` and `EditMesh.fromBytes`
       // throws its own 'not an editable mesh' out through `readProject`, which
       // is the rule this file is built on broken in one word.
-      final table = Uint8List(kProjectMeshEntryBytes);
+      final table = Uint8List(projectMeshEntryBytes);
       ByteData.sublistView(table)
         ..setUint32(0, 0, Endian.little)
         ..setUint32(4, 8, Endian.little);
@@ -1319,7 +1320,7 @@ void main() {
     /// would have had anyway.
     SurfaceMaterial painted() => SurfaceMaterial(
       name: 'brass',
-      baseColor: Vector4(0.1, 0.2, 0.3, 0.4),
+      baseColor: LinearColor.fromSrgb(0.1, 0.2, 0.3, 0.4),
       metallic: 0.75,
       roughness: 0.125,
       baseColorTexture: const TextureBinding(
@@ -1336,7 +1337,7 @@ void main() {
       normalTexture: const TextureBinding(imageIndex: 0),
       normalScale: 0.625,
       occlusionStrength: 0.375,
-      emissive: Vector3(0.05, 0.15, 0.25),
+      emissive: LinearColor(0.05, 0.15, 0.25),
       emissiveStrength: 2.5,
       alphaMode: SurfaceAlphaMode.mask,
       alphaCutoff: 0.875,
@@ -1626,7 +1627,7 @@ void main() {
     });
 
     test('an image table and a manifest that disagree are refused', () {
-      final table = Uint8List(kProjectImageEntryBytes);
+      final table = Uint8List(projectImageEntryBytes);
       final bytes = forge(
         <String, Object?>{
           ...manifestOf(<Map<String, Object?>>[objectJson()]),
@@ -2019,7 +2020,7 @@ void main() {
       // re-opening it gives two meshes where the document had one — so an edit
       // to the shared mesh stops reaching both objects.
       expect(table.count, 1);
-      expect(table.length, kProjectImportedEntryBytes);
+      expect(table.length, projectImportedEntryBytes);
 
       final after = opened(bytes);
       expect(
@@ -2058,7 +2059,7 @@ void main() {
       int blobBytes = 36,
       int vertexAt = 0,
     }) {
-      final table = Uint8List(kProjectImportedEntryBytes);
+      final table = Uint8List(projectImportedEntryBytes);
       ByteData.sublistView(table)
         ..setUint32(0, vertexAt, Endian.little)
         ..setUint32(4, vertexBytes, Endian.little)
@@ -2220,13 +2221,13 @@ void main() {
       final claiming = Uint8List.fromList(bytes);
       ByteData.sublistView(
         claiming,
-      ).setUint32(kProjectChecksumOffset, 99, Endian.little);
+      ).setUint32(projectChecksumOffset, 99, Endian.little);
 
       expect(refusal(claiming), contains('a table this file does not have'));
     });
 
     test('the checksums naming a section the directory lacks are refused', () {
-      final table = Uint8List(kProjectChecksumEntryBytes);
+      final table = Uint8List(projectChecksumEntryBytes);
       ByteData.sublistView(table)
         ..setUint32(0, 77, Endian.little)
         ..setUint32(4, 0, Endian.little);
@@ -2357,17 +2358,17 @@ void main() {
     /// the fact would be caught by its own checksums first — which is what
     /// the checksums are for, and not what these tests are about.
     Uint8List fileNaming(Object? record, {int rows = 1, int floats = 6}) {
-      final table = Uint8List(rows * kProjectSimulationEntryBytes);
+      final table = Uint8List(rows * projectSimulationEntryBytes);
       final view = ByteData.sublistView(table);
       for (var i = 0; i < rows; i++) {
         view
           ..setUint32(
-            i * kProjectSimulationEntryBytes,
+            i * projectSimulationEntryBytes,
             i * floats * 4,
             Endian.little,
           )
           ..setUint32(
-            i * kProjectSimulationEntryBytes + 4,
+            i * projectSimulationEntryBytes + 4,
             floats * 4,
             Endian.little,
           );

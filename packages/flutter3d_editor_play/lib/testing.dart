@@ -81,7 +81,7 @@ final class FakeGame {
   });
 
   /// The game calling `dart:developer`'s `postEvent` with [kind] and
-  /// [data] — `flutter3d_game`'s `postGameEvent` posts `flutter3d.<kind>` —
+  /// [data] — `flutter3d_game`'s `postToolEvent` posts `flutter3d.<kind>` —
   /// at [time], milliseconds since the epoch as the VM stamps it.
   void posts(
     String kind, [

@@ -5,7 +5,7 @@
 /// in any [ModelProject].** Writing those in by hand — a loop of
 /// [ModelProject.added], a `copyWith` for the skeleton list, a second
 /// `copyWith` for [ModelObject.skeletonIndex] — used to happen inline in
-/// `flutter3d_model_mcp`'s own `autoRig` recipe, through [ReplaceDocument];
+/// `flutter3d_mcp/model.dart`'s own `autoRig` recipe, through [ReplaceDocument];
 /// [ReplaceDocument] is deliberately outside [modelCommandNames] (see its own
 /// class comment in `command.dart`), so that whole result never reached the
 /// undo journal as itself — undoing an auto-rig undid the *entire* recipe's
@@ -97,7 +97,7 @@ final class SetRig extends ModelCommand {
     required this.label,
   });
 
-  /// Every joint (and, when [RigBuildOptions.controllers] asked for one, the
+  /// Every joint (and, when [RigBuildSettings.controllers] asked for one, the
   /// rig controller ahead of them) [buildSkeleton] built, ids already
   /// chosen — see this file's own library comment.
   final List<ModelObject> jointObjects;
@@ -211,6 +211,7 @@ final class SetRig extends ModelCommand {
         clips: next.clips,
         lighting: next.lighting,
         animationGraphs: next.animationGraphs,
+        unknown: next.unknown,
       );
     }
 
@@ -359,7 +360,7 @@ List<Matrix4>? _matrixListFrom(Object? json) {
 }
 
 /// Absent reads as no constraints at all — a skeleton [SetRig] built before
-/// [RigBuildOptions.ikChains] ever asked for any.
+/// [RigBuildSettings.ikChains] ever asked for any.
 List<IkConstraint>? _rigIkConstraintsFrom(Object? json) {
   if (json == null) return const <IkConstraint>[];
   if (json is! List) return null;

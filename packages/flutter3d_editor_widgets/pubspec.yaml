@@ -1,6 +1,6 @@
 name: flutter3d_editor_widgets
 description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown, a texture slot row, a texture path field, a colour swatch field and the FieldRow they assemble into, so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -12,6 +12,18 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -22,7 +34,7 @@ dependencies:
   # `ColorSwatchField` and `FieldRow` read `TextureHint`/`ColorHint`/
   # `MaterialHint` off the same package, `ui-27`'s own P2 — no second
   # dependency joined to get there.
-  flutter3d_core: ^0.9.0
+  flutter3d_core: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:

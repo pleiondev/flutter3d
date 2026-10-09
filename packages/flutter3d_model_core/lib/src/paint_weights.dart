@@ -133,7 +133,10 @@ final class PaintMirror {
   /// gives a spine or a head bone straddling the plane.
   final Map<int, int> jointMirror;
 
+  /// In metres along [axis].
   final double plane;
+
+  /// In metres.
   final double tolerance;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -345,6 +348,8 @@ final class PaintWeights extends ModelCommand {
   final int joint;
 
   final List<BrushSample> samples;
+
+  /// A 0..1 weight.
   final double strength;
   final PaintWeightsMode mode;
   final PaintMirror? mirror;

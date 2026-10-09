@@ -7,9 +7,11 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_models/src/http/telemetry_routes.dart';
 import 'package:flutter3d_models/src/telemetry/telemetry_service.dart';
 import 'package:flutter3d_models/src/telemetry/telemetry_store.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -18,7 +20,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A body that walks as the stick says: past x = 4 it has won, below x = -2
 /// it has lost.
-final class _Walk implements HeadlessRun {
+final class _Walk extends HeadlessRun {
   _Walk(this.input);
 
   final InputState input;
@@ -45,10 +47,7 @@ final class _Walk implements HeadlessRun {
   });
 
   @override
-  Vector3 get position => _at;
-
-  @override
-  void eye(Vector3 out) => out.setFrom(_at);
+  WorldPosition get position => WorldPosition(_at.x, _at.y, _at.z);
 
   @override
   void aim(Vector3 out) => out.setValues(1.0, 0.0, 0.0);
@@ -60,7 +59,7 @@ final class _Walk implements HeadlessRun {
   Map<String, Object?> get reading => <String, Object?>{'x': _at.x};
 }
 
-final class _WalkGame implements HeadlessGame {
+final class _WalkGame extends HeadlessGame {
   const _WalkGame();
 
   @override
@@ -82,7 +81,7 @@ Level _level() => Level(
   materials: <String, LevelMaterial>{'stone': LevelMaterial()},
   brushes: <Brush>[
     Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
+      center: Vector3(0.0, -0.5, 0.0),
       size: Vector3(20.0, 1.0, 4.0),
       material: 'stone',
     ),

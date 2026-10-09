@@ -44,6 +44,7 @@ final class PackResult {
 
   /// What every island's original width and height was multiplied by to
   /// reach the placements in [islands].
+  /// A unitless multiplier.
   final double scale;
 
   /// Total island area (before scaling) divided by the packed square's own

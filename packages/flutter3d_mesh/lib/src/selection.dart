@@ -280,14 +280,14 @@ final class Selection {
   Selection linked(EditMesh mesh) {
     if (isEmpty) return this;
     final reached = _verticesOf(mesh, this);
-    final neighbours = _VertexNeighbours(mesh);
+    final neighbors = _VertexNeighbours(mesh);
     final queue = <int>[
       for (var v = 0; v < reached.length; v++)
         if (reached[v]) v,
     ];
     while (queue.isNotEmpty) {
       final vertex = queue.removeLast();
-      neighbours.forEach(vertex, (int other) {
+      neighbors.forEach(vertex, (int other) {
         if (reached[other]) return;
         reached[other] = true;
         queue.add(other);

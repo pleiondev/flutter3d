@@ -14,7 +14,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 /// whole mesh costs less than the tests and the repacking would save, and a
 /// model made by hand for a game is almost always below it. A scan or a CAD
 /// export is almost always far above.
-const int kDefaultChunkThreshold = 65536;
+const int defaultChunkThreshold = 65536;
 
 /// [document] with every static surface of more than [threshold] triangles
 /// split by `clusterMesh`, and how many meshes that was.
@@ -26,7 +26,7 @@ const int kDefaultChunkThreshold = 65536;
 /// surfaces is split once and shared again, so the file still holds it once.
 (ModelDocument, int) splitLargeMeshes(
   ModelDocument document, {
-  int threshold = kDefaultChunkThreshold,
+  int threshold = defaultChunkThreshold,
 }) {
   final split = <MeshData, MeshData>{};
   // Deformed anywhere is deformed: a mesh one surface skins cannot be culled

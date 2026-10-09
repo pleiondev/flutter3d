@@ -1,0 +1,736 @@
+# The public API of flutter3d_cpu.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_cpu/flutter3d_cpu.dart
+
+final class BlinnPhongShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const BlinnPhongShader()
+
+final class BloomDownsampleShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const BloomDownsampleShader()
+
+final class BloomThresholdShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const BloomThresholdShader()
+
+final class BloomUpsampleShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const BloomUpsampleShader()
+
+final class BoundTexture
+  Float32List get pixels
+  Vector4 sample(double u, double v, {double du = 0.0, double dv = 0.0, double dudx = 0.0, double dvdx = 0.0, double dudy = 0.0, double dvdy = 0.0})
+  Vector4 sampleCube(double x, double y, double z, [double lod = 0.0])
+  const BoundTexture(this.texture, this.sampler)
+  final CpuTexture texture
+  final SamplerOptions sampler
+  int get height
+  int get width
+
+final class CameraVelocityShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const CameraVelocityShader()
+
+final class CompositeShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const CompositeShader()
+
+final class ContactShadowResolveShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ContactShadowResolveShader()
+
+final class ContactShadowShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ContactShadowShader()
+
+final class CpuComputeBindings
+  CpuComputeBindings(this.storage, this.blocks)
+  final Map<String, ByteData> storage
+  final Map<String, Map<String, Float32List>> blocks
+
+abstract interface class CpuComputeShader
+  (int, int, int) get workgroupSize
+  void runWorkgroup((int, int, int) group, CpuComputeBindings bindings)
+
+final class CpuDevice implements GraphicsDevice
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
+  ComputeEncoder beginComputePass({String? label})
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader)
+  CpuDevice({required this.width, required this.height, required this.shaders, this.maxColorAttachments = 3, this.hdrOutputFormats = const <TextureFormat>[], this.supportsIndependentBlend = true})
+  DepthRange get depthRange
+  Float32List readHdrPixels(TextureHandle texture)
+  FramebufferOrigin get framebufferOrigin
+  Future<ByteData> readBuffer(StorageBuffer buffer)
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
+  Future<ByteData?> readPixels(TextureHandle texture)
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
+  Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
+  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutSpec? layout})
+  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false})
+  TextureFormat get defaultColorFormat
+  TextureFormat get defaultDepthStencilFormat
+  TextureFormat get hdrColorFormat
+  TextureHandle createTexture(RenderTargetSpec spec)
+  TextureHandle? createCubeRenderTarget({required int size, required TextureFormat format, int mipLevels = 1})
+  TextureHandle? createCubeTextureFromPixels({required int size, required TextureFormat format, required List<ByteData> faces, List<List<ByteData>>? mipLevels})
+  TextureHandle? createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
+  bool get supportsBlendColor
+  bool get supportsCompute
+  bool get supportsCubeTextures
+  bool get supportsFloat32Filtering
+  bool get supportsGpuTimestamps
+  bool get supportsMipmaps
+  bool get supportsOffscreenMsaa
+  bool get supportsRenderToMip
+  bool get supportsStencil
+  bool get supportsWireframe
+  bool supportsTextureFormat(TextureFormat format)
+  final CpuShaderLibrary shaders
+  final List<TextureFormat> hdrOutputFormats
+  final bool supportsIndependentBlend
+  final int height
+  final int maxColorAttachments
+  final int width
+  int get maxAnisotropy
+  int get preferredSampleCount
+  void beginFrame()
+  void dispose()
+  void onFrameComplete(void Function() whenDone)
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
+  void releaseGeometry(GeometryBuffer geometry)
+  void releaseStorageBuffer(StorageBuffer buffer)
+  void releaseTexture(TextureHandle texture)
+
+final class CpuEncoder implements CommandEncoder
+  CpuEncoder(this._descriptor, [this._independentBlend = true])
+  bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
+  bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount)
+  void bindPipeline(PipelineHandle pipeline)
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount, {int slot = 0})
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0})
+  void clearBindings()
+  void draw({int instanceCount = 1})
+  void setBlend(BlendState? state, {int attachment = 0})
+  void setBlendColor(Vector4 color)
+  void setCullMode(CullMode mode)
+  void setDepthCompare(CompareFunction compare)
+  void setDepthWrite(bool enabled)
+  void setPolygonMode(PolygonMode mode)
+  void setPrimitiveType(PrimitiveType type)
+  void setScissor(ScreenRect rect)
+  void setStencil(StencilState front, {StencilState? back})
+  void setStencilReference(int value)
+  void setViewport(ScreenRect rect)
+  void setWindingOrder(WindingOrder order)
+  void submit()
+
+abstract interface class CpuFragmentShader
+  Vector4? run(Float32List varyings, ShaderBindings bindings, FragmentContext context)
+
+final class CpuLoadedShaderLibrary implements LoadedShaderLibrary
+  ShaderHandle? operator [](String name)
+  String get name
+  static CpuLoadedShaderLibrary load(ShaderLibrary own, ByteData bytes)
+  void refresh(ByteData bytes)
+
+final class CpuPipeline
+  const CpuPipeline(this.vertex, this.fragment, this.layout)
+  final CpuFragmentShader fragment
+  final CpuVertexShader vertex
+  final VertexLayoutSpec? layout
+
+final class CpuShaderLibrary implements ShaderLibrary
+  CpuShaderLibrary(Map<String, CpuStage> stages)
+  ShaderHandle? operator [](String name)
+  final Map<String, CpuStage> stages
+
+final class CpuStage
+  const CpuStage.compute(this.compute)
+  const CpuStage.fragment(this.fragment)
+  const CpuStage.vertex(this.vertex)
+  final CpuComputeShader? compute
+  final CpuFragmentShader? fragment
+  final CpuVertexShader? vertex
+
+final class CpuTexture
+  CpuTexture subresource({int face = 0, int mipLevel = 0})
+  CpuTexture(this.width, this.height, this.format)
+  Float32List depthBuffer()
+  Float32List? depth
+  List<CpuTexture>? faces
+  List<CpuTexture>? levels
+  Uint8List stencilBuffer()
+  Uint8List? stencil
+  final Float32List pixels
+  final TextureFormat format
+  final int height
+  final int width
+
+abstract interface class CpuVertexShader
+  Vector4 run(Float32List attributes, ShaderBindings bindings, Float32List varyings)
+  int get varyingCount
+
+abstract interface class CpuVertexShaderByIndex implements CpuVertexShader
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List attributes, ShaderBindings bindings, Float32List varyings)
+
+final class DebugLineShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const DebugLineShader()
+
+final class DebugLineVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const DebugLineVertexShader()
+  int get varyingCount
+
+final class DepthOfFieldShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const DepthOfFieldShader()
+  static double circleOfConfusion(double depth, {required double focusDistance, required double focalLength, required double aperture, required double maxRadius, required double texelsPerMetre})
+
+final class DepthPyramidShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const DepthPyramidShader()
+
+final class DofTileMaxShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const DofTileMaxShader()
+
+final class EasuShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const EasuShader()
+
+final class FieldDecayShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const FieldDecayShader()
+
+final class FragmentContext
+  Float32List? ddx
+  Float32List? ddy
+  FragmentContext()
+  Vector3? debugSurface
+  Vector4? albedo
+  Vector4? surface
+  bool frontFacing
+  double? fragDepth
+  final Vector4 coord
+
+final class FrameDifference
+  String toString()
+  const FrameDifference({required this.differing, required this.pixels, required this.worstChannel})
+  double get percent
+  final int differing
+  final int pixels
+  final int worstChannel
+
+final class FullscreenVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const FullscreenVertexShader()
+  int get varyingCount
+
+final class FxaaShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const FxaaShader()
+
+final class IrradianceConvolveShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const IrradianceConvolveShader()
+
+final class LambertShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const LambertShader()
+
+final class LayoutFetch implements VertexFetch
+  bool into(Float32List out, int vertex)
+  factory LayoutFetch.build(VertexLayoutSpec layout, ByteData slotZero, Map<int, ByteData>? slots, int instance)
+  final int floatsPerVertex
+
+typedef LightSample = ({Vector3 direction, Vector3 radiance, double nDotL, double nDotH, double vDotH, Vector3? ltc, List<Vector3>? corners});
+
+final class LightShaftsShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const LightShaftsShader()
+
+final class LocalExposureBlurShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const LocalExposureBlurShader()
+
+final class LocalExposureShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const LocalExposureShader()
+
+final class LuminanceShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const LuminanceShader()
+
+final class MeshInstancedVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const MeshInstancedVertexShader()
+  int get varyingCount
+
+final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const MeshLightmappedVertexShader()
+  int get varyingCount
+
+final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const MeshSkinnedVertexShader()
+  int get varyingCount
+  static const int maxJoints = 64
+  static int jointIndex(double joint)
+
+final class MeshVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const MeshVertexShader()
+  int get varyingCount
+
+final class MotionBlurShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const MotionBlurShader()
+
+final class MrtProbeShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const MrtProbeShader()
+
+final class NormalsShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const NormalsShader()
+
+final class ObjectIdShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ObjectIdShader()
+
+final class PackedFetch implements VertexFetch
+  PackedFetch(ByteData bytes, this.floatsPerVertex)
+  bool into(Float32List out, int vertex)
+  final int floatsPerVertex
+
+final class ParticleMeshShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ParticleMeshShader()
+
+final class ParticleMeshVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const ParticleMeshVertexShader()
+  int get varyingCount
+
+final class ParticleShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ParticleShader({this.soft = false})
+  final bool soft
+
+final class ParticleSixWayShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ParticleSixWayShader({this.soft = false})
+  final bool soft
+
+final class ParticleTexturedShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ParticleTexturedShader({this.soft = false})
+  final bool soft
+
+final class ParticleVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const ParticleVertexShader()
+  int get varyingCount
+
+final class PbrShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const PbrShader()
+  const PbrShader.layered()
+  final bool layered
+  static Vector3 eonAlbedo(Vector3 rho, double r, double mu)
+  static Vector3 eonLobe(Vector3 rho, double r, double muI, double muO, double lDotV)
+  static const double minGgxRoughness = 0.045
+  static double sheenLobe(double roughness, Surface s, LightSample light)
+
+final class ProbePrefilterShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ProbePrefilterShader()
+
+final class ReactiveShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ReactiveShader()
+
+final class ReactiveSpriteShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ReactiveSpriteShader()
+
+final class ReflectionsShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ReflectionsShader()
+
+final class SceneColourCopyShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SceneColourCopyShader()
+
+final class ShaderBindings
+  Float32List? read(String block, String member)
+  Matrix4 mat4(String block, String member, {int at = 0})
+  ShaderBindings.forDraw(this.blocks, this.textures)
+  Vector4 vec4(String block, String member, Vector4 fallback, {int at = 0})
+  const ShaderBindings(this.blocks, this.textures)
+  final Map<String, BoundTexture> textures
+  final Map<String, Map<String, Float32List>> blocks
+
+final class ShadowCopyShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowCopyShader()
+
+final class ShadowDepthMaskedShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowDepthMaskedShader()
+
+final class ShadowDepthShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowDepthShader()
+
+final class ShadowDistanceMaskedShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowDistanceMaskedShader()
+
+final class ShadowDistanceShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowDistanceShader()
+
+final class ShadowTileResetShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const ShadowTileResetShader()
+
+final class ShadowTileResetVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const ShadowTileResetVertexShader()
+  int get varyingCount
+
+final class SkyCubeShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SkyCubeShader()
+
+final class SkyCubeVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const SkyCubeVertexShader()
+  int get varyingCount
+
+final class SkyShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SkyShader()
+
+final class SkyVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const SkyVertexShader()
+  int get varyingCount
+
+final class SplatHashedShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SplatHashedShader()
+
+final class SplatShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SplatShader()
+
+final class SsaoBlurShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const SsaoBlurShader()
+
+final class SsaoShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const SsaoShader()
+
+final class Surface
+  Surface(this.albedo, this.alpha, this.normal, this.world, this.ambient, this.metallic, this.roughness, this.view, this.nDotV, this.tangent)
+  Vector3 albedo
+  Vector3 emissive
+  Vector3 normal
+  double alpha
+  double metallic
+  double nDotV
+  double occlusion
+  double roughness
+  final Vector3 ambient
+  final Vector3 view
+  final Vector3 world
+  final Vector4 tangent
+
+final class TemporalAccumulateShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const TemporalAccumulateShader()
+
+final class TemporalResolveShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const TemporalResolveShader()
+
+final class ToonShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ToonShader()
+
+final class UnlitShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const UnlitShader()
+
+typedef UvFootprint = ({double du, double dv, double dudx, double dvdx, double dudy, double dvdy});
+
+final class VelocityInstancedVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const VelocityInstancedVertexShader()
+  int get varyingCount
+
+final class VelocityNeighborMaxShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VelocityNeighborMaxShader()
+
+final class VelocityShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VelocityShader()
+
+final class VelocitySkinnedVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const VelocitySkinnedVertexShader()
+  int get varyingCount
+
+final class VelocityTileMaxShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VelocityTileMaxShader()
+
+final class VelocityVertexShader implements CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const VelocityVertexShader()
+  int get varyingCount
+
+abstract interface class VertexFetch
+  bool into(Float32List out, int vertex)
+  int get floatsPerVertex
+
+final class VertexTextureProbeShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VertexTextureProbeShader()
+
+final class VertexTextureProbeVertexShader implements CpuVertexShader
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  const VertexTextureProbeVertexShader()
+  int get varyingCount
+
+final class ViewportShadeShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const ViewportShadeShader()
+
+final class VolumetricFogShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VolumetricFogShader()
+
+final class VolumetricFogUpsampleShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const VolumetricFogUpsampleShader()
+
+final class WboitResolveShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
+  const WboitResolveShader()
+
+final class XrayShader implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const XrayShader()
+
+Vector3 accumulateLights(Surface s, ShaderBindings b, FragmentContext c, {required Vector3 Function(Surface s, LightSample light) shade, required bool shadowed})
+
+Vector3 agxSigmoid(Vector3 colour)
+
+void applyCommonMaps(Surface s, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+void applyEmissiveMap(Surface s, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b)
+
+void applyMetallicRoughnessMap(Surface s, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+void applyNormalMap(Surface s, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+void applyOcclusionMap(Surface s, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+double atlasDistance(ShaderBindings b, double u, double v, double ox, double oy, double tileX, double tileY, double range, double inset)
+
+double attenuation(double distance, double range)
+
+double bayerCell(double x, double y)
+
+({BoundTexture source, double tx, double ty, Vector4 params})? bloomSource(ShaderBindings b)
+
+double blueNoise(ShaderBindings b, double x, double y)
+
+Map<String, CpuStage> builtinCpuShaders()
+
+({double offset, double count}) clusterAt(ShaderBindings bindings, Vector3 world)
+
+int clusterRow(ShaderBindings bindings, Vector3 world, int slot)
+
+bool clustered(ShaderBindings bindings)
+
+FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
+
+({Vector3 toLight, Vector3 radiance}) contributorLight(ShaderBindings bindings, int index, Vector3 world)
+
+int contributorLightCount(ShaderBindings bindings, Vector3 world)
+
+Vector3 decodeOctahedral(double ex, double ey)
+
+int differingPixels(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
+
+const List<List<double>> diskTaps = …
+
+Vector2 encodeOctahedral(Vector3 n)
+
+Uint8List encodePng(Uint8List rgba, int width, int height)
+
+void ensureCpuBackendRegistered()
+
+double eyeDistance(Float32List v, ShaderBindings b)
+
+double fract(double x)
+
+bool inSlots(ShaderBindings bindings, int row)
+
+bool irradianceEnabled(ShaderBindings b)
+
+const int kColour = 12
+
+const int kExtraLights = 24
+
+const int kMapBaseColor = 0
+
+const int kMapEmissive = 4
+
+const int kMapMetallicRoughness = 1
+
+const int kMapNormal = 2
+
+const int kMapOcclusion = 3
+
+const int kMaxLights = 8
+
+const int kMeshVaryings = 18
+
+const int kNormal = 3
+
+const int kPosition = 0
+
+const int kTangent = 8
+
+const int kTexcoord = 6
+
+const List<String> kUnimplementedCpuFragmentShaders = <String>[]
+
+const List<String> kUnimplementedCpuVertexShaders = <String>[]
+
+const int kVColour = 8
+
+const int kVLightmap = 16
+
+const int kVNormal = 3
+
+const int kVTangent = 12
+
+const int kVUv = 6
+
+const int kVWorld = 0
+
+int lightCount(ShaderBindings bindings, Vector3 world)
+
+double lightListLane(ShaderBindings bindings, String member, int slot)
+
+double lightListRow(ShaderBindings bindings, int slot)
+
+double lightListScale(ShaderBindings bindings, int slot)
+
+Vector4 lightListTexel(ShaderBindings bindings, int row, int column)
+
+({double u, double v, UvFootprint footprint}) mapUv(int slot, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+
+double materialLodBias(ShaderBindings b)
+
+double pixelNoise(ShaderBindings b, double x, double y)
+
+({Vector3 origin, Vector3 along}) pixelRay(Matrix4 inverse, double u, double v)
+
+double pointShadowFactor(ShaderBindings b, Vector3 world, Vector3 normal, int lightIndex, FragmentContext c)
+
+bool premultiplies(ShaderBindings b)
+
+Vector3 probeFaceDirection(int face, double s, double t)
+
+Surface? readSurface(Float32List v, ShaderBindings bindings, FragmentContext c, {bool transformed = false})
+
+Vector3 rectangleClosestPoint(Vector3 centre, Vector3 halfWidth, Vector3 halfHeight, Vector3 world, Vector3 mirror)
+
+double rectangleFormFactor(List<Vector3> corners, Vector3 n)
+
+Vector3 sampleIrradiance(ShaderBindings b, Vector3 world, Vector3 normal, Vector3 view)
+
+LightSample? sampleLight(ShaderBindings bindings, int index, Surface s)
+
+Vector3 sampleLightmap(Float32List v, ShaderBindings b, FragmentContext c)
+
+double shadowFactor(Surface s, ShaderBindings b, int lightIndex, double lightNDotL, [FragmentContext? c])
+
+double shadowNoise(ShaderBindings b, FragmentContext? c)
+
+const int shadowSlots = 6
+
+double smoothstep(double edge0, double edge1, double x)
+
+double softParticleFade(ShaderBindings b, FragmentContext c, double x, double y, double z)
+
+(double, double) splatNoiseOffset(double identity)
+
+const List<List<double>> ssaoKernel = …
+
+double toLinear(double c)
+
+double toSrgb(double c)
+
+Vector3 tonemapAces(Vector3 colour)
+
+Vector3 tonemapAces2(Vector3 colour)
+
+Vector3 tonemapAgx(Vector3 colour)
+
+Vector3 tonemapAgxFull(Vector3 colour)
+
+Vector3 tonemapBy(Vector3 colour, int curve)
+
+Vector3 tonemapNeutral(Vector3 colour)
+
+Vector3 tonemapReinhard(Vector3 colour)
+
+UvFootprint uvFootprint(FragmentContext c, {double bias = 0.0})
+
+double viewDepth(Float32List v, ShaderBindings b)
+
+(double, double) vogelDisc(int i, int n, double turn)
+
+double weightedBlendedWeight(double alpha, Float32List v, ShaderBindings b)
+
+Vector3 worldAtDepth(Matrix4 inverse, Vector3 eye, Vector3 axis, double u, double v, double depth)
+
+Vector4 writeLit(FragmentContext c, Float32List v, ShaderBindings b, {required Vector3 colour, required double alpha, required Vector3 normal, required double roughness})
+
+void writeSurface(FragmentContext c, Float32List v, ShaderBindings b, Vector3 normal, double roughness)
+
+Vector4 writeWeightedBlended(FragmentContext c, Float32List v, ShaderBindings b, Vector4 colour)
+
+library package:flutter3d_cpu/testing.dart
+
+({CpuDevice device, TextureHandle albedo, TextureHandle normal}) cpuTestDevice({int width = 96, int height = 72})
+
+TextureHandle texelOn(CpuDevice device, List<int> rgba)

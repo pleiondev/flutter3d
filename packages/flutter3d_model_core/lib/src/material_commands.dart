@@ -127,6 +127,7 @@ final class RemoveMaterial extends ModelCommand {
         clips: project.clips,
         lighting: project.lighting,
         animationGraphs: project.animationGraphs,
+        unknown: project.unknown,
       ),
     );
   }
@@ -463,8 +464,8 @@ final class SetTexture extends ModelCommand {
     'magLinear': sampling.magLinear,
     'minLinear': sampling.minLinear,
     'useMipmaps': sampling.useMipmaps,
-    'wrapS': sampling.wrapS.name,
-    'wrapT': sampling.wrapT.name,
+    'wrapS': textureWrapWord(sampling.wrapS),
+    'wrapT': textureWrapWord(sampling.wrapT),
   };
 
   @override
@@ -672,7 +673,7 @@ final class LinkMaterialFile extends ModelCommand {
       final MaterialDocument document;
       try {
         document = readFmat(read, name: path);
-      } on FormatException catch (error) {
+      } on FmatFormatException catch (error) {
         return Outcome.refused(
           '$path did not read as a material: ${error.message}',
         );
@@ -771,7 +772,7 @@ const Object _unset = Object();
 SurfaceMaterial _surfaceWith(
   SurfaceMaterial s, {
   Object? name = _unset,
-  Vector4? baseColor,
+  LinearColor? baseColor,
   double? metallic,
   double? roughness,
   TextureBinding? baseColorTexture,
@@ -786,7 +787,7 @@ SurfaceMaterial _surfaceWith(
   double? occlusionStrength,
   TextureBinding? emissiveTexture,
   bool setEmissiveTexture = false,
-  Vector3? emissive,
+  LinearColor? emissive,
   double? emissiveStrength,
   SurfaceAlphaMode? alphaMode,
   double? alphaCutoff,
@@ -827,7 +828,7 @@ SurfaceMaterial _surfaceWith(
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
 /// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
-/// `lightingModel` is one of [LightingModel.builtIn]'s `shaderName`s or null
+/// `lightingModel` is one of [LightingModels.all]'s `shaderName`s or null
 /// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
 /// a bool.
 SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
@@ -840,7 +841,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 4)) {
         final List<double> c => _surfaceWith(
           s,
-          baseColor: Vector4(c[0], c[1], c[2], c[3]),
+          baseColor: LinearColor.fromSrgb(c[0], c[1], c[2], c[3]),
         ),
         _ => null,
       };
@@ -860,7 +861,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 3)) {
         final List<double> c => _surfaceWith(
           s,
-          emissive: Vector3(c[0], c[1], c[2]),
+          emissive: LinearColor(c[0], c[1], c[2]),
         ),
         _ => null,
       };
@@ -869,11 +870,10 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
           ? _surfaceWith(s, emissiveStrength: value.toDouble())
           : null;
     case 'alphaMode':
-      if (value is! String) return null;
-      for (final SurfaceAlphaMode mode in SurfaceAlphaMode.values) {
-        if (mode.name == value) return _surfaceWith(s, alphaMode: mode);
-      }
-      return null;
+      return switch (alphaModeOf(value)) {
+        final SurfaceAlphaMode mode => _surfaceWith(s, alphaMode: mode),
+        null => null,
+      };
     case 'alphaCutoff':
       return value is num
           ? _surfaceWith(s, alphaCutoff: value.toDouble())
@@ -885,7 +885,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
     case 'lightingModel':
       if (value == null) return _surfaceWith(s, lightingModel: null);
       if (value is! String) return null;
-      for (final LightingModel model in LightingModel.builtIn) {
+      for (final LightingModel model in LightingModels.all) {
         if (model.shaderName == value) {
           return _surfaceWith(s, lightingModel: model);
         }

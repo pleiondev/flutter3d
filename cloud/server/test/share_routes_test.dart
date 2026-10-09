@@ -33,7 +33,7 @@ Level _level({String name = 'strip'}) => Level(
   materials: <String, LevelMaterial>{'stone': LevelMaterial()},
   brushes: <Brush>[
     Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
+      center: Vector3(0.0, -0.5, 0.0),
       size: Vector3(20.0, 1.0, 4.0),
       material: 'stone',
     ),

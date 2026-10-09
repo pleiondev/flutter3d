@@ -17,6 +17,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart';
 import 'package:flutter3d_shaders/compile.dart';
 import 'package:test/test.dart';
@@ -168,7 +169,7 @@ done
       final webgpu =
           jsonDecode(text(bundle.section(ShaderBundle.webgpuSection)!))
               as Map<String, Object?>;
-      expect(webgpu['version'], kSectionVersion);
+      expect(webgpu['version'], sectionVersion);
       final stage =
           (webgpu['fragment']! as Map<String, Object?>)['RimLight']!
               as Map<String, Object?>;
@@ -253,9 +254,38 @@ done
       );
     });
 
+    test('a bundle built by a flutter3d with another container version is '
+        'rebuilt rather than shipped stale', () {
+      // Bundles are build artifacts (decision 8 of `tasks/1.0-stability.md`):
+      // the runtime refuses a container version it does not read, so the
+      // build must never keep one. The cache is rewritten here to say the
+      // bundle was made at container version 0. Mutation: leave
+      // `ShaderBundle.formatVersion` out of the stamp and the rewrite changes
+      // nothing, so the old bundle is skipped.
+      final rim = source('rim.f3dmat', _rim);
+      runMaterialBuild(project, log: log, compilers: stub(), engine: engine);
+      final cache = File(
+        '${project.path}/flutter3d_generated/.flutter3d_materials.json',
+      );
+      cache.writeAsStringSync(
+        cache.readAsStringSync().replaceAll(
+          'f3sb${ShaderBundle.formatVersion}',
+          'f3sb0',
+        ),
+      );
+
+      final again = runMaterialBuild(
+        project,
+        log: log,
+        compilers: stub(),
+        engine: engine,
+      );
+      expect(again.built, <String>[rim.path]);
+    });
+
     test('a source with a mistake in it names its file, line and column, '
         'and writes nothing', () {
-      // Mutation: rethrow the parser's `MaterialSyntaxError` unwrapped — the
+      // Mutation: rethrow the parser's `MaterialSyntaxException` unwrapped — the
       // message keeps its line but loses the file, and with two materials in
       // a project the author is left to guess which.
       final bad = source('fx/bad.f3dmat', '''
@@ -400,7 +430,7 @@ material Bad {
 
 /// Why the real-compiler test cannot run here, or null when it can.
 String? _missing() {
-  for (final program in <String>[kGlslang, kNaga]) {
+  for (final program in <String>[glslangExecutable, nagaExecutable]) {
     try {
       Process.runSync(program, const <String>['--version']);
     } on ProcessException {

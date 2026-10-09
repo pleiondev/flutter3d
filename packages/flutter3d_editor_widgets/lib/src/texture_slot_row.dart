@@ -39,7 +39,7 @@ final class TextureSlotRow extends StatelessWidget {
     this.onClear,
   });
 
-  /// What this slot binds — `"Base colour texture"`, `"Normal map"` — shown
+  /// What this slot binds — `"Base color texture"`, `"Normal map"` — shown
   /// above the file itself.
   final String label;
 
@@ -127,6 +127,8 @@ class _Thumbnail extends StatelessWidget {
   const _Thumbnail({required this.bytes, required this.size});
 
   final Uint8List bytes;
+
+  /// The thumbnail's edge, in logical pixels.
   final double size;
 
   @override

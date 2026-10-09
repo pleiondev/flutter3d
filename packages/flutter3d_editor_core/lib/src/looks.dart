@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -156,7 +157,7 @@ final class Part {
     required this.radius,
     required this.height,
     required this.pitch,
-    required this.colour,
+    required this.color,
     required this.glows,
   });
 
@@ -169,14 +170,18 @@ final class Part {
   final Vector3 at;
 
   final Vector3 size;
+
+  /// The radius of a cylinder, sphere or cone, in metres.
   final double radius;
+
+  /// The height of a cylinder or cone, in metres.
   final double height;
 
   /// Tilt about the entity's X, in radians. What holds a torch's shaft up and
   /// out of the wall.
   final double pitch;
 
-  final Vector3 colour;
+  final Vector3 color;
 
   /// Whether this part is the light rather than the thing holding it. Drawn so
   /// that a dark corridor cannot swallow it, which is the whole point of a
@@ -190,7 +195,7 @@ final class Part {
     radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
     height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
     pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
-    colour:
+    color:
         Look._vector(json['colour']) ??
         Look._vector(json['glow']) ??
         Vector3(0.6, 0.6, 0.62),
@@ -199,4 +204,4 @@ final class Part {
 }
 
 /// Where a game keeps the file, if it keeps one.
-const String kLooksFile = 'assets/editor.json';
+const String looksFile = 'assets/editor.json';

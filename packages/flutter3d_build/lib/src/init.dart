@@ -17,19 +17,22 @@ library;
 import 'dart:io';
 
 import 'build_assets.dart';
+import 'cli_contract.dart' show initUsage;
 import 'layout.dart';
+
+export 'cli_contract.dart' show initUsage;
 
 /// The version constraint a project outside this repository gets on this
 /// package — a caret on the version `flutter3d_build`'s own `pubspec.yaml`
 /// names, the way every sibling in the workspace writes its constraint on
 /// another, and updated by whatever release bumps that version. `init_test`
 /// reads the pubspec and holds the two together.
-const String kFlutter3dBuildVersionConstraint = '^0.9.0';
+const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two
 /// cannot drift apart.
-const String kHookBuildContent = '''
+const String hookBuildContent = '''
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:hooks/hooks.dart';
 
@@ -42,7 +45,7 @@ void main(List<String> arguments) async {
 /// (`/`-prefixed) so a project with some unrelated directory of the same
 /// name elsewhere is not swept up by accident, and directory-only (a
 /// trailing `/`) so a same-named file would not be either.
-const String kGitignoreEntry = '/flutter3d_generated/';
+const String gitignoreEntry = '/flutter3d_generated/';
 
 /// One change [planInit] found `init` would make, or one it refuses to
 /// make without `--force`.
@@ -76,16 +79,16 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
         description: 'write ${hookFile.path}',
         apply: () {
           hookFile.parent.createSync(recursive: true);
-          hookFile.writeAsStringSync(kHookBuildContent);
+          hookFile.writeAsStringSync(hookBuildContent);
         },
       ),
     );
-  } else if (hookFile.readAsStringSync() != kHookBuildContent) {
+  } else if (hookFile.readAsStringSync() != hookBuildContent) {
     if (force) {
       steps.add(
         InitStep(
           description: 'overwrite ${hookFile.path} (--force)',
-          apply: () => hookFile.writeAsStringSync(kHookBuildContent),
+          apply: () => hookFile.writeAsStringSync(hookBuildContent),
         ),
       );
     } else {
@@ -140,16 +143,16 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   final gitignoreLines = gitignoreFile.existsSync()
       ? gitignoreFile.readAsLinesSync()
       : const <String>[];
-  if (!gitignoreLines.any((line) => line.trim() == kGitignoreEntry)) {
+  if (!gitignoreLines.any((line) => line.trim() == gitignoreEntry)) {
     steps.add(
       InitStep(
-        description: 'add $kGitignoreEntry to .gitignore',
+        description: 'add $gitignoreEntry to .gitignore',
         apply: () {
           final result = List<String>.from(gitignoreLines);
           if (result.isNotEmpty && result.last.trim().isNotEmpty) {
             result.add('');
           }
-          result.add(kGitignoreEntry);
+          result.add(gitignoreEntry);
           gitignoreFile.writeAsStringSync(_join(result));
         },
       ),
@@ -219,7 +222,7 @@ bool _hasTopLevelAssetEntry(List<String> lines, String entryText) {
 /// there: a person who pinned a different constraint on purpose keeps it.
 List<String>? _withDevDependency(List<String> lines) {
   const key = 'dev_dependencies';
-  final entry = '  flutter3d_build: $kFlutter3dBuildVersionConstraint';
+  final entry = '  flutter3d_build: $flutter3dBuildVersionConstraint';
   final start = _topLevelKey(lines, key);
   if (start == null) {
     final result = List<String>.from(lines);
@@ -343,23 +346,6 @@ List<String> _insertAtEndOfBlock(
 
 String _join(List<String> lines) => '${lines.join('\n')}\n';
 
-const String initUsage = '''
-Usage: dart run flutter3d_build:init [options] [project-directory]
-
-Writes hook/build.dart, a pubspec.yaml dev_dependencies: flutter3d_build
-line, a pubspec.yaml flutter: assets: entry for the generated directory,
-and a .gitignore line for it — everything ap-05's build hook needs to run
-on every build. project-directory defaults to the current directory.
-
-Options:
-  --check      Report what a run would change, without changing it. Exits
-               non-zero if anything is pending.
-  --force      Overwrite hook/build.dart even if its content does not
-               match what init writes. Otherwise a hook a person has
-               edited is left alone and reported instead of overwritten.
-  -h, --help   Show this text.
-''';
-
 /// `dart run flutter3d_build:init`'s own `main`, factored out so a test can
 /// call it against a temporary directory and capture its output rather
 /// than a real project and the real `stdout`.
@@ -414,6 +400,6 @@ Future<int> runInit(
     if (!check) step.apply!();
   }
 
-  if (check) return 1;
+  if (check) return blocked ? 1 : 3;
   return blocked ? 1 : 0;
 }

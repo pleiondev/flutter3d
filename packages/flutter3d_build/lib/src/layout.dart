@@ -49,7 +49,7 @@ final class AssetLayout {
     for (final entity in sourcesDir.listSync(recursive: true)) {
       if (entity is! File) continue;
       final relative = entity.path.substring(sourcesDir.path.length + 1);
-      if (!recognisedExtensions.contains(_extensionOf(relative))) continue;
+      if (!recognizedExtensions.contains(_extensionOf(relative))) continue;
 
       final rule = manifest.ruleFor(relative);
       if (rule?.exclude ?? false) continue;
@@ -79,7 +79,7 @@ final class AssetLayout {
   /// a model; nothing else in a rule means anything to a material.
   ///
   /// **`.f3dmat`, a name nothing else claims** — and kept out of
-  /// [recognisedExtensions], so the model plan never tries to decode one.
+  /// [recognizedExtensions], so the model plan never tries to decode one.
   List<AssetPlan> materialPlan() {
     if (!sourcesDir.existsSync()) return const <AssetPlan>[];
     return <AssetPlan>[

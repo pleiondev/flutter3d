@@ -103,7 +103,7 @@ final class MeshNormals {
     _buildPrevious(mesh);
     _groupCorners(mesh, math.cos(smoothAngle));
     _accumulate(mesh);
-    _normalise(mesh);
+    _normalize(mesh);
   }
 
   /// Recomputes only what moving [vertices] can have changed, and answers how
@@ -422,7 +422,7 @@ final class MeshNormals {
     }
   }
 
-  void _normalise(EditMesh mesh) {
+  void _normalize(EditMesh mesh) {
     for (var face = 0; face < _faceSlots; face++) {
       if (!mesh.isFaceAlive(face)) continue;
       mesh.forEachHalfEdge(face, (int half) {

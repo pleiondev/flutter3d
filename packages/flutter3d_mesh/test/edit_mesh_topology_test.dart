@@ -246,7 +246,7 @@ void main() {
       expect(cube.undoDepth, 1);
       cube.undo();
       // The position from before the *first* of the forty writes, which is what
-      // walking the step backwards buys — see `JournalledFloats`.
+      // walking the step backwards buys — see `JournaledFloats`.
       expect(cube.positionOf(0), start);
     });
 

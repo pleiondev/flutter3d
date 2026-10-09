@@ -105,13 +105,48 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
-  flutter3d_lti:
+  flutter3d_education:
     dependency: "direct main"
     description:
-      path: "../../../packages/flutter3d_lti"
+      path: "../../../packages/flutter3d_education"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "1.0.0-rc.1"
+  flutter3d_foundation:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_foundation"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_matter:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_matter"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_physics:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_physics"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_plugin_api:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_plugin_api"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_sim:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_sim"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -384,6 +419,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  vector_math:
+    dependency: transitive
+    description:
+      name: vector_math
+      sha256: "92b9910f66ed1057fd4da7b040ae7c74cafacf885bdc81be496928d5049b032d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.3"
   vm_service:
     dependency: transitive
     description:
@@ -441,4 +484,4 @@ packages:
     source: hosted
     version: "3.1.4"
 sdks:
-  dart: ">=3.12.2 <4.0.0"
+  dart: ">=3.12.0 <4.0.0"

@@ -35,7 +35,7 @@ final class SetAnimationGraph extends ModelCommand {
     final AnimationStateMachine machine;
     try {
       machine = AnimationGraphJson.decode(graph);
-    } on FormatException catch (error) {
+    } on AnimationGraphFormatException catch (error) {
       return Outcome.refused(error.message);
     }
     final problems = machine.problems(<AnimationClip>[

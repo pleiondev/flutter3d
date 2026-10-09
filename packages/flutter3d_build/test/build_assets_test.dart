@@ -109,13 +109,14 @@ f 1 2 3
 
     // Simulate a later flutter3d_build release by rewriting the cache
     // file with a stamp this run will not recognise — the same effect
-    // kAssetPipelineVersion moving would have, without needing two
+    // assetPipelineVersion moving would have, without needing two
     // built copies of this package side by side to prove it.
     final cache = File(
       '${project.path}/flutter3d_generated/.flutter3d_cache.json',
     );
     final json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
-    for (final entry in json.values) {
+    expect(json['format'], 'f3d.assetCache');
+    for (final entry in (json['entries']! as Map<String, Object?>).values) {
       (entry! as Map<String, Object?>)['pipelineVersion'] = 0;
     }
     cache.writeAsStringSync(jsonEncode(json));
@@ -135,7 +136,8 @@ f 1 2 3
       '${project.path}/flutter3d_generated/.flutter3d_cache.json',
     );
     final json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
-    for (final entry in json.values) {
+    expect(json['format'], 'f3d.assetCache');
+    for (final entry in (json['entries']! as Map<String, Object?>).values) {
       (entry! as Map<String, Object?>)['formatVersion'] = 0;
     }
     cache.writeAsStringSync(jsonEncode(json));
@@ -158,6 +160,23 @@ f 1 2 3
       expect(report.dependencies, hasLength(2));
     },
   );
+
+  test('a cache from before the envelope is treated as empty, so '
+      'everything converts again once', () async {
+    writeSource('hero.obj');
+    await runAssetBuild(project);
+    final cache = File(
+      '${project.path}/flutter3d_generated/.flutter3d_cache.json',
+    );
+    final json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
+    // The bare map every cache was before 1.0. Mutation: read the entries
+    // out of any map and this one is trusted.
+    cache.writeAsStringSync(jsonEncode(json['entries']));
+
+    final report = await runAssetBuild(project, log: log);
+
+    expect(report.converted, hasLength(1));
+  });
 
   test('a broken cache file is treated as empty, not fatal', () async {
     writeSource('hero.obj');

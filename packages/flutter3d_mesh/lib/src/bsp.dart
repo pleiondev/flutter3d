@@ -92,6 +92,8 @@ final class CsgPlane {
   }
 
   final Vector3 normal;
+
+  /// The plane's distance from the origin along [normal], in metres.
   final double w;
 
   CsgPlane get flipped => CsgPlane(-normal, -w);
@@ -276,6 +278,7 @@ final class CsgNode {
 final class CsgTolerance {
   CsgTolerance(this.eps);
 
+  /// How far from a plane a vertex may be and still lie on it, in metres.
   final double eps;
 
   /// Bumped once per polygon [CsgNode.build] or [CsgNode.clipPolygons]

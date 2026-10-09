@@ -191,7 +191,7 @@ Map<String, String> _write(_Circuit circuit) {
     // Derived from the sky and not read back by the application, which asks
     // the preset; written so anything loading this level alone gets air of
     // the right colour.
-    'fogColor': roundedVector(_list(_horizonFogColour(sky))),
+    'fogColor': roundedVector(_list(_horizonFogColor(sky))),
     'fogDensity': sky['fogDensity'],
     'materials': _materials,
     'brushes': _ground(circuit, points),
@@ -201,7 +201,11 @@ Map<String, String> _write(_Circuit circuit) {
   // The lap length is a sum over points that came out of libm, so it is
   // rounded to a centimetre before anything is written from it.
   final document = <String, Object?>{
+    // The envelope `TrackDocument.format` reads (`f3d.track`).
+    'format': 'f3d.track',
     'version': 1,
+    'requires': const <String>[],
+    'generator': _tool,
     'name': circuit.name,
     'generatedBy': _tool,
     'track': <String, Object?>{
@@ -268,7 +272,7 @@ void _check(_Circuit c) {
     _ when !_skyPresets.containsKey(c.preset) => 'no preset called ${c.preset}',
     _ => null,
   };
-  if (refusal != null) throw GeneratorRefused('${c.name}: $refusal');
+  if (refusal != null) throw GeneratorException('${c.name}: $refusal');
 }
 
 /// The control points.
@@ -504,7 +508,7 @@ const double _groundMax = 700.0;
 
 double _number(_Row preset, String key) => (preset[key]! as num).toDouble();
 
-List<double> _colour(_Row preset, String key) =>
+List<double> _color(_Row preset, String key) =>
     (preset[key]! as List<Object?>).cast<double>();
 
 /// A unit vector pointing up at the sun. Mirrors `SkyPreset.directionToSun`.
@@ -521,13 +525,13 @@ _Vec _directionToSun(_Row preset) {
 
 double _radians(double degrees) => degrees * (math.pi / 180.0);
 
-/// The sky in [direction]. Mirrors `SkyPreset.colourAt`.
+/// The sky in [direction]. Mirrors `SkyPreset.colorAt`.
 _Vec _skyColourAt(_Row preset, _Vec direction) {
-  final horizon = _colour(preset, 'horizon');
+  final horizon = _color(preset, 'horizon');
   final length = _norm(_list(direction));
   if (length <= 0.0) return (horizon[0], horizon[1], horizon[2]);
   final y = math.max(-1.0, math.min(1.0, direction.$2 / length));
-  final other = _colour(preset, y >= 0.0 ? 'zenith' : 'belowHorizon');
+  final other = _color(preset, y >= 0.0 ? 'zenith' : 'belowHorizon');
   final a = y.abs();
   final t = a * a * (3.0 - 2.0 * a);
   final base = <double>[
@@ -541,7 +545,7 @@ _Vec _skyColourAt(_Row preset, _Vec direction) {
   final lobe =
       _number(preset, 'glowStrength') *
       math.pow(towards, _number(preset, 'glowWide'));
-  final sun = _colour(preset, 'sunColor');
+  final sun = _color(preset, 'sunColor');
   return (
     base[0] + sun[0] * lobe,
     base[1] + sun[1] * lobe,
@@ -551,8 +555,8 @@ _Vec _skyColourAt(_Row preset, _Vec direction) {
 
 /// What distance settles to: the sky at the horizon, across the sun.
 /// **Deliberately not a field anybody sets**, so the haze and the sky cannot
-/// be authored apart. Mirrors `SkyPreset.horizonFogColour`.
-_Vec _horizonFogColour(_Row preset) {
+/// be authored apart. Mirrors `SkyPreset.horizonFogColor`.
+_Vec _horizonFogColor(_Row preset) {
   final toSun = _directionToSun(preset);
   final across = (toSun.$3, 0.0, -toSun.$1);
   final length = _norm(_list(across));

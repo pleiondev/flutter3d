@@ -1,12 +1,32 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `GameEventLog.take` is `record`.** `PlayedGame.stop` stays
+  beside `dispose`: it is a state transition (`start` may follow), and its
+  doc now says so.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `PlayedGame` can no longer be implemented outside their own
+  library: it is an `abstract base mixin class` now, so a game or a test mixes
+  it in (`with`) and its class is `final` or `base`. A member added to it in a
+  1.x release arrives with a body, which an `implements` could not have taken
+  without breaking somebody.
 
 - **The first publication.** The 0.8.0 the pubspec carried was a number
   inside the workspace and never reached pub.dev. The package goes out on the
-  shelf's number, so `^0.9.0` on it resolves against every other
+  shelf's number, so `^1.0.0` on it resolves against every other
   `flutter3d_*` package.
 
 - **The events a game posts, beside its console.** `PlayedGame.events`
-  keeps what the game posted with `flutter3d_game`'s `postGameEvent` — a
+  keeps what the game posted with `flutter3d_game`'s `postToolEvent` — a
   level loaded, the player died — each a `PostedEvent` with a sequence
   number, its kind without the `flutter3d.` prefix, a time and its data,
   capped at 2000 like the console. `AttachedRun` listens to the VM
@@ -63,4 +83,4 @@
 - **`package:flutter3d_editor_play/testing.dart`**: `FakeFlutterTool` and
   `fakeFlutterRun`, a `flutter run --machine` a test controls.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.

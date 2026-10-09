@@ -1,0 +1,1567 @@
+# The public API of flutter3d_sim.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_sim/flutter3d_sim.dart
+
+final class Activated extends ActivationOutcome
+  const Activated()
+
+final class Activation
+  const Activation({this.by, this.keys = const <String>{}})
+  final Collider? by
+  final Set<String> keys
+
+abstract base class ActivationOutcome
+  String? get message
+  const ActivationOutcome()
+
+final class Actor implements Damageable, Rider
+  Actor(this.entities, this.entity, {this.name})
+  Brain? get brain
+  CharacterController? get body
+  Collider? get carriedBy
+  Facing? get facing
+  Health? get health
+  Vector3? get position
+  bool Function(double amount, Object? from)? onDamage
+  bool applyDamage(double amount, {Object? from})
+  bool eyeLevel(Vector3 out)
+  bool get exists
+  bool get isAlive
+  bool operator ==(Object other)
+  double get turnRate
+  double get yaw
+  double? fractionUp(Vector3 point)
+  final EcsWorld entities
+  final Entity entity
+  final String? name
+  int get hashCode
+  int get ordinal
+  set brain(Brain? value)
+  set yaw(double value)
+
+final class ActorDied extends GameEvent
+  String get name
+  const ActorDied(this.actor, {this.from})
+  final Actor actor
+  final Object? from
+
+final class ActorHurt extends GameEvent
+  ActorHurt(this.actor, this.amount, {this.from})
+  String get name
+  bool staggered
+  final Actor actor
+  final Object? from
+  final double amount
+
+final class ActorSystem
+  @Deprecated('Name the body in step(focusBody:) or step(foci:).') set focusBody(Collider? body)
+  Actor spawn({CharacterController? body, Health? health, Brain? brain, Facing? facing, String? name, Entity? entity})
+  Actor? byName(String name)
+  ActorSystem({required this.world, required this.random, EcsWorld? entities})
+  Collider? get focusBody
+  GameEvents? events
+  Iterable<Actor> get actors
+  List<String?> nameList()
+  List<double> get damageToFoci
+  Map<String, Object?> save()
+  Navigation? navigation
+  Vector3 focusVelocityOf(int index)
+  Vector3 get focus
+  Vector3 get focusVelocity
+  Vector3 get heading
+  Vector3 get toFocus
+  bool canSee(Actor actor)
+  bool canSeePoint(Actor actor, Vector3 point)
+  bool hurt(Actor actor, double amount, {Object? from})
+  bool hurtFocus(Collider? body, double amount)
+  double closeRange
+  double damageToFocusThisStep
+  double get distanceToFocus
+  final CollisionWorld world
+  final EcsWorld entities
+  final GameRandom random
+  final List<Actor> died
+  final List<ActorHurt> hurtThisStep
+  int get aliveCount
+  int get fociCount
+  int get focusIndex
+  int thinkInterval
+  void beginStep()
+  void hear(Vector3 at, {required double radius})
+  void jump(Actor actor)
+  void remove(Actor actor)
+  void restore(Object? from)
+  void steer(Actor actor, Vector3 direction)
+  void steerTowards(Actor actor, Vector3 point)
+  void steerTowardsFocus(Actor actor)
+  void step(double dt, {Vector3? focus, Collider? focusBody, List<FocusPoint>? foci})
+  void syncCorpses()
+  void turnTowards(Actor actor, double x, double z, double dt)
+
+final class AtLeastOne extends LevelRule
+  const AtLeastOne(this.type, {this.because, this.severity = LevelIssueSeverity.warning})
+  final LevelIssueSeverity severity
+  final String type
+  final String? because
+  void check(Level level, List<LevelIssue> out)
+
+final class Automap
+  Automap(this.grid, {this.revealRadius = 6.0})
+  Map<String, Object?> save()
+  bool get everythingRevealed
+  bool isFloor(int index)
+  bool isRevealed(int index)
+  bool isWall(int index)
+  final NavGrid grid
+  final double revealRadius
+  int get revealedCount
+  void restore(Map<String, Object?> from)
+  void reveal(Vector3 at)
+  void revealAll(Vector3 at)
+
+final class Body
+  Body(this.controller)
+  final CharacterController controller
+
+abstract base class Brain
+  Map<String, Object?> save()
+  void act(Mind it)
+  void onDeath(Mind it)
+  void onHurt(Mind it, double amount)
+  void onNoise(Mind it, Vector3 at)
+  void restore(Map<String, Object?> from)
+  void think(Mind it)
+
+final class Breaches
+  Breaches(this.level, this.world, {bool Function(Brush)? breakable})
+  Map<String, Object?> save()
+  final CollisionWorld world
+  final Level level
+  final List<Aabb3> holes
+  final List<Brush> brushes
+  final List<int> origins
+  final bool Function(Brush) breakable
+  int get version
+  void blast(Vector3 at, Vector3 normal, {double width = 1.6, double height = 2.0, double depth = 2.0})
+  void hole(Aabb3 box)
+  void restore(Map<String, Object?> from)
+
+final class Brush
+  Brush({required Vector3 centre, required Vector3 size, this.material = 'default', this.solid = true, bool castsShadow = true, ShadowCasting? shadowCasting, String? surface, this.layer, this.ramp, Map<String, Object?> source = const <String, Object?>{}})
+  Map<String, Object?> toJson()
+  String get surface
+  Vector3 get halfExtents
+  Vector3 get max
+  Vector3 get min
+  bool get castsShadow
+  bool get isRamp
+  double overlapVolumeWith(Brush other)
+  factory Brush.fromJson(Map<String, Object?> json)
+  final ShadowCasting shadowCasting
+  final String material
+  final Vector3 centre
+  final Vector3 size
+  final WedgeUphill? ramp
+  final bool solid
+  final int? layer
+
+typedef BrushFace = ({int brush, int face, Vector3 normal, Vector3 u, Vector3 v, double centreX, double centreY, double centreZ, double halfU, double halfV});
+
+final class BrushGeometry
+  Iterable<BrushFace> blockFaces(Level level)
+  List<BrushSurface> build(Level level, {LevelVisibility? visibility, LightmapLayout? lightmap, List<int>? origins, bool perBrush = false})
+  const BrushGeometry({this.cullHiddenFaces = true, this.cellSize = 8.0})
+  final bool cullHiddenFaces
+  final double cellSize
+  static bool rampKeeps(WedgeUphill uphill, Vector3 normal)
+  static final List<(Vector3, Vector3, Vector3)> faceAxes
+
+final class BrushSurface
+  BrushSurface({required this.material, required this.shadowCasting, required this.positions, required this.normals, required this.texcoords, required this.tangents, required this.indices, this.lightmapUvs, this.brush})
+  bool get castsShadow
+  final Float32List normals
+  final Float32List positions
+  final Float32List tangents
+  final Float32List texcoords
+  final Float32List? lightmapUvs
+  final ShadowCasting shadowCasting
+  final String material
+  final Uint32List indices
+  final int? brush
+  int get triangleCount
+  int get vertexCount
+  late final Aabb3 bounds
+
+final class Button extends Signal
+  ActivationOutcome activate(Activation by)
+  Button({super.name, required super.target, required this.collider, super.once = false, this.key})
+  final Collider collider
+  final String? key
+
+final class ButtonKind extends EntityKind
+  const ButtonKind()
+  static Vector3 get defaultSize
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class CameraRig
+  CameraRig({required this.world, this.impulseDecay = 9.0, this.nearClearance = 0.35, this.minDistance = 1.2, this.wallMask = CollisionLayers.world})
+  Vector3 get eye
+  Vector3 get freeEye
+  Vector3 get target
+  bool get isPlaced
+  double get extraFov
+  double motion
+  final CollisionWorld world
+  final double impulseDecay
+  final double minDistance
+  final double nearClearance
+  final int wallMask
+  void cut()
+  void keepOutOfWalls()
+  void kick(Vector3 direction)
+  void place({required Vector3 desiredEye, required Vector3 desiredTarget, required double lag, required double dt})
+  void shake(double amount, {double seconds = 0.35})
+  void widen(double radians)
+
+final class CatmullRom
+  CatmullRom(List<Vector3> points, {this.closed = true, this.tension = 0.5, int samplesPerSegment = 16})
+  double closestS(Vector3 point, {required double nearS, double window = 30.0})
+  double closestSGlobal(Vector3 point)
+  double curvatureAt(double s)
+  double distanceToPoint(int index)
+  double get length
+  double wrap(double s)
+  final bool closed
+  final double tension
+  int get pointCount
+  int get segmentCount
+  void sampleAt(double s, Vector3 out)
+  void tangentAt(double s, Vector3 out)
+
+abstract final class CollisionLayers
+  static const int actor = 1 << 2
+  static const int all = Layers.all
+  static const int pickup = 1 << 4
+  static const int player = 1 << 1
+  static const int reserved = 1 << 3
+  static const int trigger = 1 << 5
+  static const int world = 1 << 0
+
+abstract final class CorridorKit
+  static void build(LevelSketch sketch, LevelRecipe recipe)
+
+abstract interface class Damageable
+  bool applyDamage(double amount, {Object? from})
+
+final class DataSourceRegistry
+  DataSourceRegistry(Map<String, EduDataSource> sources)
+  EduDataSource? operator [](String name)
+  void replace(String name, EduDataSource replacement)
+
+final class DataSourceTrace
+  DataSourceTrace branchAt(int step, int throughStep, Map<String, Object?> Function(int step) continuation)
+  DataSourceTrace()
+  List<int> get steps
+  Map<String, Object?> toJson()
+  Map<String, Object?>? valueAt(int step)
+  factory DataSourceTrace.fromJson(Map<String, Object?> json)
+  int get length
+  int? firstStepWhere(String path, bool Function(Object? value) test)
+  void record(int step, Map<String, Object?> resolvedBindings)
+
+final class DataSourceTraceFormatException implements Exception
+  String toString()
+  const DataSourceTraceFormatException(this.message)
+  final String message
+
+final class Demo
+  Map<String, Object?> toJson()
+  const Demo({required this.level, required this.levelHash, required this.start, required this.tape, required this.buildStamp, required this.checkpoints, this.platform, this.recordedBy, this.dataSources})
+  factory Demo.fromJson(Map<String, Object?> json)
+  final DataSourceTrace? dataSources
+  final DigestTrace checkpoints
+  final InputTape tape
+  final Snapshot start
+  final String buildStamp
+  final String level
+  final String levelHash
+  final String? platform
+  final String? recordedBy
+  int get steps
+  static const String fileExtension = '.f3drun'
+  static const int formatVersion = 1
+
+final class DemoFormatException implements Exception
+  String toString()
+  const DemoFormatException(this.message)
+  final String message
+
+final class Difficulty
+  String toString()
+  bool operator ==(Object other)
+  const Difficulty(this.name, {this.damageTaken = 1.0, this.damageDealt = 1.0, this.opponentReaction = 1.0, this.assistance = 0.0})
+  final String name
+  final double assistance
+  final double damageDealt
+  final double damageTaken
+  final double opponentReaction
+  int get hashCode
+  static const Difficulty gentle = Difficulty('gentle', damageTaken: 0.5, damageDealt: 1.5, opponentReaction: 1.5, assistance: 1.0)
+  static const Difficulty hard = Difficulty('hard', damageTaken: 1.5, opponentReaction: 0.7)
+  static const Difficulty normal = Difficulty('normal')
+  static const Difficulty punishing = Difficulty('punishing', damageTaken: 2.5, damageDealt: 0.75, opponentReaction: 0.5)
+  static const List<Difficulty> offered = <Difficulty>[gentle, normal, hard, punishing]
+
+final class DigestTrace
+  DigestTrace({this.every = 25})
+  Divergence? divergenceFrom(List<int> expected)
+  Divergence? divergenceFromHex(List<String> expected)
+  List<String> get hexDigests
+  List<int> get digests
+  List<int> get steps
+  Map<String, Object?> toJson()
+  factory DigestTrace.fromJson(Map<String, Object?> json)
+  final int every
+  void observe(int step, Object? state)
+
+final class DigestTraceFormatException implements Exception
+  String toString()
+  const DigestTraceFormatException(this.message)
+  final String message
+
+final class Divergence
+  String toString()
+  const Divergence({required this.step, required this.expected, required this.found})
+  final int step
+  final int? expected
+  final int? found
+
+final class Door extends Mover
+  ActivationOutcome activate(Activation by)
+  Door({super.name, required super.collider, required super.travel, super.speed = defaultSpeed, super.wait = defaultWait, this.key})
+  bool get isLocked
+  final String? key
+  static const double defaultSpeed = 2.5
+  static const double defaultWait = 3.0
+  void schedule(double dt)
+
+final class DoorKind extends EntityKind
+  const DoorKind()
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class EcsWorld
+  Entity spawn()
+  Iterable<Entity> query2<A extends Object, B extends Object>()
+  Iterable<Entity> query<A extends Object>()
+  Map<String, Object?> save()
+  T? get<T extends Object>(Entity entity)
+  bool alive(Entity entity)
+  bool has<T extends Object>(Entity entity)
+  bool vacant(Entity entity)
+  int get length
+  void despawn(Entity entity)
+  void exclude<T extends Object>(String because)
+  void register<T extends Object>(String name, {required Object? Function(T value) encode, required T? Function(Object? data) decode})
+  void registerInPlace<T extends Object>(String name, {required Object? Function(T value) encode, required void Function(T value, Object? data) restore})
+  void remove<T extends Object>(Entity entity)
+  void restore(Map<String, Object?> from)
+  void set<T extends Object>(Entity entity, T component)
+
+abstract class EduDataSource
+  abstract Object? sample(int step)
+  const EduDataSource()
+
+extension type const Entity._(int packed)
+  bool get isNone
+  const Entity.of(int index, int generation)
+  int get generation
+  int get index
+  static const Entity none = Entity._(-1)
+
+final class EntityDef
+  EntityDef({required this.type, Vector3? position, this.yaw = 0.0, this.name, Map<String, Object?>? properties, Map<String, Object?> source = const <String, Object?>{}})
+  Map<String, Object?> toJson()
+  String? string(String key)
+  Vector3? vector(String key)
+  bool flag(String key, {bool orElse = false})
+  double? number(String key)
+  factory EntityDef.fromJson(Map<String, Object?> json)
+  final Map<String, Object?> properties
+  final String type
+  final String? name
+  final Vector3 position
+  final double yaw
+  int? integer(String key)
+  static const Set<String> reservedKeys = <String>{'type', 'at', 'yaw', 'name'}
+
+abstract base class EntityKind
+  Collider place(EntityDef entity, SpawnContext context, {required ColliderKind kind, int layer = CollisionLayers.world, int mask = CollisionLayers.all, Vector3? fallbackSize})
+  bool get mustBeReachable
+  const EntityKind(this.type)
+  final String type
+  void requireKeyExists(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void requireSize(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void requireTarget(EntityDef entity, LevelScope scope, List<LevelIssue> out, {bool optional = false})
+  void requireText(EntityDef entity, LevelScope scope, List<LevelIssue> out, String key)
+  void requireTravel(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class EntityRegistry
+  EntityKind? operator [](String type)
+  EntityRegistry(Iterable<EntityKind> kinds)
+  Iterable<String> get types
+  bool knows(String type)
+
+typedef EntityRemap = ({Map<String, Object?> save, List<String> dropped});
+
+abstract final class EntityTypes
+  static const String button = 'button'
+  static const String door = 'door'
+  static const String exit = 'exit'
+  static const String key = 'key'
+  static const String lift = 'lift'
+  static const String platform = 'platform'
+  static const String playerSpawn = 'player_spawn'
+  static const String reflectionProbe = 'reflection_probe'
+  static const String trigger = 'trigger'
+
+final class ExactlyOne extends LevelRule
+  const ExactlyOne(this.type, {this.because})
+  final String type
+  final String? because
+  void check(Level level, List<LevelIssue> out)
+
+final class Exit extends Mechanism with CollisionListener
+  ActivationOutcome activate(Activation by)
+  Exit({super.name, required this.collider, this.next, this.message, this.key})
+  Map<String, Object?> save()
+  Vector3 get origin
+  bool get isReached
+  bool justReached
+  final Collider collider
+  final String? key
+  final String? message
+  final String? next
+  void collect(MechanismEvents into)
+  void onCollisionStart(Collider self, Collider other)
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+final class ExitKind extends EntityKind
+  const ExitKind()
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class Facing
+  Facing({this.yaw = 0.0, this.turnRate = 6.0, this.eyeFraction = 0.32})
+  double eyeFraction
+  double turnRate
+  double yaw
+
+final class FixedStep
+  FixedStep({this.stepSeconds = 1.0 / 60.0, this.maxStepsPerFrame = 5})
+  double get alpha
+  final double stepSeconds
+  final int maxStepsPerFrame
+  int advance(double dt)
+  int get droppedSteps
+  void reset()
+
+final class Fixture
+  Fixture({required this.entity, required Vector3 size, required this.material, this.collider, Vector3? at, this.mechanism})
+  Vector3 get position
+  final Collider? collider
+  final EntityDef entity
+  final Mechanism? mechanism
+  final String material
+  final Vector3 size
+
+final class FlameFlicker extends LightBehaviour
+  const FlameFlicker({this.depth = 0.22, this.rate = 7.0})
+  double at(double time, double seed)
+  final double depth
+  final double rate
+
+final class FlowField
+  FlowField(this.grid, {this.minClearance = 1, this.minHeadroom = 0.0, this.jump, this.jumpMargin = 0.0})
+  JumpLink? jumpAt(Vector3 from)
+  List<int> get goalCells
+  bool descend(Vector3 from, Vector3 out)
+  bool fits(int index)
+  bool takesLink(JumpLink link)
+  double? walkingDistanceTo(Vector3 world)
+  final JumpReach? jump
+  final NavGrid grid
+  final double jumpMargin
+  final double minHeadroom
+  final int minClearance
+  int costAt(int index)
+  int get goalCell
+  int sourceAt(Vector3 from)
+  static const int maxGoals = 127
+  static const int unreachable = 1 << 29
+  void rebuild(Vector3 goal)
+  void rebuildAll(List<Vector3> goals)
+  void update(Vector3 goal)
+  void updateAll(List<Vector3> goals)
+
+typedef FocusPoint = ({Vector3 at, Collider? body});
+
+final class GameAction
+  String toString()
+  bool operator ==(Object other)
+  const GameAction(this.name)
+  final String name
+  int get hashCode
+  static const GameAction jump = GameAction('jump')
+  static const GameAction moveBack = GameAction('moveBack')
+  static const GameAction moveForward = GameAction('moveForward')
+  static const GameAction moveLeft = GameAction('moveLeft')
+  static const GameAction moveRight = GameAction('moveRight')
+  static const GameAction sprint = GameAction('sprint')
+  static const GameAction use = GameAction('use')
+  static const List<GameAction> common = <GameAction>[moveForward, moveBack, moveLeft, moveRight, sprint, jump, use]
+
+abstract base class GameEvent
+  String toString()
+  abstract String get name
+  const GameEvent()
+
+final class GameEvents
+  GameEvents({this.limit = 256})
+  List<GameEvent> drain()
+  bool get isEmpty
+  final int limit
+  int dropped
+  void add(GameEvent event)
+  void clear()
+
+final class GameLoop
+  GameLoop({required this.input, required this.onStep, FixedStep? clock, this.drainLook, this.longestFrame = 0.25})
+  InputTapePlayback? playback
+  bool paused
+  double get alpha
+  double get lastFrame
+  final FixedStep clock
+  final InputState input
+  final List<InputTapeRecorder> recorders
+  final double longestFrame
+  final void Function(Vector2 out)? drainLook
+  final void Function(double dt) onStep
+  int advance(double dt)
+
+final class GameRandom implements math.Random
+  GameRandom(int seed)
+  bool nextBool()
+  double nextDouble()
+  int get state
+  int nextInt(int max)
+  set state(int value)
+
+abstract interface class HeadlessGame
+  EntityRegistry registry()
+  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  Map<String, GameAction> get buttons
+  String get name
+
+abstract interface class HeadlessRun
+  Map<String, Object?> get reading
+  RunOutcome get outcome
+  Snapshot save()
+  String get summary
+  Vector3 get position
+  void aim(Vector3 out)
+  void eye(Vector3 out)
+  void step(double dt)
+
+final class Health
+  Health(this.maximum, {double? current, this.armour = 0.0})
+  Map<String, Object?> save()
+  bool damage(double amount)
+  bool get isAlive
+  bool get isDead
+  double armour
+  double get current
+  double heal(double amount)
+  final double maximum
+  static const double armourShare = 1.0 / 3.0
+  void restore(Map<String, Object?> from)
+  void revive({double? to})
+
+final class Heightfield
+  Float32List copyOfSamples()
+  Heightfield({required this.columns, required this.rows, required this.cellSize, required Float32List heights, Vector3? origin})
+  Map<String, Object?> toJson()
+  bool contains(double x, double z)
+  double get depth
+  double get width
+  double heightAt(double x, double z)
+  double sample(int column, int row)
+  double slopeAt(double x, double z)
+  factory Heightfield.fromJson(Map<String, Object?> json)
+  final Vector3 origin
+  final double cellSize
+  final int columns
+  final int rows
+  void normalAt(double x, double z, Vector3 out)
+
+final class HeightfieldGeometry
+  BrushSurface build(Heightfield field, {required String material, double metresPerTexture = 8.0, ShadowCasting shadowCasting = ShadowCasting.on})
+  const HeightfieldGeometry()
+
+final class HeightfieldTiles
+  Aabb3 bounds(int tileX, int tileZ)
+  BrushSurface build(int tileX, int tileZ, {required int level, required String material, double metresPerTexture = 8.0, bool skirts = true, ShadowCasting shadowCasting = ShadowCasting.on})
+  HeightfieldTiles(this.field, {required this.tileCells, required this.levels})
+  final Heightfield field
+  final int levels
+  final int tileCells
+  final int tilesX
+  final int tilesZ
+  late final double skirtDepth
+
+final class InputFrame
+  Map<String, Object?> toJson()
+  bool get isIdle
+  const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.lookX = 0.0, this.lookY = 0.0, this.values = const <String, double>{}, this.slot})
+  factory InputFrame.fromJson(Map<String, Object?> json)
+  final List<String> pressed
+  final List<String> released
+  final Map<String, double> values
+  final double lookX
+  final double lookY
+  final double stickX
+  final double stickY
+  final int? slot
+
+final class InputState
+  Iterable<GameAction> get heldNow
+  Iterable<GameAction> get pressedThisStep
+  Iterable<GameAction> get releasedThisStep
+  Map<GameAction, double> get analogueValues
+  Vector2 get lookDelta
+  Vector2 get moveAxis
+  bool held(GameAction action)
+  bool isToggled(GameAction action)
+  bool muted
+  bool pressed(GameAction action)
+  bool released(GameAction action)
+  double value(GameAction action)
+  int? get slotRequest
+  void addLook(double dx, double dy)
+  void beginStep()
+  void clear()
+  void clearActionValue(GameAction action)
+  void endStep()
+  void press(GameAction action)
+  void release(GameAction action)
+  void requestSlot(int slot)
+  void setActionValue(GameAction action, double magnitude)
+  void setStickAxis(double x, double y)
+  void setToggled(GameAction action, {required bool toggled})
+  void toggle(GameAction action)
+
+final class InputTape
+  InputTape({required this.seed, List<InputFrame>? frames})
+  Map<String, Object?> toJson()
+  factory InputTape.fromJson(Map<String, Object?> json)
+  final List<InputFrame> frames
+  final int seed
+  int get steps
+
+final class InputTapePlayback
+  InputTapePlayback(this.tape)
+  bool get isFinished
+  final InputTape tape
+  int get step
+  void applyTo(InputState input)
+
+final class InputTapeRecorder
+  InputTapeRecorder({required int seed})
+  final InputTape tape
+  void record(InputState input)
+
+final class InterpolatedAngle
+  InterpolatedAngle([double initial = 0.0])
+  double get current
+  double read(double alpha)
+  void jumpTo(double value)
+  void push(double value)
+
+final class InterpolatedVector3
+  InterpolatedVector3({Vector3? initial, this.stepLimit = 0.0, this.stepRecovery = 0.1})
+  Vector3 get current
+  final double stepLimit
+  final double stepRecovery
+  void jumpTo(Vector3 value)
+  void push(Vector3 value, {double dt = 0.0, double steppedUp = 0.0})
+  void read(double alpha, Vector3 out)
+
+extension JsonColorWriter on Vector4
+  List<double> toJson()
+
+extension JsonObjectReader on Map<String, Object?>
+  List<Map<String, Object?>> objects(String key)
+  Map<String, Map<String, Object?>> objectMap(String key)
+  String? textOrNull(String key)
+  T enumValue<T extends Enum>(String key, List<T> values, T fallback, {required String describedAs})
+  Vector3 vector3(String key, {Vector3? fallback})
+  Vector4 vector4(String key, {required Vector4 fallback})
+  bool flagOr(String key, {bool fallback = false})
+  double numberOr(String key, double fallback)
+  int? integerOrNull(String key)
+
+extension JsonValueReader on Object?
+  Map<String, Object?> asJsonObject(String context)
+
+extension JsonVectorWriter on Vector3
+  List<double> toJson()
+
+final class JumpLink
+  String toString()
+  const JumpLink({required this.from, required this.to, required this.rise, required this.gap})
+  final double gap
+  final double rise
+  final int from
+  final int to
+
+final class JumpReach
+  String toString()
+  bool operator ==(Object other)
+  bool takes({required double rise, required double gap})
+  const JumpReach({required this.jumpSpeed, required this.gravity, required this.runSpeed})
+  double get maxRise
+  double? gapFor(double rise)
+  factory JumpReach.of(MovementTuning tuning)
+  final double gravity
+  final double jumpSpeed
+  final double runSpeed
+  int get hashCode
+
+abstract mixin class KeyHolder
+  abstract Set<String> get keys
+
+final class KeyRing with KeyHolder
+  List<String> save()
+  Set<String> get keys
+  bool has(String key)
+  bool take(String key)
+  void clear()
+  void restore(Object? from)
+
+final class Level
+  EntityDef? named(String name)
+  Iterable<EntityDef> ofType(String type)
+  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, Vector3? fogColor, this.fogDensity = 0.0, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Object?> source = const <String, Object?>{}})
+  LevelMaterial materialFor(Brush brush)
+  Map<String, Object?> toJson()
+  String get digestHex
+  factory Level.fromJson(Map<String, Object?> json)
+  final Heightfield? heightfield
+  final List<Brush> brushes
+  final List<EntityDef> entities
+  final List<LevelLight> lights
+  final List<LevelRecipe> recipes
+  final Map<String, LevelMaterial> materials
+  final String name
+  final String? music
+  final String? next
+  final Vector3 fogColor
+  final double fogDensity
+  static const int formatVersion = 1
+
+extension LevelCollision on Level
+  ({Vector3 position, double yaw})? get playerStart
+  void addTo(CollisionWorld world)
+  void spawnInto(SpawnContext context, {required EntityRegistry registry})
+
+final class LevelFormatException implements Exception
+  String toString()
+  const LevelFormatException(this.message)
+  final String message
+
+final class LevelIssue
+  String toString()
+  bool get isError
+  const LevelIssue(this.severity, this.message, {this.where})
+  final LevelIssueSeverity severity
+  final String message
+  final String? where
+
+enum LevelIssueSeverity
+  values: error, warning
+
+typedef LevelKit = void Function(LevelSketch sketch, LevelRecipe recipe);
+
+final class LevelLight
+  LevelLight({this.type = LevelLightType.point, Vector3? position, Vector3? direction, Vector3? color, this.intensity = 1.0, this.range = 0.0, bool? castsShadow, this.name, Map<String, Object?> source = const <String, Object?>{}})
+  Map<String, Object?> toJson()
+  factory LevelLight.fromJson(Map<String, Object?> json)
+  final LevelLightType type
+  final String? name
+  final Vector3 color
+  final Vector3 direction
+  final Vector3 position
+  final bool castsShadow
+  final double intensity
+  final double range
+
+enum LevelLightType
+  values: directional, point, spot
+
+final class LevelMaterial
+  LevelMaterial({Vector4? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMetre = 1.0, this.albedo, this.normal, this.orm, this.fmat, Map<String, Object?> source = const <String, Object?>{}})
+  Map<String, Object?> toJson()
+  bool get hasMaps
+  factory LevelMaterial.fromJson(Map<String, Object?> json)
+  final String? albedo
+  final String? fmat
+  final String? normal
+  final String? orm
+  final Vector4 baseColor
+  final double emissive
+  final double metallic
+  final double roughness
+  final double texelsPerMetre
+
+final class LevelRecipe
+  Map<String, Object?> toJson()
+  const LevelRecipe({required this.kind, this.seed = 0, this.params = const <String, Object?>{}})
+  factory LevelRecipe.fromJson(Map<String, Object?> json)
+  final Map<String, Object?> params
+  final String kind
+  final int seed
+
+abstract base class LevelRule
+  abstract void check(Level level, List<LevelIssue> out)
+  const LevelRule()
+
+final class LevelScope
+  LevelScope(this.level)
+  String describe(EntityDef entity)
+  final Level level
+  final Set<String> keys
+
+final class LevelSketch
+  Map<String, Object?> box(List<num> at, List<num> size, String material, {String shadows = 'on', bool solid = true})
+  final List<Map<String, Object?>> brushes
+  final List<Map<String, Object?>> entities
+  final List<Map<String, Object?>> lights
+  static const double defaultHeight = 4.0
+  static const double probeReach = 10.0
+  static const double thickness = 1.0
+  void corridor(List<num> from, List<num> to, {double width = 3.0, double height = 3.0, double base = 0.0, String floor = 'floor', String wall = 'wall', String ceiling = 'ceiling', List<RoomDoor> doors = const <RoomDoor>[]})
+  void room(List<num> centre, List<num> size, {double height = defaultHeight, double base = 0.0, String floor = 'floor', String wall = 'wall', String ceiling = 'ceiling', List<RoomDoor> doors = const <RoomDoor>[], bool ceilinged = true, bool probe = true})
+  void stair(List<num> from, List<num> to, {double width = 3.0, int steps = 8, double bottom = 0.0, String material = 'stone'})
+
+final class LevelValidator
+  List<LevelIssue> validate(Level authored)
+  const LevelValidator({required this.registry, this.rules = const <LevelRule>[]})
+  final EntityRegistry registry
+  final List<LevelRule> rules
+  void assertValid(Level level)
+
+final class LevelVisibility
+  Map<String, Object?> toJson()
+  bool canSee(int from, int to)
+  bool canSeeFrom(Vector3 eye, Aabb3 bounds)
+  bool isStaleFor(Level level)
+  bool isVisible(int from, Aabb3 bounds)
+  factory LevelVisibility.fromJson(Map<String, Object?> json)
+  final Vector3 origin
+  final double cellSize
+  final int brushHash
+  final int countX
+  final int countY
+  final int countZ
+  int cellAt(Vector3 point)
+  int get cellCount
+  int slotOf(double x, double y, double z)
+  static LevelVisibility bake(Level authored, {double cellSize = 3.0, int samplesPerAxis = 3})
+  static const double queryMargin = 1.0
+  static const int formatVersion = 1
+  static int hashBrushes(Level authored)
+
+final class Lift extends Mover
+  ActivationOutcome activate(Activation by)
+  Lift({super.name, required super.collider, required super.travel, super.speed = defaultSpeed, super.wait = defaultWait})
+  static const double defaultSpeed = 1.6
+  static const double defaultWait = 4.0
+  void schedule(double dt)
+
+final class LiftKind extends EntityKind
+  const LiftKind()
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+abstract base class LightBehaviour
+  abstract double at(double time, double seed)
+  const LightBehaviour()
+
+final class LightFixture extends Mechanism
+  ActivationOutcome activate(Activation by)
+  LightFixture({super.name, required this.light, this.behaviour = const SteadyLight(), this.seed = 0.0, this.enabled = true})
+  Map<String, Object?> save()
+  Vector3? get measuredAt
+  bool enabled
+  bool get isMeasured
+  double get brightness
+  final LightBehaviour behaviour
+  final String? light
+  final double seed
+  void measure(double fraction, {Vector3? at})
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+final class LightFixtureKind extends EntityKind
+  LightFixtureKind(super.type, {required this.defaultBehaviour, required Vector3 defaultSize})
+  final LightBehaviour defaultBehaviour
+  final Vector3 defaultSize
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class Lightmap
+  Lightmap({required this.width, required this.height, required this.texelsPerMetre, required this.levelHash, Uint8List? pixels})
+  Uint8List toBytes()
+  Vector3 irradianceAt(int x, int y)
+  bool isStaleFor(Level level)
+  factory Lightmap.fromBytes(Uint8List bytes)
+  final Uint8List pixels
+  final double texelsPerMetre
+  final int height
+  final int levelHash
+  final int width
+  int get texelCount
+  static const List<int> magic = <int>[0x46, 0x33, 0x44, 0x4C]
+  static const double kScale = 8.0
+  static const int formatVersion = 1
+  static int hashOf(Level level)
+  void setIrradiance(int x, int y, double r, double g, double b)
+
+final class LightmapBaker
+  Lightmap bake(Level authored, {LightmapLayout? layout, void Function(String message)? log})
+  const LightmapBaker({this.texelsPerMetre = 4.0, this.bounces = 2, this.samples = 64, this.seed = 1, this.includeDirect = false, this.texturedAlbedo = 0.5})
+  final bool includeDirect
+  final double texelsPerMetre
+  final double texturedAlbedo
+  final int bounces
+  final int samples
+  final int seed
+
+final class LightmapFace
+  const LightmapFace({required this.brush, required this.face, required this.origin, required this.u, required this.v, required this.normal, required this.extentU, required this.extentV, required this.x, required this.y, required this.width, required this.height})
+  final Vector3 normal
+  final Vector3 origin
+  final Vector3 u
+  final Vector3 v
+  final double extentU
+  final double extentV
+  final int brush
+  final int face
+  final int height
+  final int width
+  final int x
+  final int y
+  int get texelCount
+
+final class LightmapLayout
+  (double, double) get neutralUv
+  (double, double) uvAt(LightmapFace face, double su, double sv)
+  (double, double) uvOfPoint(LightmapFace face, double x, double y, double z)
+  (int, int) texelOf(LightmapFace face, Vector3 point)
+  LightmapFace? faceOf(int brush, int face)
+  bool isOnPlane(LightmapFace face, double x, double y, double z)
+  final List<LightmapFace> faces
+  final double texelsPerMetre
+  final int height
+  final int width
+  int get texelCount
+  static LightmapLayout plan(Level level, {double texelsPerMetre = 4.0, bool cullHiddenFaces = true, double cellSize = 8.0})
+  static const int maxSize = 4096
+  static const int padding = 1
+  static const int reservedX = 0
+  static const int reservedY = 0
+  void texelCentre(LightmapFace face, int i, int j, Vector3 out)
+
+abstract base class Mechanism
+  Mechanism({this.name})
+  MechanismWorld get world
+  Vector3? get origin
+  abstract ActivationOutcome activate(Activation by)
+  abstract Map<String, Object?> save()
+  abstract void restore(Map<String, Object?> from)
+  final String? name
+  void collect(MechanismEvents into)
+  void step(double dt)
+
+final class MechanismEvents
+  final List<Mechanism> reached
+  final List<Mechanism> started
+  final List<Mechanism> stopped
+  final List<Mechanism> taken
+  final List<String> messages
+
+final class MechanismWorld
+  Activation activationBy(Collider? body)
+  ActivationOutcome activate(String name, Activation by)
+  List<Mechanism> get all
+  Map<String, Object?> save()
+  Mechanism? operator [](String name)
+  Mechanism? underCrosshair(Vector3 eye, Vector3 forward, {double reach = 2.5, Collider? ignore})
+  MechanismWorld(this.collisions)
+  T add<T extends Mechanism>(T mechanism)
+  final CollisionWorld collisions
+  final MechanismEvents events
+  void publish()
+  void restore(Object? from)
+  void step(double dt)
+
+final class Mind
+  Collider? get focusBody
+  Mind(this.system)
+  Object? hurtBy
+  Vector3 get focus
+  Vector3 get heading
+  Vector3 get toFocus
+  bool canSee()
+  bool canSeePoint(Vector3 point)
+  bool hurtFocus(Collider? body, double amount)
+  double get distance
+  final ActorSystem system
+  int get focusIndex
+  late Actor actor
+  late double dt
+  math.Random get random
+  void halt()
+  void jump()
+  void steer(Vector3 direction)
+  void steerTowards(Vector3 point)
+  void steerTowardsFocus()
+  void turnTowards(double x, double z)
+
+abstract base class Mover extends Mechanism
+  Map<String, Object?> save()
+  Mover({super.name, required this.collider, required Vector3 travel, this.speed = 2.0, this.wait = 3.0})
+  MoverState get state
+  Vector3 get origin
+  abstract void schedule(double dt)
+  bool get isMoving
+  bool get reverseWhenBlocked
+  double get heldFor
+  double get progress
+  double goal
+  final Collider collider
+  final Vector3 rest
+  final Vector3 travel
+  final double speed
+  final double wait
+  void collect(MechanismEvents into)
+  void reset()
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+enum MoverState
+  values: closed, opening, open, closing
+
+final class MovingPlatform extends Mover
+  ActivationOutcome activate(Activation by)
+  MovingPlatform({super.name, required super.collider, required super.travel, super.speed = defaultSpeed, super.wait = defaultWait})
+  bool get reverseWhenBlocked
+  static const double defaultSpeed = 1.5
+  static const double defaultWait = 1.5
+  void offsetBy(double seconds)
+  void schedule(double dt)
+
+final class NavGrid
+  List<JumpLink> get jumpLinks
+  List<int> linksInto(int cell)
+  Vector3 centreOfCell(int index)
+  bool canMove(int from, int to)
+  bool get isEmpty
+  bool isWalkable(int index)
+  double floorAt(int index)
+  double headroomAt(int index)
+  final double agentHeight
+  final double cellSize
+  final double maxFall
+  final double originX
+  final double originZ
+  final double stepHeight
+  final int columns
+  final int rows
+  int cellAt(Vector3 world)
+  int cellAtPoint(double x, double z)
+  int cellIndex(int cx, int cz)
+  int cellX(int index)
+  int cellZ(int index)
+  int clearanceAt(int index)
+  int clearanceForRadius(double radius)
+  int get cellCount
+  static NavGrid bake(Iterable<Brush> brushes, {double cellSize = 0.5, double agentHeight = 1.7, double stepHeight = 0.4, double maxFall = 2.0, JumpReach? jumps, List<LevelIssue>? issues})
+  static NavGrid bakeHeightfield(Heightfield field, {double cellSize = 0.5, double agentHeight = 1.7, double? stepHeight, double maxFall = 2.0, double maxSlope = 0.698, bool Function(double x, double z)? blocked})
+  static const double maxHeadroom = 8.0
+  void centreOf(int index, Vector3 out)
+
+final class Navigation
+  FlowField fieldFor({required double radius, double height = 0.0, JumpReach? jump})
+  Iterable<FlowField> get fields
+  JumpLink? jumpAhead(Vector3 from, {required double radius, double height = 0.0, JumpReach? jump})
+  Navigation(this.grid)
+  bool steer(Vector3 from, Vector3 out, {required double radius, double height = 0.0, JumpReach? jump})
+  factory Navigation.bake(Level level, {double cellSize = 0.5, double agentHeight = 1.7, double stepHeight = 0.4, double maxFall = 2.0, JumpReach? jumps, List<LevelIssue>? issues})
+  final NavGrid grid
+  int targetOf(Vector3 from, {required double radius, double height = 0.0, JumpReach? jump})
+  void update(Vector3 goal)
+  void updateAll(List<Vector3> goals)
+
+final class NothingToDo extends ActivationOutcome
+  const NothingToDo()
+
+final class Pace
+  Pace({this.window = 3.0, this.tolerance = 0.5})
+  bool get behind
+  double get lost
+  final double tolerance
+  final double window
+  void note({required int dropped, required double dt, required double stepSeconds})
+  void reset(int dropped)
+
+final class Physical
+  Physical(this.body)
+  final RigidBody body
+
+final class PlatformKind extends EntityKind
+  const PlatformKind()
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class Playback
+  Playback(this.tape)
+  bool sampleAt(double time, Pose out)
+  final Tape tape
+
+final class PlayerSpawnKind extends EntityKind
+  const PlayerSpawnKind()
+
+abstract final class Portable
+  static ({double sin, double cos}) sinCos(double radians)
+  static double acos(double x)
+  static double asin(double x)
+  static double atan(double x)
+  static double atan2(double y, double x)
+  static double cos(double radians)
+  static double exp(double x)
+  static double log(double x)
+  static double pow(double x, double y)
+  static double sin(double radians)
+  static double tan(double radians)
+
+final class Pose
+  Map<String, Object?> toJson()
+  Pose({this.time = 0.0, this.yaw = 0.0})
+  double time
+  double yaw
+  factory Pose.fromJson(Map<String, Object?> json)
+  final Vector3 position
+  final Vector3 up
+  void setFrom(Pose other)
+
+final class Powers
+  List<String> step(double dt)
+  Map<String, Object?> save()
+  Map<String, double> get remaining
+  bool has(String power)
+  double remainingOf(String power)
+  void clear()
+  void empower(String power, double seconds)
+  void restore(Object? from)
+  void revoke(String power)
+
+final class PulseLight extends LightBehaviour
+  const PulseLight({this.depth = 0.35, this.period = 3.5})
+  double at(double time, double seed)
+  final double depth
+  final double period
+
+final class Recorder
+  Recorder({this.hz = 15.0})
+  Tape finish(double seconds)
+  final double hz
+  int get length
+  void reset()
+  void tick(double time, {required Vector3 position, required double yaw, Vector3? up})
+
+final class ReflectionProbeKind extends EntityKind
+  const ReflectionProbeKind()
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class Refused extends ActivationOutcome
+  const Refused(this.message)
+  final String message
+
+final class RewindBuffer
+  RewindBuffer({required this.stepsPerSecond, this.history = 10.0, int? keyframeEvery, int seed = 0})
+  RewindPoint? rewindBy(double seconds)
+  RewindPoint? rewindTo(int target)
+  bool get keyframeDue
+  double get available
+  final InputTapeRecorder recorder
+  final double history
+  final int keyframeEvery
+  final int stepsPerSecond
+  int get step
+  void cut(RewindPoint point)
+  void keyframe(Snapshot snapshot)
+  void reset()
+
+final class RewindPoint
+  InputTape get tapeFromPoint
+  InputTape get tapeToPoint
+  const RewindPoint({required this.step, required this.snapshot, required this.replayed, required this.frames, required this.seed})
+  final List<InputFrame> frames
+  final Snapshot snapshot
+  final int replayed
+  final int seed
+  final int step
+
+abstract interface class Rider
+  Collider? get carriedBy
+
+base class RigTuning
+  const RigTuning({required this.distance, required this.height, required this.aimHeight, required this.lag, required this.nearClearance, required this.minDistance})
+  final double aimHeight
+  final double distance
+  final double height
+  final double lag
+  final double minDistance
+  final double nearClearance
+
+final class RoomDoor
+  const RoomDoor(this.side, this.offset, this.width, this.height, {this.sill})
+  final String side
+  final double height
+  final double offset
+  final double width
+  final double? sill
+
+abstract final class RoomKit
+  static void build(LevelSketch sketch, LevelRecipe recipe)
+
+enum RunOutcome
+  values: playing, lost, won
+  bool get isOver
+
+final class RunStats
+  Map<String, Object?> save()
+  RunStats({Map<String, bool Function(GameEvent)>? counting})
+  double elapsed
+  final Tally tally
+  void advance(double dt, List<GameEvent> events)
+  void clear()
+  void count(String name, bool Function(GameEvent) matches)
+  void restore(Map<String, Object?> from)
+
+final class SamplerDataSource extends EduDataSource
+  Object? sample(int step)
+  const SamplerDataSource(this._sample)
+
+abstract final class ScatterKit
+  static void build(LevelSketch sketch, LevelRecipe recipe)
+
+final class Scoring
+  Map<String, Object?> save()
+  Scoring({this.window = 2.0, this.step = 0.5, this.ceiling = 8.0})
+  bool get isRunning
+  double get bestChain
+  double get chain
+  double get multiplier
+  double get remaining
+  double get total
+  double score(double value)
+  double? advance(double dt)
+  double? breakChain()
+  final double ceiling
+  final double step
+  final double window
+  int get chainLength
+  void clear()
+  void restore(Map<String, Object?> from)
+
+enum ShadowCasting
+  values: on, off, doubleSided, shadowsOnly
+  bool get casts
+  bool get needsWord
+
+abstract base class Signal extends Mechanism
+  ActivationOutcome fire(Activation by)
+  Map<String, Object?> save()
+  Signal({super.name, required this.target, this.once = false})
+  bool get isSpent
+  final String target
+  final bool once
+  void restore(Map<String, Object?> from)
+
+final class Snapshot
+  Map<String, Object?> toJson()
+  const Snapshot(this.data)
+  factory Snapshot.fromJson(Map<String, Object?> json)
+  final Map<String, Object?> data
+  static const String versionKey = 'version'
+  static const int formatVersion = 1
+
+extension SnapshotFields on Map<String, Object?>
+  List<Map<String, Object?>> rows(String key)
+  Map<String, Object?>? object(String key)
+  String? text(String key)
+  T enumOf<T extends Enum>(String key, List<T> values, T orElse)
+  bool flag(String key, [bool orElse = false])
+  bool vectorInto(String key, Vector3 out)
+  double number(String key, [double orElse = 0.0])
+  int integer(String key, [int orElse = 0])
+
+final class SnapshotFormatException implements Exception
+  String toString()
+  const SnapshotFormatException(this.message)
+  final String message
+
+final class SpawnContext
+  SpawnContext({required this.world, required this.actors, required this.mechanisms, this.onActorSpawned, this.onFixture})
+  final ActorSystem actors
+  final CollisionWorld world
+  final MechanismWorld mechanisms
+  final void Function(Actor actor)? onActorSpawned
+  final void Function(Fixture fixture)? onFixture
+  void reveal(EntityDef entity, {Collider? collider, Mechanism? mechanism, Vector3? size})
+
+final class StateDigest
+  StateDigest()
+  String get hex
+  int get value
+  static int of(Object? value)
+  void add(Object? value)
+
+final class SteadyLight extends LightBehaviour
+  const SteadyLight()
+  double at(double time, double seed)
+
+final class StepContext
+  StepPhase phase
+  double dt
+
+extension StepEvents on List<GameEvent>
+  bool has<T extends GameEvent>()
+  int count<T extends GameEvent>()
+
+final class StepPhase
+  String toString()
+  bool operator ==(Object other)
+  const StepPhase(this.name)
+  final String name
+  int get hashCode
+  static const StepPhase begin = StepPhase('begin')
+  static const StepPhase end = StepPhase('end')
+
+typedef StepSystem = void Function(StepContext step);
+
+final class StepSystems
+  List<SystemRegistration> forPhase(StepPhase phase)
+  SystemRegistration add(StepPhase phase, StepSystem system, {int order = 0, String? label})
+  bool get isEmpty
+  void clear()
+  void remove(SystemRegistration registration)
+  void run(StepPhase phase, double dt)
+
+final class StepTimeTrace
+  List<double> get millis
+  List<int> get steps
+  Map<String, Object?> toJson()
+  StepTimeTrace({this.every = 1})
+  T record<T>(int step, T Function() body)
+  bool get isEmpty
+  double? get meanMillis
+  double? get worstMillis
+  factory StepTimeTrace.fromJson(Map<String, Object?> json)
+  final int every
+  int? get worstStep
+  void observe(int step, double ms)
+
+final class StepTimeTraceFormatException implements Exception
+  String toString()
+  const StepTimeTraceFormatException(this.message)
+  final String message
+
+base class SurfaceTable<T>
+  Iterable<String> get names
+  T of(String? surface)
+  bool knows(String surface)
+  const SurfaceTable(this._byName, {required this.fallback})
+  final T fallback
+
+final class SystemRegistration
+  String toString()
+  final StepPhase phase
+  final StepSystem system
+  final String? label
+  final int order
+  final int sequence
+
+abstract base class Takeable extends Mechanism with CollisionListener
+  ActivationOutcome activate(Activation by)
+  Map<String, Object?> save()
+  String? message
+  Takeable({super.name, required this.collider, this.retryWhileTouching = false})
+  Vector3 get origin
+  abstract bool offerTo(Object? taker)
+  bool get isTaken
+  bool justTaken
+  double sinceTaken
+  final Collider collider
+  final bool retryWhileTouching
+  void collect(MechanismEvents into)
+  void onCollision(Collider self, Collider other)
+  void onCollisionStart(Collider self, Collider other)
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+base class Tally
+  Map<String, Object?> save()
+  Tally()
+  UnmodifiableMapView<String, int> get counts
+  bool add(String what, [int howMany = 1])
+  bool get isEmpty
+  int operator [](String what)
+  void clear()
+  void restore(Map<String, Object?> from)
+
+final class Tape
+  bool get isEmpty
+  const Tape({required this.poses, required this.seconds})
+  double get duration
+  final List<Pose> poses
+  final double seconds
+
+final class Thinking
+  Brain brain
+  Thinking(this.brain)
+
+final class TileLevelChooser
+  const TileLevelChooser({required this.nearest, required this.levels, this.band = 0.15})
+  final double band
+  final double nearest
+  final int levels
+  int choose(double distance, int? current)
+
+abstract final class Tolerance
+  static const double divisor = 1e-9
+  static const double gridBias = 1e-6
+  static const double sameSurface = 1e-4
+  static const double zeroLength = 1e-6
+
+final class TriggerKind extends EntityKind
+  const TriggerKind()
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class TriggerVolume extends Signal with CollisionListener
+  ActivationOutcome activate(Activation by)
+  ActivationOutcome? takeOutcome()
+  TriggerVolume({super.name, required super.target, required this.collider, super.once = false})
+  final Collider collider
+  void collect(MechanismEvents into)
+  void onCollisionStart(Collider self, Collider other)
+
+final class VisibilityFormatException implements Exception
+  String toString()
+  const VisibilityFormatException(this.message)
+  final String message
+
+final class Vitality
+  Vitality(this.health)
+  final Health health
+
+final class WorldStep
+  WorldStep({required this.collision, this.mechanisms, this.dynamics})
+  final CollisionWorld collision
+  final Dynamics? dynamics
+  final MechanismWorld? mechanisms
+  void afterRestore()
+  void index(double dt)
+  void movers(double dt)
+  void publish()
+  void settle()
+
+double approach(double value, double target, double step)
+
+List<JumpLink> bakeJumpLinks(NavGrid grid, JumpReach reach)
+
+String contentDigestHex(Map<String, Object?> json)
+
+double easeFactor(double rate, double dt)
+
+Level expandRecipes(Level level)
+
+const Map<String, LevelKit> levelKits = <String, LevelKit>{'room': RoomKit.build, 'corridor': CorridorKit.build, 'scatter': ScatterKit.build}
+
+void registerActorComponents(EcsWorld entities)
+
+EntityRemap remapEntitySave(Map<String, Object?> saved, {required List<String?> oldNames, required List<String?> newNames, required List<int> newGenerations, required List<int> newFree})
+
+Map<String, Object?> resolveBindings(EntityDef step, int atStep, DataSourceRegistry sources)
+
+double roundDecimal(double value, int digits)
+
+List<double> roundedVector(Iterable<num> values)
+
+Map<String, Object?> shadowKeys(String mode)
+
+double shortestAngle(double from, double to)
+
+bool shouldPause({required bool ready, required bool menuOpen, required bool pointerIsTheGate, required bool pointerHeld, required bool padConnected})
+
+List<Brush> subtractBox(Brush brush, Aabb3 hole)
+
+String? surfaceUnder(Collider? collider)
+
+double turnedTowards(double yaw, double wanted, double step)
+
+List<double> vectorOf(Vector3 v)
+
+export package:flutter3d_physics/flutter3d_physics.dart (whole library)
+  CharacterController
+  ClothMesh
+  ClothObstacle
+  ClothSettings
+  Collider
+  ColliderKind
+  CollisionBox
+  CollisionCapsule
+  CollisionHeightfield
+  CollisionListener
+  CollisionShape
+  CollisionSphere
+  CollisionWedge
+  CollisionWorld
+  Contact
+  ContactFilter
+  Dynamics
+  Layers
+  MovementTuning
+  Nearly
+  RayHit
+  RigidBody
+  SpatialGrid
+  SweepHit
+  SweptContact
+  WedgeUphill
+  WindSettings
+  contactBetween
+  pushOutsideObstacle
+  pushParticleOutside
+  readNumber
+  readVector
+  stepCloth

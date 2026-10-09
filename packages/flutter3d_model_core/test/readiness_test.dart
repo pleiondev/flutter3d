@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // By path rather than through the barrel, and both of these for one reason:
 // readiness is not exported yet, and a test that reached for the barrel to get
@@ -501,7 +502,7 @@ void main() {
           SurfaceMaterial(
             name: 'glass',
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
           ),
         ),
       );
@@ -522,7 +523,7 @@ void main() {
         withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
             baseColorTexture: const TextureBinding(imageIndex: 0),
           ),
         ),
@@ -540,7 +541,7 @@ void main() {
         withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 0.4),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 0.4),
           ),
         ),
       );
@@ -549,7 +550,9 @@ void main() {
 
     test('opaque is never flagged, however its own alpha reads', () {
       final ready = ExportReadiness.check(
-        withMaterial(SurfaceMaterial(baseColor: Vector4(1, 1, 1, 1))),
+        withMaterial(
+          SurfaceMaterial(baseColor: LinearColor.fromSrgb(1, 1, 1, 1)),
+        ),
       );
       expect(ready.issues, isEmpty);
     });
@@ -611,7 +614,7 @@ void main() {
         final project = withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
           ),
         );
         expect(

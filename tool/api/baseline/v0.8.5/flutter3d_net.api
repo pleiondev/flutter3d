@@ -1,0 +1,57 @@
+# The public API of flutter3d_net.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_net/flutter3d_net.dart
+
+final class LoopbackTransport implements NetTransport
+  static (LoopbackTransport, LoopbackTransport) pair({required int stepsPerSecond, double delaySeconds = 0.0, double lossRate = 0.0, int seed = 1})
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message)
+  void tick()
+
+final class NetSession
+  NetSession({required this.transport, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.onSettled})
+  final Map<String, Object?> Function() captureLocalFrame
+  final NetTransport transport
+  final Snapshot Function() save
+  final int inputDelay
+  final int maxRollbackFrames
+  final int redundancy
+  final void Function(Map<String, Object?> local, Map<String, Object?> remote) applyAndStep
+  final void Function(Snapshot snapshot) restore
+  final void Function(int step, Snapshot after)? onSettled
+  int get droppedCorrections
+  int get step
+  set droppedCorrections(int count)
+  void advance()
+  void receive(Map<String, Object?> message)
+
+abstract interface class NetTransport
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message)
+
+final class NetTransportWire implements PeerWire
+  NetTransportWire(this.transport)
+  final NetTransport transport
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message, {bool reliable = true})
+
+final class SnapshotDivergence
+  String toString()
+  const SnapshotDivergence({required this.step, required this.path, required this.expected, required this.found})
+  final Object? expected
+  final Object? found
+  final String path
+  final int step
+
+final class WebSocketTransport implements NetTransport
+  Future<void> close()
+  WebSocketTransport(this._channel)
+  static Future<WebSocketTransport> connect(Uri uri)
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message)
+
+SnapshotDivergence? diffRuns({required DigestTrace a, required DigestTrace b, required Map<String, Object?> Function(int step) snapshotAtA, required Map<String, Object?> Function(int step) snapshotAtB})
+
+({String path, Object? a, Object? b})? firstDifferingPath(Object? a, Object? b, [String prefix = ''])

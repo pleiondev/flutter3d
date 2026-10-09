@@ -1,0 +1,755 @@
+# The public API of flutter3d_webgpu.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_webgpu/engine_compute_shaders.dart
+
+const Map<String, WebGpuComputeStage> engineComputeShaders = …
+
+library package:flutter3d_webgpu/engine_shaders.dart
+
+final WebGpuSectionStages engineShaders
+
+library package:flutter3d_webgpu/flutter3d_webgpu.dart
+
+final class WebGpuAttribute
+  const WebGpuAttribute({required this.name, required this.location, required this.format})
+  final String name
+  final VertexFormat format
+  final int location
+
+final class WebGpuBlock
+  const WebGpuBlock({required this.name, required this.group, required this.binding, required this.sizeInBytes, required this.members})
+  final List<WebGpuBlockMember> members
+  final String name
+  final int binding
+  final int group
+  final int sizeInBytes
+
+final class WebGpuBlockMember
+  const WebGpuBlockMember({required this.name, required this.offsetInBytes, required this.sizeInBytes})
+  final String name
+  final int offsetInBytes
+  final int sizeInBytes
+
+final class WebGpuBoundBlock
+  const WebGpuBoundBlock({required this.block, required this.visibility, this.bindable = true})
+  final WebGpuBlock block
+  final WebGpuVisibility visibility
+  final bool bindable
+
+final class WebGpuBoundSampler
+  const WebGpuBoundSampler({required this.sampler, required this.visibility, this.bindable = true})
+  final WebGpuSampler sampler
+  final WebGpuVisibility visibility
+  final bool bindable
+
+typedef WebGpuCode = ({WebGpuStage stage, Object module});
+
+final class WebGpuGroupShape
+  bool get isEmpty
+  const WebGpuGroupShape({required this.blocks, required this.samplers})
+  final List<WebGpuBoundBlock> blocks
+  final List<WebGpuBoundSampler> samplers
+
+final class WebGpuPipeline
+  WebGpuPipeline({required this.name, required this.vertexModule, required this.fragmentModule, required this.layout, required List<WebGpuVertexBuffer> buffers, required Map<String, WebGpuBlock> blocks, required Map<String, WebGpuSampler> samplers, required List<WebGpuGroupShape> groups, this.fragmentOutputs})
+  final List<WebGpuGroupShape> groups
+  final List<WebGpuVertexBuffer> buffers
+  final Map<String, WebGpuBlock> blocks
+  final Map<String, WebGpuSampler> samplers
+  final Object fragmentModule
+  final Object vertexModule
+  final Set<int>? fragmentOutputs
+  final String name
+  final VertexLayoutSpec layout
+
+final class WebGpuPipelineCache<T extends Object>
+  T get(WebGpuPipelineSignature signature, T Function() build)
+  int get length
+  void clear()
+
+final class WebGpuPipelineKey
+  String toString()
+  bool operator ==(Object other)
+  const WebGpuPipelineKey({required this.pipeline, required this.topology, required this.cullMode, required this.frontFace, required this.depthCompare, required this.depthWrite, required this.blend, required this.colorFormats, required this.depthFormat, required this.sampleCount})
+  final BlendState? blend
+  final List<String> colorFormats
+  final String cullMode
+  final String depthCompare
+  final String frontFace
+  final String pipeline
+  final String topology
+  final String? depthFormat
+  final bool depthWrite
+  final int sampleCount
+  int get hashCode
+
+final class WebGpuPipelineSignature
+  String toString()
+  WebGpuPipelineSignature({required this.pipeline, required this.vertexLayout, required this.topology, required this.stripIndexFormat, required this.cullMode, required this.frontFace, required this.depthCompare, required this.depthWrite, required this.stencil, required List<BlendState?> blends, required List<String> colorFormats, required this.depthFormat, required this.sampleCount, this.vertexModule, this.fragmentModule})
+  bool operator ==(Object other)
+  final List<BlendState?> blends
+  final List<String> colorFormats
+  final Object? fragmentModule
+  final Object? vertexModule
+  final String cullMode
+  final String depthCompare
+  final String frontFace
+  final String pipeline
+  final String topology
+  final String vertexLayout
+  final String? depthFormat
+  final String? stencil
+  final String? stripIndexFormat
+  final bool depthWrite
+  final int sampleCount
+  int get hashCode
+
+final class WebGpuSampler
+  const WebGpuSampler({required this.name, required this.group, required this.textureBinding, required this.samplerBinding, required this.dimension})
+  final String name
+  final WebGpuTextureDimension dimension
+  final int group
+  final int samplerBinding
+  final int textureBinding
+
+typedef WebGpuSectionStages = ({Map<String, WebGpuStage> vertex, Map<String, WebGpuStage> fragment});
+
+final class WebGpuShader
+  Object get module
+  WebGpuBlock? blockNamed(String name)
+  WebGpuCode code
+  WebGpuSampler? samplerNamed(String name)
+  WebGpuShader({required this.name, required this.isVertex, required this.code})
+  WebGpuStage get stage
+  final String name
+  final bool isVertex
+
+final class WebGpuShaderLibrary implements ShaderLibrary
+  ShaderHandle? operator [](String name)
+  WebGpuShaderLibrary(this._compiler, this._stages)
+  int get debugTrackedModuleCount
+  void forget()
+
+final class WebGpuStage
+  const WebGpuStage({required this.wgsl, required this.attributes, required this.blocks, required this.samplers})
+  final List<WebGpuAttribute> attributes
+  final List<WebGpuBlock> blocks
+  final List<WebGpuSampler> samplers
+  final String wgsl
+
+enum WebGpuTextureDimension
+  values: twoDimensional, cube
+  const WebGpuTextureDimension(this.gpuName)
+  final String gpuName
+
+final class WebGpuVertexAttribute
+  const WebGpuVertexAttribute({required this.name, required this.shaderLocation, required this.format, required this.offsetInBytes})
+  final String name
+  final VertexFormat format
+  final int offsetInBytes
+  final int shaderLocation
+
+final class WebGpuVertexBuffer
+  WebGpuVertexBuffer({required this.strideInBytes, required this.stepMode, required List<WebGpuVertexAttribute> attributes})
+  final List<WebGpuVertexAttribute> attributes
+  final VertexStepMode stepMode
+  final int strideInBytes
+
+typedef WebGpuVisibility = ({bool vertex, bool fragment});
+
+abstract interface class WgslModuleCompiler
+  Object compileModule(String name, String wgsl)
+
+ShaderHandle compileWebGpuStage(WgslModuleCompiler compiler, String name, WebGpuStage stage, {required bool isVertex, StageBindings? kept, Map<String, Map<String, UniformMemberLayout>>? layouts})
+
+PipelineHandle createWebGpuPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutSpec? layout})
+
+WebGpuSectionStages decodeWebGpuSection(ByteData bytes)
+
+ByteData encodeWebGpuSection({required Map<String, WebGpuStage> vertex, required Map<String, WebGpuStage> fragment})
+
+String gpuAddressMode(SamplerAddressMode mode)
+
+String gpuAttachmentLoadOp(LoadAction action, {required bool transient})
+
+String gpuAttachmentStoreOp(StoreAction action, {required bool transient})
+
+String? gpuBlendFactor(BlendFactor factor)
+
+String gpuBlendOperation(BlendOperation operation)
+
+({int bytesPerRow, int rowsPerImage, int byteLength}) gpuBlockLayoutOf(TextureFormat format, int width, int height)
+
+String gpuCompareFunction(CompareFunction compare)
+
+String gpuCullMode(CullMode mode)
+
+String gpuFilterMode(MinMagFilter filter)
+
+String gpuFrontFace(WindingOrder order)
+
+String gpuIndexFormat(IndexType type)
+
+String gpuLoadOp(LoadAction action)
+
+String gpuMipmapFilterMode(MipFilter filter)
+
+String gpuPrimitiveTopology(PrimitiveType type)
+
+bool gpuResolves(StoreAction action)
+
+String gpuStencilOperation(StencilOperation operation)
+
+String gpuStoreOp(StoreAction action)
+
+String? gpuTextureFormat(TextureFormat format)
+
+String? gpuTextureFormatFeature(TextureFormat format)
+
+String gpuVertexFormat(VertexFormat format)
+
+String gpuVertexStepMode(VertexStepMode mode)
+
+Uint8List gpuWritableBytes(ByteData bytes)
+
+int paddedBytesPerRow(int width)
+
+void swapRedAndBlue(Uint8List pixels)
+
+const String webgpuEntryPoint = 'main'
+
+bool webgpuIsTransientAttachment(RenderTargetSpec spec, {required bool supported})
+
+String? webgpuStencilFingerprint(StencilState? front, StencilState? back)
+
+String webgpuVertexLayoutFingerprint(VertexLayoutSpec layout)
+
+Set<int>? wgslFragmentOutputs(String wgsl)
+
+library package:flutter3d_webgpu/flutter3d_webgpu_web.dart
+
+extension type GPU._(JSObject _) implements JSObject
+  external JSPromise<GPUAdapter?> requestAdapter([GPURequestAdapterOptions options])
+  external String getPreferredCanvasFormat()
+
+extension type GPUAdapter._(JSObject _) implements JSObject
+  external GPUAdapterInfo get info
+  external GPUSupportedFeatures get features
+  external GPUSupportedLimits get limits
+  external JSPromise<GPUDevice> requestDevice([GPUDeviceDescriptor descriptor])
+
+extension type GPUAdapterInfo._(JSObject _) implements JSObject
+  external String get architecture
+  external String get description
+  external String get device
+  external String get vendor
+
+extension type GPUBindGroup._(JSObject _) implements JSObject
+
+extension type GPUBindGroupDescriptor._(JSObject _) implements JSObject
+  external factory GPUBindGroupDescriptor({GPUBindGroupLayout layout, JSArray<GPUBindGroupEntry> entries, String label})
+
+extension type GPUBindGroupEntry._(JSObject _) implements JSObject
+  external factory GPUBindGroupEntry.buffer({int binding, GPUBufferBinding resource})
+  external factory GPUBindGroupEntry.sampler({int binding, GPUSampler resource})
+  external factory GPUBindGroupEntry.textureView({int binding, GPUTextureView resource})
+
+extension type GPUBindGroupLayout._(JSObject _) implements JSObject
+
+extension type GPUBindGroupLayoutDescriptor._(JSObject _) implements JSObject
+  external factory GPUBindGroupLayoutDescriptor({JSArray<GPUBindGroupLayoutEntry> entries, String label})
+
+extension type GPUBindGroupLayoutEntry._(JSObject _) implements JSObject
+  external factory GPUBindGroupLayoutEntry.buffer({int binding, int visibility, GPUBufferBindingLayout buffer})
+  external factory GPUBindGroupLayoutEntry.sampler({int binding, int visibility, GPUSamplerBindingLayout sampler})
+  external factory GPUBindGroupLayoutEntry.texture({int binding, int visibility, GPUTextureBindingLayout texture})
+
+extension type GPUBlendComponent._(JSObject _) implements JSObject
+  external factory GPUBlendComponent({String operation, String srcFactor, String dstFactor})
+
+extension type GPUBlendState._(JSObject _) implements JSObject
+  external factory GPUBlendState({GPUBlendComponent color, GPUBlendComponent alpha})
+
+extension type GPUBuffer._(JSObject _) implements JSObject
+  external JSArrayBuffer getMappedRange([int offset, int size])
+  external JSPromise<JSAny?> mapAsync(int mode, [int offset, int size])
+  external int get size
+  external void destroy()
+  external void unmap()
+
+extension type GPUBufferBinding._(JSObject _) implements JSObject
+  external factory GPUBufferBinding({GPUBuffer buffer, int offset, int size})
+
+extension type GPUBufferBindingLayout._(JSObject _) implements JSObject
+  external factory GPUBufferBindingLayout({String type, bool hasDynamicOffset, int minBindingSize})
+
+extension type GPUBufferDescriptor._(JSObject _) implements JSObject
+  external factory GPUBufferDescriptor({int size, int usage, bool mappedAtCreation, String label})
+
+extension type GPUCanvasConfiguration._(JSObject _) implements JSObject
+  external factory GPUCanvasConfiguration({GPUDevice device, String format, int usage, String alphaMode, GPUCanvasToneMapping? toneMapping})
+
+extension type GPUCanvasContext._(JSObject _) implements JSObject
+  external GPUTexture getCurrentTexture()
+  external void configure(GPUCanvasConfiguration configuration)
+  external void unconfigure()
+
+extension type GPUCanvasToneMapping._(JSObject _) implements JSObject
+  external factory GPUCanvasToneMapping({String mode})
+
+extension type GPUColorDict._(JSObject _) implements JSObject
+  external factory GPUColorDict({double r, double g, double b, double a})
+
+extension type GPUColorTargetState._(JSObject _) implements JSObject
+  external factory GPUColorTargetState({String format, GPUBlendState blend, int writeMask})
+  external factory GPUColorTargetState.opaque({String format, int writeMask})
+
+extension type GPUCommandBuffer._(JSObject _) implements JSObject
+
+extension type GPUCommandEncoder._(JSObject _) implements JSObject
+  external GPUCommandBuffer finish()
+  external GPUComputePassEncoder beginComputePass([GPUComputePassDescriptor descriptor])
+  external GPURenderPassEncoder beginRenderPass(GPURenderPassDescriptor d)
+  external void copyBufferToBuffer(GPUBuffer source, int sourceOffset, GPUBuffer destination, int destinationOffset, int size)
+  external void copyTextureToBuffer(GPUTexelCopyTextureInfo source, GPUTexelCopyBufferInfo destination, GPUExtent3DDict copySize)
+  external void copyTextureToTexture(GPUTexelCopyTextureInfo source, GPUTexelCopyTextureInfo destination, GPUExtent3DDict copySize)
+  external void resolveQuerySet(GPUQuerySet querySet, int firstQuery, int queryCount, GPUBuffer destination, int destinationOffset)
+
+extension type GPUCompilationInfo._(JSObject _) implements JSObject
+  external JSArray<GPUCompilationMessage> get messages
+
+extension type GPUCompilationMessage._(JSObject _) implements JSObject
+  external String get message
+  external String get type
+  external int get lineNum
+  external int get linePos
+
+extension type GPUComputePassDescriptor._(JSObject _) implements JSObject
+  external factory GPUComputePassDescriptor({String label})
+
+extension type GPUComputePassEncoder._(JSObject _) implements JSObject
+  external void dispatchWorkgroups(int x, [int y, int z])
+  external void end()
+  external void setBindGroup(int index, GPUBindGroup group)
+  external void setPipeline(GPUComputePipeline pipeline)
+
+extension type GPUComputePipeline._(JSObject _) implements JSObject
+  external GPUBindGroupLayout getBindGroupLayout(int index)
+
+extension type GPUComputePipelineDescriptor._(JSObject _) implements JSObject
+  external factory GPUComputePipelineDescriptor({GPUPipelineLayout layout, GPUProgrammableStage compute, String label})
+
+extension type GPUDepthStencilState._(JSObject _) implements JSObject
+  external factory GPUDepthStencilState({String format, bool depthWriteEnabled, String depthCompare, GPUStencilFaceState stencilFront, GPUStencilFaceState stencilBack, int stencilReadMask, int stencilWriteMask, int depthBias, double depthBiasSlopeScale, double depthBiasClamp})
+
+extension type GPUDevice._(JSObject _) implements JSObject
+  external GPUBindGroup createBindGroup(GPUBindGroupDescriptor d)
+  external GPUBindGroupLayout createBindGroupLayout(GPUBindGroupLayoutDescriptor d)
+  external GPUBuffer createBuffer(GPUBufferDescriptor d)
+  external GPUCommandEncoder createCommandEncoder()
+  external GPUComputePipeline createComputePipeline(GPUComputePipelineDescriptor d)
+  external GPUPipelineLayout createPipelineLayout(GPUPipelineLayoutDescriptor d)
+  external GPUQuerySet createQuerySet(GPUQuerySetDescriptor d)
+  external GPUQueue get queue
+  external GPURenderPipeline createRenderPipeline(GPURenderPipelineDescriptor d)
+  external GPUSampler createSampler(GPUSamplerDescriptor d)
+  external GPUShaderModule createShaderModule(GPUShaderModuleDescriptor d)
+  external GPUSupportedFeatures get features
+  external GPUSupportedLimits get limits
+  external GPUTexture createTexture(GPUTextureDescriptor d)
+  external JSPromise<GPUDeviceLostInfo> get lost
+  external JSPromise<GPUError?> popErrorScope()
+  external void destroy()
+  external void pushErrorScope(String filter)
+
+extension type GPUDeviceDescriptor._(JSObject _) implements JSObject
+  external factory GPUDeviceDescriptor({String label, JSArray<JSString> requiredFeatures, JSObject requiredLimits})
+
+extension type GPUDeviceLostInfo._(JSObject _) implements JSObject
+  external String get message
+  external String get reason
+
+extension type GPUError._(JSObject _) implements JSObject
+  external String get message
+
+extension type GPUExtent3DDict._(JSObject _) implements JSObject
+  external factory GPUExtent3DDict({int width, int height, int depthOrArrayLayers})
+
+extension type GPUFragmentState._(JSObject _) implements JSObject
+  external factory GPUFragmentState({GPUShaderModule module, String entryPoint, JSArray<GPUColorTargetState> targets})
+
+extension type GPUMultisampleState._(JSObject _) implements JSObject
+  external factory GPUMultisampleState({int count, int mask, bool alphaToCoverageEnabled})
+
+extension type GPUOrigin3DDict._(JSObject _) implements JSObject
+  external factory GPUOrigin3DDict({int x, int y, int z})
+
+extension type GPUPipelineLayout._(JSObject _) implements JSObject
+
+extension type GPUPipelineLayoutDescriptor._(JSObject _) implements JSObject
+  external factory GPUPipelineLayoutDescriptor({JSArray<GPUBindGroupLayout> bindGroupLayouts, String label})
+
+extension type GPUPrimitiveState._(JSObject _) implements JSObject
+  external factory GPUPrimitiveState({String topology, String cullMode, String frontFace})
+  external factory GPUPrimitiveState.strip({String topology, String cullMode, String frontFace, String stripIndexFormat})
+
+extension type GPUProgrammableStage._(JSObject _) implements JSObject
+  external factory GPUProgrammableStage({GPUShaderModule module, String entryPoint})
+
+extension type GPUQuerySet._(JSObject _) implements JSObject
+  external void destroy()
+
+extension type GPUQuerySetDescriptor._(JSObject _) implements JSObject
+  external factory GPUQuerySetDescriptor({String type, int count, String label})
+
+extension type GPUQueue._(JSObject _) implements JSObject
+  external JSPromise<JSAny?> onSubmittedWorkDone()
+  external void submit(JSArray<GPUCommandBuffer> buffers)
+  external void writeBuffer(GPUBuffer buffer, int bufferOffset, JSObject data, [int dataOffset, int size])
+  external void writeTexture(GPUTexelCopyTextureInfo destination, JSObject data, GPUTexelCopyBufferLayout dataLayout, GPUExtent3DDict size)
+
+extension type GPURenderPassColorAttachment._(JSObject _) implements JSObject
+  external factory GPURenderPassColorAttachment({GPUTextureView view, GPUColorDict clearValue, String loadOp, String storeOp})
+  external factory GPURenderPassColorAttachment.resolving({GPUTextureView view, GPUTextureView resolveTarget, GPUColorDict clearValue, String loadOp, String storeOp})
+
+extension type GPURenderPassDepthStencilAttachment._(JSObject _) implements JSObject
+  external factory GPURenderPassDepthStencilAttachment({GPUTextureView view, double depthClearValue, String depthLoadOp, String depthStoreOp, int stencilClearValue, String stencilLoadOp, String stencilStoreOp})
+  external factory GPURenderPassDepthStencilAttachment.depthOnly({GPUTextureView view, double depthClearValue, String depthLoadOp, String depthStoreOp})
+
+extension type GPURenderPassDescriptor._(JSObject _) implements JSObject
+  external factory GPURenderPassDescriptor({JSArray<GPURenderPassColorAttachment> colorAttachments, String label})
+  external factory GPURenderPassDescriptor.withDepth({JSArray<GPURenderPassColorAttachment> colorAttachments, GPURenderPassDepthStencilAttachment depthStencilAttachment, String label})
+  external set timestampWrites(GPURenderPassTimestampWrites value)
+
+extension type GPURenderPassEncoder._(JSObject _) implements JSObject
+  external void draw(int vertexCount, [int instanceCount, int firstVertex, int firstInstance])
+  external void drawIndexed(int indexCount, [int instanceCount, int firstIndex, int baseVertex, int firstInstance])
+  external void end()
+  external void setBindGroup(int index, GPUBindGroup? group, [JSArray<JSNumber> dynamicOffsets])
+  external void setBlendConstant(GPUColorDict color)
+  external void setIndexBuffer(GPUBuffer buffer, String format, [int offset, int size])
+  external void setPipeline(GPURenderPipeline pipeline)
+  external void setScissorRect(int x, int y, int width, int height)
+  external void setStencilReference(int reference)
+  external void setVertexBuffer(int slot, GPUBuffer buffer, [int offset, int size])
+  external void setViewport(double x, double y, double width, double height, double minDepth, double maxDepth)
+
+extension type GPURenderPassTimestampWrites._(JSObject _) implements JSObject
+  external factory GPURenderPassTimestampWrites({GPUQuerySet querySet, int beginningOfPassWriteIndex, int endOfPassWriteIndex})
+
+extension type GPURenderPipeline._(JSObject _) implements JSObject
+  external GPUBindGroupLayout getBindGroupLayout(int index)
+
+extension type GPURenderPipelineDescriptor._(JSObject _) implements JSObject
+  external factory GPURenderPipelineDescriptor({JSAny layout, GPUVertexState vertex, GPUFragmentState fragment, GPUPrimitiveState primitive, GPUDepthStencilState depthStencil, GPUMultisampleState multisample, String label})
+  external factory GPURenderPipelineDescriptor.withoutDepth({JSAny layout, GPUVertexState vertex, GPUFragmentState fragment, GPUPrimitiveState primitive, GPUMultisampleState multisample, String label})
+
+extension type GPURequestAdapterOptions._(JSObject _) implements JSObject
+  external factory GPURequestAdapterOptions({String powerPreference, bool forceFallbackAdapter})
+
+extension type GPUSampler._(JSObject _) implements JSObject
+
+extension type GPUSamplerBindingLayout._(JSObject _) implements JSObject
+  external factory GPUSamplerBindingLayout({String type})
+
+extension type GPUSamplerDescriptor._(JSObject _) implements JSObject
+  external factory GPUSamplerDescriptor({String addressModeU, String addressModeV, String addressModeW, String magFilter, String minFilter, String mipmapFilter, double lodMinClamp, double lodMaxClamp, int maxAnisotropy, String label})
+  external factory GPUSamplerDescriptor.comparison({String addressModeU, String addressModeV, String addressModeW, String magFilter, String minFilter, String mipmapFilter, String compare, String label})
+
+extension type GPUShaderModule._(JSObject _) implements JSObject
+  external JSPromise<GPUCompilationInfo> getCompilationInfo()
+
+extension type GPUShaderModuleDescriptor._(JSObject _) implements JSObject
+  external factory GPUShaderModuleDescriptor({String code, String label})
+
+extension type GPUStencilFaceState._(JSObject _) implements JSObject
+  external factory GPUStencilFaceState({String compare, String failOp, String depthFailOp, String passOp})
+
+extension type GPUSupportedFeatures._(JSObject _) implements JSObject
+  external bool has(String feature)
+
+extension type GPUSupportedLimits._(JSObject _) implements JSObject
+  external int get maxBindGroups
+  external int get maxBufferSize
+  external int get maxColorAttachments
+  external int get maxSampledTexturesPerShaderStage
+  external int get maxSamplersPerShaderStage
+  external int get maxTextureArrayLayers
+  external int get maxTextureDimension2D
+  external int get maxUniformBufferBindingSize
+  external int get maxVertexAttributes
+  external int get maxVertexBuffers
+  external int get minUniformBufferOffsetAlignment
+
+extension type GPUTexelCopyBufferInfo._(JSObject _) implements JSObject
+  external factory GPUTexelCopyBufferInfo({GPUBuffer buffer, int offset, int bytesPerRow, int rowsPerImage})
+
+extension type GPUTexelCopyBufferLayout._(JSObject _) implements JSObject
+  external factory GPUTexelCopyBufferLayout({int offset, int bytesPerRow, int rowsPerImage})
+
+extension type GPUTexelCopyTextureInfo._(JSObject _) implements JSObject
+  external factory GPUTexelCopyTextureInfo({GPUTexture texture, int mipLevel, GPUOrigin3DDict origin, String aspect})
+
+extension type GPUTexture._(JSObject _) implements JSObject
+  external GPUTextureView createView([GPUTextureViewDescriptor descriptor])
+  external String get format
+  external int get depthOrArrayLayers
+  external int get height
+  external int get mipLevelCount
+  external int get sampleCount
+  external int get width
+  external void destroy()
+
+extension type GPUTextureBindingLayout._(JSObject _) implements JSObject
+  external factory GPUTextureBindingLayout({String sampleType, String viewDimension, bool multisampled})
+
+extension type GPUTextureDescriptor._(JSObject _) implements JSObject
+  external factory GPUTextureDescriptor({GPUExtent3DDict size, String format, int usage, int sampleCount, int mipLevelCount, String dimension, String label})
+
+extension type GPUTextureView._(JSObject _) implements JSObject
+
+extension type GPUTextureViewDescriptor._(JSObject _) implements JSObject
+  external factory GPUTextureViewDescriptor({String format, String dimension, String aspect, int baseMipLevel, int mipLevelCount, int baseArrayLayer, int arrayLayerCount, String label})
+
+extension type GPUVertexAttribute._(JSObject _) implements JSObject
+  external factory GPUVertexAttribute({String format, int offset, int shaderLocation})
+
+extension type GPUVertexBufferLayout._(JSObject _) implements JSObject
+  external factory GPUVertexBufferLayout({int arrayStride, String stepMode, JSArray<GPUVertexAttribute> attributes})
+
+extension type GPUVertexState._(JSObject _) implements JSObject
+  external factory GPUVertexState({GPUShaderModule module, String entryPoint, JSArray<GPUVertexBufferLayout> buffers})
+
+abstract final class GpuBufferUsage
+  static const int copyDst = 0x0008
+  static const int copySrc = 0x0004
+  static const int index = 0x0010
+  static const int indirect = 0x0100
+  static const int mapRead = 0x0001
+  static const int mapWrite = 0x0002
+  static const int queryResolve = 0x0200
+  static const int storage = 0x0080
+  static const int uniform = 0x0040
+  static const int vertex = 0x0020
+
+extension type GpuCanvas(JSObject element) implements JSObject
+  external GPUCanvasContext? getContext(String contextId)
+
+abstract final class GpuColorWrite
+  static const int all = 0xF
+  static const int alpha = 0x8
+  static const int blue = 0x4
+  static const int green = 0x2
+  static const int none = 0x0
+  static const int red = 0x1
+
+final class GpuDeviceError implements Exception
+  String toString()
+  const GpuDeviceError(this.what, this.message)
+  final String message
+  final String what
+
+abstract final class GpuErrorFilter
+  static const String internal = 'internal'
+  static const String outOfMemory = 'out-of-memory'
+  static const String validation = 'validation'
+
+abstract final class GpuFeature
+  static const String depth32FloatStencil8 = 'depth32float-stencil8'
+  static const String float32Filterable = 'float32-filterable'
+  static const String textureCompressionAstc = 'texture-compression-astc'
+  static const String textureCompressionBc = 'texture-compression-bc'
+  static const String textureCompressionEtc2 = 'texture-compression-etc2'
+  static const String timestampQuery = 'timestamp-query'
+
+abstract final class GpuMapMode
+  static const int read = 0x1
+  static const int write = 0x2
+
+extension type GpuNavigator._(JSObject _) implements JSObject
+  external GPU? get gpu
+
+abstract final class GpuShaderStage
+  static const int compute = 0x4
+  static const int fragment = 0x2
+  static const int vertex = 0x1
+
+abstract final class GpuTextureUsage
+  static const int copyDst = 0x02
+  static const int copySrc = 0x01
+  static const int renderAttachment = 0x10
+  static const int storageBinding = 0x08
+  static const int textureBinding = 0x04
+  static const int transientAttachment = 0x20
+
+final class WebGpuBindingLayouts
+  factory WebGpuBindingLayouts.of(GPUDevice gpu, WebGpuPipeline pipeline)
+  final GPUPipelineLayout pipelineLayout
+  final List<GPUBindGroupLayout> groups
+  final List<WebGpuGroupShape> shapes
+
+final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
+  ComputeEncoder beginComputePass({String? label})
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader)
+  DepthRange get depthRange
+  FramebufferOrigin get framebufferOrigin
+  Future<ByteData> readBuffer(StorageBuffer buffer)
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
+  Future<ByteData?> readPixels(TextureHandle texture)
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
+  Future<String?> debugDrainErrors([String where = ''])
+  Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
+  GPUBindGroup bindGroupFor(WebGpuBindingLayouts layouts, int group, Map<int, WebGpuSlice>? blocks, Map<int, GPUTextureView>? views, Map<int, GPUSampler>? samplers)
+  GPUSampler samplerFor(SamplerOptions options)
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
+  List<TextureFormat> get hdrOutputFormats
+  Object compileModule(String name, String wgsl)
+  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutSpec? layout})
+  ShaderLibrary get shaders
+  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false})
+  T guard<T>(String what, T Function() body)
+  TextureFormat get defaultColorFormat
+  TextureFormat get defaultDepthStencilFormat
+  TextureFormat get hdrColorFormat
+  TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1})
+  TextureHandle? createCubeRenderTarget({required int size, required TextureFormat format, int mipLevels = 1})
+  TextureHandle? createCubeTextureFromPixels({required int size, required TextureFormat format, required List<ByteData> faces, List<List<ByteData>>? mipLevels})
+  TextureHandle? createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
+  WebGpuBindingLayouts bindingsFor(WebGpuPipeline pipeline)
+  bool get supportsBlendColor
+  bool get supportsCompute
+  bool get supportsCubeTextures
+  bool get supportsFloat32Filtering
+  bool get supportsGpuTimestamps
+  bool get supportsIndependentBlend
+  bool get supportsMipmaps
+  bool get supportsOffscreenMsaa
+  bool get supportsRenderToMip
+  bool get supportsStencil
+  bool get supportsWireframe
+  bool supportsTextureFormat(TextureFormat format)
+  final GPUDevice gpuDevice
+  final WebGpuFrameArena indexArena
+  final WebGpuFrameArena uniformArena
+  final WebGpuFrameArena vertexArena
+  final WebGpuPipelineCache<GPURenderPipeline> pipelines
+  int get debugBindGroupCount
+  int get debugSamplerCount
+  int get debugTrackedResourceCount
+  int get maxAnisotropy
+  int get maxColorAttachments
+  int get preferredSampleCount
+  late final String viewType
+  static Future<WebGpuDevice?> create({required int width, required int height, required WebGpuSectionStages stages})
+  void applyCanvasStyle({BoxFit fit = BoxFit.fill, FilterQuality quality = FilterQuality.none})
+  void beginFrame()
+  void copyToCanvas(TextureHandle frame)
+  void dispose()
+  void onFrameComplete(void Function() whenDone)
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
+  void releaseGeometry(GeometryBuffer geometry)
+  void releaseStorageBuffer(StorageBuffer buffer)
+  void releaseTexture(TextureHandle texture)
+
+final class WebGpuEncoder implements CommandEncoder
+  WebGpuEncoder(this._device, RenderPassDescriptor descriptor, {GPURenderPassTimestampWrites? timestampWrites})
+  WebGpuPipelineSignature signatureFor(WebGpuPipeline pipeline)
+  bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
+  bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount)
+  void bindPipeline(PipelineHandle pipeline)
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount, {int slot = 0})
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0})
+  void clearBindings()
+  void draw({int instanceCount = 1})
+  void setBlend(BlendState? state, {int attachment = 0})
+  void setBlendColor(Vector4 color)
+  void setCullMode(CullMode mode)
+  void setDepthCompare(CompareFunction compare)
+  void setDepthWrite(bool enabled)
+  void setPolygonMode(PolygonMode mode)
+  void setPrimitiveType(PrimitiveType type)
+  void setScissor(ScreenRect rect)
+  void setStencil(StencilState front, {StencilState? back})
+  void setStencilReference(int value)
+  void setViewport(ScreenRect rect)
+  void setWindingOrder(WindingOrder order)
+  void submit()
+
+final class WebGpuFrameArena
+  WebGpuFrameArena(this._gpu, {required this.usage, required this.alignment, required this.label, int initialBytes = 1 << 16})
+  WebGpuSlice write(ByteData bytes)
+  final String label
+  final int alignment
+  final int usage
+  int get bufferCount
+  int get peakBytes
+  void dispose()
+  void reset()
+
+class WebGpuFramePresenter extends StatelessWidget
+  Widget build(BuildContext context)
+  const WebGpuFramePresenter({super.key, required this.device, required this.frame, this.fit = BoxFit.fill, this.quality = FilterQuality.none})
+  final BoxFit fit
+  final FilterQuality quality
+  final TextureHandle frame
+  final WebGpuDevice device
+
+final class WebGpuGeometry
+  const WebGpuGeometry(this.buffer)
+  final GPUBuffer buffer
+
+typedef WebGpuSlice = ({GPUBuffer buffer, int offset, int length});
+
+final class WebGpuTexture
+  GPUTextureView attachmentView({int face = 0, int level = 0})
+  GPUTextureView get sampledView
+  GPUTextureView? get sampledViewIfMade
+  WebGpuTexture({required this.texture, required this.dimension, required this.sampleable, this.transient = false})
+  final GPUTexture texture
+  final WebGpuTextureDimension dimension
+  final bool sampleable
+  final bool transient
+
+Future<T> gpuChecked<T>(GPUDevice device, String what, T Function() body)
+
+bool gpuKnowsTransientAttachments()
+
+external GpuNavigator get gpuNavigator
+
+JSObject gpuRequiredLimits(Map<String, int> limits)
+
+int gpuShaderStageOf(WebGpuVisibility visibility)
+
+JSArray<JSString> gpuStrings(Iterable<String> names)
+
+Future<GraphicsDevice> openWebGpu({required int width, required int height})
+
+TextureHandle? webgpuCreateCubeRenderTarget(GPUDevice gpu, List<WebGpuTexture> tracked, {required int size, required TextureFormat format, int mipLevels = 1})
+
+TextureHandle? webgpuCreateCubeTextureFromPixels(GPUDevice gpu, List<WebGpuTexture> tracked, {required int size, required TextureFormat format, required List<ByteData> faces, List<List<ByteData>>? mipLevels})
+
+TextureHandle webgpuCreateTexture(GPUDevice gpu, List<WebGpuTexture> tracked, RenderTargetSpec spec, {int levels = 1, bool transientAttachments = false})
+
+TextureHandle? webgpuCreateTextureFromPixels(GPUDevice gpu, List<WebGpuTexture> tracked, {required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
+
+void webgpuDisposePersistentResources(List<WebGpuTexture> textures, List<GPUBuffer> buffers)
+
+bool webgpuIsDepthStencil(TextureFormat format)
+
+void webgpuOverwriteGeometry(GPUDevice gpu, GeometryBuffer target, int offsetInBytes, ByteData bytes)
+
+void webgpuOverwriteTexture(GPUDevice gpu, TextureHandle target, ByteData rgba, ScreenRect rect)
+
+bool webgpuReleaseGeometry(Object buffer, List<GPUBuffer> tracked)
+
+bool webgpuReleaseTexture(WebGpuTexture backend, List<WebGpuTexture> tracked)
+
+int? webgpuTexelBytes(TextureFormat format)
+
+GeometryBuffer webgpuUploadGeometry(GPUDevice gpu, List<GPUBuffer> tracked, ByteData bytes, GeometryUsage usage)

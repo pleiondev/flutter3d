@@ -84,7 +84,7 @@ Outcome _asMeshStep(
 
   target.mesh.beginStep();
   final OpResult result = edit(target);
-  if (!result.ok) {
+  if (!result.isOk) {
     // Abandoned rather than ended and undone: pushing the step would clear
     // the mesh's redo stack, so a refusal right after an undo would leave
     // `ModelHistory` offering a redo the mesh could no longer perform.
@@ -137,6 +137,7 @@ ModelObject _resyncShapeSet(ModelObject object, EditMesh mesh) {
 final class Extrude extends ModelCommand {
   const Extrude(this.distance);
 
+  /// In metres.
   final double distance;
 
   @override
@@ -168,6 +169,8 @@ final class LoopCut extends ModelCommand {
   const LoopCut({this.cuts = 1, this.factor = 0.5});
 
   final int cuts;
+
+  /// A 0..1 fraction of the edge.
   final double factor;
 
   @override
@@ -213,6 +216,7 @@ final class BevelEdges extends ModelCommand {
   const BevelEdges(this.width, {this.segments = 1, this.clampOverlap = true});
 
   /// How far the new face wall sits from the original corner.
+  /// In metres.
   final double width;
 
   /// Segments above `1` are not built yet — see [bevelEdges]'s own doc
@@ -271,10 +275,12 @@ final class InsetFaces extends ModelCommand {
   const InsetFaces(this.thickness, {this.depth = 0.0});
 
   /// How far the new ring sits inside the face's own border.
+  /// In metres.
   final double thickness;
 
   /// How far the new ring is pushed along the face's own normal — nought
   /// for a flat inset, which is what a panel is.
+  /// In metres.
   final double depth;
 
   @override
@@ -433,8 +439,8 @@ final class TransformElements extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'by': by.storage.toList(),
     'what': what,
-    'pivot': pivot.name,
-    'space': space.name,
+    'pivot': transformPivotWord(pivot),
+    'space': transformSpaceWord(space),
   };
 
   // No hint for `by`: it is the whole transform matrix rather than a single
@@ -443,8 +449,12 @@ final class TransformElements extends ModelCommand {
   // actually offer a person a choice between.
   @override
   Map<String, ParamHint> get hints => <String, ParamHint>{
-    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
-    'space': EnumHint(<String>[for (final s in TransformSpace.values) s.name]),
+    'pivot': ChoiceHint(<String>[
+      for (final p in TransformPivot.values) transformPivotWord(p),
+    ]),
+    'space': ChoiceHint(<String>[
+      for (final s in TransformSpace.values) transformSpaceWord(s),
+    ]),
   };
 
   /// **[TransformPivot.individual] is refused rather than approximated.**
@@ -711,7 +721,7 @@ final class RecalculateNormals extends ModelCommand {
             topologyChanged: true,
           );
         }
-        if (!target.mesh.makeConsistent()) {
+        if (!target.mesh.ensureConsistent()) {
           return OpResult.refused(
             'every face already agrees with its neighbours',
             selection: target.elements,
@@ -785,7 +795,7 @@ final class Separate extends ModelCommand {
 
     target.mesh.beginStep();
     final OpResult cut = deleteSelection(target.mesh, faces);
-    if (!cut.ok) {
+    if (!cut.isOk) {
       target.mesh.abandonStep();
       return Outcome.refused(cut.reason!);
     }

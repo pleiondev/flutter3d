@@ -1,8 +1,93 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `PictureAnswer` is not re-exported.** It is the agent kit's,
+  `package:flutter3d_mcp/kit.dart`.
+
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  exception family a reading predicate's refusal is of.
+
+- **`run.bisect` steps each run through a `RunLoop`**, rewinding by the
+  loop's captures rather than by the run's own save and restore. A layout
+  names the same entities and components; a path with no layout starts
+  with the run's part, `run.data.`.
+- **The simulation and diagnostics servers announce schema version 1.0.0**,
+  the first stable release's.
+- **The tests written against the unpublished demo content moved to
+  `flutter3d_demo_content`**; no dev dependency on it any more, so pana
+  resolves the package.
+
+- **Built on `flutter3d_mcp`'s kit.** The kit every server shares is the
+  `kit.dart` library of `flutter3d_mcp` now, not the `flutter3d_mcp_kit`
+  package, and `PictureAnswer` is re-exported from there. This package
+  stays apart from the other servers because it plays a game, which takes
+  the Flutter SDK, and theirs may not.
+- **Tools are named `area.verb`, and the old names still answer.** The
+  simulation's server (`flutter3d.sim`, schema 1.1.0) offers `level.open`,
+  `run.step`, `state.snapshot`, `run.write` and the rest from `simToolNames`;
+  the diagnostics server (`flutter3d.diagnostics`, schema 1.1.0) offers
+  `render.frame`, `render.pixel`, `render.passes`, `render.scanNan` from
+  `diagnosticToolNames`. `open`, `step`, `writeRun`, `scanNaN` and the rest
+  stay aliases until 2.0. Each tool says whether it only reads.
+- **Breaking:** `ReadingPredicateException` extends `Flutter3dFormatException`
+  instead of implementing `Exception` directly. The name and members are
+  unchanged and every `on` clause that caught it still does; every exception
+  the engine throws now hangs from `Flutter3dException` in
+  `flutter3d_plugin_api`, in one of four families: format, capability, plugin
+  and resource. A caller who reports anything the engine refused catches the
+  root; one who acts on a kind catches its family. The migration table marks
+  it as nothing to do.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **An `order` verb for games played by orders.** It is offered only when the
+  session's game is an `OrderedGame`. It gives one order through the input
+  and steps on, so the runs it writes verify and bisect like any other. The
+  launcher plays any of the four genres, and the server takes the installed
+  plugins' `McpTools` as `projectTools`.
+
+- **The project's plugin tools are offered beside the server's own.**
+  `SimMcpServer` and `DiagnosticMcpServer` take an optional
+  `projectTools`, the project's `McpTools` from `flutter3d_mcp_kit`, and
+  `onProjectCall` to watch calls to them. Each plugin tool is listed as
+  `<plugin id>.<name>` after the server's own, and the list follows plugins
+  as they are switched on and off. A server built without it offers exactly
+  what `api/flutter3d_sim_mcp.mcp` lists, so the schema versions do not
+  move. An addition.
+
+- **`verify` refuses a run from another simulation before playing it**, when
+  the game says its number (`VersionedSimulation`). The reason names both
+  numbers and mentions the run's pose record. `writeRun` and `expect` write
+  the game's simulation into the run.
+
+- **The tools are a contract too.** Both servers' tool names and input
+  schemas are written down in `api/flutter3d_sim_mcp.mcp` — read from
+  source, with the game's own name and buttons shown as `{game}` and
+  `{button}` — and held to the same semver as the Dart API: a tool removed or
+  renamed without an alias, or a new required argument, waits for a major.
+  Each server announces its own number as `schemaVersion` in its
+  `initialize` result, `simMcpSchemaVersion` and `renderMcpSchemaVersion`
+  (both 1.0.0), and each moves only when its tools do.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#tools-for-agents-are-a-contract-too)
+  has the rules.
 
 - **`bisect` finds where two runs part.** It reports the step, whether
   the input differed there, and the first field that differs, using the
   library's `bisectTapes`.
+
+- **`bisect` names the entity and the component two runs part on.** Given
+  where the save keeps its entities, as `entities: {"ecs": ["entities"]}`
+  or `{"rows": "actors"}`, or by the host through `SimSession(entities:)`,
+  the answer lists every component that differs at that step and starts
+  the path in the first of them (`0.facing.yaw`). A step where the runs
+  part outside the entities says that no component differs there.
 
 - **The session runs on the physics core.** A run is verified on the
   backend it was recorded on, and the session returns to its own backend
@@ -17,7 +102,7 @@
   are one format and a run this server calls verified is one a telemetry
   server would take. Answers and JSON are unchanged.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

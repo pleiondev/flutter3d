@@ -36,6 +36,7 @@ class TwoBoneIkResult {
 
   /// Distance between where `tip` actually lands and the requested target —
   /// zero within floating-point error whenever the target was in reach.
+  /// In metres.
   final double reachError;
 }
 

@@ -6,7 +6,7 @@ a level saved while it runs is sent to it and taken without the game starting
 over.
 
 It is what the Play button of `apps/flutter3d_editor` runs, and what the
-`play` tools of [`flutter3d_editor_mcp`](../flutter3d_editor_mcp) run, so an
+`play` tools of [`flutter3d_mcp/editor.dart`](../flutter3d_mcp) run, so an
 agent's Play and a person's are the same code.
 
 ```dart
@@ -32,7 +32,7 @@ if (run.state.value case PlayRunning(:final vmService)) {
 | `pushLevel` | A saved level, sent to the running game's `ext.flutter3d.level.apply` — or, given the `base` it was saved over, as a patch to `ext.flutter3d.level.patch`, whole only when the game says the patch is stale |
 | `Watched` | A value and a stream of its changes, where Flutter's `ValueNotifier` cannot go |
 | `AttachedRun` | A game somebody else started, by its VM service address: console, events, hot reload and restart, detach |
-| `PostedEvent`, `eventsSince` | What the game posted with `flutter3d_game`'s `postGameEvent` — numbered, capped like the console — and the read by cursor that `play_events` answers with |
+| `PostedEvent`, `eventsSince` | What the game posted with `flutter3d_game`'s `postToolEvent` — numbered, capped like the console — and the read by cursor that `play_events` answers with |
 | `PlayedGame` | What `FlutterRun` and `AttachedRun` both are, for one panel over either |
 | `connectVmService` | A VM service connection over a socket a browser has too |
 

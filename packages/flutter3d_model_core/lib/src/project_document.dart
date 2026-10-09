@@ -547,8 +547,12 @@ enum UpAxis {
 /// lives. It composes for free with the existing hierarchy walk: a root's
 /// children inherit the correction by inheriting the root's transform, the
 /// same way they inherit everything else about where it sits.
-final class ImportOptions {
-  const ImportOptions({this.scale = 1.0, this.upAxis = UpAxis.y});
+final class ImportSettings {
+  const ImportSettings({this.scale = 1.0, this.upAxis = UpAxis.y});
+
+  /// A copy with the given fields replaced.
+  ImportSettings copyWith({double? scale, UpAxis? upAxis}) =>
+      ImportSettings(scale: scale ?? this.scale, upAxis: upAxis ?? this.upAxis);
 
   /// Multiplies every root's translation and scale. STL carries no unit at
   /// all and is conventionally millimetres; `0.001` reads such a file as
@@ -563,7 +567,7 @@ final class ImportOptions {
 /// belongs to the workspace rather than to the model.
 ModelProject fromModelDocument(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final nodes = document.nodes;
   final taken = List<bool>.filled(nodes.length, false);
@@ -763,7 +767,7 @@ final class ImportReport {
 /// in alongside the project it produces.
 ImportReport importReportOf(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final project = fromModelDocument(document, options: options);
   return ImportReport(

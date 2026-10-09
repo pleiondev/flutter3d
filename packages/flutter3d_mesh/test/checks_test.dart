@@ -293,7 +293,7 @@ void main() {
 
       // And turning it back the right way clears it, which is what says the
       // check is reading the winding rather than counting something.
-      edit(mesh, () => mesh.makeConsistent());
+      edit(mesh, () => mesh.ensureConsistent());
       expect(MeshChecks(mesh).invertedShells(), isNull);
     });
 

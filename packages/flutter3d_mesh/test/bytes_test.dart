@@ -9,6 +9,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -33,7 +34,7 @@ EditMesh loaded() {
         final at = corner++;
         mesh
           ..setUv(half, Vector2(at / 4, face / 6))
-          ..setColour(half, Vector4(0.1 * at, 0.2, 0.3, 1))
+          ..setColor(half, LinearColor(0.1 * at, 0.2, 0.3))
           ..setCrease(half, 0.25 * at)
           ..setEdgeFlag(half, EdgeFlags.sharp, on: at == 0)
           ..setEdgeFlag(half, EdgeFlags.seam, on: at == 1);
@@ -97,7 +98,7 @@ void main() {
 
       final half = back.halfEdgeOf(1);
       expect(back.uvOf(half).y, closeTo(1 / 6, 1e-6));
-      expect(back.colourOf(half).y, closeTo(0.2, 1e-6));
+      expect(back.colorOf(half).g, closeTo(0.2, 1e-6));
       expect(back.creaseOf(half), closeTo(0, 1e-6));
       expect(back.edgeHas(half, EdgeFlags.sharp), isTrue);
       expect(back.skinOf(5).joints.x, closeTo(5, 1e-6));

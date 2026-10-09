@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -64,7 +65,7 @@ final class WebGpuSpikePipeline {
   /// Never null here. `GraphicsDevice.createPipeline` says a null layout means
   /// the backend works it out from the shader, and this one refuses instead —
   /// see the throw in `WebGpuSpikeDevice.createPipeline`.
-  final VertexLayoutSpec layout;
+  final VertexLayoutDescriptor layout;
 }
 
 /// A texture this device owns.
@@ -85,16 +86,16 @@ final class WebGpuSpikeBuffer {
 /// `webgpuContractGaps` rather than an accident of this file: `ShaderBundle`
 /// names a section per backend and has constants for two. So the spike compiles
 /// its own WGSL, and `loadShaders` refuses anything handed to it by name.
-final class WebGpuSpikeLibrary implements ShaderLibrary {
+final class WebGpuSpikeLibrary with ShaderLibrary {
   WebGpuSpikeLibrary(GPUDevice device) : _stages = <String, ShaderHandle>{} {
     final module = device.createShaderModule(
       GPUShaderModuleDescriptor(code: spikeShaderSource),
     );
-    _stages['SpikeVertex'] = ShaderHandle(
+    _stages['SpikeVertex'] = wrapShader(
       backend: WebGpuSpikeStage(module, 'spikeVertex'),
       name: 'SpikeVertex',
     );
-    _stages['SpikeFragment'] = ShaderHandle(
+    _stages['SpikeFragment'] = wrapShader(
       backend: WebGpuSpikeStage(module, 'spikeFragment'),
       name: 'SpikeFragment',
     );
@@ -138,52 +139,102 @@ fn spikeFragment(in : VertexOut) -> @location(0) vec4<f32> {
 ''';
 
 /// A device, as far as one triangle needs one.
-final class WebGpuSpikeDevice implements GraphicsDevice {
-  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
-  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
-  // makes a caller take its fallback.
+/// The name the spike refuses in, as `UnsupportedCapability.backend`.
+const String spikeBackendName = 'the WebGPU spike';
 
+/// The refusal every member past the triangle throws: the spike lists none
+/// of the features they need, and says why in one sentence.
+Never spikeRefuses(DeviceFeature feature) => throw UnsupportedCapability(
+  feature,
+  backend: spikeBackendName,
+  reason:
+      'a spike, not a backend — it draws one triangle to count what the '
+      'contract owes a WebGPU implementation, and flutter3d_webgpu is the '
+      'backend that implements it',
+);
+
+final class WebGpuSpikeDevice extends GraphicsDevice {
+  // ------------------------------------------------------- capabilities
+
+  /// Exactly what the spike answered through the `supportsX` getters before
+  /// 1.0, and nothing new: offscreen MSAA, manual mipmaps, cubes, rendering
+  /// into a mip level and a stencil. No blend constant (two of the four
+  /// factors have no WebGPU spelling — see `supportsBlendColor`'s finding in
+  /// `webgpuContractGaps`), no wireframe (WebGPU has no polygon fill mode),
+  /// no alpha-to-coverage (the spike predates it), no timestamps, no compute,
+  /// no float32 filtering and no independent blend (it keys one equation).
   @override
-  bool get supportsGpuTimestamps => false;
+  final DeviceFeatures features = DeviceFeatures(const <DeviceFeature>[
+    DeviceFeature.offscreenMultisample,
+    DeviceFeature.manualMipmaps,
+    DeviceFeature.cubeTextures,
+    // A view built with a `baseMipLevel` is an ordinary attachment here,
+    // which is the half of this that OpenGL ES refuses.
+    DeviceFeature.renderToMipLevel,
+    DeviceFeature.stencil,
+  ]);
 
+  /// The WebGPU defaults, which are what the specification guarantees, with
+  /// the spike's two old numbers and no compute.
+  @override
+  final DeviceLimits limits = const DeviceLimits(
+    // Four — `gfx-50n`, and the specification's guaranteed floor for
+    // `maxColorAttachments`, which no WebGPU device may report below.
+    maxColorAttachments: 4,
+    maxSamplerAnisotropy: 16,
+    maxComputeWorkgroupStorageSize: 0,
+    maxComputeInvocationsPerWorkgroup: 0,
+    maxComputeWorkgroupSizeX: 0,
+    maxComputeWorkgroupSizeY: 0,
+    maxComputeWorkgroupSizeZ: 0,
+    maxComputeWorkgroupsPerDimension: 0,
+  );
+
+  /// Sampled where WebGPU has a name for the format, asked through the one
+  /// table that also does the uploads — so the answer here cannot drift from
+  /// what an allocation would do — and nothing more.
+  ///
+  /// Compressed formats are gated by adapter features in WebGPU and this
+  /// spike requests none, so every one of them would be a false on a real
+  /// backend until the feature is asked for. That is a backend's bookkeeping
+  /// and not a contract point. The 1.0 formats answer none: the table spells
+  /// them, and the spike allocates none of them.
+  @override
+  TextureFormatSupport textureFormatSupport(TextureFormat format) =>
+      format.isMirrored &&
+          gpuTextureFormat(format) != null &&
+          !format.isCompressed
+      ? const TextureFormatSupport(sampled: true)
+      : TextureFormatSupport.none;
+
+  /// Never called: [features] has no `gpuTimestamps`.
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
-
-  @override
-  bool get supportsCompute => false;
 
   @override
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
     bool bindableAsIndices = false,
-  }) => throw UnsupportedError(_noCompute);
+  }) => spikeRefuses(DeviceFeature.compute);
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
-      throw UnsupportedError(_noCompute);
+      spikeRefuses(DeviceFeature.compute);
 
   @override
-  ComputeEncoder beginComputePass({String? label}) =>
-      throw UnsupportedError(_noCompute);
+  ComputeEncoder beginComputePass({
+    String? label,
+    PassTimestampWrites? timestampWrites,
+  }) => spikeRefuses(DeviceFeature.compute);
 
   @override
   Future<ByteData> readBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
+      spikeRefuses(DeviceFeature.compute);
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
-
-  static const String _noCompute =
-      'The WebGPU spike runs no compute: supportsCompute is false. Ask before '
-      'creating a storage buffer, a compute pipeline or a compute pass.';
-
-  @override
-  bool get supportsFloat32Filtering => false;
-
-  @override
-  bool get supportsIndependentBlend => false;
+      spikeRefuses(DeviceFeature.compute);
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
@@ -255,63 +306,19 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   @override
   int get preferredSampleCount => 4;
 
-  @override
-  bool get supportsOffscreenMsaa => true;
-
-  /// **False, and the false is a finding rather than a limitation.**
-  /// `setBlendConstant` exists and two of the four constant-reading
-  /// `BlendFactor` values map straight onto `"constant"` and
-  /// `"one-minus-constant"`. The other two are OpenGL's `CONSTANT_ALPHA`, which
-  /// Metal and Vulkan also have and WebGPU does not, so a backend answering true
-  /// would be promising four factors and able to honour two. The capability is
-  /// one answer for all four, so the honest answer is the one that loses the two
-  /// it could have had. See `webgpuContractGaps`.
-  @override
-  bool get supportsBlendColor => false;
-
-  /// False: WebGPU has no polygon fill mode at all. A wireframe there is line
-  /// primitives and an index buffer built for them, which is the renderer's
-  /// decision — the same answer WebGL2 gives for the same reason.
-  @override
-  bool get supportsWireframe => false;
-
-  /// False — `P7`: the spike predates it.
-  @override
-  bool get supportsAlphaToCoverage => false;
-
-  @override
-  bool get supportsStencil => true;
-
-  @override
-  bool get supportsMipmaps => true;
-
-  @override
-  bool get supportsCubeTextures => true;
-
-  /// True. A view built with a `baseMipLevel` is an ordinary attachment here,
-  /// which is the half of this that OpenGL ES refuses.
-  @override
-  bool get supportsRenderToMip => true;
-
-  @override
-  int get maxAnisotropy => 16;
-
-  /// Four — `gfx-50n`, and the specification's guaranteed floor for
-  /// `maxColorAttachments`, which no WebGPU device may report below.
-  @override
-  int get maxColorAttachments => 4;
-
-  /// Whether WebGPU has a name for the format, asked through the one table that
-  /// also does the uploads — so the answer here cannot drift from what an
-  /// allocation would do.
-  ///
-  /// Compressed formats are gated by adapter features in WebGPU and this spike
-  /// requests none, so every one of them would be a false on a real backend
-  /// until the feature is asked for. That is a backend's bookkeeping and not a
-  /// contract point: `supportsTextureFormat` is exactly the question for it.
-  @override
-  bool supportsTextureFormat(TextureFormat format) =>
-      gpuTextureFormat(format) != null && !format.isCompressed;
+  // `blendConstant` is absent, and the absence is a finding rather than a
+  // limitation. `setBlendConstant` exists and two of the four
+  // constant-reading `BlendFactor` values map straight onto `"constant"` and
+  // `"one-minus-constant"`. The other two are OpenGL's `CONSTANT_ALPHA`,
+  // which Metal and Vulkan also have and WebGPU does not, so a backend
+  // listing it would be promising four factors and able to honour two. The
+  // feature is one answer for all four, so the honest answer is the one that
+  // loses the two it could have had. See `webgpuContractGaps`.
+  //
+  // `wireframe` is absent because WebGPU has no polygon fill mode at all. A
+  // wireframe there is line primitives and an index buffer built for them,
+  // which is the renderer's decision — the same answer WebGL2 gives for the
+  // same reason.
 
   @override
   ShaderLibrary get shaders => _library;
@@ -319,7 +326,13 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   // -------------------------------------------------------------- resources
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) {
+  TextureHandle createTexture(TextureDescriptor descriptor) {
+    if (descriptor is! RenderTargetDescriptor) {
+      // Ordinary work for a backend, and not a contract gap; see the 1.0
+      // surface below.
+      return spikeRefuses(DeviceFeature.textureWrites);
+    }
+    final spec = descriptor;
     final format = gpuTextureFormat(spec.format);
     if (format == null) {
       throw ArgumentError.value(
@@ -344,7 +357,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
         mipLevelCount: 1,
       ),
     );
-    return TextureHandle(
+    return wrapTexture(
       backend: WebGpuSpikeTexture(texture),
       width: spec.width,
       height: spec.height,
@@ -379,7 +392,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
       ),
     );
     gpuDevice.queue.writeBuffer(buffer, 0, gpuWritableBytes(bytes).toJS);
-    return GeometryBuffer(
+    return wrapGeometry(
       backend: WebGpuSpikeBuffer(buffer),
       offsetInBytes: 0,
       lengthInBytes: bytes.lengthInBytes,
@@ -428,7 +441,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
   }) {
     if (layout == null) {
       throw UnimplementedError(
@@ -438,7 +451,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
         'See webgpuContractGaps.',
       );
     }
-    return PipelineHandle(
+    return wrapPipeline(
       backend: WebGpuSpikePipeline(
         name: '${vertex.name}+${fragment.name}',
         vertex: vertex.backend as WebGpuSpikeStage,
@@ -467,13 +480,12 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      WebGpuSpikeEncoder(this, descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    descriptor.checkFeatures(features, backend: spikeBackendName);
+    return WebGpuSpikeEncoder(this, descriptor);
+  }
 
   // ---------------------------------------------------------------- output
-
-  @override
-  Future<ByteData?> readPixels(TextureHandle texture) => readback(texture);
 
   @override
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
@@ -533,7 +545,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   // ------------------------------------------------- what a spike does not do
 
   @override
-  TextureHandle? createTextureFromPixels({
+  TextureHandle createTextureFromPixels({
     required int width,
     required int height,
     required TextureFormat format,
@@ -557,7 +569,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   );
 
   @override
-  TextureHandle? createCubeTextureFromPixels({
+  TextureHandle createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
@@ -568,7 +580,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   );
 
   @override
-  TextureHandle? createCubeRenderTarget({
+  TextureHandle createCubeRenderTarget({
     required int size,
     required TextureFormat format,
     int mipLevels = 1,
@@ -581,7 +593,7 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   @override
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async {
     final bundle = ShaderBundle.decode(bytes);
-    throw ShaderBundleRefused(
+    throw ShaderBundleException(
       name: bundle.name,
       reason:
           'it carries no WebGPU section, and there is no constant naming one: '
@@ -589,6 +601,67 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
           'webgpuContractGaps.',
     );
   }
+
+  // ------------------------------------------- the 1.0 surface, refused
+  //
+  // Each of these is ordinary work for a backend — WebGPU has every one of
+  // them, most as a single call — and none is a contract gap, which is why
+  // none is in `webgpuContractGaps`. The spike refuses them all.
+
+  @override
+  void writeTexture(
+    TextureHandle target,
+    ByteData data, {
+    TextureRegion? region,
+    int mipLevel = 0,
+    int? bytesPerRow,
+  }) => spikeRefuses(DeviceFeature.textureWrites);
+
+  @override
+  StorageBuffer createBuffer(
+    BufferDescriptor descriptor, {
+    ByteData? contents,
+  }) => spikeRefuses(DeviceFeature.buffers);
+
+  @override
+  void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) =>
+      spikeRefuses(DeviceFeature.buffers);
+
+  static DeviceFeature _queryFeature(QueryType type) => type.feature;
+
+  @override
+  QuerySet createQuerySet(QueryType type, int count) =>
+      spikeRefuses(_queryFeature(type));
+
+  @override
+  Future<List<int>> readQueryResults(
+    QuerySet querySet, {
+    int first = 0,
+    int? count,
+  }) => spikeRefuses(_queryFeature(querySet.type));
+
+  @override
+  void releaseQuerySet(QuerySet querySet) =>
+      spikeRefuses(_queryFeature(querySet.type));
+
+  /// Opened, as the contract says a transfer pass always is; every copy in it
+  /// refuses.
+  @override
+  TransferEncoder beginTransferPass({String? label}) =>
+      WebGpuSpikeTransferEncoder();
+
+  @override
+  Future<MappedBuffer> mapBuffer(
+    StorageBuffer buffer,
+    MapMode mode, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => spikeRefuses(DeviceFeature.mappedBuffers);
+
+  @override
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) => spikeRefuses(DeviceFeature.renderBundles);
 
   @override
   void dispose() {

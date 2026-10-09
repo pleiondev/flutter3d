@@ -12,7 +12,7 @@
 /// half-edge around its face, its twin across the edge, and the face it belongs
 /// to; a vertex knows one half-edge leaving it; a face knows one half-edge on
 /// its loop. All of it is `Int32List` and `Float32List` through
-/// [JournalledInts] and [JournalledFloats], so an edit is recorded and can be
+/// [JournaledInts] and [JournaledFloats], so an edit is recorded and can be
 /// taken back, and a read is an array read.
 ///
 /// **Deletion is a tombstone, not a hole.** Removing a face from the middle of
@@ -26,6 +26,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
@@ -63,15 +64,15 @@ final class EditMesh {
 
   /// An empty mesh, ready to be built into.
   factory EditMesh.empty() => EditMesh._(
-    JournalledFloats(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
-    JournalledInts(0),
+    JournaledFloats(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
+    JournaledInts(0),
   );
 
   /// Builds a mesh from points and faces, each face a list of point indices
@@ -180,18 +181,18 @@ final class EditMesh {
     }
 
     final mesh = EditMesh._(
-      JournalledFloats.of(floats[_positions_] ?? Float32List(vertexSlots * 3)),
-      JournalledInts.of(need(_origins, halfEdgeSlots)),
-      JournalledInts.of(need(_nexts, halfEdgeSlots)),
-      JournalledInts.of(need(_twins, halfEdgeSlots)),
-      JournalledInts.of(need(_halfEdgeFaces, halfEdgeSlots)),
-      JournalledInts.of(need(_faceHalfEdges, faceSlots)),
-      JournalledInts.of(need(_outgoings, vertexSlots)),
-      JournalledInts.of(need(_vertexAlives, vertexSlots)),
-      JournalledInts.of(need(_faceAlives, faceSlots)),
+      JournaledFloats.of(floats[_positions_] ?? Float32List(vertexSlots * 3)),
+      JournaledInts.of(need(_origins, halfEdgeSlots)),
+      JournaledInts.of(need(_nexts, halfEdgeSlots)),
+      JournaledInts.of(need(_twins, halfEdgeSlots)),
+      JournaledInts.of(need(_halfEdgeFaces, halfEdgeSlots)),
+      JournaledInts.of(need(_faceHalfEdges, faceSlots)),
+      JournaledInts.of(need(_outgoings, vertexSlots)),
+      JournaledInts.of(need(_vertexAlives, vertexSlots)),
+      JournaledInts.of(need(_faceAlives, faceSlots)),
     );
     mesh._uv0 = _layerOf(floats[_uvs]);
-    mesh._colour = _layerOf(floats[_colours]);
+    mesh._color = _layerOf(floats[_colors]);
     mesh._weights = _layerOf(floats[_weightsTag]);
     mesh._joints = _layerOf(floats[_jointsTag]);
     mesh._crease = _layerOf(floats[_creases]);
@@ -221,7 +222,7 @@ final class EditMesh {
   static const String _vertexAlives = 'VALV';
   static const String _faceAlives = 'FALV';
   static const String _uvs = 'UV0 ';
-  static const String _colours = 'COLR';
+  static const String _colors = 'COLR';
   static const String _weightsTag = 'WGHT';
   static const String _jointsTag = 'JNTS';
   static const String _creases = 'CRES';
@@ -245,7 +246,7 @@ final class EditMesh {
   static const Set<String> _floatSections = <String>{
     _positions_,
     _uvs,
-    _colours,
+    _colors,
     _weightsTag,
     _jointsTag,
     _creases,
@@ -267,38 +268,38 @@ final class EditMesh {
     return out;
   }
 
-  static JournalledFloats? _layerOf(Float32List? values) =>
-      values == null ? null : JournalledFloats.of(values);
+  static JournaledFloats? _layerOf(Float32List? values) =>
+      values == null ? null : JournaledFloats.of(values);
 
-  static JournalledInts? _intLayerOf(Int32List? values) =>
-      values == null ? null : JournalledInts.of(values);
+  static JournaledInts? _intLayerOf(Int32List? values) =>
+      values == null ? null : JournaledInts.of(values);
 
-  final JournalledFloats _positions;
-  final JournalledInts _origin;
-  final JournalledInts _next;
-  final JournalledInts _twin;
-  final JournalledInts _halfEdgeFace;
-  final JournalledInts _faceHalfEdge;
-  final JournalledInts _outgoing;
+  final JournaledFloats _positions;
+  final JournaledInts _origin;
+  final JournaledInts _next;
+  final JournaledInts _twin;
+  final JournaledInts _halfEdgeFace;
+  final JournaledInts _faceHalfEdge;
+  final JournaledInts _outgoing;
 
   // Tombstones. One int per element rather than a bitset: the arrays are
   // already int32 and a bitset would save four megabytes on a mesh where the
   // positions alone are twenty-four, in exchange for a shift and a mask on the
   // hottest test in every walk.
-  final JournalledInts _vertexAlive;
-  final JournalledInts _faceAlive;
+  final JournaledInts _vertexAlive;
+  final JournaledInts _faceAlive;
 
   // The attribute layers, each null until something writes to it. See
   // `attributes.dart` for why a layer nobody entered should not cost anything,
   // and `_layerFor` for how a late arrival stays level with the journal.
-  JournalledFloats? _uv0; // 2 per half-edge
-  JournalledFloats? _colour; // 4 per half-edge
-  JournalledFloats? _weights; // 4 per vertex
-  JournalledFloats? _joints; // 4 per vertex, indices held as floats
-  JournalledFloats? _crease; // 1 per half-edge, mirrored onto the twin
-  JournalledInts? _edgeFlags; // 1 per half-edge, mirrored onto the twin
-  JournalledInts? _faceFlags; // 1 per face
-  JournalledInts? _materialSlot; // 1 per face
+  JournaledFloats? _uv0; // 2 per half-edge
+  JournaledFloats? _color; // 4 per half-edge
+  JournaledFloats? _weights; // 4 per vertex
+  JournaledFloats? _joints; // 4 per vertex, indices held as floats
+  JournaledFloats? _crease; // 1 per half-edge, mirrored onto the twin
+  JournaledInts? _edgeFlags; // 1 per half-edge, mirrored onto the twin
+  JournaledInts? _faceFlags; // 1 per face
+  JournaledInts? _materialSlot; // 1 per face
 
   int _vertexSlots;
   int _faceSlots;
@@ -451,7 +452,7 @@ final class EditMesh {
 
   /// The raw positions: three floats per vertex slot.
   ///
-  /// Read-only by convention, for the reason [JournalledFloats.values] gives —
+  /// Read-only by convention, for the reason [JournaledFloats.values] gives —
   /// a conversion or a bounds pass must not pay for a copy. Writes go through
   /// [moveVertex] so history records them.
   Float32List get positions => _positions.values;
@@ -506,7 +507,7 @@ final class EditMesh {
   Object? _existingLayer(MeshDomain domain, MeshAttribute attribute) =>
       switch ((domain, attribute)) {
         (MeshDomain.corner, MeshAttribute.uv0) => _uv0,
-        (MeshDomain.corner, MeshAttribute.colour) => _colour,
+        (MeshDomain.corner, MeshAttribute.color) => _color,
         (MeshDomain.vertex, MeshAttribute.weights) => _weights,
         (MeshDomain.vertex, MeshAttribute.joints) => _joints,
         (MeshDomain.edge, MeshAttribute.crease) => _crease,
@@ -523,14 +524,14 @@ final class EditMesh {
   /// edits in has nothing to say about the first forty. An empty step is what
   /// "nothing to say" is spelled as, and without them an undo would take the
   /// other arrays back a version and leave this one where it is.
-  JournalledFloats _floatLayer(
-    JournalledFloats? existing,
+  JournaledFloats _floatLayer(
+    JournaledFloats? existing,
     int count,
     double fill,
-    void Function(JournalledFloats) store,
+    void Function(JournaledFloats) store,
   ) {
     if (existing != null) return existing;
-    final layer = JournalledFloats(count);
+    final layer = JournaledFloats(count);
     if (fill != 0) layer.values.fillRange(0, count, fill);
     layer.padSteps(undoDepth);
     // A layer created inside an open step joins it, so an undo of that step
@@ -543,13 +544,13 @@ final class EditMesh {
     return layer;
   }
 
-  JournalledInts _intLayer(
-    JournalledInts? existing,
+  JournaledInts _intLayer(
+    JournaledInts? existing,
     int count,
-    void Function(JournalledInts) store,
+    void Function(JournaledInts) store,
   ) {
     if (existing != null) return existing;
-    final layer = JournalledInts(count)..padSteps(undoDepth);
+    final layer = JournaledInts(count)..padSteps(undoDepth);
     if (_inStep) {
       layer.beginStep();
       _bornInStep.add(layer);
@@ -577,19 +578,18 @@ final class EditMesh {
       _uv0,
       _halfEdgeSlots * 2,
       0,
-      (JournalledFloats it) => _uv0 = it,
+      (JournaledFloats it) => _uv0 = it,
     );
     layer
       ..write(halfEdge * 2, uv.x)
       ..write(halfEdge * 2 + 1, uv.y);
   }
 
-  /// The colour at [halfEdge], white where none was set.
-  Vector4 colourOf(int halfEdge, [Vector4? out]) {
-    final layer = _colour;
-    final result = out ?? Vector4.zero();
-    if (layer == null) return result..setFrom(kNeutralColor);
-    return result..setValues(
+  /// The vertex colour at [halfEdge], linear, white where none was set.
+  LinearColor colorOf(int halfEdge) {
+    final layer = _color;
+    if (layer == null) return neutralColor;
+    return LinearColor(
       layer[halfEdge * 4],
       layer[halfEdge * 4 + 1],
       layer[halfEdge * 4 + 2],
@@ -597,23 +597,37 @@ final class EditMesh {
     );
   }
 
-  /// Sets the colour at [halfEdge].
-  void setColour(int halfEdge, Vector4 colour) {
+  /// Whether the corners [a] and [b] carry the same vertex colour, read
+  /// straight from the layer: what a conversion asks of every corner, without
+  /// a colour made for each.
+  bool hasSameColor(int a, int b) {
+    final layer = _color;
+    if (layer == null) return true;
+    for (var i = 0; i < 4; i++) {
+      if (layer[a * 4 + i] != layer[b * 4 + i]) return false;
+    }
+    return true;
+  }
+
+  /// Sets the vertex colour at [halfEdge], linear.
+  void setColor(int halfEdge, LinearColor color) {
     _wrote = true;
     final layer = _floatLayer(
-      _colour,
+      _color,
       _halfEdgeSlots * 4,
       1, // white, so corners nobody painted stay neutral rather than black
-      (JournalledFloats it) => _colour = it,
+      (JournaledFloats it) => _color = it,
     );
-    for (var i = 0; i < 4; i++) {
-      layer.write(halfEdge * 4 + i, colour[i]);
-    }
+    layer
+      ..write(halfEdge * 4, color.r)
+      ..write(halfEdge * 4 + 1, color.g)
+      ..write(halfEdge * 4 + 2, color.b)
+      ..write(halfEdge * 4 + 3, color.a);
   }
 
   /// Everything [halfEdge] carries as a corner.
   CornerAttributes cornerOf(int halfEdge) =>
-      CornerAttributes(uv: uvOf(halfEdge), colour: colourOf(halfEdge));
+      CornerAttributes(uv: uvOf(halfEdge), color: colorOf(halfEdge));
 
   /// Writes [attributes] onto [halfEdge], touching only the layers that exist
   /// or that the values differ from their neutral in.
@@ -626,8 +640,8 @@ final class EditMesh {
     if (_uv0 != null || attributes.uv.x != 0 || attributes.uv.y != 0) {
       setUv(halfEdge, attributes.uv);
     }
-    if (_colour != null || attributes.colour != kNeutralColor) {
-      setColour(halfEdge, attributes.colour);
+    if (_color != null || attributes.color != neutralColor) {
+      setColor(halfEdge, attributes.color);
     }
   }
 
@@ -639,7 +653,7 @@ final class EditMesh {
     if (joints == null && weights == null) return VertexAttributes();
     return VertexAttributes(
       joints: joints == null
-          ? Vector4.copy(kNeutralJoints)
+          ? Vector4.copy(neutralJoints)
           : Vector4(
               joints[vertex * 4],
               joints[vertex * 4 + 1],
@@ -647,7 +661,7 @@ final class EditMesh {
               joints[vertex * 4 + 3],
             ),
       weights: weights == null
-          ? Vector4.copy(kNeutralWeights)
+          ? Vector4.copy(neutralWeights)
           : Vector4(
               weights[vertex * 4],
               weights[vertex * 4 + 1],
@@ -667,13 +681,13 @@ final class EditMesh {
       _joints,
       _vertexSlots * 4,
       0,
-      (JournalledFloats it) => _joints = it,
+      (JournaledFloats it) => _joints = it,
     );
     final weights = _floatLayer(
       _weights,
       _vertexSlots * 4,
       0,
-      (JournalledFloats it) => _weights = it,
+      (JournaledFloats it) => _weights = it,
     );
     for (var i = 0; i < 4; i++) {
       joints.write(vertex * 4 + i, skin.joints[i]);
@@ -698,7 +712,7 @@ final class EditMesh {
     final layer = _intLayer(
       _edgeFlags,
       _halfEdgeSlots,
-      (JournalledInts it) => _edgeFlags = it,
+      (JournaledInts it) => _edgeFlags = it,
     );
     void put(int half) {
       final was = layer[half];
@@ -724,7 +738,7 @@ final class EditMesh {
       _crease,
       _halfEdgeSlots,
       0,
-      (JournalledFloats it) => _crease = it,
+      (JournaledFloats it) => _crease = it,
     );
     layer.write(halfEdge, weight);
     final twin = _twin[halfEdge];
@@ -740,7 +754,7 @@ final class EditMesh {
     _intLayer(
       _materialSlot,
       _faceSlots,
-      (JournalledInts it) => _materialSlot = it,
+      (JournaledInts it) => _materialSlot = it,
     ).write(face, slot);
   }
 
@@ -756,25 +770,25 @@ final class EditMesh {
     final layer = _intLayer(
       _faceFlags,
       _faceSlots,
-      (JournalledInts it) => _faceFlags = it,
+      (JournaledInts it) => _faceFlags = it,
     );
     final was = layer[face];
     layer.write(face, on ? was | flag : was & ~flag);
   }
 
   /// Every layer that exists, for the walks that have to touch all of them.
-  Iterable<JournalledFloats> get _floatLayers => <JournalledFloats>[
-    if (_uv0 case final JournalledFloats it) it,
-    if (_colour case final JournalledFloats it) it,
-    if (_weights case final JournalledFloats it) it,
-    if (_joints case final JournalledFloats it) it,
-    if (_crease case final JournalledFloats it) it,
+  Iterable<JournaledFloats> get _floatLayers => <JournaledFloats>[
+    if (_uv0 case final JournaledFloats it) it,
+    if (_color case final JournaledFloats it) it,
+    if (_weights case final JournaledFloats it) it,
+    if (_joints case final JournaledFloats it) it,
+    if (_crease case final JournaledFloats it) it,
   ];
 
-  Iterable<JournalledInts> get _intLayers => <JournalledInts>[
-    if (_edgeFlags case final JournalledInts it) it,
-    if (_faceFlags case final JournalledInts it) it,
-    if (_materialSlot case final JournalledInts it) it,
+  Iterable<JournaledInts> get _intLayers => <JournaledInts>[
+    if (_edgeFlags case final JournaledInts it) it,
+    if (_faceFlags case final JournaledInts it) it,
+    if (_materialSlot case final JournaledInts it) it,
   ];
 
   // ------------------------------------------------------------------ edits
@@ -798,7 +812,7 @@ final class EditMesh {
   ///
   /// **Growth is the one thing the journals do not record.** A step that added
   /// a vertex is undone by there being one vertex fewer, which is a count
-  /// rather than a value — see [JournalledFloats.grow]. Three numbers per step
+  /// rather than a value — see [JournaledFloats.grow]. Three numbers per step
   /// is what that costs, and keeping them here rather than in nine arrays is
   /// what keeps them from disagreeing.
   final List<int> _undoSlots = <int>[];
@@ -884,7 +898,7 @@ final class EditMesh {
   /// same thing and is not: pushing the step clears the redo stack, so a
   /// command refused halfway through its walk would quietly destroy whatever
   /// an earlier undo had left to redo, while the document history above it
-  /// still offered that redo. See `JournalledFloats.abandonStep`.
+  /// still offered that redo. See `JournaledFloats.abandonStep`.
   void abandonStep() {
     if (!_inStep) throw StateError('no step is open');
     _positions.abandonStep();
@@ -904,7 +918,7 @@ final class EditMesh {
     }
     for (final Object born in _bornInStep) {
       if (identical(born, _uv0)) _uv0 = null;
-      if (identical(born, _colour)) _colour = null;
+      if (identical(born, _color)) _color = null;
       if (identical(born, _weights)) _weights = null;
       if (identical(born, _joints)) _joints = null;
       if (identical(born, _crease)) _crease = null;
@@ -1143,7 +1157,7 @@ final class EditMesh {
     _twin.grow(_halfEdgeSlots, fill: none);
     _halfEdgeFace.grow(_halfEdgeSlots, fill: none);
     _uv0?.grow(_halfEdgeSlots * 2);
-    _colour?.grow(_halfEdgeSlots * 4);
+    _color?.grow(_halfEdgeSlots * 4);
     _crease?.grow(_halfEdgeSlots);
     _edgeFlags?.grow(_halfEdgeSlots);
     return first;
@@ -1190,7 +1204,7 @@ final class EditMesh {
     _halfEdgeFace.write(far, face);
     _twin.write(far, none);
     _next.write(halfEdge, far);
-    if (_uv0 != null || _colour != null) {
+    if (_uv0 != null || _color != null) {
       setCorner(
         far,
         CornerAttributes.lerp(cornerOf(halfEdge), cornerOf(ahead), factor),
@@ -1207,7 +1221,7 @@ final class EditMesh {
       _next.write(back, beyond);
       _halfEdgeFace.write(back, behind);
       _next.write(twin, back);
-      if (_uv0 != null || _colour != null) {
+      if (_uv0 != null || _color != null) {
         setCorner(
           back,
           CornerAttributes.lerp(cornerOf(twin), cornerOf(beyond), 1 - factor),
@@ -1231,10 +1245,10 @@ final class EditMesh {
   /// Copies the sharpness and crease of [from] onto [to], which is the other
   /// half of the edge it was just cut from.
   void _carryEdgeAttributes(int from, int to) {
-    if (_crease case final JournalledFloats layer) {
+    if (_crease case final JournaledFloats layer) {
       layer.write(to, layer[from]);
     }
-    if (_edgeFlags case final JournalledInts layer) {
+    if (_edgeFlags case final JournaledInts layer) {
       layer.write(to, layer[from]);
     }
   }
@@ -1286,7 +1300,7 @@ final class EditMesh {
     if (_faceFlags != null) {
       setFaceFlag(made, FaceFlags.smooth, on: faceHas(face, FaceFlags.smooth));
     }
-    if (_uv0 != null || _colour != null) {
+    if (_uv0 != null || _color != null) {
       setCorner(back, cornerOf(to));
       setCorner(forth, cornerOf(from));
     }
@@ -1482,6 +1496,7 @@ final class EditMesh {
   }
 
   /// The volume the surface encloses, signed by winding.
+  /// In cubic metres (m³).
   double get signedVolume {
     var total = 0.0;
     for (var face = 0; face < _faceSlots; face++) {
@@ -1706,7 +1721,7 @@ final class EditMesh {
   /// opposite directions: turning one face and leaving its neighbour would put
   /// two half-edges along the same edge pointing the same way, which is the one
   /// arrangement this structure cannot hold. Turning a selection round is
-  /// [makeConsistent]'s side of the problem, and it works per island for the
+  /// [ensureConsistent]'s side of the problem, and it works per island for the
   /// same reason.
   void flipNormals() {
     _flipFaces(<int>[
@@ -1727,7 +1742,7 @@ final class EditMesh {
   /// Islands are handled apart because their windings are independent: a file
   /// can hold a correct body and a mirrored hand, and a mesh-wide sign would
   /// have to average them.
-  bool makeConsistent() {
+  bool ensureConsistent() {
     final island = Int32List(_faceSlots)..fillRange(0, _faceSlots, none);
     final members = <List<int>>[];
     final open = <bool>[];
@@ -1806,7 +1821,7 @@ final class EditMesh {
       // and colours travel one step round the loop with it; an edge attribute
       // does not, because the half-edge still lies on the same edge.
       _rotateCorners(loop, _uv0, 2);
-      _rotateCorners(loop, _colour, 4);
+      _rotateCorners(loop, _color, 4);
       for (var i = 0; i < count; i++) {
         _origin.write(loop[i], origins[(i + 1) % count]);
         _next.write(loop[i], loop[(i - 1 + count) % count]);
@@ -1826,7 +1841,7 @@ final class EditMesh {
   }
 
   /// Moves each corner value on [loop] one step towards the front of the loop.
-  void _rotateCorners(List<int> loop, JournalledFloats? layer, int width) {
+  void _rotateCorners(List<int> loop, JournaledFloats? layer, int width) {
     if (layer == null) return;
     final count = loop.length;
     _rotated.clear();
@@ -1941,21 +1956,21 @@ final class EditMesh {
       (_outgoings, _intsOf(_outgoing, _vertexSlots)),
       (_vertexAlives, _intsOf(_vertexAlive, _vertexSlots)),
       (_faceAlives, _intsOf(_faceAlive, _faceSlots)),
-      if (_uv0 case final JournalledFloats it)
+      if (_uv0 case final JournaledFloats it)
         (_uvs, _floatsOf(it, _halfEdgeSlots * 2)),
-      if (_colour case final JournalledFloats it)
-        (_colours, _floatsOf(it, _halfEdgeSlots * 4)),
-      if (_weights case final JournalledFloats it)
+      if (_color case final JournaledFloats it)
+        (_colors, _floatsOf(it, _halfEdgeSlots * 4)),
+      if (_weights case final JournaledFloats it)
         (_weightsTag, _floatsOf(it, _vertexSlots * 4)),
-      if (_joints case final JournalledFloats it)
+      if (_joints case final JournaledFloats it)
         (_jointsTag, _floatsOf(it, _vertexSlots * 4)),
-      if (_crease case final JournalledFloats it)
+      if (_crease case final JournaledFloats it)
         (_creases, _floatsOf(it, _halfEdgeSlots)),
-      if (_edgeFlags case final JournalledInts it)
+      if (_edgeFlags case final JournaledInts it)
         (_edgeFlagsTag, _intsOf(it, _halfEdgeSlots)),
-      if (_faceFlags case final JournalledInts it)
+      if (_faceFlags case final JournaledInts it)
         (_faceFlagsTag, _intsOf(it, _faceSlots)),
-      if (_materialSlot case final JournalledInts it)
+      if (_materialSlot case final JournaledInts it)
         (_materialSlots, _intsOf(it, _faceSlots)),
     ];
 
@@ -1989,10 +2004,10 @@ final class EditMesh {
     return out;
   }
 
-  Int32List _intsOf(JournalledInts layer, int count) =>
+  Int32List _intsOf(JournaledInts layer, int count) =>
       Int32List.sublistView(layer.values, 0, count);
 
-  Float32List _floatsOf(JournalledFloats layer, int count) =>
+  Float32List _floatsOf(JournaledFloats layer, int count) =>
       Float32List.sublistView(layer.values, 0, count);
 
   /// Throws unless the arrays agree with each other.
@@ -2153,17 +2168,17 @@ final class EditMeshBuilder {
   /// The mesh, with every element alive and no history.
   EditMesh build() {
     final mesh = EditMesh._(
-      JournalledFloats.of(Float32List.fromList(_positions)),
-      JournalledInts.of(Int32List.fromList(_origin)),
-      JournalledInts.of(Int32List.fromList(_next)),
-      JournalledInts.of(Int32List.fromList(_twin)),
-      JournalledInts.of(Int32List.fromList(_face)),
-      JournalledInts.of(Int32List.fromList(_faceHalfEdge)),
-      JournalledInts.of(Int32List.fromList(_outgoing)),
-      JournalledInts.of(
+      JournaledFloats.of(Float32List.fromList(_positions)),
+      JournaledInts.of(Int32List.fromList(_origin)),
+      JournaledInts.of(Int32List.fromList(_next)),
+      JournaledInts.of(Int32List.fromList(_twin)),
+      JournaledInts.of(Int32List.fromList(_face)),
+      JournaledInts.of(Int32List.fromList(_faceHalfEdge)),
+      JournaledInts.of(Int32List.fromList(_outgoing)),
+      JournaledInts.of(
         Int32List(_outgoing.length)..fillRange(0, _outgoing.length, 1),
       ),
-      JournalledInts.of(
+      JournaledInts.of(
         Int32List(_faceHalfEdge.length)..fillRange(0, _faceHalfEdge.length, 1),
       ),
     );

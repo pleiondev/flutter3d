@@ -38,6 +38,8 @@ final class MeshInertia {
     required this.tensor,
   });
 
+  /// Numerically the volume in cubic metres: mass in kilograms at a density of
+  /// one kilogram per cubic metre.
   final double mass;
   final Vector3 centroid;
 
@@ -65,6 +67,8 @@ final class PrincipalInertia {
   /// rotation from world axes to the body's own principal frame.
   final Matrix3 axes;
 
+  /// As [MeshInertia.mass]: the volume in cubic metres, mass in kilograms at
+  /// unit density.
   final double mass;
   final Vector3 centroid;
 }
@@ -251,6 +255,8 @@ final class FittedSphere {
   const FittedSphere({required this.center, required this.radius});
 
   final Vector3 center;
+
+  /// In metres.
   final double radius;
 }
 
@@ -268,11 +274,14 @@ final class FittedCapsule {
 
   /// Unit vector along the capsule's own long axis.
   final Vector3 axis;
+
+  /// In metres.
   final double radius;
 
   /// The cylindrical section's own length — the hemispherical caps add
   /// [radius] beyond each end, so the capsule's total length is
   /// `height + 2 * radius`.
+  /// In metres.
   final double height;
 }
 
@@ -440,6 +449,8 @@ final class ConvexHull {
 
   final List<Vector3> points;
   final List<(int, int, int)> faces;
+
+  /// In cubic metres (m³).
   final double volume;
   final Vector3 centroid;
 }
@@ -611,6 +622,8 @@ final class ConvexPiece {
   const ConvexPiece({required this.hull});
 
   final ConvexHull hull;
+
+  /// The hull's volume, in cubic metres (m³).
   double get volume => hull.volume;
   Vector3 get centroid => hull.centroid;
 }
@@ -650,6 +663,8 @@ List<ConvexPiece> decomposeConvex(
   EditMesh mesh, {
   int maxPieces = 12,
   int seed = 0,
+
+  /// The volume overshoot a hull may have, as a fraction of the true volume.
   double toleranceFraction = 0.15,
 }) {
   final faceLoops = mesh.faces();
@@ -839,13 +854,13 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
     return List.filled(points.length, 0);
   }
   final random = math.Random(seed);
-  final centres = <Vector3>[points[random.nextInt(points.length)]];
-  while (centres.length < k) {
+  final centers = <Vector3>[points[random.nextInt(points.length)]];
+  while (centers.length < k) {
     var farthest = points[0];
     var farthestDist = -1.0;
     for (final p in points) {
       var nearest = double.infinity;
-      for (final c in centres) {
+      for (final c in centers) {
         final d = p.distanceToSquared(c);
         if (d < nearest) nearest = d;
       }
@@ -854,7 +869,7 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
         farthest = p;
       }
     }
-    centres.add(farthest);
+    centers.add(farthest);
   }
 
   final assignment = List.filled(points.length, 0);
@@ -862,9 +877,9 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
     var changed = false;
     for (var i = 0; i < points.length; i++) {
       var best = 0;
-      var bestDist = points[i].distanceToSquared(centres[0]);
-      for (var c = 1; c < centres.length; c++) {
-        final d = points[i].distanceToSquared(centres[c]);
+      var bestDist = points[i].distanceToSquared(centers[0]);
+      for (var c = 1; c < centers.length; c++) {
+        final d = points[i].distanceToSquared(centers[c]);
         if (d < bestDist) {
           bestDist = d;
           best = c;
@@ -884,7 +899,7 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
       counts[assignment[i]]++;
     }
     for (var c = 0; c < k; c++) {
-      if (counts[c] > 0) centres[c] = sums[c] / counts[c].toDouble();
+      if (counts[c] > 0) centers[c] = sums[c] / counts[c].toDouble();
     }
   }
   return assignment;

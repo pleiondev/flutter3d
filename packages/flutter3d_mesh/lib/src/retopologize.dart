@@ -17,7 +17,7 @@
 library;
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'import_mesh.dart';
@@ -35,6 +35,8 @@ import 'qem_simplify.dart';
 EditMesh retopologize(
   EditMesh source, {
   required int targetQuads,
+
+  /// The cosine two face normals must clear, a unitless ratio.
   double coplanarThreshold = 0.7,
 }) {
   final sourceData = source.toMeshData();
@@ -134,8 +136,8 @@ void _shrinkWrap(EditMesh mesh, TriangleBvh sourceBvh) {
     if (normal.length2 < 1e-12) continue;
     final position = mesh.positionOf(vertex);
 
-    final outward = Ray(position - normal * margin, normal);
-    final inward = Ray(position + normal * margin, -normal);
+    final outward = LocalRay(position - normal * margin, normal);
+    final inward = LocalRay(position + normal * margin, -normal);
     final fromOutward = sourceBvh.raycast(outward, maxDistance: margin * 2);
     final fromInward = sourceBvh.raycast(inward, maxDistance: margin * 2);
 

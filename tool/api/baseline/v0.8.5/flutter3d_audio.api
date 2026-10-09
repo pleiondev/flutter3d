@@ -1,0 +1,57 @@
+# The public API of flutter3d_audio.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_audio/flutter3d_audio.dart
+
+final class AudioIssue
+  String toString()
+  const AudioIssue(this.message)
+  final String message
+
+typedef AudioIssueSink = void Function(AudioIssue issue);
+
+final class SoLoudBackend implements AudioBackend
+  Future<void> dispose()
+  Future<void> open()
+  Future<void> preload(String asset)
+  List<String> get failedAssets
+  SoLoudBackend({SoLoud? soloud, AudioIssueSink? onIssue})
+  VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  bool isAlive(VoiceId voice)
+  final AudioIssueSink onIssue
+  void stop(VoiceId voice)
+  void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+
+final class Speakers
+  const Speakers({required this.backend, required this.scene})
+  final AudioScene scene
+  final SoLoudBackend backend
+
+Future<Speakers?> openSpeakers({required SoundBank bank, Mixer? mixer, int maxVoices = 24, double Function(Vector3 from, Vector3 to)? occlusion, AudioIssueSink? onIssue})
+
+export package:flutter3d_audio_core/flutter3d_audio_core.dart (whole library)
+  Attenuation
+  AudioBackend
+  AudioBus
+  AudioListener
+  AudioScene
+  BlendedLoop
+  ExponentialRolloff
+  Heard
+  InverseRolloff
+  LinearRolloff
+  LoopBand
+  Mixer
+  NoAttenuation
+  SilentBackend
+  SilentVoice
+  SoundBank
+  SoundDef
+  SoundEmitter
+  VoiceId
+  gainToDecibels
+
+library package:flutter3d_audio/testing.dart
+
+({Set<String> declared, Set<String> inTheBank}) soundTableIn(String path)

@@ -1,0 +1,8 @@
+# A version-1 asset manifest, as written before the `format:` key existed.
+rules:
+  - glob: "**/*.glb"
+    textures: universal
+    lods: [0.5, 0.25]
+  - glob: "drafts/**"
+    exclude: true
+classes: [phone, desktop]

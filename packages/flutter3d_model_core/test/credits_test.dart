@@ -27,14 +27,14 @@ ModelProject _withObjects(List<ModelCredit?> credits) {
 const ModelCredit _chair = (
   title: 'Chair',
   author: 'A. Maker',
-  licence: 'CC BY 4.0',
+  license: 'CC BY 4.0',
   url: 'https://creativecommons.org/licenses/by/4.0/',
 );
 
 const ModelCredit _lamp = (
   title: 'Lamp',
   author: 'B. Other',
-  licence: 'CC BY 4.0',
+  license: 'CC BY 4.0',
   url: 'https://creativecommons.org/licenses/by/4.0/',
 );
 
@@ -137,7 +137,7 @@ void main() {
       (
         title: 'Chair',
         author: '',
-        licence: 'CC BY 4.0',
+        license: 'CC BY 4.0',
         url: 'https://example.invalid/',
       ),
     ]);

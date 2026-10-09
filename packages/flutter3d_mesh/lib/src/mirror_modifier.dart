@@ -18,6 +18,7 @@ final class MirrorModifier extends Modifier {
   /// [mirror]'s own doc comment for why a base already touching the plane
   /// needs this to end up as one closed shape rather than two overlapping
   /// ones with a doubled, inside-out wall down the middle.
+  /// In metres.
   final double? mergeDistance;
 
   /// See [mirror]'s own doc comment: not built, and `apply` throws rather

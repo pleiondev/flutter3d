@@ -118,7 +118,7 @@ class ModelRecord {
     required this.updatedAt,
     required this.hasPreview,
     this.projectId,
-    this.licence,
+    this.license,
     this.category,
     this.publishedAt,
     this.ownerHandle,
@@ -140,9 +140,9 @@ class ModelRecord {
   final String title;
   final String description;
   final Visibility visibility;
-  final Licence? licence;
+  final Licence? license;
 
-  /// Chosen at publication, the same time as [licence] — null until then,
+  /// Chosen at publication, the same time as [license] — null until then,
   /// because a private model does not need one.
   final Category? category;
 

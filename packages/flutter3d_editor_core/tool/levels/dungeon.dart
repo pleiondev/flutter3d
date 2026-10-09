@@ -127,7 +127,7 @@ Map<String, String> crypt(GeneratorSource _) {
       <num>[-4.4, 3.0, -28.0],
       name: 'stair_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..pickup('armour', <num>[3.0, 0.8, -24.0], amount: 25)
@@ -285,7 +285,7 @@ Map<String, String> vaults(GeneratorSource _) {
       <num>[-5.4, 3.0, -26.0],
       name: 'shaft_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..lift(
@@ -337,7 +337,7 @@ Map<String, String> deep(GeneratorSource _) {
       <num>[-3.4, 2.4, 5.0],
       name: 'arrival_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 4.5,
     )
     ..note(<num>[
@@ -421,7 +421,7 @@ Map<String, String> deep(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.2, -34.0],
       name: 'last_lamp',
-      colour: _dawn,
+      color: _dawn,
       intensity: 6.0,
       range: 18.0,
     )
@@ -584,7 +584,7 @@ Map<String, String> cistern(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.0, -6.0],
       name: 'basin_lamp',
-      colour: wet,
+      color: wet,
       intensity: 6.0,
       range: 18.0,
     )
@@ -633,7 +633,7 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-16.4, 1.0, 2.0],
       name: 'alcove',
       yaw: _west,
-      colour: wet,
+      color: wet,
       intensity: 3.0,
       range: 8.0,
     )
@@ -698,14 +698,14 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-5.4, 2.8, -25.0],
       name: 'drain_west',
       yaw: _west,
-      colour: wet,
+      color: wet,
       intensity: 5.0,
     )
     ..torch(
       <num>[5.4, 2.8, -31.0],
       name: 'drain_east',
       yaw: _east,
-      colour: wet,
+      color: wet,
       intensity: 5.0,
     )
     ..pillar(<num>[-3.0, 2.0, -28.0])
@@ -717,7 +717,7 @@ Map<String, String> cistern(GeneratorSource _) {
       'runner',
       <num>[-4.0, 0.0, -25.0],
       name: 'drain_guard',
-      behaviour: 'drain_watch',
+      behavior: 'drain_watch',
       board: <String, Object?>{
         'west': <num>[-4.5, 0.9, -24.5],
         'east': <num>[4.5, 0.9, -24.5],
@@ -757,12 +757,12 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-4.4, 3.0, -43.0],
       name: 'outflow_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..pickup('armour', <num>[3.0, 0.8, -41.0], amount: 25)
     ..exitAt('the_sanctum', <num>[0.0, 0.0, -45.0]);
-  k.behaviours['drain_watch'] = <String, Object?>{
+  k.behaviors['drain_watch'] = <String, Object?>{
     'kind': 'sequence',
     'children': <Object?>[
       <String, Object?>{'kind': 'goTo', 'key': 'west', 'within': 0.6},
@@ -905,14 +905,14 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 6.2, -14.0],
       name: 'nave_north',
-      colour: candle,
+      color: candle,
       intensity: 7.0,
       range: 20.0,
     )
     ..lamp(
       <num>[0.0, 6.2, -2.0],
       name: 'nave_south',
-      colour: candle,
+      color: candle,
       intensity: 7.0,
       range: 20.0,
     )
@@ -983,7 +983,7 @@ Map<String, String> sanctum(GeneratorSource _) {
       <num>[-21.4, 2.0, -21.0],
       name: 'hidden',
       yaw: _west,
-      colour: candle,
+      color: candle,
       intensity: 3.5,
       range: 8.0,
     )
@@ -1026,7 +1026,7 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.2, -33.0],
       name: 'choir_lamp',
-      colour: candle,
+      color: candle,
       intensity: 5.0,
       range: 14.0,
     )
@@ -1062,14 +1062,14 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 8.2, -50.0],
       name: 'altar_south',
-      colour: candle,
+      color: candle,
       intensity: 9.0,
       range: 24.0,
     )
     ..lamp(
       <num>[0.0, 8.2, -64.0],
       name: 'altar_north',
-      colour: candle,
+      color: candle,
       intensity: 9.0,
       range: 24.0,
     )
@@ -1080,7 +1080,7 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..torch(
       <num>[0.0, 3.0, -71.4],
       name: 'dawn',
-      colour: _dawn,
+      color: _dawn,
       intensity: 6.0,
       range: 16.0,
     )

@@ -13,11 +13,9 @@
 /// the first was already the second's `lit` frame.
 ///
 /// See `pubspec.yaml` for why these servers need Flutter — unlike
-/// `flutter3d_editor_mcp` and `flutter3d_model_mcp` — and speak their protocol
+/// `flutter3d_mcp/editor.dart` and `flutter3d_mcp/model.dart` — and speak their protocol
 /// over a socket rather than over literal stdio.
 library;
-
-export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show PictureAnswer;
 
 export 'src/diagnostic_renderer.dart';
 export 'src/diagnostic_server.dart';

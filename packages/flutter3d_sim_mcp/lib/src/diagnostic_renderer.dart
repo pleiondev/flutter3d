@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Which of the renderer's own debug outputs a frame is asked for — the four
 /// ways `RenderSettings` already knows how to answer "why is the frame
@@ -178,7 +177,7 @@ final class DiagnosticRenderer {
   }) async {
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.2,
+        fovY: 1.2,
         near: 0.05,
         far: 200.0,
       ),
@@ -191,15 +190,15 @@ final class DiagnosticRenderer {
         height: height,
         scene: _scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: _settingsFor(view),
       );
       final raw = _device.readHdrPixels(result.frame);
-      final pixels = await _device.readPixels(result.frame);
-      if (pixels == null) {
-        throw StateError('the frame could not be read back');
-      }
+      final pixels = await _device.readback(result.frame);
       return DiagnosticFrame(
         view: view,
         width: width,

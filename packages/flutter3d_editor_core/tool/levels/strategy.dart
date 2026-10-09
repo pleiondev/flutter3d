@@ -111,7 +111,7 @@ List<double> _heights() => <double>[
 double _heightAt(List<double> field, (double, double) at) {
   final (x, z) = at;
   if (x % _cell != 0 || z % _cell != 0) {
-    throw GeneratorRefused(
+    throw GeneratorException(
       '($x, $z) is not on a sample, and this map places nothing between them',
     );
   }

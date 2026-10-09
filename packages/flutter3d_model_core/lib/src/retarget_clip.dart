@@ -62,7 +62,11 @@ ProjectClip retargetClip({
   required ProjectSkeleton targetSkeleton,
   required BoneMap boneMap,
   bool lockFeet = true,
+
+  /// In metres.
   double groundY = 0.0,
+
+  /// In metres.
   double footTolerance = 1e-3,
 }) {
   final List<RigTrack> retargeted = retargetTracks(

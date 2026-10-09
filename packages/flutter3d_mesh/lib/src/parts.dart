@@ -349,7 +349,7 @@ void _carryFaceOnly(EditMesh from, EditMesh to, int source, int face) {
 
 void _carryCorner(EditMesh from, EditMesh to, int source, int half) {
   if (from.hasLayer(MeshDomain.corner, MeshAttribute.uv0) ||
-      from.hasLayer(MeshDomain.corner, MeshAttribute.colour)) {
+      from.hasLayer(MeshDomain.corner, MeshAttribute.color)) {
     to.setCorner(half, from.cornerOf(source));
   }
   if (from.hasLayer(MeshDomain.edge, MeshAttribute.crease)) {

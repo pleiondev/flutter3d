@@ -310,7 +310,7 @@ ExportIssue? _texelDensityIssue(
   required double? texelsPerMeter,
 }) {
   if (texelsPerMeter == null) return null;
-  final double? actual = texelDensityOf(project, object);
+  final actual = texelDensityOf(project, object);
   if (actual == null) return null;
   final ratio = actual / texelsPerMeter;
   if (ratio < 2.0 && ratio > 0.5) return null;
@@ -593,7 +593,7 @@ List<ExportIssue> _singleMaterialIssues(int index, ProjectMaterial material) {
     // result nobody can tell from opaque.
     if (surface.alphaMode == SurfaceAlphaMode.blend &&
         surface.baseColorTexture == null &&
-        surface.baseColor.w >= 1.0)
+        surface.baseColor.a >= 1.0)
       ExportIssue(
         ExportSeverity.warning,
         '$label is set to blend and has no transparency of its own — a '

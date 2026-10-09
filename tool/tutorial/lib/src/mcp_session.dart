@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 /// Where a running `ModelHttpServer` answers, and the token every request
-/// must present — see `flutter3d_mcp_kit`'s `writeMcpSessionFile`.
+/// must present — see `flutter3d_mcp/kit.dart`'s `writeMcpSessionFile`.
 final class McpSession {
   const McpSession({required this.port, required this.token});
 

@@ -683,10 +683,6 @@ final Map<String, _Template> _all = <String, _Template>{
 const String _gameSeed = 'packages/flutter3d_game/example';
 const Map<String, (String, String)> _app = <String, (String, String)>{
   'app.main.dart.txt': ('$_gameSeed/lib/main.dart', 'lib/main.dart'),
-  'app.backend.dart.txt': (
-    '$_gameSeed/lib/src/backend.dart',
-    'lib/src/backend.dart',
-  ),
   // The test a new project comes with, for the same reason.
   'app.test.dart.txt': (
     '$_gameSeed/test/widget_test.dart',

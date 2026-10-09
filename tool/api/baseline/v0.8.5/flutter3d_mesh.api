@@ -1,0 +1,953 @@
+# The public API of flutter3d_mesh.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_mesh/flutter3d_mesh.dart
+
+final class ArrayModifier extends Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const ArrayModifier({required this.count, required this.offset, this.mergeDistance})
+  final Vector3 offset
+  final double? mergeDistance
+  final int count
+  static ArrayModifier? fromJson(Map<String, Object?> json)
+
+typedef BakeSample = ({int x, int y, Vector3 position, Vector3 normal, Vector3 tangent, Vector3 bitangent});
+
+final class BakedMap
+  BakedMap(this.size, this.channels)
+  Uint8List toRgba8({double bias = 0, double scale = 1})
+  double at(int x, int y, int channel)
+  final Float32List data
+  final Uint8List covered
+  final int channels
+  final int size
+  void write(int x, int y, List<double> values)
+
+final class BooleanModifier extends Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const BooleanModifier({required this.operation, required this.operandId, required this.operandTransform})
+  final CsgOperation operation
+  final Matrix4 operandTransform
+  final int operandId
+  static BooleanModifier? fromJson(Map<String, Object?> json)
+
+class Brush
+  const Brush({required this.kind, required this.radius, required this.strength, this.falloff = BrushFalloff.smooth})
+  final BrushFalloff falloff
+  final BrushKind kind
+  final double radius
+  final double strength
+
+final class BrushFalloff
+  String toString()
+  final String name
+  static const BrushFalloff linear = BrushFalloff._('linear')
+  static const BrushFalloff sharp = BrushFalloff._('sharp')
+  static const BrushFalloff smooth = BrushFalloff._('smooth')
+
+final class BrushKind
+  String toString()
+  final String name
+  static const BrushKind clay = BrushKind._('clay')
+  static const BrushKind crease = BrushKind._('crease')
+  static const BrushKind draw = BrushKind._('draw')
+  static const BrushKind flatten = BrushKind._('flatten')
+  static const BrushKind grab = BrushKind._('grab')
+  static const BrushKind inflate = BrushKind._('inflate')
+  static const BrushKind pinch = BrushKind._('pinch')
+  static const BrushKind smooth = BrushKind._('smooth')
+
+final class BrushResult
+  const BrushResult({required this.touchedVertices, required this.touchedChunks})
+  final List<int> touchedChunks
+  final List<int> touchedVertices
+
+final class ConvexHull
+  const ConvexHull({required this.points, required this.faces, required this.volume, required this.centroid})
+  final List<(int, int, int)> faces
+  final List<Vector3> points
+  final Vector3 centroid
+  final double volume
+
+final class ConvexPiece
+  Vector3 get centroid
+  const ConvexPiece({required this.hull})
+  double get volume
+  final ConvexHull hull
+
+final class CornerAttributes
+  CornerAttributes({Vector2? uv, Vector4? colour})
+  String toString()
+  final Vector2 uv
+  final Vector4 colour
+  static CornerAttributes lerp(CornerAttributes a, CornerAttributes b, double t)
+
+final class CsgNode
+  CsgNode clone()
+  CsgNode()
+  CsgNode? back
+  CsgNode? front
+  CsgPlane? plane
+  List<CsgPolygon> allPolygons()
+  List<CsgPolygon> clipPolygons(List<CsgPolygon> polygons, CsgTolerance tolerance)
+  List<CsgPolygon> polygons
+  void build(List<CsgPolygon> initialPolygons, CsgTolerance tolerance)
+  void clipTo(CsgNode other, CsgTolerance tolerance)
+  void invert()
+
+enum CsgOperation
+  values: union, subtract, intersect
+
+final class CsgPlane
+  CsgPlane get flipped
+  const CsgPlane(this.normal, this.w)
+  factory CsgPlane.fromPoints(Vector3 a, Vector3 b, Vector3 c)
+  final Vector3 normal
+  final double w
+
+final class CsgPolygon
+  CsgPolygon get flipped
+  const CsgPolygon(this.vertices, this.plane, this.materialSlot)
+  final CsgPlane plane
+  final List<Vector3> vertices
+  final int materialSlot
+
+final class CsgResult
+  const CsgResult(this.mesh, this.warnings)
+  final EditMesh mesh
+  final List<String> warnings
+
+final class CsgTolerance
+  CsgTolerance(this.eps)
+  final double eps
+  int coplanarCount
+
+typedef DisplacementMap = ({int size, Float32List heights, double lowest, double highest});
+
+abstract final class EdgeFlags
+  static const int seam = 1 << 1
+  static const int sharp = 1 << 0
+
+final class EditMesh
+  (EditMesh, IdRemap) compact()
+  CornerAttributes cornerOf(int halfEdge)
+  EditMesh extrudeFace(int face, double distance)
+  Float32List get positions
+  List<List<int>> faces()
+  List<int> neighborsOf(int vertex)
+  List<int> verticesOf(int face)
+  MeshData toMeshData({VertexLayout layout = VertexLayout.standard, double smoothAngle = MeshNormals.defaultSmoothAngle, int? materialSlot})
+  Uint8List toBytes()
+  Vector2 uvOf(int halfEdge, [Vector2? out])
+  Vector3 normalOf(int face, [Vector3? out])
+  Vector3 positionOf(int vertex, [Vector3? out])
+  Vector4 colourOf(int halfEdge, [Vector4? out])
+  VertexAttributes skinOf(int vertex)
+  bool dissolveEdge(int halfEdge)
+  bool dissolveVertex(int vertex)
+  bool edgeHas(int halfEdge, int flag)
+  bool endStep()
+  bool faceHas(int face, int flag)
+  bool hasLayer(MeshDomain domain, MeshAttribute attribute)
+  bool hasLiveTwin(int halfEdge)
+  bool isFaceAlive(int face)
+  bool isVertexAlive(int vertex)
+  bool makeConsistent()
+  bool redo()
+  bool undo()
+  double areaOf(int face)
+  double creaseOf(int halfEdge)
+  double get signedVolume
+  factory EditMesh.cuboid({Vector3? size})
+  factory EditMesh.empty()
+  factory EditMesh.fromBytes(Uint8List bytes)
+  factory EditMesh.fromFaces(List<Vector3> points, List<List<int>> faces)
+  int addFace(List<int> loop)
+  int addVertex(Vector3 at)
+  int dropOldestJournalSteps(int count)
+  int edgeOf(int halfEdge)
+  int faceOf(int halfEdge)
+  int get edgeCount
+  int get eulerCharacteristic
+  int get faceCount
+  int get faceSlotCount
+  int get halfEdgeCount
+  int get halfEdgeSlotCount
+  int get journalBytes
+  int get undoDepth
+  int get vertexCount
+  int get vertexSlotCount
+  int halfEdgeOf(int face)
+  int materialSlotOf(int face)
+  int nextOf(int halfEdge)
+  int originOf(int halfEdge)
+  int outgoingOf(int vertex)
+  int splitEdge(int halfEdge, {double factor = 0.5})
+  int splitFace(int face, int from, int to)
+  int twinOf(int halfEdge)
+  int valencyOf(int face)
+  static const int none = -1
+  void abandonStep()
+  void beginStep()
+  void clearJournal()
+  void cutTwin(int halfEdge)
+  void deleteFace(int face)
+  void deleteVertex(int vertex)
+  void flipNormals()
+  void forEachHalfEdge(int face, void Function(int halfEdge) visit)
+  void forEachVertex(int face, void Function(int vertex) visit)
+  void moveVertex(int vertex, Vector3 to)
+  void repairVertexLinks()
+  void setColour(int halfEdge, Vector4 colour)
+  void setCorner(int halfEdge, CornerAttributes attributes)
+  void setCrease(int halfEdge, double weight)
+  void setEdgeFlag(int halfEdge, int flag, {required bool on})
+  void setFaceFlag(int face, int flag, {required bool on})
+  void setMaterialSlot(int face, int slot)
+  void setOrigin(int halfEdge, int vertex)
+  void setOutgoing(int vertex, int halfEdge)
+  void setSkin(int vertex, VertexAttributes skin)
+  void setUv(int halfEdge, Vector2 uv)
+  void validate()
+  void weldTwins(int a, int b)
+
+final class EditMeshBuilder
+  EditMesh build()
+  int addFace(List<int> loop)
+  int addVertex(Vector3 position)
+  int get faceCount
+  int get vertexCount
+
+enum ElementLevel
+  values: vertex, edge, face
+
+abstract final class FaceFlags
+  static const int smooth = 1 << 0
+
+final class FaceTriangulator
+  bool get fannedLastFace
+  int triangulate(List<Vector3> points, void Function(int a, int b, int c) emit)
+
+final class FittedBox
+  const FittedBox({required this.center, required this.orientation, required this.halfExtents})
+  final Matrix3 orientation
+  final Vector3 center
+  final Vector3 halfExtents
+
+final class FittedCapsule
+  const FittedCapsule({required this.center, required this.axis, required this.radius, required this.height})
+  final Vector3 axis
+  final Vector3 center
+  final double height
+  final double radius
+
+final class FittedSphere
+  const FittedSphere({required this.center, required this.radius})
+  final Vector3 center
+  final double radius
+
+final class IdRemap
+  const IdRemap({required this.vertices, required this.faces})
+  final Int32List faces
+  final Int32List vertices
+
+final class ImportReport
+  String toString()
+  bool get worthReporting
+  const ImportReport({required this.sourceVertices, required this.weldedVertices, required this.faces, required this.flippedFaces, required this.splitNonManifold, required this.droppedDegenerate, required this.weldEpsilon})
+  final double weldEpsilon
+  final int droppedDegenerate
+  final int faces
+  final int flippedFaces
+  final int sourceVertices
+  final int splitNonManifold
+  final int weldedVertices
+
+enum IssueSeverity
+  values: note, warning, error
+
+final class JournalStep
+  const JournalStep(this.indices, this.before)
+  final Int32List indices
+  final TypedData before
+  int get byteCount
+
+final class JournalledFloats
+  Float32List get values
+  JournalledFloats(int length)
+  JournalledFloats.of(Float32List values)
+  bool endStep({bool keepEmpty = false})
+  bool redo()
+  bool undo()
+  double operator [](int index)
+  int dropOldestStep()
+  int get journalBytes
+  int get length
+  int get redoDepth
+  int get undoDepth
+  int trim({int maxSteps = 64, int maxBytes = 64 * 1024 * 1024})
+  void abandonStep()
+  void beginStep()
+  void clearJournal()
+  void grow(int length)
+  void padSteps(int count)
+  void write(int index, double value)
+
+final class JournalledInts
+  Int32List get values
+  JournalledInts(int length)
+  JournalledInts.of(Int32List values)
+  bool endStep({bool keepEmpty = false})
+  bool redo()
+  bool undo()
+  int dropOldestStep()
+  int get journalBytes
+  int get length
+  int get redoDepth
+  int get undoDepth
+  int operator [](int index)
+  int trim({int maxSteps = 64, int maxBytes = 64 * 1024 * 1024})
+  void abandonStep()
+  void beginStep()
+  void clearJournal()
+  void grow(int length, {int fill = 0})
+  void padSteps(int count)
+  void write(int index, int value)
+
+final class MergeReport
+  String toString()
+  bool get worthReporting
+  const MergeReport({required this.sourceVertices, required this.vertices, required this.droppedDegenerate, required this.droppedCoincident, required this.splitNonManifold, required this.distance, required this.remap})
+  final IdRemap remap
+  final double distance
+  final int droppedCoincident
+  final int droppedDegenerate
+  final int sourceVertices
+  final int splitNonManifold
+  final int vertices
+  int get merged
+
+enum MeshAttribute
+  values: uv0, colour, weights, joints, crease, flags, materialSlot
+
+final class MeshBvh
+  MeshBvh(EditMesh mesh, MeshLayoutPlan plan)
+  MeshHit? raycast(Ray ray, {double maxDistance = double.infinity})
+  Selection facesInAabb(Aabb3 box)
+  Selection facesInFrustum(Frustum frustum)
+  TriangleBvh get triangles
+  int faceOf(int triangle)
+  int get triangleCount
+  void rebuild(EditMesh mesh, MeshLayoutPlan plan)
+  void refit(EditMesh mesh)
+
+final class MeshChecks
+  List<MeshIssue> all()
+  List<int> eulerByComponent()
+  MeshChecks(this.mesh, {double? tolerance})
+  MeshIssue? boundaryEdges()
+  MeshIssue? degenerateFaces()
+  MeshIssue? duplicateVertices()
+  MeshIssue? invertedShells()
+  MeshIssue? isolatedVertices()
+  MeshIssue? ngons()
+  MeshIssue? nonManifoldVertices()
+  final EditMesh mesh
+  final double tolerance
+
+enum MeshDomain
+  values: vertex, corner, edge, face
+
+typedef MeshHit = ({int face, int triangle, double distance, Vector3 point});
+
+final class MeshInertia
+  const MeshInertia({required this.mass, required this.centroid, required this.tensor})
+  final Matrix3 tensor
+  final Vector3 centroid
+  final double mass
+
+final class MeshIssue
+  IssueSeverity get severity
+  MeshIssue(this.kind, Iterable<int> ids, this.message)
+  Selection get selection
+  String toString()
+  final Int32List ids
+  final MeshIssueKind kind
+  final String message
+
+final class MeshIssueKind
+  String toString()
+  const MeshIssueKind(this.name, this.severity, this.level)
+  final ElementLevel level
+  final IssueSeverity severity
+  final String name
+  static const MeshIssueKind boundaryEdge = MeshIssueKind('boundary-edge', IssueSeverity.note, ElementLevel.edge)
+  static const MeshIssueKind degenerateFace = MeshIssueKind('degenerate-face', IssueSeverity.error, ElementLevel.face)
+  static const MeshIssueKind duplicateVertex = MeshIssueKind('duplicate-vertex', IssueSeverity.warning, ElementLevel.vertex)
+  static const MeshIssueKind invertedShell = MeshIssueKind('inverted-shell', IssueSeverity.warning, ElementLevel.face)
+  static const MeshIssueKind isolatedVertex = MeshIssueKind('isolated-vertex', IssueSeverity.warning, ElementLevel.vertex)
+  static const MeshIssueKind ngon = MeshIssueKind('ngon', IssueSeverity.note, ElementLevel.face)
+  static const MeshIssueKind nonManifoldVertex = MeshIssueKind('non-manifold-vertex', IssueSeverity.warning, ElementLevel.vertex)
+
+final class MeshLayoutPlan
+  Float32List rows([Float32List? into])
+  Int32List get gpuVertexToCorner
+  Int32List get gpuVertexToVertex
+  Int32List get triangleToFace
+  MeshData toMeshData(EditMesh mesh, {Float32List? into, bool withTangents = false})
+  Uint32List get indices
+  VertexLayout get layout
+  bool get fannedAnyFace
+  final MeshNormals normals
+  int fillVerticesOf(EditMesh mesh, Float32List into, Iterable<int> vertices)
+  int get floatsPerVertex
+  int get triangleCount
+  int get vertexCount
+  int rowOfCorner(int halfEdge)
+  void build(EditMesh mesh, {VertexLayout layout = VertexLayout.standard, double smoothAngle = MeshNormals.defaultSmoothAngle, int? materialSlot})
+  void fillVertices(EditMesh mesh, Float32List into)
+
+final class MeshNormals
+  Float32List get cornerNormals
+  Float32List get faceNormals
+  Vector3 cornerNormal(int halfEdge, [Vector3? out])
+  Vector3 faceNormal(int face, [Vector3? out])
+  int groupOf(int halfEdge)
+  int rebuildAround(EditMesh mesh, Iterable<int> vertices, {double smoothAngle = defaultSmoothAngle, Set<int>? touched})
+  static const double defaultSmoothAngle = 30.0 * degrees2Radians
+  void build(EditMesh mesh, {double smoothAngle = defaultSmoothAngle})
+
+final class MeshPicker
+  Selection inFrustum(Frustum frustum, ElementLevel level)
+  const MeshPicker(this.mesh, this.bvh)
+  final EditMesh mesh
+  final MeshBvh bvh
+  int edgeNear(Ray ray, {required double radius, bool visibleOnly = false})
+  int faceAt(Ray ray, {double maxDistance = double.infinity})
+  int vertexNear(Ray ray, {required double radius, bool visibleOnly = false})
+
+final class MeshQualityStats
+  String toString()
+  const MeshQualityStats({required this.edgeCount, required this.triangleCount, required this.meanEdgeLength, required this.edgeLengthStdDev, required this.meanAspectRatio, required this.maxAspectRatio})
+  double get edgeLengthCv
+  factory MeshQualityStats.of(EditMesh mesh)
+  final double edgeLengthStdDev
+  final double maxAspectRatio
+  final double meanAspectRatio
+  final double meanEdgeLength
+  final int edgeCount
+  final int triangleCount
+
+typedef MeshWork = EditMesh Function(EditMesh mesh);
+
+final class MirrorModifier extends Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const MirrorModifier({required this.normal, this.mergeDistance, this.bisect = false, this.flipUv = false})
+  final Vector3 normal
+  final bool bisect
+  final bool flipUv
+  final double? mergeDistance
+  static MirrorModifier? fromJson(Map<String, Object?> json)
+
+sealed class Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const Modifier()
+
+final class ModifierContext
+  const ModifierContext({this.operands = const <int, EditMesh>{}})
+  final Map<int, EditMesh> operands
+
+final class ModifierStack
+  EditMesh evaluate(EditMesh base, ModifierContext context)
+  ModifierStack(this.modifiers)
+  final List<Modifier> modifiers
+
+final class Multires
+  DisplacementMap displacementMap({int size = 512})
+  EditMesh get finest
+  EditMesh meshAt(int level)
+  Multires rebuilt(EditMesh cage)
+  Multires(this.base, {this.levels = 1})
+  Vector3 displacementOf(int level, int vertex)
+  factory Multires.detailFrom(EditMesh base, EditMesh sculpted, {int levels = 1})
+  final EditMesh base
+  final int levels
+  void displace(int level, int vertex, Vector3 by)
+  void invalidate()
+
+final class OpResult
+  String toString()
+  bool get ok
+  factory OpResult.done({required Selection selection, Int32List? movedVertices, bool topologyChanged = false})
+  factory OpResult.refused(String reason, {required Selection selection})
+  final Int32List movedVertices
+  final Selection selection
+  final String? reason
+  final bool topologyChanged
+
+final class PackResult
+  const PackResult({required this.islands, required this.scale, required this.fillRatio})
+  final List<PackedIsland> islands
+  final double fillRatio
+  final double scale
+
+final class PackedIsland
+  const PackedIsland({required this.offset, required this.rotated})
+  final Vector2 offset
+  final bool rotated
+
+final class ParametricCuboid extends ParametricShape
+  EditMesh toEditMesh()
+  ParametricCuboid({Vector3? size})
+  Shape get drawn
+  String get name
+  final Vector3 size
+
+final class ParametricCylinder extends ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  String get name
+  const ParametricCylinder({this.radiusTop = 0.5, this.radiusBottom = 0.5, this.height = 1.0, this.segments = 32, this.capped = true})
+  final bool capped
+  final double height
+  final double radiusBottom
+  final double radiusTop
+  final int segments
+
+final class ParametricLathe extends ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  const ParametricLathe({required this.profile, this.segments = 32, this.startAngle = 0.0, this.sweepAngle = math.pi * 2, this.closedProfile = false, this.name = 'lathe'})
+  final List<Vector2> profile
+  final String name
+  final bool closedProfile
+  final double startAngle
+  final double sweepAngle
+  final int segments
+
+final class ParametricPlane extends ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  String get name
+  const ParametricPlane({this.width = 1.0, this.depth = 1.0, this.widthSegments = 1, this.depthSegments = 1})
+  final double depth
+  final double width
+  final int depthSegments
+  final int widthSegments
+
+sealed class ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  String get name
+  const ParametricShape()
+
+final class ParametricSphere extends ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  String get name
+  const ParametricSphere({this.radius = 0.5, this.segments = 32, this.rings = 16})
+  final double radius
+  final int rings
+  final int segments
+
+final class ParametricTorus extends ParametricShape
+  EditMesh toEditMesh()
+  Shape get drawn
+  String get name
+  const ParametricTorus({this.radius = 0.35, this.tubeRadius = 0.15, this.segments = 48, this.tubeSegments = 24})
+  final double radius
+  final double tubeRadius
+  final int segments
+  final int tubeSegments
+
+final class PlacedMesh
+  PlacedMesh({required this.mesh, required this.at, this.turn})
+  final EditMesh mesh
+  final Vector3 at
+  final Vector3? turn
+
+final class PrincipalInertia
+  const PrincipalInertia({required this.moments, required this.axes, required this.mass, required this.centroid})
+  final Matrix3 axes
+  final Vector3 centroid
+  final Vector3 moments
+  final double mass
+
+final class Recipe
+  const Recipe({required this.id, required this.name, required this.category, required this.about, required this.build})
+  final EditMesh Function() build
+  final RecipeCategory category
+  final String about
+  final String id
+  final String name
+
+enum RecipeCategory
+  values: lighting, furniture, tableware, architecture
+  const RecipeCategory(this.label)
+  final String label
+
+final class RemeshReport
+  String toString()
+  const RemeshReport({required this.iterations, required this.targetEdgeLength, required this.edgeSplits, required this.edgeCollapses, required this.edgeFlips, required this.before, required this.after})
+  final MeshQualityStats after
+  final MeshQualityStats before
+  final double targetEdgeLength
+  final int edgeCollapses
+  final int edgeFlips
+  final int edgeSplits
+  final int iterations
+
+final class SculptMesh
+  BrushResult applyBrush({required Vector3 center, required double radius, required Vector3 Function(int vertex, Vector3 position, double falloff) displace})
+  EditMesh toEditMesh()
+  Float32List chunkPositions(int chunkIndex)
+  Float32List chunkUvs(int chunkIndex)
+  Int32List get adjacencyNeighbors
+  Int32List get adjacencyOffsets
+  List<Float32List> snapshotChunkPositions()
+  List<int> neighborsOf(int vertex)
+  List<int> verticesWithinRadius(Vector3 center, double radius)
+  Set<int> get dirtyChunks
+  Vector2 uvOf(int vertex, [Vector2? out])
+  Vector3 positionOf(int vertex, [Vector3? out])
+  factory SculptMesh.fromEditMesh(EditMesh mesh)
+  final Int32List sourceVertices
+  final Uint32List triangles
+  int chunkVersion(int chunkIndex)
+  int get chunkCount
+  int get triangleCount
+  int get vertexCount
+  static const int chunkSize = 1024
+  static int chunkOf(int vertex)
+  void clearDirtyChunks()
+  void rebuildSpatialGrid()
+
+final class SculptMeshBvh
+  ({int triangle, double distance, Vector3 point})? raycast(Ray ray, {double maxDistance = double.infinity})
+  factory SculptMeshBvh.build(SculptMesh mesh)
+  void refit()
+
+final class Selection
+  Selection boundary(EditMesh mesh)
+  Selection convertedTo(EditMesh mesh, ElementLevel level)
+  Selection difference(Selection other)
+  Selection grown(EditMesh mesh)
+  Selection intersection(Selection other)
+  Selection linked(EditMesh mesh)
+  Selection shrunk(EditMesh mesh)
+  Selection toggle(Selection other)
+  Selection union(Selection other)
+  Selection withActive(int id)
+  Selection withIds(Iterable<int> replacement)
+  String toString()
+  bool contains(int id)
+  bool get isEmpty
+  bool get isNotEmpty
+  factory Selection.all(EditMesh mesh, ElementLevel level)
+  factory Selection.byMaterialSlot(EditMesh mesh, int slot)
+  factory Selection.edgeLoop(EditMesh mesh, int halfEdge)
+  factory Selection.edgeRing(EditMesh mesh, int halfEdge)
+  factory Selection.empty(ElementLevel level)
+  factory Selection.of(ElementLevel level, Iterable<int> ids, {int active = EditMesh.none})
+  final ElementLevel level
+  final Int32List ids
+  final int active
+  int get length
+
+final class ShapeKey
+  Float32List get positions
+  ShapeKey grownTo(EditMesh mesh)
+  ShapeKey remappedBy(IdRemap remap)
+  ShapeKey(this.name, Float32List positions)
+  String toString()
+  Vector3 positionOf(int vertex)
+  final String name
+  int get vertexCount
+  static Float32List blend(EditMesh base, List<ShapeKey> keys, List<double> weights)
+  void setPosition(int vertex, Vector3 position)
+
+typedef SimplifiedMesh = ({MeshData mesh, double error});
+
+final class SmoothModifier extends Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const SmoothModifier({required this.iterations, this.lambda = 0.5, this.preserveVolume = false})
+  final bool preserveVolume
+  final double lambda
+  final int iterations
+  static SmoothModifier? fromJson(Map<String, Object?> json)
+
+final class StaticMeshShape
+  const StaticMeshShape({required this.vertices, required this.triangles})
+  final List<(int, int, int)> triangles
+  final List<Vector3> vertices
+
+final class SubdivisionModifier extends Modifier
+  EditMesh apply(EditMesh base, ModifierContext context)
+  Map<String, Object?> toJson()
+  const SubdivisionModifier({required this.levels, int? viewLevels})
+  final int levels
+  final int viewLevels
+  static SubdivisionModifier? fromJson(Map<String, Object?> json)
+
+final class UvProjection
+  String toString()
+  static const UvProjection box = UvProjection._('box')
+  static const UvProjection planar = UvProjection._('planar')
+
+typedef UvSpan = ({int y, int x0, int x1, Float32List weights});
+
+final class VertexAttributes
+  String toString()
+  VertexAttributes({Vector4? joints, Vector4? weights})
+  final Vector4 joints
+  final Vector4 weights
+  static VertexAttributes lerp(VertexAttributes a, VertexAttributes b, double t)
+
+final class VertexFrames
+  Vector3 into(int vertex, Vector3 world, [Vector3? out])
+  Vector3 normalOf(int vertex, [Vector3? out])
+  Vector3 outOf(int vertex, Vector3 local, [Vector3? out])
+  factory VertexFrames.of(EditMesh mesh)
+  final int vertexSlotCount
+
+final class WeightPair
+  String toString()
+  const WeightPair(this.joint, this.weight)
+  final double weight
+  final int joint
+
+BrushResult applyBrushStroke(SculptMesh mesh, Brush brush, {required Vector3 center, Vector3? previousCenter, bool symmetryX = false})
+
+void assignSelection(EditMesh mesh, Iterable<int> vertices, int joint, double weight)
+
+Vector3 averageNormal(SculptMesh mesh, Iterable<int> vertices)
+
+BakedMap bakeAmbientOcclusion({required EditMesh low, required TriangleBvh high, required int size, int samples = 64, double distance = 1.0, double bias = 1e-3})
+
+BakedMap bakeCurvature({required EditMesh low, required int size, double scale = 4.0})
+
+BakedMap bakeNormalMap({required EditMesh low, required TriangleBvh high, required int size, double shell = 0.1})
+
+BakedMap bakeThickness({required EditMesh low, required TriangleBvh high, required int size, int samples = 32, double distance = 1.0, double bias = 1e-3})
+
+EditMesh bench({double length = 1.4, double height = 0.45})
+
+OpResult bevelEdges(EditMesh mesh, Selection selection, {required double width, int segments = 1, bool clampOverlap = true})
+
+OpResult bevelVertices(EditMesh mesh, Selection selection, {required double width, int segments = 1, bool clampOverlap = true})
+
+CsgResult? booleanIntersect(EditMesh a, EditMesh b, {int maxPolygons = 200000})
+
+CsgResult? booleanOp(EditMesh a, EditMesh b, CsgOperation operation, {int maxPolygons = 200000})
+
+CsgResult? booleanSubtract(EditMesh a, EditMesh b, {int maxPolygons = 200000})
+
+CsgResult? booleanUnion(EditMesh a, EditMesh b, {int maxPolygons = 200000})
+
+EditMesh bottle({double height = 0.3})
+
+List<List<int>> boundaryChains(EditMesh mesh)
+
+OpResult bridgeLoops(EditMesh mesh, Selection selection)
+
+EditMesh cabinet({double width = 0.9, double height = 0.85, double depth = 0.45})
+
+EditMesh catmullClark(EditMesh mesh, {int levels = 1})
+
+({int triangle, double distance, Vector3 point})? closestPointOn(TriangleBvh tree, Vector3 point, {double within = double.infinity})
+
+Vector3 closestPointOnTriangle(Vector3 point, Vector3 a, Vector3 b, Vector3 c, Vector3 into)
+
+MeshData clusterMesh(MeshData mesh, {int maxTriangles = 4096, int minTriangles = 1024, double foldAngle = math.pi / 4})
+
+ConvexHull? computeConvexHull(List<Vector3> points)
+
+MeshInertia computeMeshInertia(EditMesh mesh)
+
+List<ConvexPiece> decomposeConvex(EditMesh mesh, {int maxPieces = 12, int seed = 0, double toleranceFraction = 0.15})
+
+OpResult deleteSelection(EditMesh mesh, Selection selection)
+
+void dilate(BakedMap map, {int rings = 4})
+
+EditMesh diningChair({double seat = 0.45, double width = 0.44, double depth = 0.44, double back = 0.85})
+
+EditMesh diningTable({double length = 1.6, double width = 0.9, double height = 0.74})
+
+EditMesh door({double width = 0.9, double height = 2.04})
+
+OpResult duplicateSelection(EditMesh mesh, Selection selection)
+
+Future<EditMesh> editInIsolate(EditMesh mesh, MeshWork work)
+
+OpResult extrudeEdges(EditMesh mesh, Selection selection, {required Vector3 by})
+
+OpResult extrudeFaces(EditMesh mesh, Selection selection, {required double distance, bool individual = false})
+
+int fillHoles(EditMesh mesh)
+
+FittedBox fitBoxByInertia(EditMesh mesh)
+
+FittedCapsule fitCapsuleByInertia(EditMesh mesh)
+
+FittedSphere fitSphereByInertia(EditMesh mesh)
+
+EditMesh floorLamp({double height = 1.55, double shadeTop = 0.16, double shadeBottom = 0.24})
+
+void gradientWeights(EditMesh mesh, Iterable<int> vertices, {required int jointA, required int jointB, required Vector3 start, required Vector3 end})
+
+(EditMesh, ImportReport, List<ShapeKey>) importMeshData(MeshData mesh, {double? weldEpsilon})
+
+List<Vector3> insetCornerPositions(List<Vector3> positions, Vector3 normal, double thickness, double depth)
+
+OpResult insetFaces(EditMesh mesh, Selection selection, {required double thickness, double depth = 0.0, bool individual = true})
+
+(EditMesh, RemeshReport) isotropicRemesh(EditMesh mesh, {required double targetEdgeLength, int iterations = 5, double tangentialLambda = 1.0})
+
+EditMesh joinMeshes(List<PlacedMesh> parts)
+
+List<WeightPair> limitInfluences(List<WeightPair> pairs, int maxInfluences)
+
+OpResult loopCut(EditMesh mesh, Selection selection, {int cuts = 1, double factor = 0.5})
+
+void lscm(EditMesh mesh, List<int> island, {int? pinVertex1, Vector2? pinUv1, int? pinVertex2, Vector2? pinUv2, int maxIterations = 300, double tolerance = 1e-6})
+
+Vector3 medianOf(EditMesh mesh, Selection selection)
+
+(EditMesh, MergeReport) mergeAt(EditMesh mesh, Selection selection, Vector3 at)
+
+(EditMesh, MergeReport) mergeByDistance(EditMesh mesh, {double? distance, Selection? within})
+
+const bool meshWorkStaysHere = bool.fromEnvironment('dart.library.js_interop')
+
+EditMesh mirror(EditMesh base, {required Vector3 normal, double? mergeDistance, bool bisect = false})
+
+Vector3 mirrorAcrossX(Vector3 point)
+
+void mirrorWeights(EditMesh mesh, Iterable<int> vertices, {required int axis, required Map<int, int> jointMirror, double plane = 0.0, double tolerance = 1e-4})
+
+Modifier? modifierFromJson(Object? json)
+
+EditMesh mug({double height = 0.095, double radius = 0.0475})
+
+void normalizeVertexWeights(EditMesh mesh, int vertex)
+
+List<WeightPair> normalizeWeights(List<WeightPair> pairs)
+
+PackResult? packIslands(List<Vector2> sizes, {required double margin, bool allowRotate90 = false})
+
+void paintWeight(EditMesh mesh, int vertex, int joint, double strength, {int maxInfluences = 4})
+
+EditMesh pendantLamp({double drop = 0.9, double width = 0.36})
+
+EditMesh plate({double radius = 0.135})
+
+PrincipalInertia principalAxesOf(MeshInertia inertia)
+
+List<UvSpan> projectBrush({required EditMesh mesh, required TriangleBvh surface, required Vector3 centre, required double radius, required int size, BrushFalloff falloff = BrushFalloff.smooth})
+
+void projectUv(EditMesh mesh, List<int> island, UvProjection mode)
+
+void pruneVertexWeights(EditMesh mesh, int vertex, int maxInfluences)
+
+void rasterizeUv(EditMesh low, int size, void Function(BakeSample sample) onSample, {Set<int>? faces})
+
+List<Recipe> recipes()
+
+EditMesh retopologize(EditMesh source, {required int targetQuads, double coplanarThreshold = 0.7})
+
+OpResult rotateSelection(EditMesh mesh, Selection selection, {required Quaternion by, Vector3? pivot})
+
+OpResult scaleSelection(EditMesh mesh, Selection selection, {required Vector3 by, Vector3? pivot})
+
+List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh)
+
+double shapeFalloff(BrushFalloff falloff, double t)
+
+List<MorphTarget> shapeKeyMorphTargets(MeshLayoutPlan plan, EditMesh mesh, List<ShapeKey> keys)
+
+EditMesh shelfUnit({double width = 0.8, double height = 1.8, double depth = 0.32, int shelves = 4})
+
+MeshData simplifyMesh(MeshData mesh, {required int targetTriangleCount, double flipThreshold = 0.0, void Function(int collapsesDone, int collapsesTotal)? onProgress, bool Function()? isCancelled})
+
+MeshData simplifyMeshWithAttributes(MeshData mesh, {required int targetTriangleCount, double? targetError, double flipThreshold = 0.0, double boundaryWeight = 1000.0, void Function(int collapsesDone, int collapsesTotal)? onProgress, bool Function()? isCancelled})
+
+SimplifiedMesh simplifyMeshWithAttributesMeasured(MeshData mesh, {required int targetTriangleCount, double? targetError, double flipThreshold = 0.0, double boundaryWeight = 1000.0, void Function(int collapsesDone, int collapsesTotal)? onProgress, bool Function()? isCancelled})
+
+OpResult slideEdges(EditMesh mesh, Selection selection, {required double amount})
+
+void smoothVertexWeights(EditMesh mesh, Iterable<int> vertices, {double lambda = 0.5, int iterations = 1, int maxInfluences = 4})
+
+OpResult smoothVertices(EditMesh mesh, Selection selection, {required int iterations, double lambda = 0.5, bool preserveVolume = false})
+
+List<List<int>> splitIslands(EditMesh mesh, {Set<int>? restrictToFaces})
+
+OpResult splitSelection(EditMesh mesh, Selection selection)
+
+StaticMeshShape staticMeshShape(EditMesh mesh)
+
+EditMesh stool({double height = 0.65, double top = 0.32})
+
+double stretchOf(EditMesh mesh, List<int> island)
+
+(EditMesh, IdRemap) subMesh(EditMesh mesh, Iterable<int> wanted)
+
+EditMesh subdivideSimple(EditMesh mesh)
+
+double surfaceDeviation(MeshData original, MeshData simplified)
+
+TriangleBvh surfaceOf(EditMesh mesh)
+
+EditMesh tableLamp({double height = 0.44})
+
+int texelsIn(List<UvSpan> spans)
+
+VertexAttributes toVertexAttributes(List<WeightPair> pairs)
+
+OpResult transformSelection(EditMesh mesh, Selection selection, {required Matrix4 by})
+
+OpResult translateSelection(EditMesh mesh, Selection selection, {required Vector3 by})
+
+double triangleAspectRatio(Vector3 p0, Vector3 p1, Vector3 p2)
+
+OpResult triangulateFaces(EditMesh mesh, Selection selection)
+
+void unwrapMesh(EditMesh mesh, {void Function(int islandsDone, int islandsTotal)? onProgress, bool Function()? isCancelled})
+
+EditMesh vase({double height = 0.28})
+
+Vector3 vertexNormal(SculptMesh mesh, int vertex)
+
+Map<int, Vector3> vertexNormals(SculptMesh mesh, Iterable<int> vertices)
+
+EditMesh wallSconce()
+
+List<WeightPair> weightsOf(EditMesh mesh, int vertex)
+
+Int32List weldCoincidentPositions(Float64List positions, {double epsilonScale = 1e-5})
+
+EditMesh window({double width = 1.2, double height = 1.4})
+
+library package:flutter3d_mesh/testing.dart
+
+EditMesh bevelledCube()
+
+EditMesh cubeMinusSphere()
+
+EditMesh cutCylinder()
+
+EditMesh extrudedBox()
+
+EditMesh mirroredVase()
+
+EditMesh sharpAgainstSmooth()
+
+EditMesh subdividedCube()
+
+EditMesh turnedProfile()

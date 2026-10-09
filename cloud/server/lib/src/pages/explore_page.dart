@@ -194,8 +194,8 @@ class _ShowcaseCard extends StatelessComponent {
           Component.text('by ${model.ownerName ?? 'someone'}'),
         ], classes: 'meta'),
         div([
-          if (model.licence case final licence?)
-            span([Component.text(licence.spdx)], classes: 'badge'),
+          if (model.license case final license?)
+            span([Component.text(license.spdx)], classes: 'badge'),
           if (model.category case final category?)
             span([Component.text(category.label)], classes: 'badge'),
         ], classes: 'badges'),

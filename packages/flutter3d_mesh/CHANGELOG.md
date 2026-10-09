@@ -1,10 +1,60 @@
-## 0.9.0
+## 1.0.0-rc.1
 
-**Moves with the stack to 0.9.0**, whose `flutter3d_hardware` gives
+- **Breaking: `LinearColor` is not re-exported.** It is
+  `flutter3d_foundation`'s.
+
+- **Breaking: `Brush` is `MeshBrush`, and `ImportReport` is
+  `MeshImportReport`.** A public name has one home across the published
+  packages: `Brush` is the level's box in `flutter3d_sim`, and
+  `ImportReport` the project import's in `flutter3d_model_core`.
+  `applyBrushStroke` and `importMeshData` take and return the renamed
+  types; `dart fix` renames every use.
+- **Breaking: a corner's colour is a `LinearColor`.** `CornerAttributes`'
+  `color`, `EditMesh.colorOf` (which no longer takes an out vector) and
+  `setColor` are linear `LinearColor`s, with the same numbers;
+  `EditMesh.hasSameColor` compares two corners without making either.
+  `LinearColor` is `flutter3d_foundation`'s.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `FaceTriangulator.fannedLastFace` is `didFanLastFace`;
+  `MeshLayoutPlan.fannedAnyFace` is `didFanAnyFace`;
+  `ImportReport.worthReporting` is `isWorthReporting`;
+  `MergeReport.worthReporting` is `isWorthReporting`; `OpResult.ok` is
+  `isOk`. `dart fix` carries the renames.
+- **Breaking: `EditMesh.makeConsistent` is `ensureConsistent`.** `dart fix`
+  carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `bevelledCube` is `beveledCube`, `centre` is `center`, `colour`
+  is `color`, `colourOf` is `colorOf`, `isCancelled` is `isCanceled`,
+  `JournalledFloats` is `JournaledFloats`, `JournalledInts` is
+  `JournaledInts`, `setColour` is `setColor`. Only the Dart names changed:
+  a file keeps the keys it was written with, and `dart fix` carries the
+  renames.
+- **Breaking: the float32 ray is `LocalRay`.** `MeshBvh.raycast`,
+  `SculptMeshBvh.raycast` and `MeshPicker`'s `faceAt`, `vertexNear` and
+  `edgeNear` take a `LocalRay`, the geometry library's `Ray` renamed so it
+  no longer collides with vector_math's. Nothing else changed; `dart fix`
+  renames it.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The web is declared.** `editInIsolate` comes from `isolate_run.dart`, or
+  from `isolate_here.dart` in a browser, so a browser build has no
+  `dart:isolate` in it.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
 `PassEncoder.draw` a window of the bound indices and every `PassEncoder`
 `setAlphaToCoverage`. Nothing in this package changed.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

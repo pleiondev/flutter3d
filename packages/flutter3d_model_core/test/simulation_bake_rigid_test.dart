@@ -24,7 +24,7 @@ void main() {
       expect(cache.vertexCount, 8);
       expect(cache.frameCount, 180);
 
-      double centreY(int frame) {
+      double centerY(int frame) {
         final f = cache.frame(frame);
         var sum = 0.0;
         for (var v = 0; v < 8; v++) {
@@ -34,13 +34,13 @@ void main() {
       }
 
       // Falls: well below where it started, partway through the bake.
-      expect(centreY(30), lessThan(2.5));
+      expect(centerY(30), lessThan(2.5));
 
       // Stops: the last ten frames barely move — settled on the floor,
       // not still falling or bouncing forever.
       final tail = <double>[
         for (var f = cache.frameCount - 10; f < cache.frameCount; f++)
-          centreY(f),
+          centerY(f),
       ];
       final spread =
           tail.reduce((a, b) => a > b ? a : b) -
@@ -49,7 +49,7 @@ void main() {
 
       // Resting on the floor (top at y = 0), not still up in the air or
       // sunk through it.
-      expect(centreY(cache.frameCount - 1), closeTo(0.25, 0.05));
+      expect(centerY(cache.frameCount - 1), closeTo(0.25, 0.05));
     });
 
     test('the bake is deterministic: two runs give the same cache', () async {

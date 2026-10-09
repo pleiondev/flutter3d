@@ -26,7 +26,7 @@ enum NumberUnit {
   plain,
 
   /// Scene units, which this project's own documents are in.
-  metres,
+  meters,
 
   /// What a rotation field shows. Radians are what the arithmetic uses and
   /// `TransformFields` converts at its own edge; a person types degrees.
@@ -40,6 +40,8 @@ enum NumberUnit {
 /// result must be finite — `1/0` is not a position.
 double? evaluateNumber(String said, {NumberUnit unit = NumberUnit.plain}) {
   final _Reader reader = _Reader(said.replaceAll(',', '.'), unit);
+
+  /// The number read, in [unit]'s own terms.
   final double? value = reader.expression();
   if (value == null || !reader.atEnd) return null;
   return value.isFinite ? value : null;
@@ -49,7 +51,7 @@ double? evaluateNumber(String said, {NumberUnit unit = NumberUnit.plain}) {
 /// not one this kind of field knows.
 double? _factorFor(String suffix, NumberUnit unit) => switch (unit) {
   NumberUnit.plain => null,
-  NumberUnit.metres => switch (suffix) {
+  NumberUnit.meters => switch (suffix) {
     'mm' => 0.001,
     'cm' => 0.01,
     'dm' => 0.1,

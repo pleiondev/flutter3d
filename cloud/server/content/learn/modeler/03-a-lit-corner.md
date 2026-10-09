@@ -153,7 +153,7 @@ export proceeds. Decoding the written GLB back:
 ## 5. Into the cabinet
 
 Upload the GLB the same way case 1 did — sign in at models.pleion.dev, use
-the site's own uploader, and **Open in viewer** loads it at `/app/`.
+the site's own uploader, and **View in 3D** loads it at `/app/`.
 
 ---
 
@@ -188,7 +188,7 @@ viewport's own fixed key/fill pair (`tut-07`, fixed alongside `mat-23`'s own
 two fields that still do not reach this picture — see the callout in step 3
 and `tut-07` in `doc/modeler-tutorial-gaps.md` for why.
 
-**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+**Proving it.** `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case3_scenario.dart` builds exactly the project this page describes, against
 a live `ModelSession` seeded with case 2's own saved project
 (`case3StartingProject`, which reads the committed `case2.f3dproj` through

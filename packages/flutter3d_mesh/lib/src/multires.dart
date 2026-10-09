@@ -487,10 +487,10 @@ final class Multires {
     for (final int he in corners) heightAt(mesh.originOf(he)),
   ];
 
-  final double x0 = uvs[0].x * size, y0 = uvs[0].y * size;
-  final double x1 = uvs[1].x * size, y1 = uvs[1].y * size;
-  final double x2 = uvs[2].x * size, y2 = uvs[2].y * size;
-  final double area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  final x0 = uvs[0].x * size, y0 = uvs[0].y * size;
+  final x1 = uvs[1].x * size, y1 = uvs[1].y * size;
+  final x2 = uvs[2].x * size, y2 = uvs[2].y * size;
+  final area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
   if (area.abs() < 1e-12) return (0, 0);
 
   final int minX = math.max(0, math.min(x0, math.min(x1, x2)).floor());

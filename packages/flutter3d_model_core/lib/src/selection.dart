@@ -16,6 +16,8 @@ library;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'project_wire.dart';
+
 /// Which kind of thing is being selected.
 enum SelectionMode { object, mesh }
 
@@ -106,9 +108,9 @@ final class ProjectSelection {
   };
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'mode': mode.name,
+    'mode': selectionModeWord(mode),
     'objects': objects,
-    'level': level.name,
+    'level': elementLevelWord(level),
     'elements': elements,
   };
 
@@ -120,12 +122,8 @@ final class ProjectSelection {
   /// would make one stale selection lose a whole document.
   static ProjectSelection? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
-    final mode = SelectionMode.values
-        .where((SelectionMode each) => each.name == json['mode'])
-        .firstOrNull;
-    final level = ElementLevel.values
-        .where((ElementLevel each) => each.name == json['level'])
-        .firstOrNull;
+    final mode = selectionModeOf(json['mode']);
+    final level = elementLevelOf(json['level']);
     final objects = _ints(json['objects']);
     final elements = _ints(json['elements']);
     if (mode == null || level == null || objects == null || elements == null) {
@@ -158,7 +156,11 @@ final class ProjectSelection {
 /// An interface rather than the project itself, so that this file does not
 /// depend on `project.dart` for a single question — and so a test can filter a
 /// selection against a set of ids without building a document.
-abstract interface class ModelProjectView {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ModelProjectView {
   /// Whether an object with [id] is in the project.
   bool holds(int id);
 }

@@ -23,7 +23,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'layout_plan.dart';
@@ -87,7 +87,7 @@ final class MeshBvh {
   }
 
   /// The nearest face [ray] hits.
-  MeshHit? raycast(Ray ray, {double maxDistance = double.infinity}) {
+  MeshHit? raycast(LocalRay ray, {double maxDistance = double.infinity}) {
     final hit = _tree.raycast(ray, maxDistance: maxDistance);
     if (hit == null) return null;
     return (

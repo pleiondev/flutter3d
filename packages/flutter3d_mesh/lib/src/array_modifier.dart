@@ -36,6 +36,7 @@ final class ArrayModifier extends Modifier {
   /// purpose: `0` still runs [mergeByDistance] and welds only vertices that
   /// land exactly together (`offset` chosen so copies touch), while `null`
   /// skips the pass entirely for a caller that knows its copies never meet.
+  /// In metres.
   final double? mergeDistance;
 
   @override

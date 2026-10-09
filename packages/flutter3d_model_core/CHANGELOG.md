@@ -1,4 +1,115 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `WeightPair` is not re-exported.** What `bindWeights` hands back
+  is `flutter3d_mesh`'s, and a caller that spells it depends on that package.
+
+- **Breaking: `EnumHint` is `ChoiceHint`, and `TextureUsage` is
+  `TextureBudgetUsage`.** `EnumHint` is the material's in `flutter3d_core`
+  and `TextureUsage` the device's in `flutter3d_hardware`; a file that
+  read both had to hide one, and the modeller's own names now say what
+  they are. `measure` returns the renamed type; `dart fix` renames every
+  use.
+- **`rootMotionExtra` is `flutter3d_core`'s.** The key a clip's root
+  motion is kept under was declared here too, with the same value; the
+  root motion commands use the core's, so the document and the player
+  cannot drift apart.
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  `CapabilityException` a render refusal extends.
+
+- **Breaking: `RenderPreset.clearColor` and `bakeImpostor(clearColor:)` are
+  `clearColorSrgb`**, the same sRGB `Vector4`, named as
+  `RenderView.clearColorSrgb` is.
+- **`.f3dproj` keeps the manifest keys it does not read.**
+  `ModelProject.unknown` holds them, every edit carries them, and a save
+  writes them back where they were, so a project a later minor wrote keeps
+  what it added; a key this build writes is never taken from them.
+- **Words in `.f3dproj` come from explicit tables.** Every Dart enum the
+  project file, the command journal and a command's arguments hold — the
+  history step's author, the profile's target and texture format, a
+  material's alpha and wrap modes, a selection, a texture node's blend and
+  channel, a transform's pivot and space, a key's path and interpolation, a
+  boolean's operation — is written and read through `project_wire.dart`,
+  with the words it had, so renaming a Dart value changes no file.
+- **`.f3dproj` is a format in the registry**: `projectFormat`
+  (`f3d.project`), with its fixture. `ProjectRefused.toException` gives a
+  `ProjectFormatException` to a caller that cannot go on.
+- **Breaking: a texture graph that will not read throws
+  `TextureGraphFormatException`**, a `Flutter3dFormatException`, where it
+  threw the SDK's `FormatException`. A project whose graph does not read is
+  refused with a sentence (`ProjectRefused`), and a journal entry whose
+  graph does not read is skipped like every other unreadable one.
+
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `ImportOptions` is `ImportSettings`, `LodSpec` is `LodSettings`,
+  `RigBuildOptions` is `RigBuildSettings`. Every settings class is `final`
+  with a `const` constructor and a `copyWith` over every field; a nullable
+  field is reset with `copyWith(clearX: true)`. `dart fix` carries the
+  renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kHistoryBudgetBytes` is
+  `defaultHistoryBudgetBytes`, `kMaxSkinInfluences` is `maxSkinInfluences`,
+  `kPanoramaCubeLevels` is `panoramaCubeLevels`, `kPanoramaCubeSize` is
+  `panoramaCubeSize`, `kProjectChecksumEntryBytes` is
+  `projectChecksumEntryBytes`, `kProjectChecksumOffset` is
+  `projectChecksumOffset`, `kProjectHeaderBytes` is `projectHeaderBytes`,
+  `kProjectImageEntryBytes` is `projectImageEntryBytes`,
+  `kProjectImportedEntryBytes` is `projectImportedEntryBytes`,
+  `kProjectMagic` is `projectMagic`, `kProjectMeshEntryBytes` is
+  `projectMeshEntryBytes`, `kProjectSectionEntryBytes` is
+  `projectSectionEntryBytes`, `kProjectSimulationEntryBytes` is
+  `projectSimulationEntryBytes`, `kProjectVersion` is `projectVersion`,
+  `kRootMotionExtra` is `rootMotionExtra`. The values are the same;
+  `dart fix` carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `AssetAudit.clean` is `isClean`; `BudgetUsage.over` is `isOver`;
+  `JournalReplay.ok` is `isOk`; `Outcome.ok` is `isOk`;
+  `PanoramaSync.rebuiltLast` is `didRebuildLast`;
+  `ProfileBudgetReport.anyOver` is `hasAnyOver`. `dart fix` carries the
+  renames.
+- **Breaking: units in names (docs/CONTRACTS.md).** `BendJoint.degrees` is
+  `angle`, in radians; the journal and the `bendJoint` tool keep their
+  `degrees` argument and convert. `ImpostorCard.framing(fovYRadians:)` is
+  `fovY`.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `baseCentre` is `baseCenter`, `boundsCentre` is `boundsCenter`,
+  `centre` is `center`, `colour` is `color`, `elementCentre` is
+  `elementCenter`, `licence` is `license`, `normalise` is `normalize`,
+  `PaintVertexColour` is `PaintVertexColor`, `texelsPerMetre` is
+  `texelsPerMeter`. Only the Dart names changed: a file keeps the keys it
+  was written with, and `dart fix` carries the renames.
+- **Breaking: `poseOf` returns an `AnimationPose`.** The engine's
+  animation `Pose` is `AnimationPose` in 1.0, so it no longer shares a name
+  with the simulation's; `dart fix` renames it.
+
+- **`BakeClothJobRequest` takes the `physics` its cloth steps on.**
+- **Breaking:** `RenderRefusal` extends `CapabilityException` instead of
+  implementing `Exception` directly. The name and members are unchanged and
+  every `on` clause that caught it still does; every exception the engine
+  throws now hangs from `Flutter3dException` in `flutter3d_plugin_api`, in one
+  of four families: format, capability, plugin and resource. A caller who
+  reports anything the engine refused catches the root; one who acts on a kind
+  catches its family. The migration table marks it as nothing to do.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **A project file names a plugin's lighting model.** Reading a material's
+  `lightingModel` and setting it through a command search
+  `LightingModels.all`, the built-in models and every one a plugin
+  registered, where they searched `LightingModel.builtIn` alone.
+
+- **Breaking: `ModelProjectView` and `SimulationBakeRequest` can no longer be
+  implemented outside their own library: each is an `abstract base mixin
+  class` now, so a game or a test mixes it in (`with`) and its class is
+  `final` or `base`. A member added to one in a 1.x release arrives with a
+  body, which an `implements` could not have taken without breaking somebody.
 
 **The cloth bake runs on the run's physics.** `BakeClothJobRequest` steps
 its mesh through `PhysicsBackend.current.cloth`, which is the core when the
@@ -20,7 +131,7 @@ so an undo after reopening puts them back. An export writes them into the
 model's root `extras`, and an import keeps every one, as the project file
 does: one this build cannot read is refused only when somebody sets it.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

@@ -143,7 +143,7 @@ void main() {
 
       final decoded = decodePng(
         history.project.images[binding!.imageIndex].bytes,
-      )!;
+      );
       expect(decoded.width, 8);
       expect(decoded.height, 8);
       // Linear 1/0/0/1 round-trips through the sRGB transfer function exactly

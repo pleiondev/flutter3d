@@ -41,7 +41,7 @@ import 'watched.dart';
 /// on the VM service's `Extension` stream, and what this keeps is what that
 /// stream delivers once listened to; a bare VM keeps no history of it, so
 /// there a level that came up before the attach is not among them.
-final class AttachedRun implements PlayedGame {
+final class AttachedRun with PlayedGame {
   AttachedRun(this.vmService, {this._connect = connectVmService});
 
   /// The address a person gave, in any spelling `vmServiceWebSocket` reads.
@@ -123,7 +123,7 @@ final class AttachedRun implements PlayedGame {
       service.onStderrEvent.listen((Event it) => _printed('stderr', it)),
       service.onLoggingEvent.listen(_logged),
       service.onServiceEvent.listen(_registered),
-      service.onExtensionEvent.listen(_events.take),
+      service.onExtensionEvent.listen(_events.record),
     ]);
     // Subscribing to `Service` replays what is already registered, so a tool
     // that connected long before the editor is still found.

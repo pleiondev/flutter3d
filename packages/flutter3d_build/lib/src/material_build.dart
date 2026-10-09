@@ -23,167 +23,24 @@
 /// backend refuses that bundle by name. `impellerc` is never missing in a
 /// real build — it ships in the Flutter SDK that runs the hook — so its
 /// absence is an error.
+///
+/// **The compiler of one material is `flutter3d_build_hooks`'**
+/// ([compileMaterial], [MaterialCompilers], [MaterialBuildException], and
+/// [generateMaterialAccessors] for the typed accessors), exported here: a package's own build hook compiles its materials through
+/// that light package, without this one's converters and servers.
 library;
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart';
 import 'package:flutter3d_shaders/compile.dart';
 
 import 'layout.dart';
 import 'pipeline_version.dart';
-
-/// A material that did not build, and where.
-///
-/// [line] and [column] are the material source's own when the failure is one
-/// the parser can place — which is every mistake an author makes in the
-/// language. A compiler refusing GLSL the language accepted names the source
-/// too, and its own output names the line of the generated `.frag`, kept on
-/// disk at the path the message gives.
-final class MaterialBuildException implements Exception {
-  const MaterialBuildException(
-    this.message, {
-    required this.source,
-    this.line,
-    this.column,
-  });
-
-  final String message;
-
-  /// The material source, as a path; empty for a failure no one source
-  /// caused, such as no `impellerc` to run.
-  final String source;
-  final int? line;
-  final int? column;
-
-  @override
-  String toString() => switch ((source, line, column)) {
-    ('', _, _) => message,
-    (_, final int line, final int column) => '$source:$line:$column: $message',
-    (_, final int line, null) => '$source:$line: $message',
-    _ => '$source: $message',
-  };
-}
-
-/// Compiles one prepared stage to WGSL and reports the offsets glslang gave
-/// each uniform block member — `compileStage`'s answer, behind a seam a test
-/// can replace on a machine with neither compiler.
-typedef WgslStageCompiler =
-    CompiledStage Function(
-      PreparedStage stage, {
-      required String name,
-      required bool fragment,
-    });
-
-/// The programs a material build runs, and the SDK token it stamps.
-///
-/// A value rather than a lookup inside the build, so a test hands it a stub
-/// `impellerc` the way `flutter3d_impeller`'s own tests do, and so a build
-/// that needs none of them — a project without materials — never looks.
-final class MaterialCompilers {
-  const MaterialCompilers({
-    required this.impellerc,
-    required this.sdk,
-    this.impellerIncludes = const <String>[],
-    this.wgsl,
-  });
-
-  /// `impellerc`'s path.
-  final String impellerc;
-
-  /// Extra `--include` roots for `impellerc`: the SDK's `shader_lib`.
-  final List<String> impellerIncludes;
-
-  /// What [ShaderBundle.sdk] says — the Dart that ran `impellerc`'s SDK, which
-  /// is the Dart running this build when the build runs as a hook.
-  final String sdk;
-
-  /// Null when glslangValidator or naga is not on `PATH`: the bundle then
-  /// carries no WebGPU section.
-  final WgslStageCompiler? wgsl;
-
-  /// The compilers of the Flutter SDK this process runs under, and glslang
-  /// and naga from `PATH` when both answer.
-  ///
-  /// Throws [MaterialBuildException] when there is no `impellerc` — this
-  /// process is not a Flutter SDK's Dart, or the SDK's artifacts were never
-  /// downloaded.
-  static MaterialCompilers locate() {
-    final sdkRoot = flutterSdkRootFrom(Platform.resolvedExecutable);
-    final name = Platform.isWindows ? 'impellerc.exe' : 'impellerc';
-    final artifacts = '$sdkRoot/bin/cache/artifacts/engine';
-    // macOS ships one universal `darwin-x64` directory even on Apple silicon,
-    // so the candidate that exists wins rather than a guess from the host.
-    final platform = switch (Platform.operatingSystem) {
-      'macos' => const <String>['darwin-x64', 'darwin-arm64'],
-      'linux' => const <String>['linux-x64', 'linux-arm64'],
-      'windows' => const <String>['windows-x64', 'windows-arm64'],
-      _ => const <String>['darwin-x64', 'linux-x64', 'windows-x64'],
-    }.where((p) => File('$artifacts/$p/$name').existsSync()).firstOrNull;
-    if (platform == null) {
-      throw MaterialBuildException(
-        'no $name under $artifacts — run "flutter precache" for this host',
-        source: '',
-      );
-    }
-    return MaterialCompilers(
-      impellerc: '$artifacts/$platform/$name',
-      impellerIncludes: <String>['$artifacts/$platform/shader_lib'],
-      sdk: Platform.version.split(' ').first,
-      wgsl: _answers(kGlslang) && _answers(kNaga) ? _compileWgsl : null,
-    );
-  }
-}
-
-CompiledStage _compileWgsl(
-  PreparedStage stage, {
-  required String name,
-  required bool fragment,
-}) => compileStage(stage.glsl, name: name, fragment: fragment);
-
-bool _answers(String program) {
-  try {
-    Process.runSync(program, const <String>['--version']);
-    return true;
-  } on ProcessException {
-    return false;
-  }
-}
-
-/// The Flutter SDK root under [executable]: the SDK's own Dart, or
-/// `flutter_tester` under its engine artifacts.
-///
-/// The search `flutter3d_impeller`'s `shader_bundle_build.dart` makes, and
-/// ported rather than shared: that package names Flutter, and this one is a
-/// build hook that cannot resolve a package that does. Its doc comment holds
-/// the measurements behind each shape — `$FLUTTER_ROOT` unset inside a hook,
-/// `flutter_tester` under `flutter test`, backslashes and `.exe` on Windows.
-String flutterSdkRootFrom(String executable) {
-  final normalized = executable.replaceAll(r'\', '/');
-  const dart = '/bin/cache/dart-sdk/bin/dart';
-  for (final suffix in <String>[dart, '$dart.exe']) {
-    if (normalized.endsWith(suffix)) {
-      return executable.substring(0, executable.length - suffix.length);
-    }
-  }
-  const artifacts = '/bin/cache/artifacts/engine/';
-  final at = normalized.indexOf(artifacts);
-  if (at >= 0 &&
-      (normalized.endsWith('/flutter_tester') ||
-          normalized.endsWith('/flutter_tester.exe'))) {
-    return executable.substring(0, at);
-  }
-  throw MaterialBuildException(
-    'cannot find the Flutter SDK from $executable, so there is no impellerc '
-    'to compile materials with — build through `flutter`, whose Dart runs '
-    'this hook',
-    source: '',
-  );
-}
 
 /// What one call to [runMaterialBuild] did.
 final class MaterialBuildReport {
@@ -193,10 +50,10 @@ final class MaterialBuildReport {
     required this.dependencies,
   });
 
-  /// Material sources this run compiled.
+  /// RenderMaterial sources this run compiled.
   final List<String> built;
 
-  /// Material sources whose bundle was already current.
+  /// RenderMaterial sources whose bundle was already current.
   final List<String> skipped;
 
   /// Every file the bundles were made from — each material source, and every
@@ -260,7 +117,7 @@ MaterialBuildReport runMaterialBuild(
   final tools = compilers ?? MaterialCompilers.locate();
   if (tools.wgsl == null) {
     sink.writeln(
-      'flutter3d_build: $kGlslang or $kNaga is not on PATH, so material '
+      'flutter3d_build: $glslangExecutable or $nagaExecutable is not on PATH, so material '
       'bundles get no "webgpu" section and the WebGPU backend will refuse '
       'them by name. glslangValidator comes with the Vulkan SDK or `brew '
       'install glslang`; naga from `cargo install naga-cli`.',
@@ -276,8 +133,15 @@ MaterialBuildReport runMaterialBuild(
         ),
       )
       .toString();
+  // **Every version a bundle's reader checks is in the stamp**, so a flutter3d
+  // update that moves the container, the WebGPU section or the material
+  // section rebuilds every bundle here instead of shipping one the runtime
+  // refuses as stale (decision 8 of `tasks/1.0-stability.md`). Mutation: drop
+  // `ShaderBundle.formatVersion` and a bumped container ships the old bytes.
   final stamp =
-      '$engineHash ${tools.sdk} $kAssetPipelineVersion '
+      '$engineHash ${tools.sdk} $assetPipelineVersion '
+      'f3sb${ShaderBundle.formatVersion} wgsl$sectionVersion '
+      'mat$materialSectionVersion lang$materialLanguageVersion '
       '${tools.wgsl == null ? 'no-webgpu' : 'webgpu'}';
 
   final next = <String, String>{};
@@ -316,6 +180,7 @@ MaterialBuildReport runMaterialBuild(
   }
 
   _writeCache(cachePath, next);
+  _writeAccessors(projectRoot, plan, sink);
   return MaterialBuildReport(
     built: built,
     skipped: skipped,
@@ -326,178 +191,73 @@ MaterialBuildReport runMaterialBuild(
   );
 }
 
-/// One material [text] as a bundle with a fragment stage named after the
-/// material, compiled for every backend [compilers] can serve.
+/// Item 22: the project's typed accessors, `lib/materials.g.dart` — a class
+/// per material with a `uniform` ([generateMaterialAccessors]) — written
+/// beside `lib/plugins.g.dart` the way that file is, and only when it
+/// changed, so an editor watching `lib/` does not reanalyse on every build.
 ///
-/// [source] is the path every failure names. [scratch] is where the
-/// generated `.frag` is written for `impellerc`, and where it stays when
-/// a compiler refuses it, so the line in that compiler's message is a line
-/// somebody can open.
-ShaderBundle compileMaterial(
-  String text, {
-  required String source,
-  required ShaderSet engine,
-  required MaterialCompilers compilers,
-  required Directory scratch,
-}) {
-  final MaterialProgram program;
-  try {
-    program = parseMaterial(text);
-  } on MaterialSyntaxError catch (error) {
-    throw MaterialBuildException(
-      error.message,
-      source: source,
-      line: error.line,
-      column: error.column,
-    );
+/// Only in a package whose pubspec names `vector_math`, which the accessors
+/// import for their vector members; elsewhere the log says why there is
+/// none. Removed again when no material has a uniform left.
+void _writeAccessors(Directory projectRoot, List<AssetPlan> plan, IOSink sink) {
+  final pubspec = File('${projectRoot.path}/pubspec.yaml');
+  if (!pubspec.existsSync()) return;
+  final file = File('${projectRoot.path}/lib/materials.g.dart');
+  final programs = <MaterialProgram>[];
+  final from = <String, String>{};
+  for (final job in plan) {
+    final MaterialProgram program;
+    try {
+      program = parseMaterial(File(job.source).readAsStringSync());
+    } on MaterialSyntaxException {
+      // The bundle build above already refused it, naming the line.
+      continue;
+    }
+    programs.add(program);
+    from[program.name] = job.source.substring(projectRoot.path.length + 1);
   }
-  // One entry point per source, at its declared defaults. A variant is a
-  // second entry point with other constants folded in, and naming those is
-  // the manifest's to grow when somebody needs one.
-  final name = program.name;
-  final glsl = emitMaterialFragment(
-    specialiseMaterial(program, MaterialVariant(name)),
-  );
-
-  Never refused(String what, String message) =>
-      throw MaterialBuildException('$what: $message', source: source);
-
-  final generated = File('${scratch.path}/$name.frag')
+  final anyUniform = programs.any((p) => p.parameters.any((q) => q.uniform));
+  if (!anyUniform) {
+    if (file.existsSync()) file.deleteSync();
+    return;
+  }
+  if (!RegExp(
+    r'^\s+vector_math:',
+    multiLine: true,
+  ).hasMatch(pubspec.readAsStringSync())) {
+    sink.writeln(
+      'flutter3d_build: no lib/materials.g.dart — the typed material '
+      'accessors import vector_math, which pubspec.yaml does not name',
+    );
+    return;
+  }
+  final text = generateMaterialAccessors(programs, from: from);
+  if (file.existsSync() && file.readAsStringSync() == text) return;
+  file
     ..parent.createSync(recursive: true)
-    ..writeAsStringSync(glsl);
-
-  final impeller = _impeller(name, generated, engine, compilers, refused);
-
-  final String webgl;
-  final String resolved;
-  try {
-    webgl = translateGlsl(glsl, engine.sources, from: source, fragment: true);
-    resolved = resolveIncludes(glsl, engine.sources, from: source);
-  } on GlslTranslateError catch (error) {
-    refused('the WebGL2 translation', error.message);
-  }
-
-  final webgpu = switch (compilers.wgsl) {
-    null => null,
-    final compile => _webgpu(
-      name,
-      source,
-      resolved,
-      engine,
-      compile,
-      generated,
-      refused,
-    ),
-  };
-
-  // Nothing went wrong, so nothing needs opening.
-  generated.deleteSync();
-
-  return ShaderBundle(
-    name: name,
-    sdk: compilers.sdk,
-    stages: <ShaderBundleStage>[ShaderBundleStage(name, fragment: true)],
-    sections: <String, ByteData>{
-      ShaderBundle.impellerSection: impeller,
-      ShaderBundle.webglSection: encodeWebGlSection(
-        vertex: const <String, String>{},
-        fragment: <String, String>{name: webgl},
-      ),
-      ShaderBundle.webgpuSection: ?webgpu,
-      // The source itself, for the backend that compiles nothing and for a
-      // runtime that builds the material's lighting model from it — `P8`.
-      ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
-        name: text,
-      }),
-    },
-  );
+    ..writeAsStringSync(text);
 }
 
-ByteData _impeller(
-  String name,
-  File generated,
-  ShaderSet engine,
-  MaterialCompilers compilers,
-  Never Function(String, String) refused,
-) {
-  final out = File('${generated.parent.path}/$name.shaderbundle');
-  final ProcessResult result;
-  try {
-    result = Process.runSync(compilers.impellerc, <String>[
-      '--shader-bundle=${jsonEncode(<String, Object>{
-        name: <String, String>{'type': 'fragment', 'file': generated.path},
-      })}',
-      '--sl=${out.path}',
-      // The tree the other two sections are translated against, read off
-      // the set rather than found again, so the three cannot disagree.
-      '--include=${engine.root}',
-      for (final include in compilers.impellerIncludes) '--include=$include',
-    ], workingDirectory: generated.parent.path);
-  } on ProcessException catch (error) {
-    refused(
-      'impellerc',
-      'could not run ${compilers.impellerc}: ${error.message}',
-    );
-  }
-  if (result.exitCode != 0 || !out.existsSync()) {
-    refused(
-      'impellerc',
-      'refused the GLSL generated from it, kept at ${generated.path} '
-          '(exit ${result.exitCode}):\n${result.stdout}${result.stderr}',
-    );
-  }
-  final bytes = out.readAsBytesSync();
-  out.deleteSync();
-  return bytes.buffer.asByteData();
-}
-
-ByteData _webgpu(
-  String name,
-  String source,
-  String resolved,
-  ShaderSet engine,
-  WgslStageCompiler compile,
-  File generated,
-  Never Function(String, String) refused,
-) {
-  try {
-    final prepared = prepareStage(
-      resolved,
-      from: source,
-      fragment: true,
-      varyingLocations: bundleVaryingLocations(engine, <BundleStageSource>[
-        (file: source, fragment: true, resolved: resolved),
-      ]),
-    );
-    final compiled = compile(prepared, name: name, fragment: true);
-    checkStd140Offsets(name, prepared, compiled.offsets);
-    final document = wgslSectionDocument(
-      vertex: const <String, PackedStage>{},
-      fragment: <String, PackedStage>{
-        name: (wgsl: compiled.wgsl, prepared: prepared),
-      },
-    );
-    return Uint8List.fromList(utf8.encode(document)).buffer.asByteData();
-  } on WgslPrepareError catch (error) {
-    refused('the WebGPU preparation', error.message);
-  } on WgslCompileError catch (error) {
-    refused(
-      'the WebGPU compile',
-      '${error.message}\n(the GLSL it was generated from is kept at '
-          '${generated.path})',
-    );
-  } on WgslSectionError catch (error) {
-    refused('the WebGPU section', error.message);
-  }
-}
+/// The material cache's envelope. A cache written by another layout — the
+/// bare map before 1.0, or a later build's — reads as empty and every
+/// material builds again once: for a stamp, the conservative answer, which
+/// is why the layout is matched exactly.
+const String _cacheFormat = 'f3d.materialCache';
+const int _cacheLayout = 1;
 
 Map<String, String> _readCache(String path) {
   final file = File(path);
   if (!file.existsSync()) return const <String, String>{};
   try {
-    return (jsonDecode(file.readAsStringSync()) as Map<String, Object?>).map(
-      (key, value) => MapEntry(key, value! as String),
-    );
+    return switch (jsonDecode(file.readAsStringSync())) {
+      {
+        'format': _cacheFormat,
+        'version': _cacheLayout,
+        'entries': final Map<String, Object?> entries,
+      } =>
+        entries.map((key, value) => MapEntry(key, value! as String)),
+      _ => const <String, String>{},
+    };
   } on FormatException {
     return const <String, String>{};
   } on TypeError {
@@ -508,5 +268,13 @@ Map<String, String> _readCache(String path) {
 void _writeCache(String path, Map<String, String> cache) {
   File(path)
     ..parent.createSync(recursive: true)
-    ..writeAsStringSync(jsonEncode(cache));
+    ..writeAsStringSync(
+      jsonEncode(<String, Object?>{
+        'format': _cacheFormat,
+        'version': _cacheLayout,
+        'requires': const <String>[],
+        'generator': 'flutter3d',
+        'entries': cache,
+      }),
+    );
 }

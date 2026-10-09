@@ -1,0 +1,615 @@
+# The public API of flutter3d_game_shooter.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_game_shooter/bridge.dart
+
+final class AmmoReadout extends StatelessWidget
+  Widget build(BuildContext context)
+  const AmmoReadout({super.key, required this.arsenal, this.style = const ReadoutStyle(), this.endless = '∞'})
+  final Arsenal arsenal
+  final ReadoutStyle style
+  final String endless
+
+final class HealthBar extends StatelessWidget
+  Widget build(BuildContext context)
+  const HealthBar({super.key, required this.health, required this.armour, this.maxHealth = 100.0, this.maxArmour = 100.0, this.lowAt = 0.25, this.style = const ReadoutStyle()})
+  final ReadoutStyle style
+  final double armour
+  final double health
+  final double lowAt
+  final double maxArmour
+  final double maxHealth
+
+final class KeyPips extends StatelessWidget
+  Widget build(BuildContext context)
+  const KeyPips({super.key, required this.inventory, this.colours = const <String, Color>{}, this.style = const ReadoutStyle(), this.pipSize = 10.0})
+  final Inventory inventory
+  final Map<String, Color> colours
+  final ReadoutStyle style
+  final double pipSize
+
+final class ReadoutStyle
+  const ReadoutStyle({this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0), this.dim = const Color(0x66FFFFFF), this.warning = const Color(0xFFE5533D), this.barHeight = 6.0, this.barWidth = 120.0})
+  final Color dim
+  final Color warning
+  final TextStyle text
+  final double barHeight
+  final double barWidth
+
+final class WeaponView
+  WeaponView({required Map<String, SceneNode> models, WeaponDef? initial, TextureHandle? environment, int environmentLevels = 0})
+  late final ViewModelNode plugin
+  void recoil()
+  void selectWeapon(WeaponDef weapon)
+  void step(double dt, {required double speed, required bool grounded})
+
+library package:flutter3d_game_shooter/flutter3d_game_shooter.dart
+
+final class AmmoGift extends Gift
+  String? announce(double amount, String? detail)
+  bool grantTo(Inventory to, double amount, String? detail)
+  const AmmoGift(super.name, this.type, {required this.defaultAmount})
+  final AmmoType type
+  final double defaultAmount
+
+final class AmmoType
+  String toString()
+  bool operator ==(Object other)
+  const AmmoType(this.name)
+  final String name
+  int get hashCode
+  static const AmmoType bullets = AmmoType('bullets')
+  static const AmmoType none = AmmoType('none')
+  static const AmmoType rockets = AmmoType('rockets')
+  static const AmmoType shells = AmmoType('shells')
+
+final class ArmourGift extends Gift
+  String? announce(double amount, String? detail)
+  bool grantTo(Inventory to, double amount, String? detail)
+  const ArmourGift()
+  double get defaultAmount
+
+final class Arsenal
+  Arsenal({required List<WeaponDef> slots, List<WeaponDef>? owned, Map<AmmoType, int>? ammo, int startingSlot = 0})
+  Iterable<AmmoType> get carrying
+  List<WeaponDef> get owned
+  Map<String, Object?> save()
+  WeaponDef get current
+  WeaponDef? fire({bool alternate = false})
+  bool get canFire
+  bool get canFireAlternate
+  bool get canReload
+  bool get isEmpty
+  bool owns(WeaponDef weapon)
+  bool pickUp(WeaponDef weapon)
+  bool reload()
+  bool selectSlot(int slot)
+  bool wantsToFire({required bool held, required bool pressed})
+  bool wantsToFireAlternate({required bool held, required bool pressed})
+  double get cooldownRemaining
+  double get reloading
+  final List<WeaponDef> slots
+  int addAmmo(AmmoType type, int amount)
+  int ammoOf(AmmoType type)
+  int get currentAmmo
+  int get currentIndex
+  int get loaded
+  int loadedIn(WeaponDef weapon)
+  static final Map<AmmoType, int> capacity
+  void advanceTime(double dt)
+  void fallBackIfEmpty()
+  void restore(Map<String, Object?> from)
+
+final class Bestiary
+  Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0, String? name})
+  Bestiary({required this.actors, required this.shot, required this.catalog, this.difficulty = Difficulty.normal})
+  final ActorSystem actors
+  final Difficulty difficulty
+  final Map<String, MonsterDef> catalog
+  final WeaponShot shot
+
+final class Blast
+  const Blast({required this.radius, required this.damage, this.minimumFraction = 0.0, this.knockback = 0.0})
+  double damageAt(double distance)
+  final double damage
+  final double knockback
+  final double minimumFraction
+  final double radius
+
+final class BlastResolver
+  BlastResolver(this.world)
+  final CollisionWorld world
+  void resolve(Blast blast, Vector3 centre, Map<Collider, double> out, {int mask = CollisionLayers.player | CollisionLayers.actor})
+
+base class ChaseBrain extends Brain
+  Actor? quarrel
+  ChaseBrain({required this.def, required this.shot, this.difficulty = Difficulty.normal})
+  Map<String, Object?> save()
+  MonsterState state
+  bool hasNoticed
+  double attackCooldown
+  double painCooldown
+  double stateTime
+  final Difficulty difficulty
+  final MonsterDef def
+  final WeaponShot shot
+  void act(Mind it)
+  void onDeath(Mind it)
+  void onHurt(Mind it, double amount)
+  void onNoise(Mind it, Vector3 at)
+  void restore(Map<String, Object?> from)
+  void think(Mind it)
+
+abstract interface class Collector
+  Inventory get inventory
+
+final class Detonation
+  Detonation({required Vector3 position, required Vector3 normal, required this.blast, required Map<Collider, double> damage, required this.owner})
+  final Blast blast
+  final Collider? owner
+  final Map<Collider, double> damage
+  final Vector3 normal
+  final Vector3 position
+
+final class FiredBy
+  const FiredBy(this.collider)
+  final Collider collider
+
+final class GameSimulation
+  Automap? automap
+  Breaches? breaches
+  EcsWorld? get entities
+  GameSimulation({required this.player, required this.collision, required this.input, this.mechanisms, this.actors, this.projectiles, this.shot, this.dynamics, this.levelNext, required this.random, this.zones = const HitZones(), this.difficulty = Difficulty.normal})
+  GameState get state
+  Snapshot save()
+  String? get nextLevel
+  final ActorSystem? actors
+  final CollisionWorld collision
+  final Difficulty difficulty
+  final Dynamics? dynamics
+  final GameEvents events
+  final GameRandom random
+  final HitZones zones
+  final InputState input
+  final MechanismWorld? mechanisms
+  final Player player
+  final ProjectileSystem? projectiles
+  final StepSystems systems
+  final String? levelNext
+  final Tally tally
+  final Vector3 firedFrom
+  final WeaponShot? shot
+  int get monsterCount
+  int get secretCount
+  static const String kills = 'kills'
+  static const String secrets = 'secrets'
+  static const double berserkDamage = 2.0
+  void restore(Snapshot snapshot)
+  void step(double dt)
+
+enum GameState
+  values: playing, dead, complete
+  RunOutcome get outcome
+
+abstract base class Gift
+  String? announce(double amount, String? detail)
+  abstract bool grantTo(Inventory to, double amount, String? detail)
+  const Gift(this.name)
+  double get defaultAmount
+  final String name
+
+final class GiftRegistry
+  Gift? operator [](String name)
+  GiftRegistry(Iterable<Gift> gifts)
+  Iterable<String> get names
+  bool knows(String name)
+
+final class HealthGift extends Gift
+  String? announce(double amount, String? detail)
+  bool grantTo(Inventory to, double amount, String? detail)
+  const HealthGift()
+  double get defaultAmount
+
+final class HitZones
+  const HitZones({this.headAbove = 0.78, this.headMultiplier = 2.5, this.legsBelow = 0.34, this.legsMultiplier = 0.6})
+  const HitZones.even()
+  double forHitOn(Object? target, Vector3 point)
+  double multiplierFor(double fractionUp)
+  final double headAbove
+  final double headMultiplier
+  final double legsBelow
+  final double legsMultiplier
+
+final class Hitscan
+  Hitscan({required this.world, required this.random})
+  List<ShotHit> fire(WeaponDef weapon, Vector3 origin, Vector3 aim, {Collider? ignore, int mask = CollisionLayers.all})
+  final CollisionWorld world
+  final GameRandom random
+  static Map<Collider, double> damageByTarget(List<ShotHit> hits, {double Function(ShotHit hit)? scale})
+  static const double jitterFraction = 0.25
+
+final class HitscanBehaviour extends WeaponBehaviour
+  const HitscanBehaviour()
+  void deliver(WeaponShot shot)
+
+final class InFlight
+  InFlight({required Vector3 position, required Vector3 velocity, required this.blast, required this.life})
+  Map<String, Object?> toJson()
+  double life
+  final Blast blast
+  final Vector3 position
+  final Vector3 velocity
+  static InFlight? fromJson(Object? data)
+
+final class Inventory with KeyHolder
+  Inventory({Health? health, Arsenal? arsenal, KeyRing? keys, this.maxArmour = 100.0})
+  Map<String, Object?> save()
+  Map<String, double> get powers
+  Set<String> get keys
+  bool damage(double amount)
+  bool get hasSensor
+  bool get isBerserk
+  bool get isInvulnerable
+  bool has(String power)
+  double addArmour(double amount)
+  double remainingOf(String power)
+  final Arsenal arsenal
+  final Health health
+  final KeyRing keyRing
+  final List<String> expired
+  final Powers running
+  final double maxArmour
+  void empower(String power, double seconds)
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+final class KeyGift extends Gift
+  String? announce(double amount, String? detail)
+  bool grantTo(Inventory to, double amount, String? detail)
+  const KeyGift()
+
+final class KeyKind extends EntityKind
+  const KeyKind()
+  static Vector3 get defaultSize
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class MechanismUsed extends GameEvent
+  String get name
+  const MechanismUsed(this.outcome)
+  final ActivationOutcome outcome
+
+final class MeleeBehaviour extends WeaponBehaviour
+  const MeleeBehaviour({this.arcDegrees = 70.0})
+  final double arcDegrees
+  void deliver(WeaponShot shot)
+
+final class MonsterDef
+  const MonsterDef({required this.name, required this.health, required this.speed, required this.attack, required this.radius, required this.height, this.sightRange = 26.0, this.hurtDuration = 0.25, this.alertDuration = 0.35, this.turnRate = 6.0, this.painChance = 1.0, this.painCooldown = 0.2})
+  final String name
+  final WeaponDef attack
+  final double alertDuration
+  final double health
+  final double height
+  final double hurtDuration
+  final double painChance
+  final double painCooldown
+  final double radius
+  final double sightRange
+  final double speed
+  final double turnRate
+
+final class MonsterKind extends EntityKind
+  Bestiary? bestiary
+  MonsterKind(this.catalog, {this.bestiary})
+  final Map<String, MonsterDef> catalog
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class MonsterState
+  String toString()
+  bool operator ==(Object other)
+  const MonsterState(this.name)
+  final String name
+  int get hashCode
+  static const List<MonsterState> chased = <MonsterState>[idle, alert, chase, attack, hurt, dead]
+  static const MonsterState alert = MonsterState('alert')
+  static const MonsterState attack = MonsterState('attack')
+  static const MonsterState chase = MonsterState('chase')
+  static const MonsterState dead = MonsterState('dead')
+  static const MonsterState hurt = MonsterState('hurt')
+  static const MonsterState idle = MonsterState('idle')
+
+final class NoteKind extends EntityKind
+  const NoteKind()
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class PatrolBrain extends ChaseBrain
+  Map<String, Object?> save()
+  PatrolBrain({required super.def, required super.shot, required this.route, super.difficulty, this.reachedWithin = 0.6, this.pauseSeconds = 0.0})
+  double waited
+  final List<Vector3> route
+  final double pauseSeconds
+  final double reachedWithin
+  int leg
+  void act(Mind it)
+  void restore(Map<String, Object?> from)
+
+final class Pickup extends Takeable
+  Pickup({super.name, required this.gift, required this.amount, required super.collider, this.detail})
+  bool offerTo(Object? taker)
+  final Gift gift
+  final String? detail
+  final double amount
+
+final class PickupKind extends EntityKind
+  Iterable<String> get gives
+  const PickupKind(this.gifts)
+  final GiftRegistry gifts
+  static Vector3 get defaultSize
+  void spawn(EntityDef entity, SpawnContext context)
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+
+final class Player with KeyHolder implements Collector, Damageable, Rider
+  Collider? get carriedBy
+  Map<String, Object?> save()
+  Player({required this.body, Inventory? inventory, this.eyeOffset = 0.7, this.lookSensitivity = 0.0022, this.crouchHeight = 0.55, this.crouchSpeed = 1.9})
+  Set<String> get keys
+  bool applyDamage(double amount, {Object? from})
+  bool get isAlive
+  bool get isCrouching
+  bool get wantsToStand
+  bool invertLook
+  double get crouchThrottle
+  double get pitch
+  double lookSensitivity
+  double recoilPitch
+  double yaw
+  final CharacterController body
+  final Inventory inventory
+  final double crouchHeight
+  final double crouchSpeed
+  final double eyeOffset
+  set pitch(double value)
+  static const double pitchLimit = math.pi / 2.0 - 0.01
+  void aim(Vector3 out)
+  void crouch({required bool held})
+  void eye(Vector3 out)
+  void eyeFrom(Vector3 position, Vector3 out)
+  void forward(Vector3 out)
+  void kick(double radians)
+  void look(Vector2 delta)
+  void moveWish(Vector2 axis, Vector3 out)
+  void restore(Map<String, Object?> from)
+  void right(Vector3 out)
+  void settleRecoil(double dt, {double perSecond = 7.0})
+
+final class PlayerDied extends GameEvent
+  String get name
+  const PlayerDied()
+
+final class PlayerHurt extends GameEvent
+  String get name
+  const PlayerHurt(this.amount)
+  final double amount
+
+final class PowerUpGift extends Gift
+  String? announce(double amount, String? detail)
+  bool grantTo(Inventory to, double amount, String? detail)
+  const PowerUpGift(super.name, {required this.defaultAmount})
+  final double defaultAmount
+
+final class ProjectileBehaviour extends WeaponBehaviour
+  const ProjectileBehaviour()
+  void deliver(WeaponShot shot)
+
+final class ProjectileSystem
+  ProjectileSystem({required this.world, EcsWorld? entities, this.capacity = 64, this.radius = 0.12})
+  bool spawn({required Vector3 position, required Vector3 direction, required double speed, required Blast blast, Collider? owner, double life = 6.0})
+  final CollisionWorld world
+  final EcsWorld entities
+  final List<Detonation> detonations
+  final double radius
+  final int capacity
+  int get activeCount
+  int get dropped
+  void clear()
+  void step(double dt)
+
+final class Secret extends Mechanism with CollisionListener
+  ActivationOutcome activate(Activation by)
+  Map<String, Object?> save()
+  Secret({super.name, required this.collider})
+  Vector3 get origin
+  bool get isFound
+  bool justFound
+  final Collider collider
+  void onCollisionStart(Collider self, Collider other)
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+final class SecretFound extends GameEvent
+  String get name
+  const SecretFound(this.secret)
+  final Secret secret
+
+final class SecretKind extends EntityKind
+  const SecretKind()
+  static Vector3 get defaultSize
+  void spawn(EntityDef entity, SpawnContext context)
+
+abstract final class ShooterActions
+  static const GameAction altFire = GameAction('altFire')
+  static const GameAction crouch = GameAction('crouch')
+  static const GameAction fire = GameAction('fire')
+  static const GameAction reload = GameAction('reload')
+
+abstract final class ShooterEntities
+  static const String monster = 'monster'
+  static const String note = 'note'
+  static const String pickup = 'pickup'
+  static const String secret = 'secret'
+
+abstract final class ShooterPhases
+  static const StepPhase afterActors = StepPhase('afterActors')
+  static const StepPhase afterPlayer = StepPhase('afterPlayer')
+  static const StepPhase afterWeapons = StepPhase('afterWeapons')
+  static const StepPhase afterWorld = StepPhase('afterWorld')
+
+final class ShotFired extends GameEvent
+  ShotFired({required this.weapon, required Vector3 from})
+  String get name
+  final Vector3 from
+  final WeaponDef weapon
+
+final class ShotHit
+  ShotHit({required this.collider, required Vector3 point, required Vector3 normal, required this.distance, required this.damage})
+  bool get struckSomething
+  final Collider? collider
+  final Vector3 normal
+  final Vector3 point
+  final double damage
+  final double distance
+
+final class ShotLanded extends GameEvent
+  String get name
+  const ShotLanded(this.hit)
+  final ShotHit hit
+
+final class Spawner extends Mechanism
+  ActivationOutcome activate(Activation by)
+  Map<String, Object?> save()
+  Spawner({super.name, required this.at, required this.waves, required this.bestiary, this.yaw = 0.0})
+  Vector3 get origin
+  bool get isDone
+  bool get isSpent
+  final Bestiary bestiary
+  final List<Actor> spawned
+  final List<Wave> waves
+  final Vector3 at
+  final double yaw
+  void restore(Map<String, Object?> from)
+  void step(double dt)
+
+final class Wave
+  const Wave({required this.monster, this.count = 1, this.after = 0.0, this.spread = 1.5})
+  final MonsterDef monster
+  final double after
+  final double spread
+  final int count
+
+abstract base class WeaponBehaviour
+  abstract void deliver(WeaponShot shot)
+  const WeaponBehaviour()
+
+final class WeaponDef
+  Blast? get blast
+  Duration get cooldown
+  const WeaponDef({required this.name, required this.behaviour, this.alternate, this.magazine, this.reloadSeconds = 1.5, required this.ammo, required this.damage, required this.shotsPerSecond, this.ammoPerShot = 1, this.rayCount = 1, this.spread = 0.0, this.range = 120.0, this.automatic = false, this.falloffStart = 0.0, this.falloffEnd = 0.0, this.minimumDamageFraction = 0.25, this.knockback = 0.0, this.loudness = 18.0, this.recoil = 0.0, this.recoilRecovery = 7.0, this.projectileSpeed = 0.0, this.splashRadius = 0.0, this.splashMinimumFraction = 0.0})
+  double damageAt(double distance)
+  double get cooldownSeconds
+  final AmmoType ammo
+  final String name
+  final WeaponBehaviour behaviour
+  final WeaponDef? alternate
+  final bool automatic
+  final double damage
+  final double falloffEnd
+  final double falloffStart
+  final double knockback
+  final double loudness
+  final double minimumDamageFraction
+  final double projectileSpeed
+  final double range
+  final double recoil
+  final double recoilRecovery
+  final double reloadSeconds
+  final double shotsPerSecond
+  final double splashMinimumFraction
+  final double splashRadius
+  final double spread
+  final int ammoPerShot
+  final int rayCount
+  final int? magazine
+
+final class WeaponShot
+  Collider? shooter
+  ProjectileSystem? projectiles
+  WeaponShot({required this.world, required this.hitscan, this.projectiles})
+  final CollisionWorld world
+  final Hitscan hitscan
+  final List<ShotHit> hits
+  final Vector3 aim
+  final Vector3 origin
+  late WeaponDef weapon
+  void begin(WeaponDef weapon, Vector3 origin, Vector3 aim, {Collider? shooter})
+
+const MonsterState patrolling = MonsterState('patrolling')
+
+library package:flutter3d_game_shooter/sample.dart
+
+abstract final class Monsters
+  static const Map<String, MonsterDef> byName = <String, MonsterDef>{'runner': runner, 'shooter': shooter, 'tank': tank}
+  static const MonsterDef runner = …
+  static const MonsterDef shooter = …
+  static const MonsterDef tank = …
+
+abstract final class SampleEntities
+  static const String lamp = 'lamp'
+  static const String torch = 'torch'
+  static const String window = 'window'
+
+final class Staged
+  const Staged({required this.actors, required this.player, required this.sim})
+  final ActorSystem actors
+  final GameSimulation sim
+  final Player player
+
+abstract final class Weapons
+  static const List<WeaponDef> all = <WeaponDef>[fists, pistol, shotgun, rocketLauncher]
+  static const WeaponDef fists = WeaponDef(loudness: 5.0, name: 'Fists', behaviour: MeleeBehaviour(), ammo: AmmoType.none, damage: 20.0, shotsPerSecond: 2.0, range: 2.2, automatic: true)
+  static const WeaponDef pistol = …
+  static const WeaponDef rocketLauncher = …
+  static const WeaponDef shotgun = …
+
+Inventory agentStartingInventory()
+
+Arsenal sampleArsenal({int startingSlot = 0})
+
+final GiftRegistry sampleGifts
+
+List<EntityKind> sampleLightKinds()
+
+EntityRegistry sampleRegistry({bool monsters = true, Iterable<EntityKind> extra = const <EntityKind>[]})
+
+List<LevelRule> sampleRules()
+
+Staged stage(Level level, CollisionWorld world, {required InputState input})
+
+library package:flutter3d_game_shooter/staging.dart
+
+final class ShooterHeadlessGame implements HeadlessGame
+  EntityRegistry registry()
+  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  Map<String, GameAction> get buttons
+  String get name
+  const ShooterHeadlessGame({this.extra = const <EntityKind>[]})
+  final List<EntityKind> extra
+
+final class Staged
+  const Staged({required this.entities, required this.projectiles, required this.actors, required this.mechanisms, required this.hitscan, required this.shot, required this.player, required this.sim, required this.start, required this.navIssues})
+  final ActorSystem actors
+  final EcsWorld entities
+  final GameSimulation sim
+  final Hitscan hitscan
+  final List<LevelIssue> navIssues
+  final MechanismWorld mechanisms
+  final Player player
+  final ProjectileSystem projectiles
+  final Vector3 start
+  final WeaponShot shot
+
+Staged stage(Level level, CollisionWorld world, {required InputState input, required EntityRegistry registry, required Inventory inventory, void Function(Actor actor)? onActorSpawned, void Function(Fixture fixture)? onFixture, double eyeOffset = 0.7, double lookSensitivity = 0.0022, GameRandom? random})
+
+Inventory startingInventory()

@@ -27,7 +27,7 @@ final class SpikeTriangleResult {
   const SpikeTriangleResult({
     required this.ran,
     required this.why,
-    this.centre,
+    this.center,
     this.corner,
   });
 
@@ -42,7 +42,7 @@ final class SpikeTriangleResult {
   final String why;
 
   /// The middle pixel, RGBA, where the triangle covers.
-  final List<int>? centre;
+  final List<int>? center;
 
   /// The top-left pixel, RGBA, where only the clear reaches.
   final List<int>? corner;
@@ -79,7 +79,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
 
   try {
     final target = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: size,
         height: size,
         format: device.defaultColorFormat,
@@ -92,7 +92,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
       vertex,
       fragment,
       // Stated rather than inferred, because on this API it cannot be inferred.
-      layout: const VertexLayoutSpec(<BufferLayout>[
+      layout: const VertexLayoutDescriptor(<BufferLayout>[
         BufferLayout(
           strideInBytes: 28,
           attributes: <InputAttribute>[
@@ -155,7 +155,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
     return SpikeTriangleResult(
       ran: true,
       why: 'one triangle drawn and read back',
-      centre: at(size ~/ 2, size ~/ 2),
+      center: at(size ~/ 2, size ~/ 2),
       corner: at(0, 0),
     );
   } finally {

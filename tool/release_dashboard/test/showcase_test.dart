@@ -11,8 +11,8 @@ const String _coverage = '''
 | id | title | main API | since |
 |---|---|---|---|
 | lighting-models | The six models | `LightingModel` | 0.1.0 |
-| pbr-lighting | PBR | `Material` | 0.1.0 |
-| normal-mapping | Normal maps | `Material.normal` | unknown |
+| pbr-lighting | PBR | `RenderMaterial` | 0.1.0 |
+| normal-mapping | Normal maps | `RenderMaterial.normal` | unknown |
 
 ## Set B: environment and shadows (`lib/pages/environment/`, `lib/pages/shadows/`)
 

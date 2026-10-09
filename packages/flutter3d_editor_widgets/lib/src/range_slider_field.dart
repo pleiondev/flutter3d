@@ -50,11 +50,15 @@ final class RangeSliderField extends StatefulWidget {
   /// hint describes a control and never constrains what a document may say.
   final double value;
 
+  /// The slider's low end, in the same unit as [value].
   final double min;
+
+  /// The slider's high end, in the same unit as [value].
   final double max;
 
   /// The increment a drag lands on, or null for a value that stays exactly
-  /// what the drag produced — see the library comment.
+  /// what the drag produced — see the library comment. In the same unit as
+  /// [value].
   final double? step;
 
   /// Called once, when a drag ends or a typed value is submitted — never
@@ -131,7 +135,7 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
             _valueWidth(editable: widget.editable);
         final bool stacked =
             widget.label != null &&
-            constraints.maxWidth < besideSlider + kLabelBesideFrom;
+            constraints.maxWidth < besideSlider + labelBesideFrom;
         return _row(context, theme, editorTheme, stacked: stacked);
       },
     );
@@ -262,7 +266,7 @@ String _numberText(double value) =>
 /// most of it, and the label beside it is the first thing the ellipsis eats.
 /// Added to whatever the label column is, since that is the room the label
 /// itself wants.
-const double kLabelBesideFrom = 150;
+const double labelBesideFrom = 150;
 
 /// The gap between the slider and whatever reports its value.
 const double _gapBeforeValue = 6;

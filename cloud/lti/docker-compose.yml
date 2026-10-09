@@ -1,4 +1,4 @@
-# A throwaway Moodle to launch flutter3d_lti's `cloud/lti` from — `lti-06`
+# A throwaway Moodle to launch `cloud/lti` (over flutter3d_education's LTI library) from — `lti-06`
 # (`doc/edu-03-lti-plan.md`). Not a production deploy: `ALLOW_EMPTY_PASSWORD`
 # and a fixed admin password have no business past a developer's machine.
 #

@@ -254,7 +254,7 @@ void main() {
 
       var calls = 0;
       mesh.beginStep();
-      unwrapMesh(mesh, isCancelled: () => calls++ >= 1);
+      unwrapMesh(mesh, isCanceled: () => calls++ >= 1);
       mesh.endStep();
       expect(calls, greaterThanOrEqualTo(1));
     });

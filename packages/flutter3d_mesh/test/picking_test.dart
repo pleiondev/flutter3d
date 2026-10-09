@@ -12,7 +12,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// Runs [body] as one step of history.
 void edit(EditMesh mesh, void Function() body) {
@@ -31,7 +31,7 @@ void edit(EditMesh mesh, void Function() body) {
 }
 
 /// The nearest face [ray] hits, found by asking every triangle of the plan.
-int scanForFace(EditMesh mesh, MeshLayoutPlan plan, Ray ray) {
+int scanForFace(EditMesh mesh, MeshLayoutPlan plan, LocalRay ray) {
   final at = Vector3.zero();
   Vector3 corner(int row) =>
       mesh.positionOf(plan.gpuVertexToVertex[row], at).clone();
@@ -58,7 +58,9 @@ void main() {
     test('a ray at the top of a box finds the top of the box', () {
       final it = staged(EditMesh.cuboid());
 
-      final hit = it.bvh.raycast(Ray(Vector3(0, 0, 5), Vector3(0, 0, -1)))!;
+      final hit = it.bvh.raycast(
+        LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1)),
+      )!;
 
       // Face 0 is the +Z quad, cut into two triangles — and what comes back is
       // the face. Mutation: hand back the triangle number, and a person
@@ -87,7 +89,7 @@ void main() {
           random.nextDouble() * 2 - 1,
           random.nextDouble() * 2 - 1,
         );
-        final ray = Ray(from, (towards - from)..normalize());
+        final ray = LocalRay(from, (towards - from)..normalize());
         final tree = it.bvh.raycast(ray)?.face ?? EditMesh.none;
         if (tree != EditMesh.none) hits++;
         expect(tree, scanForFace(mesh, it.plan, ray), reason: 'ray $i');
@@ -98,7 +100,7 @@ void main() {
 
     test('a refit follows the vertices and keeps the tree', () {
       final it = staged(EditMesh.cuboid());
-      final ray = Ray(Vector3(3, 0, 5), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(3, 0, 5), Vector3(0, 0, -1));
       expect(it.bvh.raycast(ray), isNull);
 
       edit(it.mesh, () {
@@ -138,7 +140,9 @@ void main() {
       it.bvh.rebuild(it.mesh, it.plan);
 
       expect(it.bvh.triangleCount, 20);
-      final hit = it.bvh.raycast(Ray(Vector3(0, 0, 5), Vector3(0, 0, -1)))!;
+      final hit = it.bvh.raycast(
+        LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1)),
+      )!;
       expect(hit.face, 0);
       expect(hit.distance, closeTo(3.5, 1e-5));
     });
@@ -184,12 +188,18 @@ void main() {
     test('a click in the middle of a face selects that face', () {
       final it = staged(EditMesh.cuboid());
 
-      expect(it.picker.faceAt(Ray(Vector3(0, 0, 5), Vector3(0, 0, -1))), 0);
-      expect(it.picker.faceAt(Ray(Vector3(5, 0, 0), Vector3(-1, 0, 0))), 2);
+      expect(
+        it.picker.faceAt(LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1))),
+        0,
+      );
+      expect(
+        it.picker.faceAt(LocalRay(Vector3(5, 0, 0), Vector3(-1, 0, 0))),
+        2,
+      );
       // And a click past the model selects nothing rather than the nearest
       // thing to where it landed.
       expect(
-        it.picker.faceAt(Ray(Vector3(9, 9, 5), Vector3(0, 0, -1))),
+        it.picker.faceAt(LocalRay(Vector3(9, 9, 5), Vector3(0, 0, -1))),
         EditMesh.none,
       );
     });
@@ -199,7 +209,7 @@ void main() {
 
       expect(
         it.picker.faceAt(
-          Ray(Vector3(0, 0, 5), Vector3(0, 0, -1)),
+          LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1)),
           maxDistance: 1,
         ),
         EditMesh.none,
@@ -211,13 +221,13 @@ void main() {
     test('the nearest corner within the radius, and none outside it', () {
       final it = staged(EditMesh.cuboid());
       // Aimed at the corner (0.5, 0.5, 0.5), which is vertex 6.
-      final ray = Ray(Vector3(0.5, 0.5, 5), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0.5, 0.5, 5), Vector3(0, 0, -1));
 
       expect(it.picker.vertexNear(ray, radius: 0.1), 6);
       // Aimed a quarter of a unit off it, with a radius too small to reach.
       expect(
         it.picker.vertexNear(
-          Ray(Vector3(0.25, 0.5, 5), Vector3(0, 0, -1)),
+          LocalRay(Vector3(0.25, 0.5, 5), Vector3(0, 0, -1)),
           radius: 0.1,
         ),
         EditMesh.none,
@@ -228,7 +238,7 @@ void main() {
       final it = staged(EditMesh.cuboid());
       // Down the corner of the box: vertex 6 at z = 0.5 and vertex 2 at
       // z = −0.5 are both on the line.
-      final ray = Ray(Vector3(0.5, 0.5, 5), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0.5, 0.5, 5), Vector3(0, 0, -1));
 
       // Mutation: order by distance to the line rather than along it, and the
       // two are tied — so which of them a click selects depends on the order
@@ -256,7 +266,7 @@ void main() {
           ],
         ),
       );
-      final ray = Ray(Vector3(0, 0, 5), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1));
 
       // Looking through: the vertex behind the wall is the only one near the
       // line, and a person box-selecting through a model means to reach it.
@@ -277,7 +287,7 @@ void main() {
       // Aimed at the middle of the edge between (0.5, −0.5, 0.5) and
       // (0.5, 0.5, 0.5), which runs up the right of the top face.
       final found = it.picker.edgeNear(
-        Ray(Vector3(0.5, 0, 5), Vector3(0, 0, -1)),
+        LocalRay(Vector3(0.5, 0, 5), Vector3(0, 0, -1)),
         radius: 0.1,
       );
 
@@ -298,7 +308,7 @@ void main() {
 
       expect(
         it.picker.edgeNear(
-          Ray(Vector3(0, 0, 5), Vector3(0, 0, -1)),
+          LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1)),
           radius: 0.1,
         ),
         EditMesh.none,

@@ -81,7 +81,10 @@ final class EditorHistory {
   /// with a light selected did nothing without having to compare the document
   /// with itself. A command that answers false leaves no step, because a step
   /// that puts back what is already there is an undo that appears not to work.
-  bool run(EditorCommand command) =>
+  ///
+  /// Either family: the editor's own [EditorCommand]s and a plugin's
+  /// [PluginCommand]s are undone the same way, by the document this kept.
+  bool run(DocumentCommand command) =>
       transaction(command.says, () => command.apply(editing));
 
   /// Runs [body] and leaves at most one step behind, whatever it changed.

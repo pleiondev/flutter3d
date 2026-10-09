@@ -16,6 +16,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'project.dart';
 
@@ -27,10 +28,10 @@ import 'project.dart';
 /// mirror. `EnvironmentMap`'s own doc comment gives the cost as
 /// O(faces × texels × taps), which at 32 is a fraction of a millisecond and
 /// at 512 is not something to do while a viewport is on screen.
-const int kPanoramaCubeSize = 32;
+const int panoramaCubeSize = 32;
 
 /// How many convolved levels follow the base.
-const int kPanoramaCubeLevels = 4;
+const int panoramaCubeLevels = 4;
 
 /// Keeps [Scene.environment] in step with [SceneLighting.panorama].
 final class PanoramaSync {
@@ -41,7 +42,7 @@ final class PanoramaSync {
 
   /// Whether the last [sync] actually rebuilt the cube — for a test, and for
   /// anything that wants to say what a frame cost.
-  bool get rebuiltLast => _rebuiltLast;
+  bool get didRebuildLast => _rebuiltLast;
   bool _rebuiltLast = false;
 
   /// Puts [project]'s own panorama on [scene], or takes one off.
@@ -73,15 +74,15 @@ final class PanoramaSync {
     final ({int width, int height})? size = hdrSizeOf(image.bytes);
     if (size == null) return;
 
+    if (!EnvironmentMap.isSupportedOn(device)) return;
     final built = EnvironmentMap.fromPanorama(
       device,
       pixels,
       width: size.width,
       height: size.height,
-      size: kPanoramaCubeSize,
-      levels: kPanoramaCubeLevels,
+      size: panoramaCubeSize,
+      levels: panoramaCubeLevels,
     );
-    if (built == null) return;
     scene
       ..environment = built.texture
       ..environmentLevels = built.levels;

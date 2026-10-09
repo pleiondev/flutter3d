@@ -140,6 +140,7 @@ final class MeshChecks {
   /// Scaled to the model by default, because a millimetre on a building and a
   /// millimetre on a bolt are not the same question — the same rule the import
   /// welds by.
+  /// In metres (and, squared, the area threshold in square metres).
   final double tolerance;
 
   /// Everything that is wrong, worst first.

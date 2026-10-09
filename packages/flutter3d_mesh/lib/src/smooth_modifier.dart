@@ -18,6 +18,8 @@ final class SmoothModifier extends Modifier {
   });
 
   final int iterations;
+
+  /// The 0..1 fraction of the way each step moves toward the average.
   final double lambda;
   final bool preserveVolume;
 

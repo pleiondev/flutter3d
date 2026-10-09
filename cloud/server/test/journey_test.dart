@@ -14,8 +14,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter3d_core/formats.dart' show GlbModelWriter;
 import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
+import 'package:flutter3d_models/src/convert/gltf_files.dart';
+import 'package:flutter3d_models/src/convert/zip_writer.dart';
 import 'package:flutter3d_models/src/db/database.dart';
 import 'package:flutter3d_models/src/db/models_repository.dart';
 import 'package:flutter3d_models/src/domain/model.dart';
@@ -23,6 +26,7 @@ import 'package:flutter3d_models/src/http/app.dart';
 import 'package:flutter3d_models/src/mail/mailer.dart';
 import 'package:flutter3d_models/src/services.dart';
 import 'package:flutter3d_models/src/storage/blob_store.dart';
+import 'package:flutter3d_models/src/storage/inspect.dart';
 import 'package:jaspr/server.dart';
 import 'package:postgres/postgres.dart' show Sql;
 import 'package:test/test.dart';
@@ -200,6 +204,9 @@ void main() {
         resendApiKey: null,
         sessionSecret: 'test',
         uploadLimitBytes: 1024 * 1024,
+        // The journey saves edits back and walks their revisions, which is
+        // what `MODELS_EDITOR=on` allows; off is `convert_routes_test.dart`'s.
+        editor: true,
       ),
       db: db,
       mailer: mailer,
@@ -1075,7 +1082,7 @@ void main() {
     );
     final published = (await services.models.byId(model.id))!;
     expect(published.visibility, Visibility.public);
-    expect(published.licence, Licence.cc0);
+    expect(published.license, Licence.cc0);
     expect(published.category, Category.props);
 
     // The Dart type system already keeps `publish` from being called
@@ -1409,7 +1416,7 @@ void main() {
 
     final afterPublish = (await services.models.byId(modelId))!;
     expect(afterPublish.visibility, Visibility.public);
-    expect(afterPublish.licence, Licence.cc0);
+    expect(afterPublish.license, Licence.cc0);
     expect(afterPublish.category, Category.props);
     expect(afterPublish.publishedAt, isNotNull);
     expect(
@@ -1446,7 +1453,7 @@ void main() {
     expect((await stranger.post('/m/$modelId/unpublish', {})).statusCode, 404);
     final untouched = (await services.models.byId(modelId))!;
     expect(untouched.visibility, Visibility.public);
-    expect(untouched.licence, Licence.cc0);
+    expect(untouched.license, Licence.cc0);
     expect(untouched.category, Category.props);
 
     // The owner takes it back down. The model itself is untouched — still
@@ -1458,7 +1465,7 @@ void main() {
 
     final afterUnpublish = (await services.models.byId(modelId))!;
     expect(afterUnpublish.visibility, Visibility.private);
-    expect(afterUnpublish.licence, Licence.cc0);
+    expect(afterUnpublish.license, Licence.cc0);
     expect(afterUnpublish.category, Category.props);
     expect(afterUnpublish.publishedAt, afterPublish.publishedAt);
     expect(
@@ -1678,5 +1685,238 @@ void main() {
         })).statusCode,
     ];
     expect(codes, contains(429));
+  });
+
+  test('"Download as…": the source download\'s access rule, each format\'s '
+      'type and name, one write per format, and the exports freed with the '
+      'model and with the file they were written from', () async {
+    // Accounts minted through the repositories, for the reason the test
+    // above gives: this file has spent its registration and sign-in budgets.
+    Future<_Browser> signedIn(String handle) async {
+      final user = await services.users.create(
+        email: '$handle@example.com',
+        handle: handle,
+        displayName: handle,
+        passwordHash: 'x',
+      );
+      await services.users.markEmailVerified(user!.id);
+      final browser = _Browser(handler);
+      await browser.get('/');
+      browser.cookies['session'] = await services.sessions.start(user.id);
+      return browser;
+    }
+
+    Future<int> exportRows(int modelId) async {
+      final rows = await db.run(
+        (s) => s.execute(
+          Sql.named('select count(*) from model_exports where model_id = @id'),
+          parameters: {'id': modelId},
+        ),
+      );
+      return rows.first[0]! as int;
+    }
+
+    Future<List<String>> exportBlobs(int modelId) async {
+      final rows = await db.run(
+        (s) => s.execute(
+          Sql.named(
+            'select blob_sha256 from model_exports where model_id = @id',
+          ),
+          parameters: {'id': modelId},
+        ),
+      );
+      return [for (final row in rows) row[0]! as String];
+    }
+
+    final owner = await signedIn('export-owner');
+    final stranger = await signedIn('export-stranger');
+    final anonymous = _Browser(handler);
+
+    final uploaded = await owner.upload('export_me.obj', _triangle);
+    expect(uploaded.statusCode, 201);
+    final body =
+        jsonDecode(await uploaded.readAsString()) as Map<String, Object?>;
+    final modelId = body['id']! as int;
+    final modelPath = body['path']! as String;
+
+    // The page offers the menu, with Blender's line, and no `.obj` twice:
+    // the original already is one.
+    final page = await (await owner.get(modelPath)).readAsString();
+    expect(page, contains('Download as…'));
+    expect(page, contains('/files/$modelId/as/stl'));
+    expect(page, contains('For Blender (.glb)'));
+    expect(page, contains('File → Import → glTF 2.0'));
+    expect(page, isNot(contains('/files/$modelId/as/obj')));
+
+    // Private: the owner's alone, and a 404 — never a 403 — for anybody
+    // else, before anything is written.
+    expect((await stranger.get('/files/$modelId/as/glb')).statusCode, 404);
+    expect((await anonymous.get('/files/$modelId/as/glb')).statusCode, 404);
+    expect(await exportRows(modelId), 0);
+
+    // Each format: its content type and its name.
+    final expected = <String, (String, String)>{
+      'f3d': ('application/octet-stream', 'export_me.f3d'),
+      'glb': ('model/gltf-binary', 'export_me.glb'),
+      // A triangle has no textures, but a `.gltf` still has its `.bin`.
+      'gltf': ('application/zip', 'export_me-gltf.zip'),
+      // Already an OBJ: the stored file, as it was uploaded.
+      'obj': ('model/obj', 'export_me.obj'),
+      'stl': ('model/stl', 'export_me.stl'),
+      'usdz': ('model/vnd.usdz+zip', 'export_me.usdz'),
+      'original': ('model/obj', 'export_me.obj'),
+    };
+    for (final MapEntry(key: format, value: (type, name)) in expected.entries) {
+      final response = await owner.get('/files/$modelId/as/$format');
+      expect(response.statusCode, 200, reason: format);
+      expect(response.headers['content-type'], type, reason: format);
+      expect(
+        response.headers['content-disposition'],
+        contains('filename="$name"'),
+        reason: format,
+      );
+      expect(response.headers['etag'], isNotNull, reason: format);
+      expect(
+        response.headers['cache-control'],
+        'private, no-cache',
+        reason: format,
+      );
+      final bytes = await response.read().expand((c) => c).toList();
+      expect(bytes, isNotEmpty, reason: format);
+    }
+    expect(
+      await (await owner.get(
+        '/files/$modelId/as/original',
+      )).read().expand((c) => c).toList(),
+      _triangle,
+    );
+    // f3d, glb, gltf, stl and usdz were written; obj and original are the
+    // stored file and wrote nothing.
+    expect(await exportRows(modelId), 5);
+
+    // A second request is a read: no new row, no new blob.
+    final blobsBefore = blobs.length;
+    final again = await owner.get('/files/$modelId/as/stl');
+    expect(again.statusCode, 200);
+    expect(await exportRows(modelId), 5);
+    expect(blobs.length, blobsBefore);
+
+    // An unknown format is a 404, like a model that is not there.
+    expect((await owner.get('/files/$modelId/as/blend')).statusCode, 404);
+
+    // Published: anybody's, signed in or not, and cacheable in public.
+    await services.models.publish(
+      modelId,
+      Licence.cc0,
+      category: Category.props,
+    );
+    final public = await anonymous.get('/files/$modelId/as/glb');
+    expect(public.statusCode, 200);
+    expect(public.headers['content-type'], 'model/gltf-binary');
+    expect(public.headers['cache-control'], 'public, max-age=300');
+    expect((await stranger.get('/files/$modelId/as/stl')).statusCode, 200);
+
+    // Replacing the source drops what was written from the old one, and
+    // frees each blob nothing else points at.
+    final stale = await exportBlobs(modelId);
+    expect(
+      (await owner.saveSource(modelId, 'export_me.obj', _quad)).statusCode,
+      200,
+    );
+    expect(await exportRows(modelId), 0);
+    for (final hash in stale.toSet()) {
+      if (!await services.models.isReferenced(hash)) {
+        expect(await blobs.sizeOf(hash), isNull, reason: hash);
+      }
+    }
+    // The next request writes one for the new file.
+    final fresh = await owner.get('/files/$modelId/as/stl');
+    expect(fresh.statusCode, 200);
+    expect(await exportRows(modelId), 1);
+
+    // Deleting the model takes its exports, rows and blobs, with it.
+    final kept = await exportBlobs(modelId);
+    expect(kept, hasLength(1));
+    expect((await owner.post('/m/$modelId/delete', const {})).statusCode, 303);
+    expect(await exportRows(modelId), 0);
+    expect(await blobs.sizeOf(kept.single), isNull);
+    expect((await owner.get('/files/$modelId/as/stl')).statusCode, 404);
+  });
+
+  test('a model kept from /convert is the uploaded .glb, byte for byte, and '
+      'a .gltf that refers to its .bin is kept as a .glb', () async {
+    final user = await services.users.create(
+      email: 'convert-keeper@example.com',
+      handle: 'convert-keeper',
+      displayName: 'Convert Keeper',
+      passwordHash: 'x',
+    );
+    await services.users.markEmailVerified(user!.id);
+    final browser = _Browser(handler);
+    await browser.get('/');
+    browser.cookies['session'] = await services.sessions.start(user.id);
+
+    Future<String> converted(String name, Uint8List bytes) async {
+      final response = await browser._send(
+        Request(
+          'POST',
+          Uri.parse('$_base/api/v1/conversions'),
+          body: bytes,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'x-csrf': browser.csrf,
+            'x-filename': Uri.encodeComponent(name),
+            'x-target': 'model',
+            'origin': _base,
+          },
+        ),
+      );
+      expect(response.statusCode, 201, reason: name);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      return body['path'] as String;
+    }
+
+    Future<StoredFile> savedSource(String resultPath) async {
+      // The one `.f3d` the result holds, wherever the converter laid it out.
+      final held = services.conversions.find(
+        resultPath.split('/').last,
+        user.id,
+      )!;
+      final saved = await browser.post('$resultPath/save', {
+        'file': held.modelFile!.path,
+      });
+      expect(saved.statusCode, 303);
+      final location = saved.headers['location']!;
+      final id = int.parse(RegExp(r'^/m/(\d+)-').firstMatch(location)![1]!);
+      return (await services.models.fileOf(id, FileKind.source))!;
+    }
+
+    // A GLB, written by the engine from the triangle: what the conversion
+    // reads, and what saving must keep exactly.
+    final glb = const GlbModelWriter()
+        .write(await decodeStoredModel(_triangle, 'tri.obj'), baseName: 'tri')
+        .files
+        .single
+        .bytes;
+    final glbResult = await converted('tri.glb', glb);
+    final glbPage = await (await browser.get(glbResult)).readAsString();
+    expect(glbPage, contains('keeps your tri.glb as you sent it'));
+    final keptGlb = await savedSource(glbResult);
+    expect(keptGlb.contentType, 'model/gltf-binary');
+    expect(keptGlb.filename, 'tri.glb');
+    expect(keptGlb.blobSha256, sha256.convert(glb).toString());
+
+    // The same model as a `.gltf` beside its `.bin`, in a `.zip`: kept as a
+    // GLB written from the two, and the page says so.
+    final zip = storedZip([
+      for (final (path, bytes) in splitGlb(glb, baseName: 'tri'))
+        ('scene/$path', bytes),
+    ]);
+    final zipResult = await converted('scene.zip', zip);
+    final zipPage = await (await browser.get(zipResult)).readAsString();
+    expect(zipPage, contains('a glTF binary written from scene/tri.gltf'));
+    final keptFromZip = await savedSource(zipResult);
+    expect(keptFromZip.contentType, 'model/gltf-binary');
+    expect(keptFromZip.filename, 'tri.glb');
   });
 }

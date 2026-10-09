@@ -54,7 +54,7 @@ import 'project_document.dart';
 ImportReport importInto(
   ModelProject project,
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final incoming = fromModelDocument(document, options: options);
 
@@ -122,7 +122,7 @@ ImportReport importInto(
         // `copyWith` before `incoming` ever reached here, and resetting it
         // to `1` would tell a viewport this object has never changed when
         // it has — invisible while every import ran with the default,
-        // unscaled `ImportOptions`, real once one does not.
+        // unscaled `ImportSettings`, real once one does not.
         version: object.version,
         materialSlots: <int>[
           for (final int slot in object.materialSlots) materialAt[slot]!,

@@ -26,8 +26,8 @@
 /// somebody's work and where a platform gets an opinion.
 ///
 /// **It knows no genre.** A document says `monster` or `coin` or `checkpoint`
-/// and this package vouches for none of it: [OpenKind] accepts whatever the
-/// level happens to name, so an editor built on it opens a game it has never
+/// and this package vouches for none of it: [vocabularyOf] makes every type
+/// the level happens to name a `flutter3d_sim` `OpenKind`, so an editor built on it opens a game it has never
 /// heard of. The rule is held by `the engine names no genre` in the scan, and
 /// [Looks] is how a game gets to say what its own words look like without a
 /// line of code here learning them.
@@ -51,17 +51,19 @@ export 'src/binding_lookup.dart';
 export 'src/editing.dart';
 export 'src/editor_command.dart';
 export 'src/editor_history.dart';
+export 'src/editor_pieces.dart';
 export 'src/generators/document_text.dart';
 export 'src/generators/generator.dart';
 export 'src/gizmos.dart';
+export 'src/inspector_sections.dart';
 export 'src/lesson_authoring.dart';
-export 'src/level_scene.dart';
 export 'src/light_opt/light_optimizer.dart';
 export 'src/light_opt/light_shading.dart';
 export 'src/light_opt/light_views.dart';
 export 'src/listing.dart';
 export 'src/looks.dart';
 export 'src/material_edit.dart';
+export 'src/outline.dart';
 export 'src/palette_items.dart';
 export 'src/picking.dart';
 export 'src/scaffold.dart';

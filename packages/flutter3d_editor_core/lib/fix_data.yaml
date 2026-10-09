@@ -1,0 +1,128 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-GeneratorRefused'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      class: 'GeneratorRefused'
+    changes:
+      - kind: 'rename'
+        newName: 'GeneratorException'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-Handle-Handle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      constructor: ''
+      inClass: 'Handle'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-Handle-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      field: 'centre'
+      inClass: 'Handle'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-Part-Part'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      constructor: ''
+      inClass: 'Part'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-Part-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      field: 'colour'
+      inClass: 'Part'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-LightPlan-changes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      getter: 'changes'
+      inClass: 'LightPlan'
+    changes:
+      - kind: 'rename'
+        newName: 'hasChanges'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-Editing-mayOverwrite'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      getter: 'mayOverwrite'
+      inClass: 'Editing'
+    changes:
+      - kind: 'rename'
+        newName: 'canOverwrite'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-kGizmoSize'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      variable: 'kGizmoSize'
+    changes:
+      - kind: 'rename'
+        newName: 'gizmoSize'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-kLight'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      variable: 'kLight'
+    changes:
+      - kind: 'rename'
+        newName: 'paletteLight'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-editor_core-kLooksFile'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      variable: 'kLooksFile'
+    changes:
+      - kind: 'rename'
+        newName: 'looksFile'
+  - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-AddLight'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'AddLight'
+    changes:
+      - kind: 'rename'
+        newName: 'AddLevelLight'
+  - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-MoveBy'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'MoveBy'
+    changes:
+      - kind: 'rename'
+        newName: 'MoveSelectionBy'
+  - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-Listed'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'Listed'
+    changes:
+      - kind: 'rename'
+        newName: 'ListedPiece'
+  - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-contentsOf'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      function: 'contentsOf'
+    changes:
+      - kind: 'rename'
+        newName: 'piecesOf'

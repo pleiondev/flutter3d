@@ -47,7 +47,7 @@ final class Handle {
   const Handle({
     required this.kind,
     required this.index,
-    required this.centre,
+    required this.center,
     required this.size,
     required this.tint,
     this.volume = false,
@@ -58,7 +58,7 @@ final class Handle {
   /// Which one, in the document's own list for [kind].
   final int index;
 
-  final Vector3 centre;
+  final Vector3 center;
   final Vector3 size;
 
   /// What to draw it in. A light wears its own colour, which is the fastest way
@@ -74,8 +74,8 @@ final class Handle {
   /// wall it was placed on. Those are drawn as a cage of edges instead.
   final bool volume;
 
-  Vector3 get min => centre - size / 2.0;
-  Vector3 get max => centre + size / 2.0;
+  Vector3 get min => center - size / 2.0;
+  Vector3 get max => center + size / 2.0;
 }
 
 /// How big the mark for something with no geometry is, in metres.
@@ -83,7 +83,7 @@ final class Handle {
 /// Half a metre: large enough to hit with a mouse from across a room, small
 /// enough not to hide the thing it stands for. A monster is about this wide
 /// anyway, which makes the mark read as the monster rather than as a label.
-const double kGizmoSize = 0.5;
+const double gizmoSize = 0.5;
 
 /// Every handle in [level], brushes included.
 ///
@@ -95,7 +95,7 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
     Handle(
       kind: Piece.brush,
       index: i,
-      centre: level.brushes[i].centre,
+      center: level.brushes[i].center,
       size: level.brushes[i].size,
       tint: Vector3(1.0, 0.45, 0.05),
     ),
@@ -103,8 +103,8 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
     Handle(
       kind: Piece.light,
       index: i,
-      centre: level.lights[i].position,
-      size: Vector3.all(kGizmoSize),
+      center: level.lights[i].position,
+      size: Vector3.all(gizmoSize),
       // Its own colour, brightened so a dim lamp is still visible as a mark.
       tint: atLeast(level.lights[i].color, 0.35),
     ),
@@ -112,13 +112,13 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
     Handle(
       kind: Piece.entity,
       index: i,
-      centre: level.entities[i].position,
+      center: level.entities[i].position,
       // **Its own size when the document gives it one**, then whatever the
       // game said this type is, then a mark. A door is six metres by five
       // and a lift is a platform somebody stands on, and both say so in
       // `size`; a torch says nothing, and the game's `editor.json` can say
       // it is a slim upright thing rather than a cube.
-      size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
+      size: looks.sizeFor(level.entities[i]) ?? Vector3.all(gizmoSize),
       volume: level.entities[i].vector('size') != null,
       tint: looks.tintFor(level.entities[i]) ?? tintFor(level.entities[i].type),
     ),
@@ -161,19 +161,19 @@ Vector3 _fromHue(double hue) {
   };
 }
 
-/// [colour], brightened up to [floor] if it is dimmer than that.
+/// [color], brightened up to [floor] if it is dimmer than that.
 ///
 /// Public rather than a private helper of this file alone: `palette_items.dart`
 /// needs the same brightening for a palette row's swatch, and a colour that
 /// reads as black in one place and is nudged up in the other is a colour that
 /// looks like two different bugs.
-Vector3 atLeast(Vector3 colour, double floor) {
+Vector3 atLeast(Vector3 color, double floor) {
   final brightest = <double>[
-    colour.x,
-    colour.y,
-    colour.z,
+    color.x,
+    color.y,
+    color.z,
   ].reduce((double a, double b) => a > b ? a : b);
-  if (brightest >= floor) return colour.clone();
+  if (brightest >= floor) return color.clone();
   if (brightest < 1e-6) return Vector3.all(floor);
-  return colour * (floor / brightest);
+  return color * (floor / brightest);
 }

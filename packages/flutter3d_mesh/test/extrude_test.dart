@@ -52,7 +52,7 @@ void main() {
         result = extrudeFaces(mesh, face, distance: 0.5);
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.vertexCount, 12);
       expect(mesh.edgeCount, 20);
       expect(mesh.faceCount, 10);
@@ -110,7 +110,7 @@ void main() {
 
       // Mutation: build no walls and lift anyway, and a closed box grows a
       // second closed box inside itself with nothing joining them.
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('rim'));
       expect(mesh.faceCount, 6);
     });
@@ -127,7 +127,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('selected'));
     });
   });
@@ -343,7 +343,7 @@ void main() {
         result = extrudeEdges(mesh, side, by: Vector3(0, -1, 0));
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.faceCount, 6);
       expect(mesh.vertexCount, 12);
       // Mutation: leave the two new quads unjoined along the upright they
@@ -372,7 +372,7 @@ void main() {
       // Mutation: build the quad anyway, and the edge has three faces on it —
       // which a half-edge mesh cannot hold, so one of the three silently loses
       // its twin.
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('both sides'));
       expect(mesh.faceCount, 4);
     });

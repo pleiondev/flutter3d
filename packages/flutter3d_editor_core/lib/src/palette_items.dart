@@ -1,11 +1,12 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'editor_pieces.dart';
 import 'gizmos.dart';
 
 /// The word a palette uses for a light, which is not an entity type and not a
 /// material.
-const String kLight = 'light';
+const String paletteLight = 'light';
 
 /// One row of the palette.
 final class Placeable {
@@ -14,12 +15,14 @@ final class Placeable {
     required this.what,
     required this.count,
     required this.tint,
+    this.properties = const <String, Object?>{},
+    this._label,
   });
 
   /// Which of the three lists a row adds to.
   final Piece kind;
 
-  /// A material for a brush, an entity type for an entity, [kLight] for a
+  /// A material for a brush, an entity type for an entity, [paletteLight] for a
   /// light.
   final String what;
 
@@ -29,10 +32,17 @@ final class Placeable {
 
   final Vector3 tint;
 
-  /// What a row says. A brush row says its material and nothing else, because
-  /// "brush · wall" is two words for one thing and the second is the one that
-  /// means something.
-  String get label => what;
+  /// What a placed entity starts with when the level has none of its type yet
+  /// to copy: a plugin's palette entry's defaults (`PaletteEntry.properties`).
+  /// Empty for a row the document itself offers.
+  final Map<String, Object?> properties;
+
+  final String? _label;
+
+  /// What a row says: the label a plugin's palette entry gave, or [what]. A
+  /// brush row says its material and nothing else, because "brush · wall" is
+  /// two words for one thing and the second is the one that means something.
+  String get label => _label ?? what;
 }
 
 /// What can be put into a level, in the order a palette lists it.
@@ -60,10 +70,19 @@ final class Placeable {
 /// already there**, which is nothing at all in a level nobody has built yet —
 /// and it is why a game that describes a torch in its own `editor.json` could
 /// not place one in a level with no torches in it.
+///
+/// [pieces] adds what the installed plugins offer: each of its
+/// [EditorPieces.paletteEntries] is a row whether the level has one or not,
+/// with the entry's label, tint and the properties a placed one starts with.
 List<Placeable> paletteOf(
   Level level, {
   Iterable<String> declared = const <String>[],
+  EditorPieces? pieces,
 }) {
+  final entries = <String, PaletteEntry>{
+    for (final entry in pieces?.paletteEntries ?? const <PaletteEntry>[])
+      entry.type: entry,
+  };
   final byMaterial = <String, int>{};
   for (final brush in level.brushes) {
     byMaterial[brush.material] = (byMaterial[brush.material] ?? 0) + 1;
@@ -79,7 +98,7 @@ List<Placeable> paletteOf(
   for (final entity in level.entities) {
     counts[entity.type] = (counts[entity.type] ?? 0) + 1;
   }
-  for (final type in declared) {
+  for (final type in <String>[...declared, ...entries.keys]) {
     counts.putIfAbsent(type, () => 0);
   }
 
@@ -92,13 +111,13 @@ List<Placeable> paletteOf(
         // The colour it is actually painted, which says more about what a row
         // will put down than any word does.
         tint: atLeast(
-          level.materials[name]?.baseColor.xyz ?? Vector3.all(0.7),
+          level.materials[name]?.storedBaseColor.xyz ?? Vector3.all(0.7),
           0.25,
         ),
       ),
     Placeable(
       kind: Piece.light,
-      what: kLight,
+      what: paletteLight,
       count: level.lights.length,
       tint: Vector3(1.0, 0.9, 0.5),
     ),
@@ -107,7 +126,9 @@ List<Placeable> paletteOf(
         kind: Piece.entity,
         what: type,
         count: counts[type]!,
-        tint: tintFor(type),
+        tint: entries[type]?.tint?.clone() ?? tintFor(type),
+        properties: entries[type]?.properties ?? const <String, Object?>{},
+        label: entries[type]?.label,
       ),
   ];
 }

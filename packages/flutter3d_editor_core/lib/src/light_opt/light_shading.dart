@@ -4,10 +4,11 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../level_scene.dart';
 import 'light_views.dart';
 
 /// A level drawn by the software rasteriser under any set of lights, in
@@ -94,7 +95,7 @@ final class LightShading {
     }
     final eye = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.2,
+        fovY: 1.2,
         near: 0.05,
         far: 200.0,
       ),
@@ -107,7 +108,7 @@ final class LightShading {
         height: height,
         scene: _scene,
         views: <RenderView>[
-          RenderView(camera: eye, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(camera: eye, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
         ],
         settings: settings,
       );

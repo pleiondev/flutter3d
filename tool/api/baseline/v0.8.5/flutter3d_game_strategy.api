@@ -1,0 +1,345 @@
+# The public API of flutter3d_game_strategy.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_game_strategy/bridge.dart
+
+final class StrategyVisuals
+  InstancedMeshNode get crowd
+  InstancedMeshNode? get remembered
+  InstancedMeshNode? get unseen
+  Iterable<MeshNode> get buildings
+  StrategyVisuals({required this.simulation, required GraphicsDevice device, int capacity = 4096, this.viewer, Material? ground, Material? units, Material? buildings, Material? unseen, Material? remembered, this.unitSize = const UnitSize(), DeviceMesh? unitMesh, DeviceMesh? buildingMesh, Vector3? buildingMeshSize})
+  final StrategySimulation simulation
+  final UnitSize unitSize
+  final int? viewer
+  void addTo(Scene scene)
+  void sync()
+
+final class UnitSize
+  const UnitSize({this.width = 0.8, this.height = 1.2})
+  final double height
+  final double width
+
+library package:flutter3d_game_strategy/flutter3d_game_strategy.dart
+
+final class ArmyPlan
+  const ArmyPlan({this.workers = 12, this.fighters = 0, this.worker = UnitType.worker, this.fighter = UnitType.soldier})
+  final UnitType fighter
+  final UnitType worker
+  final int fighters
+  final int workers
+
+final class AssignOrder extends StrategyOrder
+  Map<String, Object?> toJson()
+  const AssignOrder({required this.unit, required this.node, required this.dropOff, this.capacity = 10.0, this.rate = 8.0})
+  factory AssignOrder.fromJson(Map<String, Object?> from)
+  final double capacity
+  final double rate
+  final int dropOff
+  final int node
+  final int unit
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+
+final class AttackOrder extends StrategyOrder
+  Map<String, Object?> toJson()
+  const AttackOrder({required this.units, required this.target})
+  factory AttackOrder.fromJson(Map<String, Object?> from)
+  final List<int> units
+  final int target
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+
+final class Bot
+  Bot({required this.side, required this.base, this.thinkEvery = 30, this.plan = const ArmyPlan()})
+  Map<String, Object?> save()
+  final ArmyPlan plan
+  final Building base
+  final int side
+  final int thinkEvery
+  void restore(Map<String, Object?> from)
+  void step(StrategySimulation simulation)
+
+final class Building
+  Building({required Vector3 centre, required this.width, required this.depth, this.name = 'building', this.side = 0, this.sight = 30.0})
+  bool covers(double x, double z)
+  double distanceTo(double x, double z)
+  final String name
+  final Vector3 centre
+  final double depth
+  final double sight
+  final double width
+  final int side
+
+final class FogOfWar
+  FogOfWar({required this.ground, this.cellSize = 4.0, this.sides = 2})
+  Map<String, Object?> save()
+  Vector3 centreOf(int cell)
+  bool isExplored(int side, int cell)
+  bool isVisible(int side, int cell)
+  bool knows(int side, double x, double z)
+  bool sees(int side, double x, double z)
+  double centreX(int cell)
+  double centreZ(int cell)
+  final Heightfield ground
+  final double cellSize
+  final double originX
+  final double originZ
+  final int columns
+  final int rows
+  final int sides
+  int cellAt(double x, double z)
+  int get cellCount
+  int nearestUnexplored(int side, double x, double z, {bool Function(double x, double z)? reachable})
+  void forgetVisible()
+  void restore(Map<String, Object?> from)
+  void reveal(int side, double x, double z, double radius)
+
+final class Formation
+  const Formation.block({this.spacing = 1.4, this.width = 5})
+  final double spacing
+  final int width
+  static const double arriveWithin = 6.0
+  void slotFor(int index, int count, Vector3 out)
+
+final class HarvestJob
+  HarvestJob({required this.node, required this.dropOff, this.capacity = 10.0, this.rate = 8.0})
+  Map<String, Object?> save({required int node, required int dropOff})
+  bool get isFull
+  double carried
+  final Building dropOff
+  final ResourceNode node
+  final double capacity
+  final double rate
+  static HarvestJob? fromSnapshot(Map<String, Object?> from, {required List<ResourceNode> nodes, required List<Building> buildings})
+
+final class MapCamera
+  MapCamera({required this.ground, this.tuning = const MapCameraTuning(), CollisionWorld? world})
+  Vector3 get eye
+  Vector3 get focus
+  Vector3 get target
+  double get distance
+  final CameraRig rig
+  final Heightfield ground
+  final MapCameraTuning tuning
+  void pan(double x, double z)
+  void place(double dt)
+  void zoom(double by)
+
+final class MapCameraTuning
+  const MapCameraTuning({this.pitch = 0.95, this.minDistance = 12.0, this.maxDistance = 90.0, this.lag = 12.0})
+  final double lag
+  final double maxDistance
+  final double minDistance
+  final double pitch
+
+final class Match
+  Match({required this.simulation, required this.bots, this.goal = const MatchGoal()})
+  Snapshot save()
+  Standing get standing
+  final List<Bot> bots
+  final MatchGoal goal
+  final StrategySimulation simulation
+  void restore(Snapshot snapshot)
+  void step(double dt)
+
+final class MatchDemo
+  Map<String, Object?> toJson()
+  const MatchDemo({required this.level, required this.levelHash, required this.start, required this.tape, required this.buildStamp, required this.checkpoints, this.platform, this.recordedBy})
+  factory MatchDemo.fromJson(Map<String, Object?> json)
+  final DigestTrace checkpoints
+  final OrderTape tape
+  final Snapshot start
+  final String buildStamp
+  final String level
+  final String levelHash
+  final String? platform
+  final String? recordedBy
+  int get steps
+  static const String fileExtension = '.f3drun'
+  static const int formatVersion = 1
+
+final class MatchGoal
+  const MatchGoal({this.delivered = 400.0})
+  final double delivered
+
+final class MoveOrder extends StrategyOrder
+  Map<String, Object?> toJson()
+  MoveOrder({required this.units, required Vector3 goal, this.formation = const Formation.block()})
+  factory MoveOrder.fromJson(Map<String, Object?> from)
+  final Formation formation
+  final List<int> units
+  final Vector3 goal
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+
+final class OrderQueue
+  List<Object?> save()
+  List<StrategyOrder> get waiting
+  OrderQueue(this._simulation)
+  OrderTapeRecorder? recorder
+  void add(StrategyOrder order)
+  void addAll(Iterable<StrategyOrder> orders)
+  void assign(Unit unit, {required ResourceNode node, required Building dropOff, double capacity = 10.0, double rate = 8.0})
+  void attackWith(Iterable<Unit> units, Unit target)
+  void moveTo(Iterable<Unit> units, Vector3 goal, {Formation formation = const Formation.block()})
+  void obey()
+  void restore(List<Map<String, Object?>> saved)
+  void train(Producer producer, UnitType type, {int count = 1})
+
+final class OrderTape
+  Map<String, Object?> toJson()
+  OrderTape({required this.seed, List<List<StrategyOrder>>? frames})
+  factory OrderTape.fromJson(Map<String, Object?> json)
+  final List<List<StrategyOrder>> frames
+  final int seed
+  int get steps
+
+final class OrderTapePlayback
+  OrderTapePlayback(this.tape)
+  bool get isFinished
+  final OrderTape tape
+  int get step
+  void applyTo(OrderQueue queue)
+
+final class OrderTapeRecorder
+  OrderTapeRecorder({required int seed})
+  final OrderTape tape
+  void record(List<StrategyOrder> given)
+
+final class Producer
+  Map<String, Object?> save()
+  Producer({required this.building, this.cost = 25.0, this.seconds = 4.0})
+  UnitType? wanted
+  bool get isBusy
+  bool get isWanted
+  double progress
+  final Building building
+  final double cost
+  final double seconds
+  int ordered
+  void order(UnitType type, {int count = 1})
+  void restore(Map<String, Object?> from)
+
+final class ResourceNode
+  Map<String, Object?> save()
+  ResourceNode({required Vector3 at, required this.amount})
+  bool get isEmpty
+  double amount
+  double take(double wanted)
+  final Vector3 at
+  void restore(Map<String, Object?> from)
+
+final class Selection
+  List<Unit> unitsWithin(Vector3 corner, Vector3 opposite)
+  Unit? unitAt(Vector3 origin, Vector3 direction, {double reach = 1000.0})
+  const Selection(this.units)
+  final List<Unit> units
+
+final class Squad
+  Squad(this.units, {this.formation = const Formation.block()})
+  final Formation formation
+  final List<Unit> units
+  void hold()
+  void moveTo(Vector3 goal)
+
+final class Standing
+  const Standing.drawn()
+  const Standing.running()
+  const Standing.wonBy(int this.winner)
+  final bool isOver
+  final int? winner
+
+final class Stockpile
+  Map<String, Object?> save()
+  Stockpile([this.amount = 0.0])
+  bool spend(double cost)
+  double amount
+  void restore(Map<String, Object?> from)
+
+sealed class StrategyOrder
+  Map<String, Object?> toJson()
+  const StrategyOrder()
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+
+final class StrategySimulation
+  Building build(Building building)
+  Producer addProducer(Producer producer)
+  ResourceNode addResource(ResourceNode node)
+  Snapshot save()
+  StrategySimulation({required this.ground, required this.random, double cellSize = 2.0, double maxSlope = 0.698, double fogCellSize = 4.0, this.fogEvery = 6, this.sides = 2})
+  Unit add(Unit unit)
+  final EcsWorld entities
+  final FogOfWar fog
+  final GameRandom random
+  final Heightfield ground
+  final List<Building> buildings
+  final List<Producer> producers
+  final List<ResourceNode> resources
+  final List<Stockpile> stock
+  final List<Unit> units
+  final List<double> delivered
+  final int fogEvery
+  final int sides
+  late NavGrid grid
+  late final OrderQueue orders
+  void restore(Snapshot snapshot)
+  void step(double dt)
+
+final class TrainOrder extends StrategyOrder
+  Map<String, Object?> toJson()
+  const TrainOrder({required this.producer, required this.type, this.count = 1})
+  factory TrainOrder.fromJson(Map<String, Object?> from)
+  final UnitType type
+  final int count
+  final int producer
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+
+final class Unit
+  Entity entity
+  HarvestJob? job
+  Map<String, Object?> save()
+  Unit({required this.position, this.type = UnitType.worker, this.side = 0, UnitOrder? order, double? health})
+  UnitOrder order
+  bool get isAlive
+  double cooldown
+  double get radius
+  double get sight
+  double get speed
+  double health
+  factory Unit.fromSnapshot(Map<String, Object?> from)
+  final UnitType type
+  final Vector3 position
+  final int side
+  void hurt(double amount)
+
+final class UnitOrder
+  Map<String, Object?> save()
+  UnitOrder.attack(Unit this.target)
+  const UnitOrder.hold()
+  const UnitOrder.moveTo(Vector3 this.goal, {this.slot})
+  factory UnitOrder.fromSnapshot(Map<String, Object?> from)
+  final Unit? target
+  final Vector3? goal
+  final Vector3? slot
+
+final class UnitType
+  Map<String, Object?> toJson()
+  String toString()
+  UnitType copyWith({String? name, double? radius, double? speed, double? sight, double? health, double? damage, double? range, double? reload})
+  bool get isArmed
+  bool operator ==(Object other)
+  const UnitType({this.name = 'worker', this.radius = 0.4, this.speed = 3.0, this.sight = 18.0, this.health = 40.0, this.damage = 0.0, this.range = 0.0, this.reload = 1.0})
+  factory UnitType.fromJson(Map<String, Object?> from)
+  final String name
+  final double damage
+  final double health
+  final double radius
+  final double range
+  final double reload
+  final double sight
+  final double speed
+  int get hashCode
+  static const UnitType soldier = UnitType(name: 'soldier', speed: 3.4, sight: 20.0, health: 70.0, damage: 9.0, range: 6.0, reload: 0.9)
+  static const UnitType tank = UnitType(name: 'tank', radius: 0.9, speed: 2.2, sight: 22.0, health: 260.0, damage: 26.0, range: 5.0, reload: 1.6)
+  static const UnitType worker = UnitType()
+
+StrategyOrder orderFromJson(Map<String, Object?> from)

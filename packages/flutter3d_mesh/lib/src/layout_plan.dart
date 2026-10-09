@@ -59,7 +59,7 @@ final class MeshLayoutPlan {
   int _positionAt = -1;
   int _normalAt = -1;
   int _texcoordAt = -1;
-  int _colourAt = -1;
+  int _colorAt = -1;
   int _jointsAt = -1;
   int _weightsAt = -1;
 
@@ -105,7 +105,7 @@ final class MeshLayoutPlan {
   Int32List get triangleToFace => _faceOfTriangle;
 
   /// Whether any face had to be fanned because it could not be cut properly.
-  bool get fannedAnyFace => _fanned;
+  bool get didFanAnyFace => _fanned;
 
   /// The row [halfEdge] was put in, or [EditMesh.none] if it is not in the plan.
   int rowOfCorner(int halfEdge) => _rowOfCorner[halfEdge];
@@ -126,7 +126,7 @@ final class MeshLayoutPlan {
     _positionAt = layout.floatOffsetOf(VertexLayout.position.name);
     _normalAt = layout.floatOffsetOf(VertexLayout.normal.name);
     _texcoordAt = layout.floatOffsetOf(VertexLayout.texcoord.name);
-    _colourAt = layout.floatOffsetOf(VertexLayout.color.name);
+    _colorAt = layout.floatOffsetOf(VertexLayout.color.name);
     _jointsAt = layout.floatOffsetOf(VertexLayout.joints.name);
     _weightsAt = layout.floatOffsetOf(VertexLayout.weights.name);
 
@@ -188,26 +188,21 @@ final class MeshLayoutPlan {
   void _mergeCorners(EditMesh mesh, int? materialSlot) {
     final uv = Vector2.zero();
     final other = Vector2.zero();
-    final colour = Vector4.zero();
-    final otherColour = Vector4.zero();
     final hasUv = mesh.hasLayer(MeshDomain.corner, MeshAttribute.uv0);
-    final hasColour = mesh.hasLayer(MeshDomain.corner, MeshAttribute.colour);
+    final hasColour = mesh.hasLayer(MeshDomain.corner, MeshAttribute.color);
 
     for (var face = 0; face < mesh.faceSlotCount; face++) {
       if (!_planned(mesh, face, materialSlot)) continue;
       mesh.forEachHalfEdge(face, (int half) {
         final fan = normals.groupOf(half);
         if (hasUv) mesh.uvOf(half, uv);
-        if (hasColour) mesh.colourOf(half, colour);
 
         var row = _firstOfFan[fan];
         while (row != EditMesh.none) {
           final against = _cornerOf[row];
           final sameUv =
               !hasUv || (mesh.uvOf(against, other)..sub(uv)).length2 == 0;
-          final sameColour =
-              !hasColour ||
-              (mesh.colourOf(against, otherColour)..sub(colour)).length2 == 0;
+          final sameColour = !hasColour || mesh.hasSameColor(against, half);
           if (sameUv && sameColour) {
             _rowOfCorner[half] = row;
             return;
@@ -243,7 +238,7 @@ final class MeshLayoutPlan {
         _faceOfTriangle[triangle] = face;
         triangle++;
       });
-      if (_cutter.fannedLastFace) _fanned = true;
+      if (_cutter.didFanLastFace) _fanned = true;
     }
     // A face that could not be cut still yields `valency - 2` triangles, so the
     // count worked out ahead of time holds even then.
@@ -324,12 +319,12 @@ final class MeshLayoutPlan {
       into[at + _texcoordAt] = uv.x;
       into[at + _texcoordAt + 1] = uv.y;
     }
-    if (_colourAt >= 0) {
-      final colour = mesh.colourOf(corner);
-      into[at + _colourAt] = colour.x;
-      into[at + _colourAt + 1] = colour.y;
-      into[at + _colourAt + 2] = colour.z;
-      into[at + _colourAt + 3] = colour.w;
+    if (_colorAt >= 0) {
+      final color = mesh.colorOf(corner);
+      into[at + _colorAt] = color.r;
+      into[at + _colorAt + 1] = color.g;
+      into[at + _colorAt + 2] = color.b;
+      into[at + _colorAt + 3] = color.a;
     }
     if (_jointsAt >= 0 || _weightsAt >= 0) {
       final skin = mesh.skinOf(vertex);

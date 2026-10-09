@@ -1,0 +1,64 @@
+# The public API of flutter3d_testing.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_testing/flutter3d_testing.dart
+
+final class FlipResult
+  FlipResult(this.errors, this.width, this.height)
+  final Float64List errors
+  final int height
+  final int width
+  late final double mean
+
+typedef FrameBuilder = FrameSubject Function(FrameRequest request);
+
+final class FramePacing
+  Map<String, Object?> toJson()
+  bool get even
+  factory FramePacing.of(List<double> millis, {double limitMillis = 50.0})
+  final List<double> millis
+  final List<int> overLimit
+  final double limitMillis
+  final double max
+  final double p50
+  final double p99
+  final int worstFrame
+  int get frames
+
+final class FrameRequest
+  const FrameRequest(this.device)
+  final GraphicsDevice device
+
+typedef FrameSubject = ({Scene scene, CameraNode camera});
+
+final class MaterialProgramStage implements CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const MaterialProgramStage(this.program)
+  final MaterialProgram program
+
+typedef QualityMeasurement = ({QualitySetting setting, double cost, double flip});
+
+typedef QualityScene = ({Scene scene, RenderView view, RenderSettings settings}) Function(GraphicsDevice device);
+
+typedef RenderedFrame = ({Uint8List pixels, int width, int height, int drawCalls});
+
+final double defaultFlipPpd
+
+Future<void> expectMatchesGolden(RenderedFrame frame, String path, {double tolerance = 0.0, int channel = 8, bool alpha = false, String? reason, bool? recordMissing, double? flipBudget})
+
+FlipResult flip(Uint8List reference, Uint8List test, {required int width, required int height, int channels = 4, double? ppd})
+
+FlipResult flipLinear(Float64List reference, Float64List test, {required int width, required int height, double? ppd})
+
+Future<void> gpuSettled(GraphicsDevice device)
+
+Future<List<QualityMeasurement>> measureQualityTable({required GraphicsDevice device, required int width, required int height, required List<QualityScene> scenes, int settle = 4, int samples = 7})
+
+String qualityTablesSource(Map<DeviceClass, ({List<QualityMeasurement> rows, bool measured})> tables, {String note = ''})
+
+Future<RenderedFrame> renderFrame({required int width, required int height, required FrameBuilder build, RenderSettings settings = const RenderSettings(), Vector4? clearColor})
+
+Future<void> replayGolden({required Demo demo, required int atStep, required InputState input, required void Function(double dt) onStep, required int width, required int height, required FrameBuilder frame, required String goldenPath, double dt = 1.0 / 60.0, double tolerance = 0.0, String? reason})
+
+Future<FramePacing> replayPacing({required Demo demo, required InputState input, required void Function(double dt) onStep, required Future<void> Function(int frame) drawFrame, void Function()? rewind, int repeats = 1, int warmUpFrames = 0, double dt = 1.0 / 60.0, double limitMillis = 50.0, int Function()? clock})

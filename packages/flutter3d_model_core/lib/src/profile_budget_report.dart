@@ -33,11 +33,12 @@ final class BudgetUsage {
   /// dividing by zero: a limit of 0 reads as spent (`1.0`) the moment
   /// anything at all is used, and unspent (`0.0`) otherwise. A limit of 0
   /// with nothing used is not a project over its own budget.
+  /// A unitless ratio, above 1 once the budget is exceeded.
   double get fraction => limit <= 0 ? (used > 0 ? 1.0 : 0.0) : used / limit;
 
   /// Whether this bar alone paints orange — `anim-24`'s own acceptance:
   /// `maxJoints=16` on 19 joints.
-  bool get over => used > limit;
+  bool get isOver => used > limit;
 
   @override
   String toString() => 'BudgetUsage($used/$limit)';
@@ -110,8 +111,11 @@ final class ProfileBudgetReport {
   final bool wireframeDeclined;
 
   /// Whether any bar here is over its own limit.
-  bool get anyOver =>
-      triangles.over || joints.over || influences.over || textureBytes.over;
+  bool get hasAnyOver =>
+      triangles.isOver ||
+      joints.isOver ||
+      influences.isOver ||
+      textureBytes.isOver;
 
   @override
   String toString() =>

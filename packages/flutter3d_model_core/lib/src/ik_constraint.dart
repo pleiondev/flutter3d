@@ -319,6 +319,8 @@ const double _epsilon = 1e-6;
   required ModelProject project,
   required IkConstraint constraint,
   ProjectClip? clip,
+
+  /// In seconds.
   double time = 0.0,
 }) => _solveTwoBoneIk(
   project: project,
@@ -348,6 +350,8 @@ const double _epsilon = 1e-6;
   required ModelProject project,
   required LookAtConstraint constraint,
   ProjectClip? clip,
+
+  /// In seconds.
   double time = 0.0,
 }) {
   final restLocal = _currentRotationOf(project, constraint.jointId, clip, time);

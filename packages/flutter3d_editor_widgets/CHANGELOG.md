@@ -1,11 +1,53 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kLabelBesideFrom` is `labelBesideFrom`. The
+  values are the same; `dart fix` carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `DockArrangement.withCollapsed` takes `{required bool folded}`. `dart fix`
+  carries the renames.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`, `metres` is `meters`. Only the Dart names
+  changed: a file keeps the keys it was written with, and `dart fix`
+  carries the renames.
+- **A stored dock arrangement carries its version.** `DockArrangement.toJson`
+  writes the format envelope (`"format": "f3d.dock-layout"`, `"version": 1`)
+  ahead of the layout, and `fromJson` reads a file without it as version 1
+  and a newer one as the default layout rather than misreading it.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Panels docked around a picture.** `DockLayout` puts `DockPanel`s down
+  the left, the right and along the bottom of a centre widget, as tabs; each
+  side is resized by dragging its edge, folded to a strip of icons and
+  opened again, and a panel can be moved to another side from its tab's
+  menu. What is where is a `DockArrangement`, plain data with a JSON form
+  that reads back whatever it can of a file it half understands, so a
+  caller keeps it per person between launches. The centre keeps its place
+  in the tree whatever the panels do, so a 3D view is not rebuilt because a
+  side was folded.
+
+- **A command palette.** `showCommandPalette` lists `PaletteCommand`s and
+  narrows them as somebody types: the letters must appear in order, and
+  initials and runs of letters rank above letters scattered through a word
+  (`fuzzyScore`, `rankCommands`). Arrows and Enter choose; a command that
+  cannot run now is listed dimmed with its shortcut and refuses.
 
 - **A slider can show its value live while it is dragged.**
   `RangeSliderField.onPreview` and `FieldRow.onPreview` are called with every
   stepped value the thumb passes; `onChanged`/`onWrite` still come once, where
   the drag ends. The editor uses it to show a material in a running game.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

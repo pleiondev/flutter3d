@@ -48,6 +48,7 @@ import 'dart:typed_data';
 import 'command.dart';
 import 'history.dart';
 import 'project.dart';
+import 'project_wire.dart';
 
 /// One JSON Lines record, and the one way back into a project from nothing
 /// but that record.
@@ -91,7 +92,10 @@ final class CommandJournal {
   void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
     _writeOpenBegins();
     _lines.add(
-      jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+      jsonEncode(<String, Object?>{
+        ...command.toJson(),
+        'author': stepAuthorWord(author),
+      }),
     );
   }
 
@@ -305,5 +309,5 @@ final class JournalReplay {
   final ModelHistory? history;
   final String? refused;
 
-  bool get ok => refused == null;
+  bool get isOk => refused == null;
 }

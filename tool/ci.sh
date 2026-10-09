@@ -69,6 +69,14 @@ step "format" dart format --output=none --set-exit-if-changed packages apps tool
 
 step "pub get" flutter pub get
 
+# **The one structure rule that needs the workspace resolved.** The API
+# snapshots are parsed by the analyzer, which `tool/api` depends on, so on a
+# fresh runner the scan above had nothing to run it with and said nothing.
+# Asked again here by name, the shader-freshness way, where it cannot skip.
+# The words match two rules: the API's, and the MCP tools' and VM
+# extensions' — `api/<package>.mcp` and `.vm`, written by the same tool.
+step "api snapshots" dart run tool/structure.dart --only 'snapshot its package commits'
+
 # The shader bundle is gitignored and its format is tied to the SDK version, so
 # a fresh checkout has none. A test asserts it was built — deliberately a
 # failure rather than a skip, because "CI built only one bundle" is one of the
@@ -172,7 +180,7 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
 # `H6`: the compute stages, from their own manifest, through the same glslang
 # and naga. The same shape of check: regenerate, and fail on any difference.
-step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_compute_shaders.dart'
+step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/src/engine_compute_shaders.dart'
 
 # `G1`: the engine's data tables are generated and seeded, so running the
 # generator again must write the same bytes the test pins by hash.
@@ -225,6 +233,10 @@ FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 # this one has). `godot_check`'s run in the `godot` job in
 # .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
 # left named rather than quietly half-fixed.
+# The addons were packages one directory down, in `packages/addons/`, until
+# 1.0.0-rc.1 merged them into `flutter3d_game_kit`, `flutter3d_game_ui`,
+# `flutter3d_camera` and `flutter3d_post`, which this loop walks like the
+# rest; a suite in `test/<library>/` is found by the `find` below.
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the
@@ -246,7 +258,11 @@ for package in packages/*/; do
   # Flutter and nothing has yet needed it to, so it is not in `flatDartPackages`
   # — see that table for why a rule kept for nobody is a rule that gets deleted
   # — but its suite runs the way its callers do all the same.
+  # `flutter3d_audio_core` likewise: it names no Flutter since 1.0.0-rc.1
+  # and has no caller without the SDK, but `flutter test` would not run a
+  # package that does not depend on it.
   if [ "$name" = "flutter3d_physics" ] ||
+     [ "$name" = "flutter3d_audio_core" ] ||
      printf '%s\n' "$FLAT_DART" | grep -qx "$name"; then
     step "test $name" in_dir "$package" dart test
   else
@@ -254,14 +270,9 @@ for package in packages/*/; do
   fi
 done
 
-# **The teaching examples, one directory down.** `packages/education` groups
-# them rather than being a package, so the loop above walks past it; each
-# example is a Flutter app with a suite of its own.
-for example in packages/education/*/; do
-  [ -f "$example/pubspec.yaml" ] || continue
-  [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
-  step "test $(basename "$example")" in_dir "$example" flutter test
-done
+# The chemistry bench, which `packages/education/` held until 1.0.0-rc.1, is
+# `flutter3d_education`'s example now, and its suite runs in the loop over
+# `packages/*/example/` further down.
 
 # **The models service, which the loop above cannot see.** `cloud/server` is a
 # service rather than a package, so it sits outside `packages/` and outside the
@@ -285,7 +296,7 @@ step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --f
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
 
 # **The LTI service, the third of the same kind.** `lti-03`'s own launch
-# endpoint over `flutter3d_lti` — outside the workspace like the two above,
+# endpoint over `flutter3d_education`'s LTI library — outside the workspace like the two above,
 # and named here for the same reason: a service nothing runs is a service
 # nobody finds out about until it is deployed.
 step "pub get cloud/lti/server" in_dir cloud/lti/server dart pub get
@@ -296,6 +307,10 @@ step "test cloud/lti/server" in_dir cloud/lti/server dart test
 # to how it reads a result is a change to what "green" means on its page.
 step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
 step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
+
+# **The API snapshot tool decides what counts as a break**, so its fixtures —
+# normalisation, re-exports, modifiers — run where the rule it feeds does.
+step "test tool/api" in_dir tool/api dart test
 
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against

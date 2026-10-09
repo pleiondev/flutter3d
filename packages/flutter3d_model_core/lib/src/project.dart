@@ -18,7 +18,7 @@
 /// ever goes up is the one thing that survives both.
 library;
 
-import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
@@ -196,7 +196,7 @@ final class ProjectProfile {
   /// generic row: a small dedicated picker over the three presets, not a
   /// `HintRow` this map would have to invent a new `ParamHint` case for.
   Map<String, ParamHint> get profileHints => {
-    'target': EnumHint([...ProfileTarget.values.map((t) => t.name)]),
+    'target': ChoiceHint([...ProfileTarget.values.map((t) => t.name)]),
     'maxTriangles': const IntHint(min: 1000, max: 2000000, step: 1000),
     'maxJoints': const IntHint(min: 1, max: 64),
     // 4, not the 8 this used to say: a vertex's own storage is four slots —
@@ -381,7 +381,7 @@ final class ImportedGeometry extends Geometry {
 }
 
 /// No geometry at all — a named point for something else to hang off of, the
-/// way an empty in Blender or a `Marker3D` in Godot works.
+/// way an empty in Blender works.
 ///
 /// **The same shape an imported "group" already is.** `project_document.dart`
 /// has always kept an object with nothing in it as a node with no surface —
@@ -419,7 +419,7 @@ final class ModelObject {
     this.skeletonIndex,
     this.shapeSet = const ShapeSet(),
     this.shapeDrivers = const <ShapeDriver>[],
-    this.lods = const <LodSpec>[],
+    this.lods = const <LodSettings>[],
     this.simulationCache,
     this.visible = true,
     this.locked = false,
@@ -530,7 +530,7 @@ final class ModelObject {
   /// case of a mesh nobody has asked to simplify; `LodMeshCache` is what
   /// turns one of these into an actual mesh, keyed by [version] so an edit
   /// to [geometry] regenerates exactly the entries that are now stale.
-  final List<LodSpec> lods;
+  final List<LodSettings> lods;
 
   /// This object's own baked simulation frames — `pro-sim-03`'s own row.
   /// Null for almost every object, the ordinary case of one nobody has run
@@ -558,7 +558,7 @@ final class ModelObject {
     bool clearSkeletonIndex = false,
     ShapeSet? shapeSet,
     List<ShapeDriver>? shapeDrivers,
-    List<LodSpec>? lods,
+    List<LodSettings>? lods,
     SimulationCache? simulationCache,
     bool clearSimulationCache = false,
     bool? visible,
@@ -621,14 +621,14 @@ typedef ModelCredit = ({
   String author,
 
   /// The licence's own name, as the card showed it.
-  String licence,
+  String license,
 
   /// Where the licence text is.
   String url,
 });
 
 /// The document.
-final class ModelProject implements ModelProjectView {
+final class ModelProject with ModelProjectView {
   const ModelProject({
     this.profile = const ProjectProfile(),
     this.objects = const <ModelObject>[],
@@ -639,6 +639,7 @@ final class ModelProject implements ModelProjectView {
     this.clips = const <ProjectClip>[],
     this.lighting = const SceneLighting(),
     this.animationGraphs = const <String, Map<String, Object?>>{},
+    this.unknown = const <String, Object?>{},
   });
 
   final ProjectProfile profile;
@@ -675,6 +676,16 @@ final class ModelProject implements ModelProjectView {
   /// root `extras`, where a game reads them with `AnimationGraphJson
   /// .graphsIn`.
   final Map<String, Map<String, Object?>> animationGraphs;
+
+  /// The manifest's keys this build does not read, as the file had them:
+  /// written back unchanged when the project is saved, so a project a later
+  /// minor wrote and this one opened and saved keeps what the later one
+  /// added (`docs/CONTRACTS.md`, "Unknown keys are kept").
+  ///
+  /// Carried through every edit — each command builds its project from the
+  /// one before with this map — and empty for a project made here. A key this
+  /// build writes itself never lands here, and one here never overrides it.
+  final Map<String, Object?> unknown;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -759,6 +770,7 @@ final class ModelProject implements ModelProjectView {
       clips: clips,
       lighting: lighting,
       animationGraphs: animationGraphs,
+      unknown: unknown,
     );
   }
 
@@ -777,6 +789,7 @@ final class ModelProject implements ModelProjectView {
     clips: clips,
     lighting: lighting,
     animationGraphs: animationGraphs,
+    unknown: unknown,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -817,6 +830,7 @@ final class ModelProject implements ModelProjectView {
       clips: clips,
       lighting: lighting,
       animationGraphs: animationGraphs,
+      unknown: unknown,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -832,6 +846,7 @@ final class ModelProject implements ModelProjectView {
     List<ProjectClip>? clips,
     SceneLighting? lighting,
     Map<String, Map<String, Object?>>? animationGraphs,
+    Map<String, Object?>? unknown,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
@@ -842,6 +857,7 @@ final class ModelProject implements ModelProjectView {
     clips: clips ?? this.clips,
     lighting: lighting ?? this.lighting,
     animationGraphs: animationGraphs ?? this.animationGraphs,
+    unknown: unknown ?? this.unknown,
   );
 
   @override

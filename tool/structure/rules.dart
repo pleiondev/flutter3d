@@ -8,8 +8,14 @@ library;
 
 import 'dart:io';
 
+import 'api.dart';
+import 'boundaries.dart';
 import 'detectors.dart';
+import 'layers.dart';
+import 'migration.dart';
+import 'naming.dart';
 import 'repository.dart';
+import 'schema.dart';
 
 /// One rule: what it is called, and what it found.
 typedef Rule = ({String name, List<Finding> Function() run});
@@ -34,11 +40,16 @@ List<Rule> get allRules => <Rule>[
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
   (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
+  (
+    name: "no package reaches into another package's src",
+    run: _noForeignSrcImports,
+  ),
   (name: 'each assembly has one home per application', run: _oneAssembly),
   (name: 'no test builds its own world', run: _noHarnessAssembly),
   (name: 'the repository lists agree with the workspace', run: _listsAgree),
   (name: 'every exemption names a file that is there', run: _exemptionsResolve),
   (name: 'no application silences a print', run: _noSilencedPrints),
+  (name: 'no tracked source mutes the sound for now', run: _noTemporaryMutes),
   (name: 'the Impeller runners are reachable', run: _impellerRunners),
   (name: 'the document says how many tests there are', run: _testCount),
   (
@@ -46,6 +57,36 @@ List<Rule> get allRules => <Rule>[
     run: _gpuIsEnabled,
   ),
   (name: 'the publishing order names every package', run: _publishingOrder),
+  (name: 'a package depends only on the layers below it', run: _layersBelow),
+  (
+    name: 'the runtime depends on no editor, build tool or server',
+    run: _runtimeIsNoTool,
+  ),
+  (
+    name: 'the simulation stack imports nothing that draws',
+    run: _simulationDrawsNothing,
+  ),
+  (
+    name: 'the plugin API declares only the contract, within its budget',
+    run: _pluginContract,
+  ),
+  (
+    name: 'a package re-exports another only where the list allows it',
+    run: _reexportsAllowedOnly,
+  ),
+  (
+    name: 'no dependency is held only to re-export it',
+    run: _noReexportOnlyDependency,
+  ),
+  (name: 'a package depends on what its code names', run: _declareWhatYouName),
+  (
+    name: 'a public name has one home across the published packages',
+    run: _oneHomePerName,
+  ),
+  (
+    name: 'internal, builtin and testing libraries are reached only on purpose',
+    run: _restrictedLibraries,
+  ),
   (
     name: 'every package agrees about versions with the workspace',
     run: _versionsAgree,
@@ -97,6 +138,107 @@ List<Rule> get allRules => <Rule>[
     name: 'a package that says it runs on the web reaches no dart:io there',
     run: _webPackagesReachNoIo,
   ),
+  (
+    name: 'every published package declares its platforms, as SUPPORT.md says',
+    run: _platformsDeclared,
+  ),
+  (
+    name: 'every plugin marker names a class its own library declares',
+    run: _pluginMarkersResolve,
+  ),
+  (
+    name: 'a world\'s gravity, air and sea are read from the world',
+    run: _worldNumbersFromTheWorld,
+  ),
+  (
+    name: 'the core reads its substances from the generated catalogue header',
+    run: _coreReadsTheCatalogue,
+  ),
+  (
+    name: 'a light\'s intensity is lux or candela, not the pre-1.0 unit',
+    run: _lightIntensitiesInLux,
+  ),
+  (
+    name: 'every published API is the snapshot its package commits',
+    run: _apiSnapshotsCurrent,
+  ),
+  (
+    name: 'a break in a published API is labelled and versioned',
+    run: _apiBreaksLabelled,
+  ),
+  (
+    name: 'every deprecation names its versions and its replacement',
+    run: _deprecationsDated,
+  ),
+  (
+    name: 'every MCP tool and VM extension is the snapshot its package commits',
+    run: _schemaSnapshotsCurrent,
+  ),
+  (
+    name: 'a break in a tool or an extension is labelled and versioned',
+    run: _schemaBreaksLabelled,
+  ),
+  (
+    name: 'the flutter3d command is the surface its package commits',
+    run: _cliSurfaceCurrent,
+  ),
+  (
+    name: 'every versioned format has a fixture for each version it reads',
+    run: _formatFixtures,
+  ),
+  (name: '.f3d writes codes, not enum ordinals', run: _noEnumOrdinalsInFormats),
+  (
+    name: 'every break since the last release has its migration',
+    run: _breaksHaveMigrations,
+  ),
+  (
+    name: 'a type somebody implements is a base class, not an interface',
+    run: _noNewInterfaces,
+  ),
+  (
+    name: 'every exception hangs from Flutter3dException',
+    run: _exceptionsHaveTheRoot,
+  ),
+  (
+    name: 'public identifiers spell in American',
+    run: () => _namingRule(
+      (String snapshot, String package) => britishIdentifiersIn(snapshot),
+      britishSpellingAllowed,
+    ),
+  ),
+  (
+    name: 'a type has one teardown verb, and creation has its own verbs',
+    run: () => _namingRule(
+      (String snapshot, String package) => verbProblemsIn(snapshot),
+      verbAllowed,
+    ),
+  ),
+  (
+    name: 'no public name carries a unit the engine does not use',
+    run: () => _namingRule(
+      (String snapshot, String package) => unitSuffixesIn(snapshot),
+      unitSuffixAllowed,
+    ),
+  ),
+  (
+    name: 'a boolean reads as a question, and none is positional',
+    run: () => _namingRule(
+      (String snapshot, String package) => booleanProblemsIn(snapshot),
+      booleanAllowed,
+    ),
+  ),
+  (
+    name: 'no public constant is named with k',
+    run: () => _namingRule(
+      (String snapshot, String package) => kConstantsIn(snapshot),
+      const <String, String>{},
+    ),
+  ),
+  (
+    name: 'a settings class is final, const, and copies every field',
+    run: () => _namingRule(settingsProblemsIn, settingsAllowed),
+  ),
+  (name: 'every public number says its unit in its doc', run: _unitsDocumented),
 ];
 
 // ------------------------------------------------------------------- genre
@@ -274,7 +416,7 @@ List<Finding> _genreCameraTurnsTheRig() {
             '${entry.key}/$path',
             'is a camera that never names CameraRig — the smoothing, the '
                 'impulse decay and the pull out of walls are already written '
-                'once in flutter3d_sim; turn the rig, or add it to '
+                'once in flutter3d_camera; turn the rig, or add it to '
                 'notARigCamera and say what it does instead',
           ),
         );
@@ -315,10 +457,16 @@ List<Finding> _noSidewaysGenre() {
 /// describing as the thing that had just been removed: the default was exempt,
 /// so a new genre package got no scan until somebody edited a list. It is
 /// exclusions now — see [notARepeatableStep].
+///
+/// **And every application, minus the ones that step nothing** (decision 11
+/// of `tasks/0.9-plugins.md`). It scanned packages only, while a game's step
+/// is written in a demo first and moved into a package later, if ever: a
+/// clock read there was invisible until it moved. The tools and the pages are
+/// excused by [notARepeatedApp]; a demo's file that draws says so in
+/// [repeatableStepExempt], under the application's name.
 List<Finding> _repeatableStep() {
   final found = <Finding>[];
-  for (final entry in packages.entries) {
-    if (notARepeatableStep.containsKey(entry.key)) continue;
+  for (final entry in _steppedDirectories.entries) {
     final dir = entry.value;
     final exempt = repeatableStepExempt[entry.key] ?? const <String, String>{};
 
@@ -346,6 +494,19 @@ List<Finding> _repeatableStep() {
   }
   return found;
 }
+
+/// The packages and applications a run steps through, by name: what the
+/// repeatable-step and the portable-arithmetic rules both scan.
+///
+/// One set for both rules, for the reason [_portableStepArithmetic] gives —
+/// a directory a run steps through is one both apply to — and kept here so
+/// the two cannot drift apart by one of them learning about `apps/` alone.
+Map<String, Directory> get _steppedDirectories => <String, Directory>{
+  for (final entry in packages.entries)
+    if (!notARepeatableStep.containsKey(entry.key)) entry.key: entry.value,
+  for (final entry in apps.entries)
+    if (!notARepeatedApp.containsKey(entry.key)) entry.key: entry.value,
+};
 
 // ---------------------------------------------------------- the server's half
 
@@ -570,6 +731,36 @@ List<Finding> _hardwareNamesNoFlutter() {
               'hardwareMayUseFlutter with the reason',
         ),
   ];
+}
+
+/// A published package's `lib/` imports no other package's `lib/src/`.
+///
+/// **A semver hole otherwise**: `src/` is outside the API snapshot, so a
+/// package that reaches into another's can be broken by a patch release of
+/// it that no constraint forbids. What one engine package needs of another's
+/// internals is published as a library of its own — `flutter3d_shaders`'
+/// `internal.dart`, `flutter3d_cpu`'s `builtin.dart` — which the snapshot
+/// sees. Tests, examples and tools may still reach in; they are not
+/// published code.
+List<Finding> _noForeignSrcImports() {
+  final found = <Finding>[];
+  for (final MapEntry(key: name, value: dir) in packages.entries) {
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in dartFilesIn(lib)) {
+      for (final other in foreignSrcImports(file.readAsStringSync(), name)) {
+        found.add(
+          Finding(
+            '$name/${relative(file, dir)}',
+            "imports $other's src/, which is outside its API: publish what "
+                'is needed as a library of $other (as '
+                "flutter3d_shaders' internal.dart does) and import that",
+          ),
+        );
+      }
+    }
+  }
+  return found;
 }
 
 List<Finding> _engineNamesNoBackend() {
@@ -850,7 +1041,8 @@ List<Finding> _listsAgree() {
 
   final genresInWorkspace = <String>{
     for (final member in members)
-      if (member.startsWith('- packages/flutter3d_game_'))
+      if (member.startsWith('- packages/flutter3d_game_') &&
+          !notAGenre.containsKey(member.substring('- packages/'.length)))
         member.substring('- packages/'.length),
   };
   if (genrePackages.toSet().difference(genresInWorkspace).isNotEmpty ||
@@ -922,6 +1114,36 @@ List<Finding> _ruleCount() {
     'thirty-eight',
     'thirty-nine',
     'forty',
+    'forty-one',
+    'forty-two',
+    'forty-three',
+    'forty-four',
+    'forty-five',
+    'forty-six',
+    'forty-seven',
+    'forty-eight',
+    'forty-nine',
+    'fifty',
+    'fifty-one',
+    'fifty-two',
+    'fifty-three',
+    'fifty-four',
+    'fifty-five',
+    'fifty-six',
+    'fifty-seven',
+    'fifty-eight',
+    'fifty-nine',
+    'sixty',
+    'sixty-one',
+    'sixty-two',
+    'sixty-three',
+    'sixty-four',
+    'sixty-five',
+    'sixty-six',
+    'sixty-seven',
+    'sixty-eight',
+    'sixty-nine',
+    'seventy',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -1148,10 +1370,16 @@ List<Finding> _gpuIsEnabled() {
 /// the order is read on the day somebody publishes, which is the worst day to
 /// discover that two of the things being published are not in the plan.
 ///
-/// Only membership is checked, not the order itself. The order encodes which
-/// package depends on which, and a rule deriving that from the pubspecs would be
-/// re-deriving what the document exists to record — while the failure that
-/// actually happens is a package nobody added.
+/// **And the order is checked against the pubspecs** (Must 7 of
+/// `tasks/1.0-arch-review.md`). It used to be checked for membership only,
+/// on the reasoning that deriving it would re-derive what the document
+/// records; the document then put `flutter3d_plugin_api` after packages that
+/// need it, and three tiers held dependencies inside themselves. Each step
+/// is now a layer of the runtime graph: a package stands in a later step than
+/// everything in its `dependencies:`, a dev dependency is published before
+/// it unless [devDependencyPublishedLater] says why not, and nothing
+/// published names the unpublished step. [publishingOrderBreaks] is the
+/// check, proved in `proveDetectorsWork`.
 List<Finding> _publishingOrder() {
   final file = File('${repositoryRoot.path}/ARCHITECTURE.md');
   if (!file.existsSync()) {
@@ -1216,6 +1444,23 @@ List<Finding> _publishingOrder() {
       );
     }
   }
+
+  final graph = <String, ({Set<String> runtime, Set<String> dev})>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      if (File('${dir.path}/pubspec.yaml') case final pubspec
+          when pubspec.existsSync())
+        name: (
+          runtime: pubspecSection(pubspec.readAsStringSync(), 'dependencies'),
+          dev: pubspecSection(pubspec.readAsStringSync(), 'dev_dependencies'),
+        ),
+  };
+  for (final sentence in publishingOrderBreaks(
+    publishingLayers(block.toString()),
+    graph,
+    devDependencyPublishedLater,
+  )) {
+    found.add(Finding('ARCHITECTURE.md', sentence));
+  }
   return found;
 }
 
@@ -1278,6 +1523,25 @@ List<Finding> _exemptionsResolve() {
   for (final entry in repeatableStepExempt.entries) {
     for (final path in entry.value.keys) {
       check('repeatableStepExempt', entry.key, path);
+    }
+  }
+  // Checked since the applications joined the scan, which brought a table of
+  // their files with it: a demo is edited more often than a package, and a
+  // file it moved would leave an exemption wider than it reads.
+  for (final entry in portableStepExempt.entries) {
+    for (final path in entry.value.keys) {
+      check('portableStepExempt', entry.key, path);
+    }
+  }
+  for (final name in notARepeatedApp.keys) {
+    if (!apps.containsKey(name)) {
+      found.add(
+        Finding(
+          name,
+          'is excused from the determinism scans as an application and is '
+          'not one — the exemption outlived its subject',
+        ),
+      );
     }
   }
   // Keyed by the whole path, package and file in one string, because that is
@@ -1359,6 +1623,45 @@ List<Finding> _exemptionsResolve() {
 }
 
 // -------------------------------------------------------------- odds and ends
+
+List<Finding> _noTemporaryMutes() {
+  // The prose that tells this story (tasks/, the CHANGELOGs) is markdown and
+  // is not looked at; everything that runs is, whatever its language.
+  const Set<String> prose = <String>{'.md'};
+  final ProcessResult listed;
+  try {
+    listed = Process.runSync('git', <String>[
+      'ls-files',
+    ], workingDirectory: repositoryRoot.path);
+  } on ProcessException {
+    return const <Finding>[];
+  }
+  if (listed.exitCode != 0) return const <Finding>[];
+  final found = <Finding>[];
+  for (final path in (listed.stdout as String).split('\n')) {
+    if (path.isEmpty) continue;
+    final dot = path.lastIndexOf('.');
+    if (dot >= 0 && prose.contains(path.substring(dot))) continue;
+    final file = File('${repositoryRoot.path}/$path');
+    if (!file.existsSync()) continue;
+    final String text;
+    try {
+      text = file.readAsStringSync();
+    } on FileSystemException {
+      continue; // binary: an image or a compiled bundle says nothing here
+    }
+    for (final line in temporaryMutesIn(text)) {
+      found.add(
+        Finding(
+          '$path:$line',
+          'is marked $temporaryMuteMarker, a local mute meant to be reverted '
+              'before committing',
+        ),
+      );
+    }
+  }
+  return found;
+}
 
 List<Finding> _noSilencedPrints() {
   // `avoid_print` is on, so the only way one reaches an application's lib/ is
@@ -1650,6 +1953,46 @@ List<Finding> _testCount() {
     'forty-five',
     // And the day `flutter3d_mcp_kit` became the forty-sixth.
     'forty-six',
+    // And the day `flutter3d_plugin_api` became the forty-seventh.
+    'forty-seven',
+    // The post-processing addons arrived seven at once, the six families of
+    // `packages/addons/` and their `standard` preset, and the reel of game
+    // parts the addon plan names comes after them; so the list runs ahead
+    // again, as the comment at twenty-nine asks.
+    'forty-eight',
+    'forty-nine',
+    'fifty',
+    'fifty-one',
+    'fifty-two',
+    'fifty-three',
+    'fifty-four',
+    'fifty-five',
+    'fifty-six',
+    'fifty-seven',
+    'fifty-eight',
+    'fifty-nine',
+    'sixty',
+    // The game parts came fourteen at once, out of the demos and into
+    // `packages/addons/`, so the list runs to sixty-eight and a little past.
+    'sixty-one',
+    'sixty-two',
+    'sixty-three',
+    'sixty-four',
+    'sixty-five',
+    'sixty-six',
+    'sixty-seven',
+    'sixty-eight',
+    'sixty-nine',
+    'seventy',
+    // The day `flutter3d_addon_camera` became the seventy-first.
+    'seventy-one',
+    // And `flutter3d_demo_content`, the demos' content out of the genres.
+    'seventy-two',
+    // Then the count came down for the first time: 1.0.0-rc.1 merged
+    // twenty-seven packages into six (the addons into `flutter3d_game_kit`,
+    // `flutter3d_game_ui`, `flutter3d_camera` and `flutter3d_post`, the MCP
+    // servers into `flutter3d_mcp`, lab and LTI into `flutter3d_education`),
+    // and fifty-one is a word the list already had.
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(
@@ -2009,7 +2352,7 @@ List<Finding> _versionsAgree() {
       // chase a constraint pub already satisfies. What this still catches is
       // the real failure — a caret that cannot reach what the sibling
       // declares, which a workspace hides and a server would refuse.
-      if (!_caretCovers(asked, sibling.value)) {
+      if (!caretAdmits(asked, sibling.value)) {
         found.add(
           Finding(
             where,
@@ -2023,28 +2366,6 @@ List<Finding> _versionsAgree() {
   }
 
   return found;
-}
-
-/// Whether `^asked` admits [declared], by pub's caret rule: below 1.0.0 the
-/// minor is the breaking number, so `^0.4.0` reaches 0.4.x and stops at 0.5;
-/// from 1.0.0 the major is, so `^1.2.0` reaches 1.x from 1.2 up.
-bool _caretCovers(String asked, String declared) {
-  List<int>? parts(String version) {
-    final match = RegExp(r'^(\d+)\.(\d+)\.(\d+)').firstMatch(version);
-    if (match == null) return null;
-    return <int>[for (var i = 1; i <= 3; i++) int.parse(match.group(i)!)];
-  }
-
-  final a = parts(asked);
-  final d = parts(declared);
-  if (a == null || d == null) return asked == declared;
-
-  final sameFloor = a[0] == 0 ? d[0] == 0 && d[1] == a[1] : d[0] == a[0];
-  if (!sameFloor) return false;
-  for (var i = 0; i < 3; i++) {
-    if (d[i] != a[i]) return d[i] > a[i];
-  }
-  return true;
 }
 
 /// The value of a one-line `key: value` under `environment:` or at the top
@@ -2486,6 +2807,16 @@ List<File> _prosePages() {
 ///
 /// Shown to fire by putting both old numbers back — "the seven checks" and "two
 /// of the nine rules" — and watching it name each file and each right answer.
+///
+/// **Two suites live in the package now, and they are counted apart.** The
+/// plugin suite (`lib/plugins.dart`, its checks under `lib/src/plugins/`) is
+/// written as the same `name`/`run` records, because that is what a check is
+/// here — and counted into the backend total it would have told a backend
+/// author they were held to five checks that never see a device. So the
+/// backend total leaves `lib/src/plugins/` out, and "the five plugin checks"
+/// is a claim of its own, held to that directory alone, in the same files plus
+/// the package README a plugin author reads. Shown to fire by adding a sixth
+/// plugin check: the plugin sentences go stale and the backend ones do not.
 List<Finding> _conformanceCheckCount() {
   final lib = Directory(
     '${repositoryRoot.path}/packages/flutter3d_conformance/lib',
@@ -2515,7 +2846,15 @@ List<Finding> _conformanceCheckCount() {
     ];
   }
   final librarySource = library.readAsStringSync();
+  final pluginDir = '${lib.path}/src/plugins/';
+  bool isPluginCheck(File f) =>
+      f.path.replaceAll(Platform.pathSeparator, '/').startsWith(pluginDir);
   final total = dartFilesIn(lib)
+      .where((File f) => !isPluginCheck(f))
+      .map((File f) => checksIn(f.readAsStringSync()))
+      .fold(0, (int a, int b) => a + b);
+  final plugin = dartFilesIn(lib)
+      .where(isPluginCheck)
       .map((File f) => checksIn(f.readAsStringSync()))
       .fold(0, (int a, int b) => a + b);
 
@@ -2566,6 +2905,11 @@ List<Finding> _conformanceCheckCount() {
       (RegExpMatch m) => semantics,
       'rules in ARCHITECTURE.md §7.2',
     ),
+    (
+      RegExp(r'[Tt]he ([\w-]+) plugin checks'),
+      (RegExpMatch m) => plugin,
+      'plugin checks',
+    ),
   ];
 
   const words = _countedInWords;
@@ -2582,6 +2926,7 @@ List<Finding> _conformanceCheckCount() {
       'packages/flutter3d_cpu/test/conformance_test.dart',
       'packages/flutter3d_webgl/test/conformance_test.dart',
       'packages/flutter3d/example/lib/conformance_main.dart',
+      'packages/flutter3d_conformance/README.md',
     ].map((String at) => File('${repositoryRoot.path}/$at')),
     ..._prosePages(),
   ]) {
@@ -2708,7 +3053,7 @@ List<Finding> _hardwareEnumCount() {
 /// `Renderer.create` throws on the first name it cannot find, and the page is
 /// the only place a backend author reads that list before writing one.
 ///
-/// A test already keeps `kRequiredShaders` and the bundle manifest in step with
+/// A test already keeps `requiredShaders` and the bundle manifest in step with
 /// each other. Nothing kept the page in step with either, which is how a list
 /// that was right on the day it was typed came to be eleven short — the sky, the
 /// object-id pass, the x-ray stage, instanced and lightmapped vertices, SSAO,
@@ -2885,12 +3230,12 @@ List<Finding> _boundaryEnums() {
 ///
 /// **Scanned by exclusion, like the repeatable-step rule beside it**, and over
 /// exactly the same set: a package a run steps through is a package both rules
-/// apply to. See [notARepeatableStep] for what that set is and
+/// apply to. See [notARepeatableStep] and [notARepeatedApp] for what that set
+/// is — applications included since step 8 of `tasks/0.9-plugins.md` — and
 /// [portableStepExempt] for the files inside it that draw rather than step.
 List<Finding> _portableStepArithmetic() {
   final found = <Finding>[];
-  for (final entry in packages.entries) {
-    if (notARepeatableStep.containsKey(entry.key)) continue;
+  for (final entry in _steppedDirectories.entries) {
     final dir = entry.value;
     final exempt = portableStepExempt[entry.key] ?? const <String, String>{};
 
@@ -3230,6 +3575,466 @@ List<Finding> _webPackagesReachNoIo() {
   return found;
 }
 
+// --------------------------------------------------------------- platforms
+
+/// Every published package declares `platforms:`, `SUPPORT.md` lists each
+/// one with the same set, and names every backend.
+///
+/// **Four of forty-seven pubspecs declared it on 2026-10-08**, so pub.dev
+/// guessed the rest from imports, and a guess is not a promise anybody can
+/// hold a release to. The declaration is the promise; the table in
+/// `SUPPORT.md` is where a reader finds it; and this keeps the two the same
+/// thing, in both directions, because a table that lists a package the tree
+/// no longer publishes is as wrong as one that leaves a package out.
+///
+/// A backend is a published package with a class that implements
+/// `GraphicsDevice`, other than `flutter3d_hardware`, whose own
+/// `RecordingDevice` wraps one. Each has to be named in `SUPPORT.md`, so a
+/// fifth backend arrives with a column of support levels or not at all.
+///
+/// Mutation: delete the `platforms:` block from any published pubspec, add
+/// `web` to one row of the table, or rename `flutter3d_cpu` in `SUPPORT.md`,
+/// and this names the file and what disagrees.
+List<Finding> _platformsDeclared() {
+  final found = <Finding>[];
+  final support = File('${repositoryRoot.path}/SUPPORT.md');
+  final table = support.existsSync()
+      ? packagePlatformRows(support.readAsStringSync())
+      : null;
+  if (table == null) {
+    found.add(
+      const Finding(
+        'SUPPORT.md',
+        'is not there: the platform matrix and the support policy live in it',
+      ),
+    );
+  }
+  final published = _publishedPackages;
+
+  for (final entry in published.entries) {
+    final where = '${entry.key}/pubspec.yaml';
+    final declared = declaredPlatforms(
+      File('${entry.value.path}/pubspec.yaml').readAsStringSync(),
+    );
+    if (declared == null || declared.isEmpty) {
+      found.add(
+        Finding(
+          where,
+          'declares no `platforms:`, so pub.dev guesses them from imports. '
+          'Say which of ${knownPlatforms.join(', ')} it runs on, and list it '
+          'in SUPPORT.md',
+        ),
+      );
+      continue;
+    }
+    final unknown = declared.difference(knownPlatforms);
+    if (unknown.isNotEmpty) {
+      found.add(
+        Finding(
+          where,
+          'declares ${unknown.join(', ')}, which pub.dev does not know; it '
+          'knows ${knownPlatforms.join(', ')}',
+        ),
+      );
+    }
+    if (table == null) continue;
+    final listed = table[entry.key];
+    if (listed == null) {
+      found.add(
+        Finding(
+          'SUPPORT.md',
+          'has no row for `${entry.key}`, which declares '
+              '${(declared.toList()..sort()).join(', ')}',
+        ),
+      );
+    } else if (listed.length != declared.length ||
+        !listed.containsAll(declared)) {
+      found.add(
+        Finding(
+          'SUPPORT.md',
+          'says `${entry.key}` runs on ${(listed.toList()..sort()).join(', ')}; '
+              'its pubspec declares ${(declared.toList()..sort()).join(', ')}',
+        ),
+      );
+    }
+  }
+
+  if (table == null) return found;
+  for (final name in table.keys) {
+    if (!published.containsKey(name)) {
+      found.add(
+        Finding(
+          'SUPPORT.md',
+          'lists `$name`, which is not a published package here',
+        ),
+      );
+    }
+  }
+
+  final text = support.readAsStringSync();
+  for (final entry in published.entries) {
+    if (entry.key == 'flutter3d_hardware') continue;
+    final isBackend = dartFilesIn(
+      Directory('${entry.value.path}/lib'),
+    ).any((File file) => implementsGraphicsDevice(file.readAsStringSync()));
+    if (isBackend && !text.contains('`${entry.key}`')) {
+      found.add(
+        Finding(
+          'SUPPORT.md',
+          'never names `${entry.key}`, which implements GraphicsDevice: a '
+              'backend needs its support levels written down',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------------ plugin markers
+
+/// Every `flutter3d_plugins:` entry of a package names one of its own
+/// libraries, and that library reaches a class of the name it gives — and
+/// no package of this repository still uses the marker of before 1.0,
+/// `flutter3d: plugin:`, which discovery reads only as a deprecated alias.
+///
+/// **A marker is a string nothing compiles.** Discovery copies it into an
+/// application's `plugins.g.dart`, so a library that moved or a class that
+/// was renamed is found by the first application that builds against the
+/// package — somebody else's, after it is published. `flutter3d_post` holds
+/// twenty-three of them in one pubspec, and the merge that made it moved
+/// every library they name; this is what said each one still resolves.
+///
+/// The library has to be the package's own, as discovery insists, and the
+/// class is looked for in the library and in what it exports from inside
+/// the package, the way a family's barrel hands out its `src/` classes.
+///
+/// Mutation: rename `BloomAddon` in `flutter3d_post`'s marker, or point a
+/// library key at `lights.dart`, and this names the entry.
+List<Finding> _pluginMarkersResolve() {
+  final found = <Finding>[];
+  for (final MapEntry(key: name, value: dir) in packages.entries) {
+    final pubspec = File('${dir.path}/pubspec.yaml');
+    final text = pubspec.readAsStringSync();
+    final entries = pluginMarkerEntries(text);
+    if (entries == null) continue;
+    final where = '$name/pubspec.yaml';
+    if (usesLegacyPluginMarker(text)) {
+      found.add(
+        Finding(
+          where,
+          'marks its plugins with `flutter3d: plugin:`, the key before 1.0: '
+          'move them to `flutter3d_plugins:`',
+        ),
+      );
+    }
+    if (entries.isEmpty) {
+      found.add(
+        Finding(where, 'has a `flutter3d_plugins:` that names nothing'),
+      );
+    }
+    for (final entry in entries) {
+      final hash = entry.lastIndexOf('#');
+      final import = hash < 0 ? '' : entry.substring(0, hash);
+      final className = hash < 0 ? '' : entry.substring(hash + 1);
+      final own = 'package:$name/';
+      final path = import.startsWith('package:')
+          ? (import.startsWith(own) ? import.substring(own.length) : null)
+          : import;
+      if (hash < 0 || path == null || !path.endsWith('.dart')) {
+        found.add(
+          Finding(
+            where,
+            '`$entry` is not `<one of $name\'s libraries>#<Class>`',
+          ),
+        );
+        continue;
+      }
+      final library = File('${dir.path}/lib/$path');
+      if (!library.existsSync()) {
+        found.add(
+          Finding(where, '`$entry` names lib/$path, which is not there'),
+        );
+        continue;
+      }
+      if (!_reachesClass(library, className, <String>{})) {
+        found.add(
+          Finding(
+            where,
+            '`$entry`: lib/$path declares no class `$className` and exports '
+            'none from the package',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// Whether [library], or a library of the same package it exports, declares
+/// a class named [className].
+bool _reachesClass(File library, String className, Set<String> seen) {
+  if (!seen.add(library.absolute.path) || !library.existsSync()) return false;
+  final source = library.readAsStringSync();
+  if (RegExp(
+    '^(?:[a-z]+ )*class ${RegExp.escape(className)}\\b',
+    multiLine: true,
+  ).hasMatch(source)) {
+    return true;
+  }
+  for (final m in RegExp(
+    r"^export\s+'([^':]+)'([^;]*);",
+    multiLine: true,
+  ).allMatches(source)) {
+    final hide = RegExp(r'\bhide\s+([\w\s,]+)').firstMatch(m.group(2)!);
+    if (hide != null &&
+        hide
+            .group(1)!
+            .split(',')
+            .map((String s) => s.trim())
+            .contains(className)) {
+      continue;
+    }
+    final show = RegExp(r'\bshow\s+([\w\s,]+)').firstMatch(m.group(2)!);
+    if (show != null &&
+        !show
+            .group(1)!
+            .split(',')
+            .map((String s) => s.trim())
+            .contains(className)) {
+      continue;
+    }
+    final next = File.fromUri(library.absolute.uri.resolve(m.group(1)!));
+    if (_reachesClass(next, className, seen)) return true;
+  }
+  return false;
+}
+
+// ------------------------------------------------------- a world's numbers
+
+/// No library writes a world's gravity, air or sea as a number.
+///
+/// **Twenty-five places had their own 9.81** — a cloth's default, a fire's
+/// embers, a weir's flow, a diver's depth gauge — beside a core whose world
+/// already had a gravity a game could set. A level on the Moon would have
+/// been the Moon for the bodies and the Earth for everything around them,
+/// and nothing would have said so. What belongs to the world is read from
+/// the world (`NativeWorld.gravity`, `gravityMagnitude`, `airTemperature`,
+/// `airPressure`); what belongs to a substance from its preset
+/// (`NativeLiquidProperties.water`); and each default is written once,
+/// in `flutter3d_physics`' `standard_world.dart` or on its preset.
+///
+/// **Any gravity of a game's own counts too** (decision 1 of
+/// `tasks/1.0-physics-audit.md`): a gravity-named default given a number, a
+/// down vector where gravity is named, a buoyancy as an acceleration and a
+/// particle falling by a number of its own of eight or more — so a dynamics
+/// at 22 beside characters at 24 and a car at 20 cannot come back. A game's
+/// world is set once where it stages, and [worldLiteralExempt] names those
+/// lines with the game they tune.
+///
+/// Every library, applications and the education packages included —
+/// a demo's diver is a consumer like any other. [worldLiteralExempt] names
+/// the definitions and the numbers that only look like one, each with its
+/// reason; an entry that no longer matches is reported, so the list cannot
+/// outlive what it excuses.
+List<Finding> _worldNumbersFromTheWorld() {
+  final found = <Finding>[];
+  final education = Directory('${repositoryRoot.path}/packages/education');
+  final scanned = <String, Directory>{
+    ...packages,
+    ...apps,
+    if (education.existsSync())
+      for (final dir in education.listSync().whereType<Directory>())
+        if (File('${dir.path}/pubspec.yaml').existsSync())
+          'education/${dir.path.split(Platform.pathSeparator).last}': dir,
+  };
+  final used = <String, Set<String>>{};
+  for (final entry in scanned.entries) {
+    for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
+      final where = '${entry.key}/${relative(file, entry.value)}';
+      final exempt = worldLiteralExempt[where] ?? const <String, String>{};
+      for (final hit in worldLiteralsIn(file.readAsStringSync())) {
+        if (exempt.containsKey(hit.literal)) {
+          (used[where] ??= <String>{}).add(hit.literal);
+          continue;
+        }
+        found.add(
+          Finding(
+            '$where:${hit.line}',
+            '${hit.literal} is ${hit.what} — read it from the world it '
+                'belongs to (`CollisionWorld.properties`, `NativeWorld`), or '
+                'the substance\'s catalogue entry (`Materials`); a default is '
+                'written once, in standard_world.dart or the catalogue, and '
+                'a game\'s own world once, where it stages',
+          ),
+        );
+      }
+    }
+  }
+  for (final entry in worldLiteralExempt.entries) {
+    for (final literal in entry.value.keys) {
+      if (!(used[entry.key]?.contains(literal) ?? false)) {
+        found.add(
+          Finding(
+            'worldLiteralExempt → ${entry.key}',
+            'excuses $literal, which is no longer there; take it off the list',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------- a light's number
+
+/// No light is lit with a number in the renderer's pre-1.0 unit.
+///
+/// **Lights became lux and candela in 1.0, and a literal does not move with
+/// them.** `migrate` carried code that wrote `x * Photometric.legacyUnit`,
+/// but a plain `intensity: 16.0` stayed 16 — and 16 candela where 92 650 was
+/// meant is a starter project that opens on a black screen, a default sun of
+/// 2.6 lux in `Daylight`, and a showcase page lit by a candle. Each was
+/// found by an audit rather than by anything that runs.
+///
+/// Libraries, examples, applications, and the Dart in the site's pages and
+/// the READMEs: a snippet somebody copies is a scene somebody lights. A light
+/// meant to be that dim says so with a comment naming its unit on the line
+/// or the line above, which [smallLightIntensitiesIn] reads as kept.
+List<Finding> _lightIntensitiesInLux() {
+  final found = <Finding>[];
+  void scan(String where, String source) {
+    for (final hit in smallLightIntensitiesIn(source)) {
+      found.add(
+        Finding(
+          '$where:${hit.line}',
+          'intensity ${hit.literal} reads as the pre-1.0 unit, but since 1.0 '
+              'it is ${hit.literal} lux or candela — write the light in lux '
+              'or candela, or say in a comment on the line that it is meant '
+              'to be that dim',
+        ),
+      );
+    }
+  }
+
+  final root = repositoryRoot.path;
+  for (final entry in <String, Directory>{...packages, ...apps}.entries) {
+    for (final sub in const <String>['lib', 'example/lib']) {
+      for (final file in dartFilesIn(Directory('${entry.value.path}/$sub'))) {
+        scan(
+          '${entry.key}/${relative(file, entry.value)}',
+          file.readAsStringSync(),
+        );
+      }
+    }
+    for (final name in const <String>['README.md', 'example/example.md']) {
+      final file = File('${entry.value.path}/$name');
+      if (file.existsSync()) {
+        scan('${entry.key}/$name', dartBlocksOf(file.readAsStringSync()));
+      }
+    }
+  }
+  final site = Directory('$root/site/content');
+  if (site.existsSync()) {
+    for (final file in site.listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.md')) continue;
+      scan(
+        'site/content/${relative(file, site)}',
+        dartBlocksOf(file.readAsStringSync()),
+      );
+    }
+  }
+  return found;
+}
+
+/// The C core reads a substance's number, nature's constants and the
+/// standard world from the header generated from the catalogue, and the
+/// header is what the catalogue makes.
+///
+/// **Two halves.** The header (`csrc/src/f3d_materials.g.h`) is written by
+/// `flutter3d_physics_native`'s `tool/gen_materials.dart` from
+/// `flutter3d_physics`' `Materials`, `physical_constants.dart` and
+/// `standard_world.dart`; `--check` says whether it is current. That needs
+/// the resolved workspace, so before `pub get` the half says nothing, as the
+/// API rule does, and `tool/ci.sh` runs the scan again after. The other half
+/// reads every C source of the core for a `#define` that is a second copy:
+/// water's, the air's, the world's or σ under a name of its own
+/// ([cDefinesCopyingTheWorldIn]), or a material's number under its name
+/// ([cDefinesCopyingMaterialsIn]) — the way water's specific heat came to
+/// be 4186 in the heat model and 4182 everywhere else.
+///
+/// Mutation: put `#define F3D_WATER_HEAT F3D_R(4186.0)` back into
+/// `f3d_heat.c`, or change water's density in `materials.dart` without
+/// regenerating, and this names the file.
+List<Finding> _coreReadsTheCatalogue() {
+  final found = <Finding>[];
+  final native = packages['flutter3d_physics_native'];
+  if (native == null) return found;
+  final header = File('${native.path}/csrc/src/f3d_materials.g.h');
+  if (!header.existsSync()) {
+    return <Finding>[
+      Finding(
+        'flutter3d_physics_native/csrc/src/f3d_materials.g.h',
+        'missing: run `dart run tool/gen_materials.dart` in '
+            'flutter3d_physics_native',
+      ),
+    ];
+  }
+  final headerText = header.readAsStringSync();
+  final values = materialValuesIn(headerText, materialNamesIn(headerText));
+  final sources =
+      Directory('${native.path}/csrc')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where(
+            (File f) =>
+                (f.path.endsWith('.c') || f.path.endsWith('.h')) &&
+                !f.path.endsWith('f3d_materials.g.h'),
+          )
+          .toList()
+        ..sort((File a, File b) => a.path.compareTo(b.path));
+  for (final file in sources) {
+    final text = file.readAsStringSync();
+    final where = 'flutter3d_physics_native/${relative(file, native)}';
+    for (final hit in cDefinesCopyingTheWorldIn(text)) {
+      found.add(
+        Finding(
+          '$where:${hit.line}',
+          '${hit.name} is a copy of a world\'s, water\'s, air\'s or nature\'s '
+              'number: use the F3D_STANDARD_* / F3D_MAT_* / '
+              'F3D_STEFAN_BOLTZMANN the generated header gives',
+        ),
+      );
+    }
+    for (final hit in cDefinesCopyingMaterialsIn(text, values: values)) {
+      found.add(
+        Finding(
+          '$where:${hit.line}',
+          '${hit.name} copies a number of the catalogue\'s material: use its '
+              'F3D_MAT_* from the generated header',
+        ),
+      );
+    }
+  }
+  final config = File('${repositoryRoot.path}/.dart_tool/package_config.json');
+  if (!config.existsSync()) return found;
+  final result = Process.runSync(Platform.resolvedExecutable, <String>[
+    'run',
+    'tool/gen_materials.dart',
+    '--check',
+  ], workingDirectory: native.path);
+  if (result.exitCode != 0) {
+    found.add(
+      Finding(
+        'flutter3d_physics_native/csrc/src/f3d_materials.g.h',
+        'is not what the catalogue makes: run `dart run '
+            'tool/gen_materials.dart` in flutter3d_physics_native '
+            '(${'${result.stderr}'.trim().split('\n').last})',
+      ),
+    );
+  }
+  return found;
+}
+
 /// Every import and export in [source], each as the browser's build takes
 /// it: a conditional one by its web branch when it names one, by its
 /// default when it asks for `dart.library.io` the browser has not.
@@ -3266,4 +4071,1619 @@ File? _resolveInRepository(String uri, File from) {
     return File('${home.path}/lib/${rest.substring(slash + 1)}');
   }
   return File.fromUri(from.absolute.uri.resolve(uri));
+}
+
+// -------------------------------------------------------- the public API
+
+/// Every package that goes to pub.dev, by name: `packages/*` and
+/// `packages/education/*`, without the ones whose pubspec says
+/// `publish_to: none`.
+Map<String, Directory> get _publishedPackages {
+  final education = Directory('${repositoryRoot.path}/packages/education');
+  final all = <String, Directory>{
+    ...packages,
+    if (education.existsSync())
+      for (final dir in education.listSync().whereType<Directory>())
+        if (File('${dir.path}/pubspec.yaml').existsSync())
+          dir.path.split(Platform.pathSeparator).last: dir,
+  };
+  return <String, Directory>{
+    for (final entry in all.entries)
+      if (!RegExp(
+        r'''^publish_to:\s*['"]?none''',
+        multiLine: true,
+      ).hasMatch(File('${entry.value.path}/pubspec.yaml').readAsStringSync()))
+        entry.key: entry.value,
+  };
+}
+
+Version? _pubspecVersion(String pubspec) {
+  final line = _pubspecVersionText(pubspec);
+  return line == null ? null : parseVersion(line);
+}
+
+/// The pubspec's `version:` as written, pre-release and all.
+String? _pubspecVersionText(String pubspec) =>
+    RegExp(r'^version:\s*(\S+)', multiLine: true).firstMatch(pubspec)?.group(1);
+
+/// Every published package's `api/<package>.api` is what its source makes.
+///
+/// **The one rule here that needs a resolved workspace**, because the
+/// snapshot is parsed by the analyzer and this scan runs before `pub get`.
+/// So it starts `tool/api` as a program, and on a checkout with no
+/// `.dart_tool/package_config.json` naming the analyzer it has nothing to run
+/// and says nothing — which is the shader-freshness shape, answered the same
+/// way: `tool/ci.sh` asks for this rule again by name after `pub get`, where
+/// it cannot be skipped.
+///
+/// Mutation: add a member to any public type, or rename a parameter, without
+/// `--update`, and this names the package with the count of breaks.
+List<Finding> _apiSnapshotsCurrent() => _snapshotsCurrent(
+  program: 'api_snapshot',
+  update: 'dart run api_snapshot --update',
+);
+
+/// Every published package's `api/<package>.mcp` and `api/<package>.vm` are
+/// what its source makes: the tools its MCP servers offer an agent, and the
+/// VM service extensions and game events a running game offers an editor.
+///
+/// **The API rule's shape, for callers that never compile.** A host config
+/// names a tool, a model reads a schema, and an attached editor calls
+/// `ext.flutter3d.level.apply` with string parameters; a rename breaks all
+/// three and nothing here fails, because the callers are not here. Like the
+/// API rule it needs the resolved workspace — the tool builds the plain Dart
+/// servers and parses the rest — so it says nothing before `pub get`, and
+/// `tool/ci.sh` asks for it again by name after (its name holds the words
+/// that step asks for).
+///
+/// Mutation: rename a tool, add a required argument to one, or stop reading
+/// a parameter in an extension's handler, without `--update`, and this
+/// names the package and the file with the count of breaks.
+List<Finding> _schemaSnapshotsCurrent() => _snapshotsCurrent(
+  program: 'api_snapshot:schema_snapshot',
+  update: 'dart run api_snapshot:schema_snapshot --update',
+);
+
+/// Runs `tool/api`'s [program] with `--check --brief` and reads its lines.
+List<Finding> _snapshotsCurrent({
+  required String program,
+  required String update,
+}) {
+  final root = repositoryRoot;
+  final config = File('${root.path}/.dart_tool/package_config.json');
+  if (!config.existsSync() ||
+      !config.readAsStringSync().contains('"name": "analyzer"')) {
+    return const <Finding>[];
+  }
+  final result = Process.runSync(Platform.resolvedExecutable, <String>[
+    'run',
+    program,
+    '--check',
+    '--brief',
+  ], workingDirectory: '${root.path}/tool/api');
+  if (result.exitCode == 0) return const <Finding>[];
+  final lines = (result.stdout as String)
+      .split('\n')
+      .where((String l) => l.contains('\t'))
+      .toList();
+  if (lines.isEmpty) {
+    return <Finding>[
+      Finding(
+        'tool/api',
+        'the snapshot tool failed (exit ${result.exitCode}): '
+            '${(result.stderr as String).trim()}',
+      ),
+    ];
+  }
+  return <Finding>[
+    for (final line in lines)
+      if (line.split('\t') case [final name, final what])
+        Finding(
+          'packages/$name',
+          what.startsWith('there is no')
+              ? '$what: a published package without one has a surface '
+                    'nobody is watching. Run `$update $name` in tool/api'
+              : '$what. If it is deliberate, decide the version, write it '
+                    'in CHANGELOG.md, and run `$update $name` in tool/api; '
+                    '`dart run $program $name` there shows each change '
+                    'classified',
+        ),
+  ];
+}
+
+/// A change to a published API since the last release is versioned as what
+/// it is, and a break is labelled in the CHANGELOG.
+///
+/// **Against the last release, not the last commit.** The snapshot the
+/// previous rule holds is always current, so on its own it says nothing about
+/// what the next release owes: a break committed in March is just as much a
+/// break in June. The baseline is `api/<package>.api` and the pubspec version
+/// at the newest `vX.Y.Z` tag — read with `git show`, which changes nothing.
+/// A package with no snapshot at that tag has no promise to break yet, so the
+/// pre-1.0 baseline asks nothing of anybody.
+///
+/// What it asks, classified by `classifyApi` in `api.dart`:
+///
+///  * a break: the pubspec has moved a major (a minor, before 1.0) past the
+///    tag, and the top CHANGELOG section has a `**Breaking:` entry naming
+///    each broken name as code;
+///  * an addition: the pubspec has moved a minor past the tag (any release,
+///    before 1.0). A patch adds nothing.
+///
+/// Mutation: remove a public member, regenerate the snapshot, and this asks
+/// for the label and the major until both are there.
+List<Finding> _apiBreaksLabelled() => _breaksSinceRelease(
+  surface: 'the API',
+  snapshotsOf: (String name) => <String>['api/$name.api'],
+  classify: classifyApi,
+  diff: 'dart run api_snapshot --diff',
+);
+
+/// A change to the tools a published package offers an agent or an editor
+/// since the last release is versioned as what it is, and a break is
+/// labelled in the CHANGELOG — the API rule above, over `api/<package>.mcp`
+/// and `api/<package>.vm`, classified by `classifySchema` in `schema.dart`.
+///
+/// **And a server's own number moves with it.** Each server announces a
+/// schema version in its `initialize` result, so a host can tell whether the
+/// tool list it cached still holds; a change that needs a major or a minor
+/// of the package needs the same of that number, read from the snapshot's
+/// `schema` line at the tag and now.
+///
+/// Mutation: drop a tool, or add a required argument to one, regenerate the
+/// snapshot, and this asks for the major, the schema version and the
+/// labelled CHANGELOG entry naming the tool, until all three are there.
+List<Finding> _schemaBreaksLabelled() => _breaksSinceRelease(
+  surface: 'the tools',
+  snapshotsOf: (String name) => <String>['api/$name.mcp', 'api/$name.vm'],
+  classify: classifySchema,
+  diff: 'dart run api_snapshot:schema_snapshot --diff',
+  versionsIn: schemaVersions,
+);
+
+/// What [_apiBreaksLabelled] and [_schemaBreaksLabelled] share: each
+/// snapshot [snapshotsOf] names for a published package, at the newest
+/// `vX.Y.Z` tag against now, classified by [classify], and the pubspec, the
+/// CHANGELOG and — when [versionsIn] reads any from the snapshot — each
+/// server's own schema version held to what the changes need.
+List<Finding> _breaksSinceRelease({
+  required String surface,
+  required List<String> Function(String package) snapshotsOf,
+  required List<ApiChange> Function(String before, String after) classify,
+  required String diff,
+  Map<String, String> Function(String snapshot)? versionsIn,
+}) {
+  final root = repositoryRoot;
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync('git', args, workingDirectory: root.path);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  // Newest first in semver's order, so `v1.0.0` is newer than the
+  // `v1.0.0-rc.1` before it rather than tied with it.
+  final tags =
+      <String>[
+        for (final tag in (git(<String>['tag', '--list', 'v*']) ?? '').split(
+          '\n',
+        ))
+          if (parseVersion(tag.trim().replaceFirst('v', '')) != null)
+            tag.trim(),
+      ]..sort(
+        (String a, String b) =>
+            compareVersionTexts(b.substring(1), a.substring(1))!,
+      );
+  if (tags.isEmpty) return const <Finding>[];
+  final tag = tags.first;
+  final atTag =
+      (git(<String>['ls-tree', '-r', '--name-only', tag, '--', 'packages']) ??
+              '')
+          .split('\n')
+          .toSet();
+
+  final found = <Finding>[];
+  for (final entry in _publishedPackages.entries) {
+    final name = entry.key;
+    final home = entry.value.path
+        .substring(root.path.length + 1)
+        .replaceAll(Platform.pathSeparator, '/');
+    for (final snapshot in snapshotsOf(name)) {
+      final path = '$home/$snapshot';
+      if (!atTag.contains(path)) continue;
+      final released = git(<String>['show', '$tag:$path']);
+      final file = File('${root.path}/$path');
+      if (released == null || !file.existsSync()) continue;
+      final current = file.readAsStringSync();
+      final changes = classify(released, current);
+      final needed = requiredBump(changes);
+      if (needed == Bump.none) continue;
+      final hint =
+          '${changes.length} changes; run `$diff` in tool/api against '
+          '`git show $tag:$path` to see them';
+
+      final then = _pubspecVersionText(
+        git(<String>['show', '$tag:$home/pubspec.yaml']) ?? '',
+      );
+      final now = _pubspecVersionText(
+        File('${entry.value.path}/pubspec.yaml').readAsStringSync(),
+      );
+      if (then != null && now != null && !bumpIsEnoughFrom(needed, then, now)) {
+        found.add(
+          Finding(
+            '$home/pubspec.yaml',
+            '$surface ${needed == Bump.major ? 'broke' : 'grew'} since $tag '
+                '($hint), and $now is not '
+                '${preReleaseOf(then).isEmpty ? 'a ${needed == Bump.major ? 'major' : 'minor'} release' : 'a release'} '
+                'past $then',
+          ),
+        );
+      }
+
+      // Each server's own schema version, against what its changes need.
+      if (versionsIn != null) {
+        final promised = versionsIn(released);
+        final announced = versionsIn(current);
+        for (final server in promised.keys.where(announced.containsKey)) {
+          final own = requiredBump(
+            changes.where((ApiChange c) => c.library == server),
+          );
+          final v0 = parseVersion(promised[server]!);
+          final v1 = parseVersion(announced[server]!);
+          if (own == Bump.none || v0 == null || v1 == null) continue;
+          if (!bumpIsEnough(own, v0, v1)) {
+            found.add(
+              Finding(
+                path,
+                'the server `$server` ${own == Bump.major ? 'broke' : 'grew'} '
+                'since $tag ($hint), and its schema version '
+                '${announced[server]} is not a '
+                '${own == Bump.major ? 'major' : 'minor'} past '
+                '${promised[server]}: move the constant it announces',
+              ),
+            );
+          }
+        }
+      }
+
+      if (needed != Bump.major) continue;
+      final changelog = File('${entry.value.path}/CHANGELOG.md');
+      final section = topSection(
+        changelog.existsSync() ? changelog.readAsStringSync() : '',
+      );
+      if (breakingEntries(section.text).isEmpty) {
+        found.add(
+          Finding(
+            '$home/CHANGELOG.md',
+            '$surface broke since $tag and the ${section.heading} section '
+                'has no "$breakingLabel" entry',
+          ),
+        );
+        continue;
+      }
+      for (final subject in unnamedBreaks(changes, section.text)) {
+        found.add(
+          Finding(
+            '$home/CHANGELOG.md',
+            '`$subject` broke since $tag and no "$breakingLabel" entry of '
+                'the ${section.heading} section names it',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// Every `@Deprecated` in a published package says when it was deprecated,
+/// when it goes, and what to use instead, in the one format
+/// `deprecationVersions` reads; no bare `@deprecated`, which says none of it.
+///
+/// **A deprecation is a date with the people who call it.** Without the
+/// versions nobody can tell which ones the next major is allowed to remove,
+/// and without the replacement the warning tells a caller to stop without
+/// telling them what to do. One overdue — still here at or past its removal
+/// version — fails too, because a promise to remove that is not kept teaches
+/// callers that the dates mean nothing.
+///
+/// Mutation: drop the version sentence from any of them, or bump a package
+/// to its removal version, and this names the file and line.
+List<Finding> _deprecationsDated() {
+  final found = <Finding>[];
+  for (final entry in _publishedPackages.entries) {
+    final version = _pubspecVersion(
+      File('${entry.value.path}/pubspec.yaml').readAsStringSync(),
+    );
+    if (version == null) continue;
+    for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
+      for (final d in deprecationsIn(file.readAsStringSync())) {
+        final where = '${_inRepository(file)}:${d.line}';
+        final message = d.message;
+        if (message == null) {
+          found.add(
+            Finding(
+              where,
+              'a deprecation with no message as a string literal: write '
+              "@Deprecated('Use X. Deprecated in A.B.C, removed in "
+              "N.0.0.')",
+            ),
+          );
+          continue;
+        }
+        final problem = deprecationProblem(message, version);
+        if (problem != null) found.add(Finding(where, 'its message $problem'));
+      }
+    }
+  }
+  return found;
+}
+
+/// Every break of a published API since the newest release tag has an entry
+/// in a migration table, `packages/flutter3d_build/lib/migrations/*.yaml`:
+/// a fix `dart fix` or the `flutter3d_lints` migrator carries out, or a
+/// `manual` entry saying what a person does, or a `none` entry saying why
+/// no call is affected.
+///
+/// **A break comes with its migration.** The rule above makes a break a
+/// version decision and a CHANGELOG line; this one makes it the work of
+/// moving somebody's code too, written down where the tools read it. The
+/// release's API is `tool/api/baseline/<tag>/` when the release predates
+/// the snapshots (0.8.5, written by `api_snapshot:api_baseline`), and the
+/// snapshot at the tag otherwise; each published package's
+/// `api/<package>.api` is now. What counts as covered, and the three changes
+/// the classifier calls breaks that no call can see, are in `migration.dart`.
+///
+/// It also holds what the tables generate to the tables: each generated
+/// `fix_data.yaml` and the plugin's `table.g.dart` carry the stamp of the
+/// tables they came from, and a stale one is named. And `packages:
+/// versions:` names every published package not on the engine's number.
+///
+/// Mutation: remove a public member and regenerate its snapshot, and this
+/// names it until an entry covers it (`dart run api_snapshot:migration_seed`
+/// drafts one); edit a table without running `generate_migrations.dart`, and
+/// this names each stale output.
+List<Finding> _breaksHaveMigrations() {
+  final root = repositoryRoot;
+  final found = <Finding>[];
+  final dir = Directory('${root.path}/packages/flutter3d_build/lib/migrations');
+  if (!dir.existsSync()) return found;
+  final files =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((File f) => f.path.endsWith('.yaml'))
+          .toList()
+        ..sort((File a, File b) => a.path.compareTo(b.path));
+  final texts = <String>[for (final f in files) f.readAsStringSync()];
+  final tables = <MigrationTable>[];
+  for (var i = 0; i < files.length; i++) {
+    final where = _inRepository(files[i]);
+    final table = readMigrationTable(texts[i]);
+    tables.add(table);
+    for (final (line, what) in migrationTableProblems(table)) {
+      found.add(Finding('$where:$line', what));
+    }
+  }
+
+  // The generated outputs carry the tables' stamp.
+  final stamp = tableStamp(texts.join('\n'));
+  final generated = <File>[
+    File(
+      '${root.path}/packages/flutter3d_lints/lib/src/migration/table.g.dart',
+    ),
+    for (final package in packages.values)
+      File('${package.path}/lib/fix_data.yaml'),
+  ];
+  for (final file in generated) {
+    if (!file.existsSync()) continue;
+    final said = RegExp(
+      r'table-stamp: (\S+)',
+    ).firstMatch(file.readAsStringSync())?.group(1);
+    if (said == null) continue;
+    if (said != stamp) {
+      found.add(
+        Finding(
+          _inRepository(file),
+          'was generated from another version of the migration tables: run '
+          '`dart run tool/generate_migrations.dart` in flutter3d_build',
+        ),
+      );
+    }
+  }
+
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync('git', args, workingDirectory: root.path);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  final tags =
+      <String>[
+        for (final tag in (git(<String>['tag', '--list', 'v*']) ?? '').split(
+          '\n',
+        ))
+          if (parseVersion(tag.trim().replaceFirst('v', '')) != null)
+            tag.trim(),
+      ]..sort(
+        (String a, String b) =>
+            compareVersionTexts(b.substring(1), a.substring(1))!,
+      );
+  if (tags.isEmpty) return found;
+  final tag = tags.first;
+  final version = tag.substring(1);
+
+  // The release's API: a baseline written for it, or the snapshots at it.
+  final baseline = Directory('${root.path}/tool/api/baseline/$tag');
+  final released = <String, String>{};
+  if (baseline.existsSync()) {
+    for (final f in baseline.listSync().whereType<File>()) {
+      if (!f.path.endsWith('.api')) continue;
+      released[f.uri.pathSegments.last.replaceAll('.api', '')] = f
+          .readAsStringSync();
+    }
+  } else {
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
+      final home = dir.path
+          .substring(root.path.length + 1)
+          .replaceAll(Platform.pathSeparator, '/');
+      final text = git(<String>['show', '$tag:$home/api/$name.api']);
+      if (text != null) released[name] = text;
+    }
+  }
+  if (released.isEmpty) return found;
+  final current = <String, String>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      if (File('${dir.path}/api/$name.api') case final f when f.existsSync())
+        name: f.readAsStringSync(),
+  };
+
+  final index = tables.indexWhere((MigrationTable t) => t.from == version);
+  final table = index < 0
+      ? readMigrationTable('from: $version\n')
+      : tables[index];
+  final tableName = index < 0
+      ? 'a migration table from $version'
+      : _inRepository(files[index]);
+  final left = uncoveredBreaks(
+    released: released,
+    current: current,
+    table: table,
+  );
+  for (final b in left) {
+    found.add(
+      Finding(
+        'packages/${b.package}',
+        '`${breakSymbol(b.change)}` broke since $tag (${b.change.what.length > 120 ? '${b.change.what.substring(0, 120)}…' : b.change.what}) '
+            'and no entry of $tableName covers it: '
+            '`dart run api_snapshot:migration_seed --append` in tool/api '
+            'drafts one',
+      ),
+    );
+  }
+
+  // A published package off the engine's number is named with its own.
+  if (index >= 0) {
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
+      final now = _pubspecVersionText(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+      );
+      if (now == null || now == table.to) continue;
+      if (table.versions[name] != '^$now') {
+        found.add(
+          Finding(
+            tableName,
+            '`$name` is at $now, not ${table.to}: `packages: versions:` has '
+            'to say `$name: ^$now`, or `migrate` moves its dependents to a '
+            'version it does not have',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// `packages/flutter3d_build/api/flutter3d_build.cli` is what the `flutter3d`
+/// command prints for `help --surface`, and a subcommand or a flag gone since
+/// the last release is labelled a break.
+///
+/// **Item 32 of `tasks/1.0-scope-additions.md`: the command is a contract.**
+/// Its subcommands, flags and exit codes are what CI scripts and the cloud
+/// service call, and none of them compiles against this repository, so the
+/// only place a rename shows is a snapshot of the text that lists them.
+/// `tool/cli_surface.dart` imports nothing but the contract's own file, so
+/// this runs in a second without a resolved workspace for the converters.
+///
+/// Mutation: drop `--dry-run` from `convertUsage` without regenerating the
+/// snapshot, and this names the file; regenerate it, and with a release tag
+/// before it this asks for the `**Breaking:**` entry naming `--dry-run`.
+List<Finding> _cliSurfaceCurrent() {
+  final home = '${repositoryRoot.path}/packages/flutter3d_build';
+  final snapshot = File('$home/api/flutter3d_build.cli');
+  const update =
+      'run `dart tool/cli_surface.dart > api/flutter3d_build.cli` in '
+      'packages/flutter3d_build';
+  if (!snapshot.existsSync()) {
+    return <Finding>[
+      Finding(
+        'packages/flutter3d_build/api/flutter3d_build.cli',
+        'is missing: the command\'s surface is a contract nobody is '
+            'watching; $update',
+      ),
+    ];
+  }
+  final ProcessResult result;
+  try {
+    result = Process.runSync(Platform.resolvedExecutable, <String>[
+      'tool/cli_surface.dart',
+    ], workingDirectory: home);
+  } on ProcessException {
+    return const <Finding>[];
+  }
+  if (result.exitCode != 0) {
+    return <Finding>[
+      Finding(
+        'packages/flutter3d_build/tool/cli_surface.dart',
+        'failed (exit ${result.exitCode}): ${(result.stderr as String).trim()}',
+      ),
+    ];
+  }
+  final found = <Finding>[];
+  final committed = snapshot.readAsStringSync();
+  if (result.stdout as String != committed) {
+    found.add(
+      Finding(
+        'packages/flutter3d_build/api/flutter3d_build.cli',
+        'is not what `flutter3d help --surface` prints now. If the change is '
+            'deliberate, write it in CHANGELOG.md (a removed command or flag is '
+            '**Breaking:**) and $update',
+      ),
+    );
+  }
+
+  // Against the last release: what was promised there and is gone now.
+  final tags =
+      <String>[
+        for (final tag
+            in ((Process.runSync('git', <String>[
+                      'tag',
+                      '--list',
+                      'v*',
+                    ], workingDirectory: repositoryRoot.path).stdout
+                    as String)
+                .split('\n')))
+          if (parseVersion(tag.trim().replaceFirst('v', '')) != null)
+            tag.trim(),
+      ]..sort(
+        (String a, String b) =>
+            compareVersionTexts(b.substring(1), a.substring(1))!,
+      );
+  if (tags.isEmpty) return found;
+  final released = Process.runSync('git', <String>[
+    'show',
+    '${tags.first}:packages/flutter3d_build/api/flutter3d_build.cli',
+  ], workingDirectory: repositoryRoot.path);
+  if (released.exitCode != 0) return found;
+  final gone = cliSurfaceWords(
+    released.stdout as String,
+  ).difference(cliSurfaceWords(committed));
+  if (gone.isEmpty) return found;
+  final changelog = File('$home/CHANGELOG.md');
+  final top = changelog.existsSync()
+      ? changelog.readAsStringSync().split(RegExp(r'^## ', multiLine: true))
+      : const <String>[];
+  final section = top.length > 1 ? top[1] : '';
+  for (final word in gone) {
+    if (section.contains('**Breaking:') && section.contains('`$word`')) {
+      continue;
+    }
+    found.add(
+      Finding(
+        'packages/flutter3d_build/CHANGELOG.md',
+        '`$word` was in the command\'s surface at ${tags.first} and is gone: '
+            'a script that calls it breaks, so the top section needs a '
+            '**Breaking:** entry naming `$word`',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Each format a published package declares with a `FormatSpec`, and each in
+/// `versionedFormats`, has a fixture at every version from its `since` to the
+/// number its reader declares; every format version constant in a published
+/// package is named by a `FormatSpec`, listed there, or in
+/// `notAVersionedFormat`; and no published reader gates on the exact version.
+///
+/// **The registry is read from the code.** `formatSpecsIn` finds each
+/// `FormatSpec(...)` the way the engine's `FormatRegistry` is filled, so a
+/// format is checked because it says it is one, whatever its constant is
+/// called; the name pattern stays only as the net for a version constant
+/// nobody declared.
+///
+/// **A 1.x engine reads every 1.x file** (decision 8 of
+/// `tasks/1.0-stability.md`). The test that proves it reads a file minted at
+/// that version, and a bump that arrives without one leaves the promise
+/// unchecked from the day it is made. A test cannot see its own absence, so
+/// the count of fixtures against the constant lives here. The exact gate is
+/// the other way the promise was broken before 1.0: `!=` against the current
+/// version refuses every file the previous release wrote.
+///
+/// Mutation: bump `f3dVersion` to 2 without `v2/box.f3d`, add a
+/// `static const int formatVersion` to any published reader without listing
+/// it, or write `if (version != formatVersion)` in one, and this names it.
+List<Finding> _formatFixtures() {
+  final found = <Finding>[];
+  final listed = <String>{};
+  for (final MapEntry(key: name, value: format) in versionedFormats.entries) {
+    listed.add('${format.reader}#${format.constant}');
+    final reader = File('${repositoryRoot.path}/${format.reader}');
+    if (!reader.existsSync()) {
+      found.add(Finding(format.reader, 'the $name reader is not there'));
+      continue;
+    }
+    final current = formatVersionsIn(
+      reader.readAsStringSync(),
+    )[format.constant];
+    if (current == null) {
+      found.add(
+        Finding(
+          format.reader,
+          'declares no `${format.constant}`, so nothing says which $name '
+          'versions it reads',
+        ),
+      );
+      continue;
+    }
+    for (var version = format.since; version <= current; version++) {
+      final fixture = format.fixture.replaceAll('<N>', '$version');
+      if (!File('${repositoryRoot.path}/$fixture').existsSync()) {
+        found.add(
+          Finding(
+            fixture,
+            'is missing: $name reads version $version, and only a file '
+            'minted at that version shows it still opens',
+          ),
+        );
+      }
+    }
+  }
+
+  // The registry as the code declares it: every `FormatSpec` in a published
+  // package, with its fixtures read from that package's root.
+  for (final package in _publishedPackages.values) {
+    for (final file in dartFilesIn(Directory('${package.path}/lib'))) {
+      final where = _inRepository(file);
+      for (final spec in formatSpecsIn(file.readAsStringSync())) {
+        if (spec.versionConstant case final String constant) {
+          listed.add('$where#$constant');
+        }
+        final version = spec.version;
+        if (version == null) {
+          found.add(
+            Finding(
+              where,
+              'declares format "${spec.id}" with a version this check cannot '
+              'read: name a `const int` of the same file, or write the number',
+            ),
+          );
+          continue;
+        }
+        final fixture = spec.fixture;
+        if (fixture == null) {
+          if (!formatWithoutFixture.containsKey(spec.id)) {
+            found.add(
+              Finding(
+                where,
+                'declares format "${spec.id}" with no `fixture:`: every '
+                'version a 1.x build reads needs a file minted at it, or a '
+                'reason in `formatWithoutFixture`',
+              ),
+            );
+          }
+          continue;
+        }
+        for (var at = spec.since; at <= version; at++) {
+          final path = '${package.path}/${fixture.replaceAll('<N>', '$at')}';
+          if (!File(path).existsSync()) {
+            found.add(
+              Finding(
+                _inRepository(File(path)),
+                'is missing: format "${spec.id}" reads version $at, and '
+                'only a file minted at that version shows it still opens',
+              ),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  for (final package in _publishedPackages.values) {
+    for (final file in dartFilesIn(Directory('${package.path}/lib'))) {
+      final where = _inRepository(file);
+      final source = file.readAsStringSync();
+      for (final constant in formatVersionsIn(source).keys) {
+        final key = '$where#$constant';
+        if (!listed.contains(key) && !notAVersionedFormat.containsKey(key)) {
+          found.add(
+            Finding(
+              where,
+              'declares `$constant`, a format version nobody listed: declare '
+              'the format with a `FormatSpec` naming it and its fixture, or '
+              'say in `notAVersionedFormat` why it is not one',
+            ),
+          );
+        }
+      }
+      for (final line in exactVersionGatesIn(source)) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'gates a read on the exact version, which refuses every file the '
+                'previous release wrote: read every version up to the current '
+                'one and refuse only a newer one',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// No format's code writes or reads an enum by its ordinal.
+///
+/// **Must 4 of `tasks/1.0-arch-review.md`.** `.f3d` wrote `alphaMode.index`,
+/// the wrap modes and a track's path and interpolation by ordinal and read
+/// them back with `values[i]`, so reordering an enum in a major would have
+/// changed every existing file without a word. The codes are explicit
+/// tables now (`f3d_wire.dart`); this keeps `.index` and `values[` out of
+/// every path in [formatCodePaths].
+///
+/// Mutation: write `material.alphaMode.index` back in
+/// `f3d_writer_materials.dart`, and this names the line.
+List<Finding> _noEnumOrdinalsInFormats() {
+  final found = <Finding>[];
+  for (final path in formatCodePaths) {
+    final directory = Directory('${repositoryRoot.path}/$path');
+    final file = File('${repositoryRoot.path}/$path');
+    final files = directory.existsSync()
+        ? dartFilesIn(directory)
+        : file.existsSync()
+        ? <File>[file]
+        : const <File>[];
+    if (files.isEmpty) {
+      found.add(Finding(path, 'is in `formatCodePaths` and is not there'));
+      continue;
+    }
+    for (final each in files) {
+      for (final line in enumOrdinalsIn(each.readAsStringSync())) {
+        found.add(
+          Finding(
+            '${_inRepository(each)}:$line',
+            'writes or reads an enum by its ordinal: give it a code in an '
+                'explicit table, as `f3d_wire.dart` does',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------ 1.0: the contract
+// ------------------------------------------------------ 1.0: the contract
+
+/// The published snapshots, by package: `api/<package>.api` for every
+/// package that goes to pub.dev and has one.
+Map<String, String> get _publishedSnapshots => <String, String>{
+  for (final entry in _publishedPackages.entries)
+    if (File('${entry.value.path}/api/${entry.key}.api') case final file
+        when file.existsSync())
+      entry.key: file.readAsStringSync(),
+};
+
+/// No published type is an `interface class`, except a marker or a value
+/// shape [interfaceClassAllowed] names with its reason.
+///
+/// **Decision 5 of `tasks/1.0-api-review.md`, and why it is a rule.** A
+/// member added to an interface in a minor release breaks every class
+/// somebody wrote against it; the same member added to an `abstract base
+/// class` with a default body breaks nobody. Under strict semver that is the
+/// difference between a type that can grow in 1.x and one frozen until 2.0.
+///
+/// **It reads the snapshots, not the source**, because the snapshot is the
+/// promise: an interface behind a `src/` path nobody exports is nobody's
+/// problem. And it starts with a debt: [interfaceClassPending] is every
+/// interface on the day this was written, which wave 3 converts. The rule
+/// fails on an interface in neither table, and on an entry in either that no
+/// snapshot declares as an interface any more, so the pending list cannot
+/// outlive its work.
+///
+/// Mutation: make `abstract base class BusEvent` an `abstract interface
+/// class`, regenerate the snapshot, and this names it.
+List<Finding> _noNewInterfaces() {
+  final found = <Finding>[];
+  final declared = <String, Set<String>>{
+    for (final entry in _publishedSnapshots.entries)
+      entry.key: interfaceClassesIn(entry.value),
+  };
+  for (final entry in declared.entries) {
+    final pending = interfaceClassPending[entry.key] ?? const <String>{};
+    for (final name in entry.value.toList()..sort()) {
+      if (interfaceClassAllowed.containsKey(name)) continue;
+      if (pending.contains(name)) continue;
+      found.add(
+        Finding(
+          '${entry.key}/api/${entry.key}.api',
+          '`$name` is an interface class. Make it an abstract base class with '
+              'default bodies (a member added to it later then breaks nobody), '
+              'or say in `interfaceClassAllowed` why it is a marker or a value '
+              'shape that can never grow',
+        ),
+      );
+    }
+  }
+  for (final entry in interfaceClassPending.entries) {
+    for (final name in entry.value) {
+      if (declared[entry.key]?.contains(name) ?? false) continue;
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`interfaceClassPending` still lists `$name` under ${entry.key}, '
+              'which no longer declares it as an interface. Take the entry '
+              'out, so the list says what is left to convert',
+        ),
+      );
+    }
+  }
+  final everywhere = <String>{for (final names in declared.values) ...names};
+  for (final name in interfaceClassAllowed.keys) {
+    if (everywhere.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`interfaceClassAllowed` names `$name`, which no snapshot declares as '
+            'an interface. Take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every published exception reaches `Flutter3dException`, none is named
+/// `…Error`, and each is named `…Exception` (decision H) unless
+/// [exceptionNamePending] still lists it.
+///
+/// **Decision 4 and item 21.** A caller who wants to report everything the
+/// engine refused catches one type, and a caller who acts on one kind of
+/// refusal catches its family: format, capability, plugin, resource, all in
+/// `flutter3d_plugin_api`. Before wave 3 there were sixty-odd exception types
+/// with no common root, six of them named `…Error`, and one capability
+/// refusal that was an `UnsupportedError`.
+///
+/// The hierarchy is read across every snapshot at once, because a leaf in
+/// one package extends a family declared in another. A type is an exception
+/// when it reaches `Exception` or one of the SDK's own exceptions
+/// ([kSdkExceptions]); the root is the one type allowed to implement
+/// `Exception` directly.
+///
+/// Mutation: make `DracoException` implement `Exception` again, regenerate
+/// the snapshot, and this names it.
+List<Finding> _exceptionsHaveTheRoot() {
+  final snapshots = _publishedSnapshots;
+  final hierarchy = <String, Set<String>>{};
+  final home = <String, String>{};
+  for (final entry in snapshots.entries) {
+    for (final type in supertypesIn(entry.value).entries) {
+      (hierarchy[type.key] ??= <String>{}).addAll(type.value);
+      home.putIfAbsent(type.key, () => entry.key);
+    }
+  }
+  final found = <Finding>[
+    for (final (name, why) in exceptionsOutsideTheRoot(
+      hierarchy,
+      namedOtherwise: exceptionNamePending.keys.toSet(),
+    ))
+      Finding('${home[name]}/api/${home[name]}.api', '`$name` $why'),
+  ];
+  // The pending list only shrinks: an entry whose type is gone, or is now
+  // named `…Exception`, is taken out.
+  for (final name in exceptionNamePending.keys) {
+    if (!hierarchy.containsKey(name)) {
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`exceptionNamePending` names `$name`, which no snapshot declares. '
+              'Take the entry out',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------------ 1.0: naming
+
+/// One of the naming rules of item 28 (`naming.dart`): [detect] over every
+/// published snapshot, less what [allowed] excuses with its reason — and an
+/// excuse nothing needs any more is a finding too, so the list only says
+/// what is true.
+///
+/// Mutation, for each: rename a published member back to the name the rule
+/// forbids (`sunColor` to `sunColour`, `drainDelta` to `takeDelta`,
+/// `halfAngle` to `halfAngleDegrees`, `isGrounded` to `grounded`,
+/// `f3dVersion` to `kF3dVersion`, drop a field from a settings class's
+/// `copyWith`), regenerate the snapshot, and the rule names it.
+List<Finding> _namingRule(
+  List<NamingProblem> Function(String snapshot, String package) detect,
+  Map<String, String> allowed,
+) {
+  final found = <Finding>[];
+  final used = <String>{};
+  for (final MapEntry(key: package, value: snapshot)
+      in _publishedSnapshots.entries) {
+    for (final problem in detect(snapshot, package)) {
+      if (allowed.containsKey(problem.subject)) {
+        used.add(problem.subject);
+        continue;
+      }
+      found.add(
+        Finding(
+          '$package/api/$package.api',
+          '`${problem.subject}` ${problem.what}',
+        ),
+      );
+    }
+  }
+  for (final name in allowed.keys) {
+    if (used.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        'an exemption names `$name`, which no snapshot breaks the rule with '
+            'any more: take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every published package's public `double` fields and getters say their
+/// unit in their doc comment (item 29, the units contract in
+/// `docs/CONTRACTS.md`).
+///
+/// **It starts with a debt, counted rather than listed.** About eleven
+/// hundred numbers predate the rule; [unitsUndocumentedPending] holds each
+/// package's count, and a package may be at or under its count, never over.
+/// A package that has paid some of it down is held to the new number — the
+/// count has to come down with it — so the table only ever shrinks, the way
+/// [interfaceClassPending] did.
+///
+/// Mutation: delete the unit from a field's doc ("in metres"), and the
+/// package is one over its count.
+List<Finding> _unitsDocumented() {
+  final found = <Finding>[];
+  for (final MapEntry(key: package, value: dir) in _publishedPackages.entries) {
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    var count = 0;
+    final named = <String>[];
+    for (final file in dartFilesIn(lib)) {
+      final missing = undocumentedUnitsIn(file.readAsStringSync());
+      count += missing.length;
+      if (named.length < 5) {
+        named.addAll(missing.map((String m) => '${relative(file, dir)}#$m'));
+      }
+    }
+    final pending = unitsUndocumentedPending[package] ?? 0;
+    if (count > pending) {
+      found.add(
+        Finding(
+          '$package/lib',
+          '$count public numbers do not say their unit in their doc, '
+              '$pending allowed: say metres, seconds, radians, a fraction… '
+              '(${named.take(5).join(', ')})',
+        ),
+      );
+    } else if (count < pending) {
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`unitsUndocumentedPending` allows $package $pending undocumented '
+              'numbers and there are $count: lower it to $count, so the debt '
+              'only shrinks',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------------------ layers
+
+/// Every package depends at run time only on packages in the layers below
+/// its own (`tool/structure/layers.dart`, the target map of
+/// `tasks/1.0-boundaries.md`), and on none the map forbids.
+///
+/// **There are no exceptions.** The boundary work kept a list of the
+/// dependencies the map refused while its moves took them out, which only
+/// shrank; step C emptied it, and the list went with its last entry. A
+/// dependency the map refuses is a finding, with no list to park it on.
+List<Finding> _layersBelow() {
+  final dependencies = <String, Set<String>>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      name: pubspecSection(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+        'dependencies',
+      ),
+  };
+  final found = <Finding>[
+    for (final (package, dependency, why) in layerProblems(
+      dependencies,
+      layers: packageLayers,
+      forbidden: layerForbidden,
+    ))
+      dependency == null
+          ? Finding(package, why)
+          : Finding(package, 'depends on $dependency, which $why'),
+  ];
+  for (final name in packageLayers.keys) {
+    if (!packages.containsKey(name) && !plannedPackages.contains(name)) {
+      found.add(
+        Finding(
+          'packageLayers → $name',
+          'is not a package and not a planned one: take it off',
+        ),
+      );
+    }
+  }
+  for (final name in plannedPackages) {
+    if (packages.containsKey(name)) {
+      found.add(
+        Finding(
+          'plannedPackages → $name',
+          'is a package now: take it off the planned list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// The simulation stack ([simulationStack]: sim, physics, physics_native,
+/// elements, matter, foundation) imports no package of
+/// [simulationMayNotImport] (the core, the hardware layer, the shaders, the
+/// particles) from its `lib/`. Rule 6 of `tasks/1.0-boundaries.md`.
+///
+/// Mutation: import `flutter3d_core` from a file of `flutter3d_elements`,
+/// and this names the file and the package.
+List<Finding> _simulationDrawsNothing() {
+  final found = <Finding>[];
+  for (final name in simulationStack) {
+    final dir = packages[name];
+    if (dir == null) {
+      found.add(Finding(name, 'is in the simulation stack and not a package'));
+      continue;
+    }
+    final imports = <String, List<String>>{
+      for (final file in dartFilesIn(Directory('${dir.path}/lib')))
+        '$name/${relative(file, dir)}': <String>[
+          for (final m in RegExp(
+            r"""^\s*(?:import|export)\s+['"]([^'"]+)['"]""",
+            multiLine: true,
+          ).allMatches(file.readAsStringSync()))
+            m.group(1)!,
+        ],
+    };
+    for (final (path, package) in simulationImportProblems(
+      imports,
+      forbidden: simulationMayNotImport.keys.toSet(),
+    )) {
+      found.add(
+        Finding(
+          path,
+          'imports $package (${simulationMayNotImport[package]}): the '
+          'simulation draws nothing',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// The runtime (the application, the game packages, the elements and their
+/// views, the audio) depends at run time on no editor, build tool, agent
+/// server or modeller's core: rule 7 of `tasks/1.0-boundaries.md`.
+///
+/// **What a player's game resolves is what it ships.** The application
+/// depended on the editor's document layer to load a level until 1.0.0-rc.1;
+/// nothing failed, and every game resolved an editor it never opened. Dev
+/// dependencies are not asked about, because a test may drive an editor;
+/// a deliberate run-time one is in [runtimeToolDependencyAllowed] with its
+/// reason, and an entry there that is no longer a dependency is a finding.
+List<Finding> _runtimeIsNoTool() {
+  final dependencies = <String, Set<String>>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      name: pubspecSection(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+        'dependencies',
+      ),
+  };
+  final found = <Finding>[];
+  final allowedNow = <String>{};
+  for (final (package, tool) in runtimeToolDependencies(
+    dependencies,
+    runtime: isRuntimePackage,
+    tools: runtimeMayNotDependOn.keys.toSet(),
+  )) {
+    final key = '$package -> $tool';
+    if (runtimeToolDependencyAllowed.containsKey(key)) {
+      allowedNow.add(key);
+      continue;
+    }
+    found.add(
+      Finding(
+        package,
+        'depends on $tool (${runtimeMayNotDependOn[tool]}) at run time: the '
+        'runtime is not a tool. Move what it needs under both, or make '
+        'it a dev dependency if only a test wants it',
+      ),
+    );
+  }
+  for (final key in runtimeToolDependencyAllowed.keys) {
+    if (!allowedNow.contains(key)) {
+      found.add(
+        Finding(
+          'runtimeToolDependencyAllowed → $key',
+          'is no longer a dependency: take it off',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// The plugin API declares the contract and nothing else: every type it
+/// declares is reachable from the contract's signatures, the number of them
+/// is within [pluginApiTypeBudget], and no loop phase it declares is named
+/// after one package.
+///
+/// **Read off the API snapshot**, `api/flutter3d_plugin_api.api`, which the
+/// snapshot rule holds to the source: what the package declares, with every
+/// member's signature, and the names it re-exports from the foundation.
+///
+/// **Why a budget as well as reachability.** Reachability says a type is
+/// the contract's; it does not say the contract should have grown. The
+/// plugin API had grown to 77 types, the foundation's and a simulation
+/// host's among them, before the boundary work; a budget makes the next
+/// type a decision someone takes in review rather than a drift nobody
+/// notices.
+List<Finding> _pluginContract() {
+  final dir = packages['flutter3d_plugin_api'];
+  if (dir == null) {
+    return <Finding>[
+      const Finding('flutter3d_plugin_api', 'is not a package any more'),
+    ];
+  }
+  final snapshot = File('${dir.path}/api/flutter3d_plugin_api.api');
+  if (!snapshot.existsSync()) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_plugin_api',
+        'has no api/flutter3d_plugin_api.api to read the contract from',
+      ),
+    ];
+  }
+  final library = parseApi(
+    snapshot.readAsStringSync(),
+  )['package:flutter3d_plugin_api/flutter3d_plugin_api.dart'];
+  if (library == null) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_plugin_api/api/flutter3d_plugin_api.api',
+        'has no main library',
+      ),
+    ];
+  }
+  final declarations = <String, ({String header, List<String> members})>{
+    for (final MapEntry(key: name, value: block)
+        in library.declarations.entries)
+      name: (header: block.header, members: block.members),
+  };
+  final reexported = <String>{
+    for (final block in library.exports.values)
+      if (RegExp(r' show (.*)$').firstMatch(block.header) case final match?)
+        ...match.group(1)!.split(',').map((String n) => n.trim()),
+  };
+  final found = <Finding>[
+    for (final name in unreachableContractTypes(
+      declarations,
+      roots: pluginContractRoots,
+      reexported: reexported,
+    ).toList()..sort())
+      Finding(
+        'flutter3d_plugin_api: $name',
+        'is a type nothing in the contract names, so a plugin is never '
+            'handed it or asked for it: move it to the package that uses '
+            'it',
+      ),
+  ];
+
+  final types = declarations.values
+      .where(
+        (({String header, List<String> members}) b) =>
+            isTypeDeclaration(b.header),
+      )
+      .length;
+  if (types > pluginApiTypeBudget) {
+    found.add(
+      Finding(
+        'flutter3d_plugin_api',
+        'declares $types types, over its budget of $pluginApiTypeBudget: a '
+            'type the contract needs raises pluginApiTypeBudget by hand, '
+            'with its reason in review',
+      ),
+    );
+  } else if (types < pluginApiTypeBudget) {
+    found.add(
+      Finding(
+        'tool/structure/layers.dart',
+        'pluginApiTypeBudget is $pluginApiTypeBudget and the plugin API '
+            'declares $types types: lower the budget to $types',
+      ),
+    );
+  }
+
+  final loop = File('${dir.path}/lib/src/loop.dart');
+  final phases = loop.existsSync()
+      ? declaredLoopPhases(loop.readAsStringSync())
+      : const <String>{};
+  if (phases.isEmpty) {
+    found.add(
+      const Finding(
+        'flutter3d_plugin_api/lib/src/loop.dart',
+        'declares no loop phase this rule can read',
+      ),
+    );
+  }
+  final namedForAPackage = phasesNamedForAPackage(phases, <String>{
+    ...packages.keys,
+    ...packageLayers.keys,
+  });
+  for (final phase in namedForAPackage.toList()..sort()) {
+    if (loopPhaseSharesAPackageName.containsKey(phase)) continue;
+    found.add(
+      Finding(
+        'flutter3d_plugin_api/lib/src/loop.dart',
+        'the phase "$phase" is named after flutter3d_$phase: an engine phase '
+            'is every plugin\'s, so name it for what runs in it, or say in '
+            'loopPhaseSharesAPackageName why every package may call it its '
+            'own',
+      ),
+    );
+  }
+  for (final phase in loopPhaseSharesAPackageName.keys) {
+    if (!namedForAPackage.contains(phase)) {
+      found.add(
+        Finding(
+          'loopPhaseSharesAPackageName → $phase',
+          'is no longer a phase named like a package: take it off',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------- names and doors
+
+/// A public name is declared by one published package
+/// (`tool/structure/boundaries.dart`, [namesWithTwoHomes]), read off every
+/// package's API snapshot, which the snapshot rule holds to the source.
+/// [publicNameSharedOnPurpose] lists the exceptions with their reasons, and
+/// an exception that is no longer one is a finding.
+List<Finding> _oneHomePerName() {
+  final snapshots = <String, String>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      if (File('${dir.path}/api/$name.api') case final f when f.existsSync())
+        name: f.readAsStringSync(),
+  };
+  final homes = publicNameHomes(snapshots);
+  return <Finding>[
+    for (final (name, packages) in namesWithTwoHomes(
+      homes,
+      allowed: publicNameSharedOnPurpose,
+    ))
+      Finding(
+        '`$name`',
+        'is declared by ${packages.join(' and ')}: a public name has one '
+            'home, so the more specific one takes a name that says what it '
+            'is, or both use one declaration',
+      ),
+    for (final name in publicNameSharedOnPurpose.keys)
+      if ((homes[name]?.length ?? 0) < 2)
+        Finding(
+          'publicNameSharedOnPurpose → $name',
+          'is no longer declared by two packages: take it off',
+        ),
+  ];
+}
+
+/// Shipped code — `lib/` and `bin/` of every package and application —
+/// reaches another package's `internal.dart`, `builtin.dart` or
+/// `testing.dart` only where [restrictedLibraryUsers] says so
+/// (`tool/structure/boundaries.dart`); tests may import them anywhere. An
+/// allowance nothing uses any more, or for a library that is not there, is
+/// a finding.
+List<Finding> _restrictedLibraries() {
+  final uses = <String, Set<String>>{};
+  final where = <(String, String), String>{};
+  for (final MapEntry(key: name, value: dir) in <String, Directory>{
+    ...packages,
+    ...apps,
+  }.entries) {
+    final reached = <String>{};
+    for (final sub in const <String>['lib', 'bin']) {
+      for (final file in dartFilesIn(Directory('${dir.path}/$sub'))) {
+        for (final library in restrictedLibrariesIn(file.readAsStringSync())) {
+          reached.add(library);
+          where[(name, library)] ??= _inRepository(file);
+        }
+      }
+    }
+    uses[name] = reached;
+  }
+  final found = <Finding>[
+    for (final (package, library, why) in restrictedLibraryProblems(
+      uses,
+      allowed: restrictedLibraryUsers,
+    ))
+      Finding(
+        where[(package, library)] ?? package,
+        'imports $library, which $why',
+      ),
+  ];
+  for (final MapEntry(key: library, value: users)
+      in restrictedLibraryUsers.entries) {
+    final owner = packages[packageOfUri(library)];
+    final file = library.substring(library.indexOf('/') + 1);
+    if (owner == null || !File('${owner.path}/lib/$file').existsSync()) {
+      found.add(
+        Finding(
+          'restrictedLibraryUsers → $library',
+          'is not a library of the repository: take it off',
+        ),
+      );
+      continue;
+    }
+    for (final user in users.keys) {
+      if (!(uses[user]?.contains(library) ?? false)) {
+        found.add(
+          Finding(
+            'restrictedLibraryUsers → $library → $user',
+            'is no longer reached from $user\'s shipped code: take it off',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------------- re-exports
+
+/// The `package:` re-exports of every package's `lib/`, by package and file.
+Map<String, Map<String, List<({String uri, bool named})>>> _packageExports() =>
+    <String, Map<String, List<({String uri, bool named})>>>{
+      for (final MapEntry(key: name, value: dir) in packages.entries)
+        name: <String, List<({String uri, bool named})>>{
+          for (final file in dartFilesIn(Directory('${dir.path}/lib')))
+            if (packageExportsIn(file.readAsStringSync()) case final e
+                when e.isNotEmpty)
+              _inRepository(file): e,
+        },
+    };
+
+/// A package re-exports another package of the repository only where
+/// [reexportsAllowed] (`tool/structure/boundaries.dart`) says so, and names
+/// what it admits unless [reexportedWhole] allows the whole library: rule 3
+/// of `tasks/1.0-boundaries.md`. An allowance nothing uses any more is a
+/// finding, so the list does not outlive its reasons.
+///
+/// Mutation: put `export 'package:flutter3d_physics/flutter3d_physics.dart'
+/// show CollisionWorld;` back in `flutter3d_sim.dart`, and this names the
+/// file and the package it hands on.
+List<Finding> _reexportsAllowedOnly() {
+  final exports = _packageExports();
+  final found = <Finding>[
+    for (final (_, file, why) in reexportProblems(
+      exports,
+      repository: packages.keys.toSet(),
+      allowed: reexportsAllowed,
+      whole: reexportedWhole,
+    ))
+      Finding(file, why),
+  ];
+  final made = <String>{};
+  final wholeMade = <String>{};
+  for (final MapEntry(key: package, value: files) in exports.entries) {
+    for (final list in files.values) {
+      for (final e in list) {
+        final key = '$package -> ${packageOfUri(e.uri)}';
+        made.add(key);
+        if (!e.named) wholeMade.add(key);
+      }
+    }
+  }
+  for (final key in reexportsAllowed.keys) {
+    if (!made.contains(key)) {
+      found.add(
+        Finding(
+          'reexportsAllowed → $key',
+          'is no longer a re-export: take it off',
+        ),
+      );
+    }
+  }
+  for (final key in reexportedWhole.keys) {
+    if (!wholeMade.contains(key)) {
+      found.add(
+        Finding(
+          'reexportedWhole → $key',
+          'no longer re-exports a whole library: take it off',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// No package depends on another only to re-export it, unless
+/// [reexportsAllowed] names the pair: rule 2 of `tasks/1.0-boundaries.md`.
+/// A dependency counts as used when an `import` of its shipped code —
+/// `lib/`, `bin/` or `hook/` — names it.
+///
+/// Mutation: make `flutter3d` depend on `flutter3d_sim` again and re-export
+/// `EngineLoop` from its barrel, and this names the dependency (and the
+/// re-export rule the export).
+List<Finding> _noReexportOnlyDependency() {
+  final dependencies = <String, Set<String>>{};
+  final imported = <String, Set<String>>{};
+  final exported = <String, Set<String>>{};
+  final directive = RegExp(
+    r"""^(import|export)\s+['"]package:(\w+)/""",
+    multiLine: true,
+  );
+  for (final MapEntry(key: name, value: dir) in packages.entries) {
+    dependencies[name] = pubspecSection(
+      File('${dir.path}/pubspec.yaml').readAsStringSync(),
+      'dependencies',
+    ).where(packages.containsKey).toSet();
+    final imports = imported[name] = <String>{};
+    final exports = exported[name] = <String>{};
+    for (final sub in const <String>['lib', 'bin', 'hook']) {
+      for (final file in dartFilesIn(Directory('${dir.path}/$sub'))) {
+        for (final m in directive.allMatches(file.readAsStringSync())) {
+          (m.group(1) == 'import' ? imports : exports).add(m.group(2)!);
+        }
+      }
+    }
+  }
+  return <Finding>[
+    for (final (package, dependency) in reexportOnlyDependencies(
+      dependencies,
+      imported: imported,
+      exported: exported,
+      allowed: reexportsAllowed,
+    ))
+      Finding(
+        '$package/pubspec.yaml',
+        'depends on $dependency only to re-export it: a caller that needs '
+            '$dependency depends on it itself, or the pair goes on '
+            '`reexportsAllowed` with its reason',
+      ),
+  ];
+}
+
+/// A file of a package or an application — `lib/` and `bin/` — that names
+/// a type another package declares is in a package that depends on that
+/// one, or on a facade whose allowed re-exports carry the name: rule 4 of
+/// `tasks/1.0-boundaries.md`, declare what you name.
+///
+/// **Read off the snapshots**, which the snapshot rule holds to the source:
+/// where each type is declared, and what each allowed re-export admits. A
+/// name two packages declare is the one-home rule's finding, not this
+/// one's.
+///
+/// Mutation: drop `flutter3d_physics` from an application's pubspec that
+/// names `CollisionWorld` through `flutter3d_sim`'s import, and this names
+/// the file, the type and the package it is declared in.
+List<Finding> _declareWhatYouName() {
+  final snapshots = <String, Map<String, ApiLibrary>>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      if (File('${dir.path}/api/$name.api') case final f when f.existsSync())
+        name: parseApi(f.readAsStringSync()),
+  };
+  final declaredBy = <String, Set<String>>{};
+  for (final MapEntry(key: package, value: libraries) in snapshots.entries) {
+    for (final library in libraries.values) {
+      for (final MapEntry(key: name, value: block)
+          in library.declarations.entries) {
+        if (name.isEmpty || name.startsWith('_')) continue;
+        if (!isTypeDeclaration(block.header)) continue;
+        (declaredBy[name] ??= <String>{}).add(package);
+      }
+    }
+  }
+  final homes = <String, String>{
+    for (final MapEntry(key: name, value: at) in declaredBy.entries)
+      if (at.length == 1) name: at.single,
+  };
+  final carried = <String, Set<String>>{
+    for (final MapEntry(key: package, value: libraries) in snapshots.entries)
+      package: <String>{
+        for (final library in libraries.values)
+          for (final MapEntry(key: uri, value: block)
+              in library.exports.entries)
+            if (uri.startsWith('package:') &&
+                reexportsAllowed.containsKey(
+                  '$package -> ${packageOfUri(uri)}',
+                ))
+              for (final member in block.members)
+                member.trim().split(' ').first,
+      },
+  };
+  final dependencies = <String, Set<String>>{};
+  final named = <String, Map<String, Set<String>>>{};
+  final declared = <String, Set<String>>{};
+  for (final MapEntry(key: name, value: dir) in <String, Directory>{
+    ...packages,
+    ...apps,
+  }.entries) {
+    final pubspec = File('${dir.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) continue;
+    dependencies[name] = pubspecSection(
+      pubspec.readAsStringSync(),
+      'dependencies',
+    );
+    final files = named[name] = <String, Set<String>>{};
+    final own = declared[name] = <String>{};
+    for (final sub in const <String>['lib', 'bin']) {
+      for (final file in dartFilesIn(Directory('${dir.path}/$sub'))) {
+        final names = typeNamesIn(file.readAsStringSync());
+        files[_inRepository(file)] = names.named;
+        own.addAll(names.declared);
+      }
+    }
+  }
+  final found = <Finding>[
+    for (final name in typeNamesDeclaredOutside.keys)
+      if (!homes.containsKey(name))
+        Finding(
+          'typeNamesDeclaredOutside → $name',
+          'is no longer a type one package declares: take it off',
+        ),
+  ];
+  return found..addAll(<Finding>[
+    for (final (package, file, name, home) in undeclaredNames(
+      named,
+      declared: declared,
+      homes: homes,
+      dependencies: dependencies,
+      carried: carried,
+      sdk: typeNamesDeclaredOutside,
+    ))
+      Finding(
+        file,
+        'names `$name`, which $home declares, and $package does not depend '
+        'on $home: add it to the pubspec\'s dependencies, or name it '
+        'through a facade `reexportsAllowed` lists',
+      ),
+  ]);
 }

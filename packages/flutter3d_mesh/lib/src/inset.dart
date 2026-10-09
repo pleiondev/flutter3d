@@ -37,6 +37,8 @@ OpResult insetFaces(
   EditMesh mesh,
   Selection selection, {
   required double thickness,
+
+  /// In metres, along the face's normal.
   double depth = 0.0,
   bool individual = true,
 }) {

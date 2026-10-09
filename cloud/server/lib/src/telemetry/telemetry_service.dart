@@ -201,7 +201,7 @@ final class TelemetryService {
       ? _say(200, 'run $id is deleted')
       : _say(404, 'no run $id with that key');
 
-  /// `GET /api/telemetry/heatmap?level=<hash>&cell=<metres>`.
+  /// `GET /api/telemetry/heatmap?level=<hash>&cell=<meters>`.
   Future<TelemetryAnswer> heatmap(String? levelHash, String? cell) async {
     if (levelHash == null || levelHash.isEmpty) {
       return _say(400, 'name the level: ?level=<its digest>');
@@ -267,11 +267,8 @@ _Replayed _replayed(
   ),
   ResimulationRetraced(:final outcome, :final steps, :final trail) => (
     refused: null,
-    outcome: switch (outcome) {
-      RunOutcome.won => 'won',
-      RunOutcome.lost => 'lost',
-      RunOutcome.playing => 'unfinished',
-    },
+    // An open set since 1.0: a later outcome is stored by its own word.
+    outcome: outcome == RunOutcome.playing ? 'unfinished' : outcome.name,
     steps: steps,
     trail: trail,
   ),

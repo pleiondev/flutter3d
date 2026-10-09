@@ -4,7 +4,7 @@
 /// **The same question `MaterialHint` answers for a material's own fields,
 /// and a deliberately separate type from it** — decided 2026-09-09 (Г4/Ж2)
 /// once a real one was tried: `MaterialHintKind` is `RangeHint`
-/// (double only), `ColorHint`, `TextureHint` and `EnumHint`, and a command
+/// (double only), `ColorHint`, `TextureHint` and `ChoiceHint`, and a command
 /// argument needs two things that hierarchy has no room for — a whole number
 /// a fraction cannot honestly describe (`LoopCut.cuts`) and a flag that is
 /// neither (`RecalculateNormals.flip`) — plus a unit `MaterialHintKind` never
@@ -34,8 +34,13 @@ final class IntHint extends ParamHint {
 final class DoubleHint extends ParamHint {
   const DoubleHint({this.min, this.max, this.step, this.unit});
 
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? min;
+
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? max;
+
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? step;
   final String? unit;
 }
@@ -48,8 +53,8 @@ final class BoolHint extends ParamHint {
 /// One of [values] and nothing else — a command argument's own enum, read
 /// from that enum's `.values` rather than written out by hand, the same way
 /// `builtInMaterialHints` reads `SurfaceAlphaMode.values` for its own.
-final class EnumHint extends ParamHint {
-  const EnumHint(this.values);
+final class ChoiceHint extends ParamHint {
+  const ChoiceHint(this.values);
 
   final List<String> values;
 }
@@ -59,6 +64,7 @@ final class EnumHint extends ParamHint {
 final class Vector3Hint extends ParamHint {
   const Vector3Hint({this.step, this.unit});
 
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? step;
   final String? unit;
 }

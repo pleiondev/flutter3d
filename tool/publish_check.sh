@@ -3,12 +3,18 @@
 #
 #   tool/publish_check.sh
 #
-# No package carries `publish_to: none` any more: the line came off all of them
-# at 0.4.0, when publishing became something that happens. The handling of it
-# below stays, because a package held back again would bring the line back, and
-# `--dry-run` says nothing useful through it. So where the line exists this
-# takes it off, asks, and puts it back — which is why it leaves the tree exactly
-# as it found it and why it must never be extended into an actual publish.
+# The line `publish_to: none` came off every package at 0.4.0, when publishing
+# became something that happens. The handling of it below stays, because a
+# package held back for a while brings the line back, and `--dry-run` says
+# nothing useful through it. So where the line exists this takes it off, asks,
+# and puts it back — which is why it leaves the tree exactly as it found it and
+# why it must never be extended into an actual publish.
+#
+# A package that is never published at all is a different thing, and is named
+# in NEVER_PUBLISHED below rather than asked about: `flutter3d_demo_content`
+# holds the demos' shared content, the repository's hygiene checks and the
+# tests written against that content, and no published package names it, not
+# even as a dev dependency (pana resolves those against pub.dev).
 #
 # **It could not fail on the things it exists to catch, and it edited the tree
 # with no way back.** `tool/ci.sh` says this step "is the only thing that
@@ -67,12 +73,20 @@ FAILED=0
 # version that disagrees with anything fails there instead.
 ALLOWED='modified in git|The previous version is'
 
+# Packages that stay `publish_to: none` on purpose: nothing to ask pub about.
+NEVER_PUBLISHED=' flutter3d_demo_content '
+
 for dir in packages/*/; do
   name="$(basename "$dir")"
-  # A directory that groups packages rather than being one —
-  # `packages/education` holds the teaching examples, each its own app that
-  # is never published — has no pubspec of its own.
+  # A directory that is not a package has no pubspec of its own; the
+  # examples inside packages are never published and are not walked.
   [ -f "$dir/pubspec.yaml" ] || continue
+  case "$NEVER_PUBLISHED" in
+    *" $name "*)
+      printf '%-28s not published\n' "$name"
+      continue
+      ;;
+  esac
   cp "$dir/pubspec.yaml" "$BACKUPS/$name.yaml"
   python3 - "$dir/pubspec.yaml" <<'PY'
 import sys
@@ -100,5 +114,14 @@ PY
   fi
   printf '%-28s ready\n' "$name"
 done
+
+# **The API against what pub.dev has.** `dart_apitool` compares each
+# published package with its latest version there and holds the pubspec's
+# version to what changed. It is not installed by anything here, so on a
+# machine without it, or offline, the script says it skipped and passes; see
+# tool/api_against_pub.sh for what it hands the tool and why.
+echo ""
+echo "── api against pub.dev"
+bash tool/api_against_pub.sh || FAILED=1
 
 exit $FAILED

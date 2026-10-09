@@ -34,8 +34,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/geometry.dart' show Ray, TriangleBvh;
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay, TriangleBvh;
+import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
 import 'edit_mesh.dart';
@@ -200,10 +200,12 @@ BakedMap bakeNormalMap({
   required EditMesh low,
   required TriangleBvh high,
   required int size,
+
+  /// How far either side of the low surface the cage reaches, in metres.
   double shell = 0.1,
 }) {
   final BakedMap map = BakedMap(size, 3);
-  final Ray ray = Ray.zero();
+  final LocalRay ray = LocalRay.zero();
   rasterizeUv(low, size, (BakeSample sample) {
     ray.setFrom(sample.position + sample.normal.scaled(shell), -sample.normal);
     final hit = high.raycast(ray, maxDistance: shell * 2);
@@ -283,11 +285,15 @@ BakedMap bakeAmbientOcclusion({
   required TriangleBvh high,
   required int size,
   int samples = 64,
+
+  /// How far an occlusion ray looks, in metres.
   double distance = 1.0,
+
+  /// How far off the surface a ray starts, in metres.
   double bias = 1e-3,
 }) {
   final BakedMap map = BakedMap(size, 1);
-  final ray = Ray.zero();
+  final ray = LocalRay.zero();
   rasterizeUv(low, size, (BakeSample sample) {
     var open = 0.0;
     for (var s = 0; s < samples; s++) {
@@ -314,6 +320,8 @@ BakedMap bakeAmbientOcclusion({
 BakedMap bakeCurvature({
   required EditMesh low,
   required int size,
+
+  /// A unitless multiplier on the curvature before it is clamped.
   double scale = 4.0,
 }) {
   final normalsOf = MeshNormals()..build(low);
@@ -368,11 +376,15 @@ BakedMap bakeThickness({
   required TriangleBvh high,
   required int size,
   int samples = 32,
+
+  /// The depth of material that reads as 1, in metres.
   double distance = 1.0,
+
+  /// How far inside the surface a ray starts, in metres.
   double bias = 1e-3,
 }) {
   final BakedMap map = BakedMap(size, 1);
-  final ray = Ray.zero();
+  final ray = LocalRay.zero();
   rasterizeUv(low, size, (BakeSample sample) {
     final Vector3 inward = -sample.normal;
     var total = 0.0;
@@ -417,12 +429,12 @@ Vector3 _cosineDirection(
   Vector3 tangent,
   Vector3 bitangent,
 ) {
-  final double u = _halton(index + 1, 2);
-  final double v = _halton(index + 1, 3);
+  final u = _halton(index + 1, 2);
+  final v = _halton(index + 1, 3);
   // `r = sqrt(u)` puts the samples' density where the cosine wants them, and
   // z falls out of the unit hemisphere.
-  final double r = math.sqrt(u);
-  final double theta = 2 * math.pi * v;
+  final r = math.sqrt(u);
+  final theta = 2 * math.pi * v;
   return tangent.scaled(r * math.cos(theta)) +
       bitangent.scaled(r * math.sin(theta)) +
       normal.scaled(math.sqrt(math.max(0.0, 1 - u)));
@@ -485,13 +497,13 @@ Vector3 _tangentOf(Vector3 p0, Vector3 p1, Vector3 p2, List<Vector2> uvs) {
   final Vector3 edge2 = p2 - p0;
   final Vector2 duv1 = uvs[1] - uvs[0];
   final Vector2 duv2 = uvs[2] - uvs[0];
-  final double determinant = duv1.x * duv2.y - duv2.x * duv1.y;
+  final determinant = duv1.x * duv2.y - duv2.x * duv1.y;
   if (determinant.abs() < 1e-12) {
     // A degenerate UV triangle carries no direction of its own; any
     // direction across the surface will do and this one is stable.
     return edge1.length2 > 1e-20 ? edge1 : Vector3(1, 0, 0);
   }
-  final double r = 1 / determinant;
+  final r = 1 / determinant;
   return (edge1.scaled(duv2.y) - edge2.scaled(duv1.y)).scaled(r);
 }
 
@@ -502,10 +514,10 @@ void _fillTriangle(
   int size,
   void Function(int x, int y, double w0, double w1, double w2) onTexel,
 ) {
-  final double x0 = uvs[0].x * size, y0 = uvs[0].y * size;
-  final double x1 = uvs[1].x * size, y1 = uvs[1].y * size;
-  final double x2 = uvs[2].x * size, y2 = uvs[2].y * size;
-  final double area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  final x0 = uvs[0].x * size, y0 = uvs[0].y * size;
+  final x1 = uvs[1].x * size, y1 = uvs[1].y * size;
+  final x2 = uvs[2].x * size, y2 = uvs[2].y * size;
+  final area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
   if (area.abs() < 1e-12) return;
 
   final int minX = math.max(0, math.min(x0, math.min(x1, x2)).floor());

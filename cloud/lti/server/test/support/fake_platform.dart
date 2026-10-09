@@ -3,13 +3,13 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 /// A fake LTI platform for this service's own tests — duplicated from
-/// `packages/flutter3d_lti/test/support/test_platform.dart` rather than
+/// `packages/flutter3d_education/test/lti/support/test_platform.dart` rather than
 /// imported: a package's `test/` directory is not something another
 /// package can depend on. Kept to only what `app_test.dart` needs.
 final class FakePlatform {
@@ -59,10 +59,10 @@ final class FakePlatform {
   /// Where `AgsClient`'s client-credentials grant goes (`lti-04`) — null in
   /// [config] until a test that needs AGS asks for [configWithAgsToken],
   /// the same "not every launch has a line item" honest absence
-  /// `LtiPlatformConfig.authTokenUrl` itself keeps.
+  /// `LtiPlatformSettings.authTokenUrl` itself keeps.
   Uri get authTokenUrl => Uri.parse('$issuer/token');
 
-  LtiPlatformConfig get config => LtiPlatformConfig(
+  LtiPlatformSettings get config => LtiPlatformSettings(
     issuer: issuer,
     clientId: clientId,
     deploymentId: deploymentId,
@@ -70,7 +70,7 @@ final class FakePlatform {
     jwksUrl: jwksUrl,
   );
 
-  LtiPlatformConfig get configWithAgsToken => LtiPlatformConfig(
+  LtiPlatformSettings get configWithAgsToken => LtiPlatformSettings(
     issuer: issuer,
     clientId: clientId,
     deploymentId: deploymentId,

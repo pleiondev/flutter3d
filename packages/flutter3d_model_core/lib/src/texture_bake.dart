@@ -40,7 +40,8 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/formats.dart' show decodePng;
+import 'package:flutter3d_core/formats.dart'
+    show DecodedImage, ImageFormatException, decodePng;
 
 import 'texture_graph.dart';
 
@@ -291,7 +292,12 @@ _Raster _evalImage(
 ) {
   final raster = _Raster(size, 4);
   final bytes = images[node.imageId];
-  final decoded = bytes == null ? null : decodePng(bytes);
+  // An image that is not a PNG this build decodes bakes as the flat
+  // fallback below, as a missing one does.
+  final DecodedImage? decoded = switch (bytes) {
+    null => null,
+    final Uint8List encoded => _pngOrNull(encoded),
+  };
   if (decoded == null) {
     raster.fill(const <double>[
       0.5,
@@ -517,4 +523,13 @@ _Raster _evalNormalFromHeight(
     }
   }
   return raster;
+}
+
+/// [bytes] decoded, or null when they are not a PNG this build reads.
+DecodedImage? _pngOrNull(Uint8List bytes) {
+  try {
+    return decodePng(bytes);
+  } on ImageFormatException {
+    return null;
+  }
 }

@@ -60,18 +60,18 @@ final class CryptKit {
 
   /// A room: floor, ceiling, and four walls with [doors] cut through them.
   ///
-  /// [centre] is the middle of the floor and [size] is the inside, so two
+  /// [center] is the middle of the floor and [size] is the inside, so two
   /// rooms whose centres are `size` apart share a wall rather than
   /// overlapping. **North is −Z**, the direction the camera faces at yaw zero.
   void room(
-    List<num> centre,
+    List<num> center,
     List<num> size, {
     double height = CryptKit.height,
     double base = 0.0,
     List<RoomDoor> doors = const <RoomDoor>[],
     bool probe = true,
   }) => _sketch.room(
-    centre,
+    center,
     size,
     height: height,
     base: base,
@@ -110,7 +110,7 @@ final class CryptKit {
     List<num> at, {
     required String name,
     num yaw = 0.0,
-    List<num> colour = const <num>[1.0, 0.68, 0.34],
+    List<num> color = const <num>[1.0, 0.68, 0.34],
     num intensity = 6.5,
     num range = 13.0,
     bool shadow = true,
@@ -118,7 +118,7 @@ final class CryptKit {
     lights.add(<String, Object?>{
       'type': 'point',
       'at': roundedVector(at),
-      'color': colour,
+      'color': color,
       'intensity': intensity,
       'range': range,
       'castsShadow': shadow,
@@ -135,14 +135,14 @@ final class CryptKit {
   void lamp(
     List<num> at, {
     required String name,
-    List<num> colour = const <num>[1.0, 0.78, 0.42],
+    List<num> color = const <num>[1.0, 0.78, 0.42],
     num intensity = 5.0,
     num range = 11.0,
   }) {
     lights.add(<String, Object?>{
       'type': 'point',
       'at': roundedVector(at),
-      'color': colour,
+      'color': color,
       'intensity': intensity,
       'range': range,
       'castsShadow': true,
@@ -152,7 +152,7 @@ final class CryptKit {
       'type': 'lamp',
       'at': roundedVector(at),
       'light': name,
-      'color': colour,
+      'color': color,
     });
   }
 
@@ -175,14 +175,14 @@ final class CryptKit {
     String kind,
     List<num> at, {
     String? name,
-    String? behaviour,
+    String? behavior,
     Map<String, Object?>? board,
   }) => entities.add(<String, Object?>{
     'type': 'monster',
     'name': ?name,
     'at': roundedVector(at),
     'kind': kind,
-    'behaviour': ?behaviour,
+    'behaviour': ?behavior,
     'board': ?board,
   });
 
@@ -193,9 +193,9 @@ final class CryptKit {
     if (row['at'] case final List<num> at) 'at': roundedVector(at),
   });
 
-  /// The level's behaviour trees by name, for a monster's `behaviour` to
+  /// The level's behaviour trees by name, for a monster's `behavior` to
   /// name; written only when there are some.
-  final Map<String, Object?> behaviours = <String, Object?>{};
+  final Map<String, Object?> behaviors = <String, Object?>{};
 
   /// A cutscene a trigger names: [sequence] is the document the game reads
   /// — see `Sequence.read` — kept on the entity as written.
@@ -237,12 +237,12 @@ final class CryptKit {
     if (key != null && key.isNotEmpty) 'key': key,
   });
 
-  void key(String colour, List<num> at, {String? name}) =>
+  void key(String color, List<num> at, {String? name}) =>
       entities.add(<String, Object?>{
         'type': 'key',
         'at': roundedVector(at),
-        'color': colour,
-        'name': name ?? '${colour}_key',
+        'color': color,
+        'name': name ?? '${color}_key',
         'model': 'assets_src/models/key.glb',
         'material': 'keymetal',
         'size': <num>[0.7, 0.7, 0.7],
@@ -478,13 +478,13 @@ final class CryptKit {
   }) {
     final walledIn = _buried();
     if (walledIn.isNotEmpty) {
-      throw GeneratorRefused(
+      throw GeneratorException(
         '${walledIn.length} things a player is meant to reach are inside '
         'solid brushes:\n${walledIn.join('\n')}',
       );
     }
     if (!entities.any((Row e) => e['type'] == 'player_spawn')) {
-      throw GeneratorRefused('$file has nowhere for the player to start');
+      throw GeneratorException('$file has nowhere for the player to start');
     }
     final document = <String, Object?>{
       'version': 1,
@@ -497,7 +497,7 @@ final class CryptKit {
       'lights': lights,
       'entities': entities,
       'next': ?next,
-      if (behaviours.isNotEmpty) 'behaviours': behaviours,
+      if (behaviors.isNotEmpty) 'behaviours': behaviors,
     };
     return '${DocumentText.compact(document)}\n';
   }

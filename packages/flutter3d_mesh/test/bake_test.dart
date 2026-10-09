@@ -35,14 +35,14 @@ EditMesh sheet({double z = 0, bool facingDown = false}) {
   return mesh;
 }
 
-/// A sphere of [radius] about [centre], as a tree to cast against.
-TriangleBvh sphere({double radius = 1, Vector3? centre}) {
+/// A sphere of [radius] about [center], as a tree to cast against.
+TriangleBvh sphere({double radius = 1, Vector3? center}) {
   final EditMesh mesh = ParametricSphere(
     radius: radius,
     segments: 48,
     rings: 24,
   ).toEditMesh();
-  final Vector3 at = centre ?? Vector3.zero();
+  final Vector3 at = center ?? Vector3.zero();
   if (at.length2 > 0) {
     mesh.beginStep();
     for (var v = 0; v < mesh.vertexSlotCount; v++) {
@@ -128,7 +128,7 @@ void main() {
       // straight up rather than within a 255th.
       final BakedMap map = bakeNormalMap(
         low: sheet(),
-        high: sphere(radius: 2, centre: Vector3(0.5, 0.5, -2.02)),
+        high: sphere(radius: 2, center: Vector3(0.5, 0.5, -2.02)),
         size: 32,
         shell: 0.2,
       );
@@ -153,7 +153,7 @@ void main() {
       final BakedMap map = bakeNormalMap(
         low: sheet(),
         // Far out of reach of a shell of 0.01.
-        high: sphere(radius: 1, centre: Vector3(0.5, 0.5, -20)),
+        high: sphere(radius: 1, center: Vector3(0.5, 0.5, -20)),
         size: 8,
         shell: 0.01,
       );
@@ -275,7 +275,7 @@ void main() {
     test('a bake is the same bytes twice', () {
       BakedMap once() => bakeAmbientOcclusion(
         low: sheet(),
-        high: sphere(radius: 2, centre: Vector3(0.5, 0.5, -1.6)),
+        high: sphere(radius: 2, center: Vector3(0.5, 0.5, -1.6)),
         size: 8,
         samples: 16,
         distance: 2,
@@ -292,7 +292,7 @@ void main() {
       final stopwatch = Stopwatch()..start();
       final BakedMap map = bakeNormalMap(
         low: sheet(),
-        high: sphere(radius: 2, centre: Vector3(0.5, 0.5, -1.6)),
+        high: sphere(radius: 2, center: Vector3(0.5, 0.5, -1.6)),
         size: 256,
         shell: 0.6,
       );

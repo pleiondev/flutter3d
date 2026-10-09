@@ -1,0 +1,83 @@
+# The public API of pad_input.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:pad_input/pad_input.dart
+
+final class Deadzone
+  Deadzone copyWith({double? stick, double? trigger})
+  const Deadzone({this.stick = 0.15, this.trigger = 0.06})
+  double applyToTrigger(double value)
+  final double stick
+  final double trigger
+  void applyToStick(List<double> xy)
+
+final class Gamepad
+  Deadzone deadzone
+  Future<void> dispose()
+  Gamepad({GamepadPlatform? platform, Deadzone deadzone = const Deadzone(), this.index = 0})
+  Stream<PadConnection> get connectionChanges
+  bool get isSupported
+  final int index
+  static Future<void> disposeInstance()
+  static Gamepad get instance
+  void read(PadSnapshot out)
+
+abstract base class GamepadPlatform extends PlatformInterface
+  Future<void> dispose()
+  GamepadPlatform()
+  abstract Stream<PadConnection> get connectionChanges
+  abstract bool get isSupported
+  abstract void read(PadSnapshot out)
+  static GamepadPlatform get instance
+  static const int maxPads = 4
+  static set instance(GamepadPlatform instance)
+  void readPad(int index, PadSnapshot out)
+
+enum PadAxis
+  values: leftStickX, leftStickY, rightStickX, rightStickY, triggerLeft, triggerRight
+
+final class PadButton
+  String toString()
+  bool operator ==(Object other)
+  const PadButton(this.id)
+  final String id
+  int get hashCode
+  static const List<PadButton> known = …
+  static const PadButton back = PadButton('back')
+  static const PadButton dpadDown = PadButton('dpad.down')
+  static const PadButton dpadLeft = PadButton('dpad.left')
+  static const PadButton dpadRight = PadButton('dpad.right')
+  static const PadButton dpadUp = PadButton('dpad.up')
+  static const PadButton faceEast = PadButton('face.east')
+  static const PadButton faceNorth = PadButton('face.north')
+  static const PadButton faceSouth = PadButton('face.south')
+  static const PadButton faceWest = PadButton('face.west')
+  static const PadButton guide = PadButton('guide')
+  static const PadButton shoulderLeft = PadButton('shoulder.left')
+  static const PadButton shoulderRight = PadButton('shoulder.right')
+  static const PadButton start = PadButton('start')
+  static const PadButton stickLeftClick = PadButton('stick.left.click')
+  static const PadButton stickRightClick = PadButton('stick.right.click')
+  static const PadButton triggerLeft = PadButton('trigger.left')
+  static const PadButton triggerRight = PadButton('trigger.right')
+
+enum PadConnection
+  values: disconnected, connected
+
+final class PadSnapshot
+  Iterable<PadButton> get held
+  bool connected
+  bool down(PadButton button)
+  double axis(PadAxis axis)
+  double pressure(PadButton button)
+  void clear()
+  void copyFrom(PadSnapshot other)
+  void disconnect()
+  void setAxis(PadAxis axis, double value)
+  void setDown(PadButton button, {required bool down, double? pressure})
+
+final class UnsupportedGamepad extends GamepadPlatform
+  Stream<PadConnection> get connectionChanges
+  bool get isSupported
+  void read(PadSnapshot out)

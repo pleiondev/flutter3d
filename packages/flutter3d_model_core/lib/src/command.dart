@@ -24,15 +24,11 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-// `EnumHint` hidden: `flutter3d_formats`' own is `MaterialHintKind`'s, for a
-// material's fields, and this library's `param_hint.dart` names a command
-// argument's the same word for the same reason — nothing here reads a
-// material's, and the collision is the one the plan's own critique (Г4/Ж2)
-// gives for keeping the two hierarchies apart in the first place.
 import 'package:flutter3d_core/flutter3d_core.dart'
-    show AnimationGraphJson, AnimationStateMachine;
-import 'package:flutter3d_core/formats.dart' hide EnumHint;
+    show AnimationGraphJson, AnimationStateMachine, rootMotionExtra;
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -48,6 +44,7 @@ import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'project_wire.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
 import 'shape_driver.dart';
@@ -132,7 +129,7 @@ final class Outcome {
   /// history rolls. Empty for a command that only touched the document.
   final List<EditMesh> meshesTouched;
 
-  bool get ok => refused == null;
+  bool get isOk => refused == null;
 }
 
 /// The point a turn or a scale happens about.
@@ -280,7 +277,7 @@ sealed class ModelCommand {
 /// would read back only `{"name": "replaceDocument"}`, nothing of [next], and
 /// [modelCommandFromJson] would refuse it anyway since it is not in that
 /// table. It exists so that bringing in an external model —
-/// `flutter3d_model_mcp`'s `import`, and later `doc-11a-n`'s `ImportInto` —
+/// `flutter3d_mcp/model.dart`'s `import`, and later `doc-11a-n`'s `ImportInto` —
 /// still goes through [ModelHistory] and can be undone as itself, rather than
 /// needing a second, private way to push a step that every other command
 /// already has for free.
@@ -394,7 +391,7 @@ final class MoveBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': <double>[by.x, by.y, by.z],
-    if (space != TransformSpace.global) 'space': space.name,
+    if (space != TransformSpace.global) 'space': transformSpaceWord(space),
   };
 
   @override
@@ -957,16 +954,24 @@ _modelCommandReaders =
         final int index => EmbedMaterial(index),
         _ => null,
       },
-      'setMaterialGraph': (json) => switch (json['materialIndex']) {
-        final int materialIndex => SetMaterialGraph(
-          materialIndex: materialIndex,
-          graph: switch (json['graph']) {
-            final Map<String, Object?> g => TextureGraph.fromJson(g),
+      // A graph that does not read is an entry this build cannot replay,
+      // answered null like every other, never thrown out of the reader.
+      'setMaterialGraph': (json) =>
+          switch ((json['materialIndex'], json['graph'])) {
+            (final int materialIndex, final Map<String, Object?> g) =>
+              switch (_graphFrom(g)) {
+                final TextureGraph graph => SetMaterialGraph(
+                  materialIndex: materialIndex,
+                  graph: graph,
+                ),
+                null => null,
+              },
+            (final int materialIndex, _) => SetMaterialGraph(
+              materialIndex: materialIndex,
+              graph: null,
+            ),
             _ => null,
           },
-        ),
-        _ => null,
-      },
       'bakeTextureGraph': (json) => switch (json['materialIndex']) {
         final int materialIndex => BakeTextureGraph(
           materialIndex: materialIndex,
@@ -1319,7 +1324,7 @@ _modelCommandReaders =
           BendJoint(
             skeletonIndex: skeletonIndex,
             jointIndex: jointIndex,
-            degrees: degrees.toDouble(),
+            angle: radians(degrees.toDouble()),
             axis: switch (json['axis']) {
               final int axis => axis,
               _ => 0,
@@ -1430,13 +1435,13 @@ _modelCommandReaders =
         (
           final int objectId,
           final List<Object?> samplesJson,
-          final List<double> colour,
+          final List<double> color,
         ) =>
           switch (_paintSamplesFrom(samplesJson)) {
-            final List<PaintSample> samples => PaintVertexColour(
+            final List<PaintSample> samples => PaintVertexColor(
               objectId: objectId,
               samples: samples,
-              colour: colour,
+              color: color,
               strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
             ),
             null => null,
@@ -1458,13 +1463,13 @@ _modelCommandReaders =
         (
           final int objectId,
           final List<Object?> samplesJson,
-          final List<double> colour,
+          final List<double> color,
         ) =>
           switch (_paintSamplesFrom(samplesJson)) {
             final List<PaintSample> samples => PaintStroke(
               objectId: objectId,
               samples: samples,
-              colour: colour,
+              color: color,
               layer: (json['layer'] as num?)?.toInt() ?? 0,
               strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
               size: (json['size'] as num?)?.toInt() ?? 1024,
@@ -1722,11 +1727,8 @@ _modelCommandReaders =
 /// know belongs to a journal written by a newer application — reading it back
 /// as median would replay the step about a different point in silence, which is
 /// worse than skipping the entry the way every other unreadable one is skipped.
-TransformPivot? _pivot(Object? json) => json == null
-    ? TransformPivot.median
-    : TransformPivot.values
-          .where((TransformPivot each) => each.name == json)
-          .firstOrNull;
+TransformPivot? _pivot(Object? json) =>
+    json == null ? TransformPivot.median : transformPivotOf(json);
 
 /// The shape [json] describes, or null when it is not a shape at all.
 ParametricShape? _shapeOf(Object? json) =>
@@ -1752,18 +1754,15 @@ List<Vector2>? _points(Object? json) {
 /// Where [json] puts an origin, the middle of the bounds by default, or null.
 /// See [_pivot] for why an unknown word is null rather than the default.
 OriginPlacement? _placement(Object? json) => json == null
-    ? OriginPlacement.boundsCentre
+    ? OriginPlacement.boundsCenter
     : OriginPlacement.values
-          .where((OriginPlacement each) => each.name == json)
+          .where((OriginPlacement each) => each.wire == json)
           .firstOrNull;
 
 /// The space [json] names, [TransformSpace.global] by default, or null. See
 /// [_pivot] for why an unknown word is null rather than the default.
-TransformSpace? _space(Object? json) => json == null
-    ? TransformSpace.global
-    : TransformSpace.values
-          .where((TransformSpace each) => each.name == json)
-          .firstOrNull;
+TransformSpace? _space(Object? json) =>
+    json == null ? TransformSpace.global : transformSpaceOf(json);
 
 /// Exactly [length] numbers, or null.
 ///
@@ -1779,4 +1778,13 @@ List<double>? _doubles(Object? json, int length) {
     out.add(each.toDouble());
   }
   return out;
+}
+
+/// The graph [json] describes, or null when it is not one.
+TextureGraph? _graphFrom(Map<String, Object?> json) {
+  try {
+    return TextureGraph.fromJson(json);
+  } on TextureGraphFormatException {
+    return null;
+  }
 }

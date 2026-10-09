@@ -57,7 +57,7 @@ final class FaceTriangulator {
   /// A caller — the conversion to `MeshData`, an exporter, the readiness check
   /// — reads this to report a face that could not be cut properly, which is
   /// what `mesh-27`'s issue list is for.
-  bool get fannedLastFace => _fanned;
+  bool get didFanLastFace => _fanned;
   bool _fanned = false;
 
   /// Cuts the polygon given by [points] and calls [emit] with each triangle, as

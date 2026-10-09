@@ -386,7 +386,7 @@ void main() {
       expect(mesh.signedVolume, lessThan(0));
 
       late bool turned;
-      edit(mesh, () => turned = mesh.makeConsistent());
+      edit(mesh, () => turned = mesh.ensureConsistent());
       expect(turned, isTrue);
       expect(mesh.signedVolume, closeTo(1, 1e-5));
       mesh.validate();
@@ -396,7 +396,7 @@ void main() {
       final mesh = EditMesh.cuboid();
 
       late bool turned;
-      edit(mesh, () => turned = mesh.makeConsistent());
+      edit(mesh, () => turned = mesh.ensureConsistent());
       expect(turned, isFalse);
       expect(mesh.signedVolume, closeTo(1, 1e-5));
     });
@@ -415,7 +415,7 @@ void main() {
       // turns half a scanned surface inside out on load, because the sign of an
       // open shell's volume is about where the origin happens to be.
       late bool turned;
-      edit(mesh, () => turned = mesh.makeConsistent());
+      edit(mesh, () => turned = mesh.ensureConsistent());
       expect(turned, isFalse);
       expect(mesh.signedVolume, before);
     });
@@ -441,7 +441,7 @@ void main() {
       expect(mesh.signedVolume, closeTo(0, 1e-5));
 
       late bool turned;
-      edit(mesh, () => turned = mesh.makeConsistent());
+      edit(mesh, () => turned = mesh.ensureConsistent());
       expect(turned, isTrue);
 
       // Mutation: sum the volume over the whole mesh instead of per island and

@@ -7,15 +7,18 @@ library;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
-BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
+BakeClothJobRequest bake({
+  int frameCount = 120,
+  PhysicsBackend physics = const DartPhysics(),
+}) => BakeClothJobRequest(
   objectId: 1,
   baseVersion: 1,
   mesh: ClothMesh.grid(cols: 20, rows: 20, spacing: 0.03, mass: 0.01),
   settings: const ClothSettings(),
   dt: 1 / 60,
   frameCount: frameCount,
+  physics: physics,
 );
 
 void main() {
@@ -142,12 +145,9 @@ void main() {
     });
   });
 
-  test('a bake steps its cloth on the run\'s backend', () async {
-    final was = PhysicsBackend.current;
-    addTearDown(() => PhysicsBackend.current = was);
+  test('a bake steps its cloth on the backend it was given', () async {
     final backend = _Counting();
-    PhysicsBackend.current = backend;
-    final job = bake(frameCount: 3);
+    final job = bake(frameCount: 3, physics: backend);
     await job.bake();
     // Mutation: the bake calling stepCloth itself, past the backend.
     expect(backend.steps, 3);
@@ -157,7 +157,7 @@ void main() {
 
 /// A backend with a cloth of its own, the reference's, that counts its
 /// steps.
-final class _Counting implements PhysicsBackend, ClothPhysics {
+final class _Counting extends PhysicsBackend {
   int steps = 0;
 
   @override
@@ -165,19 +165,9 @@ final class _Counting implements PhysicsBackend, ClothPhysics {
 
   @override
   ClothSimulation cloth(ClothMesh mesh) => _CountedCloth(this, DartCloth(mesh));
-
-  @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      const DartPhysics().dynamics(world, gravity: gravity);
-
-  @override
-  void attach(CollisionWorld world) {}
-
-  @override
-  void release(CollisionWorld world) {}
 }
 
-final class _CountedCloth implements ClothSimulation {
+final class _CountedCloth extends ClothSimulation {
   _CountedCloth(this._backend, this._cloth);
 
   final _Counting _backend;

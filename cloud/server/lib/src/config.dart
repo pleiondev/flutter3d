@@ -38,6 +38,7 @@ class Config {
     this.shareModeration = ShareModeration.review,
     this.shareModeratorToken,
     this.shareReportsToHide = 3,
+    this.editor = false,
   });
 
   /// Reads the configuration from the process environment.
@@ -81,6 +82,16 @@ class Config {
       missing.add('MODELS_SHARES_REPORTS_TO_HIDE (a positive number)');
     }
 
+    // Off unless it says on. A typo is named like a missing setting rather
+    // than read as either: a deploy that believes it switched editing back
+    // on should not find out from a 410.
+    final editor = switch (env['MODELS_EDITOR'] ?? 'off') {
+      'on' => true,
+      'off' || '' => false,
+      _ => null,
+    };
+    if (editor == null) missing.add('MODELS_EDITOR (on or off)');
+
     final config = Config(
       // 8794: on bob, 8790–8792 are the documentation site, tooth and its API,
       // and 8793 is the nginx that sits in front of this.
@@ -102,6 +113,7 @@ class Config {
       shareModeration: moderation ?? ShareModeration.review,
       shareModeratorToken: moderatorToken,
       shareReportsToHide: reportsToHide ?? 3,
+      editor: editor ?? false,
     );
 
     if (missing.isNotEmpty) throw ConfigError(missing);
@@ -175,6 +187,15 @@ class Config {
 
   /// How many reports send a published level back to review.
   final int shareReportsToHide;
+
+  /// Whether a model opened at `/app/` may be saved back: `MODELS_EDITOR`.
+  ///
+  /// **Off by default.** Off, `POST /api/v1/models/<id>/source` answers 410
+  /// and the pages offer viewing; rendering, inspection, preview pictures and
+  /// storage all stay. The viewer build is the other half of the switch —
+  /// `tool/build_viewer.sh` compiles the modeller to view or to edit, and
+  /// turning editing back on is this setting and that build together.
+  final bool editor;
 
   /// Whether letters are actually sent.
   bool get sendsMail => resendApiKey != null;

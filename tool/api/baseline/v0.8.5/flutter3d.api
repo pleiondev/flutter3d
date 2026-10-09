@@ -1,0 +1,740 @@
+# The public API of flutter3d.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d/flutter3d.dart
+
+final class BundleAssetSource extends AssetSource
+  AssetUriResolver get resolveUri
+  Future<Uint8List> read()
+  String get key
+  const BundleAssetSource(this.assetPath)
+  final String assetPath
+
+typedef ImpostorPart = ({DeviceMesh card, TextureHandle albedo, TextureHandle normalDepth});
+
+abstract interface class MaterialDecoder
+  MaterialDocument decode(Uint8List bytes, String fileName)
+  bool handles(String fileName, Uint8List bytes)
+
+final class ModelAsset
+  ModelAsset({required this.parts, required this.localBounds, List<ModelNode>? nodes, List<int>? roots, List<ModelSkin> skins = const <ModelSkin>[], this.clips = const <AnimationClip>[], this.warnings = const <String>[], this.name, this.variants = const <String>[], this.materials = const <int, Material>{}, Map<ModelImpostor, ImpostorPart> impostors = const <ModelImpostor, ImpostorPart>{}})
+  bool get isAnimated
+  bool get isSkinned
+  factory ModelAsset.fromMesh(GraphicsDevice device, MeshData mesh, {Material? material, String? name})
+  final Aabb3 localBounds
+  final List<AnimationClip> clips
+  final List<ModelNode> nodes
+  final List<ModelPart> parts
+  final List<ModelSkin> skins
+  final List<String> variants
+  final List<String> warnings
+  final List<int> roots
+  final Map<ModelImpostor, ImpostorPart> impostors
+  final Map<int, Material> materials
+  final String? name
+  int get triangleCount
+  int get vertexCount
+  static Future<ModelAsset> fromDocument(ModelDocument document, {required GraphicsDevice device, LightingModel lighting = LightingModel.pbr, String? name, ImageDecoder decodeImage = defaultImageDecoder})
+  void release(GraphicsDevice device)
+
+extension ModelAssetInstantiate on ModelAsset
+  ModelInstance instantiate(Scene scene, {SceneNode? parent, String? name, bool shareMaterials = true})
+  ModelInstance instantiateFitted(Scene scene, {required double length, int axis = 2, bool onGround = false, SceneNode? parent, String? name, bool shareMaterials = true})
+
+final class ModelInstance
+  ModelInstance({required this.root, required this.nodes, required this.meshes, required this.skeletons, required this.player, this.variants = const <String>[], this._drawn = const <(MeshNode, ModelPart)>[], Material Function(Material)? materialFor, PointerTargets? pointerTargets})
+  String? get variant
+  bool selectVariant(String? name)
+  final AnimationPlayer? player
+  final List<MeshNode> meshes
+  final List<SceneNode> nodes
+  final List<Skeleton> skeletons
+  final List<String> variants
+  final PointerTargets pointerTargets
+  final SceneNode root
+  void bindLight(int index, LightNode light)
+  void removeFromScene()
+
+final class ModelLook
+  const ModelLook(this.file, {required this.length, this.axis = 2, this.onGround = false, this.offset})
+  final String file
+  final Vector3? offset
+  final bool onGround
+  final double length
+  final int axis
+
+final class ModelWardrobe<K>
+  Future<void> load({AssetSource Function(String path) source = BundleAssetSource.new, void Function(K key, Object error)? onError})
+  ModelWardrobe({required this.device, required this.scene, required Map<K, ModelLook> looks, this.onDressed})
+  bool has(K key)
+  final GraphicsDevice device
+  final Map<K, ModelLook> looks
+  final Scene scene
+  final void Function(ModelInstance instance, K key)? onDressed
+  int get wearers
+  void dress(SceneNode visual, K key)
+  void forget(SceneNode visual)
+  void put(K key, ModelAsset asset)
+
+DeviceClass? assetDeviceClass
+
+AssetUriResolver assetUriResolver(String baseAssetPath, {AssetBundle? bundle})
+
+Future<Material> bindMaterial(MaterialDocument document, {required GraphicsDevice device, required AssetUriResolver resolveUri, LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder})
+
+Future<Material> bindSurfaceMaterial(SurfaceMaterial source, {LightingModel lighting = LightingModel.pbr, bool transformsAtSampler = false, required Future<TextureHandle?> Function(int, TextureSampling) textureFor, ({GraphicsDevice device, Future<Rgba8Image?> Function(TextureBinding binding) image})? layerImages})
+
+Future<Rgba8Image?> defaultImageDecoder(Uint8List encoded)
+
+String generatedAssetPathFor(String sourcePath)
+
+Future<Material> loadMaterial(AssetSource source, {required GraphicsDevice device, List<MaterialDecoder> decoders = const <MaterialDecoder>[], LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder})
+
+Future<MaterialDocument> loadMaterialDocument(AssetSource source, {List<MaterialDecoder> decoders = const <MaterialDecoder>[]})
+
+Future<ModelDocument> loadModelAsset(String sourcePath, {bool debugMode = kDebugMode, DeviceClass? deviceClass, AssetSource Function(String path) generatedSource = BundleAssetSource.new, AssetSource Function(String path) fallbackSource = FileAssetSource.new})
+
+Future<ModelDocument> loadModelByPath(String path, {AssetSource Function(String path) bundleSource = BundleAssetSource.new})
+
+export package:flutter3d_core/flutter3d_core.dart (whole library)
+  AbsolutePixels
+  AdaptiveQuality
+  AdaptiveQualitySettings
+  AdaptiveScale
+  AdaptiveScaleSettings
+  AmbientOcclusionMethod
+  AmbientOcclusionSettings
+  AnimationBlend
+  AnimationLayer
+  AnimationPlayer
+  AnimationTarget
+  AnimationWrap
+  AntiAliasSettings
+  Atmosphere
+  AtmosphereCycle
+  AutoExposureSettings
+  BakedPoses
+  BloomSettings
+  CameraNode
+  CapsuleShape
+  CapturedImage
+  CapturedPass
+  CellGrid
+  ChangedBounds
+  CheckerboardTexture
+  ClusterDraws
+  CompiledFrameGraph
+  ConeShape
+  ContactShadowSettings
+  ContributorFrame
+  ContributorLights
+  ContributorRegistry
+  CpuMesh
+  CuboidShape
+  CylinderShape
+  DebugColors
+  DebugDraw
+  DebugDrawGizmos
+  DebugDrawOptions
+  DepthOfFieldSettings
+  DerivedShape
+  DeviceClass
+  DeviceClassMemory
+  DeviceClassPicker
+  DeviceClassSelector
+  DeviceMesh
+  DeviceTraits
+  DiffuseModel
+  DiscShape
+  DisplayTransform
+  DrawItem
+  DrawableGeometry
+  EffectiveAntiAliasing
+  EnvironmentMap
+  ExposureAdapter
+  ExposureMeter
+  FabrikIk
+  FieldPass
+  FileAssetSource
+  FogSettings
+  FrameCapture
+  FrameCaptureBuilder
+  FrameFraction
+  FrameGraph
+  FrameGraphError
+  FrameGraphNode
+  FrameHistory
+  FramePass
+  FramePassState
+  FramePhase
+  FrameResourceIds
+  FrameResources
+  FrameResult
+  FrameTextureSource
+  FrameWorkBudget
+  FreeLook
+  FullscreenDraw
+  FullscreenEffect
+  HiZOcclusion
+  HitResult
+  ImageDecoder
+  ImmediateTextureSource
+  ImpostorNode
+  InMemoryDeviceClassMemory
+  InstanceHandle
+  InstancedMeshNode
+  IrradianceField
+  JitteredProjection
+  Ktx2Texture
+  LatheShape
+  LightBuffer
+  LightChannels
+  LightGroup
+  LightNode
+  LightShaftSettings
+  LightType
+  LineStripNode
+  LocalExposureSettings
+  LodGroup
+  LodLevel
+  LookSettings
+  Material
+  MaterialAlphaMode
+  MaterialSortIds
+  MeshBuilder
+  MeshClusters
+  MeshData
+  MeshGeometry
+  MeshNode
+  MeshOverlay
+  MeshTangents
+  MeterRect
+  ModelPart
+  ModelWriteFormat
+  ModelWriteRequest
+  MorphBlend
+  MorphSink
+  MorphState
+  MorphTarget
+  MorphTexture
+  MotionBlurSettings
+  NodeFrame
+  NodeHistory
+  ObjectIdFrame
+  OcclusionBuffer
+  OcclusionMode
+  OcclusionTest
+  OffAxisProjection
+  OpenPath
+  OrbitController
+  OrthographicProjection
+  OutputTransform
+  OverlayBatch
+  PackedIndices
+  PackedLane
+  PackedMap
+  PassContribution
+  PassContributor
+  PassSkip
+  PerspectiveProjection
+  Photometric
+  PlaneShape
+  PointerTargets
+  Pose
+  PosedMesh
+  PostFrameResult
+  ProbeFace
+  ProceduralTexture
+  Projection
+  QualityRow
+  QualitySetting
+  QualityTable
+  Ray
+  Raycaster
+  ReactiveFrame
+  ReactiveShape
+  ReflectionProbeNode
+  ReflectionSettings
+  RenderList
+  RenderNode
+  RenderNodeRegistry
+  RenderServices
+  RenderSettings
+  RenderView
+  Renderer
+  ResourceCache
+  ResourceDesc
+  ResourceHandle
+  ResourceId
+  ResourceOrigin
+  ResourceSize
+  ResourceVersion
+  Scene
+  SceneBvh
+  SceneNode
+  SceneShadows
+  ScreenBounds
+  ShaderLightType
+  ShadowAssignment
+  ShadowCandidate
+  ShadowCasterFaces
+  ShadowCastingMode
+  ShadowFaceScheduler
+  ShadowFilter
+  ShadowSettings
+  ShadowSlotAllocator
+  Shape
+  Skeleton
+  SkinBlend
+  SkippedPass
+  SkyColour
+  SkyDome
+  SkyGradient
+  SkyLook
+  SkySettings
+  SoftwareOcclusion
+  SolidColorTexture
+  SortMode
+  SpatialUpscaleSettings
+  SphereShape
+  SplatComposite
+  SplatContributor
+  SplatLens
+  SplatLod
+  SplatQuads
+  SplatSorter
+  TangentMethod
+  TemporalClip
+  TemporalSettings
+  TiledProjection
+  TonemapCurve
+  TorusShape
+  TransparencyMode
+  TriangleBvh
+  TwoBoneIk
+  VertexAttribute
+  VertexLayout
+  ViewModelNode
+  ViewportRect
+  ViewportShading
+  ViewportShadingSettings
+  VolumetricFogSettings
+  XraySettings
+  advanceTime
+  animationTrackKey
+  averageCacheMissRatio
+  bloomLevelsFor
+  buildIdentityLut
+  buildPolyline
+  buildsMipChain
+  chooseUniversalTarget
+  clusterEye
+  contributionBetween
+  decodeModelInIsolate
+  decodeOctahedral
+  describeEmptyFrame
+  deviceClassPath
+  encodeModel
+  encodeModelInIsolate
+  encodeOctahedral
+  ensureSphereCapacity
+  escapesAssetBase
+  fileUriResolver
+  followCamera
+  gather
+  gatherProbe
+  impostorCard
+  impostorDecode
+  impostorEncode
+  impostorRight
+  impostorViewDirection
+  jitterOffset
+  kDefaultVertexCacheSize
+  kImpostorGrid
+  kIrradianceReach
+  kMaxPayload
+  kNeutralColor
+  kNeutralJoints
+  kNeutralTangent
+  kNeutralWeights
+  kNoHit
+  kPayloadBits
+  kPayloadMask
+  kRadixThreshold
+  kRootMotionExtra
+  kSortKeyBits
+  kSplatFloatsPerVertex
+  kSplatKeyMax
+  kSplatLeanLimit
+  kSplatLowPass
+  kSplatReach
+  kSplatVerticesPerSplat
+  lookAtRightHanded
+  measureFrameMicros
+  optimizeTriangleOrder
+  optimizeVertexCache
+  optimizeVertexFetch
+  packLanes
+  packSceneSpheres
+  paintSky
+  probeFaceIsMirrored
+  probeFaceViewProjection
+  projectPoint
+  radixSortPackedKeys
+  rayAabb
+  raySphere
+  rayTriangle
+  ribbon
+  samplerOptionsFor
+  screenBoundsOfBox
+  screenMotion
+  selectVisibleClusters
+  skyNode
+  sortPackedKeys
+  sortSplatKeys
+  toDepthRange
+  toFramebufferOrigin
+  uploadCoatMap
+  uploadEncodedImage
+  uploadRgba8
+  uploadSheenMap
+  viewAxisOf
+
+export package:flutter3d_core/formats.dart hide Ktx2Texture
+  AnimationClip
+  AnimationInterpolation
+  AnimationMask
+  AnimationPath
+  AnimationPointer
+  AnimationPointerProperty
+  AnimationPointerSink
+  AnimationPointerTarget
+  AnimationTrack
+  AssetRequest
+  AssetSource
+  AssetUriResolver
+  CheckedModelWriter
+  ColorHint
+  DecodedImage
+  DocumentAsset
+  DocumentDifference
+  DracoAttribute
+  DracoAttributeType
+  DracoException
+  DracoMesh
+  EncodedImage
+  EnumHint
+  EnumHintValue
+  ExportReport
+  F3dAttributeFlags
+  F3dDecoder
+  F3dDocument
+  F3dFormatException
+  F3dModelWriter
+  F3dMorphFlags
+  F3dRecord
+  F3dSamplingFlags
+  F3dSection
+  F3dWriter
+  FbxDecoder
+  GlbContainer
+  GlbModelWriter
+  GltfAccessorReader
+  GltfAccessorType
+  GltfAsset
+  GltfComponentType
+  GltfLoader
+  GltfPrimitiveMode
+  GltfWriter
+  HdrFormatException
+  HdrImage
+  Ktx2ColorModel
+  Ktx2FormatException
+  Ktx2GlobalDataField
+  Ktx2HeaderField
+  Ktx2ImageDescField
+  Ktx2IndexField
+  Ktx2SupercompressionScheme
+  LightingModel
+  MaterialBinary
+  MaterialBindings
+  MaterialBuiltin
+  MaterialCall
+  MaterialConstant
+  MaterialConstruct
+  MaterialDocument
+  MaterialExpression
+  MaterialExtensions
+  MaterialHint
+  MaterialHintKind
+  MaterialInput
+  MaterialInputRef
+  MaterialLet
+  MaterialLocalRef
+  MaterialMap
+  MaterialNegate
+  MaterialParamRef
+  MaterialParameter
+  MaterialProgram
+  MaterialReturn
+  MaterialSample
+  MaterialStatement
+  MaterialSurfaceValues
+  MaterialSwizzle
+  MaterialSyntaxError
+  MaterialTextureSlot
+  MaterialType
+  MaterialVariant
+  ModelCamera
+  ModelCameraProjection
+  ModelDecoder
+  ModelDocument
+  ModelFormat
+  ModelImpostor
+  ModelLight
+  ModelLightType
+  ModelLoadRequest
+  ModelLod
+  ModelNode
+  ModelOrthographicCamera
+  ModelPerspectiveCamera
+  ModelSkin
+  ModelSplat
+  ModelSurface
+  ModelWrite
+  ModelWriter
+  MtlMaterial
+  ObjDocument
+  ObjLoader
+  ObjModelWriter
+  ObjNormals
+  ObjWriter
+  PagedSplatOctree
+  PlainModelDocument
+  RangeHint
+  Rgba8Image
+  SplatAxes
+  SplatCloud
+  SplatColourSpace
+  SplatOctree
+  SplatOctreeException
+  SplatOctreeNode
+  SplatPlyException
+  SplatRangeReader
+  SplatSpzException
+  StlLoader
+  StlModelWriter
+  StlNormals
+  StlWriter
+  SurfaceAlphaMode
+  SurfaceMaterial
+  TextureBinding
+  TextureHint
+  TextureSampling
+  TextureTransform
+  TextureWrap
+  UniversalTarget
+  UsdzModelWriter
+  UsdzWriter
+  UsdzZip
+  VkFormat
+  WrittenFile
+  applyBinary
+  broadcastArguments
+  buildMipChain
+  buildSplatOctree
+  builtInMaterialHints
+  builtInModelDecoder
+  builtInModelExtensions
+  builtInModelWriters
+  canDecodeFileName
+  checkMaterialSurface
+  compareModelDocuments
+  decodeDataUri
+  decodeDraco
+  decodeImagePure
+  decodeJpeg
+  decodeModel
+  decodeModelBytes
+  decodePng
+  decodeSplatPage
+  decodeUniversalBlock
+  describeMaterial
+  emitMaterialFragment
+  encodeAstc4x4
+  encodeAstc4x4Block
+  encodeBc1
+  encodeBc3
+  encodeCompressedPng
+  encodeEtc2Rgb8
+  encodeEtc2Rgb8Block
+  encodeSplatOctree
+  encodeUniversalBlock
+  encodeUniversalBlocks
+  evaluateMaterial
+  exportChecked
+  exportToF3d
+  exportToGlb
+  exportToObj
+  exportToStl
+  hasConflictingTextureTransforms
+  hdrSizeOf
+  inflate
+  isBasisUniversalKtx2
+  isBinaryStl
+  isF3dFile
+  isFmat
+  isKtx2BasisUniversal
+  isKtx2File
+  kF3dHeaderBytes
+  kF3dMagic
+  kF3dSectionEntryBytes
+  kF3dVersion
+  kFmatVersion
+  kKtx2HeaderBytes
+  kKtx2HeaderOffset
+  kKtx2Identifier
+  kKtx2IndexBytes
+  kKtx2IndexOffset
+  kKtx2LevelIndexEntryBytes
+  kKtx2LevelIndexOffset
+  kMaterialInputs
+  kMaterialTextureBindings
+  kSplatOctreeExtension
+  kSplatOctreeHeaderBytes
+  kSplatOctreeNodeBytes
+  kSplatOctreeVersion
+  kSplatPageBytesPerSplat
+  kSplatShC0
+  kSpzLatestVersion
+  kUniversalBlockKey
+  kUniversalBlockRgb
+  kUniversalBlockRgba
+  linearFromSrgb
+  linearToSrgb
+  looksLikeAsciiStl
+  looksLikeSpz
+  materialExtensionsFromJson
+  materialExtensionsToJson
+  mergeSplats
+  modelWriterNamed
+  parseMaterial
+  parseMtl
+  parseSplatOctree
+  parseSplatOctreeIndex
+  parseSplatPly
+  parseSplatSpz
+  readFmat
+  readHdr
+  recognizedModelFormat
+  safeRelativeAssetPath
+  sharedTextureTransform
+  sniffImageMimeType
+  sniffModelFormat
+  specialiseMaterial
+  splatBytesReader
+  splatChannel
+  splatColour
+  splatOctreeIndexBytes
+  splatOpacity
+  srgbToLinear
+  surfaceMaterialFromJson
+  surfaceMaterialToJson
+  symmetricEigen3
+  toGltfFilters
+  transcodeUniversal
+  universalBlockFormat
+  validateGltfExport
+  withTextureTransform
+  writeFmat
+  writeKtx2
+  writeKtx2WithMips
+  zlibCompress
+  zlibInflate
+
+export package:flutter3d_hardware/flutter3d_hardware.dart (whole library)
+  BackendOpener
+  BackendRegistration
+  BindUniformBlockObject
+  BlendFactor
+  BlendOperation
+  BlendState
+  BufferLayout
+  ColorTarget
+  CommandEncoder
+  CompareFunction
+  ComputeEncoder
+  ComputePipelineHandle
+  CullMode
+  DepthRange
+  DepthTarget
+  FramebufferOrigin
+  GeometryBuffer
+  GeometryUsage
+  GpuFrameTimings
+  GpuPassTiming
+  GraphicsDevice
+  IndexType
+  InputAttribute
+  LayeredShaderLibrary
+  LoadAction
+  LoadedShaderLibrary
+  MinMagFilter
+  MipChain
+  MipFilter
+  PassEncoder
+  PassState
+  PassStateApply
+  PipelineHandle
+  PolygonMode
+  PresenterRegistration
+  PrimitiveType
+  RenderPassDescriptor
+  RenderTargetPool
+  RenderTargetSpec
+  SamplerAddressMode
+  SamplerOptions
+  ScreenRect
+  ShaderBundle
+  ShaderBundleRefused
+  ShaderBundleStage
+  ShaderHandle
+  ShaderLibrary
+  StageBindings
+  StencilFace
+  StencilOperation
+  StencilState
+  StorageBuffer
+  StorageMode
+  StoreAction
+  TextureAllocator
+  TextureBlockLayout
+  TextureFormat
+  TextureFormatCompression
+  TextureFormatStencil
+  TextureHandle
+  TextureType
+  UniformBlock
+  UniformMemberLayout
+  VertexFormat
+  VertexLayoutSpec
+  VertexStepMode
+  WindingOrder
+  lookUpDevicePresenter
+  openRegisteredDevice
+  readbackFormats
+  readbackRegionOf
+  registerBackendOpener
+  registerDevicePresenter
+
+library package:flutter3d/parity_scene.dart
+
+export package:flutter3d_core/parity_scene.dart (whole library)
+  ParityScene
+  buildParityScene
+  kParityGrid
+  kParityHeight
+  kParityWidth
+  parityGrid
+  paritySettingsFor

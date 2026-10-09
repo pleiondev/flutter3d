@@ -29,10 +29,10 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'simulation_cache.dart';
 
 /// Bakes [mesh] forward [frameCount] frames of [dt] seconds each, one step
-/// of the run's cloth (`PhysicsBackend.cloth`) per frame — cheap enough, at the scale this cache is
-/// meant for, to fit inside a `Job` chunk's own per-step time budget on the
+/// of [physics]' cloth (`PhysicsBackend.cloth`) per frame — cheap enough, at
+/// the scale this cache is meant for, to fit inside a `Job` chunk's own per-step time budget on the
 /// web without batching several frames into one chunk.
-final class BakeClothJobRequest implements SimulationBakeRequest {
+final class BakeClothJobRequest with SimulationBakeRequest {
   BakeClothJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -41,8 +41,9 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
     required this.dt,
     required this.frameCount,
     this.obstacles = const <ClothObstacle>[],
+    PhysicsBackend physics = const DartPhysics(),
   }) : _mesh = mesh,
-       _cloth = PhysicsBackend.current.cloth(mesh),
+       _cloth = physics.cloth(mesh),
        vertexCount = mesh.particleCount,
        assert(frameCount > 0, 'a bake of zero frames has nothing to cache');
 
