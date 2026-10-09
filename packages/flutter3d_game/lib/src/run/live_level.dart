@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'demo_recording.dart';
@@ -28,7 +31,33 @@ final class LiveLevel {
     this.timeline,
     this.prepare,
     this.swapped,
+    this.collision,
+    this.gameWorld,
   });
+
+  /// The run's collision world, whose properties (`CollisionWorld.properties`)
+  /// an edit of the level's `world` changes: set to the next level's world
+  /// laid over [gameWorld] before [rebuild] runs, inside the timeline's swap
+  /// when there is one, so a run replayed under a level moved to the Moon
+  /// falls by the Moon from the step it branched at. Null for a game that
+  /// sets its world in [rebuild] itself.
+  final CollisionWorld? collision;
+
+  /// The game's own world, which every level it plays is laid over: the
+  /// world it stages its runs in. The standard world when null.
+  final WorldProperties? gameWorld;
+
+  /// [next]'s world on [collision], then [rebuild].
+  void _rebuild(Level next) {
+    final world = collision;
+    if (world != null) {
+      world.properties = next.worldOver(
+        gameWorld ?? WorldProperties.standard,
+        materials: world.materials,
+      );
+    }
+    rebuild(next);
+  }
 
   /// Told the step [timeline] swapped [next] in before, right after the swap
   /// and before [present]: what a [DemoRecording] needs to write the edit
@@ -81,16 +110,16 @@ final class LiveLevel {
       return LevelApplied(diff: change);
     }
     final int? swappedAt;
-    if (change.presentationOnly) {
+    if (change.isPresentationOnly) {
       swappedAt = null;
     } else if (timeline case final RunTimeline run) {
       swappedAt = run.swapLevel(
-        () => rebuild(next),
+        () => _rebuild(next),
         levelDigest: next.digestHex,
       );
       swapped?.call(next, swappedAt);
     } else {
-      rebuild(next);
+      _rebuild(next);
       swappedAt = null;
     }
     present(next, change);
@@ -98,7 +127,7 @@ final class LiveLevel {
     return LevelApplied(
       diff: change,
       swappedAt: swappedAt,
-      rebuiltInPlace: !change.presentationOnly && swappedAt == null,
+      rebuiltInPlace: !change.isPresentationOnly && swappedAt == null,
     );
   }
 }
@@ -222,7 +251,7 @@ answerLevelPatch(LiveLevel live, Map<String, String> parameters) async {
 /// A stale patch is answered with `LevelPatch.staleCode` rather than
 /// `invalidParams`, so the editor can tell "send it whole" from "no".
 void registerLevelExtension(LiveLevel live) {
-  developer.registerExtension('ext.flutter3d.level.apply', (
+  registerFlutter3dExtension('ext.flutter3d.level.apply', (
     method,
     parameters,
   ) async {
@@ -234,8 +263,8 @@ void registerLevelExtension(LiveLevel live) {
       );
     }
     return developer.ServiceExtensionResponse.result(jsonEncode(result));
-  });
-  developer.registerExtension('ext.flutter3d.level.patch', (
+  }, answers: const <String>{'diff', 'swappedAt', 'rebuiltInPlace'});
+  registerFlutter3dExtension('ext.flutter3d.level.patch', (
     method,
     parameters,
   ) async {
@@ -249,5 +278,5 @@ void registerLevelExtension(LiveLevel live) {
       );
     }
     return developer.ServiceExtensionResponse.result(jsonEncode(result));
-  });
+  }, answers: const <String>{'diff', 'swappedAt', 'rebuiltInPlace'});
 }

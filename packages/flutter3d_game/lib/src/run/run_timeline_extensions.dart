@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'run_timeline.dart';
@@ -28,8 +29,7 @@ import 'run_timeline.dart';
 ///
 /// ## What a caller on the other end sees
 ///
-/// Nine extensions always, and up to five more depending on what the caller
-/// hands over — each named `ext.flutter3d.timeline.<verb>`, callable the way
+/// Fourteen extensions — each named `ext.flutter3d.timeline.<verb>`, callable the way
 /// any `package:vm_service` client calls one —
 /// `service.callServiceExtension(isolateId, method: name, args: params)` —
 /// with string-keyed, string-valued parameters, because that is the one
@@ -52,59 +52,135 @@ import 'run_timeline.dart';
 ///   when there was no scrub to leave.
 /// * `branchHere` — no parameters; returns `{"moved": true, "step": 118}`,
 ///   or `{"moved": false, "refusal": "..."}` at the present.
-/// * `scrubTo` — registered only when [capture] is given; `step`, an integer
-///   as a string; the same answer as `branchHere`. `N4`'s scrubber.
-/// * `tracks` — registered only when [capture] and [entityLayout] are given;
+/// * `scrubTo` — `step`, an integer as a string; the same answer as
+///   `branchHere`. `N4`'s scrubber.
+/// * `tracks` — answers only when [entityLayout] is given, read from the
+///   part [trackedPart] of the loop's capture (the whole capture when null);
 ///   `every`, steps between reads (one when absent); returns
 ///   [EntityTracks.toJson] over the steps the buffer holds, or
 ///   `{"reached": false}` before the first keyframe.
-/// * `frameTimes` — registered only when [frameTimes] is given; no
+/// * `frameTimes` — answers only when [frameTimes] is given; no
 ///   parameters, returns that [StepTimeTrace]'s own [StepTimeTrace.toJson] —
 ///   `rp-06`'s strip, read from wherever the caller is already timing its
 ///   own step.
-/// * `bugReport` — registered only when [bugReport] is given; no parameters,
+/// * `bugReport` — answers only when [bugReport] is given; no parameters,
 ///   returns whatever that callback hands back, or a VM service error if it
 ///   throws — `rp-04`'s "send this run", called remotely rather than from a
-///   button the game itself draws. What the callback returns is the
-///   caller's business; a `Demo.toJson()` is the obvious shape, and this
-///   does not require it.
-/// * `replayUnderNewCode` — registered only when [capture] is given;
-///   `seconds`, a number as a string (three when absent); returns
+///   button the game itself draws. The keys `api/flutter3d_game.vm` lists
+///   are the bug report the games build (`version`, `level`, `levelHash`,
+///   `start`, `tape`, `buildStamp`, `checkpoints`, `platform`), which the
+///   editor reads back as a `.f3drun`; a game that answers otherwise is
+///   answering a tool of its own.
+/// * `replayUnderNewCode` — `seconds`, a number as a string (three when
+///   absent); returns
 ///   [CodeReplay.toJson], or `{"reached": false}` when the buffer does not
 ///   reach that far. `HR4`: called after a hot reload, it lives the last
 ///   seconds again under the new code and names where that run parts from
 ///   the old one.
 ///
-/// Registered once per [RunTimeline]; registering the same [timeline] twice
-/// throws, the same way [developer.registerExtension] itself refuses a
-/// method name it has already seen.
-void registerTimelineExtensions(
+/// **Several timelines, one set of names.** The VM service has one
+/// `ext.flutter3d.timeline.pause` per isolate, so a second screen, a test
+/// that builds a fresh game, or a game that starts a new run each register
+/// their timeline in turn, and the extensions answer for the one registered
+/// most recently that is still on: cancelling its [Registration] hands them
+/// back to the one before, and cancelling the last switches them off (they
+/// answer an error saying so until a timeline is registered again).
+/// Registering a timeline that is already on throws an [ArgumentError].
+///
+/// The extensions that need something only some timelines were given —
+/// `frameTimes`, `tracks`, `bugReport` — are always on the service and
+/// answer an error naming what is missing when the current timeline was
+/// registered without it, so a tool lists the same names whichever game it
+/// is attached to.
+Registration registerTimelineExtensions(
   RunTimeline timeline, {
   StepTimeTrace? frameTimes,
   Map<String, Object?> Function()? bugReport,
-  Snapshot Function()? capture,
   EntityLayout? entityLayout,
+  String? trackedPart,
 }) {
-  developer.registerExtension('ext.flutter3d.timeline.pause', (
-    method,
-    parameters,
-  ) async {
-    timeline.pause();
-    return developer.ServiceExtensionResponse.result('{}');
+  if (_onService.any((_OnService on) => identical(on.timeline, timeline))) {
+    throw ArgumentError.value(
+      timeline,
+      'timeline',
+      'is already on the VM service; cancel its Registration first',
+    );
+  }
+  final entry = _OnService(
+    timeline,
+    frameTimes: frameTimes,
+    bugReport: bugReport,
+    entityLayout: entityLayout,
+    trackedPart: trackedPart,
+  );
+  _onService.add(entry);
+  if (_onService.length == 1) _timelineExtensions = _registerTimeline();
+  return Registration(() {
+    _onService.remove(entry);
+    if (_onService.isNotEmpty) return;
+    for (final registration in _timelineExtensions) {
+      registration.cancel();
+    }
+    _timelineExtensions = const <Registration>[];
+  });
+}
+
+/// A timeline on the VM service, with what it was registered with.
+final class _OnService {
+  const _OnService(
+    this.timeline, {
+    required this.frameTimes,
+    required this.bugReport,
+    required this.entityLayout,
+    required this.trackedPart,
   });
 
-  developer.registerExtension('ext.flutter3d.timeline.resume', (
-    method,
-    parameters,
-  ) async {
-    timeline.resume();
-    return developer.ServiceExtensionResponse.result('{}');
-  });
+  final RunTimeline timeline;
+  final StepTimeTrace? frameTimes;
+  final Map<String, Object?> Function()? bugReport;
+  final EntityLayout? entityLayout;
+  final String? trackedPart;
+}
 
-  developer.registerExtension('ext.flutter3d.timeline.stepOnce', (
+/// Every timeline registered and still on, oldest first; the extensions
+/// answer for the last.
+final List<_OnService> _onService = <_OnService>[];
+
+/// The extensions' own registrations, while any timeline is on.
+List<Registration> _timelineExtensions = const <Registration>[];
+
+/// The answer for an extension the current timeline was registered without
+/// [what] for.
+developer.ServiceExtensionResponse _without(String what) =>
+    developer.ServiceExtensionResponse.error(
+      developer.ServiceExtensionResponse.extensionError,
+      'the timeline on the VM service was registered without $what',
+    );
+
+/// Puts every `ext.flutter3d.timeline.*` name on the service, each answering
+/// for the last of [_onService].
+List<Registration> _registerTimeline() => <Registration>[
+  registerFlutter3dExtension('ext.flutter3d.timeline.pause', (
     method,
     parameters,
   ) async {
+    _onService.last.timeline.pause();
+    return developer.ServiceExtensionResponse.result('{}');
+  }),
+
+  registerFlutter3dExtension('ext.flutter3d.timeline.resume', (
+    method,
+    parameters,
+  ) async {
+    _onService.last.timeline.resume();
+    return developer.ServiceExtensionResponse.result('{}');
+  }),
+
+  registerFlutter3dExtension('ext.flutter3d.timeline.stepOnce', (
+    method,
+    parameters,
+  ) async {
+    final timeline = _onService.last.timeline;
     if (!timeline.isPaused) {
       return developer.ServiceExtensionResponse.error(
         developer.ServiceExtensionResponse.invalidParams,
@@ -113,9 +189,9 @@ void registerTimelineExtensions(
     }
     timeline.stepOnce();
     return developer.ServiceExtensionResponse.result('{}');
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.preview', (
+  registerFlutter3dExtension('ext.flutter3d.timeline.preview', (
     method,
     parameters,
   ) async {
@@ -126,7 +202,7 @@ void registerTimelineExtensions(
         'secondsAgo must be a number',
       );
     }
-    final point = timeline.preview(secondsAgo);
+    final point = _onService.last.timeline.preview(secondsAgo);
     return developer.ServiceExtensionResponse.result(
       jsonEncode(
         point == null
@@ -134,9 +210,9 @@ void registerTimelineExtensions(
             : <String, Object?>{'found': true, 'step': point.step},
       ),
     );
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.releaseAtStep', (
+  registerFlutter3dExtension('ext.flutter3d.timeline.releaseAtStep', (
     method,
     parameters,
   ) async {
@@ -147,29 +223,31 @@ void registerTimelineExtensions(
         'step must be an integer',
       );
     }
-    final released = timeline.releaseAtStep(step);
+    final released = _onService.last.timeline.releaseAtStep(step);
     return developer.ServiceExtensionResponse.result(
       jsonEncode(<String, Object?>{'released': released}),
     );
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.history', (
+  registerFlutter3dExtension('ext.flutter3d.timeline.history', (
     method,
     parameters,
   ) async {
     return developer.ServiceExtensionResponse.result(
       jsonEncode(<String, Object?>{
         'commands': <String>[
-          for (final command in timeline.history) _describe(command),
+          for (final command in _onService.last.timeline.history)
+            _describe(command),
         ],
       }),
     );
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.status', (
+  registerFlutter3dExtension('ext.flutter3d.timeline.status', (
     method,
     parameters,
   ) async {
+    final timeline = _onService.last.timeline;
     return developer.ServiceExtensionResponse.result(
       jsonEncode(<String, Object?>{
         'paused': timeline.isPaused,
@@ -178,103 +256,96 @@ void registerTimelineExtensions(
         'scrubbedAt': timeline.scrubbedAt,
       }),
     );
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.returnToPresent', (
+  registerFlutter3dExtension('ext.flutter3d.timeline.returnToPresent', (
     method,
     parameters,
   ) async {
     return developer.ServiceExtensionResponse.result(
-      jsonEncode(<String, Object?>{'returned': timeline.returnToPresent()}),
+      jsonEncode(<String, Object?>{
+        'returned': _onService.last.timeline.returnToPresent(),
+      }),
     );
-  });
+  }),
 
-  developer.registerExtension('ext.flutter3d.timeline.branchHere', (
+  registerFlutter3dExtension(
+    'ext.flutter3d.timeline.branchHere',
+    (method, parameters) async => developer.ServiceExtensionResponse.result(
+      jsonEncode(_onService.last.timeline.branchHere().toJson()),
+    ),
+    answers: const <String>{'moved', 'step', 'refusal'},
+  ),
+
+  registerFlutter3dExtension('ext.flutter3d.timeline.frameTimes', (
     method,
     parameters,
   ) async {
+    final frameTimes = _onService.last.frameTimes;
+    if (frameTimes == null) return _without('frameTimes');
     return developer.ServiceExtensionResponse.result(
-      jsonEncode(timeline.branchHere().toJson()),
+      jsonEncode(frameTimes.toJson()),
     );
-  });
+  }, answers: const <String>{'every', 'steps', 'millis'}),
 
-  if (frameTimes != null) {
-    developer.registerExtension('ext.flutter3d.timeline.frameTimes', (
-      method,
-      parameters,
-    ) async {
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(frameTimes.toJson()),
+  registerFlutter3dExtension('ext.flutter3d.timeline.scrubTo', (
+    method,
+    parameters,
+  ) async {
+    final step = int.tryParse(parameters['step'] ?? '');
+    if (step == null) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        'step must be an integer',
       );
-    });
-  }
+    }
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(_onService.last.timeline.scrubTo(step).toJson()),
+    );
+  }, answers: const <String>{'moved', 'step', 'refusal'}),
 
-  if (capture != null) {
-    developer.registerExtension('ext.flutter3d.timeline.scrubTo', (
-      method,
-      parameters,
-    ) async {
-      final step = int.tryParse(parameters['step'] ?? '');
-      if (step == null) {
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.invalidParams,
-          'step must be an integer',
-        );
-      }
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(timeline.scrubTo(step, capture: capture).toJson()),
+  registerFlutter3dExtension('ext.flutter3d.timeline.tracks', (
+    method,
+    parameters,
+  ) async {
+    final on = _onService.last;
+    final layout = on.entityLayout;
+    if (layout == null) return _without('an entityLayout');
+    final every = int.tryParse(parameters['every'] ?? '') ?? 1;
+    if (every < 1) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        'every must be a whole number of steps, one or more',
       );
-    });
-  }
+    }
+    final tracks = on.timeline.tracks(
+      layout: layout,
+      part: on.trackedPart,
+      every: every,
+    );
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(tracks?.toJson() ?? const <String, Object?>{'reached': false}),
+    );
+  }, answers: const <String>{'first', 'last', 'entities', 'reached'}),
 
-  if (capture != null && entityLayout != null) {
-    developer.registerExtension('ext.flutter3d.timeline.tracks', (
-      method,
-      parameters,
-    ) async {
-      final every = int.tryParse(parameters['every'] ?? '') ?? 1;
-      if (every < 1) {
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.invalidParams,
-          'every must be a whole number of steps, one or more',
-        );
-      }
-      final tracks = timeline.tracks(
-        capture: capture,
-        layout: entityLayout,
-        every: every,
-      );
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(
-          tracks?.toJson() ?? const <String, Object?>{'reached': false},
-        ),
-      );
-    });
-  }
+  registerFlutter3dExtension('ext.flutter3d.timeline.replayUnderNewCode', (
+    method,
+    parameters,
+  ) async {
+    final seconds = double.tryParse(parameters['seconds'] ?? '') ?? 3.0;
+    final replay = _onService.last.timeline.replayUnderNewCode(
+      seconds: seconds,
+    );
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(replay?.toJson() ?? const <String, Object?>{'reached': false}),
+    );
+  }, answers: const <String>{'fromStep', 'toStep', 'divergence', 'reached'}),
 
-  if (capture != null) {
-    developer.registerExtension('ext.flutter3d.timeline.replayUnderNewCode', (
-      method,
-      parameters,
-    ) async {
-      final seconds = double.tryParse(parameters['seconds'] ?? '') ?? 3.0;
-      final replay = timeline.replayUnderNewCode(
-        seconds: seconds,
-        capture: capture,
-      );
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(
-          replay?.toJson() ?? const <String, Object?>{'reached': false},
-        ),
-      );
-    });
-  }
-
-  if (bugReport != null) {
-    developer.registerExtension('ext.flutter3d.timeline.bugReport', (
-      method,
-      parameters,
-    ) async {
+  registerFlutter3dExtension(
+    'ext.flutter3d.timeline.bugReport',
+    (method, parameters) async {
+      final bugReport = _onService.last.bugReport;
+      if (bugReport == null) return _without('a bugReport');
       try {
         return developer.ServiceExtensionResponse.result(
           jsonEncode(bugReport()),
@@ -285,9 +356,21 @@ void registerTimelineExtensions(
           '$error',
         );
       }
-    });
-  }
-}
+    },
+    // The bug report the games build, `bugReportTape` and the run around
+    // it, which the editor's `save_tape` reads back as a `.f3drun`.
+    answers: const <String>{
+      'version',
+      'level',
+      'levelHash',
+      'start',
+      'tape',
+      'buildStamp',
+      'checkpoints',
+      'platform',
+    },
+  ),
+];
 
 String _describe(TimelineCommand command) => switch (command) {
   TimelinePaused() => 'paused',
@@ -304,12 +387,15 @@ String _describe(TimelineCommand command) => switch (command) {
 /// Puts [tunables] on the VM service, so an inspector can change them while
 /// the game runs: `ext.flutter3d.cvar.set {name, value}` tunes one through
 /// [input] — so the change is on the tape with the step that takes it — and
-/// `ext.flutter3d.cvar.list` answers every tunable, its value and its default.
+/// `ext.flutter3d.cvar.list` answers `{"tunables": {name: {"value",
+/// "default"}}}`, every tunable with its value and its default. Under one
+/// key rather than at the top, so the answer's shape is the same whatever a
+/// game names its tunables, and the snapshot can hold it.
 ///
 /// A name the table does not declare, or a value that is not a number, is
 /// refused rather than dropped, so the inspector that sent it hears why.
 void registerTuningExtensions(InputState input, Tunables tunables) {
-  developer.registerExtension('ext.flutter3d.cvar.set', (
+  registerFlutter3dExtension('ext.flutter3d.cvar.set', (
     method,
     parameters,
   ) async {
@@ -331,17 +417,19 @@ void registerTuningExtensions(InputState input, Tunables tunables) {
     input.tune(name, value);
     return developer.ServiceExtensionResponse.result('{}');
   });
-  developer.registerExtension('ext.flutter3d.cvar.list', (
+  registerFlutter3dExtension('ext.flutter3d.cvar.list', (
     method,
     parameters,
   ) async {
     return developer.ServiceExtensionResponse.result(
       jsonEncode(<String, Object?>{
-        for (final MapEntry(key: name, :value) in tunables.values.entries)
-          name: <String, Object?>{
-            'value': value,
-            'default': tunables.defaults[name],
-          },
+        'tunables': <String, Object?>{
+          for (final MapEntry(key: name, :value) in tunables.values.entries)
+            name: <String, Object?>{
+              'value': value,
+              'default': tunables.defaults[name],
+            },
+        },
       }),
     );
   });

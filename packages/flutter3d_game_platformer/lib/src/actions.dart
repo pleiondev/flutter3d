@@ -19,4 +19,23 @@ abstract final class PlatformerActions {
   /// bound to the crouch key, which is where a player will look for it and
   /// which is what it becomes when crouching exists.
   static const GameAction dropThrough = GameAction('dropThrough');
+
+  /// What a platformer declares: walking, looking, jumping and sprinting,
+  /// and this genre's two.
+  ///
+  /// **Not [ActionSet.common] whole**: `use` is a shooter's verb — doors,
+  /// levers, notes — and nothing in a platformer reads it, so a row for it
+  /// would be a binding a player can move that does nothing anywhere.
+  static const ActionSet set = ActionSet('platformer', <ActionDeclaration>[
+    ActionDeclaration(DualAxisAction.move, rebindable: false),
+    ActionDeclaration(DualAxisAction.look),
+    ActionDeclaration(GameAction.moveForward, label: 'forward'),
+    ActionDeclaration(GameAction.moveBack, label: 'back'),
+    ActionDeclaration(GameAction.moveLeft, label: 'left'),
+    ActionDeclaration(GameAction.moveRight, label: 'right'),
+    ActionDeclaration(GameAction.jump),
+    ActionDeclaration(GameAction.sprint),
+    ActionDeclaration(dash),
+    ActionDeclaration(dropThrough, label: 'drop through'),
+  ]);
 }

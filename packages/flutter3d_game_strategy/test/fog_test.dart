@@ -95,7 +95,7 @@ void main() {
       // orders sends the whole crowd out to explore its own front garden.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
 
       expect(sim.fog.knows(0, 22.0, 22.0), isTrue);
@@ -112,7 +112,7 @@ void main() {
       );
       wide.build(
         Building(
-          centre: Vector3(20.0, 0.0, 20.0),
+          center: Vector3(20.0, 0.0, 20.0),
           width: 6.0,
           depth: 6.0,
           side: 2,
@@ -162,7 +162,7 @@ void main() {
       );
       final base = sim.build(
         Building(
-          centre: Vector3(8.0, 0.0, 8.0),
+          center: Vector3(8.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           sight: 10.0,

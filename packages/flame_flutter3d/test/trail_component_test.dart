@@ -4,7 +4,7 @@ library;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 

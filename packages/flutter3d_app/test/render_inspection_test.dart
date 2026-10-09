@@ -16,7 +16,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A 2×2 RGBA8 image whose pixel at (x, y) has red `10 * (y * 2 + x)`.
 CapturedImage _bytes(String resource) => CapturedImage(
@@ -368,11 +367,14 @@ void main() {
             device,
             CuboidShape(size: Vector3.all(1.4)).build(),
           ),
-          Material(name: 'crate'),
+          RenderMaterial(name: 'crate'),
           name: 'crate',
         ),
       )
-      ..add(LightNode(intensity: 6.0)..setPosition(2.0, 3.0, 4.0))
+      ..add(
+        LightNode(intensity: 6.0 * Photometric.legacyUnit)
+          ..setPosition(2.0, 3.0, 4.0),
+      )
       ..add(
         CameraNode()
           ..setPosition(0.0, 0.0, 4.0)
@@ -418,8 +420,8 @@ void main() {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     final box = SharedMeshes(device).box(Vector3.all(1.0));
-    final picked = MeshNode(box, Material(), name: 'crate');
-    final namesake = MeshNode(box, Material(), name: 'crate');
+    final picked = MeshNode(box, RenderMaterial(), name: 'crate');
+    final namesake = MeshNode(box, RenderMaterial(), name: 'crate');
     DrawRecord draw(int index, MeshNode node) => DrawRecord(
       index: index,
       passIndex: 0,

@@ -1,9 +1,10 @@
 /// What a step of this game did, for a game that wants to hear about it.
 ///
-/// Drained from `GameSimulation.events` after each step. See [GameEvent] for
-/// why this is a drained buffer rather than a stream, and for why nothing here
-/// names a sound: these say what happened, and what to do about it is the
-/// game's decision.
+/// Published onto the engine's bus from inside the step that raised them
+/// (`GameSimulation.publishTo`, which `ShooterPlugin` calls), each under the
+/// name it is declared with and with its codec. See [GameEvent] for why
+/// nothing here names a sound: these say what happened, and what to do about
+/// it is the game's decision.
 ///
 /// **The simulation already had half of this**, in fields like
 /// `GameSimulation.firedThisStep` — one moment of each kind per step, readable
@@ -15,11 +16,12 @@
 ///
 /// The list below is what this template can see happening, and it is not the
 /// whole list: `ActorDied` and `ActorHurt` come from `flutter3d_sim`, because
-/// a monster dying is not a shooter's idea, and arrive in the same buffer as
-/// these. A game that adds a mechanic adds its own event beside them —
+/// a monster dying is not a shooter's idea, and arrive on the same step channel
+/// as these, in the order the step raised them. A game that adds a mechanic adds its own event beside them —
 /// [GameEvent] is open, and nothing here dispatches on the type.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 import 'combat/shot_hit.dart';
@@ -35,6 +37,21 @@ final class ShotFired extends GameEvent {
   ShotFired({required this.weapon, required Vector3 from})
     : from = Vector3.copy(from);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.shotFired';
+
+  /// Its codec: the weapon's name and where the shot came from. Reads back
+  /// as null, since a weapon is the game's roster and not a value.
+  static final EventCodec<ShotFired> codec = EventCodec<ShotFired>.of(
+    encode: (ShotFired e) => <Object?>[
+      e.weapon.name,
+      e.from.x,
+      e.from.y,
+      e.from.z,
+    ],
+    decode: (Object? data, int version) => null,
+  );
+
   final WeaponDef weapon;
 
   /// Where the shot came from, copied rather than held: the simulation reuses
@@ -43,7 +60,7 @@ final class ShotFired extends GameEvent {
   final Vector3 from;
 
   @override
-  String get name => 'shot fired (${weapon.name})';
+  String get name => eventName;
 }
 
 /// A shot reached something.
@@ -54,10 +71,28 @@ final class ShotFired extends GameEvent {
 final class ShotLanded extends GameEvent {
   const ShotLanded(this.hit);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.shotLanded';
+
+  /// Its codec: where the hit landed, how far and for how much, and whether
+  /// it struck anything. Reads back as null, since what it struck is a live
+  /// collider and not a value.
+  static final EventCodec<ShotLanded> codec = EventCodec<ShotLanded>.of(
+    encode: (ShotLanded e) => <Object?>[
+      e.hit.point.x,
+      e.hit.point.y,
+      e.hit.point.z,
+      e.hit.distance,
+      e.hit.damage,
+      e.hit.didStrikeSomething,
+    ],
+    decode: (Object? data, int version) => null,
+  );
+
   final ShotHit hit;
 
   @override
-  String get name => 'shot landed';
+  String get name => eventName;
 }
 
 /// The player took damage this step, from everything at once.
@@ -68,11 +103,21 @@ final class ShotLanded extends GameEvent {
 final class PlayerHurt extends GameEvent {
   const PlayerHurt(this.amount);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.playerHurt';
+
+  /// Its codec: the amount. Reads back whole.
+  static final EventCodec<PlayerHurt> codec = EventCodec<PlayerHurt>.of(
+    encode: (PlayerHurt e) => e.amount,
+    decode: (Object? data, int version) =>
+        data is num ? PlayerHurt(data.toDouble()) : null,
+  );
+
   /// How much health the step cost, always above zero.
   final double amount;
 
   @override
-  String get name => 'player hurt ($amount)';
+  String get name => eventName;
 }
 
 /// The player's health reached zero this step.
@@ -82,18 +127,37 @@ final class PlayerHurt extends GameEvent {
 final class PlayerDied extends GameEvent {
   const PlayerDied();
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.playerDied';
+
+  /// Its codec: nothing to carry. Reads back whole.
+  static final EventCodec<PlayerDied> codec = EventCodec<PlayerDied>.of(
+    encode: (PlayerDied e) => null,
+    decode: (Object? data, int version) => const PlayerDied(),
+  );
+
   @override
-  String get name => 'player died';
+  String get name => eventName;
 }
 
 /// The player walked into a secret.
 final class SecretFound extends GameEvent {
   const SecretFound(this.secret);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.secretFound';
+
+  /// Its codec: the secret's name in the level. Reads back as null, since a
+  /// secret is a live part of a level and not a value.
+  static final EventCodec<SecretFound> codec = EventCodec<SecretFound>.of(
+    encode: (SecretFound e) => e.secret.name,
+    decode: (Object? data, int version) => null,
+  );
+
   final Secret secret;
 
   @override
-  String get name => 'secret found';
+  String get name => eventName;
 }
 
 /// The player pressed something, and here is what came of it.
@@ -104,8 +168,33 @@ final class SecretFound extends GameEvent {
 final class MechanismUsed extends GameEvent {
   const MechanismUsed(this.outcome);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'shooter.mechanismUsed';
+
+  /// Its codec: which of the engine's outcomes it was and its message. The
+  /// engine's three read back; a game's own outcome is written as `other`
+  /// with its message and reads back as null, since only the game knows its
+  /// class.
+  static final EventCodec<MechanismUsed> codec = EventCodec<MechanismUsed>.of(
+    encode: (MechanismUsed e) => <Object?>[
+      switch (e.outcome) {
+        Activated() => 'activated',
+        Refused() => 'refused',
+        NothingToDo() => 'nothingToDo',
+        _ => 'other',
+      },
+      e.outcome.message,
+    ],
+    decode: (Object? data, int version) => switch (data) {
+      ['activated', _] => const MechanismUsed(Activated()),
+      ['refused', final String message] => MechanismUsed(Refused(message)),
+      ['nothingToDo', _] => const MechanismUsed(NothingToDo()),
+      _ => null,
+    },
+  );
+
   final ActivationOutcome outcome;
 
   @override
-  String get name => 'mechanism used';
+  String get name => eventName;
 }

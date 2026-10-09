@@ -34,4 +34,18 @@ abstract final class ShooterActions {
   /// exists: a racing game has no use for it, and `GameAction.jump` is in the
   /// engine only because every game with a body in it has one.
   static const GameAction crouch = GameAction('crouch');
+
+  /// What a shooter declares: [ActionSet.common] — walking, looking, the
+  /// directions, jump, sprint and use — and this genre's four.
+  ///
+  /// [fire] and [altFire] are declared but not offered for rebinding: the
+  /// mouse fires through `DesktopInput.pressPointer` rather than through the
+  /// table, so a row for them would show a key while the button that fires
+  /// stayed where it was.
+  static final ActionSet set = ActionSet.common.plus(const <ActionDeclaration>[
+    ActionDeclaration(fire, rebindable: false),
+    ActionDeclaration(altFire, label: 'alternate fire', rebindable: false),
+    ActionDeclaration(reload),
+    ActionDeclaration(crouch),
+  ], name: 'shooter');
 }

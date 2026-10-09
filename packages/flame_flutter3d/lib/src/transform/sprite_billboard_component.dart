@@ -2,8 +2,8 @@ import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/components.dart';
 import 'package:flame/sprite.dart' show SpriteAnimationTicker;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import '../host/has_flutter3d.dart';
 import 'billboard_atlas.dart';

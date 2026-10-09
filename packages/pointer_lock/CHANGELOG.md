@@ -1,5 +1,9 @@
 ## 0.5.0
 
+* **Breaking: `PointerLock.takeDelta` is `drainDelta`**, the verb the engine
+  uses for a read that empties what it reads. `release` stays: it is the
+  other half of `capture`, not a teardown, and its doc now says so; `dispose`
+  is the teardown.
 * **Windows and Linux capture the pointer.** On Windows the motion comes
   from Raw Input, the mouse's own counts before acceleration and the screen's
   edge, and the hidden cursor is clipped to the window's centre so a click

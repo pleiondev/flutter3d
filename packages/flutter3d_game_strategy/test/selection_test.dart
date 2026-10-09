@@ -28,7 +28,7 @@ void main() {
   group('a click', () {
     test('finds the unit under it', () {
       final sim = _row(4);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(8.0, 20.0, 10.0), Vector3(0.0, -1.0, 0.0));
 
@@ -40,7 +40,7 @@ void main() {
       // then hits whichever unit is nearest along it, and clicking empty
       // ground selects somebody across the map.
       final sim = _row(4);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(8.0, 20.0, 30.0), Vector3(0.0, -1.0, 0.0));
 
@@ -60,7 +60,7 @@ void main() {
         ),
       );
 
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(0.0, 0.4, 10.0), Vector3(1.0, 0.0, 0.0));
 
@@ -71,7 +71,7 @@ void main() {
       // A ray points one way. Mutation: drop the `along < 0.0` test and a
       // click selects the crowd behind the camera.
       final sim = _row(3);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(4.0, 0.4, 10.0), Vector3(-1.0, 0.0, 0.0));
 
@@ -82,7 +82,7 @@ void main() {
   group('a drag', () {
     test('takes everybody inside the rectangle', () {
       final sim = _row(6);
-      final chosen = Selection(
+      final chosen = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(6.0, 0.0, 6.0), Vector3(18.0, 0.0, 14.0));
 
@@ -94,10 +94,10 @@ void main() {
       // Mutation: use the corners as given rather than sorting them. A drag
       // from bottom right then selects nothing, which reads as a broken mouse.
       final sim = _row(6);
-      final forwards = Selection(
+      final forwards = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(6.0, 0.0, 6.0), Vector3(18.0, 0.0, 14.0));
-      final backwards = Selection(
+      final backwards = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(18.0, 0.0, 14.0), Vector3(6.0, 0.0, 6.0));
 
@@ -108,7 +108,7 @@ void main() {
       // A selection that came back in a different order every time would give
       // orders in a different order, and two runs of one tape would part.
       final sim = _row(6);
-      final chosen = Selection(
+      final chosen = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(0.0, 0.0, 0.0), Vector3(40.0, 0.0, 20.0));
 

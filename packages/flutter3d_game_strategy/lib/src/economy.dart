@@ -31,13 +31,14 @@ final class ResourceNode {
   final Vector3 at;
 
   /// What is left in it. Falls to nought and stays there.
+  /// In units of resource.
   double amount;
 
   /// Whether there is anything left to take.
   bool get isEmpty => amount <= 0.0;
 
   /// Takes up to [wanted] and answers what was actually there.
-  double take(double wanted) {
+  double harvest(double wanted) {
     final double got = wanted < amount ? wanted : amount;
     amount -= got;
     return got;
@@ -70,12 +71,14 @@ final class HarvestJob {
   final Building dropOff;
 
   /// How much it can carry at once.
+  /// In units of resource.
   final double capacity;
 
   /// How fast it fills, per second, while it is standing at the deposit.
   final double rate;
 
   /// What it is carrying now.
+  /// In units of resource.
   double carried = 0.0;
 
   /// Whether it is on its way home rather than out.
@@ -128,6 +131,7 @@ final class Stockpile {
   Stockpile([this.amount = 0.0]);
 
   /// What is in it.
+  /// In units of resource.
   double amount;
 
   /// Whether [cost] can be paid, and pays it if so.
@@ -164,9 +168,11 @@ final class Producer {
   final Building building;
 
   /// What each one costs its side.
+  /// In units of resource.
   final double cost;
 
   /// How long each one takes.
+  /// In seconds.
   final double seconds;
 
   /// How far through the current one it is, in seconds. Nought when nothing is

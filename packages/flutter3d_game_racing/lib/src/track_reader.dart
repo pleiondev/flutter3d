@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -19,9 +20,13 @@ import 'track.dart';
 /// that have to agree with each other, and a person editing them in a text
 /// editor is a person introducing a corner that is four metres wide for one
 /// control point.
-final class TrackDocument {
-  TrackDocument({required this.track, this.level, SkyPreset? sky})
-    : sky = sky ?? SkyPresets.morning;
+final class TrackDocument extends FormatDocument {
+  TrackDocument({
+    required this.track,
+    this.level,
+    SkyPreset? sky,
+    super.unknown,
+  }) : sky = sky ?? SkyPresets.morning;
 
   /// The version this reader understands, written by the generator.
   ///
@@ -36,16 +41,41 @@ final class TrackDocument {
   /// every track written before this line is. A number above this one is
   /// refused: a bumped version is the writer saying this reader will get it
   /// wrong, and the honest answer to that is to stop.
+  ///
+  /// Every version up to this one is read (decision 8 of
+  /// `tasks/1.0-stability.md`): a bump adds the step from the previous one to
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   static const int formatVersion = 1;
 
-  factory TrackDocument.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
-    if (version is num && version > formatVersion) {
-      throw LevelFormatException(
-        'track format version $version is newer than this build understands '
-        '($formatVersion)',
-      );
-    }
+  /// Entry `i` lifts a track from version `i + 1` to `i + 2`; empty while
+  /// version 1 is the only one, so reading it is the identity.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
+  /// The track in the registry: `f3d.track`. The envelope is additive at
+  /// version 1, so a build from before it races a track that carries one.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.track',
+    version: formatVersion,
+    suffixes: <String>['.track.json'],
+    fixture: 'test/fixtures/v<N>/ring.track.json',
+    migrations: _migrations,
+  );
+
+  @override
+  FormatSpec get spec => format;
+
+  /// The keys this reader takes; the rest — `name`, the generator's
+  /// `generatedBy`, whatever a later build adds — are [unknown], kept.
+  static const Set<String> _known = <String>{'track', 'level', 'sky'};
+
+  factory TrackDocument.fromJson(Map<String, Object?> json) =>
+      TrackDocument._read(json);
+
+  factory TrackDocument._read(Map<String, Object?> document) {
+    // A newer track, another format's document or a `requires` this build
+    // does not know is refused by the spec, naming both versions; an older
+    // one is lifted through the chain before a field is read.
+    final json = format.open(document, refuse: LevelFormatException.new);
 
     final track = json['track'];
     if (track == null) {
@@ -58,6 +88,7 @@ final class TrackDocument {
       track: _trackFromJson(track.asJsonObject('track')),
       level: level == null ? null : Level.fromJson(level.asJsonObject('level')),
       sky: sky == null ? null : SkyPreset.fromJson(sky.asJsonObject('sky')),
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
   }
 
@@ -102,10 +133,10 @@ TrackSpline _trackFromJson(Map<String, Object?> json) {
     banks.add(point.numberOr('bank', 0.0) * _degrees);
   }
 
-  final centre = CatmullRom(positions);
+  final center = CatmullRom(positions);
 
   return TrackSpline(
-    centre: centre,
+    center: center,
     widths: widths,
     banks: banks,
     shoulder: json.numberOr('shoulder', 4.0),
@@ -113,10 +144,10 @@ TrackSpline _trackFromJson(Map<String, Object?> json) {
       for (final band in json.objects('surfaces'))
         SurfaceBand(
           fromS: band.numberOr('fromS', 0.0),
-          toS: band.numberOr('toS', centre.length),
+          toS: band.numberOr('toS', center.length),
           // Spelt out because `Snapshot`'s reader is on the same type and also
           // has a `text`, and the two are exported through one barrel.
-          centre: band.textOrNull('centre'),
+          center: band.textOrNull('centre'),
           shoulder: band.textOrNull('shoulder'),
         ),
     ],
@@ -124,7 +155,7 @@ TrackSpline _trackFromJson(Map<String, Object?> json) {
       for (final band in json.objects('barriers'))
         BarrierBand(
           fromS: band.numberOr('fromS', 0.0),
-          toS: band.numberOr('toS', centre.length),
+          toS: band.numberOr('toS', center.length),
           left: band.flagOr('left'),
           right: band.flagOr('right'),
         ),

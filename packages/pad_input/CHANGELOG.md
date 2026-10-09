@@ -1,5 +1,7 @@
 ## 0.5.0
 
+* **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `PadSnapshot.connected` is `isConnected`. `dart fix` carries the renames.
 * **Controllers on Windows and Linux.** Windows asks XInput's four slots
   about a hundred and twenty times a second; Linux reads the kernel's
   joystick devices, `/dev/input/js0` to `js3`. Both plugins send the

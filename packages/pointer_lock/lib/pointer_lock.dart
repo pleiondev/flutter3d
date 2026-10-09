@@ -6,7 +6,7 @@
 ///
 /// ## Pull, not push
 ///
-/// The delta is drained with [PointerLock.takeDelta] rather than delivered by a
+/// The delta is drained with [PointerLock.drainDelta] rather than delivered by a
 /// stream. That is the shape a game wants. A simulation running on a fixed
 /// timestep asks "how far did the mouse move since the last step" once per step;
 /// handing it a stream of individual mouse events only moves the accumulation
@@ -111,6 +111,9 @@ final class PointerLock {
 
   /// Releases the pointer. Motion accumulated but not yet taken is kept, so a
   /// release between two simulation steps does not lose the last fragment.
+  ///
+  /// The other half of [capture], not a teardown: the lock can be captured
+  /// again. [dispose] is the teardown.
   Future<void> release() async {
     if (!_platform.isSupported || !_isCaptured) return;
     await _platform.release();
@@ -122,7 +125,7 @@ final class PointerLock {
   /// Synchronous by design: it is called from inside the simulation step, where
   /// awaiting anything would mean the step no longer sees a consistent snapshot
   /// of its inputs.
-  Offset takeDelta() {
+  Offset drainDelta() {
     final delta = Offset(_dx, _dy);
     _dx = 0.0;
     _dy = 0.0;
@@ -144,6 +147,7 @@ final class PointerLock {
     _stateController.add(value ? CaptureState.captured : CaptureState.released);
   }
 
+  /// Lets go of the platform's streams. Nothing may be called after it.
   Future<void> dispose() async {
     await _deltaSubscription?.cancel();
     await _stateSubscription.cancel();

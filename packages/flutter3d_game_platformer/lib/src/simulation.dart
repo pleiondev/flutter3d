@@ -1,3 +1,5 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -10,31 +12,65 @@ import 'spring.dart';
 import 'water.dart';
 
 /// Where the run is.
-enum RunState {
+///
+/// **A class with constants, not an enum** (1.0): a state this genre adds in a
+/// minor release is a new constant, not a break in every exhaustive `switch`
+/// over the old four. A `switch` over it keeps a default case; [outcome] is the
+/// answer every game shares and is exhaustive.
+final class RunState {
+  const RunState._(this.name, this.outcome);
+
   /// Being played.
-  running,
+  static const RunState running = RunState._('running', RunOutcome.playing);
 
   /// The runner is dead and waiting to be put back. One step, usually.
-  fallen,
+  ///
+  /// Still [RunOutcome.playing]: it is one step of a run that is going on,
+  /// not an outcome — a runner who has just died has not lost until the
+  /// lives do.
+  static const RunState fallen = RunState._('fallen', RunOutcome.playing);
 
   /// The exit was reached.
-  finished,
+  static const RunState finished = RunState._('finished', RunOutcome.won);
 
   /// The lives ran out. The run is over and the level starts again.
   ///
   /// Distinct from [finished] because they are opposite outcomes that a game
   /// has to show differently, and distinct from [fallen] because that one is
   /// one step long and this one waits for the player.
-  lost;
+  static const RunState lost = RunState._('lost', RunOutcome.lost);
 
-  /// The same answer in the words every game shares. `fallen` is still
-  /// [RunOutcome.playing]: it is one step of a run that is going on, not an
-  /// outcome — a runner who has just died has not lost until the lives do.
-  RunOutcome get outcome => switch (this) {
-    RunState.running || RunState.fallen => RunOutcome.playing,
-    RunState.lost => RunOutcome.lost,
-    RunState.finished => RunOutcome.won,
-  };
+  /// Every state, in the order they were declared.
+  static const List<RunState> values = <RunState>[
+    running,
+    fallen,
+    finished,
+    lost,
+  ];
+
+  /// The state called [name] in a snapshot, or null for one this build does
+  /// not know.
+  static RunState? byName(Object? name) =>
+      values.where((RunState it) => it.name == name).firstOrNull;
+
+  /// The word a snapshot writes for it.
+  final String name;
+
+  /// The same answer in the words every game shares.
+  final RunOutcome outcome;
+
+  @override
+  String toString() => 'RunState.$name';
+}
+
+/// The moments inside a platformer's step that a game can hang its own rules
+/// off, beside the two every genre has ([StepPhase.begin], [StepPhase.end]).
+abstract final class PlatformerPhases {
+  /// The runner has read its input, moved, swept the world and been pushed:
+  /// where a rule that changes how the runner moves — a wind, a current, a
+  /// replacement controller writing the body itself — belongs. The overlaps
+  /// it causes are dispatched after it.
+  static const StepPhase afterRunner = StepPhase('platformer.afterRunner');
 }
 
 /// A platformer's step, in the order it has to happen in.
@@ -63,11 +99,6 @@ final class PlatformerSimulation {
     Difficulty difficulty = Difficulty.normal,
   }) : _respawn = startAt.clone() {
     runner.difficulty = difficulty;
-    // Handed down rather than collected up, which is what makes the order
-    // real: the runner's landing and the block that gave way under it go into
-    // one buffer, in the order the step produced them.
-    runner.events = events;
-    actors?.events = events;
     // One generator, or the number in the save is a decoy. The dice this
     // simulation writes down were its own while the dice that actually decide
     // what the enemies do were the actor system's, so a restored run replayed
@@ -121,6 +152,7 @@ final class PlatformerSimulation {
   /// is continuous and a platformer's is the interesting part. Without it a
   /// player who misses a jump falls at terminal velocity forever and the game
   /// looks hung rather than lost.
+  /// In metres.
   final double killPlane;
 
   /// Where the camera is looking, written by the application before each step.
@@ -172,11 +204,43 @@ final class PlatformerSimulation {
   /// Given at construction for the same reason [deaths] is: a run spans levels.
   double elapsed;
 
-  /// What this step did, for a game that wants to hear about it.
+  EventRegistry? _bus;
+
+  /// Publishes what each step does onto [bus] from now on — see
+  /// `events.dart` — until the returned registration is cancelled.
+  /// `PlatformerPlugin` calls it for the run it steps; a test or a tool that
+  /// steps the run by hand hands it a `DirectBus`. With no bus named, the
+  /// events go nowhere, which is the normal case for a headless run.
   ///
-  /// Drain it after [step]; see `events.dart`. The `…ThisStep` members below
-  /// say the same things and are kept for now, because programs read them.
-  final GameEvents events = GameEvents();
+  /// Handed down to the runner and the actors rather than collected up,
+  /// which is what makes the order real: the runner's landing and the block
+  /// that gave way under it are published one after the other, in the order
+  /// the step produced them, on the step channel. The `…ThisStep` members
+  /// below say the same things and are kept for now, because programs read
+  /// them.
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    runner.events = bus;
+    actors?.events = bus;
+    return Registration(() {
+      if (!identical(_bus, bus)) return;
+      _bus = null;
+      if (identical(runner.events, bus)) runner.events = null;
+      if (identical(actors?.events, bus)) actors?.events = null;
+    });
+  }
+
+  void _publish(GameEvent event) => _bus?.publish(event);
+
+  /// Rules a game adds to the step, by phase: [StepPhase.begin], the runner's
+  /// moment [PlatformerPhases.afterRunner], and [StepPhase.end].
+  ///
+  /// **Where a game replaces or extends what the runner does without editing
+  /// the genre's step.** The step's order is the genre's and a tape replays
+  /// it, so a rule is hung at a named moment inside it rather than wrapped
+  /// round it. Run only while the world moves: a finished, lost or fallen
+  /// run's step runs none of them.
+  final StepSystems systems = StepSystems();
 
   /// What is running on the runner, and for how much longer.
   ///
@@ -208,15 +272,39 @@ final class PlatformerSimulation {
   /// reason: what matters is how long you are in the wrong place.
   double actorDamage = 60.0;
 
+  /// State the run's snapshot carries beside the simulation's own, by name:
+  /// a level's water and fires, which the game steps in its own phase.
+  ///
+  /// **A hook rather than a wrapper.** The elements used to ride inside the
+  /// run's dynamics, saved and stepped as if they were bodies, which put
+  /// them in the middle of [step] where nothing could see or order them.
+  /// Now whatever steps beside the simulation hands its save and its restore
+  /// here, and [save] writes each under `parts`, by name, in the order they
+  /// were added; [restore] hands each its own back after the bodies'. A part
+  /// whose name the save does not hold is handed null.
+  final Map<String, PlatformerSnapshotPart> parts =
+      <String, PlatformerSnapshotPart>{};
+
+  /// Whether the last [step] moved the world: false for a step that only
+  /// counted down a finished, lost or fallen run.
+  ///
+  /// What a game stepping its own state beside this one asks, so that state
+  /// stands still exactly when the world does — a level's water does not
+  /// flow on behind the summary screen, nor during the step that puts a
+  /// fallen runner back.
+  bool get didMoveThisStep => _moved;
+  bool _moved = false;
+
   void step(double dt) {
+    _moved = false;
     // The dead and the hurt, forgotten here with everything else this step
     // reports — see [ActorSystem.beginStep] for why it is not `step`'s job.
     actors?.beginStep();
     for (final String ended in powers.step(dt)) {
-      events.add(PowerEnded(ended));
+      _publish(PowerEnded(ended));
     }
     final lapsed = scoring.advance(dt);
-    if (lapsed != null) events.add(ChainEnded(lapsed));
+    if (lapsed != null) _publish(ChainEnded(lapsed));
 
     if (state == RunState.finished || state == RunState.lost) return;
 
@@ -226,6 +314,8 @@ final class PlatformerSimulation {
     }
 
     elapsed += dt;
+    _moved = true;
+    systems.run(StepPhase.begin, dt);
 
     _world.movers(dt);
 
@@ -242,6 +332,7 @@ final class PlatformerSimulation {
 
     // Intent, not residual velocity — see [Runner.shove].
     dynamics?.push(runner.body.collider, runner.shove);
+    systems.run(PlatformerPhases.afterRunner, dt);
 
     _readFloor();
     _readActors(dt);
@@ -257,20 +348,20 @@ final class PlatformerSimulation {
     _readCollectibles();
     _readExits();
 
-    if (state == RunState.finished) return;
-
-    if (runner.position.y < killPlane || runner.health.isDead) {
+    if (state != RunState.finished &&
+        (runner.position.y < killPlane || runner.health.isDead)) {
       state = RunState.fallen;
     }
+    systems.run(StepPhase.end, dt);
   }
 
   void _revive() {
     deaths += 1;
-    events.add(const RunnerDied());
+    _publish(const RunnerDied());
     // A death breaks the chain, whatever is left on its clock. A run that
     // survived dying would be a run nobody had to protect.
     final lost = scoring.breakChain();
-    if (lost != null) events.add(ChainEnded(lost));
+    if (lost != null) _publish(ChainEnded(lost));
     if (lives > 0) {
       lives -= 1;
       if (lives == 0) {
@@ -295,7 +386,7 @@ final class PlatformerSimulation {
   /// block beside the one it hit would be a pound nobody could aim.
   void _readFloor() {
     final under = runner.body.ground?.userData;
-    if (under is Crumbling) under.takeWeight();
+    if (under is Crumbling) under.bearWeight();
     if (runner.poundedThisStep && under is Breakable) under.shatter();
   }
 
@@ -350,7 +441,7 @@ final class PlatformerSimulation {
 
       if (onTop) {
         system.hurt(actor, double.infinity);
-        events.add(EnemyStomped(actor));
+        _publish(EnemyStomped(actor));
         runner.bounce();
       } else {
         runner.applyDamage(actorDamage * dt);
@@ -387,7 +478,7 @@ final class PlatformerSimulation {
     for (final mechanism in all) {
       if (mechanism is! Checkpoint || !mechanism.isReached) continue;
       if (mechanism.justReached) {
-        events.add(CheckpointReached(mechanism));
+        _publish(CheckpointReached(mechanism));
       }
       if (best == null || mechanism.order > best.order) best = mechanism;
     }
@@ -403,14 +494,14 @@ final class PlatformerSimulation {
       // sweep through a line of coins pays more than the same coins picked up
       // one at a time, which is the only thing a chain is for.
       final scored = scoring.score(taken.worth);
-      this.events.add(CollectibleTaken(taken, scored));
+      _publish(CollectibleTaken(taken, scored));
     }
     // Whatever the level said. Published here rather than in its own reader
     // because it comes off the same event object, gathered by the same
     // `publish()` two lines up — and reading it before that call is how it
     // stayed empty the first time this was written.
     for (final message in events.messages) {
-      this.events.add(LevelSaid(message));
+      _publish(LevelSaid(message));
     }
   }
 
@@ -422,11 +513,11 @@ final class PlatformerSimulation {
       // already walks it. See [FurnitureEvent] for what that costs.
       switch (mechanism) {
         case Spring() when mechanism.firedThisStep:
-          events.add(SpringFired(mechanism.origin));
+          _publish(SpringFired(mechanism.origin));
         case Crumbling() when mechanism.crumbledThisStep:
-          events.add(BlockCrumbled(mechanism.origin));
+          _publish(BlockCrumbled(mechanism.origin));
         case Breakable() when mechanism.brokeThisStep:
-          events.add(BlockBroke(mechanism.origin));
+          _publish(BlockBroke(mechanism.origin));
       }
       if (mechanism is Exit && mechanism.isReached) {
         state = RunState.finished;
@@ -460,6 +551,10 @@ final class PlatformerSimulation {
     // the core's own state for the native one, without which a rewind
     // stepped on from this snapshot would not repeat the run.
     'dynamics': ?dynamics?.saveState(),
+    if (parts.isNotEmpty)
+      'parts': <String, Object?>{
+        for (final MapEntry(:key, :value) in parts.entries) key: value.save(),
+      },
   });
 
   void restore(Snapshot from) {
@@ -468,7 +563,7 @@ final class PlatformerSimulation {
     if (saved is Map<String, Object?>) runner.restore(saved);
     final seed = data['random'];
     if (seed is num) random.state = seed.toInt();
-    state = data.enumOf('state', RunState.values, RunState.running);
+    state = RunState.byName(data['state']) ?? RunState.running;
     // Through the reader rather than by hand: this one used to cast each
     // component with `as num`, which throws on a save holding anything else
     // where a number belongs — the same strictness the shooter's projectiles
@@ -494,8 +589,30 @@ final class PlatformerSimulation {
     actors?.syncCorpses();
 
     // After the bodies' own restore, which it puts the core's state over.
-    dynamics?.restoreState(data['dynamics']);
+    final savedParts = data.object('parts');
+    switch (data['dynamics']) {
+      // A save from before [parts]: the demo's elements rode in the
+      // dynamics, saved beside the bodies under these two keys. Read as they
+      // were written, the elements' half handed to the part of that name.
+      case {'bodies': final Object? bodies, 'elements': final Object? e}
+          when savedParts == null:
+        dynamics?.restoreState(bodies);
+        parts['elements']?.restore(e);
+      case final Object? saved:
+        dynamics?.restoreState(saved);
+        for (final MapEntry(:key, :value) in parts.entries) {
+          value.restore(savedParts?[key]);
+        }
+    }
 
     _world.afterRestore();
   }
 }
+
+/// One named share of a run's snapshot that is not the simulation's own:
+/// how to write it, and how to put a written one back. See
+/// [PlatformerSimulation.parts].
+typedef PlatformerSnapshotPart = ({
+  Object? Function() save,
+  void Function(Object? saved) restore,
+});

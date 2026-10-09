@@ -15,7 +15,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 const String _model = 'assets/models/RobotExpressive.glb';
 

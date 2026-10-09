@@ -14,7 +14,7 @@ final renderer = Renderer.create(device: device);
 
 | What | Where to start |
 |---|---|
-| the backend choice | `openDevice`, `presentFrame`, `kFixedResolution` |
+| the backend choice | `openDevice`, `presentFrame`, `fixedResolution` |
 | the surface | `SceneSurface`, `FrameClock`, `FrameTimingLog`, `DidNotStart`, the status screens |
 | widgets in the scene | `WidgetSurface`, `WidgetSurfaceVisuals` |
 | a level in a scene | `LevelLoader`, `SharedMeshes`, `VisibilityCuller` — see `flutter3d-app-level-to-scene` |
@@ -47,12 +47,12 @@ openers, so a build carrying it carries both backends — 376,649 bytes of
 draws through WebGL2, which is the browser backend with a recorded reference
 set behind it.
 
-`kFixedResolution` says whether the backend renders into a fixed internal
+`fixedResolution` says whether the backend renders into a fixed internal
 target — true in a browser, where a WebGL canvas resets its drawing buffer on
 resize — and what that size should be is the game's own trade:
 
 ```dart
-final size = kFixedResolution ? const Size(960, 540) : screenSize;
+final size = fixedResolution ? const Size(960, 540) : screenSize;
 ```
 
 ## What is deliberately not behind it

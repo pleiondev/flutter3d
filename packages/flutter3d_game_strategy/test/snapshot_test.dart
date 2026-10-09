@@ -71,7 +71,7 @@ Camp _camp({
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final hall = sim.build(
     Building(
-      centre: Vector3(16.0, 0.0, 16.0),
+      center: Vector3(16.0, 0.0, 16.0),
       width: 6.0,
       depth: 6.0,
       name: name,

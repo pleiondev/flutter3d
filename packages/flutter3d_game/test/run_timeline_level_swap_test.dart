@@ -14,6 +14,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,6 +51,26 @@ final class _Walker {
 void _play(InputState input, int step) =>
     input.setStickAxis(step % 7 == 0 ? -1.0 : 1.0, 0.0);
 
+/// [walker] as one part of a fresh loop's snapshots, under `walker`, and a
+/// system in its step, reading [input]; [rewind] attached to it.
+EngineLoop _loopOf(_Walker walker, InputState input, RewindBuffer rewind) {
+  final loop = EngineLoop(input: input)
+    ..snapshots.add(
+      SnapshotPart.of(
+        id: 'walker',
+        capture: () => walker.save().data,
+        restore: (Object? data, int _) {
+          if (data is Map) {
+            walker.restore(Snapshot(data.cast<String, Object?>()));
+          }
+        },
+      ),
+    )
+    ..addSystem('walker', LoopPhase.rules, (_) => walker.step(input));
+  rewind.attach(loop);
+  return loop;
+}
+
 ({_Walker walker, InputState input, RewindBuffer rewind, RunTimeline timeline})
 _run() {
   final walker = _Walker(5.0);
@@ -59,16 +80,12 @@ _run() {
     walker: walker,
     input: input,
     rewind: rewind,
-    timeline: RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (dt) => walker.step(input),
-      restore: walker.restore,
-    ),
+    timeline: RunTimeline(rewind: rewind, loop: _loopOf(walker, input, rewind)),
   );
 }
 
-/// Steps [from] to [to] the way a game loop does: record, keyframe, step.
+/// Steps [from] to [to] through the loop, which records each step into the
+/// attached buffer and keyframes its own capture.
 void _steps(
   ({
     _Walker walker,
@@ -82,11 +99,7 @@ void _steps(
 ) {
   for (var step = from; step < to; step++) {
     _play(it.input, step);
-    it.rewind.recorder.record(it.input);
-    it.input.beginStep();
-    if (it.rewind.keyframeDue) it.rewind.keyframe(it.walker.save());
-    it.walker.step(it.input);
-    it.input.endStep();
+    it.timeline.loop.runSteps(1);
   }
 }
 

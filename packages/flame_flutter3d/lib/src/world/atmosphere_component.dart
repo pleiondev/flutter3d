@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../host/has_flutter3d.dart';
 
@@ -15,7 +15,7 @@ import '../host/has_flutter3d.dart';
 /// still in noon's haze. It is written into `HasFlutter3d.fog3d`, which
 /// the game's settings draw with unless it chose its own.
 ///
-/// The sky is written into the game's `clearColor`. A
+/// The sky is the game's `clearColor`, linear as the atmosphere's is. A
 /// `Flutter3dFlameWidget` handed a `clearColor` of its own draws that
 /// instead, as it says: leave it out for the day to show.
 class AtmosphereComponent extends Component {
@@ -31,10 +31,11 @@ class AtmosphereComponent extends Component {
   /// The light the sun's colour and intensity go onto, if any.
   final LightNode? sun;
 
-  /// Where in the cycle the day is.
+  /// Where in the cycle the day is, in the units of the cycle's `period`:
+  /// seconds of play when [rate] is one.
   double time;
 
-  /// How much [time] passes a second of play.
+  /// How much [time] passes a second of play: a unitless multiplier.
   double rate;
 
   /// The air now.
@@ -50,8 +51,10 @@ class AtmosphereComponent extends Component {
     current = cycle.at(time);
     final game = findGame();
     if (game is HasFlutter3d && game.has3d) {
-      current.applyTo(game.scene, sun: sun, clearColor: game.clearColor);
-      game.fog3d = current.fog;
+      current.applyTo(game.scene, sun: sun);
+      game
+        ..clearColor = current.sky.withAlpha(1)
+        ..fog3d = current.fog;
     }
   }
 }

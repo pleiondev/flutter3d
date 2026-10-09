@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../diagnostics/issues.dart';
@@ -9,7 +10,7 @@ import 'widget_surface.dart';
 /// **found the hard way, not designed ahead of time**: `LevelValidator`
 /// treats an entity type its registry does not know as an ERROR that fails
 /// the whole document (`LevelLoader.load` throws), which is a stricter door
-/// than `flutter3d_editor_core`'s `OpenKind` — the editor's open vocabulary
+/// than the editor's `OpenKind`s — the editor's open vocabulary
 /// validates a level `flutter3d_sim`'s own loader would refuse. `wg-02` hit
 /// this loading a real level with a `widget_surface` entity and no kind for
 /// it registered; `wg-01`'s own write-up did not, because nothing in it

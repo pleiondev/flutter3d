@@ -2,9 +2,13 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// What a game is doing, as far as a screen is concerned.
 ///
-/// Named `RunStatus` and not `RunState`, which is taken:
-/// `flutter3d_game_platformer` exports an enum of that name, and an application that
-/// imported both would have to hide one of them in every file.
+/// Named `RunStatus` and not `RunState`, which a genre package may use for
+/// its own enum: an application importing both never has to hide one.
+///
+/// **Sealed on purpose.** A screen draws every one of these — loading,
+/// playing, failed — and a `switch` that is told when a case is missing is
+/// the point: a fourth status a screen did not draw would be a black frame.
+/// How a run is going *inside* play is [RunOutcome], which is the open set.
 sealed class RunStatus<L> {
   const RunStatus();
 }

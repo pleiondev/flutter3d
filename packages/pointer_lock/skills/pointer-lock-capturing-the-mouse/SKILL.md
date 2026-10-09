@@ -17,12 +17,12 @@ if (capture.isSupported) {
 }
 
 // Once per simulation step:
-final delta = capture.takeDelta();
+final delta = capture.drainDelta();
 yaw   += delta.dx * sensitivity;
 pitch += delta.dy * sensitivity;
 ```
 
-`takeDelta` drains accumulated motion rather than a stream delivering events: a
+`drainDelta` drains accumulated motion rather than a stream delivering events: a
 fixed-step simulation asks how far the mouse moved since the last step once per
 step, and a stream moves that accumulation into every caller. It is synchronous
 for the same reason — it is called from inside the step, where awaiting anything

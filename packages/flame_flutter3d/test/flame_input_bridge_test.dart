@@ -46,7 +46,10 @@ void main() {
       InputSource.key(LogicalKeyboardKey.keyW.keyId): GameAction.moveForward,
     });
     state = InputState();
-    bridge = FlameInputBridge(bindings: bindings, inputState: state);
+    bridge = FlameInputBridge(
+      actions: ActionMap(actions: ActionSet.common, buttons: bindings),
+      inputState: state,
+    );
   });
 
   test('a bound key press latches its action as held', () {

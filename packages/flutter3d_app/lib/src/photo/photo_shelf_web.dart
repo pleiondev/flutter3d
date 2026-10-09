@@ -16,7 +16,7 @@ import 'photo_shelf.dart';
 /// gesture that started it; a refusal for that reason, like a player
 /// cancelling the sheet, falls back to the download, so the picture is kept
 /// either way.
-final class BrowserPhotoShelf implements PhotoShelf {
+final class BrowserPhotoShelf extends PhotoShelf {
   BrowserPhotoShelf({this.share = true});
 
   /// Whether to try the share sheet at all before downloading.
@@ -26,7 +26,7 @@ final class BrowserPhotoShelf implements PhotoShelf {
   Future<PhotoSaving> open(String name) async => _BlobSaving(name, share);
 }
 
-final class _BlobSaving implements PhotoSaving {
+final class _BlobSaving extends PhotoSaving {
   _BlobSaving(this.name, this.share);
 
   final String name;

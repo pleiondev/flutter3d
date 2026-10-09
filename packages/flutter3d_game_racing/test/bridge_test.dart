@@ -5,7 +5,6 @@ import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 TrackSpline ring({
   double radius = 60.0,
@@ -23,7 +22,7 @@ TrackSpline ring({
       ),
   ];
   return TrackSpline(
-    centre: CatmullRom(positions),
+    center: CatmullRom(positions),
     widths: List<double>.filled(points, width),
     banks: List<double>.filled(points, bank),
     barriers: barriers,

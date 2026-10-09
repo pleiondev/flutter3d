@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -31,7 +32,7 @@ TrackSpline ring({
       ),
   ];
   return TrackSpline(
-    centre: CatmullRom(positions),
+    center: CatmullRom(positions),
     widths: <double>[
       for (var i = 0; i < points; i++) widthAt?.call(i) ?? width,
     ],
@@ -121,15 +122,15 @@ void main() {
       final track = ring(widthAt: (i) => i.isEven ? 8.0 : 16.0);
 
       expect(
-        track.widthAt(track.centre.distanceToPoint(0)),
+        track.widthAt(track.center.distanceToPoint(0)),
         closeTo(8.0, 1e-6),
       );
       expect(
-        track.widthAt(track.centre.distanceToPoint(1)),
+        track.widthAt(track.center.distanceToPoint(1)),
         closeTo(16.0, 1e-6),
       );
       expect(
-        track.widthAt(track.centre.distanceToPoint(2)),
+        track.widthAt(track.center.distanceToPoint(2)),
         closeTo(8.0, 1e-6),
       );
     });
@@ -140,7 +141,7 @@ void main() {
       // that leaves at every control point is visible down the edge of the road
       // and audible in the suspension crossing it.
       final track = ring(widthAt: (i) => i.isEven ? 8.0 : 16.0);
-      final at = track.centre.distanceToPoint(1);
+      final at = track.center.distanceToPoint(1);
       const step = 0.25;
 
       // The second difference of the width across the control point: zero for a
@@ -159,7 +160,7 @@ void main() {
       // nothing about that says so at load time.
       expect(
         () => TrackSpline(
-          centre: CatmullRom([
+          center: CatmullRom([
             Vector3(0.0, 0.0, 0.0),
             Vector3(50.0, 0.0, 0.0),
             Vector3(25.0, 0.0, 40.0),
@@ -189,7 +190,7 @@ void main() {
           SurfaceBand(
             fromS: 0.0,
             toS: 1000.0,
-            centre: 'asphalt',
+            center: 'asphalt',
             shoulder: 'gravel',
           ),
         ],
@@ -206,7 +207,7 @@ void main() {
       // covers nothing.
       final track = ring(
         surfaces: <SurfaceBand>[
-          SurfaceBand(fromS: 300.0, toS: 40.0, centre: 'ice'),
+          SurfaceBand(fromS: 300.0, toS: 40.0, center: 'ice'),
         ],
       );
 
@@ -248,10 +249,10 @@ void main() {
         ..startSlot(0, pole, forward)
         ..startSlot(2, third, forward);
 
-      final ahead = track.centre.closestSGlobal(pole);
-      final behind = track.centre.closestSGlobal(third);
+      final ahead = track.center.closestSGlobal(pole);
+      final behind = track.center.closestSGlobal(third);
 
-      expect(track.centre.wrap(ahead - behind), closeTo(6.0, 0.2));
+      expect(track.center.wrap(ahead - behind), closeTo(6.0, 0.2));
     });
 
     test('a row straddles the centre line rather than sitting on one side', () {
@@ -262,16 +263,16 @@ void main() {
       final left = Vector3.zero();
       final right = Vector3.zero();
       final forward = Vector3.zero();
-      final centre = Vector3.zero();
+      final center = Vector3.zero();
 
       track
         ..startSlot(0, left, forward)
         ..startSlot(1, right, forward)
-        ..centreAt(track.grid.s, centre);
+        ..centerAt(track.grid.s, center);
 
       expect(left.distanceTo(right), closeTo(4.0, 1e-6));
-      expect(centre.distanceTo(left), closeTo(2.0, 1e-6));
-      expect(centre.distanceTo(right), closeTo(2.0, 1e-6));
+      expect(center.distanceTo(left), closeTo(2.0, 1e-6));
+      expect(center.distanceTo(right), closeTo(2.0, 1e-6));
     });
 
     test('the grid faces the way the track goes', () {
@@ -282,7 +283,7 @@ void main() {
 
       track
         ..startSlot(0, position, forward)
-        ..centre.tangentAt(track.grid.s, tangent);
+        ..center.tangentAt(track.grid.s, tangent);
 
       expect(forward.dot(tangent), closeTo(1.0, 1e-6));
     });
@@ -336,7 +337,7 @@ void main() {
             SurfaceBand(
               fromS: 0.0,
               toS: 1000.0,
-              centre: 'asphalt',
+              center: 'asphalt',
               shoulder: 'gravel',
             ),
           ],
@@ -354,7 +355,7 @@ void main() {
     test('past the shoulder the level answers instead', () {
       final world = CollisionWorld();
       final brush = Brush(
-        centre: Vector3(90.0, -1.0, 0.0),
+        center: Vector3(90.0, -1.0, 0.0),
         size: Vector3(20.0, 2.0, 20.0),
         surface: 'grass',
       );
@@ -401,7 +402,7 @@ void main() {
       final nearHalfway = sample.s;
 
       double gap(double a, double b) {
-        final raw = (track.centre.wrap(a) - track.centre.wrap(b)).abs();
+        final raw = (track.center.wrap(a) - track.center.wrap(b)).abs();
         return math.min(raw, track.length - raw);
       }
 

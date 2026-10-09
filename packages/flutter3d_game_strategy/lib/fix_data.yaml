@@ -1,0 +1,79 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-Building-Building'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      constructor: ''
+      inClass: 'Building'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-Building-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      field: 'centre'
+      inClass: 'Building'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-FogOfWar-centreOf'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      method: 'centreOf'
+      inClass: 'FogOfWar'
+    changes:
+      - kind: 'rename'
+        newName: 'centerOf'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-FogOfWar-centreX'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      method: 'centreX'
+      inClass: 'FogOfWar'
+    changes:
+      - kind: 'rename'
+        newName: 'centerX'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-FogOfWar-centreZ'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      method: 'centreZ'
+      inClass: 'FogOfWar'
+    changes:
+      - kind: 'rename'
+        newName: 'centerZ'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-ResourceNode-take'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      method: 'take'
+      inClass: 'ResourceNode'
+    changes:
+      - kind: 'rename'
+        newName: 'harvest'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_strategy-MapCameraTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      class: 'MapCameraTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'MapCameraSettings'
+  - title: 'flutter3d 1.0.0-rc.1: f1-rename-strategy-Selection'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart', 'package:flutter3d_mesh/flutter3d_mesh.dart']
+      class: 'Selection'
+    changes:
+      - kind: 'rename'
+        newName: 'UnitSelection'

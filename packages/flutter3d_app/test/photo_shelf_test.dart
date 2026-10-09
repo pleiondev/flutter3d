@@ -12,7 +12,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ({Renderer renderer, Scene scene, CameraNode camera}) _game() {
   final device = CpuDevice(
@@ -22,13 +21,13 @@ import 'package:vector_math/vector_math.dart';
   );
   final camera = CameraNode(
     name: 'eye',
-    projection: const PerspectiveProjection(fovYRadians: 0.9),
+    projection: const PerspectiveProjection(fovY: 0.9),
   )..setPosition(0.0, 0.0, 3.0);
   final scene = Scene()
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-        Material(lighting: LightingModel.unlit),
+        RenderMaterial(lighting: LightingModel.unlit),
         name: 'box',
       ),
     )
@@ -47,7 +46,7 @@ void main() {
 
   test('a picture larger than the game\'s screen lands as one PNG', () async {
     final game = _game();
-    final taken = await takePhoto(
+    final taken = await savePhoto(
       renderer: game.renderer,
       scene: game.scene,
       camera: game.camera,
@@ -78,7 +77,7 @@ void main() {
 
   test('a capture that fails leaves nothing behind and says why', () async {
     final game = _game();
-    final taken = await takePhoto(
+    final taken = await savePhoto(
       renderer: game.renderer,
       scene: game.scene,
       camera: game.camera,
@@ -89,7 +88,7 @@ void main() {
       shelf: FilePhotoShelf(appName: 'game', directory: folder),
       name: 'shot.png',
     );
-    // Mutation: drop the `abandon` in `takePhoto`'s catch. A `.part` holding
+    // Mutation: drop the `abandon` in `savePhoto`'s catch. A `.part` holding
     // the PNG's header is left in the player's Pictures folder for every
     // capture that failed.
     expect(taken.saved.kept, isFalse);

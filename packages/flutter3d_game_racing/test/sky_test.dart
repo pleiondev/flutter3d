@@ -13,8 +13,8 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-double _brightness(Vector3 colour) =>
-    0.2126 * colour.x + 0.7152 * colour.y + 0.0722 * colour.z;
+double _brightness(Vector3 color) =>
+    0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
 
 void main() {
   group('the sun', () {
@@ -55,7 +55,7 @@ void main() {
 
   group('the sky', () {
     test('is a colour in every direction, including straight up and down', () {
-      // Mutation: divide by `direction.y` anywhere in `colourAt`. Both poles
+      // Mutation: divide by `direction.y` anywhere in `colorAt`. Both poles
       // are the cases a gradient written by hand tends to divide by zero at,
       // and the camera looks at both — down over the edge of an elevated
       // section, up over the crest of a hill.
@@ -69,8 +69,8 @@ void main() {
       ];
 
       for (final direction in directions) {
-        final colour = preset.colourAt(direction);
-        for (final component in <double>[colour.x, colour.y, colour.z]) {
+        final color = preset.colorAt(direction);
+        for (final component in <double>[color.x, color.y, color.z]) {
           expect(component.isFinite, isTrue, reason: '$direction');
           expect(component, greaterThanOrEqualTo(0.0), reason: '$direction');
         }
@@ -83,8 +83,8 @@ void main() {
       final away = Vector3(-toSun.x, toSun.y, -toSun.z);
 
       expect(
-        _brightness(preset.colourAt(toSun)),
-        greaterThan(_brightness(preset.colourAt(away))),
+        _brightness(preset.colorAt(toSun)),
+        greaterThan(_brightness(preset.colorAt(away))),
       );
     });
 
@@ -100,9 +100,9 @@ void main() {
         'belowHorizon': <double>[0.0, 0.0, 0.0],
       });
 
-      expect(preset.colourAt(Vector3(0.0, 1.0, 0.0)).z, closeTo(0.9, 1e-6));
-      expect(preset.colourAt(Vector3(1.0, 0.0, 0.0)).x, closeTo(0.8, 1e-6));
-      expect(preset.colourAt(Vector3(0.0, -1.0, 0.0)).x, closeTo(0.0, 1e-6));
+      expect(preset.colorAt(Vector3(0.0, 1.0, 0.0)).z, closeTo(0.9, 1e-6));
+      expect(preset.colorAt(Vector3(1.0, 0.0, 0.0)).x, closeTo(0.8, 1e-6));
+      expect(preset.colorAt(Vector3(0.0, -1.0, 0.0)).x, closeTo(0.0, 1e-6));
     });
 
     test('a low sun is warm and a high one is not', () {
@@ -120,11 +120,11 @@ void main() {
   group('the haze', () {
     test('is exactly the sky at the horizon', () {
       // The reason this file exists. The fog colour is not authored anywhere —
-      // it is `colourAt` of a horizontal direction — so the ground can fade
+      // it is `colorAt` of a horizontal direction — so the ground can fade
       // into the sky and there is no number anybody can set that would put a
       // band between them.
       //
-      // Mutation: give `horizonFogColour` a constant, or take the average of
+      // Mutation: give `horizonFogColor` a constant, or take the average of
       // zenith and horizon. Either way this fails, and either way the game gets
       // a visible line where the world ends.
       for (final preset in SkyPresets.all) {
@@ -132,8 +132,8 @@ void main() {
         var across = Vector3(toSun.z, 0.0, -toSun.x);
         if (across.length2 < 1e-9) across = Vector3(1.0, 0.0, 0.0);
 
-        final sky = preset.colourAt(across.normalized());
-        final fog = preset.horizonFogColour;
+        final sky = preset.colorAt(across.normalized());
+        final fog = preset.horizonFogColor;
         expect((sky - fog).length, lessThan(1e-6), reason: preset.name);
       }
     });
@@ -148,13 +148,13 @@ void main() {
       final flatToSun = Vector3(toSun.x, 0.0, toSun.z).normalized();
 
       expect(
-        _brightness(preset.colourAt(flatToSun)),
-        greaterThan(_brightness(preset.horizonFogColour)),
+        _brightness(preset.colorAt(flatToSun)),
+        greaterThan(_brightness(preset.horizonFogColor)),
       );
     });
 
     test('brightens into the sun and not away from it', () {
-      // Mutation: return `horizonFogColour` from `inScatterAlong` and ignore
+      // Mutation: return `horizonFogColor` from `inScatterAlong` and ignore
       // the view direction, which is what the engine's own fog does. The game
       // still runs and still looks fogged; it just has one grey for every
       // direction, which is the failure this whole file is here to avoid.
@@ -168,12 +168,12 @@ void main() {
       expect(into, greaterThan(off * 1.4));
       // Looking away from the sun is the neutral haze and nothing less: air
       // does not take light away.
-      expect(off, closeTo(_brightness(preset.horizonFogColour), 1e-9));
+      expect(off, closeTo(_brightness(preset.horizonFogColor), 1e-9));
     });
 
     test('a zero view direction is the neutral haze, not a crash', () {
       final preset = SkyPresets.morning;
-      expect(preset.inScatterAlong(Vector3.zero()), preset.horizonFogColour);
+      expect(preset.inScatterAlong(Vector3.zero()), preset.horizonFogColor);
     });
 
     test('asks for a ground the generator can afford to build', () {

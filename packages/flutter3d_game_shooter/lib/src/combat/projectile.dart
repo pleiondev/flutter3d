@@ -1,3 +1,5 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -36,11 +38,13 @@ final class ProjectileSystem {
     this.radius = 0.12,
   }) : _resolver = BlastResolver(world),
        entities = entities ?? EcsWorld() {
-    this.entities
+    this.entities.components
       ..register<InFlight>(
-        'inFlight',
-        encode: (InFlight value) => value.toJson(),
-        decode: InFlight.fromJson,
+        ComponentCodec<InFlight>.of(
+          id: 'inFlight',
+          encode: (value) => value.toJson(),
+          decode: (data, _) => InFlight.fromJson(data),
+        ),
       )
       ..exclude<FiredBy>(
         'a collider is a live object in one process, and the field stops '
@@ -52,9 +56,12 @@ final class ProjectileSystem {
 
   /// Where the rockets live.
   ///
-  /// Injected so that the next system to move across shares it and one
-  /// `save()` covers both. While exactly one system has moved, a caller that
-  /// passes nothing gets a world of its own and nothing is worse off.
+  /// **Shared with the actors**: the staging hands the run's one world to
+  /// both, which the shooter's plugin puts in the loop's snapshots (the run
+  /// is a part) and its published worlds, so a rollback and the view cover
+  /// the rockets with nothing more said. A caller that passes nothing gets a
+  /// world of its own, which is for a test or a tool that steps the rockets
+  /// alone.
   final EcsWorld entities;
 
   /// The most that may be in the air at once.
@@ -62,6 +69,7 @@ final class ProjectileSystem {
 
   /// How fat a rocket is, for the sweep. Not zero: a point squeezes through the
   /// seam between two brushes that meet exactly.
+  /// In metres.
   final double radius;
 
   final BlastResolver _resolver;
@@ -77,7 +85,7 @@ final class ProjectileSystem {
   int get dropped => _dropped;
   int _dropped = 0;
 
-  int get activeCount => entities.query<InFlight>().length;
+  int get activeCount => entities.queryOf<InFlight>().length;
 
   final SweepHit _hit = SweepHit();
   final Vector3 _delta = Vector3.zero();
@@ -112,7 +120,7 @@ final class ProjectileSystem {
   }
 
   void clear() {
-    for (final entity in entities.query<InFlight>()) {
+    for (final entity in entities.queryOf<InFlight>()) {
       entities.despawn(entity);
     }
     detonations.clear();
@@ -122,7 +130,7 @@ final class ProjectileSystem {
     detonations.clear();
     final shape = CollisionSphere(radius);
 
-    for (final entity in entities.query<InFlight>()) {
+    for (final entity in entities.queryOf<InFlight>()) {
       final rocket = entities.get<InFlight>(entity)!;
 
       rocket.life -= dt;

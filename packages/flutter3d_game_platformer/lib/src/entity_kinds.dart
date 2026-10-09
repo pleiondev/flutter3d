@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -39,7 +40,7 @@ EntityRegistry platformerRegistry({RigidDynamics? dynamics}) =>
       const CollectibleKind(),
       const HazardKind(),
       const CheckpointKind(),
-      const KeyKind(),
+      const PlatformerKeyKind(),
       CrateKind(dynamics: dynamics),
       const SpringKind(),
       const OneWayKind(),
@@ -53,7 +54,7 @@ EntityRegistry platformerRegistry({RigidDynamics? dynamics}) =>
       const EnemyKind(),
       LightFixtureKind(
         PlatformerEntities.lamp,
-        defaultBehaviour: const FlameFlicker(),
+        defaultBehavior: const FlameFlicker(),
         defaultSize: Vector3(0.4, 1.6, 0.4),
       ),
     ]);

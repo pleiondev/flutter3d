@@ -24,7 +24,7 @@ import 'cloud_save_store.dart';
 ///
 /// Who the player is goes in [headers], asked for on every request so a token
 /// that expired between two syncs is fetched again by whoever owns it.
-final class HttpCloudSaves implements CloudSaveStore {
+final class HttpCloudSaves extends CloudSaveStore {
   HttpCloudSaves({
     required this.base,
     required this.game,

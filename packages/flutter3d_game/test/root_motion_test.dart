@@ -9,7 +9,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -38,7 +38,7 @@ AnimationGraph _walking() => AnimationGraph(
       ],
     ),
   ],
-  pose: Pose(
+  pose: AnimationPose(
     parents: const <int>[-1],
     restTranslations: Float32List(3),
     restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),

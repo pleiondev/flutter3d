@@ -16,7 +16,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// Display, as the clips were: evaluated on the frame with the frame's delta.
 /// A graph whose state a run must agree on — one that moves a body by its
 /// root motion — belongs to the simulation's step instead.
-abstract interface class ActorGraphs {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ActorGraphs {
   /// The machine for [actor] drawn with [clips]; null to name its clips as
   /// before.
   AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips);

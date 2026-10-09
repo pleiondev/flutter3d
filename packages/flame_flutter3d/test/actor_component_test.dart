@@ -3,12 +3,12 @@
 library;
 
 import 'package:flame_flutter3d/src/ecs/actor_component.dart';
-import 'package:flame_flutter3d/src/ecs/actor_system_component.dart';
+import 'package:flame_flutter3d/src/host/step_clock.dart';
 import 'package:flame_flutter3d/src/transform/plane.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Plane;
 
 ActorSystem _system() =>
     ActorSystem(world: CollisionWorld(), random: GameRandom(1));
@@ -132,7 +132,9 @@ void main() {
       body: CharacterController(world: system.world),
       facing: Facing(),
     );
-    final stepper = ActorSystemComponent(system: system, focus: Vector3.zero);
+    // Half a step past the last: what a stepper's alpha says after a step
+    // and a half of time.
+    final stepper = _HalfwayClock();
     final component = ActorComponent(
       actor: actor,
       node: SceneNode(),
@@ -143,7 +145,6 @@ void main() {
 
     component.rememberPlace();
     actor.facing!.yaw = 1.5707963267948966;
-    stepper.step.advance(1 / 60 + 1 / 120);
     expect(stepper.alpha, closeTo(0.5, 1e-9));
     component.update(0.0);
 
@@ -154,4 +155,16 @@ void main() {
     expect(forward.x, closeTo(-0.7071, 1e-3));
     expect(forward.z, closeTo(-0.7071, 1e-3));
   });
+}
+
+/// A stepper half a step past its last step.
+final class _HalfwayClock implements StepClock {
+  @override
+  double get alpha => 0.5;
+
+  @override
+  void follow(StepFollower follower) {}
+
+  @override
+  void unfollow(StepFollower follower) {}
 }

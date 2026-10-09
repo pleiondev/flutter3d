@@ -15,6 +15,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -59,23 +60,20 @@ void main() {
   final registry = EntityRegistry(<EntityKind>[]);
 
   test(
-    'a level\'s world is on the run\'s physics until it is let go of',
+    'a level\'s world is on the physics it was given until it is let go of',
     () async {
       final backend = _Watching();
-      final was = PhysicsBackend.current;
-      PhysicsBackend.current = backend;
-      addTearDown(() => PhysicsBackend.current = was);
-
       final loaded = await const LevelLoader().build(
         _level(),
         device: device,
         registry: registry,
+        physics: backend,
       );
+      expect(loaded.collision.backend, same(backend));
       // Mutation: a world made without asking, which on the core is a level
       // whose characters walk in Dart under monsters that do not.
       expect(backend.attached, <CollisionWorld>[loaded.collision]);
-      // Changed since: the level lets go of the one it was given.
-      PhysicsBackend.current = const DartPhysics();
+      // The level lets go of the one it was given.
       loaded.dispose(device);
       expect(backend.released, <CollisionWorld>[loaded.collision]);
     },
@@ -254,7 +252,7 @@ void main() {
     test('goes onto every brush batch as a second coordinate', () async {
       final level = _level();
       final map = const LightmapBaker(
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         bounces: 0,
         includeDirect: true,
       ).bake(level);
@@ -280,7 +278,7 @@ void main() {
       final map = Lightmap(
         width: 64,
         height: 64,
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         levelHash: 0,
       );
 
@@ -307,7 +305,7 @@ void main() {
     test('the size of which disagrees with the plan is refused too', () async {
       final level = _level();
       final baked = const LightmapBaker(
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         bounces: 0,
       ).bake(level);
       // Fresh by the hash — same level, same lights — and half the atlas the
@@ -315,7 +313,7 @@ void main() {
       final wrongSize = Lightmap(
         width: baked.width ~/ 2,
         height: baked.height,
-        texelsPerMetre: baked.texelsPerMetre,
+        texelsPerMeter: baked.texelsPerMeter,
         levelHash: baked.levelHash,
       );
       expect(wrongSize.isStaleFor(level), isFalse, reason: 'the hash agrees');
@@ -366,7 +364,7 @@ void main() {
         device: device,
         registry: registry,
         lightmap: const LightmapBaker(
-          texelsPerMetre: 1.0,
+          texelsPerMeter: 1.0,
           bounces: 0,
           includeDirect: true,
         ).bake(level),
@@ -504,14 +502,11 @@ ByteData _onePixelPng() => ByteData.sublistView(
 );
 
 /// A backend that only remembers which worlds it was given and let go of.
-final class _Watching implements PhysicsBackend {
+final class _Watching extends PhysicsBackend {
   final List<CollisionWorld> attached = <CollisionWorld>[];
   final List<CollisionWorld> released = <CollisionWorld>[];
   @override
   String get name => 'watching';
-  @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      const DartPhysics().dynamics(world, gravity: gravity);
   @override
   void attach(CollisionWorld world) => attached.add(world);
   @override

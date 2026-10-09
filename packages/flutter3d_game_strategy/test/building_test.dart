@@ -19,7 +19,7 @@ void main() {
   group('a footprint', () {
     test('covers what is under it and nothing beside it', () {
       final building = Building(
-        centre: Vector3(20.0, 0.0, 20.0),
+        center: Vector3(20.0, 0.0, 20.0),
         width: 8.0,
         depth: 4.0,
       );
@@ -40,7 +40,7 @@ void main() {
       expect(sim.grid.isWalkable(under), isTrue, reason: 'open ground first');
 
       sim.build(
-        Building(centre: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),
+        Building(center: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),
       );
 
       expect(sim.grid.isWalkable(sim.grid.cellAtPoint(40.0, 40.0)), isFalse);
@@ -66,10 +66,10 @@ void main() {
       );
 
       final placed = sim.build(
-        Building(centre: Vector3(40.0, 99.0, 40.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(40.0, 99.0, 40.0), width: 4.0, depth: 4.0),
       );
 
-      expect(placed.centre.y, closeTo(sim.ground.heightAt(40.0, 40.0), 1e-6));
+      expect(placed.center.y, closeTo(sim.ground.heightAt(40.0, 40.0), 1e-6));
     });
 
     test('makes the crowd walk round it', () {
@@ -78,7 +78,7 @@ void main() {
       // march through the middle of it.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       sim.build(
-        Building(centre: Vector3(40.0, 0.0, 40.0), width: 24.0, depth: 8.0),
+        Building(center: Vector3(40.0, 0.0, 40.0), width: 24.0, depth: 8.0),
       );
 
       final unit = sim.add(Unit(position: Vector3(40.0, 0.0, 20.0)));
@@ -112,7 +112,7 @@ void main() {
       final buried = sim.add(Unit(position: Vector3(40.0, 0.0, 40.0)));
 
       final hall = sim.build(
-        Building(centre: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),
+        Building(center: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),
       );
 
       expect(

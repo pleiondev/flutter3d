@@ -1,8 +1,8 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../hot_swap/hot_swap.dart';
 import 'visibility_culler.dart';
@@ -26,7 +26,7 @@ final class LoadedLevel {
     List<ReflectionProbeNode>? probes,
     this.decals = const <DecalNode>[],
     this.reflectors = const <PlanarReflectorNode>[],
-    this.screens = const <RenderTexture>[],
+    this.screens = const <RenderView>[],
     this.culler,
     this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
@@ -59,7 +59,7 @@ final class LoadedLevel {
 
   /// The cameras the document placed, drawing into the materials they
   /// name; given back in [dispose].
-  final List<RenderTexture> screens;
+  final List<RenderView> screens;
 
   /// Whether the level has decals for the frame to paint.
   bool get wantsDecals => decals.isNotEmpty;
@@ -156,14 +156,14 @@ final class LoadedLevel {
   /// share these texture objects rather than copies. The same contract as
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
-  /// The backend [collision] was attached to when the level was loaded,
-  /// let go of in [dispose].
-  final PhysicsBackend physics = PhysicsBackend.current;
+  /// The backend [collision] was attached to when the level was loaded —
+  /// the world's own — let go of in [dispose].
+  PhysicsBackend get physics => collision.backend;
 
   void dispose(GraphicsDevice device) {
     physics.release(collision);
     for (final screen in screens) {
-      device.releaseTexture(screen.texture);
+      screen.dispose();
     }
     watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {

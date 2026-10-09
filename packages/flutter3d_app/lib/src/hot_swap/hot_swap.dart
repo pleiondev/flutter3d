@@ -6,8 +6,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 /// Reads the current bytes of a shader bundle an application loaded itself,
 /// or null when they cannot be read now.
@@ -64,7 +64,8 @@ typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
 /// bridge's widget register their renderer and call [swap] from
 /// `reassemble`, which is what a hot reload runs; an application registers
 /// the bundles it loads itself with [registerLibrary]; and a tool reaches the
-/// same thing through the VM service as `ext.flutter3d.hotSwap`.
+/// same thing through the VM service as `ext.flutter3d.assets.swap` (its old
+/// name, `ext.flutter3d.hotSwap`, answers too until 2.0).
 ///
 /// A swap and not a reload in its names because `reload` is a weapon's here:
 /// CONTRIBUTING.md keeps that word out of the packages, and the structure
@@ -138,8 +139,8 @@ final class HotSwap {
   ///
   /// **The one call a game makes for a material it writes in the language.**
   /// Hand [HotMaterials.library] to the renderer — as its `materials`, or
-  /// through `Renderer.addMaterials`, once for every `.f3dmat` — and
-  /// bind each `Material` drawn with one of its stages through
+  /// through `renderer.renderSteps.addMaterials`, once for every `.f3dmat` — and
+  /// bind each `RenderMaterial` drawn with one of its stages through
   /// [HotMaterials.bind]. A hot reload after the source was edited and the
   /// hook compiled it again refreshes the library and relinks every
   /// registered renderer, so the next frame draws the edit — on the software
@@ -161,7 +162,9 @@ final class HotSwap {
         read ??
         () async {
           try {
-            return await rootBundle.load(generated);
+            // Revalidated on the web, so a bundle cached from an older
+            // deploy is not paired with this code — `A4.18`.
+            return await loadRevalidatedAsset(generated);
           } on FlutterError {
             return null;
           }
@@ -172,7 +175,11 @@ final class HotSwap {
           'no compiled material at $generated for $sourcePath: the build '
           'hook compiles assets_src/**/*.f3dmat when the app is built',
         ));
-    final library = await device.loadShaders(bytes);
+    final library = await loadShaderBundleBytes(
+      device,
+      bytes,
+      asset: generated,
+    );
     final materials = HotMaterials(library, BundledMaterials.read(bytes));
     registerLibrary(
       library,
@@ -182,6 +189,12 @@ final class HotSwap {
     );
     return materials;
   }
+
+  /// The device class [loadModel] reads a model's file for — `N7`; null
+  /// reads the single file a build without classes writes. The application
+  /// sets it once, from the class it loads everything else as (it was the
+  /// process-wide `assetDeviceClass` before 1.0).
+  DeviceClass? deviceClass;
 
   /// Loads the model the build hook converted [sourcePath] into, as
   /// `loadModelAsset` does, and hands it back ready to be swapped when the
@@ -200,7 +213,7 @@ final class HotSwap {
 
     // The file `loadModelAsset` would read: this device class's own first,
     // then the one every class shares.
-    Future<Uint8List?> read() async => switch (assetDeviceClass) {
+    Future<Uint8List?> read() async => switch (deviceClass) {
       final DeviceClass reading =>
         await _readAsset(deviceClassPath(generated, reading)) ??
             await _readAsset(generated),
@@ -452,14 +465,21 @@ final class HotSwap {
   }) async {
     Future<Uint8List?> read() => _readAsset(path);
 
-    Future<BuiltEnvironment?> build(Uint8List bytes) =>
-        EnvironmentMap.fromEncoded(
+    // A file the readers refuse, or a device with no cubes, is no
+    // environment rather than a failed swap: the last good one stays.
+    Future<BuiltEnvironment?> build(Uint8List bytes) async {
+      try {
+        return await EnvironmentMap.fromEncoded(
           device,
           bytes,
           decodeImage: defaultImageDecoder,
           size: size,
           levels: levels,
         );
+      } on Flutter3dException {
+        return null;
+      }
+    }
 
     final bytes = await read();
     if (bytes == null) return null;
@@ -569,7 +589,7 @@ final class HotSwap {
   /// scene's environment, that held [previous] now holds [next].
   int _replaceTexture(TextureHandle previous, TextureHandle next) {
     _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
-    final seen = Set<Material>.identity();
+    final seen = Set<RenderMaterial>.identity();
     TextureHandle? swapped(TextureHandle? slot) =>
         identical(slot, previous) ? next : slot;
     for (final reference in _scenes) {
@@ -617,14 +637,14 @@ final class HotSwap {
   };
 
   /// What a field of [setMaterial] starts with when it sets one of
-  /// `Material.parameters` rather than a field every material has:
+  /// `RenderMaterial.parameters` rather than a field every material has:
   /// `parameters/windStrength` is the `windStrength` a `.fmat` lists under
   /// `parameters` — the editor's own spelling of the same key.
   ///
   /// **Written into the list the material already has, and only that.** The
-  /// renderer binds `Material.parameters` afresh every frame, so a number
+  /// renderer binds `RenderMaterial.parameters` afresh every frame, so a number
   /// written in place is drawn on the next one with nothing rebuilt, the way
-  /// `Material.polylineViewport` is. A parameter the material was not loaded
+  /// `RenderMaterial.polylineViewport` is. A parameter the material was not loaded
   /// with is refused rather than added: the map may be a constant, and a
   /// member the compiled block does not have makes every frame of that
   /// material throw in the encoder. A list of another length is refused for
@@ -666,7 +686,11 @@ final class HotSwap {
     return _applyOverrides(only: name);
   }
 
-  static void _checkParameter(Material material, String field, int count) {
+  static void _checkParameter(
+    RenderMaterial material,
+    String field,
+    int count,
+  ) {
     final parameter = field.substring(parameterField.length);
     final held = material.parameters[parameter];
     if (held == null) {
@@ -701,9 +725,9 @@ final class HotSwap {
 
   /// Every named material in the registered scenes, or every one called
   /// [only], once however many nodes wear it.
-  Set<Material> _materials({String? only}) {
+  Set<RenderMaterial> _materials({String? only}) {
     _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
-    final seen = Set<Material>.identity();
+    final seen = Set<RenderMaterial>.identity();
     for (final scene in _scenes) {
       scene.target?.root.traverse((SceneNode node) {
         if (node is! MeshNode) return;
@@ -716,7 +740,7 @@ final class HotSwap {
   }
 
   int _applyOverrides({String? only}) {
-    final touched = <Material>[
+    final touched = <RenderMaterial>[
       for (final material in _materials(only: only))
         if (_overrides.containsKey(material.name)) material,
     ];
@@ -762,14 +786,16 @@ final class HotSwap {
     return numbers;
   }
 
-  static void _write(Material material, String field, List<double> v) {
+  static void _write(RenderMaterial material, String field, List<double> v) {
     switch (field) {
       case 'baseColor':
-        material.baseColor.setValues(v[0], v[1], v[2], v[3]);
+        material.baseColor = LinearColor.fromSrgb(v[0], v[1], v[2], v[3]);
       case 'emissive':
-        material.emissive.setValues(v[0], v[1], v[2]);
+        material.emissive = LinearColor(v[0], v[1], v[2]);
       case 'emissiveStrength':
-        material.emissiveStrength = v[0];
+        // A material file's strength, a plain multiple; the material's is
+        // nits.
+        material.emissiveStrength = v[0] * Photometric.legacyNits;
       case 'roughness':
         material.roughness = v[0];
       case 'metallic':
@@ -819,7 +845,7 @@ final class HotSwap {
         entry.fingerprint = fingerprint;
         entry.onRefreshed?.call(bytes);
         refreshed.add(library.name);
-      } on ShaderBundleRefused catch (refusal) {
+      } on ShaderBundleException catch (refusal) {
         // The library is as it was; the next reload tries these bytes again
         // only if they change, since the same bytes would be refused again.
         entry.fingerprint = fingerprint;
@@ -900,7 +926,9 @@ final class HotSwap {
   /// An asset's bytes, or null when the bundle has no such file.
   static Future<Uint8List?> _readAsset(String path) async {
     try {
-      final data = await rootBundle.load(path);
+      // Revalidated on the web: a watched file read from the browser's cache
+      // would never look changed.
+      final data = await loadRevalidatedAsset(path);
       return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     } on FlutterError {
       return null;
@@ -910,16 +938,25 @@ final class HotSwap {
   void _registerExtension() {
     if (_extensionRegistered || !identical(this, instance)) return;
     _extensionRegistered = true;
-    developer.registerExtension('ext.flutter3d.hotSwap', (
-      String method,
-      Map<String, String> parameters,
-    ) async {
-      final report = await instance.swap();
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(report.toJson()),
-      );
-    });
-    developer.registerExtension('ext.flutter3d.material.set', (
+    registerFlutter3dExtension(
+      'ext.flutter3d.assets.swap',
+      (String method, Map<String, String> parameters) async {
+        final report = await instance.swap();
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(report.toJson()),
+        );
+      },
+      answers: const <String>{
+        'renderers',
+        'refreshed',
+        'refused',
+        'models',
+        'textures',
+        'environments',
+      },
+      aliases: const <String>['ext.flutter3d.hotSwap'],
+    );
+    registerFlutter3dExtension('ext.flutter3d.material.set', (
       String method,
       Map<String, String> parameters,
     ) async {
@@ -945,54 +982,62 @@ final class HotSwap {
           '$error',
         );
       }
-    });
-    developer.registerExtension('ext.flutter3d.assets.put', (
-      String method,
-      Map<String, String> parameters,
-    ) async {
-      final path = parameters['path'];
-      final bytes = parameters['bytes'];
-      if (path == null || bytes == null) {
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.invalidParams,
-          'assets.put takes a path and its bytes in base64',
-        );
-      }
-      final decoded = base64Decode(bytes);
-      final report = await instance.put(path, decoded);
-      final image = switch (report) {
-        null when instance.hasTexture(path) => (
-          kind: 'texture',
-          put: instance.putTexture,
-        ),
-        null when instance.hasEnvironment(path) => (
-          kind: 'environment',
-          put: instance.putEnvironment,
-        ),
-        _ => null,
-      };
-      if (image != null) {
-        final refused = await image.put(path, decoded);
-        if (refused != null) {
+    }, answers: const <String>{'materials'});
+    registerFlutter3dExtension(
+      'ext.flutter3d.assets.put',
+      (String method, Map<String, String> parameters) async {
+        final path = parameters['path'];
+        final bytes = parameters['bytes'];
+        if (path == null || bytes == null) {
           return developer.ServiceExtensionResponse.error(
             developer.ServiceExtensionResponse.invalidParams,
-            refused,
+            'assets.put takes a path and its bytes in base64',
+          );
+        }
+        final decoded = base64Decode(bytes);
+        final report = await instance.put(path, decoded);
+        final image = switch (report) {
+          null when instance.hasTexture(path) => (
+            kind: 'texture',
+            put: instance.putTexture,
+          ),
+          null when instance.hasEnvironment(path) => (
+            kind: 'environment',
+            put: instance.putEnvironment,
+          ),
+          _ => null,
+        };
+        if (image != null) {
+          final refused = await image.put(path, decoded);
+          if (refused != null) {
+            return developer.ServiceExtensionResponse.error(
+              developer.ServiceExtensionResponse.invalidParams,
+              refused,
+            );
+          }
+          return developer.ServiceExtensionResponse.result(
+            jsonEncode(<String, Object?>{'path': path, image.kind: true}),
+          );
+        }
+        if (report == null) {
+          return developer.ServiceExtensionResponse.error(
+            developer.ServiceExtensionResponse.invalidParams,
+            'no model, texture or environment is registered at $path',
           );
         }
         return developer.ServiceExtensionResponse.result(
-          jsonEncode(<String, Object?>{'path': path, image.kind: true}),
+          jsonEncode(report.toJson()),
         );
-      }
-      if (report == null) {
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.invalidParams,
-          'no model, texture or environment is registered at $path',
-        );
-      }
-      return developer.ServiceExtensionResponse.result(
-        jsonEncode(report.toJson()),
-      );
-    });
+      },
+      answers: const <String>{
+        'path',
+        'texture',
+        'environment',
+        'instances',
+        'added',
+        'refused',
+      },
+    );
   }
 
   /// FNV-1a over the bundle's bytes: enough to tell a changed file from an
@@ -1139,9 +1184,8 @@ final class SwappableModel extends _Watched {
     _asset = next;
     // Released only when no instance still draws a surface of it: a surface
     // the new file dropped stays drawn from the old asset's meshes.
-    if (_device case final GraphicsDevice device
-        when swaps.every((ModelSwap s) => s.kept.isEmpty)) {
-      previous.release(device);
+    if (_device != null && swaps.every((ModelSwap s) => s.kept.isEmpty)) {
+      previous.dispose();
     }
     return ModelSwapReport(
       path: path,
@@ -1284,8 +1328,8 @@ final class HotMaterials {
   BundledMaterials get materials => _materials;
   BundledMaterials _materials;
 
-  final List<(WeakReference<Material>, String)> _bound =
-      <(WeakReference<Material>, String)>[];
+  final List<(WeakReference<RenderMaterial>, String)> _bound =
+      <(WeakReference<RenderMaterial>, String)>[];
 
   /// Draws [material] with the bundle's material [name], and keeps it drawn
   /// that way across hot reloads — `P8`. Returns [material].
@@ -1297,18 +1341,18 @@ final class HotMaterials {
   /// values the game set for the ones it still does and dropping the ones it
   /// no longer declares. Held weakly; a material the game drops is
   /// forgotten.
-  Material bind(Material material, String name) {
+  RenderMaterial bind(RenderMaterial material, String name) {
     _rebind(material, name);
     _bound
       ..removeWhere(
-        ((WeakReference<Material>, String) it) =>
+        ((WeakReference<RenderMaterial>, String) it) =>
             it.$1.target == null || identical(it.$1.target, material),
       )
-      ..add((WeakReference<Material>(material), name));
+      ..add((WeakReference<RenderMaterial>(material), name));
     return material;
   }
 
-  void _rebind(Material material, String name) {
+  void _rebind(RenderMaterial material, String name) {
     material.lighting = _materials[name];
     final defaults = _materials.parameters(name);
     material.parameters
@@ -1331,7 +1375,7 @@ final class HotMaterials {
       _rebind(material, name);
     }
     _bound.removeWhere(
-      ((WeakReference<Material>, String) it) => it.$1.target == null,
+      ((WeakReference<RenderMaterial>, String) it) => it.$1.target == null,
     );
   }
 }

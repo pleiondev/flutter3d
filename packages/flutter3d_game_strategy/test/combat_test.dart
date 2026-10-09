@@ -192,7 +192,7 @@ void main() {
       // and left on its job would carry on digging and look disobedient.
       final sim = _world();
       final hall = sim.build(
-        Building(centre: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
       );
       final seam = sim.addResource(
         ResourceNode(at: Vector3(26.0, 0.0, 16.0), amount: 100.0),
@@ -376,7 +376,7 @@ void main() {
         it.crowd,
         reason: 'the survivors came back in a different order',
       );
-      expect(it.sim.entities.alive(it.doomed.entity), isFalse);
+      expect(it.sim.entities.isAlive(it.doomed.entity), isFalse);
     });
 
     test('cuts the order that was pointing at it', () {
@@ -409,7 +409,7 @@ void main() {
       // one joins the crowd after the burial rather than being swept up by it.
       final sim = _world();
       final hall = sim.build(
-        Building(centre: Vector3(30.0, 0.0, 8.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(30.0, 0.0, 8.0), width: 6.0, depth: 6.0),
       );
       sim.addProducer(
         Producer(building: hall, cost: 1.0, seconds: 0.4)
@@ -446,14 +446,14 @@ void main() {
       final sim = _world();
       final theirs = sim.build(
         Building(
-          centre: Vector3(30.0, 0.0, 8.0),
+          center: Vector3(30.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           side: 1,
         ),
       );
       final ours = sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       // Ore nobody is digging, so that the exhaustion ending stays out of the
       // way and what is measured here is the field alone.
@@ -498,7 +498,7 @@ void main() {
       // then the match stops stepping, so the fog stops being tested at all.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       sim.addResource(ResourceNode(at: Vector3(30.0, 0.0, 8.0), amount: 90.0));
       sim.add(Unit(position: Vector3(12.0, 0.0, 8.0)));
@@ -525,7 +525,7 @@ void main() {
       // dug out — which is most of them, late on.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       final doomed = sim.add(
         Unit(
@@ -563,11 +563,11 @@ void main() {
       // match comes back won by the side that was behind.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       sim.build(
         Building(
-          centre: Vector3(30.0, 0.0, 8.0),
+          center: Vector3(30.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           side: 1,
@@ -610,7 +610,7 @@ void main() {
       final sim = _world();
       final base = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 10.0),
+          center: Vector3(20.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 12.0,
@@ -651,7 +651,7 @@ void main() {
       final sim = _world(samples: 61);
       final base = sim.build(
         Building(
-          centre: Vector3(10.0, 0.0, 10.0),
+          center: Vector3(10.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 6.0,
@@ -697,7 +697,7 @@ void main() {
       // anything would pass it for the wrong reason.
       final sim = _world();
       final base = sim.build(
-        Building(centre: Vector3(10.0, 0.0, 10.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(10.0, 0.0, 10.0), width: 4.0, depth: 4.0),
       );
       final mine = sim.add(
         Unit(position: Vector3(14.0, 0.0, 10.0), type: UnitType.soldier),
@@ -790,7 +790,7 @@ void main() {
       final sim = _world(samples: 51);
       final mine = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 10.0),
+          center: Vector3(20.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 12.0,
@@ -798,7 +798,7 @@ void main() {
       );
       final theirs = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 60.0),
+          center: Vector3(20.0, 0.0, 60.0),
           width: 4.0,
           depth: 4.0,
           side: 1,

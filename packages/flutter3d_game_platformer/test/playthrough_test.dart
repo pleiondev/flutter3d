@@ -9,9 +9,12 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -26,20 +29,20 @@ Level _level() => Level(
   brushes: <Brush>[
     // The starting ground, z from -1 to 6.
     Brush(
-      centre: Vector3(0.0, -0.5, 2.5),
+      center: Vector3(0.0, -0.5, 2.5),
       size: Vector3(6.0, 1.0, 7.0),
       material: 'rock',
     ),
     // The far side, z from 9 to 17.
     Brush(
-      centre: Vector3(0.0, -0.5, 13.0),
+      center: Vector3(0.0, -0.5, 13.0),
       size: Vector3(6.0, 1.0, 8.0),
       material: 'rock',
     ),
     // The ledge, z from 17 to 21, its top at y = 2.4 — above one jump's
     // 1.88 m and under two. See the assertions in 'jumping'.
     Brush(
-      centre: Vector3(0.0, 1.2, 19.0),
+      center: Vector3(0.0, 1.2, 19.0),
       size: Vector3(6.0, 2.4, 4.0),
       material: 'rock',
     ),
@@ -106,7 +109,7 @@ final class _Run {
         // The authored point is where the feet go; the body is a box centred
         // on its middle. The dungeon's application does the same sum.
         position: start + Vector3(0.0, 0.9, 0.0),
-        tuning: const MovementTuning(),
+        tuning: const MovementSettings(),
       ),
     );
     sim = PlatformerSimulation(
@@ -117,10 +120,11 @@ final class _Run {
       mechanisms: mechanisms,
       random: GameRandom(1),
     );
+    sim.publishTo(heard.bus);
   }
 
   final Level level = _level();
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final ActorSystem actors = ActorSystem(
     world: world,
@@ -129,6 +133,9 @@ final class _Run {
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final PlatformerSimulation sim;
+
+  /// What [sim] publishes, step by step.
+  final Heard heard = Heard();
 
   late final double _floorY = runner.position.y;
   bool _forwardHeld = false;
@@ -151,9 +158,9 @@ final class _Run {
     _jumpHeld = jump;
     if (dash) input.press(PlatformerActions.dash);
     sim.step(_dt);
-    // Drained every step, the way a game drains it, and kept so that a
+    // Taken every step, the way a game hears a step, and kept so that a
     // predicate can ask what happened without consuming it.
-    lastStep = sim.events.drain();
+    lastStep = heard.take();
     input.endStep();
     if (dash) input.release(PlatformerActions.dash);
     final above = runner.position.y - _floorY;

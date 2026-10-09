@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,6 +54,20 @@ void _play(InputState input, int step) {
   if (step % 11 == 4) input.release(_fire);
 }
 
+/// [toy] as one part of a fresh loop's snapshots, under `toy`, and a system
+/// in its step, reading [input].
+EngineLoop _loopOf(_Toy toy, InputState input) => EngineLoop(input: input)
+  ..snapshots.add(
+    SnapshotPart.of(
+      id: 'toy',
+      capture: () => toy.save().data,
+      restore: (Object? data, int _) {
+        if (data is Map) toy.restore(Snapshot(data.cast<String, Object?>()));
+      },
+    ),
+  )
+  ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
+
 /// Plays [steps] fixed steps of [toy] on a fresh tape and returns the
 /// [Demo] that recording produced, seeded like the tape it wraps.
 Demo _record(_Toy toy, int seed, int steps) {
@@ -84,20 +99,9 @@ void main() {
 
     final toy = _Toy(0);
     final input = InputState();
-    final buffer = rewindBufferFromDemo(
-      demo: demo,
-      stepsPerSecond: 60,
-      input: input,
-      restore: toy.restore,
-      save: toy.save,
-      stepSim: (dt) => toy.step(input),
-    );
-    final timeline = RunTimeline(
-      rewind: buffer,
-      input: input,
-      stepSim: (dt) => toy.step(input),
-      restore: toy.restore,
-    );
+    final loop = _loopOf(toy, input);
+    final buffer = rewindBufferFromDemo(demo: demo, loop: loop, part: 'toy');
+    final timeline = RunTimeline(rewind: buffer, loop: loop);
 
     // Ten seconds is the default live history — this run is also ten
     // seconds long (600 steps at 60/s), so scrubbing to a step near its
@@ -136,20 +140,9 @@ void main() {
 
     final toy = _Toy(0);
     final input = InputState();
-    final buffer = rewindBufferFromDemo(
-      demo: demo,
-      stepsPerSecond: 60,
-      input: input,
-      restore: toy.restore,
-      save: toy.save,
-      stepSim: (dt) => toy.step(input),
-    );
-    final timeline = RunTimeline(
-      rewind: buffer,
-      input: input,
-      stepSim: (dt) => toy.step(input),
-      restore: toy.restore,
-    );
+    final loop = _loopOf(toy, input);
+    final buffer = rewindBufferFromDemo(demo: demo, loop: loop, part: 'toy');
+    final timeline = RunTimeline(rewind: buffer, loop: loop);
 
     expect(timeline.preview(1000.0), isNull);
   });
@@ -160,14 +153,7 @@ void main() {
 
     final toy = _Toy(0);
     final input = InputState();
-    rewindBufferFromDemo(
-      demo: demo,
-      stepsPerSecond: 60,
-      input: input,
-      restore: toy.restore,
-      save: toy.save,
-      stepSim: (dt) => toy.step(input),
-    );
+    rewindBufferFromDemo(demo: demo, loop: _loopOf(toy, input), part: 'toy');
 
     expect(input.muted, isFalse);
   });

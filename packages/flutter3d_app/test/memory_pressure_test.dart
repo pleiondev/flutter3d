@@ -20,7 +20,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _size = 32;
 
@@ -34,11 +33,11 @@ const int _size = 32;
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        Material(name: 'cube'),
+        RenderMaterial(name: 'cube'),
       ),
     )
     ..add(
-      LightNode(intensity: 4.0)
+      LightNode(intensity: 4.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -65,13 +64,13 @@ Future<List<int>> _draw(
     views: <RenderView>[
       RenderView(
         camera: it.scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(bloom: BloomSettings(enabled: bloom)),
   );
-  final bytes = await it.device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await it.device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 /// Leaves the pool holding what a frame no longer needs.

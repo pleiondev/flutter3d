@@ -46,7 +46,7 @@ final class CloudProvider {
 /// method channel throws `MissingPluginException` there, and a game that
 /// offered iCloud on a build that cannot reach it should say so on the
 /// settings screen rather than in a crash report.
-final class PlatformCloudSaves implements CloudSaveStore {
+final class PlatformCloudSaves extends CloudSaveStore {
   PlatformCloudSaves(this.provider, {MethodChannel? channel})
     : _channel = channel ?? const MethodChannel('flutter3d/cloud_saves');
 

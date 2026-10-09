@@ -1,6 +1,6 @@
 name: flutter3d_game_racing
 description: "A third genre: a car with grip it can lose, a track measured in metres, and the lap that comes of going round it."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,21 +13,46 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # The engine half. Everything here is content it takes as an argument.
-  flutter3d_sim: ^0.9.0
+  # The virtual cameras this genre's camera is a preset of: the framing, the
+  # director it can be handed to, and the blends and shakes between cameras.
+  flutter3d_camera: ^1.0.0-rc.1
 
-  flutter3d_physics: ^0.9.0
+  # The engine half. Everything here is content it takes as an argument.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  flutter3d_physics: ^1.0.0-rc.1
 
   # The renderer, spent by exactly one file — `bridge.dart`, which the isolation
   # test names. The road has to become triangles somewhere.
-  flutter3d: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:

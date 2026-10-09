@@ -43,7 +43,7 @@
 library;
 
 import 'package:flutter/widgets.dart' hide Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';

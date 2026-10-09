@@ -56,8 +56,7 @@ final class SceneWidgetsMount {
   bool _disposed = false;
 
   /// The [Camera3D] built last, or null when there is none.
-  CameraNode? get camera =>
-      _host.cameras.isEmpty ? null : _host.cameras.last;
+  CameraNode? get camera => _host.cameras.isEmpty ? null : _host.cameras.last;
 
   /// Builds [children] in place of what was built before, keeping by key and
   /// type what Flutter keeps.

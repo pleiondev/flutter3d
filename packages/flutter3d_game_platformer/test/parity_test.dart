@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -63,7 +64,7 @@ void main() {
 /// controller's, and the two files should not have to agree that by
 /// coincidence.
 CollisionWorld _room() {
-  final world = CollisionWorld()
+  final world = CollisionWorld(properties: platformerWorld)
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
     ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
     ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
@@ -148,46 +149,47 @@ DigestTrace _play(List<({bool forward, bool jump})> tape, {int every = 25}) {
   return trace;
 }
 
-/// Recorded on macOS-arm64 under the VM, 2026-09-12.
+/// Recorded on macOS-arm64 under the VM, 2026-10-08, once the runner's push
+/// was held to its grip.
 const List<String> _recorded = <String>[
-  'bb9e0171',
-  '0fd867d5',
-  '4e9391fe',
-  'ddc05a18',
-  '8d22cefe',
-  '309a14fa',
-  '5e7213e6',
-  'bb742308',
-  'c91b21cb',
-  '1bc03276',
-  '4c849101',
-  'b3ebc3e5',
-  '8133b25b',
-  'a4c24fbe',
-  'ded93d8c',
-  '2055247e',
-  'bc7ddbb9',
-  '75d5f4ee',
-  'b461a66a',
-  '48abbbc6',
-  'fbb66590',
-  '01238495',
-  '89c70c86',
-  '150907c4',
-  'c7b545d0',
-  '7ba2901e',
-  'f53618e4',
-  '8bfc7b33',
-  '8f07424b',
-  '90db1f20',
-  '0fb208d3',
-  'ffc963fe',
-  '5c253ed5',
-  '94bf51ef',
-  '72b7e877',
-  'e7090d03',
-  '9fee6404',
-  'dd4a407b',
-  'd5d535bd',
-  '7df6e6d2',
+  'd98eaea0',
+  'e2afdea4',
+  '6ba526e7',
+  'ed9e0749',
+  '4dafeff7',
+  '139ec879',
+  '00bd49c3',
+  '9967cd3d',
+  '34ad8ff2',
+  '685d342b',
+  '671c756c',
+  'c0a45cf0',
+  '4059470a',
+  '2c94c96f',
+  '9c43fa21',
+  '324922c3',
+  '9d03fe50',
+  'c3513573',
+  'b9954323',
+  'a6a6ab93',
+  '1609d141',
+  'aef296ac',
+  'b2c1d897',
+  '81eebae9',
+  '362ec47d',
+  '388506e7',
+  '3396afcd',
+  'f154235e',
+  '141bbc06',
+  '4336f3b1',
+  'd824f802',
+  '737a1003',
+  '35d7ede4',
+  'e4210f1a',
+  '62c68ec2',
+  'e9113bb6',
+  '331c7b1f',
+  '73a66f0e',
+  '8448e0b0',
+  '7fc4718f',
 ];

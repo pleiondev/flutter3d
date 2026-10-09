@@ -347,6 +347,51 @@ Map<String, Object?> renderStats(FrameCapture capture) {
   };
 }
 
+/// `capture`: the whole frame as a capture file — `A5.23` — the JSON
+/// `FrameCapture.toJson` writes, for a bug report or the editor's
+/// `capture_open`.
+///
+/// [parameters]: `thumbnail` (the longer side of each image's thumbnail in
+/// pixels, 128 when absent), `images` (`true` to keep every image whole as
+/// well), `floats` (`true` to keep float targets' own values), `notes`
+/// (free text written into the file).
+Map<String, Object?> renderCaptureFile(
+  FrameCapture capture,
+  Map<String, String> parameters,
+) => _answering(() {
+  final size = switch (parameters['thumbnail']) {
+    null => 128,
+    final given => int.tryParse(given),
+  };
+  if (size == null || size < 1) {
+    throw _Refusal(
+      'thumbnail is the longer side of a thumbnail in whole pixels, one or '
+      'more; leave it out for 128',
+    );
+  }
+  return <String, Object?>{
+    'capture': capture.toJson(
+      thumbnailSize: size,
+      images: parameters['images'] == 'true',
+      floats: parameters['floats'] == 'true',
+      notes: parameters['notes'],
+    ),
+  };
+});
+
+/// `memory`: what the renderer holds on the device, by category — `A5.24`,
+/// [Renderer.memoryReport] as JSON.
+Map<String, Object?> renderMemory(MemoryReport report) => report.toJson();
+
+/// `debugViews`: every debug view by name, kind and what it shows —
+/// `A5.21`, the registry a tool picks a channel from.
+Map<String, Object?> renderDebugViews() => <String, Object?>{
+  'views': <Map<String, Object?>>[
+    for (final view in DebugView.values) view.toJson(),
+  ],
+  'wipeSides': <String>[for (final side in DebugWipeSide.values) side.name],
+};
+
 /// Raised inside a function here and answered at its edge by [_answering],
 /// so a helper several calls down can refuse without every caller between
 /// passing the refusal along by hand. Never escapes this file.

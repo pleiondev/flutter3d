@@ -17,9 +17,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 128;
 const int _height = 96;
@@ -69,12 +69,12 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(1, 0, 0, 1)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(1, 0, 0, 1)),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = await device.readPixels(frame.frame);
-  return pixels!.buffer.asUint8List();
+  final pixels = await device.readback(frame.frame);
+  return pixels.buffer.asUint8List();
 }
 
 bool _sky(Uint8List p, int x, int y) {
@@ -110,9 +110,9 @@ List<SceneNode> _seam(
   required int right,
   required bool skirts,
 }) {
-  final white = Material(
+  final white = RenderMaterial(
     lighting: LightingModel.unlit,
-    baseColor: Vector4(1, 1, 1, 1),
+    baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
   );
   MeshNode tile(int x, int z, int level) => MeshNode(
     DeviceMesh.upload(
@@ -181,7 +181,7 @@ void main() {
     final terrain = TerrainTiles(
       device: _device(),
       tiles: tiles,
-      material: Material(lighting: LightingModel.unlit),
+      material: RenderMaterial(lighting: LightingModel.unlit),
       chooser: const TileLevelChooser(nearest: 10, levels: 3),
     );
     expect(terrain.nodes, hasLength(4));
@@ -219,7 +219,7 @@ material Ground {
   }
 }
 ''';
-    final program = specialiseMaterial(
+    final program = specializeMaterial(
       parseMaterial(source),
       const MaterialVariant('Ground'),
     );
@@ -256,12 +256,12 @@ material Ground {
     final terrain = TerrainTiles(
       device: device,
       tiles: HeightfieldTiles(field, tileCells: 16, levels: 2),
-      material: Material(
+      material: RenderMaterial(
         lighting: const LightingModel('Ground', 'Ground'),
         albedo: cover,
       ),
       chooser: const TileLevelChooser(nearest: 100, levels: 2),
-      metresPerTexture: 32,
+      metersPerTexture: 32,
     )..update(Vector3(16, 40, 16));
 
     final frame = await _draw(

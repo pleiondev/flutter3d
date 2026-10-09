@@ -36,7 +36,7 @@ typedef Camp = ({
 Camp _camp() {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final hall = sim.build(
-    Building(centre: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
+    Building(center: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
   );
   final seam = sim.addResource(
     ResourceNode(at: Vector3(36.0, 0.0, 16.0), amount: 100.0),

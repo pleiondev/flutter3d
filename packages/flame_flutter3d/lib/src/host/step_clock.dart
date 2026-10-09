@@ -3,6 +3,11 @@ library;
 
 /// Something drawn between its last two steps: told, before each step, to
 /// keep where it is as where it was.
+///
+/// **Implementable outside this package, and stays so through 1.x.** Games
+/// subclass the components that implement it, and closing it would make
+/// every one of those subclasses `base`. It does not grow within a major: a
+/// capability added later arrives beside it, as a second interface.
 abstract interface class StepFollower {
   /// Keeps the present place as the place before the next step.
   void rememberPlace();
@@ -18,6 +23,11 @@ abstract interface class StepFollower {
 /// and a follower handed only the first two could not draw a body the game
 /// moved between its places. It remembered after the game's step had already
 /// moved it, and drew the body where it already was.
+///
+/// **Implementable outside this package, and stays so through 1.x.** Games
+/// subclass the components that implement it, and closing it would make
+/// every one of those subclasses `base`. It does not grow within a major: a
+/// capability added later arrives beside it, as a second interface.
 abstract interface class StepClock {
   /// How far this frame is past the last step, from 0 up to 1.
   double get alpha;

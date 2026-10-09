@@ -3,10 +3,9 @@ import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../config/game_config.dart';
-import 'bindings.dart';
-import 'pad_routes.dart';
-
-export 'pad_routes.dart';
+import 'action_input.dart';
+import 'action_map.dart';
+import 'bindings.dart' show InputSource, SlotActions;
 
 /// Feeds an [InputState] from a gamepad.
 ///
@@ -46,100 +45,178 @@ export 'pad_routes.dart';
 /// that turns its sticks and triggers into a game's own verbs. The class keeps
 /// its name because every call site says it; the file gives its up because the
 /// package needed it more.
+///
+/// ## What each control does is the action map's
+///
+/// A stick is a [DualAxisBinding] on [InputSource.padStick]: the left one on
+/// [DualAxisAction.move] walks, the right one on [DualAxisAction.look] turns
+/// the view at [lookRate]. A direction of an axis bound as a button —
+/// [InputSource.padHalfAxis] — presses a [GameAction] with a magnitude, which
+/// is how a stick steers. A button bound to a [SlotActions] action picks its
+/// slot. All of it is in the map, so a player rebinds it and a file keeps
+/// it; [addDefaultsTo] and [addDrivingDefaultsTo] are the two layouts a game
+/// starts from.
 final class PadInput {
+  /// A pad reading [actions]; without one, a map holding only the pad's
+  /// defaults — see [addDefaultsTo].
   PadInput({
     required this.state,
     Gamepad? pad,
-    Bindings? bindings,
-    this.routes = PadRoutes.walking,
-    Map<PadButton, int>? slotButtons,
+    ActionMap? actions,
+    this.lookRate = defaultLookRate,
     this.pressAt = 0.5,
     this.releaseAt = 0.35,
   }) : pad = pad ?? Gamepad.instance,
-       bindings = bindings ?? defaultBindings(),
-       slotButtons = slotButtons ?? const <PadButton, int>{},
-       assert(releaseAt < pressAt, 'a threshold without a gap chatters');
+       actions = actions ?? addDefaultsTo(ActionMap(actions: ActionSet.common)),
+       assert(releaseAt < pressAt, 'a threshold without a gap chatters') {
+    _actionInput = ActionInput(state: state, map: this.actions);
+  }
 
-  /// The pad half of a binding table, as a fresh one each call.
+  /// The action map this pad reads: its buttons, and its composites, axes
+  /// and sticks on `pad:` sources, read every [tick] — see
+  /// [InputSource.padAxis] and [InputSource.padStick]. The look binding on
+  /// `pad:stick.right` shapes [drainLook] with its sensitivity and invert.
   ///
-  /// A function and not a constant for the reason [DesktopInput.defaultBindings]
-  /// gives: a [Bindings] is mutable and a rebinding screen edits it, so handing
-  /// every caller the same object means the first player to rebind anything
-  /// rebinds it everywhere.
-  ///
-  /// Usually the game wants **one** table holding both halves, since that is
-  /// what gets saved — see [addDefaultsTo].
-  static Bindings defaultBindings() => addDefaultsTo(Bindings());
+  /// **The one input model.** The pad took a bare button table as well, and
+  /// two ways in meant two places a rebinding could land; the map holds the
+  /// table, so a game hands the same map to the keyboard, the pad and the
+  /// settings screen.
+  final ActionMap actions;
 
-  /// Adds the pad's defaults to an existing table and returns it.
+  late final ActionInput _actionInput;
+
+  /// Adds the pad's defaults for a game that walks to [map] and returns it:
+  /// the left stick walks, the right stick looks, the d-pad walks and the
+  /// face buttons jump and use.
   ///
   /// ```dart
-  /// final bindings = PadInput.addDefaultsTo(DesktopInput.defaultBindings());
+  /// final map = PadInput.addDefaultsTo(DesktopInput.defaultActionMap());
   /// ```
   ///
+  /// **Only what [map] does not bind already.** A source the map holds keeps
+  /// its binding, so a game calls this on the map it read from a player's
+  /// settings and a file saved before a control existed gains it without
+  /// losing a rebinding the player made.
+  ///
   /// One table, because a player's bindings are one file: `key:` and `pad:` are
-  /// prefixes in the same map, which [Bindings.toJson] already round-trips.
-  static Bindings addDefaultsTo(Bindings bindings) {
+  /// prefixes in the same map, which the map's JSON already round-trips.
+  static ActionMap addDefaultsTo(ActionMap map) {
     // The d-pad walks. Free, because `_recomputeMoveAxis` already sums held
     // directions with the stick and clamps the total — and useful, because a
     // menu driven by the same actions needs something discrete.
-    bindings
-      ..bind(InputSource.pad(PadButton.dpadUp.id), GameAction.moveForward)
-      ..bind(InputSource.pad(PadButton.dpadDown.id), GameAction.moveBack)
-      ..bind(InputSource.pad(PadButton.dpadLeft.id), GameAction.moveLeft)
-      ..bind(InputSource.pad(PadButton.dpadRight.id), GameAction.moveRight)
+    _bindButtons(map, <PadButton, GameAction>{
+      PadButton.dpadUp: GameAction.moveForward,
+      PadButton.dpadDown: GameAction.moveBack,
+      PadButton.dpadLeft: GameAction.moveLeft,
+      PadButton.dpadRight: GameAction.moveRight,
       // Where a thumb finds them, not what is printed on them: on an Xbox pad
       // this is `A` and on a PlayStation pad it is Cross, and the file says
       // `pad:face.south` either way.
-      ..bind(InputSource.pad(PadButton.faceSouth.id), GameAction.jump)
-      ..bind(InputSource.pad(PadButton.faceWest.id), GameAction.use)
+      PadButton.faceSouth: GameAction.jump,
+      PadButton.faceWest: GameAction.use,
       // Clicking the stick you are already pushing, which is where every
       // console game of the last fifteen years has put running.
-      ..bind(InputSource.pad(PadButton.stickLeftClick.id), GameAction.sprint);
-    return bindings;
+      PadButton.stickLeftClick: GameAction.sprint,
+    });
+    // Up is negative on a pad, as in the browser and on Apple's platforms;
+    // forward is positive in the simulation, so the flip is the binding's.
+    _bindStick(
+      map,
+      const DualAxisBinding(
+        DualAxisAction.move,
+        InputSource('${InputSource.padPrefix}stick.left'),
+        tuning: AxisSettings(invertY: true),
+      ),
+    );
+    _bindStick(
+      map,
+      const DualAxisBinding(
+        DualAxisAction.look,
+        InputSource('${InputSource.padPrefix}stick.right'),
+      ),
+    );
+    return map;
   }
 
-  /// Whether [bindings] mentions a gamepad at all.
+  /// Adds the pad's defaults for a game that drives to [map] and returns it:
+  /// the left stick's sideways axis steers through [steerLeft] and
+  /// [steerRight], half over for half the steering, and no stick walks or
+  /// looks. The pedals are the game's to bind: a trigger is a button with a
+  /// magnitude, so it is bound like one.
+  ///
+  /// Like [addDefaultsTo], it leaves a source [map] binds already alone.
+  static ActionMap addDrivingDefaultsTo(
+    ActionMap map, {
+    required GameAction steerLeft,
+    required GameAction steerRight,
+  }) {
+    final axis = PadAxis.leftStickX.name;
+    for (final (source, action) in <(InputSource, GameAction)>[
+      (InputSource.padHalfAxis(axis, positive: false), steerLeft),
+      (InputSource.padHalfAxis(axis, positive: true), steerRight),
+    ]) {
+      if (map.buttons[source] == null) map.buttons.bind(source, action);
+    }
+    return map;
+  }
+
+  /// Binds the d-pad to the first four slots, clockwise from the top, in
+  /// place of walking, and returns [map].
+  ///
+  /// A d-pad has no numbers on it, so there is no right answer and this is the
+  /// one a player can guess. Offered rather than default because a game that
+  /// walks with the d-pad cannot also select with it.
+  static ActionMap addSlotDefaultsTo(ActionMap map) {
+    for (final (index, button) in <PadButton>[
+      PadButton.dpadUp,
+      PadButton.dpadRight,
+      PadButton.dpadDown,
+      PadButton.dpadLeft,
+    ].indexed) {
+      map.buttons.bind(InputSource.pad(button.id), SlotActions.of(index));
+    }
+    return map;
+  }
+
+  static void _bindButtons(ActionMap map, Map<PadButton, GameAction> buttons) {
+    for (final MapEntry(key: button, value: action) in buttons.entries) {
+      final source = InputSource.pad(button.id);
+      if (map.buttons[source] == null) map.buttons.bind(source, action);
+    }
+  }
+
+  static void _bindStick(ActionMap map, DualAxisBinding binding) {
+    if (!map.routes(binding.source)) map.bind(binding);
+  }
+
+  /// Whether [map] mentions a gamepad at all.
   ///
   /// For the awkward case that arrives with every new device: a config saved
   /// before this package existed has no `pad:` in it, and a player should not
   /// have to delete their settings to use a controller. A game reads its saved
-  /// table, asks this, and adds the defaults if the answer is no — which leaves
+  /// map, asks this, and adds the defaults if the answer is no — which leaves
   /// every rebinding they *did* make alone.
-  static bool knowsPad(Bindings bindings) => bindings.sources.any(
-    (InputSource source) => source.id.startsWith(InputSource.padPrefix),
-  );
-
-  /// The d-pad, clockwise from the top.
-  ///
-  /// A d-pad has no numbers on it, so there is no right answer and this is the
-  /// one a player can guess. Offered rather than default because a game that
-  /// walks with the d-pad cannot also select with it — and the check happens
-  /// before the bindings, exactly as [DesktopInput] resolves the number row
-  /// before the letters.
-  ///
-  /// Not `const`: a [PadButton] is a value class with its own `==`, which Dart
-  /// will not accept as a constant map's key. [DesktopInput.defaultSlotKeys] is
-  /// `static final` for the same reason.
-  static final Map<PadButton, int> dpadSlots = <PadButton, int>{
-    PadButton.dpadUp: 0,
-    PadButton.dpadRight: 1,
-    PadButton.dpadDown: 2,
-    PadButton.dpadLeft: 3,
-  };
+  static bool knowsPad(ActionMap map) => map.bindings
+      .expand((ActionBinding b) => b.sources)
+      .any((InputSource source) => source.id.startsWith(InputSource.padPrefix));
 
   final InputState state;
   final Gamepad pad;
 
-  /// What each button does. The same object the keyboard uses, if the game
-  /// passes it: see [addDefaultsTo].
-  final Bindings bindings;
+  /// How far the view turns per second at full deflection of a stick bound
+  /// to [DualAxisAction.look], **in the mouse's units**.
+  ///
+  /// Odd-looking, and deliberately so. [InputState.lookDelta] is in whatever
+  /// the device reports and the camera applies one sensitivity to all of it,
+  /// so a stick that arrived in a currency of its own would be a second
+  /// sensitivity nobody can see. Set from [GameSettingKeys.padLook] by
+  /// [applySettings]. Deliberately **linear**: a response curve is the other
+  /// thing everybody tunes here, and nobody can tune it without a device.
+  double lookRate;
 
-  /// Where the analogue controls go. Mutable, because a game that drives and
-  /// walks changes it when the player gets out of the car.
-  PadRoutes routes;
-
-  final Map<PadButton, int> slotButtons;
+  /// [lookRate] when nobody has chosen: `flutter3d_game_shooter`'s player
+  /// turns 0.0022 radians per unit, so this is about 2.4 radians a second.
+  static const double defaultLookRate = 1100.0;
 
   /// How far a trigger travels before it counts as pressed, and how far back
   /// before it counts as released.
@@ -150,6 +227,9 @@ final class PadInput {
   /// "down" is deliberately ignored for the triggers — it is a threshold
   /// somebody else chose, and two platforms would choose differently.
   final double pressAt;
+
+  /// How far back a pressed trigger travels before it counts as released, a
+  /// fraction of its travel from nought to one.
   final double releaseAt;
 
   final PadSnapshot _snapshot = PadSnapshot();
@@ -174,21 +254,12 @@ final class PadInput {
 
   final Vector2 _look = Vector2.zero();
 
-  /// The only handle a [PadStickUse] gets on this pad.
-  ///
-  /// An adapter rather than `implements PadStickTarget` on this class: a use is
-  /// given the two things a stick can mean and the one number the second needs,
-  /// and nothing about bindings, triggers or slots. Handing it the pad itself
-  /// would make every public member of this class part of the contract a
-  /// third-party stick use is written against.
-  late final PadStickTarget _target = _StickTarget(this);
-
   bool _wasConnected = false;
 
   bool get isSupported => pad.isSupported;
 
   /// Whether a pad answered the last [tick].
-  bool get isConnected => _snapshot.connected;
+  bool get isConnected => _snapshot.isConnected;
 
   /// What the pad is holding, for a screen rather than for a simulation.
   ///
@@ -207,7 +278,7 @@ final class PadInput {
   void tick(double dt) {
     pad.read(_snapshot);
 
-    if (!_snapshot.connected) {
+    if (!_snapshot.isConnected) {
       // A pad that was never there touches nothing. Zeroing the stick
       // unconditionally would fight a touch control for a device that does not
       // exist, on every frame of every build.
@@ -218,29 +289,14 @@ final class PadInput {
     _wasConnected = true;
     _readThisTick.clear();
 
-    _routeStick(
-      routes.leftStick,
-      _snapshot.axis(PadAxis.leftStickX),
-      _snapshot.axis(PadAxis.leftStickY),
-      dt,
-    );
-    _routeStick(
-      routes.rightStick,
-      _snapshot.axis(PadAxis.rightStickX),
-      _snapshot.axis(PadAxis.rightStickY),
-      dt,
-    );
-
-    for (final entry in routes.axisActions.entries) {
-      final value = _snapshot.axis(entry.key);
-      final axis = entry.key.name;
-      _analogue('$axis+', entry.value.positive, value > 0.0 ? value : 0.0);
-      _analogue('$axis-', entry.value.negative, value < 0.0 ? -value : 0.0);
-    }
+    _integrateLook(dt);
+    _halfAxes();
 
     for (final button in PadButton.known) {
-      final slot = slotButtons[button];
-      if (slot != null) {
+      final action = actions.buttons[InputSource.pad(button.id)];
+      if (action == null) continue;
+
+      if (SlotActions.indexOf(action) case final int slot) {
         // On the edge, not while held: a slot held down would be re-selected
         // every frame, and the last request of a frame wins.
         if (_snapshot.down(button) && !_holding.containsKey(button.id)) {
@@ -252,9 +308,6 @@ final class PadInput {
         continue;
       }
 
-      final action = bindings[InputSource.pad(button.id)];
-      if (action == null) continue;
-
       if (button == PadButton.triggerLeft || button == PadButton.triggerRight) {
         final axis = button == PadButton.triggerLeft
             ? PadAxis.triggerLeft
@@ -265,6 +318,8 @@ final class PadInput {
 
       _digital(button.id, action, down: _snapshot.down(button));
     }
+
+    _routeActions();
 
     // Whatever spoke and was not read this tick has been unbound or rerouted
     // from under a press: it stops speaking, and its action is answered by
@@ -278,7 +333,7 @@ final class PadInput {
   /// Adds the view movement accumulated since the last call, and forgets it.
   ///
   /// **Adds**, where [DesktopInput.drainLook] *assigns* — an asymmetry worth
-  /// stating because it is invisible at the call site. `GameLoop` takes one
+  /// stating because it is invisible at the call site. `EngineLoop` takes one
   /// callback, so a game with both devices composes them:
   ///
   /// ```dart
@@ -292,36 +347,102 @@ final class PadInput {
   /// contribution is added on top, so moving both at once turns the view by the
   /// sum rather than by whichever ran last.
   void drainLook(Vector2 out) {
-    out.setValues(out.x + _look.x, out.y + _look.y);
+    final (x, y) = _actionInput.shapeDelta(
+      DualAxisAction.look,
+      InputSource.padStick('right'),
+      _look.x,
+      _look.y,
+    );
+    out.setValues(out.x + x, out.y + y);
     _look.setZero();
   }
 
-  /// Takes the player's numbers out of a config.
+  /// Adds this tick's turn of every stick bound to [DualAxisAction.look] to
+  /// the view, integrated over [dt] at [lookRate]: a stick reports a rate
+  /// and the look is a displacement. Not negated — the mouse also reports
+  /// positive downwards, and the camera subtracts.
+  void _integrateLook(double dt) {
+    for (final (side, x, y) in _sticks) {
+      final source = InputSource.padStick(side);
+      final looks = actions.axisBindings.any(
+        (ActionBinding b) =>
+            b is DualAxisBinding &&
+            b.action == DualAxisAction.look &&
+            b.source == source,
+      );
+      if (!looks) continue;
+      _look.setValues(
+        _look.x + _snapshot.axis(x) * lookRate * dt,
+        _look.y + _snapshot.axis(y) * lookRate * dt,
+      );
+    }
+  }
+
+  /// Every direction of an axis the button table binds, read as a button
+  /// with a magnitude.
+  void _halfAxes() {
+    for (final source in actions.buttons.sources.toList()) {
+      final id = source.id;
+      const prefix = '${InputSource.padPrefix}axis.';
+      if (!id.startsWith(prefix) || id.length <= prefix.length) continue;
+      final sign = id[id.length - 1];
+      if (sign != '+' && sign != '-') continue;
+      final axis = _axes[id.substring(prefix.length, id.length - 1)];
+      final action = actions.buttons[source];
+      if (axis == null || action == null) continue;
+      final value = _snapshot.axis(axis);
+      final magnitude = sign == '+'
+          ? (value > 0.0 ? value : 0.0)
+          : (value < 0.0 ? -value : 0.0);
+      _analogue(id, action, magnitude);
+    }
+  }
+
+  static final Map<String, PadAxis> _axes = PadAxis.values.asNameMap();
+
+  static const List<(String, PadAxis, PadAxis)> _sticks =
+      <(String, PadAxis, PadAxis)>[
+        ('left', PadAxis.leftStickX, PadAxis.leftStickY),
+        ('right', PadAxis.rightStickX, PadAxis.rightStickY),
+      ];
+
+  /// Hands the pad's state to the action map's non-button bindings: each
+  /// button a composite uses, each axis and each stick an analogue binding
+  /// names. Nothing is read for a source no binding mentions.
+  void _routeActions() {
+    final input = _actionInput;
+    for (final button in PadButton.known) {
+      final source = InputSource.pad(button.id);
+      if (!input.routes(source)) continue;
+      _snapshot.down(button)
+          ? input.sourceDown(source)
+          : input.sourceUp(source);
+    }
+    for (final axis in PadAxis.values) {
+      final source = InputSource.padAxis(axis.name);
+      if (input.routes(source)) input.sourceValue(source, _snapshot.axis(axis));
+    }
+    for (final (side, x, y) in _sticks) {
+      final source = InputSource.padStick(side);
+      if (input.routes(source)) {
+        input.sourcePair(source, _snapshot.axis(x), _snapshot.axis(y));
+      }
+    }
+  }
+
+  /// Takes the player's numbers out of [settings]: [lookRate] from
+  /// [GameSettingKeys.padLook] and the dead zones from
+  /// [GameSettingKeys.stickDeadZone] and [GameSettingKeys.triggerDeadZone].
   ///
-  /// Here rather than in each game, so `pad.look` is spelled once instead of
-  /// three times slightly differently. The names are documented on
-  /// [GameConfig.settings].
-  void applySettings(GameConfig config) {
-    routes = routes.copyWith(
-      lookRate: config.settingOf('pad.look', PadRoutes.defaultLookRate),
-    );
-    const rest = Deadzone();
+  /// Here rather than in each game, so the keys are read once instead of
+  /// three times slightly differently.
+  void applySettings(GameSettings settings) {
+    lookRate = settings.valueOf(GameSettingKeys.padLook);
     pad.deadzone = Deadzone(
-      stick: config.settingOf('pad.deadzone.stick', rest.stick),
-      trigger: config.settingOf('pad.deadzone.trigger', rest.trigger),
+      stick: settings.valueOf(GameSettingKeys.stickDeadZone),
+      trigger: settings.valueOf(GameSettingKeys.triggerDeadZone),
     );
   }
-
-  /// Writes the player's numbers back, for a settings panel that changed them.
-  void storeSettings(GameConfig config) {
-    config
-      ..setSetting('pad.look', routes.lookRate)
-      ..setSetting('pad.deadzone.stick', pad.deadzone.stick)
-      ..setSetting('pad.deadzone.trigger', pad.deadzone.trigger);
-  }
-
-  void _routeStick(PadStickUse use, double x, double y, double dt) =>
-      use.route(_target, x, y, dt);
 
   /// A control that has a magnitude as well as a bit.
   ///
@@ -402,12 +523,9 @@ final class PadInput {
     _holding.clear();
     _speaking.clear();
     _look.setZero();
-    // Each use releases whatever it writes, and a use that writes nothing
-    // outside the frame releases nothing — which is how a game whose stick is
-    // routed to nothing goes on never having touched the axis. Both sticks are
-    // asked; two sticks that both move clear the same axis twice, harmlessly.
-    routes.leftStick.letGo(_target);
-    routes.rightStick.letGo(_target);
+    // Clears what the map's sticks wrote, and only that: a game whose
+    // sticks are bound to nothing goes on never having touched the axis.
+    _actionInput.letGo();
   }
 
   /// Marks an entry in [_holding] that came from an axis rather than a button,
@@ -417,21 +535,4 @@ final class PadInput {
   /// Stands in for "this button is down and selects a slot", which holds no
   /// action and must never be released as one.
   static const GameAction _slotSentinel = GameAction('');
-}
-
-/// [PadStickTarget] over one [PadInput].
-final class _StickTarget implements PadStickTarget {
-  const _StickTarget(this._pad);
-
-  final PadInput _pad;
-
-  @override
-  void setStickAxis(double x, double y) => _pad.state.setStickAxis(x, y);
-
-  @override
-  void addLook(double dx, double dy) =>
-      _pad._look.setValues(_pad._look.x + dx, _pad._look.y + dy);
-
-  @override
-  double get lookRate => _pad.routes.lookRate;
 }

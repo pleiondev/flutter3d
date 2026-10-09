@@ -12,7 +12,11 @@ import 'package:vector_math/vector_math.dart';
 /// its model not moved — what the joints hold is this one's to write, once a
 /// frame in [step]. A ragdoll is the reason, and lives where the physics core
 /// does, so this package names neither.
-abstract interface class ActorCorpses {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ActorCorpses {
   /// [actor] has died, drawn as [model]. True when this takes its pose over;
   /// false leaves it to its death clip. [previous] is every joint's world
   /// matrix of its first skeleton a frame before, [dt] seconds before, when

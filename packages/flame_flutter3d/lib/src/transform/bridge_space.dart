@@ -1,6 +1,5 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
-import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 /// Where a Flame point is in the scene and which way a Flame angle faces
 /// there: what an `Object3dComponent` writes its node through.
@@ -8,7 +7,11 @@ import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 /// A `BridgePlane` is the flat one. [CurvilinearSpace] bends Flame's world
 /// along a road, so a racing game can keep its cars in Flame's straight
 /// coordinates (across the road, and along it) while the road winds.
-abstract interface class BridgeSpace {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class BridgeSpace {
   /// The scene point for Flame's ([x], [y]), [lift] metres up, into [out].
   void place(double x, double y, double lift, Vector3 out);
 

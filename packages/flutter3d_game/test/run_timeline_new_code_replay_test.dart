@@ -14,6 +14,8 @@ library;
 
 import 'package:flutter3d_app/flutter3d_app.dart' show HotSwap;
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game/testing.dart' show captureToolEvents;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +36,26 @@ final class _Walker {
   void restore(Snapshot snapshot) => x = snapshot.data.number('x');
 }
 
+/// [walker] as one part of a fresh loop's snapshots, under `walker`, and a
+/// system in its step, reading [input]; [rewind] attached to it.
+EngineLoop _loopOf(_Walker walker, InputState input, RewindBuffer rewind) {
+  final loop = EngineLoop(input: input)
+    ..snapshots.add(
+      SnapshotPart.of(
+        id: 'walker',
+        capture: () => walker.save().data,
+        restore: (Object? data, int _) {
+          if (data is Map) {
+            walker.restore(Snapshot(data.cast<String, Object?>()));
+          }
+        },
+      ),
+    )
+    ..addSystem('walker', LoopPhase.rules, (_) => walker.step(input));
+  rewind.attach(loop);
+  return loop;
+}
+
 ({_Walker walker, InputState input, RewindBuffer rewind, RunTimeline timeline})
 _run() {
   final walker = _Walker();
@@ -43,12 +65,7 @@ _run() {
     walker: walker,
     input: input,
     rewind: rewind,
-    timeline: RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (dt) => walker.step(input),
-      restore: walker.restore,
-    ),
+    timeline: RunTimeline(rewind: rewind, loop: _loopOf(walker, input, rewind)),
   );
 }
 
@@ -65,11 +82,7 @@ void _steps(
 ) {
   for (var step = from; step < to; step++) {
     it.input.setStickAxis(step % 5 == 0 ? 0.0 : 1.0, 0.0);
-    it.rewind.recorder.record(it.input);
-    it.input.beginStep();
-    if (it.rewind.keyframeDue) it.rewind.keyframe(it.walker.save());
-    it.walker.step(it.input);
-    it.input.endStep();
+    it.timeline.loop.runSteps(1);
   }
 }
 
@@ -81,10 +94,7 @@ void main() {
     // x passes 8 at about step 200, well inside the last three seconds.
     live.walker.rule = _new;
 
-    final replay = live.timeline.replayUnderNewCode(
-      seconds: 3.0,
-      capture: live.walker.save,
-    )!;
+    final replay = live.timeline.replayUnderNewCode(seconds: 3.0)!;
 
     expect(replay.fromStep, 120);
     expect(replay.toStep, 300);
@@ -96,7 +106,7 @@ void main() {
     expect(live.walker.x, fresh.walker.x);
 
     final divergence = replay.divergence!;
-    expect(divergence.path, 'x');
+    expect(divergence.path, 'walker.data.x');
     // The keyframes are 60 steps apart: agreed at 180, parted by 240.
     expect(divergence.agreedAt, 180);
     expect(divergence.step, 240);
@@ -113,10 +123,7 @@ void main() {
     final x = live.walker.x;
     live.walker.rule = (x, push) => push * 0.05 + x;
 
-    final replay = live.timeline.replayUnderNewCode(
-      seconds: 3.0,
-      capture: live.walker.save,
-    )!;
+    final replay = live.timeline.replayUnderNewCode(seconds: 3.0)!;
 
     expect(replay.divergence, isNull);
     expect(live.walker.x, x);
@@ -126,7 +133,7 @@ void main() {
     final live = _run();
     _steps(live, 0, 300);
     live.walker.rule = _new;
-    live.timeline.replayUnderNewCode(seconds: 3.0, capture: live.walker.save);
+    live.timeline.replayUnderNewCode(seconds: 3.0);
 
     expect(live.rewind.keyframesAfter(120), isEmpty);
     expect(live.rewind.rewindTo(100), isNull);
@@ -134,10 +141,7 @@ void main() {
 
   test('a buffer that does not reach back replays nothing', () {
     final live = _run();
-    expect(
-      live.timeline.replayUnderNewCode(seconds: 3.0, capture: live.walker.save),
-      isNull,
-    );
+    expect(live.timeline.replayUnderNewCode(seconds: 3.0), isNull);
   });
 
   group('after a hot reload, on its own', () {
@@ -150,7 +154,6 @@ void main() {
       final replays = <CodeReplay>[];
       replayAfterHotSwap(
         live.timeline,
-        capture: live.walker.save,
         hotSwap: hotSwap,
         onReplayed: replays.add,
       );
@@ -164,23 +167,19 @@ void main() {
     });
 
     test('the replay is posted for whoever watches the game', () async {
-      // Mutation: drop the `postGameEvent` call and an editor's Play panel,
+      // Mutation: drop the `postToolEvent` call and an editor's Play panel,
       // or an agent polling `play_events`, never hears that the new code
       // parted from the old.
       final posted = <(String, Map<String, Object?>)>[];
-      final before = postGameEvent;
-      postGameEvent = (String kind, Map<String, Object?> data) =>
-          posted.add((kind, data));
-      addTearDown(() => postGameEvent = before);
+      addTearDown(
+        captureToolEvents(
+          (String kind, Map<String, Object?> data) => posted.add((kind, data)),
+        ),
+      );
       final live = _run();
       _steps(live, 0, 300);
       final hotSwap = HotSwap(enabled: true);
-      replayAfterHotSwap(
-        live.timeline,
-        capture: live.walker.save,
-        hotSwap: hotSwap,
-        onReplayed: (_) {},
-      );
+      replayAfterHotSwap(live.timeline, hotSwap: hotSwap, onReplayed: (_) {});
 
       live.walker.rule = _new;
       await hotSwap.swap();
@@ -196,7 +195,6 @@ void main() {
       final replays = <CodeReplay>[];
       final stop = replayAfterHotSwap(
         live.timeline,
-        capture: live.walker.save,
         hotSwap: hotSwap,
         onReplayed: replays.add,
       );

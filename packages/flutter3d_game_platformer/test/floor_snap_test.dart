@@ -2,7 +2,7 @@
 ///
 ///     flutter test test/floor_snap_test.dart
 ///
-/// `MovementTuning.floorSnapLength` keeps a body's feet on a floor it already
+/// `MovementSettings.floorSnapLength` keeps a body's feet on a floor it already
 /// had, which is how a staircase stops being a series of small falls. The
 /// engine cannot tell that from a body being *thrown* off a floor it already
 /// had: both are a grounded body whose `velocity.y` was written from outside,
@@ -22,6 +22,7 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -38,7 +39,7 @@ final class _Shaft {
       Vector3(20.0, 1.0, 20.0),
     );
 
-    final tuning = MovementTuning(floorSnapLength: snap);
+    final tuning = MovementSettings(floorSnapLength: snap);
     runner = Runner(
       body: CharacterController(
         world: world,
@@ -49,11 +50,11 @@ final class _Shaft {
       // never fires — but a table whose fallback forgot the snap would put it
       // back to zero on the first step a floor *is* named, and that is a trap
       // worth not walking into in the fixture.
-      surfaces: Surfaces(const <String, MovementTuning>{}, fallback: tuning),
+      surfaces: Surfaces(const <String, MovementSettings>{}, fallback: tuning),
     );
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final Runner runner;
 

@@ -1,12 +1,11 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// What every actor running a behaviour tree last decided, drawn where it
 /// stands.
 ///
 /// **Read-only, and that is the condition for having it at all.** It reads
-/// the boards through `BehaviourBrain.pathOf` and `goalOf`, which never make
+/// the boards through `BehaviorBrain.pathOf` and `goalOf`, which never make
 /// one, so switching the overlay on cannot change a snapshot — an overlay that
 /// did would make a run under the debugger a different run.
 ///
@@ -17,8 +16,8 @@ import 'package:vector_math/vector_math.dart';
 /// the game shows beside the picture.
 ///
 /// Hand [draw] to `Renderer.debugLines`.
-final class BehaviourOverlay {
-  BehaviourOverlay(this.actors);
+final class BehaviorOverlay {
+  BehaviorOverlay(this.actors);
 
   final ActorSystem actors;
 
@@ -26,18 +25,23 @@ final class BehaviourOverlay {
   static const double _pitch = 0.16;
   static const double _stroke = 0.12;
 
-  /// A new vector each call: a shared one is a colour anybody can scale.
-  static Vector4 colourOf(BehaviourStatus status) => switch (status) {
-    BehaviourStatus.running => Vector4(1.0, 0.75, 0.1, 1.0),
-    BehaviourStatus.success => Vector4(0.3, 0.9, 0.35, 1.0),
-    BehaviourStatus.failure => Vector4(0.95, 0.25, 0.2, 1.0),
+  /// The line colour for [status], linear: the amber, green and red picked
+  /// on screen, which the overlay encodes back to exactly those.
+  static LinearColor colorOf(BehaviorStatus status) => switch (status) {
+    BehaviorStatus.running => _running,
+    BehaviorStatus.success => _success,
+    BehaviorStatus.failure => _failure,
   };
+
+  static final LinearColor _running = LinearColor.fromSrgb(1.0, 0.75, 0.1);
+  static final LinearColor _success = LinearColor.fromSrgb(0.3, 0.9, 0.35);
+  static final LinearColor _failure = LinearColor.fromSrgb(0.95, 0.25, 0.2);
 
   void draw(DebugDraw lines) {
     for (final actor in actors.actors) {
       final body = actor.body;
       if (body == null || !actor.isAlive) continue;
-      final path = BehaviourBrain.pathOf(actor);
+      final path = BehaviorBrain.pathOf(actor);
       if (path.isEmpty) continue;
       final at = body.position;
       final top = at.y + body.halfExtents.y + 0.2;
@@ -46,11 +50,11 @@ final class BehaviourOverlay {
         lines.addLine(
           Vector3(at.x, y, at.z),
           Vector3(at.x, y + _stroke, at.z),
-          colourOf(step.status),
+          colorOf(step.status),
         );
       }
-      final goal = BehaviourBrain.goalOf(actor, actors);
-      if (goal != null) lines.addLine(at, goal, colourOf(path.last.status));
+      final goal = BehaviorBrain.goalOf(actor, actors);
+      if (goal != null) lines.addLine(at, goal, colorOf(path.last.status));
     }
   }
 
@@ -58,7 +62,7 @@ final class BehaviourOverlay {
   /// `a1: utility › patrol › goTo (running)`.
   List<String> describe() => <String>[
     for (final actor in actors.actors)
-      if (BehaviourBrain.pathOf(actor) case final path when path.isNotEmpty)
+      if (BehaviorBrain.pathOf(actor) case final path when path.isNotEmpty)
         [
           '${actor.name ?? '#${actor.ordinal}'}:',
           path.map((step) => step.label).join(' › '),

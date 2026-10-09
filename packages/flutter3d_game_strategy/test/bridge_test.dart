@@ -123,7 +123,7 @@ void main() {
     );
     visuals.addTo(Scene(name: 'map'));
     sim.build(
-      Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 4.0),
+      Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 4.0),
     );
     visuals.sync();
 
@@ -225,7 +225,7 @@ void main() {
     final before = scene.meshes.length;
     sim.build(
       Building(
-        centre: Vector3(20.0, 0.0, 20.0),
+        center: Vector3(20.0, 0.0, 20.0),
         width: 12.0,
         depth: 4.0,
         name: 'hall',
@@ -246,9 +246,9 @@ void main() {
     final visuals = StrategyVisuals(simulation: sim, device: device);
     visuals.addTo(Scene(name: 'map'));
     sim
-      ..build(Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0))
+      ..build(Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0))
       ..build(
-        Building(centre: Vector3(30.0, 0.0, 30.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(30.0, 0.0, 30.0), width: 4.0, depth: 4.0),
       );
     visuals.sync();
 
@@ -350,7 +350,7 @@ void main() {
 
       sim.build(
         Building(
-          centre: Vector3(34.0, 0.0, 34.0),
+          center: Vector3(34.0, 0.0, 34.0),
           width: 6.0,
           depth: 6.0,
           name: 'their hall',

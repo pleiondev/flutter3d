@@ -56,6 +56,6 @@ void main() {
     // property of the backend rather than a preference: a WebGL canvas resets
     // its drawing buffer when it is resized, so the frame is drawn at one size
     // and stretched to the layout by CSS.
-    expect(kFixedResolution, isTrue);
+    expect(fixedResolution, isTrue);
   });
 }

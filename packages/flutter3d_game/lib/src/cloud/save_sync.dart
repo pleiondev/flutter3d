@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         SaveFound,
@@ -73,7 +74,7 @@ final class SyncReport {
 ///
 /// ## Consent first
 ///
-/// **Nothing leaves the device until the player says it may.** [consented] is
+/// **Nothing leaves the device until the player says it may.** [hasConsent] is
 /// false on a fresh install, kept in a document of its own beside the save,
 /// and every call below that would touch the store checks it first and
 /// answers [SyncOutcome.notConsented] without a request. Withdrawing forgets
@@ -93,8 +94,12 @@ final class SyncReport {
 /// `resolveSaves`, by step and digest against the digest the two last agreed
 /// on. Recorded after every sync that ended with both sides holding one run.
 final class SaveSync {
+  /// Cloud copies of [saves] in [store], with consent and the last agreed
+  /// digest kept in [storage] — read straight away, see [ready].
   SaveSync({required this.saves, required this.store, Storage? storage})
-    : storage = storage ?? saves.storage;
+    : storage = storage ?? saves.storage {
+    _ready = _load();
+  }
 
   final SaveFile saves;
   final CloudSaveStore store;
@@ -107,31 +112,79 @@ final class SaveSync {
   /// settings so a reset of the controls does not quietly turn them on.
   static const String stateName = 'cloud_saves.json';
 
-  Map<String, Object?> get _state {
-    final text = storage.read(stateName);
-    if (text == null) return const <String, Object?>{};
+  /// The version of [stateName]'s document.
+  static const int stateVersion = 1;
+
+  /// [stateName]'s document: `f3d.cloudSaves`, then `consented` and `base`,
+  /// and whatever a later build added, kept when this one writes it again.
+  /// A document from before the envelope reads as version 1; one from a
+  /// newer build, or one that does not read, is no consent and no base.
+  static const FormatSpec stateFormat = FormatSpec(
+    id: 'f3d.cloudSaves',
+    version: stateVersion,
+    fixture: 'test/fixtures/v<N>/cloud_saves.json',
+  );
+
+  late final Future<void> _ready;
+
+  /// Completes once consent and the agreed digest have been read. Until
+  /// then [hasConsent] is false, which is the safe answer; [sync] waits for
+  /// it itself.
+  Future<void> get ready => _ready;
+
+  Map<String, Object?> _state = const <String, Object?>{};
+
+  Future<void> _load() async {
+    final text = await storage.read(stateName);
+    if (text == null) return;
     try {
       final json = jsonDecode(text);
-      return json is Map<String, Object?> ? json : const <String, Object?>{};
+      if (json is Map<String, Object?>) {
+        _state = <String, Object?>{
+          for (final MapEntry(:key, :value)
+              in stateFormat
+                  .open(json, refuse: DocumentFormatException.new)
+                  .entries)
+            if (!FormatSpec.envelopeKeys.contains(key)) key: value,
+        };
+      }
     } on FormatException {
-      return const <String, Object?>{};
+      _state = const <String, Object?>{};
+    } on DocumentFormatException {
+      _state = const <String, Object?>{};
     }
   }
 
-  bool _keep(Map<String, Object?> state) =>
-      storage.write(stateName, jsonEncode(state));
+  Future<bool> _keep(Map<String, Object?> state) async {
+    _state = state;
+    try {
+      await storage.write(
+        stateName,
+        jsonEncode(<String, Object?>{...stateFormat.envelope(), ...state}),
+      );
+      return true;
+    } on StorageException {
+      return false;
+    }
+  }
 
   /// Whether the player has agreed to keep saves in [store].
   ///
   /// Anything but an explicit `true` on disk is no — a document that will not
-  /// read is not consent.
-  bool get consented => _state['consented'] == true;
+  /// read is not consent, and neither is one not read yet.
+  bool get hasConsent => _state['consented'] == true;
 
-  /// The player agreed. Returns whether that was kept.
-  bool consent() => _keep(<String, Object?>{..._state, 'consented': true});
+  /// The player agreed. Answers whether that was kept.
+  Future<bool> consent() async {
+    await _ready;
+    return _keep(<String, Object?>{..._state, 'consented': true});
+  }
 
-  /// The player took it back.
-  bool withdraw() => _keep(const <String, Object?>{'consented': false});
+  /// The player took it back. Answers whether that was kept.
+  Future<bool> withdraw() async {
+    await _ready;
+    return _keep(const <String, Object?>{'consented': false});
+  }
 
   /// The digest both sides last held, if they have met.
   String? get base => switch (_state['base']) {
@@ -139,7 +192,7 @@ final class SaveSync {
     _ => null,
   };
 
-  void _agreed(String? digest) =>
+  Future<void> _agreed(String? digest) =>
       _keep(<String, Object?>{..._state, 'base': digest});
 
   static const SyncReport _notConsented = SyncReport(
@@ -151,10 +204,11 @@ final class SaveSync {
   Future<SyncReport> sync() => _sync(retried: false);
 
   Future<SyncReport> _sync({required bool retried}) async {
-    if (!consented) return _notConsented;
+    await _ready;
+    if (!hasConsent) return _notConsented;
     final SaveRecord? remote;
     final String? version;
-    switch (await store.fetch(SaveFile.name)) {
+    switch (await store.fetch(saves.documentName)) {
       case CloudUnavailable(:final reason):
         return SyncReport(SyncOutcome.unavailable, reason);
       case CloudEmpty():
@@ -174,10 +228,10 @@ final class SaveSync {
             );
         }
     }
-    final local = saves.readRecord();
+    final local = await saves.readRecord();
     switch (resolveSaves(local: local, remote: remote, base: base)) {
       case SaveResolution.inSync:
-        _agreed(local?.digest);
+        await _agreed(local?.digest);
         return SyncReport(
           SyncOutcome.inSync,
           'the save here and in ${store.name} are the same',
@@ -208,7 +262,8 @@ final class SaveSync {
   /// Finishes an [SyncOutcome.ask] with the player's choice: [keepLocal]
   /// sends this device's run, otherwise the cloud's is written here.
   Future<SyncReport> settle(SyncReport asked, {required bool keepLocal}) async {
-    if (!consented) return _notConsented;
+    await _ready;
+    if (!hasConsent) return _notConsented;
     final local = asked.local;
     final remote = asked.remote;
     if (asked.outcome != SyncOutcome.ask || local == null || remote == null) {
@@ -219,7 +274,7 @@ final class SaveSync {
     }
     return keepLocal
         ? await _send(local, replacing: asked.remoteVersion) ?? _movedReport
-        : _take(remote);
+        : await _take(remote);
   }
 
   SyncReport get _movedReport => SyncReport(
@@ -230,12 +285,12 @@ final class SaveSync {
   /// Sends [local]; null when another device wrote first.
   Future<SyncReport?> _send(SaveRecord local, {String? replacing}) async {
     switch (await store.put(
-      SaveFile.name,
+      saves.documentName,
       SaveFile.encode(local),
       replacing: replacing,
     )) {
       case CloudStored():
-        _agreed(local.digest);
+        await _agreed(local.digest);
         return SyncReport(
           SyncOutcome.uploaded,
           'this run was saved to ${store.name}',
@@ -247,14 +302,14 @@ final class SaveSync {
     }
   }
 
-  SyncReport _take(SaveRecord remote) {
-    if (!saves.writeRecord(remote)) {
+  Future<SyncReport> _take(SaveRecord remote) async {
+    if (!await saves.writeRecord(remote)) {
       return SyncReport(
         SyncOutcome.unavailable,
         'the run from ${store.name} could not be written on this device',
       );
     }
-    _agreed(remote.digest);
+    await _agreed(remote.digest);
     return SyncReport(
       SyncOutcome.downloaded,
       'the run from ${store.name} was kept on this device',

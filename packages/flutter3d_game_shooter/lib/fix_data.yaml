@@ -1,0 +1,171 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game_shooter-ReadoutStyle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/bridge.dart', 'package:flutter3d_game_racing/bridge.dart', 'package:flutter3d_game_shooter/bridge.dart']
+      class: 'ReadoutStyle'
+    changes:
+      - kind: 'rename'
+        newName: 'ShooterReadoutStyle'
+  - title: 'flutter3d 1.0.0-rc.1: game_shooter-KeyKind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart', 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'KeyKind'
+    changes:
+      - kind: 'rename'
+        newName: 'ShooterKeyKind'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-HitscanBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'HitscanBehaviour'
+    changes:
+      - kind: 'rename'
+        newName: 'HitscanBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-Inventory-Inventory'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      constructor: ''
+      inClass: 'Inventory'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'maxArmour'
+        newName: 'maxArmor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-Inventory-addArmour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      method: 'addArmour'
+      inClass: 'Inventory'
+    changes:
+      - kind: 'rename'
+        newName: 'addArmor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-Inventory-maxArmour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'maxArmour'
+      inClass: 'Inventory'
+    changes:
+      - kind: 'rename'
+        newName: 'maxArmor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-MeleeBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'MeleeBehaviour'
+    changes:
+      - kind: 'rename'
+        newName: 'MeleeBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-ProjectileBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'ProjectileBehaviour'
+    changes:
+      - kind: 'rename'
+        newName: 'ProjectileBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-WeaponBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'WeaponBehaviour'
+    changes:
+      - kind: 'rename'
+        newName: 'WeaponBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-WeaponDef-WeaponDef'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      constructor: ''
+      inClass: 'WeaponDef'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'behaviour'
+        newName: 'behavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-WeaponDef-behaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'behaviour'
+      inClass: 'WeaponDef'
+    changes:
+      - kind: 'rename'
+        newName: 'behavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-HealthBar-HealthBar'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/bridge.dart']
+      constructor: ''
+      inClass: 'HealthBar'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'armour'
+        newName: 'armor'
+      - kind: 'renameParameter'
+        oldName: 'maxArmour'
+        newName: 'maxArmor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-HealthBar-armour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/bridge.dart']
+      field: 'armour'
+      inClass: 'HealthBar'
+    changes:
+      - kind: 'rename'
+        newName: 'armor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-HealthBar-maxArmour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/bridge.dart']
+      field: 'maxArmour'
+      inClass: 'HealthBar'
+    changes:
+      - kind: 'rename'
+        newName: 'maxArmor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-KeyPips-KeyPips'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/bridge.dart']
+      constructor: ''
+      inClass: 'KeyPips'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colours'
+        newName: 'colors'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-KeyPips-colours'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/bridge.dart']
+      field: 'colours'
+      inClass: 'KeyPips'
+    changes:
+      - kind: 'rename'
+        newName: 'colors'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-WeaponDef-cooldownSeconds'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      getter: 'cooldownSeconds'
+      inClass: 'WeaponDef'
+    changes:
+      - kind: 'rename'
+        newName: 'cooldown'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_shooter-ShotHit-struckSomething'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      getter: 'struckSomething'
+      inClass: 'ShotHit'
+    changes:
+      - kind: 'rename'
+        newName: 'didStrikeSomething'

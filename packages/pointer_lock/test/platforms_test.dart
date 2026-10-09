@@ -1,6 +1,10 @@
 /// Which native platforms the method channel answers for.
 ///
 ///     flutter test test/platforms_test.dart
+///
+/// The method channel is the native side; in a browser the web
+/// implementation answers instead, and this one says no everywhere.
+@TestOn('vm')
 library;
 
 import 'package:flutter/foundation.dart';

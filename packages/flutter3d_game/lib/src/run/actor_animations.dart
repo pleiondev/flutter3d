@@ -1,4 +1,5 @@
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:vector_math/vector_math.dart';
 
@@ -14,7 +15,7 @@ import '../visuals/actor_visuals.dart';
 /// - its root motion, if it has a root node, walks the body — carried into
 ///   the world by the way the actor faces and [scale], and swept by the
 ///   body's controller, so a stride into a wall stops there;
-/// - each marker the entered state passed goes into [events] as an
+/// - each marker the entered state passed is published onto [events] as an
 ///   [AnimationMarkerPassed], in order with the shots and deaths of the same
 ///   step, so a footstep can wake a monster and a swing can land on the
 ///   frame it was drawn to.
@@ -30,14 +31,15 @@ import '../visuals/actor_visuals.dart';
 /// spawn as it goes has no moment to attach theirs, and a graph made inside
 /// the step is made at the same step of every run, so a replay agrees with
 /// the run it records. [attach] is for a game that makes its own.
-final class ActorAnimations implements ActorStrides {
+final class ActorAnimations extends ActorStrides {
   /// [write] is asked every step for each actor with a graph, before it
   /// moves; null leaves the parameters to whoever set them.
   ActorAnimations({this.events, this.write, this.graphFor, this.scaleOf});
 
-  /// Where markers are reported; the game's own buffer, as the actor
-  /// system's is.
-  GameEvents? events;
+  /// The bus markers are published onto, or null for a game that does not
+  /// listen: the game's own, as the actor system's is. A game that sets it
+  /// declares [AnimationMarkerPassed] on it with its codec.
+  EventRegistry? events;
 
   /// Puts what [actor]'s brain decided — and where it wished to go this
   /// step — into its graph's parameters, and where its goals look and stand.
@@ -78,7 +80,7 @@ final class ActorAnimations implements ActorStrides {
     write?.call(actor, graph, wish);
     graph.evaluate(dt);
     for (final passed in graph.passed) {
-      events?.add(AnimationMarkerPassed(actor, passed.state, passed.name));
+      events?.publish(AnimationMarkerPassed(actor, passed.state, passed.name));
     }
     if (graph.rootNode == null) return null;
     return graph.rootDeltaIn(
@@ -154,6 +156,21 @@ final class ActorAnimations implements ActorStrides {
 final class AnimationMarkerPassed extends GameEvent {
   const AnimationMarkerPassed(this.actor, this.state, this.marker);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'animation.markerPassed';
+
+  /// Its codec: the actor's ordinal, the state and the marker. Reads back as
+  /// null, since an actor is a live part of a world and not a value.
+  static final EventCodec<AnimationMarkerPassed> codec =
+      EventCodec<AnimationMarkerPassed>.of(
+        encode: (AnimationMarkerPassed e) => <Object?>[
+          e.actor.ordinal,
+          e.state,
+          e.marker,
+        ],
+        decode: (Object? data, int version) => null,
+      );
+
   final Actor actor;
 
   /// The state whose clip carries the marker.
@@ -163,13 +180,15 @@ final class AnimationMarkerPassed extends GameEvent {
   final String marker;
 
   @override
-  String get name => 'animation marker $marker in $state';
+  String get name => eventName;
 }
 
 final class _Animated {
   _Animated(this.graph, this.scale, {this.made = false});
 
   final AnimationGraph graph;
+
+  /// The model's size, a multiplier on the authored stride.
   final double scale;
 
   /// Made by [ActorAnimations.graphFor] rather than attached.

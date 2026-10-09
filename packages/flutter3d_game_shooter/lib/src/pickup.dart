@@ -32,17 +32,25 @@ final class Pickup extends Takeable {
 
   final Gift gift;
 
+  /// How much of [gift] it gives, in the gift's own unit: hit points, armour
+  /// points or rounds.
   final double amount;
 
   /// Which one, where a gift has kinds — a key's colour, a weapon's name.
   final String? detail;
+
+  /// What the gift said when it was taken, for a game to word; null before
+  /// then, or when it says nothing. [message] carries its English wording.
+  GiftAnnouncement? announcement;
 
   @override
   bool offerTo(Object? taker) {
     if (taker is! Collector) return false;
     if (!gift.grantTo(taker.inventory, amount, detail)) return false;
 
-    message = gift.announce(amount, detail);
+    final said = gift.announce(amount, detail);
+    announcement = said;
+    message = said?.english;
     return true;
   }
 }

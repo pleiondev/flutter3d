@@ -8,19 +8,21 @@ import 'game_config.dart';
 /// A colour that means something: what it is for, what the panel calls it,
 /// and what it is until the player says otherwise.
 final class ColorRole {
-  const ColorRole(this.name, this.label, this.colour);
+  const ColorRole(this.name, this.label, this.color);
 
-  /// What the setting is stored under, `colour.<name>`.
+  /// The role's name, which its setting is kept under:
+  /// `flutter3d.color.<name>`.
   final String name;
 
   /// What the settings panel calls it.
   final String label;
 
   /// What it is by default.
-  final Color colour;
+  final Color color;
 
-  /// The setting this role's choice is kept in.
-  String get setting => 'colour.$name';
+  /// The setting this role's choice is kept in, an index into
+  /// [ColorRoles.choices].
+  SettingKey<int> get setting => GameSettingKeys.colorRole(name);
 }
 
 /// The colours a game gives meanings to, and the ones a player has chosen
@@ -55,10 +57,7 @@ final class ColorRoles {
   ];
 
   /// What [role] may be: its own colour first, then [palette].
-  static List<Color> choices(ColorRole role) => <Color>[
-    role.colour,
-    ...palette,
-  ];
+  static List<Color> choices(ColorRole role) => <Color>[role.color, ...palette];
 
   /// The role called [name], or null.
   ColorRole? named(String name) {
@@ -69,16 +68,14 @@ final class ColorRoles {
   }
 
   /// The colour [role] is in [config]: the player's choice, or its own.
-  Color of(ColorRole role, GameConfig config) {
-    final chosen = config.settingOf(role.setting, 0.0).round();
+  Color of(ColorRole role, GameSettings config) {
+    final chosen = config.valueOf(role.setting);
     final options = choices(role);
-    return chosen > 0 && chosen < options.length
-        ? options[chosen]
-        : role.colour;
+    return chosen > 0 && chosen < options.length ? options[chosen] : role.color;
   }
 
   /// The colour of the role called [name], or [fallback] when there is none.
-  Color colourOf(String name, GameConfig config, {required Color fallback}) {
+  Color colorOf(String name, GameSettings config, {required Color fallback}) {
     final role = named(name);
     return role == null ? fallback : of(role, config);
   }
@@ -87,7 +84,7 @@ final class ColorRoles {
   /// pairs someone missing a cone runs together, in the colours [config]
   /// gives them. See [ColorVision.confusions].
   List<({String a, String b, ColorVisionDeficiency by, double distance})>
-  confusions(Iterable<String> names, GameConfig config) =>
+  confusions(Iterable<String> names, GameSettings config) =>
       ColorVision.confusions(<String, (double, double, double)>{
         for (final name in names)
           if (named(name) case final ColorRole role)

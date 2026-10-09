@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -37,6 +39,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   ///
   /// Zero or less means it never returns, which is a one-shot bridge — a fine
   /// thing to author and a terrible default.
+  /// In seconds.
   final double gone;
 
   final Vector3 _restingAt = Vector3.zero();
@@ -79,7 +82,7 @@ final class Crumbling extends Mechanism with CollisionListener {
     world.collisions.removeLater(collider);
   }
 
-  /// Nothing activates it: weight does, through [takeWeight].
+  /// Nothing activates it: weight does, through [bearWeight].
   @override
   ActivationOutcome activate(Activation by) => const NothingToDo();
 
@@ -88,7 +91,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   /// Read from the ground rather than from an overlap: a runner brushing the
   /// side of a crumbling platform on the way past has not stepped on it, and a
   /// trigger volume cannot tell the difference.
-  void takeWeight() {
+  void bearWeight() {
     if (_fallen) return;
     if (sinceTouched.isInfinite) sinceTouched = 0.0;
   }
@@ -220,6 +223,7 @@ final class Climbable extends Mechanism {
   final Collider collider;
 
   /// How fast a body climbs it.
+  /// In metres per second.
   final double climbSpeed;
 
   /// How far it swings from rest, in metres. Zero for a ladder.
@@ -238,6 +242,7 @@ final class Climbable extends Mechanism {
 
   /// How fast the volume itself is moving sideways, so a climber who lets go
   /// leaves with it.
+  /// In metres per second.
   double get swingVelocity => _swingVelocity;
   double _swingVelocity = 0.0;
 

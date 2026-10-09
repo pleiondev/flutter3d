@@ -1,6 +1,6 @@
 name: flutter3d_game_shooter
 description: "The parts of a first-person shooter that are not parts of an engine: monsters, weapons, an inventory, and the step order that ties them together."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,28 +13,57 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
     sdk: flutter
 
+  # The virtual cameras this genre's camera is a preset of: the framing, the
+  # director it can be handed to, and the blends and shakes between cameras.
+  flutter3d_camera: ^1.0.0-rc.1
+
   # This package builds colliders and worlds itself, and a dependency you use is
   # a dependency you declare. The simulation is where the fixed step, the
   # levels, the actors and the saves live since they stopped needing Flutter.
-  flutter3d_physics: ^0.9.0
-  flutter3d_sim: ^0.9.0
+  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
 
   # Only `bridge.dart` imports this — the view model of a weapon held in the
   # hands is a shooter's, not a renderer's and not a bridge's. The simulation
   # library imports nothing from it, and a test holds that.
-  flutter3d: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # The tests written against the repository's own roster, crypt and staging
+  # live in `flutter3d_demo_content`'s `test/shooter/`: that package is
+  # unpublished, and pana resolves a dev dependency against pub.dev.
 
 # Why this package exists: `flutter3d_game` used to ship a monster roster, a
 # weapon roster and an entity-type list, and `flutter3d_bridge` referenced them,

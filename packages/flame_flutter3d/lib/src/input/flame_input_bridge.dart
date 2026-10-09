@@ -19,7 +19,7 @@ import '../host/has_fixed_step.dart';
 import '../host/updates_at_root.dart';
 
 /// Feeds Flame's own keyboard and drag callbacks into the same
-/// [Bindings]/[InputState] pair `flutter3d_game`'s [DesktopInput] and
+/// [ActionMap]/[InputState] pair `flutter3d_game`'s [DesktopInput] and
 /// [PadInput] already write into.
 ///
 /// **Reuses their translation rather than inventing a second one.** A
@@ -31,7 +31,8 @@ import '../host/updates_at_root.dart';
 /// they launched the Flame-hosted build of the same game, because two maps
 /// disagreeing is indistinguishable from a rebind that silently failed. So
 /// this class owns no mapping of its own: it looks a source up in the very
-/// same [Bindings] table [DesktopInput] does, and calls the very same
+/// same [ActionMap] [DesktopInput] does — its buttons, its composites, its
+/// slots — and calls the very same
 /// [InputState.press]/[InputState.release] it does, for a source Flame
 /// happened to notice instead of a raw [Focus] widget.
 ///
@@ -45,18 +46,21 @@ import '../host/updates_at_root.dart';
 ///
 /// **It does not poll a gamepad.** [PadInput] already reads a pad every
 /// tick and writes into this same [InputState] through this same
-/// [Bindings] table; a Flame-specific pad translator would be a second
+/// [ActionMap]; a Flame-specific pad translator would be a second
 /// implementation of exactly that, drifting from the first the moment
 /// either one gains a feature the other doesn't. A Flame game that wants
 /// pad support constructs a [PadInput] directly, beside this bridge, both
 /// pointed at the shared [inputState].
 final class FlameInputBridge {
-  FlameInputBridge({required this.bindings, required this.inputState});
+  FlameInputBridge({required this.actions, required this.inputState})
+    : _actionInput = ActionInput(state: inputState, map: actions);
 
-  /// What each key or pointer button does. The same table a rebinding
-  /// screen edits and [DesktopInput]/[PadInput] read, if the host shares
-  /// one — see the class doc.
-  final Bindings bindings;
+  /// What each key does. The same map a rebinding screen edits and
+  /// [DesktopInput]/[PadInput] read, if the host shares one — see the class
+  /// doc.
+  final ActionMap actions;
+
+  final ActionInput _actionInput;
 
   /// The shared state a `flutter3d_sim` `Actor`'s movement, and this
   /// bridge, both read and write.
@@ -80,8 +84,21 @@ final class FlameInputBridge {
   /// a repeat as a fresh press would fire an automatic weapon at the
   /// keyboard's repeat rate instead of the weapon's.
   bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    final action = bindings[InputSource.key(event.logicalKey.keyId)];
-    if (action == null) return true;
+    final source = InputSource.key(event.logicalKey.keyId);
+    // A composite that uses the key hears its edge, as the keyboard's do.
+    final routed = _actionInput.routes(source);
+    if (routed) {
+      if (event is KeyDownEvent) _actionInput.sourceDown(source);
+      if (event is KeyUpEvent) _actionInput.sourceUp(source);
+    }
+    final action = actions.buttons[source];
+    if (action == null) return !routed;
+
+    // A slot is picked on the press and never held.
+    if (SlotActions.indexOf(action) case final int slot) {
+      if (event is KeyDownEvent) inputState.requestSlot(slot);
+      return false;
+    }
 
     if (event is KeyDownEvent) {
       inputState.press(action);
@@ -229,6 +246,9 @@ final class _JoystickFeed extends Component {
 
   final JoystickComponent stick;
   final InputState inputState;
+
+  /// How far from the centre, as a fraction of the knob's reach, still reads
+  /// as the stick at rest.
   final double deadZone;
   bool _moved = false;
   HasFixedStep? _stepped;
@@ -304,7 +324,7 @@ final class _PadFeed extends Component {
 /// Several players at one machine, each with their own keys and state.
 ///
 /// **One keyboard, several bridges.** Two players on one keyboard are two
-/// [Bindings] tables and two [InputState]s, and a Flame game has one key
+/// [ActionMap]s and two [InputState]s, and a Flame game has one key
 /// handler: each key has to reach the player it is bound for, and a game
 /// that forwarded it to the first bridge moved player one with player
 /// two's arrows. [onGameKeyEvent] hands it to every player, and a key is

@@ -1,8 +1,16 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-/// One action taken on a [RunTimeline], kept so a caller can show a history —
-/// `rp-02`'s "команды видны в истории", the same log an MCP command stream
-/// would replay.
+import 'run_part.dart';
+
+/// One action taken on a [RunTimeline], kept so a caller can show a history:
+/// every command is visible in it, and it is the same log an MCP command
+/// stream would replay.
+///
+/// **Sealed on purpose: it is a protocol.** The timeline, its VM service
+/// extensions and a history view each answer every command, exhaustively; a
+/// command one of them did not know would be a step of history that could
+/// not be shown or replayed. A new command is a new version of the
+/// protocol, and waits for a major.
 sealed class TimelineCommand {
   const TimelineCommand();
 }
@@ -159,6 +167,10 @@ final class CodeReplay {
 }
 
 /// What [RunTimeline.scrubTo] and [RunTimeline.branchHere] answered.
+///
+/// **Sealed on purpose**: a result, every case of which a caller has to
+/// handle — a scrub that landed and one that was refused say different
+/// things to the person holding the slider.
 sealed class ScrubAnswer {
   const ScrubAnswer();
 
@@ -192,7 +204,8 @@ final class ScrubRefused extends ScrubAnswer {
   String toString() => reason;
 }
 
-/// Pause, step, rewind and branch, built on a live [RewindBuffer].
+/// Pause, step, rewind and branch, built on a live [RewindBuffer] and the
+/// [EngineLoop] it is attached to.
 ///
 /// **What `rp-02`'s editor panel is a face for, not the panel itself.** The
 /// scrubber, the checkpoint marks and the buttons above `RunPlaying` are
@@ -201,51 +214,61 @@ final class ScrubRefused extends ScrubAnswer {
 /// `WidgetSurfacePipeline` drew for `wg-00`, mechanism proven before the
 /// widget that shows it.
 ///
+/// ## Through the loop's snapshots, the one path
+///
+/// The buffer is attached to the loop (`RewindBuffer.attach`), so each of its
+/// keyframes is the loop's own capture — the world, the genre's run, every
+/// part a plugin added — and this restores one through `EngineLoop.rewindTo`
+/// and plays the recorded input on through `EngineLoop.runSteps`, with the
+/// tape as the loop's `playback`, the live devices muted, and each replayed
+/// step marked resimulated, so it is neither recorded again nor heard twice.
+/// Before 1.0 a timeline was handed a step function and a restore function of
+/// the game's own, which restored the genre's run and left everything beside
+/// it — the elements, a plugin's state, the loop's step count — where it was.
+///
+/// **Two counts, kept in step.** The buffer counts the steps it recorded, the
+/// loop the steps it ran; they move together while the run is live, and the
+/// difference between them is taken when a rewind starts, so every keyframe
+/// is restored at the loop step it was captured at and the loop's count is
+/// where the buffer's says after a release, a scrub, a return or a swap.
+///
 /// ## The kill camera, generalised
 ///
-/// `apps/flutter3d_demo_dungeon/lib/main.dart`'s `_startKillcam` already does
+/// `apps/flutter3d_demo_dungeon/lib/main.dart`'s kill camera already does
 /// exactly this — restore a keyframe, mute the devices, play the tape forward
 /// through the ordinary step, unmute — for one fixed distance (three seconds)
 /// and one purpose (a camera that does not take over play). [releaseAt] is
-/// that method with the distance and the purpose both handed to the caller:
-/// after it returns, the live state *is* the rewound moment and the run goes
-/// on from there rather than snapping back, which is what turns a kill camera
-/// into a branch.
+/// that with the distance and the purpose both handed to the caller: after it
+/// returns, the live state *is* the rewound moment and the run goes on from
+/// there rather than snapping back, which is what turns a kill camera into a
+/// branch.
 ///
 /// ## What this does not do
 ///
 /// It does not write a `.f3drun`. [RewindBuffer.cut] leaves its own recorder
 /// holding exactly the frames from the branch point onward, the same
-/// `InputTapeRecorder` `_beginDemo`/`_endDemo` already know how to turn into
-/// a [Demo] — a second way to do that would be a second thing to keep right.
+/// `InputTapeRecorder` a `DemoRecording` already knows how to turn into a
+/// [Demo] — a second way to do that would be a second thing to keep right.
 /// It does not scrub across a *loaded* `.f3drun`'s whole length either — that
-/// is a stored [InputTapePlayback] over the file's own tape, replayed from
-/// its nearest checkpoint, which has no live devices to mute and does not
-/// need this class at all.
+/// is `rewindBufferFromDemo`, which builds a buffer this can then scrub.
 final class RunTimeline {
-  RunTimeline({
-    required this.rewind,
-    required this.input,
-    required this.stepSim,
-    required this.restore,
-    this.stepSeconds = 1.0 / 60.0,
-  });
+  /// A timeline over [rewind], which must be attached to [loop]
+  /// (`rewind.attach(loop)`): its recorder writes the loop's live steps and
+  /// its keyframes are the loop's captures.
+  RunTimeline({required this.rewind, required this.loop});
 
   /// Where the recent past is kept, and what [releaseAt] cuts.
   final RewindBuffer rewind;
 
-  /// The live devices — muted during the fast-forward inside [releaseAt], the
-  /// same way `_startKillcam` mutes them.
-  final InputState input;
+  /// The loop the run is stepped in, whose snapshots every rewind restores
+  /// and whose steps every replay runs.
+  final EngineLoop loop;
 
-  /// Runs one fixed step of the actual simulation.
-  final void Function(double dt) stepSim;
+  /// The live devices — the loop's — muted while a replay plays.
+  InputState get input => loop.input;
 
-  /// Puts a snapshot back into the live objects.
-  final void Function(Snapshot snapshot) restore;
-
-  /// The fixed step, in seconds, [stepOnce] and [releaseAt] advance by.
-  final double stepSeconds;
+  /// The fixed step, in seconds: the loop's.
+  double get stepSeconds => loop.stepSeconds;
 
   bool _paused = false;
 
@@ -275,12 +298,13 @@ final class RunTimeline {
     _history.add(const TimelineResumed());
   }
 
-  /// Runs one fixed step. Only while [isPaused] — a step taken on a running
-  /// timeline would be a second step nobody asked for, on top of whatever is
-  /// driving the loop already.
+  /// Runs one fixed step of the loop. Only while [isPaused] — a step taken on
+  /// a running timeline would be a second step nobody asked for, on top of
+  /// whatever is driving the loop already.
   ///
-  /// From a scrub this moves the scrub one step along the tape rather than
-  /// stepping the simulation off it, so "step" in a debugger walks the
+  /// At the present it is a live step, recorded into the buffer like any
+  /// other. From a scrub it moves the scrub one step along the tape rather
+  /// than stepping the simulation off it, so "step" in a debugger walks the
   /// recorded run; at the present the scrub ends.
   void stepOnce() {
     if (!_paused) {
@@ -292,9 +316,7 @@ final class RunTimeline {
       _history.add(const TimelineStepped());
       return;
     }
-    input.beginStep();
-    stepSim(stepSeconds);
-    input.endStep();
+    loop.runSteps(1);
     _history.add(const TimelineStepped());
   }
 
@@ -306,28 +328,17 @@ final class RunTimeline {
   /// what a person asked for by dragging the scrubber to [point] and letting
   /// go.
   ///
-  /// Restores [point]'s keyframe, replays the frames from there to [point]
-  /// through the ordinary step with the live devices muted — so a key held
-  /// during the drag does not leak into the replay — then [RewindBuffer.cut]s
-  /// the buffer at [point]. The timeline is left running (not paused): a
-  /// release is asking to keep playing from here, not to pause on arrival —
-  /// call [pause] afterwards for that.
+  /// Restores [point]'s keyframe through the loop, replays the frames from
+  /// there to [point] with the live devices muted — so a key held during the
+  /// drag does not leak into the replay — then [RewindBuffer.cut]s the buffer
+  /// at [point]. The timeline is left running (not paused): a release is
+  /// asking to keep playing from here, not to pause on arrival — call [pause]
+  /// afterwards for that.
   void releaseAt(RewindPoint point) {
+    final offset = _offset;
     _forgetScrub();
-    restore(point.snapshot);
-    final toPoint = InputTapePlayback(point.tapeToPoint);
-    final wasMuted = input.muted;
-    input.muted = true;
-    try {
-      while (!toPoint.isFinished) {
-        toPoint.applyTo(input);
-        input.beginStep();
-        stepSim(stepSeconds);
-        input.endStep();
-      }
-    } finally {
-      input.muted = wasMuted;
-    }
+    _restoreKeyframe(point, offset);
+    _play(point.frames.sublist(0, point.replayed), point.seed);
     rewind.cut(point);
     _paused = false;
     _history.add(TimelineBranched(point.step));
@@ -361,21 +372,9 @@ final class RunTimeline {
       _history.add(TimelineLevelSwapped(rewind.step, levelDigest));
       return rewind.step;
     }
-    restore(point.snapshot);
+    _restoreKeyframe(point, _offset);
     swap();
-    final replay = InputTapePlayback(point.tapeToPoint);
-    final wasMuted = input.muted;
-    input.muted = true;
-    try {
-      while (!replay.isFinished) {
-        replay.applyTo(input);
-        input.beginStep();
-        stepSim(stepSeconds);
-        input.endStep();
-      }
-    } finally {
-      input.muted = wasMuted;
-    }
+    _play(point.frames.sublist(0, point.replayed), point.seed);
     rewind.rebaseAt(point);
     final at = point.step - point.replayed;
     _history.add(TimelineLevelSwapped(at, levelDigest));
@@ -391,38 +390,34 @@ final class RunTimeline {
   /// running and not enough to see what it changes. This goes back to the
   /// keyframe at or before [seconds] ago, replays the recorded input to the
   /// present under the new code with the devices muted, and compares the
-  /// state at each keyframe the old run left — and at the present, which
-  /// [capture] reads before anything moves — against what the replay reaches
-  /// there. The first that differs is the [ReplayDivergence]; none differing
-  /// means the change did not touch these seconds.
+  /// loop's capture at each keyframe the old run left — and at the present,
+  /// captured before anything moves — against what the replay reaches there.
+  /// The first that differs is the [ReplayDivergence], its path into the
+  /// capture prefixed by the part it is in (`world.data.…`, a genre's id);
+  /// none differing means the change did not touch these seconds.
   ///
   /// The replay is kept: the present is the new code's afterwards, and the
   /// buffer is rebased on the keyframe it started from, since the keyframes
   /// after it are the old code's. Null when the buffer does not reach back.
-  CodeReplay? replayUnderNewCode({
-    required double seconds,
-    required Snapshot Function() capture,
-  }) {
+  CodeReplay? replayUnderNewCode({required double seconds}) {
     returnToPresent();
     final now = rewind.step;
     final point = rewind.rewindBy(seconds);
     if (point == null) return null;
+    final offset = _offset;
     final from = point.step - point.replayed;
     final before = <int, Snapshot>{
       ...rewind.keyframesAfter(from),
-      now: capture(),
+      now: loop.capture(),
     };
 
-    restore(point.snapshot);
-    final replay = InputTapePlayback(
-      InputTape(seed: point.seed, frames: point.frames),
-    );
+    _restoreKeyframe(point, offset);
     var agreed = from;
     ReplayDivergence? divergence;
     void compare(int step) {
       final old = before[step];
       if (old == null || divergence != null) return;
-      final differs = firstDifferingPath(old.data, capture().data);
+      final differs = firstDifferingPath(old.data, loop.capture().data);
       if (differs == null) {
         agreed = step;
       } else {
@@ -436,19 +431,15 @@ final class RunTimeline {
       }
     }
 
-    final wasMuted = input.muted;
-    input.muted = true;
-    try {
-      for (var step = from; !replay.isFinished; step++) {
+    var step = from;
+    _playEach(
+      point.frames,
+      point.seed,
+      each: () {
         if (step != from) compare(step);
-        replay.applyTo(input);
-        input.beginStep();
-        stepSim(stepSeconds);
-        input.endStep();
-      }
-    } finally {
-      input.muted = wasMuted;
-    }
+        step++;
+      },
+    );
     compare(now);
     rewind.rebaseAt(point);
     _history.add(TimelineReplayed(from));
@@ -467,10 +458,17 @@ final class RunTimeline {
     return true;
   }
 
-  /// The present, written down when a scrub began; null while not scrubbed.
+  /// The present, captured when a scrub began; null while not scrubbed.
   Snapshot? _present;
 
   int? _scrubbedAt;
+
+  /// The buffer's count less the loop's, taken when a scrub began.
+  int? _scrubOffset;
+
+  /// The buffer's count less the loop's: constant while the run is live, and
+  /// held from the start of a scrub until it ends.
+  int get _offset => _scrubOffset ?? rewind.step - loop.step;
 
   /// The step the live state is scrubbed to, or null at the present.
   int? get scrubbedAt => _scrubbedAt;
@@ -481,15 +479,15 @@ final class RunTimeline {
   ///
   /// **Not [releaseAt].** A release cuts the buffer, so dragging back and
   /// forth through it would forget the future on the first drag. A scrub
-  /// keeps everything: [capture] writes the present down once, on the first
-  /// scrub, and [returnToPresent] restores it exactly; going on from the
-  /// scrubbed moment is [branchHere]. Scrubbing forward from a scrubbed step
-  /// plays on from there instead of from the keyframe, so a drag to the
-  /// right costs the distance dragged.
+  /// keeps everything: the loop's capture of the present is taken once, on
+  /// the first scrub, and [returnToPresent] restores it exactly; going on
+  /// from the scrubbed moment is [branchHere]. Scrubbing forward from a
+  /// scrubbed step plays on from there instead of from the keyframe, so a
+  /// drag to the right costs the distance dragged.
   ///
   /// Only while paused, since the loop would step the scrubbed state as if it
   /// were the present. A scrub to the present is [returnToPresent].
-  ScrubAnswer scrubTo(int step, {required Snapshot Function() capture}) {
+  ScrubAnswer scrubTo(int step) {
     if (!_paused) {
       return const ScrubRefused(
         'the run is live, so a scrub would be stepped on by the loop; pause '
@@ -511,7 +509,10 @@ final class RunTimeline {
               '$oldest to ${rewind.step}',
       });
     }
-    _present ??= capture();
+    if (_present == null) {
+      _scrubOffset = rewind.step - loop.step;
+      _present = loop.capture();
+    }
     _scrubTo(point);
     _history.add(TimelineScrubbed(step));
     return ScrubMoved(step);
@@ -522,7 +523,7 @@ final class RunTimeline {
   bool returnToPresent() {
     final present = _present;
     if (present == null) return false;
-    restore(present);
+    loop.rewindTo(rewind.step - _offset, state: present);
     _forgetScrub();
     _history.add(const TimelineReturned());
     return true;
@@ -550,7 +551,9 @@ final class RunTimeline {
   }
 
   /// What every entity did over the steps the buffer holds, read through
-  /// [layout] from a [capture] of each step.
+  /// [layout] from the loop's capture at each step — or, given [part], from
+  /// that part's own data in it: a genre's run under its plugin id, whose
+  /// layout is the run's `save()`.
   ///
   /// The steps are lived again from the oldest keyframe with the devices
   /// muted and the live state is put back afterwards — at the present or at
@@ -559,37 +562,34 @@ final class RunTimeline {
   /// snapshots are too large to take sixty times a second of history. Null
   /// before the first keyframe.
   EntityTracks? tracks({
-    required Snapshot Function() capture,
     required EntityLayout layout,
+    String? part,
     int every = 1,
   }) {
     final oldest = rewind.oldestStep;
     final point = oldest == null ? null : rewind.rewindTo(oldest);
     if (oldest == null || point == null) return null;
-    final here = capture();
+    Snapshot read(Snapshot state) =>
+        part == null ? state : runStateIn(state, part);
+    final offset = _offset;
+    final hereStep = loop.step;
+    final here = loop.capture();
     final tracks = EntityTracks(layout);
-    restore(point.snapshot);
-    tracks.observe(oldest, capture());
-    final playback = InputTapePlayback(
-      InputTape(seed: point.seed, frames: point.frames),
-    );
-    final wasMuted = input.muted;
-    input.muted = true;
-    try {
-      while (!playback.isFinished) {
-        playback.applyTo(input);
-        input.beginStep();
-        stepSim(stepSeconds);
-        input.endStep();
-        final step = oldest + playback.step;
+    _restoreKeyframe(point, offset);
+    tracks.observe(oldest, read(loop.capture()));
+    var step = oldest;
+    _playEach(
+      point.frames,
+      point.seed,
+      each: () {
+        step++;
         if (step % every == 0 || step == rewind.step) {
-          tracks.observe(step, capture());
+          tracks.observe(step, read(loop.capture()));
         }
-      }
-    } finally {
-      input.muted = wasMuted;
-    }
-    restore(here);
+      },
+      observeAfter: true,
+    );
+    loop.rewindTo(hereStep, state: here);
     return tracks;
   }
 
@@ -597,8 +597,8 @@ final class RunTimeline {
     final base = point.step - point.replayed;
     final at = _scrubbedAt;
     final from = at != null && at >= base && at <= point.step ? at : base;
-    if (from != at) restore(point.snapshot);
-    _playMuted(point.frames.sublist(from - base, point.replayed), point.seed);
+    if (from != at) _restoreKeyframe(point, _offset);
+    _play(point.frames.sublist(from - base, point.replayed), point.seed);
     _scrubbedAt = point.step;
   }
 
@@ -616,20 +616,40 @@ final class RunTimeline {
   void _forgetScrub() {
     _present = null;
     _scrubbedAt = null;
+    _scrubOffset = null;
   }
 
-  void _playMuted(List<InputFrame> frames, int seed) {
+  /// Puts the loop at [point]'s keyframe: the loop step it was captured at,
+  /// the buffer's step less [offset].
+  void _restoreKeyframe(RewindPoint point, int offset) {
+    final base = point.step - point.replayed;
+    loop.rewindTo(base - offset, state: point.snapshot);
+  }
+
+  void _play(List<InputFrame> frames, int seed) => _playEach(frames, seed);
+
+  /// Plays [frames] through the loop, one resimulated step each, with the
+  /// devices muted and the tape as the loop's playback; [each] is called
+  /// before every step, or after it with [observeAfter].
+  void _playEach(
+    List<InputFrame> frames,
+    int seed, {
+    void Function()? each,
+    bool observeAfter = false,
+  }) {
     final playback = InputTapePlayback(InputTape(seed: seed, frames: frames));
+    final previous = loop.playback;
     final wasMuted = input.muted;
+    loop.playback = playback;
     input.muted = true;
     try {
       while (!playback.isFinished) {
-        playback.applyTo(input);
-        input.beginStep();
-        stepSim(stepSeconds);
-        input.endStep();
+        if (!observeAfter) each?.call();
+        loop.runSteps(1, resimulated: true);
+        if (observeAfter) each?.call();
       }
     } finally {
+      loop.playback = previous;
       input.muted = wasMuted;
     }
   }

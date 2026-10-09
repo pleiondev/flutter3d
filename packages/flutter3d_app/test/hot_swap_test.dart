@@ -9,14 +9,13 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/trace.dart'
     show RecordingDevice, TraceReleaseTexture;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 /// A renderer in software with one cube in front of it, so a frame links a
 /// material pipeline a reload has to drop.
@@ -32,7 +31,7 @@ import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-        engine.Material(name: 'cube'),
+        engine.RenderMaterial(name: 'cube'),
       ),
     );
   return (
@@ -66,7 +65,7 @@ final class _Contributor extends PassContributor {
 
 /// A bundle an application loaded from bytes, refreshed from what [bytes]
 /// says now; refuses whatever starts with a zero byte.
-final class _Library implements LoadedShaderLibrary {
+final class _Library with ShaderLibrary, LoadedShaderLibrary {
   final List<ByteData> refreshes = <ByteData>[];
 
   @override
@@ -78,7 +77,7 @@ final class _Library implements LoadedShaderLibrary {
   @override
   void refresh(ByteData bytes) {
     if (bytes.getUint8(0) == 0) {
-      throw const ShaderBundleRefused(name: 'game', reason: 'not a bundle');
+      throw const ShaderBundleException(name: 'game', reason: 'not a bundle');
     }
     refreshes.add(bytes);
   }
@@ -91,7 +90,7 @@ ByteData _bytes(List<int> values) =>
 /// 3 blue; 0 does not build.
 Future<ModelAsset> _model(GraphicsDevice device, Uint8List bytes) {
   if (bytes.first == 0) throw const FormatException('not a model');
-  final colour = Vector4.zero()
+  final color = Vector4.zero()
     ..[bytes.first - 1] = 1.0
     ..w = 1.0;
   return ModelAsset.fromDocument(
@@ -103,7 +102,11 @@ Future<ModelAsset> _model(GraphicsDevice device, Uint8List bytes) {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(baseColor: colour, unlit: true, name: 'paint'),
+        SurfaceMaterial(
+          baseColor: _fromSrgb(color),
+          unlit: true,
+          name: 'paint',
+        ),
       ],
       nodes: <ModelNode>[
         ModelNode(name: 'hull', surfaces: <int>[0]),
@@ -117,7 +120,7 @@ void main() {
   test('a reload drops every pipeline the renderer and its contributors '
       'linked', () async {
     final it = _stage();
-    final contributor = it.renderer.addContributor(_Contributor());
+    final contributor = it.renderer.renderSteps.addContributor(_Contributor());
     final swap = HotSwap(enabled: true)..registerRenderer(it.renderer);
     _draw(it);
     expect(it.renderer.pipelineCount, greaterThan(0));
@@ -143,7 +146,7 @@ void main() {
     // Mutation: register the library without `loadedFrom`, and the first
     // swap takes the unchanged bundle as a change; drop the registration,
     // and the edit never reaches the frame.
-    ByteData bundle(String colour) => ShaderBundle(
+    ByteData bundle(String color) => ShaderBundle(
       name: 'paint',
       sdk: '',
       stages: const <ShaderBundleStage>[
@@ -151,7 +154,7 @@ void main() {
       ],
       sections: <String, ByteData>{
         ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
-          'Paint': 'material Paint { fragment { return vec4($colour, 1.0); } }',
+          'Paint': 'material Paint { fragment { return vec4($color, 1.0); } }',
         }),
       },
     ).encode();
@@ -188,10 +191,10 @@ void main() {
       ..add(
         MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          engine.Material(lighting: loaded.materials['Paint']),
+          engine.RenderMaterial(lighting: loaded.materials['Paint']),
         ),
       );
-    Future<List<int>> centre() async {
+    Future<List<int>> center() async {
       final frame = renderer.render(
         width: size,
         height: size,
@@ -202,17 +205,17 @@ void main() {
           tonemap: false,
         ),
       );
-      final pixels = (await device.readPixels(frame.frame))!;
+      final pixels = await device.readback(frame.frame);
       final at = ((size ~/ 2) * size + size ~/ 2) * 4;
       return <int>[pixels.getUint8(at), pixels.getUint8(at + 2)];
     }
 
-    expect(await centre(), <int>[255, 0]);
+    expect(await center(), <int>[255, 0]);
     expect((await swap.swap()).refreshed, isEmpty);
 
     current = bundle('vec3(0.0, 0.0, 1.0)');
     expect((await swap.swap()).refreshed, <String>['paint']);
-    expect(await centre(), <int>[0, 255]);
+    expect(await center(), <int>[0, 255]);
   });
 
   test('an edit that declares a uniform reaches a bound material', () async {
@@ -255,7 +258,7 @@ void main() {
     );
     final renderer = Renderer.create(device: device, materials: loaded.library);
     swap.registerRenderer(renderer);
-    final material = loaded.bind(engine.Material(), 'Paint');
+    final material = loaded.bind(engine.RenderMaterial(), 'Paint');
     expect(material.lighting.usesMaterialParameters, isFalse);
     final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
     final scene = Scene()
@@ -263,7 +266,7 @@ void main() {
       ..add(
         MeshNode(DeviceMesh.upload(device, CuboidShape().build()), material),
       );
-    Future<List<int>> centre() async {
+    Future<List<int>> center() async {
       final frame = renderer.render(
         width: size,
         height: size,
@@ -274,12 +277,12 @@ void main() {
           tonemap: false,
         ),
       );
-      final pixels = (await device.readPixels(frame.frame))!;
+      final pixels = await device.readback(frame.frame);
       final at = ((size ~/ 2) * size + size ~/ 2) * 4;
       return <int>[pixels.getUint8(at), pixels.getUint8(at + 1)];
     }
 
-    expect(await centre(), <int>[255, 0]);
+    expect(await center(), <int>[255, 0]);
     current = bundle('''
 material Paint {
   uniform vec3 tint = vec3(0.0, 1.0, 0.0);
@@ -289,7 +292,7 @@ material Paint {
     expect((await swap.swap()).refreshed, <String>['paint']);
     expect(material.lighting.usesMaterialParameters, isTrue);
     expect(material.parameters['tint'], <double>[0.0, 1.0, 0.0]);
-    expect(await centre(), <int>[0, 255]);
+    expect(await center(), <int>[0, 255]);
   });
 
   test('a bundle is refreshed when its bytes change, and only then', () async {
@@ -332,7 +335,7 @@ material Paint {
 
   test('two surfaces reassembling in one hot reload share one run', () async {
     final it = _stage();
-    final contributor = it.renderer.addContributor(_Contributor());
+    final contributor = it.renderer.renderSteps.addContributor(_Contributor());
     final swap = HotSwap(enabled: true)
       ..registerRenderer(it.renderer)
       ..registerRenderer(it.renderer);
@@ -344,7 +347,7 @@ material Paint {
 
   test('outside a debug build nothing is held and nothing reloads', () async {
     final it = _stage();
-    final contributor = it.renderer.addContributor(_Contributor());
+    final contributor = it.renderer.renderSteps.addContributor(_Contributor());
     final swap = HotSwap(enabled: false)..registerRenderer(it.renderer);
 
     final report = await swap.swap();
@@ -356,7 +359,7 @@ material Paint {
   testWidgets('a hot reload of the app relinks the renderer a surface draws '
       'with', (WidgetTester tester) async {
     final it = _stage();
-    final contributor = it.renderer.addContributor(_Contributor());
+    final contributor = it.renderer.renderSteps.addContributor(_Contributor());
     await tester.pumpWidget(
       MaterialApp(
         home: SceneSurface(
@@ -411,7 +414,8 @@ material Paint {
       );
     });
 
-    double blue(ModelInstance ship) => ship.meshes.single.material.baseColor.z;
+    double blue(ModelInstance ship) =>
+        ship.meshes.single.material.baseColor.toSrgb().b;
 
     test('is drawn anew in every instance when its file changes, and '
         'only then', () async {
@@ -427,7 +431,10 @@ material Paint {
       expect(report.models.single.instances, 2);
       expect(blue(a), 1.0);
       expect(blue(b), 1.0);
-      expect(model.instantiate(scene).meshes.single.material.baseColor.z, 1.0);
+      expect(
+        model.instantiate(scene).meshes.single.material.baseColor.toSrgb().b,
+        1.0,
+      );
       expect((await swap.swap()).models, isEmpty);
     });
 
@@ -448,7 +455,7 @@ material Paint {
 
         file = Uint8List.fromList(<int>[2]);
         await swap.swap();
-        expect(ship.meshes.single.material.baseColor.y, 1.0);
+        expect(ship.meshes.single.material.baseColor.toSrgb().g, 1.0);
         expect(await swap.put('assets_src/boat.glb', file), isNull);
       },
     );
@@ -462,7 +469,7 @@ material Paint {
 
       expect(report.refused.single, contains('not a model'));
       expect(model.asset, same(before));
-      expect(ship.meshes.single.material.baseColor.x, 1.0);
+      expect(ship.meshes.single.material.baseColor.toSrgb().r, 1.0);
     });
   });
 
@@ -494,7 +501,7 @@ material Paint {
 
       expect(touched, 1, reason: 'the two instances share it');
       final material = a.meshes.single.material;
-      expect(material.baseColor.z, 1.0);
+      expect(material.baseColor.toSrgb().b, 1.0);
       expect(material.roughness, 0.25);
       expect(swap.setMaterial('chrome', <String, Object?>{'metallic': 1}), 0);
     });
@@ -531,7 +538,11 @@ material Paint {
       await swap.swap();
 
       final material = ship.meshes.single.material;
-      expect(material.baseColor.z, 1.0, reason: 'the file\'s new colour');
+      expect(
+        material.baseColor.toSrgb().b,
+        1.0,
+        reason: 'the file\'s new colour',
+      );
       expect(material.roughness, 0.1, reason: 'and the drag, kept');
 
       swap.clearMaterial('paint');
@@ -542,8 +553,8 @@ material Paint {
 
     /// A scene with one quad in a material whose shader reads `wind` and
     /// `tint`, as a `.fmat` with parameters is bound.
-    ({Scene scene, engine.Material material}) waving() {
-      final material = engine.Material(
+    ({Scene scene, engine.RenderMaterial material}) waving() {
+      final material = engine.RenderMaterial(
         name: 'grass',
         parameters: <String, Float32List>{
           'wind': Float32List.fromList(<double>[0.3]),
@@ -655,7 +666,7 @@ material Paint {
 
     ({
       SwappableTexture texture,
-      engine.Material wall,
+      engine.RenderMaterial wall,
       Scene scene,
       void Function(int) write,
     })
@@ -669,7 +680,7 @@ material Paint {
         build: (Uint8List bytes) async => decode(bytes),
         loadedFrom: file,
       );
-      final wall = engine.Material(name: 'wall')
+      final wall = engine.RenderMaterial(name: 'wall')
         ..albedo = first
         ..normal = first;
       final scene = Scene()
@@ -805,7 +816,7 @@ material Paint {
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(bytes.first * bytes.first * 4),
       );
-      return texture == null ? null : (texture: texture, levels: bytes[1]);
+      return (texture: texture, levels: bytes[1]);
     }
 
     setUp(() {
@@ -956,3 +967,6 @@ material Paint {
     );
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

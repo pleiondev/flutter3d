@@ -24,7 +24,7 @@
 /// which is worse than a name one character longer.
 library;
 
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bridge_space.dart';
@@ -44,7 +44,7 @@ enum PlaneAxis {
 /// A plane is defined by which flutter3d axis stays fixed at [constant] —
 /// [PlaneAxis.y] for a ground plane's height, [PlaneAxis.z] for a backdrop's
 /// depth — and Flame's `x`/`y` become whichever two flutter3d axes are left.
-final class BridgePlane implements BridgeSpace {
+final class BridgePlane with BridgeSpace {
   const BridgePlane({
     required this.axis,
     required this.constant,
@@ -69,7 +69,8 @@ final class BridgePlane implements BridgeSpace {
   /// Which flutter3d axis stays fixed at [constant].
   final PlaneAxis axis;
 
-  /// The flutter3d coordinate held constant across the whole plane.
+  /// The flutter3d coordinate held constant across the whole plane, in
+  /// metres.
   final double constant;
 
   /// Negates Flame's `y` before it becomes a flutter3d coordinate. See

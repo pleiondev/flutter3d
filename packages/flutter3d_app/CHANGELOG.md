@@ -1,4 +1,202 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `Issue` and `IssueSink` are not re-exported.** They are
+  `flutter3d_foundation`'s; `IssueLog` and `printIssue` stay here.
+
+- **Breaking: loading a level resolves no editor.** The application
+  depended on `flutter3d_editor_core` for `LevelScene`; it depends on
+  `flutter3d_level_scene` now, and no longer re-exports `LevelBatching` or
+  `meshDataOf`. Import them from `package:flutter3d_level_scene`; `dart fix`
+  moves the imports.
+
+- **`LevelLoader` stages a level under a game's world** (`gameWorld:`), its
+  own `world` block laid over it.
+- **One info object per frame callback.** `SceneSurface.onFrame`,
+  `Scene3D.onFrame` and `Flutter3dView.onFrame`/`onBeforeFrame` are handed a
+  `FrameInfo` (the seconds since the last frame and the renderer's
+  `FrameResult`), the view's beside its engine as `onDeviceLost` is; they
+  took a bare `FrameResult`, a bare `double` and `(engine, seconds)`.
+  `Flutter3dView.onListenerMoved` is handed a `ListenerPose` (position,
+  forward, up and the scene's origin) where it took a position and a
+  direction.
+- **Breaking: `savePhoto(clearColor:)` is `clearColorSrgb:`**, the same sRGB
+  `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **`Flutter3dView` builds the loop's `FormatRegistry` and `VmExtensions`**,
+  so a plugin that registers a format or a VM extension has somewhere to
+  put it. The registry holds `coreFormats`, `simFormats` and the view's new
+  `formats:`; `registries:` hands the loop the application's own, and one of
+  either type there is used in place of the view's.
+- **Breaking: `ext.flutter3d.hotSwap` is `ext.flutter3d.assets.swap`**, in
+  the `ext.flutter3d.<area>.<verb>` form; the old name answers, as an
+  alias, until 2.0.
+- **Every render, asset and material extension declares the keys it answers
+  with**, so `api/flutter3d_app.vm` lists them all.
+
+- **Breaking: the declarative widgets' colours are `LinearColor`s.**
+  `Material3D.baseColor` and `emissive`, `Decal3D.color` and `emissive`,
+  `Mirror3D.tint` and `Light3D.color` were `Vector3`/`Vector4`; a colour
+  picked by eye is `LinearColor.fromSrgb(…)`. `Material3D.emissiveStrength`
+  is nits, as `RenderMaterial.emissiveStrength` is.
+- **Breaking: `Scene3D` is a `Flutter3dView` underneath.** The view opens
+  the device, makes the renderer and the loop, and owns the frame clock,
+  focus, lifecycle and teardown; `Scene3D` builds its children into the
+  scene and keeps the `RenderView` it draws through in its state, so the
+  temporal history is the scene's. `Scene3D.clearColor` is a `LinearColor`,
+  encoded to sRGB once (it was a `Vector4` handed to the view as sRGB,
+  whatever its doc said). `Scene3DController.engine` is the engine;
+  `device`, `renderer` and `scene` read through it.
+- **`Flutter3dView` waits out a lost device.** It listens to
+  `device.lost`: a WebGL context the browser gives back gets a renderer
+  again (`Renderer.create(replacing:)`) with the loop's plugins installed
+  again; a device lost for good is opened again from `devices` when the
+  view opened it. `onDeviceLost` and `onDeviceRestored` say when, and the
+  latter is where the application uploads its meshes again; `engine.loss`
+  is the loss being waited out. `Scene3D` builds its children again on the
+  device that came back. `Flutter3dEngine.device` and `renderer` are
+  getters, since either may be replaced.
+- **`Flutter3dView.continuous`, `frameRateCap` and `presenter`**: a view
+  that draws only when built again, a frame-rate cap held to whole
+  refreshes, and a presenter of one's own for a test without a backend.
+- **Particles move with the floating origin.**
+  `Flutter3dEngine.followOrigin(particles)` moves a `ParticleSystem` with
+  every origin shift the loop publishes, and `Particles3D` follows its
+  scene's shifts by itself.
+- **Breaking: `defaultDevices` is gone.** There is no device registry for
+  the whole process: an engine owns one, `openDevice` without a registry
+  uses this platform's backends made for the call, and a device it opened
+  remembers its registry, so `presentFrame` finds its presenter. A test
+  that put a fake in front of the real backends adds it to a registry of
+  its own and passes it.
+- **Breaking: `DocumentText` is `LevelDocumentText`**: the function
+  `LevelLoader` reads a level's text through, no longer the name of the
+  editor's document writer in `flutter3d_editor_core`. `dart fix` carries
+  the rename.
+- **Breaking: the status screens speak the reader's language.**
+  `Flutter3dAppLocalizations` (English and Russian, installed with its
+  `delegate` like Flutter's own; English without it) gives `LoadingScreen`,
+  `RendererFailure`, `LevelLoadFailed` and the text `Flutter3dView` shows
+  when no device opened their words. `LoadingScreen.message` and
+  `LevelLoadFailed.startOverLabel` are nullable, and null is the
+  localized word. `RendererFailure` no longer names a path inside the
+  engine's repository; it says to build the application again after an
+  SDK change.
+- **`Flutter3dEngine.scene` can be handed a new scene**, for a game whose
+  levels are scenes of their own (`LevelLoader.build` makes one per level):
+  the next frame draws it, an origin shift moves it, and the camera moves
+  into it. The game example and the platformer demo play their levels so.
+- **`Flutter3dView.onBeforeFrame` and `drainLook`**, for a game that polls a
+  device or decides its pause before the loop steps, and whose pointer or
+  pad turns the view: the frame that reads a press is the frame it acts in,
+  and the look is spread over the frame's steps and onto the tape, as
+  `EngineLoop.drainLook` does.
+- **`Flutter3dView.views`: several views in one frame.** A stereo pair or a
+  split screen hands its views, each with its viewport fraction, and they
+  are drawn in place of the one through `camera`.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderViewOptions` is `RenderViewSettings`, `SamplerOptions` is
+  `SamplerDescriptor`. Every settings class is `final` with a `const`
+  constructor and a `copyWith` over every field; a nullable field is reset
+  with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kFixedResolution` is `fixedResolution`. The
+  values are the same; `dart fix` carries the renames.
+- **Breaking: `takePhoto` is `savePhoto`**, which says what it adds to the
+  core's `capturePhoto`: it draws, encodes and saves. `dart fix` carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `colour` is `color`, `metresPerTexture` is `metersPerTexture`,
+  `pixelsPerMetre` is `pixelsPerMeter`. Only the Dart names changed: a file
+  keeps the keys it was written with, and `dart fix` carries the renames.
+- **`Flutter3dView`: an engine as a widget.** It opens the device, makes
+  the renderer, runs an `EngineLoop` with plugins (the renderer's steps a
+  registry), draws through a `RenderView`, and owns focus (`autofocus` off by
+  default), key input scoped to the view (`onKeyEvent`), lifecycle (pausing
+  the loop and `onPausedChanged` when `TickerMode` is off or the
+  application leaves the foreground), a `restorationId`, a resolution
+  policy (`ViewResolution`), one listener per view (`onListenerMoved`) and
+  teardown, with what it borrowed left alone. A first scene is ten lines;
+  see `example/lib/first_scene.dart`. `SceneSurface` stays the low level
+  and gains `pixelRatio`.
+- **Breaking: one device registry per engine.** `platformDevices()` makes a
+  `DeviceRegistry` with this platform's backends; `openDevice` and
+  `presentFrame` take one.
+- **Breaking: `StorageException` is a `ResourceException`.** The level
+  loader's screens are texture views (`LoadedLevel.screens`), and
+  `HotSwap.deviceClass` replaces the process-wide `assetDeviceClass`.
+
+- **`LevelLoader.load` and `build` take the `physics` backend** the level's
+  collision world is made on; `LoadedLevel.physics` is that world's.
+- **Breaking: `Storage` is asynchronous, and a refused write throws.**
+  `read` answers `Future<String?>`, `write` a `Future<void>` that throws a
+  `StorageException` saying why, and `remove` a `Future<void>`. It was
+  synchronous with a boolean write, which only `localStorage` could
+  implement, and a boolean carried no reason a screen could show.
+  `MemoryStorage` is the in-memory one a test or a preview hands a document.
+
+- **Breaking: `Storage`, `BinaryStorage`, `PhotoShelf` and `PhotoSaving` are
+  `abstract base class`.** A member added in a minor release arrives with a
+  default body, so an implementation is written `extends`, not
+  `implements`; `PhotoSaving.abandon` does nothing by default.
+
+- **A tool attached to a game asks one extension what the others are.** The
+  render, hot-swap and material extensions register through
+  `registerFlutter3dExtension`, so `ext.flutter3d.version` lists them, and
+  `api/flutter3d_app.vm` records each parameter's type and the keys each
+  answers with.
+- **A `model` row may be tilted and scaled.** `ModelVisuals` reads `tilt`, a
+  quaternion applied before the row's `yaw`, and `scale`, which is what
+  `flutter3d convert` writes for a model a scene placed at an angle a yaw
+  cannot say. A row without them is placed as before.
+
+- **The software backend runs material language version 2 whole.**
+  `MaterialVertexStage` runs the vertex block. `MaterialProgramStage` runs the
+  hooks, the switches, the premultiplied blend and the scene behind.
+  `MaterialFullscreenStage` runs a full-screen stage, and
+  `materialComputeStage` runs a compute kernel into the storage texture bound
+  as `target`. This is the only backend that runs a kernel written in the
+  language.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Three more render extensions.** `ext.flutter3d.render.capture` answers
+  the whole frame as a capture file, `memory` what the renderer holds on the
+  device by category, and `debugViews` every debug view by name
+  (`renderCaptureFile`, `renderMemory`, `renderDebugViews`).
+  `registerRenderExtensions` takes the `scene` the memory report adds.
+
+- **Breaking: `SceneSurface.cadence` and `Scene3D.frameRateCap`** (`A1.5`).
+  A frame-rate cap held to a whole number of refreshes: on a refresh the
+  `FrameCadence` skips, `SceneSurface` presents the picture it has without
+  calling `onBeforeFrame` or drawing, and `Scene3D` does not rebuild, its
+  animations taking the skipped time on the next frame. Both default to
+  no cap. A break only for a class that implements either widget, which
+  now has a field more to declare.
+
+- **The VM service surface is a contract too.** The `ext.flutter3d.render.*`
+  extensions, `ext.flutter3d.hotSwap`, `material.set` and `assets.put`, with
+  the parameter keys each reads, are written down in `api/flutter3d_app.vm`
+  and held to the same semver as the Dart API: an extension removed, or one
+  that stops reading a key, waits for a major, and a new key has to have a
+  default.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#tools-for-agents-are-a-contract-too)
+  has the rules.
+
+- **The web is declared.** `atomic_write.dart` chooses its filesystem half by
+  `if (dart.library.js_interop)`; in a browser the three writes refuse with an
+  `UnsupportedError` that points at `Storage`. `Storage`, `BinaryStorage`,
+  `PhotoShelf` and `PhotoSaving` stay implementable, and say so.
+
+- **`SceneSurface.onFrame` hands over what each frame was.** The
+  `FrameResult` the renderer returns, with its passes, their costs and the
+  passes that did not run, used to be dropped once the texture was taken
+  out of it. The level editor's render-graph view reads it.
 
 - **A browser build opens WebGPU first.** WebGPU's golden set now holds
   every scene the others hold, so `FLUTTER3D_WEBGPU` defaults to true, and
@@ -66,7 +264,7 @@
   `flutter3d_testing`, so a game can depend on them, and the software backend
   this package registers compiles a bundle's material-language stages.
 
-- **A photo goes somewhere.** `takePhoto` draws with `capturePhoto`, encodes
+- **A photo goes somewhere.** `savePhoto` draws with `capturePhoto`, encodes
   with `PngStripWriter` and puts the file on a `PhotoShelf`, abandoning it if
   the capture fails. `FilePhotoShelf` writes into the player's Pictures folder
   on a desktop and the game's own folder on a phone, through a `.part` file and
@@ -143,7 +341,13 @@ undo. `clearMaterial` lets them go.
 `SceneSurface` is a `StatefulWidget` now, for `reassemble`. Its constructor
 and parameters are unchanged.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+- **A material's bundle and a level's generated JSON are revalidated on the
+  web.** `HotSwap.loadMaterial` and the level loader's default document
+  reader go through `loadRevalidatedAsset`, so a cached file from an older
+  deploy is not read by newer code, and a stale bundle reloads the page once
+  with a message saying why.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.1+1
 

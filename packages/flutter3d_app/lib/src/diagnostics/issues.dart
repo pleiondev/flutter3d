@@ -15,24 +15,8 @@
 library;
 
 import 'package:flutter/foundation.dart' show debugPrint;
-
-/// What a library is reporting.
-///
-/// **One object rather than a bare string, so this can grow.** A function type
-/// is frozen the day it is published: adding a severity, or which subsystem
-/// spoke, means widening `void Function(String)` and breaking every sink
-/// anybody has written. Adding a field here does not.
-final class Issue {
-  const Issue(this.message);
-
-  /// What went wrong, in a sentence a person can read.
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-typedef IssueSink = void Function(Issue issue);
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Issue, IssueSink;
 
 /// Prints and carries on: the behaviour every one of these sites had.
 void printIssue(Issue issue) => debugPrint(issue.message);

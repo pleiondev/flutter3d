@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,20 +55,34 @@ void main() {
     final toy = _Toy(11);
     final input = InputState();
     final rewind = RewindBuffer(stepsPerSecond: 60, history: 3.0);
+    // The toy as one part of the loop's snapshots, under `toy`; the buffer
+    // attached, so its keyframes are the loop's captures.
+    final loop = EngineLoop(input: input)
+      ..snapshots.add(
+        SnapshotPart.of(
+          id: 'toy',
+          capture: () => toy.save().data,
+          restore: (Object? data, int _) {
+            if (data is Map) {
+              toy.restore(Snapshot(data.cast<String, Object?>()));
+            }
+          },
+        ),
+      )
+      ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
+    rewind.attach(loop);
 
     // Fifteen seconds live — five times the three-second window, so the
     // buffer has long since forgotten the start of the run.
     for (var step = 0; step < 900; step++) {
       _play(input, step);
-      rewind.recorder.record(input);
-      input.beginStep();
-      if (rewind.keyframeDue) rewind.keyframe(toy.save());
-      toy.step(input);
-      input.endStep();
+      loop.runSteps(1);
     }
     final atTheEnd = toy.state;
 
-    final report = bugReportTape(rewind);
+    // Mutation: hand the keyframe over whole — the start is then the loop's
+    // capture, and the toy restored from it reads no `x`.
+    final report = bugReportTape(rewind, part: 'toy');
     expect(report, isNotNull);
 
     // Roughly three seconds, not the whole fifteen — `RewindBuffer`'s own
@@ -98,7 +113,7 @@ void main() {
       _play(input, step);
       rewind.recorder.record(input);
       input.beginStep();
-      if (rewind.keyframeDue) rewind.keyframe(toy.save());
+      if (rewind.isKeyframeDue) rewind.keyframe(toy.save());
       toy.step(input);
       input.endStep();
     }

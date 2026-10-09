@@ -351,7 +351,9 @@ void main() {
       );
 
       expect(await call('ext.flutter3d.cvar.list'), <String, Object?>{
-        'speed': <String, Object?>{'value': 1.0, 'default': 1.0},
+        'tunables': <String, Object?>{
+          'speed': <String, Object?>{'value': 1.0, 'default': 1.0},
+        },
       });
       expect(
         await call('ext.flutter3d.cvar.set', <String, String>{
@@ -362,7 +364,8 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(
-        ((await call('ext.flutter3d.cvar.list'))['speed']!
+        (((await call('ext.flutter3d.cvar.list'))['tunables']!
+                as Map<String, Object?>)['speed']!
             as Map<String, Object?>)['value'],
         2.5,
       );

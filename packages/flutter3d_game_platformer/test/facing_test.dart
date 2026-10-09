@@ -13,6 +13,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -30,7 +31,7 @@ double _error(double from, double to) =>
     math.atan2(math.sin(to - from), math.cos(to - from));
 
 ({CollisionWorld world, Runner runner, InputState input}) _field() {
-  final world = CollisionWorld()
+  final world = CollisionWorld(properties: platformerWorld)
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(120.0, 1.0, 120.0));
   return (
     world: world,

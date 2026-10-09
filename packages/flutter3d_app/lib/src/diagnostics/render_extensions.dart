@@ -2,7 +2,7 @@
 /// — `P12`.
 ///
 /// **The frame the player sees, not a second one drawn for the tool.** The
-/// diagnostic renderers in `flutter3d_sim_mcp` and `flutter3d_editor_mcp` draw
+/// diagnostic renderers in `flutter3d_sim_mcp` and `flutter3d_mcp/editor.dart` draw
 /// a level again on the software backend at 320×200, which answers "what is
 /// in the level" and nothing about why the game's own frame is black, has a
 /// hole in it, or costs twice what it did yesterday. Those are questions about
@@ -14,14 +14,19 @@
 ///
 /// ## What a caller sees
 ///
-/// Eight extensions, each `ext.flutter3d.render.<verb>`, string parameters as
-/// the protocol requires:
+/// Eleven extensions, each `ext.flutter3d.render.<verb>`, string parameters
+/// as the protocol requires:
 ///
 /// * `passes`, `draws`, `stats`, `scanNan` — take a fresh capture unless
 ///   `fresh=false` and one is held.
-/// * `passOutput`, `draw`, `readPixel` — read the capture already held, so an
-///   index from `draws` or a pass from `passes` means the same frame; pass
-///   `fresh=true` to take a new one. With none held they take one.
+/// * `passOutput`, `draw`, `readPixel`, `capture` — read the capture already
+///   held, so an index from `draws` or a pass from `passes` means the same
+///   frame; pass `fresh=true` to take a new one. With none held they take
+///   one. `capture` answers the whole frame as a capture file — `A5.23`.
+/// * `memory` — what the renderer holds on the device, by category, with no
+///   capture — `A5.24`.
+/// * `debugViews` — the debug views by name, for a tool to pick from —
+///   `A5.21`.
 /// * `pick` — which draws put the pixel at `x`, `y` on the screen: the
 ///   picking pass's node and its draws, taken together with a fresh capture
 ///   of the same frame, which it then holds for `draw` to open.
@@ -40,6 +45,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuDevice;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 import 'render_inspection.dart';
 
@@ -51,25 +57,32 @@ import 'render_inspection.dart';
 /// `registerExtension` would refuse: a game that builds its renderer again,
 /// or a second screen with its own, points the same extensions at the new
 /// one.
+///
+/// [scene], when given, is what `memory` adds the meshes and textures of —
+/// the renderer holds neither, so without it the report covers the
+/// renderer's own targets, pool and pipelines.
 void registerRenderExtensions(
   Renderer? Function() renderer, {
   Duration timeout = const Duration(seconds: 2),
+  Scene? Function()? scene,
 }) {
   _inspector.renderer = renderer;
   _inspector.timeout = timeout;
+  _inspector.scene = scene ?? () => null;
   if (_registered) return;
   _registered = true;
 
   void answer(
     String verb, {
     required bool freshByDefault,
+    required Set<String> answers,
     required Map<String, Object?> Function(
       FrameCapture capture,
       Map<String, String> parameters,
     )
     ask,
   }) {
-    developer.registerExtension('ext.flutter3d.render.$verb', (
+    registerFlutter3dExtension('ext.flutter3d.render.$verb', (
       method,
       parameters,
     ) async {
@@ -96,17 +109,130 @@ void registerRenderExtensions(
       return developer.ServiceExtensionResponse.result(
         jsonEncode(<String, Object?>{'frame': frame, ...result}),
       );
-    });
+    }, answers: <String>{'frame', ...answers});
   }
 
-  answer('passes', freshByDefault: true, ask: (c, _) => renderPasses(c));
-  answer('draws', freshByDefault: true, ask: renderDraws);
-  answer('stats', freshByDefault: true, ask: (c, _) => renderStats(c));
-  answer('scanNan', freshByDefault: true, ask: renderScanNan);
-  answer('passOutput', freshByDefault: false, ask: renderPassOutput);
-  answer('draw', freshByDefault: false, ask: renderDraw);
-  answer('readPixel', freshByDefault: false, ask: renderReadPixel);
-  developer.registerExtension('ext.flutter3d.render.pick', (
+  // What each answers beside `frame`: the keys the function in
+  // `render_inspection.dart` builds, which `api/flutter3d_app.vm` holds.
+  answer(
+    'passes',
+    freshByDefault: true,
+    answers: const <String>{'width', 'height', 'passes'},
+    ask: (c, _) => renderPasses(c),
+  );
+  answer(
+    'draws',
+    freshByDefault: true,
+    answers: const <String>{'total', 'offset', 'draws', 'undetailed'},
+    ask: renderDraws,
+  );
+  answer(
+    'stats',
+    freshByDefault: true,
+    answers: const <String>{
+      'width',
+      'height',
+      'passes',
+      'activePasses',
+      'drawCalls',
+      'describedDraws',
+      'triangles',
+      'cpuMicros',
+      'targetBytes',
+      'targets',
+      'unsizedFormats',
+    },
+    ask: (c, _) => renderStats(c),
+  );
+  answer(
+    'scanNan',
+    freshByDefault: true,
+    answers: const <String>{'clean', 'scanned', 'eightBit', 'found', 'unread'},
+    ask: renderScanNan,
+  );
+  answer(
+    'passOutput',
+    freshByDefault: false,
+    answers: const <String>{
+      'pass',
+      'png',
+      'resource',
+      'width',
+      'height',
+      'format',
+      'readable',
+      'floats',
+      'refused',
+    },
+    ask: renderPassOutput,
+  );
+  answer(
+    'draw',
+    freshByDefault: false,
+    answers: const <String>{
+      'index',
+      'passIndex',
+      'pass',
+      'kind',
+      'mesh',
+      'material',
+      'vertices',
+      'indices',
+      'instances',
+      'lighting',
+      'triangles',
+      'state',
+      'uniforms',
+    },
+    ask: renderDraw,
+  );
+  answer(
+    'readPixel',
+    freshByDefault: false,
+    answers: const <String>{
+      'pass',
+      'resource',
+      'format',
+      'x',
+      'y',
+      'uint',
+      'unorm',
+      'float',
+      'floatUnread',
+    },
+    ask: renderReadPixel,
+  );
+  answer(
+    'capture',
+    freshByDefault: false,
+    answers: const <String>{'capture'},
+    ask: renderCaptureFile,
+  );
+  // Neither of these takes a capture: the memory report reads what the
+  // renderer holds now, and the views are a table.
+  registerFlutter3dExtension('ext.flutter3d.render.memory', (
+    method,
+    parameters,
+  ) async {
+    final current = _inspector.renderer();
+    if (current == null) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.extensionError,
+        'the game has no renderer yet; ask again once it is drawing',
+      );
+    }
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(renderMemory(current.memoryReport(scene: _inspector.scene()))),
+    );
+  }, answers: const <String>{'totalBytes', 'categories', 'entries'});
+  registerFlutter3dExtension(
+    'ext.flutter3d.render.debugViews',
+    (method, parameters) async => developer.ServiceExtensionResponse.result(
+      jsonEncode(renderDebugViews()),
+    ),
+    answers: const <String>{'views', 'wipeSides'},
+  );
+  registerFlutter3dExtension('ext.flutter3d.render.pick', (
     method,
     parameters,
   ) async {
@@ -132,7 +258,7 @@ void registerRenderExtensions(
           }),
         ),
     };
-  });
+  }, answers: const <String>{'frame', 'x', 'y', 'node', 'draws', 'says'});
 }
 
 bool _registered = false;
@@ -155,6 +281,7 @@ final class _Unavailable extends _Capture {
 /// The one capture the extensions share, and the renderer it came from.
 final class _Inspector {
   Renderer? Function() renderer = () => null;
+  Scene? Function() scene = () => null;
   Duration timeout = const Duration(seconds: 2);
 
   (int, FrameCapture)? _held;

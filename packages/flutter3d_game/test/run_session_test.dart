@@ -29,20 +29,19 @@ final class _Level {
   Map<String, Object?> restored = const <String, Object?>{};
 }
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A game with two levels and a record of everything it was asked.
@@ -61,7 +60,7 @@ final class _Game extends RunSession<_Level> {
   final Set<String> broken = <String>{};
 
   @override
-  Future<_Level> open(String asset) async {
+  Future<_Level> loadLevel(String asset) async {
     opened.add(asset);
     if (gate != null) await gate!.future;
     if (broken.contains(asset)) throw StateError('no such level: $asset');
@@ -92,7 +91,7 @@ final class _Game extends RunSession<_Level> {
   final List<_Level> closed = <_Level>[];
 
   @override
-  void close(_Level level) => closed.add(level);
+  void disposeLevel(_Level level) => closed.add(level);
 }
 
 _Game _game() => _Game(
@@ -138,18 +137,22 @@ void main() {
       () async {
         // Renaming a level file should not brick every save that mentions it.
         final game = _game()..broken.add('gone');
-        game.saves.write('gone', const Snapshot(<String, Object?>{}));
+        await game.saves.write('gone', const Snapshot(<String, Object?>{}));
 
         expect(await game.begin(), isFalse);
 
         expect(game.status, isA<RunPlaying<_Level>>());
-        expect(game.saves.read(), isNull, reason: 'the broken save was kept');
+        expect(
+          await game.saves.read(),
+          isNull,
+          reason: 'the broken save was kept',
+        );
       },
     );
 
     test('and a good save is resumed into its own level', () async {
       final game = _game();
-      game.saves.write(
+      await game.saves.write(
         'two',
         const Snapshot(<String, Object?>{'where': 'two'}),
       );
@@ -218,13 +221,13 @@ void main() {
           ..outcome = RunOutcome.won
           ..next = null;
         game.observe();
-        game.saves.write('one', snapshotOfNothing);
+        await game.saves.write('one', snapshotOfNothing);
 
         await game.advance();
 
         expect(game.opened, <String>['one']);
         expect(
-          game.saves.read(),
+          await game.saves.read(),
           isNull,
           reason: 'the next launch resumes a run that is already over',
         );
@@ -242,18 +245,18 @@ void main() {
       (game.status as RunPlaying<_Level>).level.outcome = RunOutcome.lost;
       game.observe();
 
-      game.save();
+      await game.save();
 
-      expect(game.saves.read(), isNull);
+      expect(await game.saves.read(), isNull);
     });
 
     test('and is written for one that has not', () async {
       final game = _game();
       await game.begin();
 
-      game.save();
+      await game.save();
 
-      expect(game.saves.read()?.level, 'one');
+      expect((await game.saves.read())?.level, 'one');
     });
   });
 
@@ -276,12 +279,12 @@ void main() {
       // to start.
       final game = _game();
       await game.begin();
-      game.save();
-      expect(game.saves.read(), isNotNull);
+      await game.save();
+      expect(await game.saves.read(), isNotNull);
 
       await game.restart();
 
-      expect(game.saves.read(), isNull);
+      expect(await game.saves.read(), isNull);
     });
 
     test('and works from a level that would not load', () async {
@@ -307,7 +310,7 @@ void main() {
       // Mutation: make `startOver` load the current asset the way `restart`
       // does and `opened` ends `['two', 'two']`, which is the dead end.
       final game = _game()..broken.add('two');
-      game.saves.write('two', const Snapshot(<String, Object?>{}));
+      await game.saves.write('two', const Snapshot(<String, Object?>{}));
       await game.load('two');
       expect(game.status, isA<RunFailed<_Level>>());
 
@@ -324,13 +327,13 @@ void main() {
       // the one just abandoned.
       final game = _game();
       await game.begin();
-      game.save();
+      await game.save();
       final before = game.freshened;
-      expect(game.saves.read(), isNotNull);
+      expect(await game.saves.read(), isNotNull);
 
       await game.startOver();
 
-      expect(game.saves.read(), isNull);
+      expect(await game.saves.read(), isNull);
       expect(game.freshened, before + 1);
     });
   });

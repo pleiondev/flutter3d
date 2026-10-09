@@ -1,0 +1,116 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game_platformer-KeyKind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart', 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'KeyKind'
+    changes:
+      - kind: 'rename'
+        newName: 'PlatformerKeyKind'
+  - title: 'flutter3d 1.0.0-rc.1: game_platformer-ReadoutStyle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/bridge.dart', 'package:flutter3d_game_racing/bridge.dart', 'package:flutter3d_game_shooter/bridge.dart']
+      class: 'ReadoutStyle'
+    changes:
+      - kind: 'rename'
+        newName: 'PlatformerReadoutStyle'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowCamera-follow'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'follow'
+      inClass: 'FollowCamera'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'travelling'
+        newName: 'traveling'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-FollowTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'recentre'
+        newName: 'recenter'
+      - kind: 'renameParameter'
+        oldName: 'recentreAbove'
+        newName: 'recenterAbove'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-recentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'recentre'
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'recenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-recentreAbove'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'recentreAbove'
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'recenterAbove'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-Crumbling-takeWeight'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'takeWeight'
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'rename'
+        newName: 'bearWeight'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowCamera-extraFov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'extraFov'
+      inClass: 'FollowCamera'
+    changes:
+      - kind: 'rename'
+        newName: 'extraFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-Hunter-hunting'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'hunting'
+      inClass: 'Hunter'
+    changes:
+      - kind: 'rename'
+        newName: 'isHunting'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'FollowSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-RunnerTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'RunnerTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'RunnerSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-SwimTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'SwimTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'SwimSettings'

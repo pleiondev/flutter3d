@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'run_session.dart';
@@ -33,15 +35,15 @@ final class Autosave with WidgetsBindingObserver {
   /// Tells this whether the game is paused now. Call once per frame, or on
   /// every change; only the step into a pause writes.
   ///
-  /// Returns whether it wrote.
-  bool paused(bool now) {
+  /// Answers whether it wrote, once the write is done.
+  Future<bool> paused({required bool now}) async {
     final entering = now && !_paused;
     _paused = now;
-    return entering && session.save();
+    return entering && await session.save();
   }
 
-  /// The game passed a checkpoint. Returns whether it wrote.
-  bool checkpoint() => session.save();
+  /// The game passed a checkpoint. Answers whether it wrote.
+  Future<bool> checkpoint() => session.save();
 
   /// Starts hearing about the application going to the background.
   void watchLifecycle() {
@@ -66,7 +68,9 @@ final class Autosave with WidgetsBindingObserver {
           AppLifecycleState.hidden ||
           AppLifecycleState.paused ||
           AppLifecycleState.detached:
-        session.save();
+        // Not awaited: the run is read now, and the write finishes while
+        // the platform is still letting this process run.
+        unawaited(session.save());
       case AppLifecycleState.resumed:
         break;
     }

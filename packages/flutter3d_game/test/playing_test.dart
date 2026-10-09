@@ -61,9 +61,9 @@ void main() {
       // captured nothing *and* turned off drag-look — a camera that does not
       // move however the player holds the mouse.
       on(TargetPlatform.macOS, captureAvailable: true);
-      expect(Playing.capturesPointer, isTrue);
-      expect(Playing.dragLook, isFalse);
-      expect(Playing.touch, isFalse);
+      expect(Playing.ofPlatform().capturesPointer, isTrue);
+      expect(Playing.ofPlatform().usesDragLook, isFalse);
+      expect(Playing.ofPlatform().touch, isFalse);
     });
 
     test('without one turns the camera by dragging', () {
@@ -71,9 +71,9 @@ void main() {
       // list did. This is the Windows and Linux case, and the assertion that
       // matters is the second one: something has to turn the camera.
       on(TargetPlatform.windows, captureAvailable: false);
-      expect(Playing.capturesPointer, isFalse);
-      expect(Playing.dragLook, isTrue);
-      expect(Playing.touch, isFalse);
+      expect(Playing.ofPlatform().capturesPointer, isFalse);
+      expect(Playing.ofPlatform().usesDragLook, isTrue);
+      expect(Playing.ofPlatform().touch, isFalse);
     });
   });
 
@@ -84,9 +84,9 @@ void main() {
       // there; taking it would hide the on-screen controls and leave the player
       // dragging a pointer that does not exist.
       on(TargetPlatform.android, captureAvailable: true);
-      expect(Playing.touch, isTrue);
-      expect(Playing.capturesPointer, isFalse);
-      expect(Playing.dragLook, isTrue);
+      expect(Playing.ofPlatform().touch, isTrue);
+      expect(Playing.ofPlatform().capturesPointer, isFalse);
+      expect(Playing.ofPlatform().usesDragLook, isTrue);
     });
 
     test('running in a browser is still a phone', () {
@@ -95,8 +95,8 @@ void main() {
       // Flutter reports a mobile browser as iOS or Android, and the guard threw
       // that answer away.
       on(TargetPlatform.iOS, captureAvailable: false);
-      expect(Playing.touch, isTrue);
-      expect(Playing.dragLook, isTrue);
+      expect(Playing.ofPlatform().touch, isTrue);
+      expect(Playing.ofPlatform().usesDragLook, isTrue);
     });
   });
 }

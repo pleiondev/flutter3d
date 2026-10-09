@@ -12,13 +12,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 36;
@@ -80,8 +79,8 @@ Future<Scene3DController> _pump(
   return controller!;
 }
 
-final engine.Material _grey = engine.Material(
-  baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+final engine.RenderMaterial _grey = engine.RenderMaterial(
+  baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
 );
 
 void main() {
@@ -127,14 +126,14 @@ void main() {
     final first = named('first');
     final second = named('second');
     // Something a game did imperatively, which a new node would not have.
-    first.tint.setValues(1.0, 0.0, 0.0, 1.0);
+    first.tint = const LinearColor(1.0, 0.0, 0.0);
 
     await tester.pumpWidget(
       _scene(device, <Widget>[mesh('second'), mesh('first')]),
     );
     expect(identical(named('first'), first), isTrue);
     expect(identical(named('second'), second), isTrue);
-    expect(named('first').tint.x, 1.0);
+    expect(named('first').tint.r, 1.0);
   });
 
   testWidgets('properties reach the node, and a widget gone takes its node', (
@@ -313,7 +312,7 @@ void main() {
         views: <RenderView>[RenderView(camera: camera)],
         settings: settings,
       );
-      return (await device.readPixels(result.frame))!.buffer.asUint8List();
+      return (await device.readback(result.frame)).buffer.asUint8List();
     }
 
     final fromWidgets = await tester.runAsync(
@@ -327,7 +326,7 @@ void main() {
     scene
       ..add(camera)
       ..add(
-        LightNode(intensity: 3.0)
+        LightNode(intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized()),
       )
       ..add(
@@ -346,10 +345,10 @@ void main() {
       // Mutation: make a new engine material in `_Material3DState._apply` —
       // the meshes keep the old one and the rebuild's colour reaches neither.
       final device = _device();
-      Widget scene(Vector4 colour) => _scene(device, <Widget>[
+      Widget scene(Vector4 color) => _scene(device, <Widget>[
         Material3D(
           key: const ValueKey<String>('paint'),
-          baseColor: colour,
+          baseColor: _fromSrgb(color),
           roughness: 0.3,
           children: <Widget>[
             Mesh3D(shape: CuboidShape(), name: 'a'),
@@ -374,8 +373,8 @@ void main() {
         identical(controller!.scene.meshes.first.material, shared),
         isTrue,
       );
-      expect(shared.baseColor.z, 1.0);
-      expect(shared.baseColor.x, 0.0);
+      expect(shared.baseColor.toSrgb().b, 1.0);
+      expect(shared.baseColor.toSrgb().r, 0.0);
     });
 
     testWidgets('a mesh with no material and none above is refused', (
@@ -427,7 +426,7 @@ void main() {
         ReflectionProbe3D(position: Vector3(0.0, 1.0, 0.0), radius: 6.0),
         Decal3D(
           scale: Vector3(2.0, 2.0, 0.5),
-          color: Vector4(1.0, 0.0, 0.0, 1.0),
+          color: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
           order: 3,
         ),
       ]);
@@ -439,7 +438,7 @@ void main() {
           .whereType<DecalNode>()
           .single;
       expect(decal.order, 3);
-      expect(decal.color.x, 1.0);
+      expect(decal.color.r, 1.0);
     });
 
     testWidgets('particles are drawn while the widget is there and emitted '
@@ -473,7 +472,8 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(
-        controller!.renderer.contributors.all.whereType<ParticleContributor>(),
+        controller!.renderer.renderSteps.contributors
+            .whereType<ParticleContributor>(),
         hasLength(1),
       );
       // A second of frames through the scene's own loop.
@@ -484,7 +484,8 @@ void main() {
 
       await tester.pumpWidget(_scene(device, const <Widget>[]));
       expect(
-        controller!.renderer.contributors.all.whereType<ParticleContributor>(),
+        controller!.renderer.renderSteps.contributors
+            .whereType<ParticleContributor>(),
         isEmpty,
       );
     });
@@ -540,7 +541,7 @@ void main() {
           views: <RenderView>[RenderView(camera: camera)],
           settings: settings,
         );
-        return (await device.readPixels(result.frame))!.buffer.asUint8List();
+        return (await device.readback(result.frame)).buffer.asUint8List();
       }
 
       final mounted = Scene();
@@ -555,7 +556,7 @@ void main() {
             intensity: 3.0,
           ),
           Material3D(
-            baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+            baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
             children: <Widget>[Mesh3D(shape: CuboidShape())],
           ),
         ],
@@ -569,7 +570,7 @@ void main() {
       scene
         ..add(camera)
         ..add(
-          LightNode(intensity: 3.0)
+          LightNode(intensity: 3.0 * Photometric.legacyUnit)
             ..setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized()),
         )
         ..add(
@@ -579,3 +580,6 @@ void main() {
     });
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

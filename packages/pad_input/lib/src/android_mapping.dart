@@ -224,7 +224,7 @@ final class AndroidPadState implements PadMirror {
       return;
     }
     out.clear();
-    out.connected = true;
+    out.isConnected = true;
 
     out
       ..setAxis(PadAxis.leftStickX, _axes[AndroidAxis.x] ?? 0.0)

@@ -6,7 +6,7 @@ import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/step_clock.dart';

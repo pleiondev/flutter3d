@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:vector_math/vector_math.dart';
 
@@ -26,6 +28,22 @@ export 'actor_graphs.dart';
 /// One mesh per kind, uploaded once and shared by every node — the only form of
 /// instancing flutter_gpu offers. What colour they are is an [ActorAppearance];
 /// this owns the shape, the placement and the death pose.
+///
+/// ## Where it reads the actors from
+///
+/// **From the simulation's published state** when given [published] — the
+/// boundary the view keeps (decision A of `tasks/1.0-arch-review.md`): where
+/// each actor is, which way it faces and whether it lives are read out of
+/// the step's published rows ([PublishedActor.read]), the numbers the step
+/// left rather than the live actor, so this keeps drawing when the
+/// simulation runs in another isolate. The actors' world must be published
+/// for that — the loop's own, or a genre's run's, which every genre plugin
+/// adds — and their body, facing and health are registered published. An actor is still the key — its
+/// appearance, its model and its animation are asked of it — and an actor
+/// with no published row this step stays where it was last drawn.
+///
+/// Without [published] it reads the actors directly, which is the same
+/// isolate's shortcut and what a test with no loop does.
 final class ActorVisuals {
   ActorVisuals(
     this.scene, {
@@ -36,6 +54,7 @@ final class ActorVisuals {
     this.corpses,
     this.graphs,
     this.simulated,
+    this.published,
   }) : _meshes = SharedMeshes(device),
        _device = device,
        onIssue = onIssue ?? printIssue;
@@ -80,6 +99,53 @@ final class ActorVisuals {
   /// graph of its own for it; its markers arrive as game events rather than
   /// in [markersPassed].
   final AnimationGraph? Function(Actor actor)? simulated;
+
+  /// The state the simulation last published — `() => loop.published`, or a
+  /// `SimulationHandle`'s — read once per [recordStep] and [sync]; null reads
+  /// the actors directly. See the class doc.
+  final PublishedState Function()? published;
+
+  /// What the view knows of [actor] from [state] when there is published
+  /// state, from the actor when there is not; null for an actor with no
+  /// body to place.
+  ({Vector3 at, double yaw, bool isAlive, double steppedUp})? _read(
+    Actor actor,
+    PublishedState? state,
+  ) {
+    if (state == null) {
+      final at = actor.position;
+      return at == null
+          ? null
+          : (
+              at: at,
+              yaw: actor.yaw,
+              isAlive: actor.isAlive,
+              steppedUp: actor.body?.steppedUp ?? 0.0,
+            );
+    }
+    final row = PublishedActor.read(state, actor.entity);
+    return row == null
+        ? null
+        : (
+            at: row.at,
+            yaw: row.yaw,
+            isAlive: row.isAlive,
+            steppedUp: row.steppedUp,
+          );
+  }
+
+  /// Whether [actor] lives, as [animate] draws it: from its published row
+  /// when there is published [state], and as it was last seen when the step
+  /// left it none; from the actor when there is no published state.
+  bool _isAlive(Actor actor, PublishedActor? row, PublishedState? state) {
+    if (state == null) return actor.isAlive;
+    final alive = row?.isAlive ?? _wasAlive[actor] ?? true;
+    _wasAlive[actor] = alive;
+    return alive;
+  }
+
+  /// Each actor's life as [animate] last read it from published state.
+  final Map<Actor, bool> _wasAlive = <Actor, bool>{};
 
   /// The colour each actor is ringed in under the high-contrast look, or
   /// null for none — `N9`. Asked every [sync], and applied to whatever the
@@ -192,6 +258,7 @@ final class ActorVisuals {
     _instances.remove(actor);
     _graphs.remove(actor);
     _lastPose.remove(actor);
+    _wasAlive.remove(actor);
     _declined.remove(actor);
     if (_taken.remove(actor)) corpses?.end(actor);
   }
@@ -223,11 +290,12 @@ final class ActorVisuals {
     _instances.clear();
     _graphs.clear();
     _lastPose.clear();
+    _wasAlive.clear();
     _taken.clear();
     _declined.clear();
     corpses?.dispose();
     for (final pending in _models.values) {
-      unawaited(pending.then((asset) => asset?.release(_device)));
+      unawaited(pending.then((asset) => asset?.dispose()));
     }
     _models.clear();
     _meshes.dispose();
@@ -295,7 +363,7 @@ final class ActorVisuals {
       final graph = _graphs[actor] = AnimationGraph(
         machine: machine,
         clips: player!.clips,
-        pose: Pose.fromNodes(asset.nodes),
+        pose: AnimationPose.fromNodes(asset.nodes),
       );
       graphs!.dress(actor, graph, instance);
     }
@@ -341,14 +409,14 @@ final class ActorVisuals {
   /// How far below its body's centre [actor]'s model has its feet: a model of
   /// somebody standing has them at its origin, a body is a shape about its
   /// middle.
-  static double feetBelowCentre(Actor actor) =>
+  static double feetBelowCenter(Actor actor) =>
       actor.body?.halfExtents.y ?? 0.0;
 
-  /// Where [actor]'s model is when its body's centre is [centre]: feet under
+  /// Where [actor]'s model is when its body's centre is [center]: feet under
   /// it, turned by [yawFor] — what [sync] places a model by, for a
   /// simulation that has no model to ask, such as one aiming a head.
-  static Matrix4 modelMatrixAt(Actor actor, Vector3 centre) => Matrix4.compose(
-    Vector3(centre.x, centre.y - feetBelowCentre(actor), centre.z),
+  static Matrix4 modelMatrixAt(Actor actor, Vector3 center) => Matrix4.compose(
+    Vector3(center.x, center.y - feetBelowCenter(actor), center.z),
     Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), yawFor(actor, model: true)),
     Vector3.all(1.0),
   );
@@ -371,19 +439,35 @@ final class ActorVisuals {
   /// Its own method because that is the whole of what can be tested without a
   /// device: reaching the line inside [animate] means uploading a rigged model
   /// to a GPU to look at one enum.
-  static AnimationWrap wrapFor(Actor actor) =>
-      actor.isAlive ? AnimationWrap.loop : AnimationWrap.once;
+  static AnimationWrap wrapFor(Actor actor) => wrapWhen(isAlive: actor.isAlive);
+
+  /// [wrapFor], from whether the actor lives rather than from the actor:
+  /// what [animate] asks with what the step published.
+  static AnimationWrap wrapWhen({required bool isAlive}) =>
+      isAlive ? AnimationWrap.loop : AnimationWrap.once;
 
   /// Advances every animation. Once a frame, with the frame's own delta.
+  ///
+  /// **From published state when there is some** ([published]): whether an
+  /// actor lives — which decides a corpse, a clip that holds its last pose
+  /// and whether a pose is kept for a ragdoll — and which clips it plays
+  /// ([ActorAppearance.clipsFrom]) are read from its published row, not from
+  /// the actor, so this keeps animating when the simulation runs in another
+  /// isolate. An actor the step left no row for keeps what was last read.
   void animate(double dt) {
     _markers.clear();
+    final state = published?.call();
     for (final entry in _players.entries) {
       final actor = entry.key;
       if (_taken.contains(actor)) continue;
-      if (!actor.isAlive && _takeOver(actor)) continue;
+      final row = state == null
+          ? null
+          : PublishedActor.read(state, actor.entity);
+      final alive = _isAlive(actor, row, state);
+      if (!alive && _takeOver(actor)) continue;
       if (simulated?.call(actor) case final stepped?) {
         _drawnPose(actor, stepped).writeTo(entry.value.targets);
-        if (corpses != null && actor.isAlive) _keepPose(actor);
+        if (corpses != null && alive) _keepPose(actor);
         continue;
       }
       final graph = _graphs[actor];
@@ -393,10 +477,12 @@ final class ActorVisuals {
         for (final passed in graph.passed) {
           _markers.add((actor: actor, state: passed.state, name: passed.name));
         }
-        if (corpses != null && actor.isAlive) _keepPose(actor);
+        if (corpses != null && alive) _keepPose(actor);
         continue;
       }
-      final wanted = appearance.clipsFor(entry.key);
+      final wanted = row == null
+          ? appearance.clipsFor(actor)
+          : appearance.clipsFrom(actor, row);
       // The first the model actually has. `crossFadeToNamed` reports whether
       // the name was there, so a clip this export does not carry is a miss
       // rather than a crash — and the next candidate gets a turn.
@@ -411,11 +497,12 @@ final class ActorVisuals {
         }
       }
       entry.value
-        ..wrap = wrapFor(entry.key)
+        ..wrap = wrapWhen(isAlive: alive)
         ..update(dt)
         ..apply();
-      if (corpses != null && actor.isAlive) _keepPose(actor);
+      if (corpses != null && alive) _keepPose(actor);
     }
+    _wasAlive.removeWhere((Actor actor, _) => !_players.containsKey(actor));
     _lastDt = dt > 0.0 ? dt : _lastDt;
     corpses?.step(dt);
   }
@@ -462,13 +549,16 @@ final class ActorVisuals {
   /// not. On a 60 Hz display the two are indistinguishable; on anything
   /// faster the difference is the whole reason `InterpolatedVector3` exists.
   ///
-  /// [steppedUp] is a stair the body climbed this step, in metres, and is what
-  /// keeps a staircase from being a series of small jumps — the same
-  /// mechanism the runner already uses for itself.
+  /// A stair the body climbed this step is what keeps a staircase from
+  /// being a series of small jumps — the same mechanism the runner uses for
+  /// itself — read from the published `Gait` when there is [published]
+  /// state, and from the body when there is not.
   void recordStep({double dt = 0.0}) {
+    final state = published?.call();
     for (final actor in _nodes.keys) {
-      final position = actor.position;
-      if (position == null) continue;
+      final read = _read(actor, state);
+      if (read == null) continue;
+      final position = read.at;
       final smoothed = _smoothed[actor];
       if (smoothed == null) {
         // First sight: no previous to come from, so it arrives where it is
@@ -476,7 +566,7 @@ final class ActorVisuals {
         _smoothed[actor] = InterpolatedVector3()..jumpTo(position);
         continue;
       }
-      smoothed.push(position, dt: dt, steppedUp: actor.body?.steppedUp ?? 0.0);
+      smoothed.push(position, dt: dt, steppedUp: read.steppedUp);
     }
     // An actor that has gone stops being interpolated, or the map grows for
     // the life of the level with one entry per corpse.
@@ -499,8 +589,15 @@ final class ActorVisuals {
 
   /// Each simulated actor's pose after the last two steps, and the pose
   /// drawn between them.
-  final Map<Actor, ({Pose before, Pose after, Pose drawn})> _stepPoses =
-      <Actor, ({Pose before, Pose after, Pose drawn})>{};
+  final Map<
+    Actor,
+    ({AnimationPose before, AnimationPose after, AnimationPose drawn})
+  >
+  _stepPoses =
+      <
+        Actor,
+        ({AnimationPose before, AnimationPose after, AnimationPose drawn})
+      >{};
 
   /// How far through the step the last [sync] drew: the poses are drawn as
   /// far, so a planted foot stays under a body drawn between two steps.
@@ -508,7 +605,7 @@ final class ActorVisuals {
 
   /// [actor]'s pose to draw this frame: between the last two steps' as the
   /// body is, when [recordStep] has kept them; the last step's when not.
-  Pose _drawnPose(Actor actor, AnimationGraph graph) {
+  AnimationPose _drawnPose(Actor actor, AnimationGraph graph) {
     final kept = _stepPoses[actor];
     if (kept == null) return graph.pose;
     return kept.drawn
@@ -520,11 +617,11 @@ final class ActorVisuals {
       <Actor, InterpolatedVector3>{};
 
   /// Where to draw [actor] this frame: between the last two steps when
-  /// something has been recording them, and where it authoritatively is when
-  /// nothing has.
-  Vector3 _drawAt(Actor actor, double alpha) {
+  /// something has been recording them, and where it authoritatively is —
+  /// [at], as [_read] has it — when nothing has.
+  Vector3 _drawAt(Actor actor, Vector3 at, double alpha) {
     final smoothed = _smoothed[actor];
-    if (smoothed == null) return actor.position!;
+    if (smoothed == null) return at;
     smoothed.read(alpha, _drawn);
     return _drawn;
   }
@@ -539,11 +636,12 @@ final class ActorVisuals {
   /// and the simulation does not care where the capsules are.
   ///
   /// [alpha] is how far through the current step the frame is drawing —
-  /// `GameLoop.alpha`. The default of 1.0 is the authoritative position, which
+  /// `EngineLoop.alpha`. The default of 1.0 is the authoritative position, which
   /// is exactly what this did before [recordStep] existed, so a game that has
   /// not wired the per-step call up draws what it always drew.
   void sync([double alpha = 1.0]) {
     _alpha = alpha;
+    final state = published?.call();
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
@@ -551,13 +649,16 @@ final class ActorVisuals {
       // A corpse a ragdoll took over stays where it fell: its joints are
       // the ragdoll's, and moving its root would move them.
       if (_taken.contains(actor)) continue;
-      final position = _drawAt(actor, alpha);
+      // An actor the step left no row for stays where it was last drawn.
+      final read = _read(actor, state);
+      if (read == null) continue;
+      final position = _drawAt(actor, read.at, alpha);
 
       // Only a capsule takes the game's material; a model brings its own, and
       // painting over it would make three monsters one colour.
       if (node is MeshNode) node.material = appearance.materialFor(actor);
 
-      if (!actor.isAlive && !_players.containsKey(actor)) {
+      if (!read.isAlive && !_players.containsKey(actor)) {
         // Laid on its side and sunk, which reads as a corpse without needing a
         // death animation. It stays: an emptied corridor should show what
         // happened in it.
@@ -579,13 +680,13 @@ final class ActorVisuals {
       // rooted at the centre, a monster's model hovers half its height off
       // the floor from the moment it replaces its capsule.
       final isModel = node is! MeshNode;
-      final drop = isModel ? feetBelowCentre(actor) : 0.0;
+      final drop = isModel ? feetBelowCenter(actor) : 0.0;
       node
         ..setPosition(position.x, position.y - drop, position.z)
         ..setRotation(
           Quaternion.axisAngle(
             Vector3(0.0, 1.0, 0.0),
-            yawFor(actor, model: isModel),
+            isModel ? read.yaw + math.pi : read.yaw,
           ),
         );
     }

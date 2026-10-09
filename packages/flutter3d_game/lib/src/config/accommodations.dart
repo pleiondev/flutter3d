@@ -11,10 +11,12 @@ import 'package:flutter/widgets.dart';
 /// ## A default, never an override
 ///
 /// The system answer is the *fallback* a game uses when the player has not said
-/// otherwise, which is exactly the shape `GameConfig.settingOf` already has:
+/// otherwise, which is exactly the shape `GameSettings.chosenValueOf` has:
 ///
 /// ```dart
-/// rig.motion = config.settingOf('a11y.cameraMotion', system.cameraMotion);
+/// rig.motion =
+///     config.chosenValueOf(GameSettingKeys.cameraMotion) ??
+///     system.cameraMotion;
 /// ```
 ///
 /// The other way round — the system flag winning over a slider the player just
@@ -56,14 +58,16 @@ final class Accommodations {
   /// `highContrastOf`.
   final bool highContrast;
 
-  /// How much of a camera's involuntary movement to keep by default.
+  /// How much of a camera's involuntary movement to keep by default, a
+  /// fraction from nought to one.
   ///
   /// Nought when the player has asked for less movement, and that is the whole
   /// mapping: a camera that shakes on every landing is precisely what the system
   /// setting is about. See `CameraRig.motion` for what is and is not scaled.
   double get cameraMotion => reduceMotion ? 0.0 : 1.0;
 
-  /// How much of a full-screen flash to keep by default.
+  /// How much of a full-screen flash to keep by default, a fraction from
+  /// nought to one.
   ///
   /// Separate from [cameraMotion] because they are different harms — a flash is
   /// a photosensitivity question and a moving camera is a vestibular one — and

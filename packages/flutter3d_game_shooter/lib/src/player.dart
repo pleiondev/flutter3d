@@ -32,13 +32,15 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collector.dart';
 import 'inventory.dart';
 
-final class Player with KeyHolder implements Collector, Damageable, Rider {
+final class Player with KeyHolder, Collector, Damageable, Rider {
   Player({
     required this.body,
     Inventory? inventory,
@@ -93,6 +95,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   final double crouchHeight;
 
   /// How fast it walks while crouched.
+  /// In metres per second.
   final double crouchSpeed;
 
   /// Whether the body is down.
@@ -143,7 +146,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// **Through the length of the wish rather than by swapping the tuning**, and
   /// the controller already says why it works: "the length of the request
   /// scales the target speed, so half a stick deflection means half speed". A
-  /// second `MovementTuning` would be a second set of numbers to keep true, and
+  /// second `MovementSettings` would be a second set of numbers to keep true, and
   /// the floor's own surface already swaps that one.
   ///
   /// There is no crouch-sprint: a player holding both gets the slow one,
@@ -173,6 +176,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// product that builds the view basis is zero, and the camera's orientation
   /// stops being defined. Which is why the limit is on the pawn and not left to
   /// each caller to remember.
+  /// In radians.
   static const double pitchLimit = math.pi / 2.0 - 0.01;
 
   Map<String, Object?> save() => <String, Object?>{

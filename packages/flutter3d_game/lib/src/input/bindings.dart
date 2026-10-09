@@ -27,6 +27,47 @@ final class InputSource {
   /// A gamepad button, by a name the backend chooses and keeps.
   factory InputSource.pad(String button) => InputSource('$padPrefix$button');
 
+  /// One of a gamepad's analogue axes, by `PadAxis.name` — `leftStickX`,
+  /// `triggerRight` — for an axis bound straight to an [AxisAction].
+  factory InputSource.padAxis(String axis) =>
+      InputSource('${padPrefix}axis.$axis');
+
+  /// One direction of a gamepad's analogue axis, as a button with a
+  /// magnitude: `pad:axis.leftStickX-` is the stick pushed left. Bound in
+  /// the button table to a [GameAction], it presses the action past the
+  /// pad's threshold and gives it how far the axis is pushed — a stick that
+  /// steers through `steerLeft` and `steerRight`, half over for half the
+  /// steering.
+  factory InputSource.padHalfAxis(String axis, {required bool positive}) =>
+      InputSource('${padPrefix}axis.$axis${positive ? '+' : '-'}');
+
+  /// One of a gamepad's sticks as a pair, `left` or `right`, for a
+  /// [DualAxisAction].
+  factory InputSource.padStick(String side) =>
+      InputSource('${padPrefix}stick.$side');
+
+  /// A control drawn on a touch screen, by a name its widget chooses —
+  /// `stick`, `band`, `button.jump`.
+  factory InputSource.touch(String control) => InputSource('touch:$control');
+
+  /// The mouse's motion while it is captured: what turns a first-person
+  /// view, and the source a look binding's sensitivity and invert are on.
+  static const InputSource pointerMotion = InputSource('pointer:motion');
+
+  /// A composite's part that is bound to nothing, after a rebind took its
+  /// key away. Never produced by a device.
+  static const InputSource none = InputSource('');
+
+  /// The device family: what comes before the colon, `key`, `pad`,
+  /// `pointer`, `touch`.
+  ///
+  /// What a rebind replaces within: moving jump to `J` leaves the pad's jump
+  /// on the pad.
+  String get device {
+    final colon = id.indexOf(':');
+    return colon < 0 ? id : id.substring(0, colon);
+  }
+
   /// What a gamepad's ids start with.
   ///
   /// Named because two places have to agree on it: what [InputSource.pad]
@@ -125,7 +166,7 @@ final class Bindings {
   /// that a rebind takes effect on the next key press rather than on the next
   /// launch. Replacing the object would leave each of them holding a different
   /// one, which is the failure this method exists to make unwriteable.
-  void takeFrom(Bindings other) {
+  void copyFrom(Bindings other) {
     _sources
       ..clear()
       ..addAll(other._sources);
@@ -147,4 +188,24 @@ final class Bindings {
       for (final name in byAction.keys.toList()..sort()) name: byAction[name],
     };
   }
+}
+
+/// The actions that pick one of a game's numbered slots — a weapon, a
+/// hotbar's block — as [InputState.requestSlot] does.
+///
+/// **Plain actions, bound like any other.** A slot was a key or a pad button
+/// held in a table of its own beside the bindings, which a player could not
+/// rebind and a settings file did not keep. A slot action is in the button
+/// table: `DesktopInput` and `PadInput` request its slot on the press rather
+/// than holding it, and the rebinding screen moves it like jump.
+abstract final class SlotActions {
+  static const String _prefix = 'slot';
+
+  /// The action that picks slot [index], counted from nought.
+  static GameAction of(int index) => GameAction('$_prefix$index');
+
+  /// The slot [action] picks, or null when it picks none.
+  static int? indexOf(GameAction action) => action.name.startsWith(_prefix)
+      ? int.tryParse(action.name.substring(_prefix.length))
+      : null;
 }

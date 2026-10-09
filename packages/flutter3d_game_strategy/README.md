@@ -63,7 +63,7 @@ a draw when neither side got further than the other.
 
 Around the simulation, `MapCamera` watches a place instead of a body. It still
 drives `CameraRig`, so it gets the rig's smoothing and first-frame cut without
-a copy of its own. `Selection` finds units with a ray the application
+a copy of its own. `UnitSelection` finds units with a ray the application
 unprojects. `Formation` arranges a squad at its destination instead of giving
 every member its own goal, which is why twenty orders do not cost twenty
 fields. `StrategyVisuals` is the one file in the package that draws.

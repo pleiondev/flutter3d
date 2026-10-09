@@ -1,5 +1,7 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'run_part.dart';
+
 /// `rp-04`'s game-side half: the last few seconds [rewind] has kept, as the
 /// state and the tape a [Demo] needs — everything except the checkpoints and
 /// the free-text fields, which only the caller can supply.
@@ -10,13 +12,20 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// two pieces that only [rewind] can give keeps this from asking for a
 /// callback it would use exactly once.
 ///
+/// **The start is the run's own snapshot**, as every `.f3drun` holds it: an
+/// attached buffer keeps the loop's captures, so [part] names the part the
+/// run is registered under — a genre's plugin id — and the start is that
+/// part's data, which a replay restores into the loop as that part alone
+/// (`replayDemoOnLoop`). Null [part] hands the keyframe over whole, for a
+/// buffer filled by hand with a run's own snapshots.
+///
 /// Null when [rewind] holds nothing yet — the very first moments of a level,
 /// before its first keyframe — the same as [RewindBuffer.rewindBy] itself.
-BugReportTape? bugReportTape(RewindBuffer rewind) {
+BugReportTape? bugReportTape(RewindBuffer rewind, {String? part}) {
   final point = rewind.rewindBy(rewind.available);
   if (point == null) return null;
   return (
-    start: point.snapshot,
+    start: part == null ? point.snapshot : runStateIn(point.snapshot, part),
     tape: InputTape(seed: point.seed, frames: point.frames),
   );
 }

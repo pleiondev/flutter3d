@@ -8,7 +8,7 @@ import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -102,7 +102,7 @@ void main() {
     (game) async {
       // Mutation: sync a perspective camera by position alone.
       final camera = CameraNode(
-        projection: const PerspectiveProjection(fovYRadians: 0.9),
+        projection: const PerspectiveProjection(fovY: 0.9),
       );
       final player = _Jumper();
       await game.world.add(player);

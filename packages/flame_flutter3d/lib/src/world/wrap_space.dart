@@ -1,6 +1,6 @@
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../transform/object3d_component.dart';
 
@@ -229,7 +229,7 @@ final class _Ghost {
     drawing
       ..setPositionFrom(at)
       ..setRotation(owner.node.readRotation())
-      ..visible = owner.node.visible;
+      ..isVisible = owner.node.isVisible;
     final s = owner.node.readScale();
     drawing.setScale(s.x, s.y, s.z);
     _tint(owner.node, drawing);
@@ -239,7 +239,7 @@ final class _Ghost {
   /// shape: a hit flash or a fade out shows on the ghost too.
   static void _tint(SceneNode from, SceneNode to) {
     if (from is MeshNode && to is MeshNode && to.tint != from.tint) {
-      to.tint.setFrom(from.tint);
+      to.tint = from.tint;
     }
     final a = from.childrenView;
     final b = to.childrenView;
@@ -315,7 +315,7 @@ final class _Ghost {
   /// shared, the transforms copied.
   static SceneNode _copy(SceneNode node) {
     final SceneNode made = node is MeshNode
-        ? (MeshNode(node.mesh, node.material)..tint.setFrom(node.tint))
+        ? (MeshNode(node.mesh, node.material)..tint = node.tint)
         : SceneNode();
     made
       ..setPositionFrom(node.readPosition())

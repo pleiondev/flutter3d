@@ -8,7 +8,7 @@
 /// **WebGPU is the one backend this file still registers directly**, and
 /// deliberately: registering it from inside `flutter3d_webgpu` itself would
 /// make the `--dart-define=FLUTTER3D_WEBGPU=true` flag pointless, since the
-/// registration call would still reach `openWebGpu` and keep the whole
+/// registration call would still reach `WebGpuDevice.open` and keep the whole
 /// backend reachable — and reachable code is code dart2js ships — in every
 /// web build, flag or not. See [_tryWebGpu] for the measurement.
 library;
@@ -39,7 +39,7 @@ import 'surface/scene_surface.dart';
 /// **What size** is the application's, not this file's: 720p in the crypt and
 /// the platformer, 960×540 in the racing game, each with its own reason written
 /// where the number is.
-const bool kFixedResolution = true;
+const bool fixedResolution = true;
 
 /// Whether this build may try WebGPU before settling for WebGL2.
 ///
@@ -84,37 +84,69 @@ const bool _tryWebGpu = bool.fromEnvironment(
   defaultValue: true,
 );
 
-bool _registered = false;
-void _ensureRegistered() {
-  if (_registered) return;
-  _registered = true;
-  ensureWebGlBackendRegistered();
+/// A registry holding this platform's backends: WebGL2 as the fallback and,
+/// unless `FLUTTER3D_WEBGPU=false`, WebGPU preferred, each with its
+/// presenter. A new registry each call, which an engine owns; see the native
+/// half's doc.
+DeviceRegistry platformDevices() {
+  final registry = DeviceRegistry();
+  registerWebGlBackend(registry);
   if (_tryWebGpu) {
-    registerBackendOpener('WebGPU', openWebGpu);
-    registerDevicePresenter<WebGpuDevice>(
-      (
-        GraphicsDevice device,
-        TextureHandle frame, {
-        BoxFit fit = BoxFit.fill,
-        FilterQuality quality = FilterQuality.none,
-      }) => WebGpuFramePresenter(
-        device: device as WebGpuDevice,
-        frame: frame,
-        fit: fit,
-        quality: quality,
-      ),
-    );
+    registry
+      ..addBackend(
+        'WebGPU',
+        ({required int width, required int height}) =>
+            WebGpuDevice.open(width: width, height: height),
+      )
+      ..addPresenter<WebGpuDevice>(
+        (
+          GraphicsDevice device,
+          TextureHandle frame, {
+          BoxFit fit = BoxFit.fill,
+          FilterQuality quality = FilterQuality.none,
+        }) => WebGpuFramePresenter(
+          device: device as WebGpuDevice,
+          frame: frame,
+          fit: fit,
+          quality: quality,
+        ),
+      );
   }
+  return registry;
 }
 
+/// The registry each device [openDevice] opened came from, so [presentFrame]
+/// finds its presenter without being handed the registry again.
+final Expando<DeviceRegistry> _openedFrom = Expando<DeviceRegistry>(
+  'the registry a device was opened from',
+);
+
+/// This platform's presenters, for [presentFrame] asked about a device that
+/// [openDevice] did not open and handed no registry. Nothing outside this
+/// file can add to it: a backend or presenter of one's own goes into a
+/// registry the caller owns, from [platformDevices], and is passed.
+DeviceRegistry get _platformPresenters => _presenters ??= platformDevices();
+DeviceRegistry? _presenters;
+
 /// Opens the backend, or throws with something worth putting on screen.
-Future<GraphicsDevice> openDevice({required int width, required int height}) {
-  _ensureRegistered();
-  return openRegisteredDevice(
+///
+/// With no [registry], this platform's backends ([platformDevices], made for
+/// the call); hand one over to try a backend of your own first — a test's
+/// fake, say. The device remembers the registry it came from, so
+/// [presentFrame] finds its presenter there.
+Future<GraphicsDevice> openDevice({
+  required int width,
+  required int height,
+  DeviceRegistry? registry,
+}) async {
+  final from = registry ?? platformDevices();
+  final device = await from.open(
     width: width,
     height: height,
     onFallback: (message) => debugPrint('flutter3d_app: $message'),
   );
+  _openedFrom[device] = from;
+  return device;
 }
 
 /// The widget that shows [frame], for whichever [device] this build's
@@ -128,14 +160,18 @@ Widget presentFrame(
   TextureHandle frame, {
   BoxFit fit = BoxFit.fill,
   FilterQuality quality = FilterQuality.none,
+  DeviceRegistry? registry,
 }) {
-  _ensureRegistered();
-  final presenter = lookUpDevicePresenter(device) as FramePresenter?;
+  final presenter =
+      (registry ?? _openedFrom[device] ?? _platformPresenters).presenterFor(
+            device,
+          )
+          as FramePresenter?;
   if (presenter == null) {
     throw ArgumentError(
-      'presentFrame: no presenter registered for ${device.runtimeType} — '
-      'call registerDevicePresenter<${device.runtimeType}>(...) once, '
-      'before presenting a frame from this backend',
+      'presentFrame: no presenter added for ${device.runtimeType} — call '
+      'registry.addPresenter<${device.runtimeType}>(...) on the registry the '
+      'device came from, before presenting a frame from this backend',
     );
   }
   return presenter(device, frame, fit: fit, quality: quality);

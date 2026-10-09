@@ -19,18 +19,15 @@
 /// this is about what those files would be drawing.
 library;
 
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An appearance whose every answer is a field, so a test can say what the game
 /// says without inventing a game.
-final class _Answers implements FixtureAppearance {
+final class _Answers with FixtureAppearance {
   bool spent = false;
   double scale = 1.0;
   bool spinning = false;
@@ -53,7 +50,7 @@ final class _Answers implements FixtureAppearance {
 
   @override
   LevelMaterial fallbackFor(Fixture fixture) =>
-      LevelMaterial(baseColor: Vector4(0.5, 0.5, 0.5, 1.0));
+      LevelMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5));
 
   @override
   bool isSpent(Fixture fixture) => spent;
@@ -65,7 +62,7 @@ final class _Answers implements FixtureAppearance {
   bool spins(Fixture fixture) => spinning;
 
   @override
-  void refresh(Fixture fixture, engine.Material material) =>
+  void refresh(Fixture fixture, engine.RenderMaterial material) =>
       refreshed.add(fixture);
 }
 
@@ -144,11 +141,11 @@ void main() {
       final it = visuals(answers)..add(_fixture());
 
       it.sync(0.0);
-      expect(_only(loaded.scene, 'crate').visible, isTrue);
+      expect(_only(loaded.scene, 'crate').isVisible, isTrue);
 
       answers.spent = true;
       it.sync(0.0);
-      expect(_only(loaded.scene, 'crate').visible, isFalse);
+      expect(_only(loaded.scene, 'crate').isVisible, isFalse);
     });
 
     test('and hides one whose scale has shrunk to nothing', () {
@@ -162,12 +159,12 @@ void main() {
       final it = visuals(answers)..add(_fixture());
 
       it.sync(0.0);
-      expect(_only(loaded.scene, 'crate').visible, isFalse);
+      expect(_only(loaded.scene, 'crate').isVisible, isFalse);
 
       answers.scale = 0.5;
       it.sync(0.0);
       final node = _only(loaded.scene, 'crate');
-      expect(node.visible, isTrue);
+      expect(node.isVisible, isTrue);
       expect(
         _scaleOf(node),
         closeTo(0.5, 1e-9),
@@ -343,23 +340,23 @@ void main() {
       // drop the call from `sync`, and the crate wears no ring.
       final answers = _Answers();
       final it = visuals(answers)..add(_fixture());
-      var colour = Vector3(0.9, 0.6, 0.0);
+      var color = Vector3(0.9, 0.6, 0.0);
       it
-        ..outlineOf = ((Fixture fixture) => colour)
+        ..outlineOf = ((Fixture fixture) => color)
         ..sync(0.0);
       expect(
         (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        Vector3(0.9, 0.6, 0.0),
+        LinearColor.fromSrgb(0.9, 0.6, 0.0),
       );
 
       // Asked again every frame, so a role colour the player changes in the
       // settings is the ring on the next one. Mutation: mark only when the
       // node has no ring yet.
-      colour = Vector3(0.3, 0.7, 0.9);
+      color = Vector3(0.3, 0.7, 0.9);
       it.sync(0.0);
       expect(
         (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        Vector3(0.3, 0.7, 0.9),
+        LinearColor.fromSrgb(0.3, 0.7, 0.9),
       );
     });
 
@@ -456,7 +453,7 @@ void main() {
 /// [_Answers] deliberately builds no meshes — it is about the questions the
 /// bridge asks — and a shadow flag on a fixture with no meshes in it is a test
 /// that cannot fail.
-final class _Bracket implements FixtureAppearance {
+final class _Bracket with FixtureAppearance {
   @override
   TorchFire? buildLightFixture(LightFixtureBuild build) {
     final cup = MeshNode(
@@ -478,7 +475,7 @@ final class _Bracket implements FixtureAppearance {
 
   @override
   LevelMaterial fallbackFor(Fixture fixture) =>
-      LevelMaterial(baseColor: Vector4(0.5, 0.5, 0.5, 1.0));
+      LevelMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5));
 
   @override
   bool isSpent(Fixture fixture) => false;
@@ -490,7 +487,7 @@ final class _Bracket implements FixtureAppearance {
   bool spins(Fixture fixture) => false;
 
   @override
-  void refresh(Fixture fixture, engine.Material material) {}
+  void refresh(Fixture fixture, engine.RenderMaterial material) {}
 }
 
 /// The one node in [scene] with this name, and a failure if there is not

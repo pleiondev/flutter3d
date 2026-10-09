@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 
 import '../transform/plane.dart';
@@ -59,7 +59,7 @@ class Particles3dComponent extends Component {
     if (drawing == null) return;
     _stopDrawing();
     _renderer = drawing.renderer;
-    _contributor = drawing.renderer.addContributor(
+    _contributor = drawing.renderer.renderSteps.addContributor(
       MeshParticleContributor(system, mesh: drawing.mesh, blend: drawing.blend),
     );
   }
@@ -100,7 +100,9 @@ class Particles3dComponent extends Component {
 
   void _stopDrawing() {
     final contributor = _contributor;
-    if (contributor != null) _renderer?.removeContributor(contributor);
+    if (contributor != null) {
+      _renderer?.renderSteps.removeContributor(contributor);
+    }
     _contributor = null;
     _renderer = null;
   }

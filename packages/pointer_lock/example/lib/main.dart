@@ -43,7 +43,7 @@ class _PointerLockExampleState extends State<PointerLockExample>
     // Drained on a ticker rather than in a stream listener, because that is how
     // the consumer actually uses it: once per simulation step.
     _ticker = createTicker((_) {
-      final delta = _capture.takeDelta();
+      final delta = _capture.drainDelta();
       if (delta == Offset.zero && _lastDelta == Offset.zero) return;
       setState(() {
         _lastDelta = delta;

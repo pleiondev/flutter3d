@@ -1,4 +1,8 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+
+import 'run_part.dart';
 
 /// A [Demo] being written while the run is played: the tape, the
 /// checkpoints, and `HR3`'s levels swapped in under it.
@@ -17,8 +21,33 @@ final class DemoRecording {
     required this.start,
     required int seed,
     int checkpointEvery = 25,
+    this.simulation = SimulationVersion.engineOnly,
+    this.bodies,
+    int poseEvery = 4,
+    double stepSeconds = 1.0 / 60.0,
+    this.physics = const DartPhysics(),
   }) : recorder = InputTapeRecorder(seed: seed),
-       checkpoints = DigestTrace(every: checkpointEvery);
+       checkpoints = DigestTrace(every: checkpointEvery),
+       poses = PoseRecorder(every: poseEvery, stepSeconds: stepSeconds);
+
+  /// The physics the run is played on — its world's backend
+  /// (`CollisionWorld.backend`) — named in the file (`Demo.physics`) so a
+  /// replay on another refuses rather than diverges.
+  final PhysicsBackend physics;
+
+  /// The simulation the run is played in — the genre's constant, such as
+  /// `platformerSimulation` — written into the file so that a build on
+  /// another one refuses the tape rather than replaying it wrong.
+  final SimulationVersion simulation;
+
+  /// Where the run's bodies are now, asked every [PoseRecorder.every] steps
+  /// by [observe] for the pose record written beside the tape; null records
+  /// none. Named bodies, each a place and a rotation.
+  final Iterable<BodyPose> Function()? bodies;
+
+  /// The pose record being written: what plays on a build whose simulation
+  /// differs from [simulation].
+  final PoseRecorder poses;
 
   /// The asset path of the level the run started in.
   final String level;
@@ -29,7 +58,7 @@ final class DemoRecording {
   /// The state the tape starts from.
   final Snapshot start;
 
-  /// Where the loop writes each step's input. Add it to `GameLoop.recorders`.
+  /// Where the loop writes each step's input. Add it to `EngineLoop.recorders`.
   final InputTapeRecorder recorder;
 
   /// A digest every so many steps, taken live.
@@ -43,11 +72,15 @@ final class DemoRecording {
   /// Takes a checkpoint if the step just run is one. Call after every step;
   /// [after] is asked for the state the step left only on a checkpoint step,
   /// since a save of every body is what a checkpoint costs.
+  ///
+  /// The pose record is taken here too, on its own steps, from [bodies].
   void observe(Snapshot Function() after) {
     final step = recorder.tape.steps;
     if (step % checkpoints.every == 0) {
       checkpoints.observe(step, after().toJson());
     }
+    final bodies = this.bodies;
+    if (bodies != null && poses.due(step)) poses.record(step, bodies());
   }
 
   /// Writes down that [next] was put under the run [stepsAgo] steps before
@@ -70,8 +103,72 @@ final class DemoRecording {
       ..removeWhere((swap) => swap.step >= at)
       ..add(DemoLevelSwap(step: at, level: next));
     checkpoints.forgetAfter(at);
+    poses.forgetAfter(at);
+    _loopChanges.removeWhere((change) => change.step > at);
+    _events?.forgetAfter(at - 1);
     return true;
   }
+
+  final List<LoopChange> _loopChanges = <LoopChange>[];
+  EventTrace? _events;
+  EngineLoop? _loop;
+  List<Registration> _observers = const <Registration>[];
+
+  /// Records through [loop]: its input into [recorder], each step's event
+  /// digest, and every change the loop journals — plugins switched, the
+  /// time scale, the step rate — at the step of this tape it was made at.
+  ///
+  /// **The plugins' state is written first, at the step recording begins**,
+  /// since the loop may have been running and switching for a while, and a
+  /// replay starts from the engine's defaults. So is a time scale other than
+  /// one. Steps run again after a rollback are not recorded twice: the loop
+  /// marks them resimulated and the recorder skips them.
+  void attach(EngineLoop loop) {
+    if (_loop != null) {
+      throw StateError('a recording is attached to one loop at a time');
+    }
+    _loop = loop;
+    _events = EventTrace();
+    loop.recorders.add(recorder);
+    _observers = <Registration>[
+      loop.onStepEnd(_observeStep),
+      loop.onChange(_observeChange),
+    ];
+    final at = recorder.tape.steps;
+    if (loop.plugins.order.isNotEmpty) {
+      _loopChanges.add(LoopPluginChange(loop.plugins.stateAt(at)));
+    }
+    if (loop.timeScale != 1.0) {
+      _loopChanges.add(LoopTimeScale(step: at, scale: loop.timeScale));
+    }
+  }
+
+  /// Stops recording through the loop [attach] was given.
+  void detach() {
+    final loop = _loop;
+    if (loop == null) return;
+    loop.recorders.remove(recorder);
+    for (final observer in _observers) {
+      observer.cancel();
+    }
+    _observers = const <Registration>[];
+    _loop = null;
+  }
+
+  void _observeStep(StepEventSummary summary) {
+    if (summary.resimulated) return;
+    // The recorder wrote this step's entry before it ran, so it is the last.
+    _events?.observe(
+      recorder.tape.steps - 1,
+      count: summary.count,
+      digest: summary.digest,
+    );
+  }
+
+  // Made at the boundary, before the step's entry is written: the change
+  // takes effect before the step at the tape's present length.
+  void _observeChange(LoopChange change) =>
+      _loopChanges.add(change.at(recorder.tape.steps));
 
   /// The run so far, as a file.
   Demo demo({
@@ -89,13 +186,21 @@ final class DemoRecording {
     recordedBy: recordedBy,
     levelSwaps: List<DemoLevelSwap>.unmodifiable(_swaps),
     // What it replays on: see `Demo.physics`.
-    physics: PhysicsBackend.current.name,
+    physics: physics.name,
+    loopChanges: List<LoopChange>.unmodifiable(_loopChanges),
+    events: _events,
+    simulation: simulation,
+    poses: bodies == null ? null : poses.recorded,
   );
 }
 
-/// What [replayDemo] found.
+/// What [replayDemoOnLoop] found.
 final class DemoReplay {
-  const DemoReplay({required this.steps, this.divergence});
+  const DemoReplay({
+    required this.steps,
+    this.divergence,
+    this.eventDivergence,
+  });
 
   /// How many steps were played.
   final int steps;
@@ -103,34 +208,53 @@ final class DemoReplay {
   /// The first checkpoint the replay did not match, or null when it matched
   /// every one the file holds.
   final Divergence? divergence;
+
+  /// The first step whose events differed from the file's, or null when
+  /// every step published what it did when recorded — or the file has no
+  /// event trace. Only [replayDemoOnLoop] fills it.
+  final EventDivergence? eventDivergence;
 }
 
-/// Plays [demo] through the simulation from its start, swapping in each of
-/// [Demo.levelSwaps] as the tape reaches it, and checks the file's own
-/// checkpoints on the way.
+/// Plays [demo] through [loop] from its start: the file's loop changes are
+/// made at their steps, and each step's events are compared with the file's
+/// as well as its checkpoints.
+///
+/// **Through the loop's snapshots, the one path.** The run the tape recorded
+/// is the loop's part [part] — a genre under its plugin id
+/// (`PlatformerPlugin.id`), a game's own run under the `SnapshotPart` it
+/// registered — and the file's start, which is that run's own snapshot, is
+/// restored as that part alone (`EngineLoop.rewindTo(0, state: …)`); each
+/// checkpoint is digested from the part's data in the loop's capture, so a
+/// tape recorded from the run's own `save()` checks out as it always did. The
+/// tape plays through the loop's own systems, which must be the simulation
+/// the run was recorded with; plugins the file switched are switched at the
+/// same steps, so the run arrives where it did. The live devices are muted
+/// while it plays.
 ///
 /// The level [Demo.level] names must be up when this is called; [swapLevel]
 /// puts a swapped document in its place and must carry the run over, as the
-/// game did live — the state [save] answers before it is what [save] answers
-/// after. It is required exactly when the demo has swaps in it: a replay that
-/// played through them would part from the run at the first and report that
-/// as a divergence of the simulation.
+/// game did live. It is required exactly when the demo has swaps in it. A
+/// swap at step K goes in after the checkpoint at K is compared, which is the
+/// order the live run met them in.
 ///
-/// A swap at step K goes in after the checkpoint at K is compared, which is
-/// the order the live run met them in: the checkpoint was taken under the
-/// old level, and the timeline swapped at the keyframe that state was.
+/// Given [simulation] — the one this build runs — a run recorded on another
+/// is refused before a step is played: [ReplayException] says why and carries
+/// the run's pose record, which a viewer plays instead.
 ///
-/// Checkpoints are compared by step rather than by position, since a swap
-/// leaves a gap in them (`DigestTrace.forgetAfter`).
-DemoReplay replayDemo({
+/// Given [actions] — the game's declared [ActionSet] — a tape recorded
+/// before the game read an axis where it once read two buttons is upgraded
+/// first (`ActionSet.upgradeTape`), so an old run replays as it was played.
+///
+/// Throws an [ArgumentError] when [part] is not one of the loop's parts.
+DemoReplay replayDemoOnLoop({
   required Demo demo,
-  required InputState input,
-  required void Function(Snapshot snapshot) restore,
-  required Snapshot Function() save,
-  required void Function(double dt) stepSim,
+  required EngineLoop loop,
+  required String part,
   void Function(Level level)? swapLevel,
-  double stepSeconds = 1.0 / 60.0,
+  SimulationVersion? simulation,
+  ActionSet? actions,
 }) {
+  if (simulation != null) demo.checkSimulation(simulation);
   if (demo.levelSwaps.isNotEmpty && swapLevel == null) {
     throw ArgumentError.value(
       demo,
@@ -139,6 +263,7 @@ DemoReplay replayDemo({
           'swapLevel was given to replace it with',
     );
   }
+  final start = loopStateWith(loop, part, demo.start);
   final expected = <int, int>{
     for (var i = 0; i < demo.checkpoints.steps.length; i++)
       demo.checkpoints.steps[i]: demo.checkpoints.digests[i],
@@ -151,35 +276,46 @@ DemoReplay replayDemo({
     }
   }
 
-  restore(demo.start);
+  final trace = EventTrace();
+  var played = 0;
+  void observe(StepEventSummary summary) {
+    if (summary.resimulated) return;
+    trace.observe(played, count: summary.count, digest: summary.digest);
+  }
+
+  loop
+    ..rewindTo(0, state: start)
+    ..schedule(demo.loopChanges);
   swapAt(0);
-  final playback = InputTapePlayback(demo.tape);
-  final wasMuted = input.muted;
-  input.muted = true;
+  final playback = InputTapePlayback(demo.tape, actions: actions);
+  final previous = loop.playback;
+  final wasMuted = loop.input.muted;
+  loop.playback = playback;
+  final observer = loop.onStepEnd(observe);
+  loop.input.muted = true;
   Divergence? divergence;
-  var step = 0;
   try {
     while (!playback.isFinished) {
-      playback.applyTo(input);
-      input.beginStep();
-      stepSim(stepSeconds);
-      input.endStep();
-      step++;
-      final digest = expected[step];
+      loop.runSteps(1);
+      played++;
+      final digest = expected[played];
       if (digest != null && divergence == null) {
-        final found = StateDigest.of(save().toJson());
+        final found = StateDigest.of(runStateIn(loop.capture(), part).toJson());
         if (found != digest) {
-          divergence = Divergence(step: step, expected: digest, found: found);
+          divergence = Divergence(step: played, expected: digest, found: found);
         }
       }
-      swapAt(step);
+      swapAt(played);
     }
   } finally {
-    input.muted = wasMuted;
+    loop.playback = previous;
+    observer.cancel();
+    loop.input.muted = wasMuted;
   }
-  final unreached = demo.checkpoints.steps.where((s) => s > step).firstOrNull;
+  final unreached = demo.checkpoints.steps.where((s) => s > played).firstOrNull;
+  final recordedEvents = demo.events;
   return DemoReplay(
-    steps: step,
+    steps: played,
     divergence:
         divergence ??
         (unreached == null
@@ -189,5 +325,8 @@ DemoReplay replayDemo({
                 expected: expected[unreached],
                 found: null,
               )),
+    eventDivergence: recordedEvents == null
+        ? null
+        : trace.divergenceFrom(recordedEvents, through: played - 1),
   );
 }

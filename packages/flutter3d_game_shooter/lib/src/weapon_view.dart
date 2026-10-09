@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'combat/weapon.dart';
 
@@ -49,15 +48,19 @@ final class WeaponView {
       ..environment = environment
       ..environmentLevels = environmentLevels;
     _scene.add(
-      LightNode(color: Vector3(1.0, 0.92, 0.82), intensity: 4.5, name: 'key')
+      LightNode(
+          color: LinearColor(1.0, 0.92, 0.82),
+          intensity: 4.5 * Photometric.legacyUnit,
+          name: 'key',
+        )
         ..setPosition(1.0, 1.4, 0.8)
         ..lookAt(Vector3(0.0, -0.2, -1.0)),
     );
     _scene.add(
       LightNode(
         type: LightType.point,
-        color: Vector3(1.0, 0.7, 0.4),
-        intensity: 3.0,
+        color: LinearColor(1.0, 0.7, 0.4),
+        intensity: 3.0 * Photometric.legacyUnit,
         range: 5.0,
         name: 'fill',
       )..setPosition(-0.8, -0.4, 0.6),
@@ -67,7 +70,7 @@ final class WeaponView {
     _camera.lookAt(Vector3(0.0, 0.0, -1.0));
     _camera.projection = PerspectiveProjection(
       // 55 degrees against the world's 90.
-      fovYRadians: 55.0 * math.pi / 180.0,
+      fovY: 55.0 * math.pi / 180.0,
       near: 0.01,
       far: 10.0,
     );
@@ -79,7 +82,7 @@ final class WeaponView {
     _holder.setPosition(_restPosition.x, _restPosition.y, _restPosition.z);
     _scene.add(_holder);
     for (final entry in models.entries) {
-      _byWeapon[entry.key] = entry.value..visible = false;
+      _byWeapon[entry.key] = entry.value..isVisible = false;
       _holder.add(entry.value);
     }
 
@@ -120,7 +123,7 @@ final class WeaponView {
   /// Shows [weapon]'s model and hides the rest.
   void selectWeapon(WeaponDef weapon) {
     for (final entry in _byWeapon.entries) {
-      entry.value.visible = entry.key == weapon.name;
+      entry.value.isVisible = entry.key == weapon.name;
     }
   }
 

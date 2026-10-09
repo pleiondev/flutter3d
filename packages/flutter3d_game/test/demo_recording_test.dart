@@ -12,9 +12,10 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// The toy reads its speed off the level's fog density: any number a level
 /// document carries will do, and this one needs no brushes.
@@ -31,6 +32,24 @@ final class _Toy {
   void restore(Snapshot snapshot) => x = snapshot.data.number('x');
 }
 
+/// [toy] as one part of a fresh loop's snapshots, under `toy`, and a system
+/// in its step, reading [input]; [rewind], when given, attached to it.
+EngineLoop _loopOf(_Toy toy, InputState input, [RewindBuffer? rewind]) {
+  final loop = EngineLoop(input: input)
+    ..snapshots.add(
+      SnapshotPart.of(
+        id: 'toy',
+        capture: () => toy.save().data,
+        restore: (Object? data, int _) {
+          if (data is Map) toy.restore(Snapshot(data.cast<String, Object?>()));
+        },
+      ),
+    )
+    ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
+  rewind?.attach(loop);
+  return loop;
+}
+
 void _play(InputState input, int step) =>
     input.setStickAxis(step % 5 == 0 ? -0.25 : 1.0, 0.0);
 
@@ -43,19 +62,15 @@ void _play(InputState input, int step) =>
   final toy = _Toy();
   final input = InputState();
   final rewind = RewindBuffer(stepsPerSecond: 60, keyframeEvery: 20);
-  final timeline = RunTimeline(
-    rewind: rewind,
-    input: input,
-    stepSim: (dt) => toy.step(input),
-    restore: toy.restore,
-  );
+  final loop = _loopOf(toy, input, rewind);
+  final timeline = RunTimeline(rewind: rewind, loop: loop);
   final demo = DemoRecording(
     level: 'assets/levels/toy.json',
     levelHash: _level(1.0).digestHex,
     start: toy.save(),
     seed: 0,
     checkpointEvery: 10,
-  );
+  )..attach(loop);
   final swappedAt = <int>[];
   for (var step = 0; step < steps; step++) {
     if (edits[step] case final double speed) {
@@ -68,13 +83,8 @@ void _play(InputState input, int step) =>
       expect(demo.levelSwapped(next, stepsAgo: rewind.step - at), isTrue);
     }
     _play(input, step);
-    rewind.recorder.record(input);
-    demo.recorder.record(input);
-    input.beginStep();
-    if (rewind.keyframeDue) rewind.keyframe(toy.save());
-    toy.step(input);
+    loop.runSteps(1);
     demo.observe(toy.save);
-    input.endStep();
   }
   return (demo: demo, toy: toy, swappedAt: swappedAt);
 }
@@ -83,12 +93,10 @@ void _play(InputState input, int step) =>
 ({DemoReplay replay, _Toy toy}) _replay(Demo demo, {bool swaps = true}) {
   final toy = _Toy();
   final input = InputState();
-  final replay = replayDemo(
+  final replay = replayDemoOnLoop(
     demo: demo,
-    input: input,
-    restore: toy.restore,
-    save: toy.save,
-    stepSim: (dt) => toy.step(input),
+    loop: _loopOf(toy, input),
+    part: 'toy',
     swapLevel: swaps ? (level) => toy.speed = level.fogDensity : (level) {},
   );
   return (replay: replay, toy: toy);
@@ -172,23 +180,15 @@ void main() {
     // Mutation: drop either check — the replay plays through the swap and
     // calls the result a divergence of the simulation.
     expect(
-      () => replayDemo(
-        demo: file,
-        input: input,
-        restore: toy.restore,
-        save: toy.save,
-        stepSim: (dt) => toy.step(input),
-      ),
+      () =>
+          replayDemoOnLoop(demo: file, loop: _loopOf(toy, input), part: 'toy'),
       throwsArgumentError,
     );
     expect(
       () => rewindBufferFromDemo(
         demo: file,
-        stepsPerSecond: 60,
-        input: input,
-        restore: toy.restore,
-        save: toy.save,
-        stepSim: (dt) => toy.step(input),
+        loop: _loopOf(toy, input),
+        part: 'toy',
       ),
       throwsArgumentError,
     );
@@ -202,24 +202,113 @@ void main() {
       seed: 0,
     );
     // Mutation: leaving it out, which a replay reads as "whatever is on".
-    expect(demo.demo(buildStamp: 'test').physics, PhysicsBackend.current.name);
-    final was = PhysicsBackend.current;
-    PhysicsBackend.current = const _Named('native');
-    addTearDown(() => PhysicsBackend.current = was);
-    expect(demo.demo(buildStamp: 'test').physics, 'native');
+    expect(demo.demo(buildStamp: 'test').physics, 'dart');
+    final native = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: _Toy().save(),
+      seed: 0,
+      physics: const _Named('native'),
+    );
+    expect(native.demo(buildStamp: 'test').physics, 'native');
+  });
+
+  test('a demo records its simulation and a pose record beside the tape', () {
+    final toy = _Toy();
+    final input = InputState();
+    const simulation = SimulationVersion(genre: 'toy', genreVersion: 3);
+    final demo = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: toy.save(),
+      seed: 0,
+      simulation: simulation,
+      poseEvery: 5,
+      bodies: () => <BodyPose>[
+        BodyPose('toy', Vector3(toy.x, 0.0, 0.0), Quaternion.identity()),
+      ],
+    );
+    for (var step = 0; step < 20; step++) {
+      _play(input, step);
+      demo.recorder.record(input);
+      input.beginStep();
+      toy.step(input);
+      demo.observe(toy.save);
+      input.endStep();
+    }
+    final file = _sent(demo);
+
+    // Mutation: leave either out of `demo()` and the file cannot say which
+    // simulation it needs, nor show anything when it is not this one.
+    expect(file.simulation, simulation);
+    final poses = file.poses!;
+    expect(poses.frames.map((f) => f.step), <int>[5, 10, 15, 20]);
+    expect(poses.frames.last.bodies.single![0], closeTo(toy.x, 1e-3));
+  });
+
+  test('a replay on another simulation is refused with the poses to show', () {
+    final toy = _Toy();
+    final input = InputState();
+    final recording = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: toy.save(),
+      seed: 0,
+      simulation: const SimulationVersion(genre: 'toy'),
+      bodies: () => <BodyPose>[
+        BodyPose('toy', Vector3(toy.x, 0.0, 0.0), Quaternion.identity()),
+      ],
+    );
+    for (var step = 0; step < 8; step++) {
+      _play(input, step);
+      recording.recorder.record(input);
+      input.beginStep();
+      toy.step(input);
+      recording.observe(toy.save);
+      input.endStep();
+    }
+    final file = _sent(recording);
+    const newer = SimulationVersion(genre: 'toy', genreVersion: 2);
+
+    // Mutation: drop the check from either and the tape is replayed into the
+    // newer rules, parting at the first checkpoint as if the toy were broken.
+    for (final replay in <void Function()>[
+      () => replayDemoOnLoop(
+        demo: file,
+        loop: _loopOf(toy, input),
+        part: 'toy',
+        simulation: newer,
+      ),
+      () => rewindBufferFromDemo(
+        demo: file,
+        loop: _loopOf(toy, input),
+        part: 'toy',
+        simulation: newer,
+      ),
+    ]) {
+      expect(
+        replay,
+        throwsA(
+          isA<ReplayException>()
+              .having((r) => r.reason, 'reason', contains('toy 1'))
+              .having((r) => r.poses?.frames.length, 'pose frames', 2),
+        ),
+      );
+    }
+    // The same simulation still replays, and agrees with itself.
+    final same = replayDemoOnLoop(
+      demo: file,
+      loop: _loopOf(toy, input),
+      part: 'toy',
+      simulation: const SimulationVersion(genre: 'toy'),
+    );
+    expect(same.divergence, isNull);
   });
 }
 
 /// A backend that is only its name: what the recording reads of it.
-final class _Named implements PhysicsBackend {
+final class _Named extends PhysicsBackend {
   const _Named(this.name);
   @override
   final String name;
-  @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      const DartPhysics().dynamics(world, gravity: gravity);
-  @override
-  void attach(CollisionWorld world) {}
-  @override
-  void release(CollisionWorld world) {}
 }

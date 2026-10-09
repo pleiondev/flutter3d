@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 
 import '../host/has_flutter3d.dart';
 import '../transform/object3d_component.dart';
@@ -17,13 +17,18 @@ class TrailComponent extends Component {
     this.spacing = 0.5,
     this.length = 48,
     this.width = 3.0,
-    Vector4? colour,
-  }) : colour = colour ?? Vector4.all(1.0);
+    this.color = LinearColor.white,
+  });
 
+  /// How far the component moves between points, in metres.
   final double spacing;
   final int length;
+
+  /// How wide the line is drawn, in pixels.
   final double width;
-  final Vector4 colour;
+
+  /// The line's colour, linear.
+  final LinearColor color;
 
   LineStripNode? _line;
   HasFlutter3d? _host;
@@ -39,13 +44,13 @@ class TrailComponent extends Component {
     _host = game;
     final line = LineStripNode(
       device: game.device,
-      material: engine.Material.polyline(
+      material: engine.RenderMaterial.polyline(
         viewportWidth: game.size.x,
         viewportHeight: game.size.y,
       ),
       capacity: length,
       width: width,
-      colour: colour,
+      color: color,
       name: 'trail',
     );
     game.scene.add(line);

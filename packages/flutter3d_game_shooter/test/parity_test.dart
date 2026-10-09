@@ -19,6 +19,8 @@
 library;
 
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -59,12 +61,15 @@ void main() {
 /// play in, kept identical rather than reinvented — see the note at the top of
 /// this file for why.
 CollisionWorld _room() {
-  final world = CollisionWorld()
-    ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
-    ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
-    ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
+  // The world the digests below were recorded in: falling at 24 m/s², the
+  // gravity the characters had before they fell by their world's.
+  final world =
+      CollisionWorld(properties: WorldProperties(gravity: Vector3(0, -24, 0)))
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+        ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
+        ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
   for (var x = -3; x <= 3; x++) {
     for (var z = -3; z <= 3; z++) {
       if ((x + z) % 2 == 0) continue;

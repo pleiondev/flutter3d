@@ -5,11 +5,12 @@
 /// Four things a player can feel, and none of them is a word the engine knows:
 /// a platform you jump up through and stand on, falling through the one you are
 /// standing on, ice, and a belt. The engine holds the mechanisms — a contact
-/// filter, `ground`, `surfaceVelocity`, a swappable `MovementTuning` — and every
+/// filter, `ground`, `surfaceVelocity`, a swappable `MovementSettings` — and every
 /// opinion about what they mean is here.
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -31,7 +32,7 @@ final class _Run {
       materials: <String, LevelMaterial>{'rock': LevelMaterial()},
       brushes: <Brush>[
         Brush(
-          centre: Vector3(0.0, -0.5, 0.0),
+          center: Vector3(0.0, -0.5, 0.0),
           size: Vector3(60.0, 1.0, 60.0),
           material: 'rock',
           surface: floor,
@@ -89,7 +90,7 @@ final class _Run {
     );
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;

@@ -1,10 +1,160 @@
-## 0.9.0
+## 1.0.0-rc.1
 
-**Moves with the stack to 0.9.0**, whose `flutter3d_hardware` gives
+- **The bridge takes `meshDataOf` from `flutter3d_level_scene`** and no
+  longer depends on `flutter3d_app`.
+
+- **`StrategyPlugin.headless` is the base's nullable field**, passed as
+  `super.headless` and still `StrategyHeadlessGame` by default, so every
+  genre's blind game is asked for the same way.
+- **A match has a suffix of its own, `.match.f3drun`**, so the registry
+  tells it from a `Demo` by name as well as by its envelope.
+
+- **The strategy has the shape every genre has.** `StrategyPhases` and
+  `StrategySimulation.systems` hang a game's rule at the genre's moments;
+  `Match.publishTo` publishes `UnitFired` and `MatchDecided` from inside the
+  step; the match is a part of the engine's snapshots; the plugin installs
+  `strategyLevelKinds` unless the application hands its own; and
+  `StrategySimulation` takes the world its crowd lives in (`entities:`).
+
+- **Breaking: `Selection` is `UnitSelection`**, so the strategy's picking
+  no longer shares a name with the modeller's element selection in
+  `flutter3d_mesh`. `dart fix` carries the rename.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `MapCameraTuning` is `MapCameraSettings`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **`UnitFired` and `MatchDecided` are declared with codecs.**
+  `UnitFired.codec` writes the side and the two packed entities, and
+  `MatchDecided.codec` the winner; both read back whole. A run's event
+  digest folds in the codec's encoding now, so a match recorded before
+  this reports its events as diverging at its first shot.
+- **Breaking: `ResourceNode.take` is `harvest`.** `dart fix` carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`, `centreOf` is `centerOf`, `centreX` is
+  `centerX`, `centreZ` is `centerZ`, `colour` is `color`,
+  `groundMetresPerTexture` is `groundMetersPerTexture`. Only the Dart names
+  changed: a file keeps the keys it was written with, and `dart fix`
+  carries the renames.
+- **Breaking: `StrategyHeadlessGame` extends the engine's headless base
+  class** (`HeadlessGame`/`OrderedGame` are `abstract base class`es now) and
+  answers `simulation` as its member; `VersionedSimulation` is gone. Its run's
+  `position` and `eye` are `WorldPosition`s.
+- **Breaking: the bridge names the engine's material `RenderMaterial`.**
+  `MeshLook.material` and the material parameters of `StrategyVisuals`
+  (`ground`, `units`, `buildings`, `unseen`, `remembered`, `buildingSides`,
+  `water`) are `RenderMaterial`s, the engine's renamed `Material`. Nothing
+  else changed; `dart fix` renames the type (`core-Material-RenderMaterial`).
+- **A match says what it is.** `MatchDemo.format` (`f3d.match`) writes the
+  format envelope, so a match and a `Demo`, both `.f3drun`, are told apart by
+  their `format`; keys a later build wrote are kept (`MatchDemo.unknown`). The
+  envelope is additive, so the version stays 2.
+- **Strategy declares its actions, and there are none.**
+  `StrategyActions.set` is empty: a strategy is played by orders on its own
+  tape, so a rebinding screen over it lists nothing.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The map camera is a preset of the virtual cameras.** `MapCamera` is
+  built on `OverheadFraming` from `flutter3d_addon_camera`, with the same
+  numbers, the same arithmetic and the same `CameraRig`, so it looks the way
+  it did. New: `framing`, `virtualCamera` to hand it to a `CameraDirector`,
+  and an optional `name`.
+
+- **The strategy has a `HeadlessGame`.** `StrategyHeadlessGame` opens a map
+  with a reader now inside the package, `openStrategyLevel`, and takes side
+  nought's orders (select, move, attack, train) as an `OrderedGame`. The
+  selection is saved with the match, and `StrategyPlugin.headless` hands the
+  game to a tool.
+
+- **The strategy is a plugin.** `StrategyPlugin` installs a match's step
+  into an `EngineLoop` as `strategy.step` in the physics phase, steps
+  whichever `Match` it is handed, and adds the entity kinds the
+  application gives it to the engine's `EntityKinds`. A match stepped
+  through it comes out the same to the bit as `Match.step` called by hand,
+  so recorded matches replay unchanged. After the step it publishes
+  `UnitFired` for each shot and `MatchDecided` once, on the step the match
+  ends, both declared under the plugin's id. There is no `HeadlessGame`
+  yet: the sim MCP drives a game through a stick and buttons, and a
+  strategy is played by orders, so it needs a verb for orders and a map
+  reader in this package first.
+
+- **`strategySimulationVersion`**: the strategy simulation's number, for its
+  runs and its network hello. A minor that changes how the crowd moves or
+  fights bumps it; a patch never does.
+
+- **A version-one `MatchDemo` opens again; its tape is what is refused.**
+  `MatchDemo.fromJson` reads format 1 through a migrator that tags it
+  `MatchDemo.preWaterSimulation`: the strategy rules from before the map's
+  water and fires were in the match, numbered 0. `refusalOn` and
+  `checkSimulation` refuse to replay its tape, and say why. The file's
+  level, stamp and start still read. `MatchDemo.simulation` and
+  `MatchDemo.poses` are new and optional. One fixture per version is in
+  `test/fixtures/v<N>/match.f3drun`.
+
+- **The map's gravity and air are its world's.** `MapWorld` takes a
+  `gravity` (the Earth's, `standardGravityVector`, when none is given), and
+  everything in the valley reads it from the world rather than writing 9.81
+  beside it: a ram's stone is lobbed by `lobVelocity` and the pond's sill is
+  set by `weirHead`, both under `world.gravityMagnitude`, and the river is
+  poured at the world's air temperature. On the Moon a stone still lands
+  on its mark and the same river backs up a higher head over the weir. On
+  the Earth every number is the one it was, to the bit.
+
+- **A map's water and fires are part of the match.**
+  `package:flutter3d_game_strategy/map_world.dart` holds `MapWorld`: a river
+  laid down a course into a pond, halls' timber and woods that burn, stones
+  a ram throws. It hangs itself on the simulation's step and its entity
+  world, so any loop that steps a match steps it, and any save carries the
+  core's snapshot. It was the strategy demo's and was stepped round the match
+  by the screen's loop. A resumed match came back to a fresh river with no
+  fires, and a demo's checkpoints said nothing of either. The map's own
+  content, its course and its trees, comes in as `MapWater` and `MapTree`.
+
+- **The step has doors for what the map does to it.**
+  `StrategySimulation.pace` gives each walker a share of its speed, asked in
+  the walk, so the water slows a wader inside the step. Before, the walk was
+  cut back after the shove had already moved the unit. `shots` lists the
+  step's shots with who fired at whom; they used to be inferred from
+  cooldowns that grew. `afterStep` runs what hangs after the crowd.
+
+- **`MatchDemo.formatVersion` is 2, and a version-1 demo is refused.** Its
+  start and checkpoints were taken without the map's world in the state, and
+  with waders held back outside the step. The same tape cannot replay to
+  them now, and the refusal says so.
+
+- **Breaking: `map_world.dart` left the package.** `MapWorld`, the strategy
+  demo's pond, river, fires and siege stones, was one map's content held to
+  the genre's semver. It lives in the repository's unpublished
+  `flutter3d_demo_content` now. The package no longer depends on
+  `flutter3d_physics_native`.
+
+- **Breaking: `StrategyPlugin` is a `GenrePlugin<Match>`**, the shape every
+  genre has. `match` is `simulation`, as every genre's run is named, and
+  `dart fix` renames it; the plugin gains `uninstall` and `replaceKinds`.
+
+- **`MapCamera(reframe:)`** replaces the camera's framing with one of the
+  game's own, given the overhead preset to wrap.
+
+- **`StrategyVisuals`' `buildingStandsTall` and `resource` are ordinary
+  parameters**, not private ones (`this._resource`), which put a private
+  name in the API and needed the newest language version to call. Callers
+  pass them as before.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
 `PassEncoder.draw` a window of the bound indices and every `PassEncoder`
-`setAlphaToCoverage`. Nothing in this package changed.
+`setAlphaToCoverage`.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

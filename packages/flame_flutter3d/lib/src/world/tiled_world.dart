@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:tiled/tiled.dart';
 
 import '../transform/plane.dart';
@@ -50,7 +50,7 @@ class TiledWorld3d extends PositionComponent {
   final BridgePlane plane;
 
   /// The look of a tile layer's blocks.
-  final engine.Material Function(TileLayer layer) material;
+  final engine.RenderMaterial Function(TileLayer layer) material;
 
   /// Metres a tile.
   final double cell;
@@ -109,9 +109,14 @@ class TiledWorld3d extends PositionComponent {
       elevation: _number(properties.getValue<Object>('elevation')) ?? 0.0,
       instanced: !(properties.getValue<bool>('merged') ?? false),
       hitboxes: properties.getValue<bool>('solid') ?? false,
-      colour: tint == null
+      color: tint == null
           ? null
-          : Vector4(tint.red / 255.0, tint.green / 255.0, tint.blue / 255.0, 1),
+          // The map's numbers as they always reached the vertices.
+          : LinearColor(
+              tint.red / 255.0,
+              tint.green / 255.0,
+              tint.blue / 255.0,
+            ),
     );
   }
 

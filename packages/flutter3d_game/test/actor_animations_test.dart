@@ -12,13 +12,29 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
+
+/// What a stage's actors publish, taken step by step.
+final class _Heard {
+  _Heard() {
+    bus.onStep<GameEvent>('test.heard', (d) => _events.add(d.event));
+  }
+
+  final DirectBus bus = DirectBus();
+  final List<GameEvent> _events = <GameEvent>[];
+
+  /// Everything published since the last call, oldest first.
+  List<GameEvent> take() {
+    final taken = List<GameEvent>.of(_events);
+    _events.clear();
+    return taken;
+  }
+}
 
 /// A walk whose root strides 1.5 along +z a second.
 AnimationClip _walkClip() => AnimationClip(
@@ -36,7 +52,7 @@ AnimationClip _walkClip() => AnimationClip(
 );
 
 /// One node at rest at the origin.
-Pose _pose() => Pose(
+AnimationPose _pose() => AnimationPose(
   parents: const <int>[-1],
   restTranslations: Float32List(3),
   restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),
@@ -69,26 +85,21 @@ AnimationGraph _walking() => AnimationGraph(
 
 /// A floor, perhaps a wall across +x at [wallAt], and one walker facing
 /// +x — yaw a quarter turn clockwise, since yaw nought looks along -z.
-({
-  ActorSystem system,
-  Actor walker,
-  ActorAnimations animations,
-  GameEvents events,
-})
+({ActorSystem system, Actor walker, ActorAnimations animations, _Heard events})
 _stage({double? wallAt, double scale = 1.0}) {
   final world = CollisionWorld()
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
   if (wallAt != null) {
     world.addBox(Vector3(wallAt + 0.5, 1.0, 0.0), Vector3(1.0, 2.0, 4.0));
   }
-  final events = GameEvents();
+  final events = _Heard();
   final system = ActorSystem(world: world, random: GameRandom(1));
   final walker = system.spawn(
     body: CharacterController(world: world, position: Vector3(0, 0.9, 0)),
     facing: Facing(yaw: -math.pi / 2),
   );
   final animations = ActorAnimations(
-    events: events,
+    events: events.bus,
     write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
   )..attach(walker, _walking(), scale: scale);
   system.strides = animations;
@@ -188,7 +199,7 @@ void main() {
     for (var i = 0; i < 120; i++) {
       _step(s.system, 1);
       perStep.add(
-        s.events.drain().whereType<AnimationMarkerPassed>().where((e) {
+        s.events.take().whereType<AnimationMarkerPassed>().where((e) {
           expect(e.actor, s.walker);
           return e.marker == 'step';
         }).length,
@@ -205,7 +216,7 @@ void main() {
         ActorSystem system,
         Actor walker,
         ActorAnimations animations,
-        GameEvents events,
+        _Heard events,
       })
       s,
       int steps,
@@ -214,7 +225,7 @@ void main() {
         (() {
           _step(s.system, 1);
           return '${s.walker.body!.position.storage.toList()}'
-              '${s.events.drain().map((e) => e.name).toList()}';
+              '${s.events.take().map(_said).toList()}';
         })(),
     ];
 
@@ -238,8 +249,8 @@ void main() {
 
   test('made on an actor\'s first step, and made again by a restore that '
       'needs it', () {
-    ActorAnimations made(GameEvents events) => ActorAnimations(
-      events: events,
+    ActorAnimations made(_Heard events) => ActorAnimations(
+      events: events.bus,
       write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
       graphFor: (actor) => actor.yaw == 0.0 ? null : _walking(),
     );
@@ -350,6 +361,13 @@ void main() {
     );
   });
 }
+
+/// What [event] says, for comparing two runs: a marker by its name and
+/// state, anything else by its name.
+String _said(GameEvent event) => switch (event) {
+  AnimationMarkerPassed(:final marker, :final state) => '$marker in $state',
+  _ => event.name,
+};
 
 /// Asks to go along +x, always.
 final class _Ahead extends Brain {

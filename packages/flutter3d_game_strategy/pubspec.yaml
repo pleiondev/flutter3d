@@ -1,6 +1,6 @@
 name: flutter3d_game_strategy
 description: "A fourth genre: ground made of samples, units that move as a crowd rather than one at a time, and orders given to a selection instead of to a body."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,26 +13,51 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
     sdk: flutter
 
+  # The virtual cameras this genre's camera is a preset of: the framing, the
+  # director it can be handed to, and the blends and shakes between cameras.
+  flutter3d_camera: ^1.0.0-rc.1
+
   # The engine half. Everything here is content it takes as an argument.
   # `Heightfield`, `HeightfieldGeometry` and `NavGrid.bakeHeightfield` are the
   # ground this genre is played on, and a floor is the one place that can say
   # the simulation underneath has them.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   # For `bridge.dart` and nothing else. The simulation under `src/` names
   # neither of these, and the structure rule that allows exactly one drawing
-  # file is what keeps that true. `bridge.dart` calls `flutter3d_app`'s
+  # file is what keeps that true. `bridge.dart` calls `flutter3d_level_scene`'s
   # `meshDataOf` to turn the ground's triangles into a mesh, the way the level
   # loader turns a brush into one.
-  flutter3d: ^0.9.0
-  flutter3d_app: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_level_scene: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:
@@ -40,7 +65,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # A device with no GPU behind it, so the drawing half is testable too.
-  flutter3d_cpu: ^0.9.0
+  flutter3d_cpu: ^1.0.0-rc.1
+
+  # Two other genres, for `combined_genres_test.dart` alone: genres installed
+  # side by side in one loop is a claim about all of them, and a test has to
+  # hold more than one to make it. Nothing under `lib/` may reach them, which
+  # the structure rule on sideways genres keeps.
+  flutter3d_game_platformer: ^1.0.0-rc.1
+  flutter3d_game_racing: ^1.0.0-rc.1
 
 # The simulation half depends on nothing that draws, the same way the
 # platformer's does: a crowd of ten thousand was measured stepping in under a

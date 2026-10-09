@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -18,7 +19,7 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Brush _slab(double x0, double x1) => Brush(
-  centre: Vector3((x0 + x1) / 2, -0.5, 0.0),
+  center: Vector3((x0 + x1) / 2, -0.5, 0.0),
   size: Vector3(x1 - x0, 1.0, 8.0),
 );
 
@@ -32,7 +33,7 @@ Brush _slab(double x0, double x1) => Brush(
 Level _pit() =>
     Level(name: 'a pit', brushes: <Brush>[_slab(-10.0, 0.0), _slab(3.0, 13.0)]);
 
-const MovementTuning _legs = MovementTuning(jumpSpeed: 9.0);
+const MovementSettings _legs = MovementSettings(jumpSpeed: 9.0);
 
 CharacterController _body(CollisionWorld world, double x) =>
     CharacterController(
@@ -45,10 +46,13 @@ CharacterController _body(CollisionWorld world, double x) =>
 
 void main() {
   test('a hunter jumps the pit and reaches the player', () {
-    final world = CollisionWorld();
+    final world = CollisionWorld(properties: platformerWorld);
     final level = _pit()..addTo(world);
     final actors = ActorSystem(world: world, random: GameRandom(1))
-      ..navigation = Navigation.bake(level, jumps: JumpReach.of(_legs));
+      ..navigation = Navigation.bake(
+        level,
+        jumps: JumpReach.of(_legs, world: platformerWorld),
+      );
     final body = _body(world, -6.0);
     // Fourteen metres and a bit: the default sight would miss by the height
     // difference, and the test is about the pit rather than the eyesight.
@@ -71,14 +75,14 @@ void main() {
       if ((body.position - player).xz.length < 1.5) arrived = true;
     }
 
-    expect(hunter.hunting, isTrue, reason: 'it never saw the player');
+    expect(hunter.isHunting, isTrue, reason: 'it never saw the player');
     expect(airborne, isTrue, reason: 'it never left the ground');
     expect(arrived, isTrue, reason: 'it ended at x = ${body.position.x}');
     expect(body.position.y, greaterThan(-1.0), reason: 'it fell in the pit');
   });
 
   test('on a grid baked without a reach it stops at the edge', () {
-    final world = CollisionWorld();
+    final world = CollisionWorld(properties: platformerWorld);
     final level = _pit()..addTo(world);
     final actors = ActorSystem(world: world, random: GameRandom(1))
       ..navigation = Navigation.bake(level);
@@ -109,12 +113,12 @@ void main() {
 
   test('a hunter forgets a player it cannot see', () {
     final hunter = Hunter(sight: 5.0, patience: 0.5);
-    final world = CollisionWorld();
+    final world = CollisionWorld(properties: platformerWorld);
     final level = Level(
       brushes: <Brush>[
         _slab(-10.0, 10.0),
         // A wall between them.
-        Brush(centre: Vector3(0.0, 1.5, 0.0), size: Vector3(0.5, 3.0, 8.0)),
+        Brush(center: Vector3(0.0, 1.5, 0.0), size: Vector3(0.5, 3.0, 8.0)),
       ],
     )..addTo(world);
     final actors = ActorSystem(world: world, random: GameRandom(1))
@@ -133,7 +137,7 @@ void main() {
       actors.step(_dt, focus: Vector3(3.0, 0.9, 0.0));
     }
 
-    expect(hunter.hunting, isFalse, reason: 'it saw through a wall');
+    expect(hunter.isHunting, isFalse, reason: 'it saw through a wall');
     expect(body.position.x, closeTo(-3.0, 0.05), reason: 'it moved unseen');
   });
 }

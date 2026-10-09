@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pad_input/pad_input.dart';
 
 final class _FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..connected = true;
+  final PadSnapshot state = PadSnapshot()..isConnected = true;
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -35,26 +35,25 @@ final class _FakePad extends GamepadPlatform {
   Future<void> dispose() async => _connections.close();
 }
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
-SettingsCubit _settings() => SettingsCubit(
-  config: GameConfig(),
+GameSettingsController _settings() => GameSettingsController(
+  settings: const GameSettings(),
   file: SettingsFile(appName: 'test', storage: _Storage()),
-  apply: (GameConfig _) {},
+  apply: (GameSettings _) {},
 );
 
 ({_FakePad fake, PadInput pad}) _pad() {
@@ -126,10 +125,10 @@ void main() {
 
     expect(left, isFalse, reason: 'the screen acted on a rebinding press');
     expect(
-      settings.config.bindings[InputSource.pad(PadButton.faceSouth.id)],
+      settings.actions.buttons[InputSource.pad(PadButton.faceSouth.id)],
       GameAction.jump,
     );
-    expect(settings.state.waitingFor, isNull);
+    expect(settings.value.waitingFor, isNull);
   });
 
   test('and it takes a press rather than a hold', () {
@@ -151,7 +150,7 @@ void main() {
     presses.offer(it.pad, settings);
 
     expect(
-      settings.state.waitingFor,
+      settings.value.waitingFor,
       GameAction.jump,
       reason: 'a button nobody pressed bound itself',
     );
@@ -177,7 +176,7 @@ void main() {
       presses.offer(it.pad, settings, menuButton: PadButton.start),
       isFalse,
     );
-    expect(settings.state.isOpen, isTrue);
+    expect(settings.value.isOpen, isTrue);
 
     // Offered on the release frame too: that is the call that notices the
     // button went up, exactly as it was when this was a single bool.
@@ -189,7 +188,7 @@ void main() {
     it.pad.tick(1 / 60);
     presses.offer(it.pad, settings, menuButton: PadButton.start);
 
-    expect(settings.state.isOpen, isFalse);
+    expect(settings.value.isOpen, isFalse);
   });
 
   test('and a button held does not eat another button press', () {
@@ -212,6 +211,6 @@ void main() {
     it.pad.tick(1 / 60);
     presses.offer(it.pad, settings, menuButton: PadButton.start);
 
-    expect(settings.state.isOpen, isTrue);
+    expect(settings.value.isOpen, isTrue);
   });
 }

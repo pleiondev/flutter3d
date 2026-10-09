@@ -163,6 +163,7 @@ final class AssignOrder extends StrategyOrder {
   final int dropOff;
 
   /// How much the worker can carry at once.
+  /// In units of resource.
   final double capacity;
 
   /// How fast it fills, per second, standing at the seam.

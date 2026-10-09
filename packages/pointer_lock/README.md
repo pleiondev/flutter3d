@@ -15,20 +15,20 @@ if (capture.isSupported) {
 }
 
 // Once per simulation step:
-final delta = capture.takeDelta();
+final delta = capture.drainDelta();
 yaw   += delta.dx * sensitivity;
 pitch += delta.dy * sensitivity;
 ```
 
 ## Pull, not push
 
-The caller drains the delta with `takeDelta` instead of receiving it from a
+The caller drains the delta with `drainDelta` instead of receiving it from a
 stream, because that is the shape a game wants. A simulation on a fixed
 timestep asks "how far did the mouse move since the last step" once per step.
 A stream of individual mouse events would move the accumulation into every
 caller, and each of them would have to get it right.
 
-`takeDelta` is synchronous for the same reason. It is called from inside the
+`drainDelta` is synchronous for the same reason. It is called from inside the
 step, and awaiting anything there would mean the step no longer sees a
 consistent snapshot of its inputs.
 

@@ -9,7 +9,6 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' show HighContrastSettings;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -84,12 +83,13 @@ void main() {
     // winning over a slider the player just moved — is the game arguing with
     // them, and the argument is unwinnable because they cannot see why.
     const system = Accommodations(reduceMotion: true);
-    final config = GameConfig();
+    const config = GameSettings();
+    double motion(GameSettings settings) =>
+        settings.chosenValueOf(GameSettingKeys.cameraMotion) ??
+        system.cameraMotion;
 
-    expect(config.settingOf('a11y.cameraMotion', system.cameraMotion), 0.0);
-
-    config.setSetting('a11y.cameraMotion', 0.6);
-    expect(config.settingOf('a11y.cameraMotion', system.cameraMotion), 0.6);
+    expect(motion(config), 0.0);
+    expect(motion(config.withValue(GameSettingKeys.cameraMotion, 0.6)), 0.6);
   });
 
   group('high contrast — N9', () {
@@ -120,20 +120,23 @@ void main() {
       // read the system flag over the setting, and the switch in the panel
       // stops working for exactly the players who need it to.
       const asked = Accommodations(highContrast: true);
-      final config = GameConfig();
+      const config = GameSettings();
       expect(highContrastOf(config, asked).enabled, isTrue);
       expect(highContrastOf(config, const Accommodations()).enabled, isFalse);
 
-      config.setSetting(highContrastSetting, 0.0);
-      expect(highContrastOf(config, asked).enabled, isFalse);
-      config.setSetting(highContrastSetting, 1.0);
-      expect(highContrastOf(config, const Accommodations()).enabled, isTrue);
+      final off = config.withValue(GameSettingKeys.highContrast, false);
+      expect(highContrastOf(off, asked).enabled, isFalse);
+      final on = config.withValue(GameSettingKeys.highContrast, true);
+      expect(highContrastOf(on, const Accommodations()).enabled, isTrue);
     });
 
     test('and only the switch is the player\'s; the rest is the game\'s', () {
       // A game that tuned its rings keeps them when the player turns the
       // look on. Mutation: build fresh settings rather than copying the base.
-      final config = GameConfig()..setSetting(highContrastSetting, 1.0);
+      final config = const GameSettings().withValue(
+        GameSettingKeys.highContrast,
+        true,
+      );
       final look = highContrastOf(
         config,
         const Accommodations(),

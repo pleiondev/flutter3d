@@ -16,6 +16,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -182,6 +183,62 @@ void main() {
         () =>
             MatchDemo.fromJson(<String, Object?>{...written(), 'version': 99}),
         throwsA(isA<DemoFormatException>()),
+      );
+    });
+
+    test('opens one recorded before the map world was in the match, and '
+        'refuses to replay its tape', () {
+      // A version-one start and its checkpoints say nothing of the water
+      // and the fires, and its waders were held back outside the step: the
+      // tape cannot replay to them. That is another simulation, so the file
+      // opens and the replay is what is refused, with the sentence.
+      final MatchDemo old = MatchDemo.fromJson(<String, Object?>{
+        ...written(),
+        'version': 1,
+      });
+
+      // Mutation: the 1 → 2 step left as an identity — the file names no
+      // simulation, reads as today's, and is replayed into a divergence.
+      expect(old.simulation, MatchDemo.preWaterSimulation);
+      expect(
+        old.refusalOn(strategySimulationVersion),
+        allOf(contains('strategy 0'), contains('not replayed')),
+      );
+      expect(
+        () => old.checkSimulation(strategySimulationVersion),
+        throwsA(isA<ReplayException>()),
+      );
+      // Today's match, written with its number, replays.
+      expect(
+        MatchDemo.fromJson(<String, Object?>{
+          ...written(),
+          'simulation': strategySimulationVersion.toJson(),
+        }).refusalOn(strategySimulationVersion),
+        isNull,
+      );
+    });
+
+    test('every version this build reads has a fixture, and opens', () {
+      // `doc-28`: bytes minted once, never re-minted —
+      // `test/fixtures/v<N>/match.f3drun`. Mutation: bump
+      // `MatchDemo.formatVersion` without a `v3/` beside it.
+      for (int version = 1; version <= MatchDemo.formatVersion; version++) {
+        final MatchDemo read = MatchDemo.fromJson(
+          jsonDecode(
+                File('test/fixtures/v$version/match.f3drun').readAsStringSync(),
+              )
+              as Map<String, Object?>,
+        );
+        expect(read.steps, 2, reason: 'v$version');
+        expect(read.tape.frames.first.single, isA<MoveOrder>());
+        expect(read.checkpoints.steps, <int>[2]);
+      }
+      expect(
+        File(
+          'test/fixtures/v${MatchDemo.formatVersion + 1}/match.f3drun',
+        ).existsSync(),
+        isFalse,
+        reason: 'a fixture from a version this build cannot read',
       );
     });
 

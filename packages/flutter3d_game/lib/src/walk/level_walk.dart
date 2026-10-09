@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A body that walks a level: it collides, jumps and runs, turns where it is
 /// dragged, and carries a camera at eye height.
@@ -48,7 +48,7 @@ final class LevelWalk {
   /// The body that collides with the level.
   final CharacterController body;
 
-  /// How far above the body's centre the eye is.
+  /// How far above the body's centre the eye is, in metres.
   final double eyeHeight;
 
   /// Radians turned per logical pixel dragged.
@@ -112,18 +112,10 @@ final class LevelWalk {
   }
 }
 
-/// A kind for a type the application has not been taught yet.
-///
-/// **A level names things a game does not spawn yet**, and a registry that has
-/// never heard of them refuses the document at all. So every type is accepted
-/// and none is given a meaning: they are coordinates with words attached until
-/// there is something to spawn them into.
-final class OpenKind extends EntityKind {
-  const OpenKind(super.type);
-}
-
 /// A registry that accepts every type [level] names and gives none of them a
-/// meaning — see [OpenKind].
+/// meaning, each an [OpenKind]: a level names things a game does not spawn
+/// yet, and they are coordinates with words attached until there is
+/// something to spawn them into.
 EntityRegistry openRegistryFor(Level level) => EntityRegistry(<EntityKind>[
   for (final type in level.entities.map((EntityDef e) => e.type).toSet())
     OpenKind(type),

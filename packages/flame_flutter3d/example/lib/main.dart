@@ -18,11 +18,13 @@ library;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 void main() => runApp(const HybridApp());
@@ -80,20 +82,26 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
 
   final InputState input = InputState();
   late final FlameInputBridge inputBridge = FlameInputBridge(
-    bindings: Bindings(<InputSource, GameAction>{
-      InputSource.key(LogicalKeyboardKey.arrowUp.keyId): GameAction.moveForward,
-      InputSource.key(LogicalKeyboardKey.arrowDown.keyId): GameAction.moveBack,
-      InputSource.key(LogicalKeyboardKey.arrowLeft.keyId): GameAction.moveLeft,
-      InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
-          GameAction.moveRight,
-    }),
+    actions: ActionMap(
+      actions: ActionSet.common,
+      buttons: Bindings(<InputSource, GameAction>{
+        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
+            GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
+            GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
+            GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
+            GameAction.moveRight,
+      }),
+    ),
     inputState: input,
   );
 
   late final Object3dComponent cube;
   late final RigidBody crate;
   late final Map<String, Object?> _crateStart;
-  late final engine.Material _padMaterial;
+  late final engine.RenderMaterial _padMaterial;
 
   final TextComponent hud = TextComponent(
     text: 'Arrow keys move the cube. Waiting for the crate.',
@@ -107,14 +115,18 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
 
   /// The yard, the cube, the crate and the pad, once the device is open.
   void buildWorld(GraphicsDevice device, Scene scene) {
-    MeshNode mesh(Shape shape, Vector4 colour) => MeshNode(
+    MeshNode mesh(Shape shape, Vector4 color) => MeshNode(
       DeviceMesh.upload(device, shape.build()),
-      engine.Material(name: 'mesh', baseColor: colour, roughness: 0.6),
+      engine.RenderMaterial(
+        name: 'mesh',
+        baseColor: _fromSrgb(color),
+        roughness: 0.6,
+      ),
     );
 
-    _padMaterial = engine.Material(
+    _padMaterial = engine.RenderMaterial(
       name: 'pad',
-      baseColor: Vector4(0.35, 0.4, 0.5, 1.0),
+      baseColor: LinearColor.fromSrgb(0.35, 0.4, 0.5, 1.0),
     );
     scene
       ..add(
@@ -130,7 +142,8 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
         )..setPosition(2.0, 0.025, 0.0),
       )
       ..add(
-        LightNode(intensity: 2.5)..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
+        LightNode(intensity: 2.5 * Photometric.legacyUnit)
+          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 
     // The floor stops the crate; the pad is a trigger just above it, because
@@ -202,7 +215,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
     landings++;
     _sinceLanding = 0.0;
     hud.text = 'Flame heard the crate land ($landings)';
-    _padMaterial.baseColor.setValues(0.3, 0.8, 0.4, 1.0);
+    _padMaterial.baseColor = LinearColor.fromSrgb(0.3, 0.8, 0.4, 1.0);
   }
 
   @override
@@ -218,7 +231,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
       if (_sinceLanding > 2.0) {
         _sinceLanding = -1.0;
         crate.restore(_crateStart);
-        _padMaterial.baseColor.setValues(0.35, 0.4, 0.5, 1.0);
+        _padMaterial.baseColor = LinearColor.fromSrgb(0.35, 0.4, 0.5, 1.0);
       }
     }
     super.update(dt);
@@ -253,3 +266,6 @@ class _CrateComponent extends RigidBodyComponent {
     onLanded();
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

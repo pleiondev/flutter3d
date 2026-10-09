@@ -30,7 +30,7 @@ void main() {
       // below — that it is walking the other way — fails.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final base = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
       final seam = sim.addResource(
         ResourceNode(at: Vector3(40.0, 0.0, 20.0), amount: 500.0),

@@ -19,42 +19,47 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Shown between a renderer that has started and a level that has not yet.
 class LoadingScreen extends StatelessWidget {
-  const LoadingScreen({super.key, this.message = 'Loading…'});
+  const LoadingScreen({super.key, this.message});
 
-  final String message;
+  /// What it says; null says [Flutter3dAppLocalizations.loading].
+  final String? message;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
     body: Center(
-      child: Text(message, style: const TextStyle(color: Colors.white54)),
+      child: Text(
+        message ?? Flutter3dAppLocalizations.of(context).loading,
+        style: const TextStyle(color: Colors.white54),
+      ),
     ),
   );
 }
 
 /// Shown before the renderer exists, and if it never does.
 ///
-/// The shader-bundle sentence is here rather than in a game because it is the
-/// engine's own build step that produces the thing that is missing, and a
-/// person meeting this screen is far more likely to have changed the Flutter
-/// SDK than to have broken their game.
+/// The shader-bundle sentence ([Flutter3dAppLocalizations.rebuildShaderBundle])
+/// is here rather than in a game because it is the engine's own build that
+/// produces the thing that is missing, and a person meeting this screen is
+/// far more likely to have changed the Flutter SDK than to have broken their
+/// game.
 class RendererFailure extends StatelessWidget {
   const RendererFailure({super.key, required this.error});
-
-  static const String _bundleHint =
-      'The shader bundle is built by '
-      'packages/flutter3d_impeller/tool/build_shaders.sh, and has to be '
-      'rebuilt after every Flutter SDK change.';
 
   final Object? error;
 
   @override
-  Widget build(BuildContext context) => _Sheet(
-    title: 'The renderer did not start.',
-    lines: <String>['$error', _bundleHint],
-  );
+  Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
+    return _Sheet(
+      title: words.rendererDidNotStart,
+      lines: <String>['$error', words.rebuildShaderBundle],
+    );
+  }
 }
 
 /// Shown when [asset] threw rather than loaded.
@@ -73,22 +78,30 @@ class LevelLoadFailed extends StatelessWidget {
     required this.asset,
     required this.error,
     this.onStartOver,
-    this.startOverLabel = 'Throw the run away and start again',
+    this.startOverLabel,
   });
 
   final String asset;
   final Object error;
   final VoidCallback? onStartOver;
-  final String startOverLabel;
+
+  /// The way out's label; null says [Flutter3dAppLocalizations.startOver].
+  final String? startOverLabel;
 
   @override
-  Widget build(BuildContext context) => _Sheet(
-    title: 'That level would not load.',
-    lines: <String>[asset, '$error'],
-    action: onStartOver == null
-        ? null
-        : TextButton(onPressed: onStartOver, child: Text(startOverLabel)),
-  );
+  Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
+    return _Sheet(
+      title: words.levelWouldNotLoad,
+      lines: <String>[asset, '$error'],
+      action: onStartOver == null
+          ? null
+          : TextButton(
+              onPressed: onStartOver,
+              child: Text(startOverLabel ?? words.startOver),
+            ),
+    );
+  }
 }
 
 /// The shape all three share: black, centred, readable at a phone's width.

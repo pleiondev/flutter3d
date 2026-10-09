@@ -33,6 +33,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -41,7 +42,28 @@ import 'economy.dart';
 import 'fog.dart';
 import 'formation.dart';
 import 'orders.dart';
+import 'step_phases.dart';
 import 'unit.dart';
+
+/// How fast [unit] can go over the ground it stands on, heading along
+/// ([towardX], [towardZ]) — a unit vector on the ground plane — as a share of
+/// its own speed: one where nothing holds it back.
+///
+/// See [StrategySimulation.pace].
+typedef UnitPace = double Function(Unit unit, double towardX, double towardZ);
+
+/// A shot fired in the step just taken: who fired it, and at whom.
+///
+/// See [StrategySimulation.shots].
+final class UnitShot {
+  const UnitShot(this.shooter, this.mark);
+
+  /// The unit that fired, where the step left it.
+  final Unit shooter;
+
+  /// The unit it was fired at — hurt by it, and perhaps killed.
+  final Unit mark;
+}
 
 /// A crowd on a piece of ground.
 final class StrategySimulation {
@@ -59,14 +81,22 @@ final class StrategySimulation {
     double fogCellSize = 4.0,
     this.fogEvery = 6,
     this.sides = 2,
+    EcsWorld? entities,
   }) : assert(sides > 0, 'a match nobody plays'),
+       entities = entities ?? EcsWorld(),
        // ignore_for_file: prefer_initializing_formals
        _cellSize = cellSize,
        _maxSlope = maxSlope,
        fog = FogOfWar(ground: ground, cellSize: fogCellSize, sides: sides),
        stock = List<Stockpile>.generate(sides, (_) => Stockpile()),
        delivered = List<double>.filled(sides, 0.0) {
-    entities.register<Unit>('unit', encode: _writeUnit, decode: _readUnit);
+    this.entities.components.register<Unit>(
+      ComponentCodec<Unit>.of(
+        id: 'unit',
+        encode: _writeUnit,
+        decode: (data, _) => _readUnit(data),
+      ),
+    );
     _bake();
   }
 
@@ -102,7 +132,16 @@ final class StrategySimulation {
   /// raises the ones a save describes without the map having staged them. That
   /// is the whole of what is bought here; [units] below is still the order the
   /// step walks, and that order is still what makes a run repeat.
-  final EcsWorld entities = EcsWorld();
+  ///
+  /// A world of the match's own when none is given, which the strategy's
+  /// plugin puts in the loop's snapshots, with the match, and in its
+  /// published worlds; a game that wants the crowd in the loop's own world
+  /// passes `loop.world`.
+  final EcsWorld entities;
+
+  /// Systems a game adds to this simulation's step, at the strategy's own
+  /// moments ([StrategyPhases]) and the two every genre has.
+  final StepSystems systems = StepSystems();
 
   /// How many sides are playing.
   ///
@@ -151,12 +190,12 @@ final class StrategySimulation {
   /// intact. Placing a hall on top of one's own crowd is a thing a player does
   /// on the first day, so it is answered here rather than in a note.
   Building build(Building building) {
-    building.centre.y = ground.heightAt(building.centre.x, building.centre.z);
+    building.center.y = ground.heightAt(building.center.x, building.center.z);
     buildings.add(building);
     fog.reveal(
       building.side,
-      building.centre.x,
-      building.centre.z,
+      building.center.x,
+      building.center.z,
       building.sight,
     );
     _bake();
@@ -172,11 +211,11 @@ final class StrategySimulation {
         grid.cellAtPoint(unit.position.x, unit.position.z),
       );
       if (to < 0) continue;
-      final Vector3 centre = grid.centreOfCell(to);
+      final Vector3 center = grid.centerOfCell(to);
       unit.position
-        ..x = centre.x
-        ..z = centre.z
-        ..y = ground.heightAt(centre.x, centre.z);
+        ..x = center.x
+        ..z = center.z
+        ..y = ground.heightAt(center.x, center.z);
     }
   }
 
@@ -227,6 +266,39 @@ final class StrategySimulation {
   /// Whom each restored unit was told to attack, by entity index, until the
   /// crowd it names has been stood up. See [_restoreCrowd].
   final Map<Unit, int> _pendingMarks = <Unit, int>{};
+
+  /// What holds a walker back besides its own legs, or null for nothing.
+  ///
+  /// **A door into the walk, not a second pass over it.** The map's water
+  /// slowed a wader by cutting the step back after it was taken, which also
+  /// cut back the shove and anything else that moved the unit that step, and
+  /// sat outside the step where only the screen's loop ran it. Asked here, in
+  /// [_walk], a unit covers `speed × pace × dt` — the step a replay, a test
+  /// and the screen all take. The map's world sets it
+  /// (`package:flutter3d_demo_content/map_world.dart`); it reads what the
+  /// world had at the start of the step and must answer the same for the
+  /// same state, or a replay parts from its run.
+  UnitPace? pace;
+
+  /// The shots fired in the step just taken, in the order they were fired.
+  ///
+  /// **For what answers a shot besides the unit it hit**: a hall of the other
+  /// side catching from a fire arrow, a ram's stone thrown. That used to be
+  /// inferred by watching every unit's cooldown grow, which named nobody it
+  /// was fired at. Emptied at the top of [step]; not saved, because a step
+  /// that has not run has fired nothing.
+  List<UnitShot> get shots => List<UnitShot>.unmodifiable(_shots);
+  final List<UnitShot> _shots = <UnitShot>[];
+
+  /// What steps after the crowd, every step, in the order it was added: the
+  /// map's world of water and fire
+  /// (`package:flutter3d_demo_content/map_world.dart`), which reads what the
+  /// step did — [shots] among it — and answers with its own.
+  ///
+  /// **In the step rather than round it**, so that whatever steps this
+  /// simulation — a match, a replay of a tape, a playthrough — steps what
+  /// hangs here too, without a loop of its own to remember.
+  final List<void Function(double dt)> afterStep = <void Function(double dt)>[];
 
   /// Adds a unit and returns it, so a caller can keep the handle.
   ///
@@ -301,15 +373,25 @@ final class StrategySimulation {
   /// counts the crowd, which is what keeps production and the fog from
   /// answering for bodies.
   void step(double dt) {
+    systems.run(StepPhase.begin, dt);
+    _shots.clear();
     orders.obey();
+    systems.run(StrategyPhases.afterOrders, dt);
     _work(dt);
     _walk(dt);
+    systems.run(StrategyPhases.afterMoves, dt);
     _fight(dt);
     _separate();
     _sit();
     _bury();
+    systems.run(StrategyPhases.afterFight, dt);
     _produce(dt);
+    systems.run(StrategyPhases.afterProduction, dt);
     _look();
+    for (final void Function(double dt) after in afterStep) {
+      after(dt);
+    }
+    systems.run(StepPhase.end, dt);
   }
 
   /// Recomputes what every side can see, now and then.
@@ -326,8 +408,8 @@ final class StrategySimulation {
     for (final Building building in buildings) {
       fog.reveal(
         building.side,
-        building.centre.x,
-        building.centre.z,
+        building.center.x,
+        building.center.z,
         building.sight,
       );
     }
@@ -343,7 +425,7 @@ final class StrategySimulation {
       if (job == null) continue;
 
       if (job.isFull || job.node.isEmpty) {
-        final Vector3 home = job.dropOff.centre;
+        final Vector3 home = job.dropOff.center;
         if (job.dropOff.distanceTo(unit.position.x, unit.position.z) <=
             _reach) {
           stock[unit.side].amount += job.carried;
@@ -363,7 +445,7 @@ final class StrategySimulation {
       }
 
       if (_within(unit.position, job.node.at, _reach)) {
-        job.carried += job.node.take(
+        job.carried += job.node.harvest(
           _least(job.rate * dt, job.capacity - job.carried),
         );
         unit.order = const UnitOrder.hold();
@@ -399,9 +481,9 @@ final class StrategySimulation {
       add(
         Unit(
           position: Vector3(
-            at.centre.x,
+            at.center.x,
             0.0,
-            at.centre.z + at.depth / 2.0 + 1.0,
+            at.center.z + at.depth / 2.0 + 1.0,
           ),
           side: at.side,
           type: wanted,
@@ -474,7 +556,7 @@ final class StrategySimulation {
       final int cell = _standableNear(grid.cellAt(goal));
       if (cell < 0) continue;
       final FlowField field = _fields.putIfAbsent(cell, () {
-        final made = FlowField(grid)..rebuild(grid.centreOfCell(cell));
+        final made = FlowField(grid)..rebuild(grid.centerOfCell(cell));
         return made;
       });
 
@@ -492,7 +574,10 @@ final class StrategySimulation {
         if (toGoal < Formation.arriveWithin * Formation.arriveWithin) {
           final double distance = math.sqrt(dx * dx + dz * dz);
           if (distance < 1e-4) continue;
-          final double travel = math.min(unit.speed * dt, distance);
+          final double travel = math.min(
+            unit.speed * _paceOf(unit, dx / distance, dz / distance) * dt,
+            distance,
+          );
           final double toX = unit.position.x + dx / distance * travel;
           final double toZ = unit.position.z + dz / distance * travel;
 
@@ -512,10 +597,15 @@ final class StrategySimulation {
       }
 
       if (!field.descend(unit.position, _step)) continue;
-      unit.position.x += _step.x * unit.speed * dt;
-      unit.position.z += _step.z * unit.speed * dt;
+      final double speed = unit.speed * _paceOf(unit, _step.x, _step.z);
+      unit.position.x += _step.x * speed * dt;
+      unit.position.z += _step.z * speed * dt;
     }
   }
+
+  /// [pace]'s answer for [unit] heading along ([x], [z]), or one.
+  double _paceOf(Unit unit, double x, double z) =>
+      pace?.call(unit, x, z) ?? 1.0;
 
   /// Everybody who can shoot and has somebody to shoot at, does.
   ///
@@ -549,6 +639,7 @@ final class StrategySimulation {
       if (mark == null) continue;
       mark.hurt(unit.type.damage);
       unit.cooldown = unit.type.reload;
+      _shots.add(UnitShot(unit, mark));
     }
   }
 
@@ -780,6 +871,7 @@ final class StrategySimulation {
   void restore(Snapshot snapshot) {
     final Map<String, Object?> from = snapshot.data;
     random.state = from.integer('random', random.state);
+    _shots.clear();
 
     final Map<String, Object?>? saved = from.object('entities');
     if (saved != null) entities.restore(saved);
@@ -847,7 +939,7 @@ final class StrategySimulation {
   /// is skipped rather than filled with a hole.
   void _restoreCrowd(Object? order) {
     final Map<int, Unit> found = <int, Unit>{};
-    for (final Entity entity in entities.query<Unit>()) {
+    for (final Entity entity in entities.queryOf<Unit>()) {
       final Unit? unit = entities.get<Unit>(entity);
       if (unit == null) continue;
       unit.entity = entity;

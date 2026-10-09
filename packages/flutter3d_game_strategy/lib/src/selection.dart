@@ -24,9 +24,9 @@ import 'package:vector_math/vector_math.dart';
 import 'unit.dart';
 
 /// Finds units by where a player pointed.
-final class Selection {
+final class UnitSelection {
   /// Reads from [units], which stays the caller's list.
-  const Selection(this.units);
+  const UnitSelection(this.units);
 
   /// The crowd to search, in the order the simulation steps it.
   final List<Unit> units;

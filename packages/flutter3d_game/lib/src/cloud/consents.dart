@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         Demo,
@@ -29,7 +31,11 @@ import 'save_sync.dart';
 /// never turns it on. A game with no save server has no [sync], and its
 /// cloud question says so rather than pretending to be off.
 final class Consents {
-  Consents({required this.storage, required this.policy, this.sync, this.now});
+  /// The answers kept in [storage], read straight away — see [ready]. Until
+  /// they are read, both questions read as not answered, which is no.
+  Consents({required this.storage, required this.policy, this.sync, this.now}) {
+    _ready = _load();
+  }
 
   /// Where the telemetry answer is kept.
   final Storage storage;
@@ -47,38 +53,84 @@ final class Consents {
   /// The document the telemetry answer is kept in.
   static const String telemetryName = 'telemetry.json';
 
+  /// The version of the telemetry answer's document.
+  static const int telemetryVersion = 1;
+
+  /// The telemetry answer's document: `f3d.telemetryConsent`, then the
+  /// keys of [TelemetryConsent.toJson]. A document from before the envelope
+  /// reads as version 1; one from a newer build, or one that does not read,
+  /// is not asked — never a grant.
+  static const FormatSpec telemetryFormat = FormatSpec(
+    id: 'f3d.telemetryConsent',
+    version: telemetryVersion,
+    fixture: 'test/fixtures/v<N>/telemetry.json',
+  );
+
+  late final Future<void> _ready;
+
+  /// Completes once both answers have been read from [storage]. A screen
+  /// that shows them rebuilds when it does; a game that sends a run before
+  /// asking waits for it.
+  Future<void> get ready => _ready;
+
+  TelemetryConsent _telemetry = const TelemetryConsent.notAsked();
+
+  Future<void> _load() async {
+    final text = await storage.read(telemetryName);
+    if (text != null) {
+      try {
+        _telemetry = switch (jsonDecode(text)) {
+          final Map<String, Object?> json => TelemetryConsent.fromJson(
+            telemetryFormat.open(json, refuse: DocumentFormatException.new),
+          ),
+          _ => const TelemetryConsent.notAsked(),
+        };
+      } on FormatException {
+        _telemetry = const TelemetryConsent.notAsked();
+      } on DocumentFormatException {
+        _telemetry = const TelemetryConsent.notAsked();
+      }
+    }
+    await sync?.ready;
+  }
+
   /// Whether the run may be kept in the cloud. False with no [sync].
-  bool get cloud => sync?.consented ?? false;
+  bool get hasCloudConsent => sync?.hasConsent ?? false;
 
   /// Answers the cloud question; whether the answer was kept. Turning it
   /// off forgets what the two copies last agreed on — see [SaveSync].
-  bool answerCloud(bool yes) => switch (sync) {
+  Future<bool> answerCloud({required bool granted}) async => switch (sync) {
     null => false,
-    final SaveSync sync => yes ? sync.consent() : sync.withdraw(),
+    final SaveSync sync =>
+      granted ? await sync.consent() : await sync.withdraw(),
   };
 
   /// The telemetry answer as it stands.
-  TelemetryConsent get telemetry {
-    final text = storage.read(telemetryName);
-    if (text == null) return const TelemetryConsent.notAsked();
-    try {
-      return TelemetryConsent.fromJson(jsonDecode(text));
-    } on FormatException {
-      return const TelemetryConsent.notAsked();
-    }
-  }
+  TelemetryConsent get telemetry => _telemetry;
 
   /// Whether runs may be sent under today's [policy].
   bool get sendsRuns => telemetry.allows(policy);
 
   /// Answers the telemetry question under today's [policy]; whether the
-  /// answer was kept.
-  bool answerTelemetry(bool yes) {
+  /// answer was kept. The answer holds for this session either way.
+  Future<bool> answerTelemetry({required bool granted}) async {
     final at = (now ?? DateTime.now)().toUtc();
-    final answer = yes
+    final answer = granted
         ? TelemetryConsent.granted(policy: policy, at: at)
         : TelemetryConsent.declined(policy: policy, at: at);
-    return storage.write(telemetryName, jsonEncode(answer.toJson()));
+    _telemetry = answer;
+    try {
+      await storage.write(
+        telemetryName,
+        jsonEncode(<String, Object?>{
+          ...telemetryFormat.envelope(),
+          ...answer.toJson(),
+        }),
+      );
+      return true;
+    } on StorageException {
+      return false;
+    }
   }
 }
 
@@ -108,32 +160,41 @@ JsonPost httpJsonPost(http.Client client) => (Uri url, String json) async {
   return (status: answer.statusCode, body: answer.body);
 };
 
-/// Where this build's save and telemetry server is —
-/// `--dart-define=FLUTTER3D_CLOUD=https://…` — or empty for none, which is
-/// every build that does not say: nothing to send to, and the questions say
-/// so.
-const String cloudServer = String.fromEnvironment('FLUTTER3D_CLOUD');
-
-/// The wording the telemetry question is asked under. Changed when what is
-/// sent changes, which asks every player again — see [Consents.policy].
-const String telemetryPolicy = '2026-10';
-
 /// A game's questions and what answering yes turns on, from one server:
 /// [Consents], the [SaveSync] its cloud question governs, and the
 /// [TelemetryUploader] its other question does.
 ///
 /// With no [server] both are still asked — a player can say no to
 /// something a build cannot do yet — and neither sends anything.
+///
+/// **The server and the wording are the game's to say.** They were
+/// constants of this package, the server read from a `--dart-define` and
+/// the wording a date — so every game on the engine shared one environment
+/// variable and one policy date, and a game whose privacy text changed had
+/// to wait for an engine release to ask its players again. A game that
+/// wants a define reads it itself:
+///
+/// ```dart
+/// GameCloud(
+///   game: 'crypt',
+///   storage: storage,
+///   server: const String.fromEnvironment('MY_GAME_CLOUD'),
+///   policy: '2026-10',
+/// );
+/// ```
 final class GameCloud {
+  /// [server] is the base URL, or null or empty for none. [policy] names the
+  /// wording the telemetry question is asked under; change it when what is
+  /// sent changes, which asks every player again — see [Consents.policy].
   factory GameCloud({
     required String game,
     required Storage storage,
+    required String policy,
     SaveFile? saves,
-    String server = cloudServer,
+    String? server,
     http.Client? client,
-    String policy = telemetryPolicy,
   }) {
-    final base = server.isEmpty ? null : Uri.parse(server);
+    final base = (server == null || server.isEmpty) ? null : Uri.parse(server);
     final http.Client? network = base == null ? null : client ?? http.Client();
     final sync = base == null || saves == null
         ? null

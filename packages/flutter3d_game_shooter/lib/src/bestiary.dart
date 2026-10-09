@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -49,7 +50,7 @@ final class Bestiary {
         ),
         position: position,
         layer: CollisionLayers.actor,
-        tuning: MovementTuning(
+        tuning: MovementSettings(
           walkSpeed: def.speed,
           sprintSpeed: def.speed,
           // No jumping and no coyote time: a monster that leaves the ground
@@ -71,13 +72,13 @@ final class Bestiary {
 
 /// Spawns whatever the bestiary says a monster can be.
 final class MonsterKind extends EntityKind {
-  MonsterKind(this.catalog, {this.bestiary, BehaviourKinds? kinds})
-    : kinds = kinds ?? BehaviourKinds(),
+  MonsterKind(this.catalog, {this.bestiary, BehaviorKinds? kinds})
+    : kinds = kinds ?? BehaviorKinds(),
       super(ShooterEntities.monster);
 
   /// What a monster's behaviour tree is read against: the standard leaves
   /// unless the game adds its own.
-  final BehaviourKinds kinds;
+  final BehaviorKinds kinds;
 
   /// What a `kind` string may name. Enough to **validate** a document, which is
   /// something a level editor and a loader that has not built a world yet both
@@ -113,15 +114,15 @@ final class MonsterKind extends EntityKind {
   }
 
   /// The trees read so far, by the document they were read from, so that ten
-  /// guards running one tree share it, as `BehaviourTree` is meant to be.
-  final Map<Map<String, Object?>, BehaviourTree?> _trees =
-      Map<Map<String, Object?>, BehaviourTree?>.identity();
+  /// guards running one tree share it, as `BehaviorTree` is meant to be.
+  final Map<Map<String, Object?>, BehaviorTree?> _trees =
+      Map<Map<String, Object?>, BehaviorTree?>.identity();
 
-  /// A monster whose entity names a `behaviour` the level has rests by it —
+  /// A monster whose entity names a `behavior` the level has rests by it —
   /// see [TreeBrain] — with its `board`, an object of named values, on its
   /// blackboard for the tree to read. A name the level has not got, or a
   /// tree that does not read, leaves the monster as it was: both are
-  /// validation errors (`BehavioursRead`), and a spawn does not fail on one.
+  /// validation errors (`BehaviorsRead`), and a spawn does not fail on one.
   void _rest(
     Actor actor,
     EntityDef entity,
@@ -129,12 +130,12 @@ final class MonsterKind extends EntityKind {
     MonsterDef def,
   ) {
     final named = entity.string('behaviour');
-    final document = named == null ? null : context.level?.behaviours[named];
+    final document = named == null ? null : context.level?.behaviors[named];
     final chase = actor.brain;
     if (document == null || chase is! ChaseBrain) return;
     final tree = _trees.putIfAbsent(
       document,
-      () => BehaviourTree.read(document, kinds).tree,
+      () => BehaviorTree.read(document, kinds).tree,
     );
     if (tree == null) return;
     actor.brain = TreeBrain(

@@ -41,11 +41,13 @@ final class HitZones {
   /// would read as having hit the chest.
   final double headAbove;
 
+  /// A unitless multiplier on the damage of a hit to the head.
   final double headMultiplier;
 
   /// Below this fraction counts as the legs.
   final double legsBelow;
 
+  /// A unitless multiplier on the damage of a hit to the legs.
   final double legsMultiplier;
 
   /// What a hit at [fractionUp] of the way up a body is worth.

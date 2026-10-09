@@ -6,7 +6,7 @@ part of 'scene_widgets.dart';
 /// material of their own are drawn with it.
 ///
 ///     Material3D(
-///       baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+///       baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
 ///       roughness: 0.4,
 ///       children: <Widget>[
 ///         Mesh3D(shape: CuboidShape(), position: ...),
@@ -14,7 +14,7 @@ part of 'scene_widgets.dart';
 ///       ],
 ///     )
 ///
-/// **One engine [engine.Material], made once and changed in place.** A
+/// **One engine [engine.RenderMaterial], made once and changed in place.** A
 /// rebuild with other properties writes them into the same object, so the
 /// meshes keep drawing with it and the renderer's batching keeps seeing one
 /// material — which is what lets a field of crates under one [Material3D] be
@@ -50,13 +50,20 @@ class Material3D extends StatefulWidget {
   /// `BundledMaterials`.
   final LightingModel lighting;
 
-  /// Linear RGBA.
-  final Vector4? baseColor;
+  /// Linear RGBA (`LinearColor.fromSrgb` for a colour picked by eye).
+  final LinearColor? baseColor;
+
+  /// How metallic the surface is, nought to one.
   final double? metallic;
+
+  /// Perceptual roughness, nought to one.
   final double? roughness;
 
   /// Linear RGB.
-  final Vector3? emissive;
+  final LinearColor? emissive;
+
+  /// How bright [emissive] is, in nits (candela per square metre) —
+  /// `RenderMaterial.emissiveStrength`.
   final double? emissiveStrength;
   final TextureHandle? albedo;
   final TextureHandle? normal;
@@ -64,6 +71,8 @@ class Material3D extends StatefulWidget {
   final TextureHandle? occlusion;
   final TextureHandle? emissiveTexture;
   final MaterialAlphaMode? alphaMode;
+
+  /// The alpha below which a masked surface is cut away, nought to one.
   final double? alphaCutoff;
   final bool? doubleSided;
 
@@ -74,7 +83,7 @@ class Material3D extends StatefulWidget {
   final String? name;
 
   /// Called once with the material, when it is made.
-  final void Function(engine.Material material)? onCreated;
+  final void Function(engine.RenderMaterial material)? onCreated;
 
   final List<Widget> children;
 
@@ -83,7 +92,7 @@ class Material3D extends StatefulWidget {
 }
 
 class _Material3DState extends State<Material3D> {
-  late final engine.Material _material = engine.Material(
+  late final engine.RenderMaterial _material = engine.RenderMaterial(
     name: widget.name,
     lighting: widget.lighting,
   );
@@ -103,10 +112,10 @@ class _Material3DState extends State<Material3D> {
 
   void _apply() {
     final m = _material..lighting = widget.lighting;
-    if (widget.baseColor case final c?) m.baseColor.setFrom(c);
+    if (widget.baseColor case final c?) m.baseColor = c;
     if (widget.metallic case final v?) m.metallic = v;
     if (widget.roughness case final v?) m.roughness = v;
-    if (widget.emissive case final c?) m.emissive.setFrom(c);
+    if (widget.emissive case final c?) m.emissive = c;
     if (widget.emissiveStrength case final v?) m.emissiveStrength = v;
     if (widget.albedo case final t?) m.albedo = t;
     if (widget.normal case final t?) m.normal = t;
@@ -129,9 +138,9 @@ class _Material3DState extends State<Material3D> {
 class _MaterialScope extends InheritedWidget {
   const _MaterialScope({required this.material, required super.child});
 
-  final engine.Material material;
+  final engine.RenderMaterial material;
 
-  static engine.Material? maybeOf(BuildContext context) =>
+  static engine.RenderMaterial? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_MaterialScope>()?.material;
 
   @override
@@ -159,12 +168,18 @@ class ReflectionProbe3D extends Spatial3D {
     this.name,
   });
 
-  /// How far the probe reaches; nought reaches everything.
+  /// How far the probe reaches, in metres; nought reaches everything.
   final double radius;
+
+  /// A ratio: the light it measured times this, with no unit.
   final double intensity;
   final int faceSize;
   final int levels;
+
+  /// Where each face's view begins, in metres.
   final double near;
+
+  /// Where each face's view ends, in metres.
   final double far;
   final String? name;
 
@@ -218,18 +233,26 @@ class Decal3D extends Spatial3D {
   final TextureHandle? texture;
 
   /// Linear RGBA; white if null.
-  final Vector4? color;
+  final LinearColor? color;
 
   /// Linear RGB; none if null.
-  final Vector3? emissive;
+  final LinearColor? emissive;
 
   /// The part of [texture] it shows, as `(u0, v0, u1, v1)`; all of it if null.
   final Vector4? region;
 
   /// Higher draws over lower where two decals overlap.
   final int order;
+
+  /// The angle, in radians from the box's up, past which a surface takes
+  /// none of the decal.
   final double angleLimit;
+
+  /// How many radians inside [angleLimit] the decal fades in over.
   final double angleFade;
+
+  /// The share of the box's half height, from its top and bottom faces, the
+  /// decal fades out over.
   final double depthFade;
   final String? name;
 
@@ -245,8 +268,8 @@ class _Decal3DState extends _SpatialState<Decal3D, DecalNode> {
   void apply(DecalNode node, _Scene3DScope scope) {
     node
       ..texture = widget.texture
-      ..color = widget.color?.clone() ?? Vector4(1.0, 1.0, 1.0, 1.0)
-      ..emissive = widget.emissive?.clone() ?? Vector3.zero()
+      ..color = widget.color ?? LinearColor.white
+      ..emissive = widget.emissive ?? LinearColor.black
       ..region = widget.region?.clone() ?? Vector4(0.0, 0.0, 1.0, 1.0)
       ..order = widget.order
       ..angleLimit = widget.angleLimit
@@ -279,15 +302,21 @@ class Mirror3D extends Spatial3D {
     super.children,
   });
 
-  /// F0 at normal incidence: one is a perfect mirror.
+  /// F0 at normal incidence, a fraction from nought to one: one is a perfect
+  /// mirror.
   final double reflectance;
+
+  /// What the Fresnel term is multiplied by, a unitless multiplier.
   final double strength;
 
   /// Linear RGB the reflection is multiplied by; white if null.
-  final Vector3? tint;
+  final LinearColor? tint;
 
   /// The reflection's size as a fraction of the view's.
   final double resolution;
+
+  /// How far below the plane the mirrored camera's near plane sits, in
+  /// metres.
   final double clipOffset;
   final String? name;
 
@@ -307,7 +336,7 @@ class _Mirror3DState extends _SpatialState<Mirror3D, PlanarReflectorNode> {
       ..strength = widget.strength
       ..resolution = widget.resolution
       ..clipOffset = widget.clipOffset;
-    node.tint.setFrom(widget.tint ?? Vector3(1.0, 1.0, 1.0));
+    node.tint = widget.tint ?? LinearColor.white;
   }
 }
 
@@ -333,8 +362,8 @@ class _Contributor3DState extends State<Contributor3D> {
     super.didChangeDependencies();
     final host = _Scene3DScope.of(context).host;
     if (identical(host, _host)) return;
-    _host?.renderer.removeContributor(widget.contributor);
-    host.renderer.addContributor(widget.contributor);
+    _host?.renderer.renderSteps.removeContributor(widget.contributor);
+    host.renderer.renderSteps.addContributor(widget.contributor);
     _host = host;
   }
 
@@ -345,13 +374,13 @@ class _Contributor3DState extends State<Contributor3D> {
     final renderer = _host?.renderer;
     if (renderer == null) return;
     renderer
-      ..removeContributor(oldWidget.contributor)
-      ..addContributor(widget.contributor);
+      ..renderSteps.removeContributor(oldWidget.contributor)
+      ..renderSteps.addContributor(widget.contributor);
   }
 
   @override
   void dispose() {
-    _host?.renderer.removeContributor(widget.contributor);
+    _host?.renderer.renderSteps.removeContributor(widget.contributor);
     super.dispose();
   }
 
@@ -384,6 +413,8 @@ class Particles3D extends Spatial3D {
   });
 
   final ParticleEffect effect;
+
+  /// How many particles it emits, per second.
   final double perSecond;
 
   /// How many particles can be alive at once; read when first built.
@@ -407,15 +438,22 @@ class _Particles3DState extends _SpatialState<Particles3D, SceneNode>
       ParticleSystem(capacity: widget.capacity, seed: widget.seed);
   ParticleContributor? _contributor;
   _SceneHost? _host;
+  Registration? _followsOrigin;
 
   @override
   SceneNode createNode(_Scene3DScope scope) {
     final host = scope.host;
-    _contributor = host.renderer.addContributor(
+    _contributor = host.renderer.renderSteps.addContributor(
       ParticleContributor(_system, texture: widget.texture),
     );
     host.animated.add(this);
     _host = host;
+    // The particles live in the scene's space and are not nodes: a floating
+    // origin moves them as it moves the nodes, so none jumps in the world.
+    _followsOrigin = host.scene.onOriginShift((OriginShifted shift) {
+      final offset = shift.offset;
+      _system.shiftOrigin(offset.x, offset.y, offset.z);
+    });
     return SceneNode(name: 'particles');
   }
 
@@ -435,11 +473,12 @@ class _Particles3DState extends _SpatialState<Particles3D, SceneNode>
 
   @override
   void dispose() {
+    _followsOrigin?.cancel();
     final host = _host;
     if (host != null) {
       host.animated.remove(this);
       if (_contributor case final contributor?) {
-        host.renderer.removeContributor(contributor);
+        host.renderer.renderSteps.removeContributor(contributor);
       }
     }
     super.dispose();

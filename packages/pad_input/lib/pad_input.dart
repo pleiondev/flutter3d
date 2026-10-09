@@ -110,7 +110,7 @@ final class Gamepad {
   /// Fills [out] with what the pad is doing, dead zone already applied.
   void read(PadSnapshot out) {
     _platform.readPad(index, out);
-    if (!out.connected) return;
+    if (!out.isConnected) return;
 
     _stick[0] = out.axis(PadAxis.leftStickX);
     _stick[1] = out.axis(PadAxis.leftStickY);

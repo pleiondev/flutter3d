@@ -3,16 +3,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching, LevelScene;
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../hot_swap/hot_swap.dart';
 import 'loaded_level.dart';
 import 'visibility_culler.dart';
 
-export 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
-    show LevelBatching;
 export 'loaded_level.dart';
 
 /// How a level's own files are found.
@@ -38,13 +38,19 @@ typedef AssetBytes = Future<ByteData> Function(AssetRequest request);
 /// [AssetBytes] already lets it reach. Without this, [LevelLoader.load] is
 /// only ever the bundle, and anything else has to skip it and call
 /// [LevelLoader.build] with a document it decoded itself.
-typedef DocumentText = Future<String> Function(AssetRequest request);
+typedef LevelDocumentText = Future<String> Function(AssetRequest request);
 
-/// The Flutter asset bundle as a [DocumentText]. The default when a caller
+/// The Flutter asset bundle as a [LevelDocumentText]. The default when a caller
 /// names none — an adapter rather than `rootBundle.loadString` directly,
 /// because the callback carries a request now and the bundle takes a string.
+///
+/// A generated document is revalidated with the server on the web
+/// ([isGeneratedAsset]), so a level saved by the newer build is what the
+/// newer code reads — `A4.18`.
 Future<String> _bundleDocument(AssetRequest request) =>
-    rootBundle.loadString(request.uri);
+    isGeneratedAsset(request.uri)
+    ? loadRevalidatedAssetString(request.uri)
+    : rootBundle.loadString(request.uri);
 
 /// The Flutter asset bundle as an [AssetBytes]. See [_bundleDocument].
 Future<ByteData> _bundleAsset(AssetRequest request) =>
@@ -135,16 +141,27 @@ final class LevelLoader {
   ///
   /// [deviceClass] reads that class's own document first — see
   /// [_classDocument].
+  ///
+  /// [physics] is the backend the level's collision world is made on
+  /// (`CollisionWorld.backend`): the Dart reference unless the game hands
+  /// over the one it chose — `usePhysics()` from `flutter3d_physics_native`.
+  ///
+  /// [gameWorld] is the game's own world (`WorldProperties`), which the
+  /// collision world is made in with the level's own laid over it
+  /// (`Level.worldOver`): the standard world when null. A level filled with a
+  /// medium no catalogue has is refused, naming the plugin it needs.
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
-    DocumentText? readDocument,
+    LevelDocumentText? readDocument,
     bool sidecars = true,
     LevelBatching batching = LevelBatching.perMaterial,
     DeviceClass? deviceClass,
+    PhysicsBackend physics = const DartPhysics(),
+    WorldProperties? gameWorld,
   }) async {
     final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
@@ -167,6 +184,8 @@ final class LevelLoader {
       lightmap: lightmap,
       issues: <LevelIssue>[?issue, ?lightmapIssue],
       batching: batching,
+      physics: physics,
+      gameWorld: gameWorld,
     );
   }
 
@@ -181,9 +200,9 @@ final class LevelLoader {
   static Future<String> _classDocument(
     String assetPath,
     DeviceClass? deviceClass,
-    DocumentText read,
+    LevelDocumentText read,
   ) async {
-    if (deviceClass ?? assetDeviceClass case final DeviceClass reading) {
+    if (deviceClass case final DeviceClass reading) {
       try {
         return await read(AssetRequest(deviceClassPath(assetPath, reading)));
       } catch (_) {
@@ -239,7 +258,7 @@ final class LevelLoader {
   /// does not parse is the one who wants to hear it.
   static Future<(LevelVisibility?, LevelIssue?)> _sidecarVisibility(
     String assetPath,
-    DocumentText read,
+    LevelDocumentText read,
   ) async {
     final path = assetPath.endsWith('.json')
         ? '${assetPath.substring(0, assetPath.length - 5)}.visibility.json'
@@ -375,6 +394,8 @@ final class LevelLoader {
     Lightmap? lightmap,
     List<LevelIssue> issues = const <LevelIssue>[],
     LevelBatching batching = LevelBatching.perMaterial,
+    PhysicsBackend physics = const DartPhysics(),
+    WorldProperties? gameWorld,
   }) async {
     final level = expandRecipes(authored);
     // Errors throw with every one listed, because a level with a door whose key
@@ -383,12 +404,18 @@ final class LevelLoader {
     final validator = LevelValidator(registry: registry, rules: rules);
     validator.assertValid(level);
 
-    final collision = CollisionWorld();
+    // The world before anything is made in it: the backend's dynamics, when
+    // a game adds them, read it from their first step.
+    final collision = CollisionWorld(backend: physics);
+    collision.properties = level.worldOver(
+      gameWorld ?? WorldProperties.standard,
+      materials: collision.materials,
+    );
     level.addTo(collision);
-    // The run's physics walks the level's characters and casts its rays —
-    // the core, where the game chose it — whether or not anything loose
+    // The run's physics — [physics], the world's backend — walks the
+    // level's characters and casts its rays, whether or not anything loose
     // ever falls in it. A game that adds dynamics takes the world over.
-    PhysicsBackend.current.attach(collision);
+    physics.attach(collision);
 
     // Every map the level names, loaded once and shared. A wall texture used
     // by four surfaces is one upload, not four — and the cache belongs to this
@@ -435,7 +462,7 @@ final class LevelLoader {
 
     // **The other dictionary.** Everything above binds a surface through
     // `materialFrom`, which is the bridge between the eight fields a
-    // `LevelMaterial` has and the renderer's `Material` — and those eight are
+    // `LevelMaterial` has and the renderer's `RenderMaterial` — and those eight are
     // all a level author ever had. A `.fmat` is the engine's own material
     // format and a far larger vocabulary: fourteen scalars, five texture slots
     // each with its own sampler, alpha, a shader of the application's own and
@@ -443,7 +470,7 @@ final class LevelLoader {
     // *ask that file instead*, and this is the fork.
     //
     // **What happens to the fields the second dictionary has no word for.**
-    // `texelsPerMetre` is untouched and still applies: it scales the texture
+    // `texelsPerMeter` is untouched and still applies: it scales the texture
     // coordinates in `BrushGeometry` long before anything is bound, so a
     // deferred wall tiles exactly as it did. `baseColor`, `roughness`,
     // `metallic`, `emissive`, `albedo`, `normal` and `orm` are *not* merged in
@@ -459,7 +486,7 @@ final class LevelLoader {
     // either has a lightmap layout or has not, so every surface in it carries
     // lightmap coordinates or none does — the one thing set on the material
     // per surface below.
-    final deferred = <String, Material>{};
+    final deferred = <String, RenderMaterial>{};
     for (final entry in level.materials.entries) {
       if (entry.value.fmat case final String path) {
         if (await _fmatMaterial(
@@ -469,7 +496,7 @@ final class LevelLoader {
               readAsset ?? _bundleAsset,
               loadIssues,
             )
-            case final Material material) {
+            case final RenderMaterial material) {
           deferred[entry.key] = material;
         }
       }
@@ -503,7 +530,7 @@ final class LevelLoader {
     // map's own density; the map carries pixels and a hash, not a table.
     var layout = lightmap == null
         ? null
-        : LightmapLayout.plan(level, texelsPerMetre: lightmap.texelsPerMetre);
+        : LightmapLayout.plan(level, texelsPerMeter: lightmap.texelsPerMeter);
     // And then checked against the map, which is the one thing the hash
     // cannot do for us: it says the level is the level the bake read, not
     // that this build's packer puts the faces where that build's packer put
@@ -607,11 +634,11 @@ final class LevelLoader {
   /// Builds an engine material from a level material and the loaded maps —
   /// [LevelScene.materialFrom], kept here under its old name because props,
   /// fixtures and the lesson viewers bind their looks through it.
-  static Material materialFrom(
+  static RenderMaterial materialFrom(
     LevelMaterial source,
     Map<String, TextureHandle?> textures, {
     String? name,
-    SamplerOptions tiling = SamplerOptions.trilinearRepeat,
+    SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat,
   }) => LevelScene.materialFrom(source, textures, name: name, tiling: tiling);
 
   /// How far the filter may reach across a brush surface at a grazing angle
@@ -620,7 +647,7 @@ final class LevelLoader {
 
   /// The tiling sampler with the taps this [device] can take —
   /// [LevelScene.tilingSamplerFor].
-  static SamplerOptions tilingSamplerFor(GraphicsDevice device) =>
+  static SamplerDescriptor tilingSamplerFor(GraphicsDevice device) =>
       LevelScene.tilingSamplerFor(device);
 
   /// Reads the `.fmat` at [path] and binds it, or says why it could not.
@@ -637,7 +664,7 @@ final class LevelLoader {
   /// that wear it are named that already, and it is the name the editor
   /// sends a dragged parameter under (`HotSwap.setMaterial`); the file's own
   /// name would leave a running level unreachable from the panel editing it.
-  static Future<Material?> _fmatMaterial(
+  static Future<RenderMaterial?> _fmatMaterial(
     GraphicsDevice device,
     String name,
     String path,
@@ -646,7 +673,7 @@ final class LevelLoader {
   ) async {
     final source = _LevelMaterialSource(path, read);
     final warnings = <String>[];
-    final Material material;
+    final RenderMaterial material;
     try {
       final document = await loadMaterialDocument(source);
       warnings.addAll(document.warnings);

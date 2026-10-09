@@ -31,7 +31,7 @@ void main() {
         );
       final out = PadSnapshot();
       pad.fill(out);
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
       expect(out.axis(PadAxis.leftStickX), closeTo(0.5, 1e-3));
       // Mutation: XInput's y passed through — up would read as down.
       expect(out.axis(PadAxis.leftStickY), closeTo(-1.0, 1e-6));
@@ -74,7 +74,7 @@ void main() {
       expect(out.axis(PadAxis.triggerRight), 1.0);
       pads.note(const <String, Object?>{'event': 'disconnected', 'slot': 2});
       pads.fill(2, out);
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
       expect(pads.connectedCount, 0);
     });
   });
@@ -130,7 +130,7 @@ void main() {
       final out = PadSnapshot();
       pads.fill(0, out);
       expect(out.down(PadButton.faceSouth), isFalse);
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
     });
   });
 }

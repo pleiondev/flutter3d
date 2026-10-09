@@ -17,7 +17,12 @@
 /// both win and silently lose one of the runs.
 library;
 
-abstract interface class CloudSaveStore {
+/// **Implementable outside this package, as a base class**: a member added in
+/// a minor release arrives with a default body, so a store written against
+/// 1.0 keeps compiling — `extends CloudSaveStore`, not `implements`.
+abstract base class CloudSaveStore {
+  const CloudSaveStore();
+
   /// The store's name as a player knows it — "Play Games", "iCloud" — for
   /// the sentences a sync answers with.
   String get name;
@@ -31,11 +36,20 @@ abstract interface class CloudSaveStore {
 }
 
 /// What [CloudSaveStore.fetch] found.
+///
+/// **Sealed on purpose.** A sync answers every case and nothing else can
+/// happen to a fetch — there is a copy, there is none, or the store could not
+/// say — so a `switch` over it is exhaustive and a case that went unhandled
+/// would be a run silently lost. A fourth answer would be a new protocol, and
+/// waits for a major.
 sealed class CloudFetch {
   const CloudFetch();
 }
 
 /// What [CloudSaveStore.put] did.
+///
+/// **Sealed on purpose**, for the reason [CloudFetch] is: kept, overtaken by
+/// another device, or not reachable are the whole of what a write can do.
 sealed class CloudPut {
   const CloudPut();
 }

@@ -10,10 +10,9 @@ library;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 /// Rooms A (x 0..8), B (x 10..18) and C (x 20..28); a doorway at z 3..5
 /// between A and B, a solid wall between B and C.

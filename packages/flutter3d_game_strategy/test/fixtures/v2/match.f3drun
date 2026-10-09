@@ -1,0 +1,47 @@
+{
+  "version": 2,
+  "level": "assets/levels/map_a.json",
+  "levelHash": "c0ffee02",
+  "run": {
+    "version": 1,
+    "random": 7
+  },
+  "tape": {
+    "seed": 7,
+    "frames": [
+      [
+        {
+          "kind": "move",
+          "units": [
+            0,
+            1
+          ],
+          "goal": [
+            4.0,
+            0.0,
+            2.0
+          ],
+          "spacing": 1.4,
+          "width": 5
+        }
+      ],
+      []
+    ]
+  },
+  "buildStamp": "fixture-mint",
+  "checkpoints": {
+    "every": 2,
+    "steps": [
+      2
+    ],
+    "digests": [
+      "6afdc9f9"
+    ]
+  },
+  "platform": "macos",
+  "simulation": {
+    "engine": 1,
+    "genre": "strategy",
+    "genreVersion": 1
+  }
+}

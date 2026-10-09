@@ -4,11 +4,12 @@ library;
 
 import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show CatchUp, WorldTiming;
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';
 import '../host/step_clock.dart';
+import '../host/step_cut.dart';
 import 'rigid_body_component.dart';
 
 /// The one place a bridged game's frame steps its [Dynamics] and dispatches
@@ -35,7 +36,7 @@ import 'rigid_body_component.dart';
 /// took: a sixtieth, a hundred-and-twentieth, a quarter of a second when a
 /// laptop stalls. Integrated as it comes, the same jump reaches a different
 /// height on a faster screen and a hitch lets a fast body step through a
-/// wall. [step] spends the frame's time in whole steps of one size, at most
+/// wall. Its `timing` spends the frame's time in whole steps of one size, at most
 /// its `maxStepsPerFrame` of them, and keeps the remainder for the next
 /// frame; contacts are dispatched after each step, so none is missed
 /// between two. [alpha] is how far the frame is past the last step, and a
@@ -48,7 +49,7 @@ import 'rigid_body_component.dart';
 /// one below the actors' readers.
 ///
 /// **In a `HasFixedStep` game it steps with the game**, once in each of the
-/// game's steps, and [step] is not used: see [HasFixedStep].
+/// game's steps, and its own `timing` is not used: see [HasFixedStep].
 final class PhysicsStepComponent extends Component
     with FixedStepUpdate
     implements StepClock {
@@ -56,9 +57,10 @@ final class PhysicsStepComponent extends Component
     required this.dynamics,
     required this.world,
     this.afterStep,
-    FixedStep? step,
+    WorldTiming timing = const WorldTiming(),
+    CatchUp catchUp = const CatchUp.announce(),
     super.priority = BridgePriority.physics,
-  }) : step = step ?? FixedStep();
+  }) : _step = StepCut(timing: timing, catchUp: catchUp);
 
   /// The bodies this steps.
   final RigidDynamics dynamics;
@@ -70,14 +72,15 @@ final class PhysicsStepComponent extends Component
   /// game with nothing to move there.
   final void Function()? afterStep;
 
-  /// How the frame's time is cut into steps: one sixtieth of a second each
-  /// unless given otherwise.
-  final FixedStep step;
+  // How the frame's time is cut into steps when the game does not step
+  // this: the `timing` and `catchUp` it was made with, a sixtieth of a
+  // second each and at most five a frame unless given otherwise.
+  final StepCut _step;
 
   /// How far this frame is past the last step, from 0 up to 1: the game's,
   /// when the game steps it.
   @override
-  double get alpha => _game?.alpha ?? step.alpha;
+  double get alpha => _game?.alpha ?? _step.alpha;
 
   HasFixedStep? _game;
 
@@ -113,9 +116,9 @@ final class PhysicsStepComponent extends Component
     super.update(dt);
     _frame++;
     if (_game != null) return;
-    final steps = step.advance(dt);
+    final steps = _step.advance(dt);
     for (var i = 0; i < steps; i++) {
-      fixedUpdate(step.stepSeconds);
+      fixedUpdate(_step.stepSeconds);
     }
   }
 

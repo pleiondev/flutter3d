@@ -53,7 +53,7 @@ String? picturesDirectory({
 /// **Through a `.part` file and a rename**, as every other write in this
 /// package goes: a game closed half way through a large capture leaves a
 /// `.part` behind rather than a PNG that opens as half a picture.
-final class FilePhotoShelf implements PhotoShelf {
+final class FilePhotoShelf extends PhotoShelf {
   FilePhotoShelf({required this.appName, Directory? directory})
     : _given = directory;
 
@@ -95,7 +95,7 @@ final class FilePhotoShelf implements PhotoShelf {
   }
 }
 
-final class _FileSaving implements PhotoSaving {
+final class _FileSaving extends PhotoSaving {
   _FileSaving(this.file, this.part, this.handle);
 
   final File file;
@@ -165,7 +165,7 @@ final class _FileSaving implements PhotoSaving {
 
 /// A shelf that could not be opened: takes the bytes and drops them, and
 /// says why at the end.
-final class _Nowhere implements PhotoSaving {
+final class _Nowhere extends PhotoSaving {
   _Nowhere(this.why);
 
   final String why;

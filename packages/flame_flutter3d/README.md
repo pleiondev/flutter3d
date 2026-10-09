@@ -20,7 +20,7 @@ class MyGame extends FlameGame with HasFlutter3d {
     scene.add(LightNode(name: 'sun'));
     jet = JetComponent(node: SceneNode(), scene: scene);
     add(jet);
-    add(ChaseCameraComponent(ChaseCamera(
+    add(FlameChaseCameraComponent(FlameChaseCamera(
       camera: camera3d,
       target: jet,
       offset: Vector3(0, 10, 10),
@@ -107,8 +107,10 @@ the game turns and the bridge leaves alone.
 For many small things of one shape, `InstancedObject3dComponent` takes a
 slot in a shared `InstancedMeshNode`, so a hundred shots are one draw.
 
-`ChaseCamera` follows a bridged component in perspective through
-`flutter3d_sim`'s `CameraRig`, which can also shake it.
+`FlameChaseCamera` follows a bridged component in perspective, and
+`ViewCamera` goes wherever a function says: each is a framing on a
+`VirtualCamera` from `flutter3d_camera`, whose rig eases, shakes and keeps
+it out of walls, and which a `CameraDirector` can take like any camera.
 `CameraSyncController` keeps an orthographic camera and Flame's
 `Viewfinder` framed the same; given an `eyeOffset`, it lets Flame's own
 camera drive a perspective one, so `follow`, `setBounds` and zoom work as
@@ -125,7 +127,9 @@ the scene, round its craft.
 
 `FlameInputBridge` translates Flame's keys, drags, touch stick
 (`followJoystick`) and buttons (`bindButton`) into `flutter3d_game`'s
-`Bindings` and `InputState`, the objects a native game's input writes.
+`ActionMap` and `InputState`, the objects a native game's input writes: a
+key goes through the map's buttons, its composites and its slots, as it does
+on the keyboard.
 
 `RigidBodyComponent` and `ActorComponent` carry a body across.
 `PhysicsStepComponent` and `ActorSystemComponent` step the shared world

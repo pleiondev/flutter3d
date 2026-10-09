@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show PngStripWriter;
-import 'package:vector_math/vector_math.dart';
 
 export 'photo_shelf_native.dart'
     if (dart.library.js_interop) 'photo_shelf_web.dart';
@@ -22,13 +21,25 @@ export 'photo_shelf_native.dart'
 /// share sheet on Android or iOS implements this with the plugin it already
 /// uses — this package does not pull one in for every game that has no use
 /// for it.
-abstract interface class PhotoShelf {
+///
+/// **Implementable outside this package, as a base class**: a member added
+/// in a minor release arrives with a default body, so an implementation
+/// written against 1.0 keeps compiling — `extends PhotoShelf`, not
+/// `implements`.
+abstract base class PhotoShelf {
+  const PhotoShelf();
+
   /// A place for a PNG called [name], which includes its extension.
   Future<PhotoSaving> open(String name);
 }
 
 /// One picture on its way to a shelf.
-abstract interface class PhotoSaving {
+///
+/// **Implementable outside this package, as a base class**, for the reason
+/// [PhotoShelf] is.
+abstract base class PhotoSaving {
+  const PhotoSaving();
+
   /// The next bytes of the file, in order.
   void add(Uint8List bytes);
 
@@ -36,8 +47,9 @@ abstract interface class PhotoSaving {
   /// and a share sheet the player cancelled are both answers.
   Future<PhotoSaved> close();
 
-  /// Gives up on the file and leaves nothing half-written behind.
-  Future<void> abandon();
+  /// Gives up on the file and leaves nothing half-written behind. Does
+  /// nothing by default, for a saving that writes nowhere until [close].
+  Future<void> abandon() async {}
 }
 
 /// What happened to a picture.
@@ -79,7 +91,7 @@ final class PhotoTaken {
 /// that fails part way abandons the file rather than leaving the first half
 /// of a picture in the player's Pictures folder, and the failure comes back
 /// as a [PhotoSaved] that says so.
-Future<PhotoTaken> takePhoto({
+Future<PhotoTaken> savePhoto({
   required Renderer renderer,
   required Scene scene,
   required CameraNode camera,
@@ -89,7 +101,7 @@ Future<PhotoTaken> takePhoto({
   required String name,
   RenderSettings settings = const RenderSettings(),
   PhotoFilter filter = PhotoFilter.none,
-  Vector4? clearColor,
+  Vector4? clearColorSrgb,
   int tileWidth = 1024,
   int tileHeight = 1024,
   void Function(double progress)? onProgress,
@@ -105,7 +117,7 @@ Future<PhotoTaken> takePhoto({
       height: height,
       settings: settings,
       filter: filter,
-      clearColor: clearColor,
+      clearColorSrgb: clearColorSrgb,
       tileWidth: tileWidth,
       tileHeight: tileHeight,
       onProgress: onProgress,

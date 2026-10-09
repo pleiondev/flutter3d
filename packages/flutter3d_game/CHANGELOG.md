@@ -1,10 +1,376 @@
-## 0.9.0
+## 1.0.0-rc.1
 
-- **`postGameEvent` tells whoever watches the game what happened.** It
+- **The one facade, and the list says so.** The level, `EngineLoop` and
+  `InputState` (`flutter3d_sim`), `CollisionWorld`, `Collider` and
+  `RigidDynamics` (`flutter3d_physics`) and the listener, emitters and sound
+  bank (`flutter3d_audio_core`) are re-exported here by name; `flutter3d`
+  named them until now. No other package of the engine re-exports another's
+  API to save an import, and `tool/structure.dart` holds the list.
+  **Breaking:** `OriginShifted` and `RenderAnchor` no longer come through
+  `flutter3d`; they are the plugin API's.
+
+- **Breaking: `OpenKind` is `flutter3d_sim`'s.** It was declared here and,
+  identically, in `flutter3d_editor_core`; `openRegistryFor` uses the one
+  beside `EntityKind` now.
+- **Breaking: the widgets are `flutter3d_game_ui`'s.** `TouchControls`,
+  `TouchStick`, `TouchButton`, `TouchSlots`, `TouchSlot`, `TouchToggle`,
+  `TouchAction`, `SettingsOverlay`, `SettingsPanel`, `SettingsSection` and
+  its sections, `ActionBindingsSection` with `RebindRequest` and
+  `TuningChange`, `PrivacySection`, `askWhichRun`, `syncBeforeBegin`,
+  `AutomapView`, `AutomapPainter`, `Credit`, `CreditsSection`,
+  `TapToRestart`, `GameUiTheme` and `Flutter3dGameLocalizations` moved
+  there, beside widgets that did the same jobs. This package keeps the
+  runtime: input, the run, the settings and the controller that writes
+  them, the saves, and the actors and fixtures drawn. `dart fix` moves the
+  imports, and `migrate` adds the dependency.
+
+- **`LiveLevel` applies a level's world** over the game's when it swaps one
+  in (`collision:`, `gameWorld:`).
+- **Docs**: `SoundOcclusion.perObstacle`'s half is −6 dB, not the ten a
+  door costs.
+- **`ActionBindingsSection`'s callbacks take one object.** `onRebind` is
+  handed a `RebindRequest` (`RebindRequest.cancel` to stop listening) and
+  `onTuning` a `TuningChange`, where they took two and three positional
+  arguments; `FrameInfo` and `ListenerPose` are re-exported with
+  `Flutter3dView`. `BehaviorOverlay.colorOf` answers a `LinearColor`.
+- **`ActorVisuals.animate` reads published state** when it has some:
+  whether an actor lives (its corpse, a clip that holds its last pose) and
+  which clips it plays come from its published row, and a climbed stair is
+  smoothed from the published `Gait`. `ActorAppearance.clipsFrom` is asked
+  with that row, and answers `clipsFor` by default; `ActorVisuals.wrapWhen`
+  is `wrapFor` from a published life.
+- **Breaking: `SaveFile.read` answers the `SaveRecord`**, a class, where it
+  answered a record of `level` and `run`; both are fields of it, so code
+  reading `.level` and `.run` is unchanged.
+- **The save-slot index, the cloud-save state and the telemetry answer are
+  formats with an envelope**: `SaveSlots.indexFormat` (`f3d.saveSlots`),
+  `SaveSync.stateFormat` (`f3d.cloudSaves`) and `Consents.telemetryFormat`
+  (`f3d.telemetryConsent`), each with a fixture. The shapes before the
+  envelope still read; keys a later build added are kept; an index from a
+  newer build is never written over, and a newer consent document is no
+  consent.
+- **`gameFormats` lists them** with the settings file and the action map,
+  for `Flutter3dView.formats`.
+- **Breaking: `registerTimelineExtensions` returns a `Registration`, and
+  several timelines can be on the VM service.** The extensions answer for
+  the most recently registered timeline still on; cancelling hands them
+  back to the one before, and cancelling the last switches them off. A
+  second timeline used to throw. `frameTimes`, `tracks` and `bugReport` are
+  always registered and answer an error when the current timeline lacks
+  what they need.
+- **Breaking: `ext.flutter3d.cvar.list` answers `{"tunables": {name:
+  {"value", "default"}}}`**, where it answered with the tunables at the top
+  level.
+- **The timeline and level extensions declare the keys they answer with**,
+  so `api/flutter3d_game.vm` lists every one.
+
+- **Breaking: the timeline rewinds through the loop.** `RunTimeline` takes
+  `loop:` (the `EngineLoop` its `RewindBuffer` is attached to,
+  `rewind.attach(loop)`) in place of `input:`, `stepSim:`, `restore:` and
+  `stepSeconds:`: a keyframe is the loop's own capture, restored through
+  `EngineLoop.rewindTo`, and a replay runs the loop's own steps with the tape
+  as its playback, marked resimulated. So a rewind, a scrub, a level swap
+  and a replay under new code cover every part of the state — the world,
+  the genre's run, a plugin's part — and the loop's step count with it,
+  where a step and a restore of the game's own put back the genre and left
+  the rest. `scrubTo`, `tracks` and `replayUnderNewCode` lose `capture:`;
+  `tracks` reads a part's own data with `part:`, and a divergence's path
+  starts with the part it is in. `registerTimelineExtensions` registers
+  `scrubTo` and `replayUnderNewCode` always and loses `capture:` (`tracks`
+  takes `trackedPart:`); `replayAfterHotSwap` loses `capture:`.
+- **Breaking: a run file replays through the loop.** `replayDemo` (a step,
+  a save and a restore of the game's own) is gone; `replayDemoOnLoop` takes
+  `part:` — the run's part of the loop's snapshots, a genre's plugin id — in
+  place of `restore:` and `save:`, restores the file's start as that part and
+  digests each checkpoint from it, so every tape recorded from a run's own
+  `save()` checks out as it did. `rewindBufferFromDemo` takes `loop:` and
+  `part:` in place of `stepsPerSecond:`, `input:`, `restore:`, `save:` and
+  `stepSim:`, and builds its buffer attached to the loop. `bugReportTape`
+  takes `part:`, so a report's start is the run's own snapshot, as a `.f3drun`
+  holds it.
+- **`ActorVisuals` draws from published state.** Given `published:` —
+  `() => loop.published` — it places each actor where the step left it,
+  faces it the way the step left it and lays it down when the step says it
+  died, from the rows the run's world published (`PublishedActor.read`),
+  not from the live actor: the view's side of the boundary, which keeps
+  drawing when the simulation runs elsewhere. The dungeon draws its
+  monsters this way.
+- **Breaking: `GameSettings` is a value.** It is `final` with a `const`
+  constructor and a `copyWith` over every field (`clearActions` goes back
+  to the game's own map). A volume is per `AudioBus` (`volumeOf(AudioBus)`,
+  `withVolume`), every other setting is a typed `SettingKey<T>` under a
+  namespaced id (`valueOf`, `chosenValueOf`, `withValue`, `withoutValue`;
+  `GameSettingKeys` holds the engine's, `flutter3d.pad.look` and its kin),
+  and the player's controls are one `ActionMap` (`actions`, `actionsOr`).
+  `bindings`, `settings`, `settingOf`, `setSetting`, `setVolume(String)`,
+  `savedActions` and `ownedActionMap` are gone; `colorVisionSetting` and
+  `highContrastSetting` are `GameSettingKeys.colorVision` and
+  `highContrast`, and `ColorRole.setting` is a `SettingKey<int>`.
+- **Breaking: the settings file is in the format envelope**, as
+  `f3d.settings` version 2 (`GameSettings.format`), with its values under
+  `values` and the whole action map under `actions`. A file from before is
+  read as version 1: its names move to their namespaced ids (`pad.look` is
+  `flutter3d.pad.look`, `colour.<role>` is `flutter3d.color.<role>`) and its
+  `bindings` become the map's buttons. A newer file is refused with a
+  `GameSettingsFormatException`. `SettingsFile` takes the game's
+  `defaultActions`, which a saved map is read against.
+- **Breaking: `GameSettingsController` holds the settings and the live
+  map.** It takes `settings:` (was `config:`) and the map the devices read
+  as `actions:`; `settings` is the current value, replaced on every change
+  and handed to `apply`. `setVolume` takes an `AudioBus`; `setSetting` is
+  `setValue(SettingKey, value)`, beside `clearValue` and `update`.
+- **Breaking: the settings panel is made of `SettingsSection`s.**
+  `SettingsPanel(settings:, sections:)` and `SettingsOverlay(settings:,
+  sections:, opening:, canOpen:)` replace the dozen arguments (`mixer`,
+  `config`, `padConnected`, `defaultActionMap`, `buses`, `credits`,
+  `colors`, `privacy`, `actionTuning`, the callbacks); a game passes
+  `SettingsSection.standard(...)` or its own list of `VolumesSection`,
+  `ControlsSection`, `AccessibilitySection`, `ColorsSection`,
+  `ConsentsSection`, `MouseSection`, `GamepadSection` and `WidgetSection`.
+- **Breaking: what a pad's sticks do is bindings.** `PadRoutes`,
+  `PadStickUse`, `PadStickTarget` and `PadAxisPair` are gone: the left stick
+  walks through a `DualAxisBinding` on `pad:stick.left`, the right one looks
+  at `PadInput.lookRate`, and `PadInput.addDefaultsTo` adds them (only where
+  the map binds nothing already). A driving game calls
+  `PadInput.addDrivingDefaultsTo`, which binds the stick's two directions
+  (`InputSource.padHalfAxis`) to its steering as buttons with a magnitude.
+  `PadInput.storeSettings` is gone; `applySettings` reads `GameSettingKeys`.
+- **Breaking: a numbered slot is an action.** `DesktopInput.slotKeys`,
+  `defaultSlotKeys`, `PadInput.slotButtons` and `dpadSlots` are gone: a
+  button bound to `SlotActions.of(n)` requests slot `n` on its press, the
+  number row is bound by `DesktopInput.addDefaultsTo` (and
+  `addSlotsTo`), and the d-pad by `PadInput.addSlotDefaultsTo`. A player
+  rebinds them like any other action, and the file keeps them.
+- **An action's label is a message id.** The rebinding rows say an
+  action through `Flutter3dGameLocalizations.actionLabel`, so the engine's
+  actions read in the player's language; a game answers its own through
+  `ActionBindingsSection.actionLabel` (`ControlsSection.actionLabel`).
+- **Breaking: `postGameEvent` is `postToolEvent`, a function.** The
+  mutable `GameEventPoster postGameEvent` variable is gone, with
+  `postGameEventToVmService`; `GameEventPoster` is `ToolEventPoster` and
+  `gameEventPrefix` is `toolEventPrefix`. A test hears what was posted with
+  `captureToolEvents` from the new `package:flutter3d_game/testing.dart`,
+  which returns the function that stops listening.
+- **`GameUiTheme` colours the maps and the touch controls.** New roles
+  `mapFloor`, `mapWall`, `mapPlayer`, `mapBackdrop`, `miniMapTrack`,
+  `miniMapPlayer`, `miniMapOthers`, `miniMapBackdrop` and `touchTrack`,
+  `touchFill`, `touchUnavailable`, `touchOutline`, `touchHeld`,
+  `touchPressed`, `touchKnob`, `touchGlyph`, `touchOn`, `touchOnGlyph`,
+  each defaulting to the colour the widget had. `AutomapView`'s colours
+  are nullable and default to the theme; `TouchButton`, `TouchStick`,
+  `TouchToggle` and the touch slots read it.
+- **`RunSession`, `RunStatus` and `RunTimeline` document the API** rather
+  than the repository's demos.
+- **`flutter3d_game` re-exports `flutter3d`**, and from `flutter3d_app` what
+  a first game opens a window with: `Flutter3dView`, which opens the device,
+  makes the renderer, runs the loop and owns focus and the lifecycle, the
+  `Flutter3dEngine` it hands a game, `ViewResolution`, `DidNotStart`,
+  `LevelLoader`, `LoadedLevel` and `SharedMeshes`. The example is written
+  with two imports and no `hide`, on `Flutter3dView`. The low level under
+  the view (`openDevice`, `presentFrame`, `SceneSurface`, `FrameClock`) is
+  imported from `flutter3d_app` by a game that wants it. `loadLevelAsset`
+  reads a level from the asset bundle.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `AxisTuning` is `AxisSettings`, `GameConfig` is `GameSettings`,
+  `GameSettings` is `GameSettingsController`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **Breaking: `ActorAnimations.events` is the bus.** It is an
+  `EventRegistry?`, and each marker is published onto it as an
+  `AnimationMarkerPassed`, whose name is `animation.markerPassed`. A game
+  that sets it declares the event there once, with
+  `AnimationMarkerPassed.codec`; the drained buffer it used to be is gone
+  from `flutter3d_sim`.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `Consents.cloud` is `hasCloudConsent`; `Credit.traced` is `isTraced`;
+  `Playing.dragLook` is `usesDragLook`; `SaveSync.consented` is `hasConsent`;
+  `Autosave.paused` takes `{required bool now}`, and `Consents.answerCloud`
+  and `answerTelemetry` take `{required bool granted}`. `dart fix` carries
+  the renames.
+- **Breaking: one verb per job.** `DragLook.take` is `drain`;
+  `ActionMap.takeFrom` and `Bindings.takeFrom` are `copyFrom`;
+  `DesktopInput.release` is `releaseMouse`, the other half of `captureMouse`,
+  so `dispose` is the only teardown. `RunSession`'s hooks `open` and `close`
+  are `loadLevel` and `disposeLevel`: a level comes from an asset and goes
+  with a teardown, and neither is a connection. `dart fix` carries the calls;
+  a subclass renames its overrides.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `BehaviourOverlay` is `BehaviorOverlay`, `BehaviourStatus` is
+  `BehaviorStatus`, `centre` is `center`, `colour` is `color`,
+  `colourChoice` is `colorChoice`, `colourOf` is `colorOf`, `colours` is
+  `colors`, `colourVision` is `colorVision`, `colourVisionChoices` is
+  `colorVisionChoices`, `feetBelowCentre` is `feetBelowCenter`,
+  `kilometresPerHour` is `kilometersPerHour`, `licence` is `license`,
+  `licenceUrl` is `licenseUrl`, `metresAcross` is `metersAcross`,
+  `outlineColourOf` is `outlineColorOf`. Only the Dart names changed: a
+  file keeps the keys it was written with, and `dart fix` carries the
+  renames.
+- **`DemoRecording` takes the `physics` it records on** (`Demo.physics`),
+  the Dart reference unless handed the one the game chose.
+- **Breaking: one input model, the `ActionMap`.** `DesktopInput` and
+  `PadInput` take `actions:` and no longer `bindings:`; their `bindings`
+  fields are `actions.buttons`. `DesktopInput.defaultBindings`,
+  `PadInput.defaultBindings` and `ownedBindings` are gone for
+  `DesktopInput.addDefaultsTo(map)`, `PadInput.addDefaultsTo(map)` and
+  `ownedActionMap`; `PadInput.knowsPad` takes the map. `Rebinding` edits a
+  map only: `start` and `waitingFor` take and answer any kind of action (the
+  button-only pair is gone), and `reset` takes the map that shipped.
+  `SettingsPanel` takes its controls as a widget (`controls:`, an
+  `ActionBindingsSection`), and `SettingsOverlay` takes `defaultActionMap`
+  instead of `bindings`, `actions` and `defaultBindings`; what is rebindable
+  is what the game's `ActionSet` declares. `SettingsBindingRow` takes a
+  label, and naming a source on screen is
+  `Flutter3dGameLocalizations.source`.
+
+- **Breaking: `SettingsCubit` is `GameSettingsController`, a `ValueListenable`.** The
+  same state machine without a state-management package in the API: listen
+  with a `ValueListenableBuilder`, read `value`, `dispose` it. `rebind` takes
+  any action and its part (`rebindAction` is gone), `reset` takes the
+  action map, and `saved` is the write the last change started.
+  `SettingsState.waitingFor` is any kind of action. `flutter_bloc` is no
+  longer a dependency.
+
+- **Words in the player's language.** `Flutter3dGameLocalizations` is a
+  `LocalizationsDelegate` with English and Russian, and every default string
+  of these screens reads it: the settings panel, the rebinding rows, the
+  privacy questions, `TapToRestart`, the credits. Without the delegate the
+  words are English. **Breaking:** `TapToRestart.label` and
+  `CreditsSection.heading` are nullable for it, `CreditsSection.footnote`
+  has no default (it named this repository), and `colorVisionChoices` is
+  `Flutter3dGameLocalizations.colorVisionChoices`.
+
+- **The screens' colours are a theme.** `GameUiTheme` is a
+  `ThemeExtension` with the colours the settings panel and the HUD were
+  typed in; without one in the theme they are what they were.
+
+- **Breaking: the documents and the run are asynchronous**, because
+  `Storage` is. `SettingsFile.read`, `SaveFile.read`/`readRecord`,
+  `DemoFile.read` answer futures; their writes answer `Future<bool>` and
+  say a refusal through `onIssue`; `clear` is a future. `RunSession.save`,
+  `Autosave.paused` and `Autosave.checkpoint` answer `Future<bool>`.
+  `Consents` and `SaveSync` read their answers once (`ready`) and answer the
+  questions with `Future<bool>`. Read the settings in `main()` before
+  `runApp`.
+
+- **Save slots.** `SaveSlots` hands out a `SaveFile` per slot id and lists
+  which hold a run; `SaveFile.slot` names it, and the default slot is still
+  `save.json`, so a save written before slots is its run. A cloud copy is
+  kept under the slot's own name.
+
+- **Breaking: `CloudSaveStore` is an `abstract base class`** — `extends`,
+  not `implements`.
+
+- **Breaking: `cloudServer` and `telemetryPolicy` are gone.** `GameCloud`
+  takes `server` (null for none) and a required `policy`: both were the
+  engine's constants, one of them read from a `--dart-define` every game
+  shared.
+
+- **Breaking: `Playing` is an object the game holds.** `Playing.ofPlatform()`
+  asks the platform once; `touch`, `capturesPointer` and `dragLook` are its
+  fields, and a test makes the one it means. `configureForTouch` is
+  `lockLandscapeForTouch`, an app's explicit choice taking the `Playing`.
+
+- **Breaking: `testing.dart` is gone.** `creditGaps` checked this
+  repository's demos against their assets and was never engine API; it
+  lives with the demos now.
+
+- **`replayAfterHotSwap` takes `hotSwap` openly**, for an engine with its
+  own `HotSwap`; it was marked visible for testing in a public signature.
+
+- **A tool attached to a game asks one extension what the others are.**
+  Every `ext.flutter3d.*` extension registers through
+  `registerFlutter3dExtension`, and `ext.flutter3d.version` answers the VM
+  schema version and their names. `api/flutter3d_game.vm` records each
+  parameter's type and the keys each extension answers with.
+- **A saved action map says what it is.** `ActionMap.format` (`f3d.actions`)
+  writes the format envelope first and refuses another format's document or a
+  newer one with the reason, as `ActionMapFormatException`; keys a later
+  build wrote are kept and written back (`ActionMap.unknown`). The envelope is
+  additive, so the version stays 1.
+- **Breaking:** `ActionMap` extends `FormatDocument`, and a newer map throws
+  `ActionMapFormatException` where it threw `dart:core`'s `FormatException`.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Action maps.** `ActionMap` holds a game's declared `ActionSet` and every
+  device's way to each action: buttons in the shared `Bindings` table as
+  before, and `ActionBinding`s for the rest — `AxisComposite` and
+  `DualAxisComposite` (two or four keys as an axis), `AxisBinding` and
+  `DualAxisBinding` (a trigger, a stick, the mouse's motion), each with an
+  `AxisSettings` of dead zone, sensitivity and invert. `rebind` replaces within
+  the source's device and reports `BindingConflict`s, resolved by a
+  `ConflictPolicy` (steal, swap or refuse). Saved as versioned JSON; a table
+  saved before action maps reads as its buttons. `ActionInput` is the shared
+  arithmetic, and `DesktopInput` and `PadInput` take an `actions` map;
+  `ownedActionMap` attaches one to a `GameSettings`, which saves its axes under
+  `actions`. `InputSource` gains `padAxis`, `padStick`, `touch`,
+  `pointerMotion`, `none` and `device`.
+
+- **Rebinding every kind of action.** `Rebinding` and `SettingsCubit` edit an
+  action map: `rebindAction` with a composite's part, `setTuning`,
+  `resetActions`, and the conflicts a rebind met in `SettingsState`.
+  `ActionBindingsSection` is the settings piece, and `SettingsOverlay` shows
+  it given `defaultActionMap`. `TouchStick` and `TouchControls` write any
+  `DualAxisAction`; `TouchAction.declared` labels a button as its set does.
+  `replayDemo` and `replayDemoOnLoop` take the game's `ActionSet` to upgrade
+  an old tape.
+
+- **Breaking: `ActionBinding`'s subtypes, `Rebinding`, `SettingsOverlay`,
+  `SettingsPanel`, `TouchControls`, `TouchStick`** as the snapshot counts
+  breaks: new subtypes of the new sealed `ActionBinding`, a required
+  parameter made optional, and new optional fields on widgets. No caller
+  changes; see the migration table.
+
+- **`DemoRecording` writes the simulation and a pose record.** `simulation`
+  goes into the file, and `bodies`, asked every `poseEvery` steps by
+  `observe`, fills `Demo.poses`. `replayDemo`, `replayDemoOnLoop` and
+  `rewindBufferFromDemo` take an optional `simulation` and throw
+  `ReplayException` for a run recorded on another one, carrying the poses a
+  viewer plays instead.
+
+- **The VM service surface is a contract too.** The `ext.flutter3d.timeline.*`,
+  `cvar.*` and `level.*` extensions, with the parameter keys each reads, and
+  the `flutter3d.timeline.replayedUnderNewCode` event are written down in
+  `api/flutter3d_game.vm` and held to the same semver as the Dart API: an
+  extension removed, or one that stops reading a key, waits for a major, and
+  a new key has to have a default.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#tools-for-agents-are-a-contract-too)
+  has the rules.
+
+- **Breaking: `ActorAppearance`, `ActorCorpses`, `ActorGraphs`,
+  `FixtureAppearance` and `PadStickTarget` can no longer be implemented
+  outside their own library: each is an `abstract base mixin class` now, so a
+  game or a test mixes it in (`with`) and its class is `final` or `base`. A
+  member added to one in a 1.x release arrives with a body, which an
+  `implements` could not have taken without breaking somebody.
+  `CloudSaveStore` stays implementable, and says so.
+
+- **The web is declared.** `testing.dart` lists its directory through a helper
+  chosen by `if (dart.library.js_interop)`.
+
+- **A recording follows an `EngineLoop`.** `DemoRecording.attach` writes
+  the loop's input, each step's event digest and every loop change into the
+  run. It starts with the plugins' state, since a recording may begin long
+  after the engine did. `replayDemoOnLoop` plays the file back through a
+  loop, makes its changes at their steps, and reports the first step whose
+  events differ (`DemoReplay.eventDivergence`) beside the first checkpoint
+  that does.
+
+- **`postToolEvent` tells whoever watches the game what happened.** It
   posts `flutter3d.<kind>` with a JSON map on the VM service's `Extension`
   stream, where the editor's Play and an agent's `play_events` listen;
-  nothing goes anywhere when nobody is attached. A variable, like
-  `debugPrint`, so a test puts its own in and sees what was posted.
+  nothing goes anywhere when nobody is attached. A function, not a
+  variable anybody can reassign: a test hears what was posted through
+  `captureToolEvents` in `package:flutter3d_game/testing.dart`.
   `replayAfterHotSwap` posts its `timeline.replayedUnderNewCode` through it.
 
 - **A high-contrast accommodation.** `Accommodations.highContrast` reads the
@@ -12,7 +378,7 @@
   `a11y.highContrast` setting with that flag as the fallback, and the
   settings panel has a High contrast switch that shows what is drawn.
   `ActorVisuals.outlineOf` and `FixtureVisuals.outlineOf` let a game name
-  the role colour each actor and fixture is ringed in; `outlineColourOf`
+  the role colour each actor and fixture is ringed in; `outlineColorOf`
   turns a `Color` into the colour a ring takes.
 
 - **`GameCloud.shares`** is a `RunService` on the same server, using
@@ -115,7 +481,7 @@
   patch made against another version is answered with
   `LevelPatch.staleCode`, which tells the sender to send the whole level; a
   patched level that does not build is refused as an ordinary error.
-- **`BehaviourOverlay` draws what every tree last decided**: a stroke per
+- **`BehaviorOverlay` draws what every tree last decided**: a stroke per
   node on the running path above each actor, coloured by how it came out, and
   a line to where its leaf is taking it; `describe()` gives the same path by
   name. It reads boards and never makes one, so switching it on cannot change
@@ -187,7 +553,7 @@
   the level's digest, so a replay that swaps at the same step arrives where
   the run did.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`, and it asks for `pad_input` and `pointer_lock` `^0.5.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`, and it asks for `pad_input` and `pointer_lock` `^0.5.0`.
 
 ## 0.8.1
 

@@ -158,7 +158,7 @@ void main() {
 
   test('and its hints travel with it, describing without constraining', () async {
     // A hint is a description for an inspector, so it stops at the document —
-    // a `Material` is what the renderer draws and has no use for a slider's
+    // a `RenderMaterial` is what the renderer draws and has no use for a slider's
     // ends. What this measures is that the path a level names is the path the
     // hints arrive by: the same bytes, read through the loader's own reader.
     //

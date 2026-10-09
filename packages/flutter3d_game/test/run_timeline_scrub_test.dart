@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -43,6 +44,24 @@ final class _Toy {
   String get state => '$x/$hp/${dice.state}';
 }
 
+/// [toy] as one part of a fresh loop's snapshots and a system in its step,
+/// reading [input]; [rewind], when given, attached to it.
+EngineLoop _loopOf(_Toy toy, InputState input, [RewindBuffer? rewind]) {
+  final loop = EngineLoop(input: input)
+    ..snapshots.add(
+      SnapshotPart.of(
+        id: 'toy',
+        capture: () => toy.save().data,
+        restore: (Object? data, int _) {
+          if (data is Map) toy.restore(Snapshot(data.cast<String, Object?>()));
+        },
+      ),
+    )
+    ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
+  rewind?.attach(loop);
+  return loop;
+}
+
 void _play(InputState input, int step) {
   input.setStickAxis(step % 3 == 0 ? 1.0 : -0.5, 0.0);
   if (step % 11 == 0) input.press(_fire);
@@ -58,19 +77,13 @@ _run(int steps) {
   final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
   final timeline = RunTimeline(
     rewind: rewind,
-    input: input,
-    stepSim: (dt) => toy.step(input),
-    restore: toy.restore,
+    loop: _loopOf(toy, input, rewind),
   );
   final seen = <int, String>{};
   for (var step = 0; step < steps; step++) {
     seen[step] = toy.state;
     _play(input, step);
-    rewind.recorder.record(input);
-    input.beginStep();
-    if (rewind.keyframeDue) rewind.keyframe(toy.save());
-    toy.step(input);
-    input.endStep();
+    timeline.loop.runSteps(1);
   }
   seen[steps] = toy.state;
   return (toy: toy, rewind: rewind, timeline: timeline, seen: seen);
@@ -86,10 +99,7 @@ void main() {
     run.timeline.pause();
 
     for (final step in <int>[200, 230, 130, 131, 299, 60]) {
-      expect(
-        run.timeline.scrubTo(step, capture: run.toy.save),
-        isA<ScrubMoved>(),
-      );
+      expect(run.timeline.scrubTo(step), isA<ScrubMoved>());
       expect(run.toy.state, run.seen[step], reason: 'scrubbed to $step');
     }
     expect(run.timeline.scrubbedAt, 60);
@@ -108,7 +118,7 @@ void main() {
     final run = _run(300);
     run.timeline
       ..pause()
-      ..scrubTo(297, capture: run.toy.save)
+      ..scrubTo(297)
       ..stepOnce();
     expect(run.toy.state, run.seen[298]);
     run.timeline
@@ -123,12 +133,12 @@ void main() {
     // Mutation: scrub a live run. The loop would step the scrubbed state as
     // if it were the present, and the run would jump.
     final run = _run(300);
-    final live = run.timeline.scrubTo(100, capture: run.toy.save);
+    final live = run.timeline.scrubTo(100);
     expect(live, isA<ScrubRefused>());
     expect('$live', contains('pause'));
 
     run.timeline.pause();
-    final far = run.timeline.scrubTo(400, capture: run.toy.save);
+    final far = run.timeline.scrubTo(400);
     expect('$far', contains('from step 0 to 300'));
     expect(run.toy.state, run.seen[300]);
     expect(run.timeline.branchHere(), isA<ScrubRefused>());
@@ -140,7 +150,7 @@ void main() {
     final run = _run(300);
     run.timeline
       ..pause()
-      ..scrubTo(150, capture: run.toy.save);
+      ..scrubTo(150);
 
     expect(run.timeline.branchHere(), isA<ScrubMoved>());
     expect(run.rewind.step, 150);
@@ -159,7 +169,7 @@ void main() {
     final run = _run(300);
     run.timeline
       ..pause()
-      ..scrubTo(120, capture: run.toy.save)
+      ..scrubTo(120)
       ..resume();
     expect(run.toy.state, run.seen[300]);
     expect(run.rewind.step, 300);
@@ -173,9 +183,9 @@ void main() {
     final run = _run(300);
     run.timeline
       ..pause()
-      ..scrubTo(140, capture: run.toy.save);
+      ..scrubTo(140);
     final tracks = run.timeline.tracks(
-      capture: run.toy.save,
+      part: 'toy',
       layout: EntityLayout.rows('entities'),
     )!;
 

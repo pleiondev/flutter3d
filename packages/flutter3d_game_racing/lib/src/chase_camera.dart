@@ -1,14 +1,13 @@
-import 'dart:math' as math;
-
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_camera/flutter3d_camera.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'track.dart';
 import 'vehicle/vehicle_controller.dart';
 
 /// How the camera trails the car.
-final class ChaseTuning extends RigTuning {
-  const ChaseTuning({
+final class ChaseSettings extends RigSettings {
+  const ChaseSettings({
     super.distance = 8.0,
     super.height = 3.0,
     super.aimHeight = 1.0,
@@ -18,12 +17,46 @@ final class ChaseTuning extends RigTuning {
     this.headingTo = 14.0,
     this.lookAhead = 26.0,
     this.lookAheadWeight = 0.35,
-    this.baseFov = 1.05,
-    this.fovPerSpeed = 0.006,
+    this.baseFovY = 1.05,
+    this.fovYPerSpeed = 0.006,
     this.maxFov = 1.45,
     super.nearClearance = 0.4,
     super.minDistance = 2.0,
   });
+
+  /// A copy with the given fields replaced.
+  @override
+  ChaseSettings copyWith({
+    double? distance,
+    double? height,
+    double? aimHeight,
+    double? lag,
+    double? nearClearance,
+    double? minDistance,
+    double? headingBlend,
+    double? headingFrom,
+    double? headingTo,
+    double? lookAhead,
+    double? lookAheadWeight,
+    double? baseFovY,
+    double? fovYPerSpeed,
+    double? maxFov,
+  }) => ChaseSettings(
+    distance: distance ?? this.distance,
+    height: height ?? this.height,
+    aimHeight: aimHeight ?? this.aimHeight,
+    lag: lag ?? this.lag,
+    nearClearance: nearClearance ?? this.nearClearance,
+    minDistance: minDistance ?? this.minDistance,
+    headingBlend: headingBlend ?? this.headingBlend,
+    headingFrom: headingFrom ?? this.headingFrom,
+    headingTo: headingTo ?? this.headingTo,
+    lookAhead: lookAhead ?? this.lookAhead,
+    lookAheadWeight: lookAheadWeight ?? this.lookAheadWeight,
+    baseFovY: baseFovY ?? this.baseFovY,
+    fovYPerSpeed: fovYPerSpeed ?? this.fovYPerSpeed,
+    maxFov: maxFov ?? this.maxFov,
+  );
 
   /// How far the camera swings from behind the nose towards behind the
   /// direction of travel, from nought to one.
@@ -44,7 +77,10 @@ final class ChaseTuning extends RigTuning {
   /// clamped at nought, so under this speed the swing contributes exactly
   /// nothing and the nose is followed — no separate early exit needed, and one
   /// that was there has been removed for saying the same thing twice.
+  /// Both in metres per second.
   final double headingFrom;
+
+  /// The speed the swing is complete at, in metres per second.
   final double headingTo;
 
   /// How far up the track the camera looks, in metres.
@@ -58,31 +94,31 @@ final class ChaseTuning extends RigTuning {
   final double lookAheadWeight;
 
   /// The field of view standing still, in radians.
-  final double baseFov;
+  final double baseFovY;
 
   /// How much wider it gets per metre per second.
   ///
   /// The cheapest trick in the genre and the one that does the most: speed on a
   /// screen is not how fast the numbers change, it is how fast the edges of the
   /// frame move.
-  final double fovPerSpeed;
+  final double fovYPerSpeed;
 
   /// The widest it is allowed to get. Past about a fifth of a turn the picture
   /// reads as a fish-eye rather than as speed.
+  /// In radians.
   final double maxFov;
 }
 
 /// A camera behind a car: behind where it is *going*, looking into the corner.
 ///
-/// Everything a chasing camera has in common with any other — easing, knocks,
-/// shakes, staying out of walls — is [CameraRig] in the engine. What is here is
-/// the three things a racing camera does differently:
-///
-/// * it sits behind the direction of travel rather than behind the nose, which
-///   is what makes a drift readable;
-/// * it looks a little way up the track, which is what makes a corner arrive
-///   before the car does;
-/// * it widens with speed, which is most of what speed looks like on a screen.
+/// **The racing preset of the virtual cameras.** What a racing camera does
+/// differently from any other — sitting behind the direction of travel rather
+/// than the nose, looking a little way up the track, widening with speed — is
+/// `ChaseFraming` in `flutter3d_camera`, and the easing, knocks, shakes
+/// and walls are the engine's [CameraRig] under it. What is left here is the
+/// part only a racing game knows: reading a [VehicleController] and asking the
+/// [TrackSpline] where the road goes. Hand [virtualCamera] to a
+/// `CameraDirector` to blend from the chase to a replay shot and back.
 ///
 /// Renderer-free, like the platformer's camera and for the same reason: it
 /// answers with two points and a number, and the application copies them into
@@ -91,32 +127,65 @@ final class ChaseCamera {
   ChaseCamera({
     required CollisionWorld world,
     this.track,
-    this.tuning = const ChaseTuning(),
+    this.tuning = const ChaseSettings(),
+    String name = 'chase',
+    CameraFraming Function(ChaseFraming preset)? reframe,
   }) : rig = CameraRig(
          world: world,
          nearClearance: tuning.nearClearance,
          minDistance: tuning.minDistance,
-       );
+       ),
+       framing = ChaseFraming(
+         distance: tuning.distance,
+         height: tuning.height,
+         aimHeight: tuning.aimHeight,
+         lag: tuning.lag,
+         headingBlend: tuning.headingBlend,
+         headingFrom: tuning.headingFrom,
+         headingTo: tuning.headingTo,
+         lookAheadWeight: tuning.lookAheadWeight,
+         baseFovY: tuning.baseFovY,
+         fovYPerSpeed: tuning.fovYPerSpeed,
+         maxFov: tuning.maxFov,
+       ) {
+    virtualCamera = VirtualCamera(
+      name,
+      reframe?.call(framing) ?? framing,
+      rig: rig,
+    );
+  }
 
   final CameraRig rig;
+
+  /// Where the camera wants to be, worked out from what [follow] wrote into
+  /// it: the preset this camera is.
+  final ChaseFraming framing;
+
+  /// This camera as one of a director's: the [framing] carried out by [rig].
+  ///
+  /// **Its framing can be replaced.** Pass `reframe` to the constructor and
+  /// the camera takes its shots from what that returns, given the chase
+  /// preset in [framing]: a framing of the game's own that wraps the preset
+  /// and changes what it asks for, or one that ignores it. The preset is
+  /// still the one the calls here feed, so a replacement that wraps it
+  /// keeps the subject and the look it is given.
+  late final VirtualCamera virtualCamera;
 
   /// The circuit, for looking up the road. Absent on a test plane, and then the
   /// camera looks along the car instead — which is the same thing on a straight.
   final TrackSpline? track;
 
-  final ChaseTuning tuning;
+  final ChaseSettings tuning;
 
   Vector3 get eye => rig.eye;
   Vector3 get target => rig.target;
 
   /// The field of view to draw with, in radians. Widened by speed, and by
   /// anything that asked for a kick of it.
-  double get fov => _fov;
-  double _fov = 0.0;
+  double get fovY => virtualCamera.shot.fovY;
 
   /// Which way the camera is facing, in radians. What the last frame settled on.
-  double get heading => _heading;
-  double _heading = 0.0;
+  double get heading => framing.heading;
 
   /// How much of the camera's involuntary movement to keep — see
   /// [CameraRig.motion]. Was `shakeScale`, and covered only the shake.
@@ -133,7 +202,7 @@ final class ChaseCamera {
 
   /// Puts the camera behind the car at once, without a chase. For a respawn or
   /// the start of a race.
-  void cut() => rig.cut();
+  void cut() => virtualCamera.cut();
 
   /// Places the camera for a frame.
   ///
@@ -141,57 +210,33 @@ final class ChaseCamera {
   /// rather than once a step: this is presentation, and a camera that moves at
   /// the simulation's rate judders on a faster display even when the car does
   /// not.
+  ///
+  /// With the camera in a `CameraDirector`, call [aim] instead and let the
+  /// director place it.
   void follow(VehicleController car, double dt) {
-    _heading = _headingFor(car);
+    aim(car);
+    virtualCamera.update(dt);
+  }
 
-    _wantedTarget
-      ..setFrom(car.position)
-      ..y += tuning.aimHeight;
+  /// Hands the car to the framing without placing the camera: for a camera a
+  /// `CameraDirector` places in the loop's `camera` phase.
+  void aim(VehicleController car) {
+    framing
+      ..position.setFrom(car.position)
+      ..velocity.setFrom(car.velocity)
+      ..facing = car.headingYaw
+      ..speed = car.speed;
 
     final circuit = track;
     if (circuit != null) {
       // Towards the road ahead, part of the way. Blended rather than aimed at,
-      // for the reason in [ChaseTuning.lookAheadWeight].
-      circuit.centreAt(car.trackDistance + tuning.lookAhead, _ahead);
-      _wantedTarget
-        ..x += (_ahead.x - _wantedTarget.x) * tuning.lookAheadWeight
-        ..z += (_ahead.z - _wantedTarget.z) * tuning.lookAheadWeight;
+      // for the reason in [ChaseSettings.lookAheadWeight].
+      circuit.centerAt(car.trackDistance + tuning.lookAhead, _ahead);
+      framing.ahead = _ahead;
+    } else {
+      framing.ahead = null;
     }
-
-    _wantedEye.setValues(
-      car.position.x - math.sin(_heading) * tuning.distance,
-      car.position.y + tuning.height,
-      car.position.z - math.cos(_heading) * tuning.distance,
-    );
-
-    rig.place(
-      desiredEye: _wantedEye,
-      desiredTarget: _wantedTarget,
-      lag: tuning.lag,
-      dt: dt,
-    );
-
-    _fov =
-        math.min(
-          tuning.baseFov + car.speed * tuning.fovPerSpeed,
-          tuning.maxFov,
-        ) +
-        rig.extraFov;
   }
 
-  /// Somewhere between where the car points and where it is going.
-  double _headingFor(VehicleController car) {
-    final speed = car.speed;
-    final travelling = math.atan2(car.velocity.x, car.velocity.z);
-    final reach =
-        ((speed - tuning.headingFrom) / (tuning.headingTo - tuning.headingFrom))
-            .clamp(0.0, 1.0);
-
-    return car.headingYaw +
-        shortestAngle(car.headingYaw, travelling) * reach * tuning.headingBlend;
-  }
-
-  final Vector3 _wantedEye = Vector3.zero();
-  final Vector3 _wantedTarget = Vector3.zero();
   final Vector3 _ahead = Vector3.zero();
 }

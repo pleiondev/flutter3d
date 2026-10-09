@@ -11,6 +11,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,7 +43,7 @@ Level _level({double wallAt = 5.0, double fog = 0.0}) =>
     live: LiveLevel(
       level: _level(),
       present: (next, diff) => calls.add('present fog=${diff.fog}'),
-      rebuild: (next) => calls.add('rebuild ${next.brushes.single.centre.x}'),
+      rebuild: (next) => calls.add('rebuild ${next.brushes.single.center.x}'),
       timeline: timeline,
       swapped: (next, step) => calls.add('swapped $step'),
       prepare: prepares || prepareFails != null
@@ -76,17 +77,20 @@ void main() {
   test('a moved wall goes through the timeline, then the picture', () {
     final input = InputState();
     final rewind = RewindBuffer(stepsPerSecond: 60);
-    final restored = <Snapshot>[];
-    final timeline = RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (dt) {},
-      restore: restored.add,
-    );
-    for (var step = 0; step < 30; step++) {
-      rewind.recorder.record(input);
-      if (rewind.keyframeDue) rewind.keyframe(Snapshot(<String, Object?>{}));
-    }
+    // A run with nothing in it, as one part of the loop's snapshots that
+    // notes every restore.
+    final restored = <Object?>[];
+    final loop = EngineLoop(input: input)
+      ..snapshots.add(
+        SnapshotPart.of(
+          id: 'run',
+          capture: () => const <String, Object?>{},
+          restore: (Object? data, int _) => restored.add(data),
+        ),
+      );
+    rewind.attach(loop);
+    final timeline = RunTimeline(rewind: rewind, loop: loop);
+    loop.runSteps(30);
     final game = _game(timeline: timeline);
 
     final applied = game.live.apply(_level(wallAt: 8.0));
@@ -158,7 +162,7 @@ void main() {
         'rebuild 8.0',
         'present fog=false',
       ]);
-      expect(game.live.level.brushes.single.centre.x, 8.0);
+      expect(game.live.level.brushes.single.center.x, 8.0);
     });
 
     test('keeps the level it had when the new one does not build', () async {
@@ -172,7 +176,7 @@ void main() {
       expect(error, contains('did not build'));
       expect(error, contains('no texture stone.png'));
       expect(game.calls, isEmpty);
-      expect(game.live.level.brushes.single.centre.x, 5.0);
+      expect(game.live.level.brushes.single.center.x, 5.0);
     });
 
     test('the same level again prepares nothing', () async {
@@ -234,7 +238,7 @@ void main() {
 
       expect(stale, isFalse);
       expect(error, contains('did not build'));
-      expect(game.live.level.brushes.single.centre.x, 5.0);
+      expect(game.live.level.brushes.single.center.x, 5.0);
     });
 
     test('refuses what is not a level, and what is missing', () async {

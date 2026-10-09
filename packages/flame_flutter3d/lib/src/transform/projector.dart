@@ -1,4 +1,4 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'plane.dart';

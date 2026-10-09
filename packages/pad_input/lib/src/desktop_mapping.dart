@@ -76,7 +76,7 @@ final class XInputPadState implements PadMirror {
     }
     out
       ..clear()
-      ..connected = true;
+      ..isConnected = true;
     double stick(double v) => (v / 32767.0).clamp(-1.0, 1.0);
     out
       ..setAxis(PadAxis.leftStickX, stick(_raw[0]))
@@ -183,7 +183,7 @@ final class JoystickPadState implements PadMirror {
     }
     out
       ..clear()
-      ..connected = true;
+      ..isConnected = true;
     double stick(double v) => (v / 32767.0).clamp(-1.0, 1.0);
     double trigger(double v) => ((v + 32767.0) / 65534.0).clamp(0.0, 1.0);
     out

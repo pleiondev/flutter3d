@@ -86,15 +86,15 @@ void main() {
       await platform.move(3.0, -1.0);
       await platform.move(2.0, 4.0);
 
-      expect(capture.takeDelta(), const Offset(5.0, 3.0));
+      expect(capture.drainDelta(), const Offset(5.0, 3.0));
     });
 
     test('takeDelta resets, so motion is never counted twice', () async {
       await capture.capture();
       await platform.move(3.0, 3.0);
 
-      expect(capture.takeDelta(), const Offset(3.0, 3.0));
-      expect(capture.takeDelta(), Offset.zero);
+      expect(capture.drainDelta(), const Offset(3.0, 3.0));
+      expect(capture.drainDelta(), Offset.zero);
     });
 
     test(
@@ -102,9 +102,9 @@ void main() {
       () async {
         await capture.capture();
         await platform.move(7.0, 7.0);
-        capture.takeDelta();
+        capture.drainDelta();
 
-        expect(capture.takeDelta(), Offset.zero);
+        expect(capture.drainDelta(), Offset.zero);
       },
     );
 
@@ -117,7 +117,7 @@ void main() {
 
       await capture.capture();
 
-      expect(capture.takeDelta(), Offset.zero);
+      expect(capture.drainDelta(), Offset.zero);
     });
 
     test('motion arriving between release and the next step is kept', () async {
@@ -127,7 +127,7 @@ void main() {
       await platform.move(4.0, 4.0);
       await capture.release();
 
-      expect(capture.takeDelta(), const Offset(4.0, 4.0));
+      expect(capture.drainDelta(), const Offset(4.0, 4.0));
     });
   });
 
@@ -240,7 +240,7 @@ void main() {
     test('takeDelta keeps working and reads zero', () async {
       await unsupportedCapture.capture();
 
-      expect(unsupportedCapture.takeDelta(), Offset.zero);
+      expect(unsupportedCapture.drainDelta(), Offset.zero);
     });
 
     test('no reset is attempted where there is nothing to reset', () async {

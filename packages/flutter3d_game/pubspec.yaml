@@ -1,6 +1,6 @@
 name: flutter3d_game
-description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
-version: 0.9.0
+description: "What a game on flutter3d adds to an application: keyboard, mouse, gamepad and touch input, the run being played, the settings and saves, and its actors and fixtures drawn."
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,6 +13,16 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# The web too, where the demos run.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -21,10 +31,10 @@ dependencies:
   # The application layer a game stands on: the surface, storage and what a
   # document says when it cannot be read, and the level loader a fixture's
   # visual reads its materials through.
-  flutter3d_app: ^0.9.0
+  flutter3d_app: ^1.0.0-rc.1
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   pointer_lock: ^0.5.0
@@ -34,41 +44,43 @@ dependencies:
   # translator — the same shape `DesktopInput` has beside the keyboard.
   pad_input: ^0.5.0
 
-  # The simulation, and `flutter3d_physics` through it. Extracted because none
-  # of it imported Flutter and a verifying server cannot install a Flutter SDK
-  # to advance a step — see that package's pubspec for the whole reason.
-  # Not re-exported: a caller that steps a simulation names this package
-  # itself.
-  flutter3d_sim: ^0.9.0
+  # The simulation. Extracted because none of it imported Flutter and a
+  # verifying server cannot install a Flutter SDK to advance a step — see that
+  # package's pubspec for the whole reason. The facade re-exports the level,
+  # the loop and its input by name; a caller that needs more of the
+  # simulation names this package itself.
+  flutter3d_sim: ^1.0.0-rc.1
 
-  # Volumes are a mixer's, and the settings panel is where they are turned.
-  # The core and not `flutter3d_audio`: the panel names buses and nothing
+  # The collision world a walk and an actor move through, and the three
+  # names of it the facade re-exports.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # Volumes are a mixer's, and the settings are where they are kept.
+  # The core and not `flutter3d_audio`: the settings name buses and nothing
   # else, and the SoLoud backend would bring a native build that Flutter 3.44
   # cannot resolve. A game that plays sound depends on `flutter3d_audio`
   # itself, whose types are these.
-  flutter3d_audio_core: ^0.9.0
+  flutter3d_audio_core: ^1.0.0-rc.1
 
   # A torch's flame, which is the particles its light is measured from.
-  flutter3d_particles: ^0.9.0
-
-  # State management. The screens here are state machines — a panel that is
-  # open, a rebinding that is waiting for a key, a settings document that has
-  # been written — and they lived in `setState` inside two applications, which
-  # is where a state machine goes to stop being testable. A cubit is reachable
-  # from a plain `test()`.
-  #
-  # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no FFI,
-  # so it does not break the web build — which is what that section's argument
-  # is actually about.
-  flutter_bloc: ">=8.1.2 <10.0.0"
+  flutter3d_particles: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 
   # `HttpCloudSaves`, a save kept on a server. Not `dart:io`'s client: that
   # one does not exist in a browser, and a web build is where a player is most
   # likely to come back on another device. Already in the workspace for
-  # `flutter3d_lti`.
+  # `flutter3d_education/lti.dart`.
   http: ^1.2.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:
@@ -77,11 +89,11 @@ dev_dependencies:
 
   # A renderer with no GPU under it, so a visual can be built and a screen
   # pumped.
-  flutter3d_cpu: ^0.9.0
+  flutter3d_cpu: ^1.0.0-rc.1
 
   # For `FakeBackend`, which is what lets the teardown tests assert that
   # uploaded meshes are actually handed back rather than merely forgotten.
-  flutter3d_hardware: ^0.9.0
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM

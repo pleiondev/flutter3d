@@ -50,7 +50,10 @@ base class ChaseBrain extends Brain {
   /// [MonsterState.hurt] and [MonsterState.alert].
   double stateTime = 0.0;
 
+  /// Seconds until it may attack again.
   double attackCooldown = 0.0;
+
+  /// Seconds until it may be staggered again.
   double painCooldown = 0.0;
 
   /// True once it has noticed the player, and it never goes back to false.
@@ -117,12 +120,12 @@ base class ChaseBrain extends Brain {
   /// guard on a beat rests in a state of its own. Each of the three wakings
   /// compared with idle, so a patrolling guard walked past a player in plain
   /// view, and past a shotgun going off in the next room.
-  bool get resting => state == MonsterState.idle;
+  bool get isResting => state == MonsterState.idle;
 
   @override
   void think(Mind it) {
     _readTarget(it);
-    if (resting) {
+    if (isResting) {
       if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
         _enter(MonsterState.alert);
       }
@@ -220,11 +223,11 @@ base class ChaseBrain extends Brain {
     final culprit = it.hurtBy;
     if (culprit is Actor && !identical(culprit, it.actor) && culprit.isAlive) {
       quarrel = culprit;
-      if (resting || state == MonsterState.alert) {
+      if (isResting || state == MonsterState.alert) {
         _enter(MonsterState.chase);
       }
     }
-    if (resting) _enter(MonsterState.chase);
+    if (isResting) _enter(MonsterState.chase);
     if (painCooldown <= 0.0 &&
         state != MonsterState.hurt &&
         it.random.nextDouble() < def.painChance) {
@@ -250,7 +253,7 @@ base class ChaseBrain extends Brain {
   /// that would cancel the flinch the player just earned.
   @override
   void onNoise(Mind it, Vector3 at) {
-    if (!resting) return;
+    if (!isResting) return;
     hasNoticed = true;
     _enter(MonsterState.chase);
   }
@@ -260,7 +263,7 @@ base class ChaseBrain extends Brain {
 
   void _attack(Mind it) {
     final weapon = def.attack;
-    attackCooldown = weapon.cooldownSeconds;
+    attackCooldown = weapon.cooldown;
 
     if (!it.actor.eyeLevel(_eye)) return;
     // At whatever it is dealing with — the player, or the one it has turned
@@ -296,7 +299,7 @@ base class ChaseBrain extends Brain {
     _aim.normalize();
 
     shot.begin(weapon, _eye, _aim, shooter: it.actor.body?.collider);
-    weapon.behaviour.deliver(shot);
+    weapon.behavior.deliver(shot);
 
     // A melee swing lands immediately and reports what it reached; a projectile
     // reports nothing and arrives later, through the projectile system.

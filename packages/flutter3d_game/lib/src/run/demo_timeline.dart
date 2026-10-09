@@ -1,22 +1,25 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-import 'demo_recording.dart';
+import 'run_part.dart';
 
 /// Rebuilds a [RewindBuffer] that reaches every step of [demo], not only the
 /// last few seconds a live [RunTimeline] keeps — `rp-02`'s "скраббер по всему
 /// прогону из `.f3drun`", built by replaying the whole tape once rather than
 /// by teaching [RewindBuffer] a second way to acquire keyframes.
 ///
-/// Runs [demo]'s tape from [Demo.start] through [stepSim] exactly the way
-/// [GameLoop.advance] would have the first time it played — apply the
-/// recorded frame, record it, `beginStep`, keyframe before the step if one is
-/// due, `stepSim`, `endStep` — so a [RunTimeline] built on the returned
-/// buffer answers `preview`/`releaseAtStep` for any step of the whole run,
-/// the same way it already answers them for a live-played window. [input] is
-/// muted for the whole replay: [InputTapePlayback] is the one device let
-/// through a mute, so a live device still reading the same [InputState]
-/// cannot leak a key into a reconstruction happening while a game is paused
-/// to load one.
+/// **Played through [loop], the one path.** [demo]'s start, the run's own
+/// snapshot, is restored as the loop's part [part] (a genre's plugin id) at
+/// step nought, and the tape plays through the loop's own steps with the
+/// returned buffer attached ([RewindBuffer.attach]) — so its keyframes are
+/// the loop's captures, exactly as a live-played window's are, and a
+/// [RunTimeline] over the loop and this buffer answers `preview`,
+/// `releaseAtStep` and `scrubTo` for any step of the whole run. The buffer is
+/// detached again before it is returned. The loop's input is muted for the
+/// whole replay: the tape is the one device let through a mute, so a live
+/// device cannot leak a key into a reconstruction happening while a game is
+/// paused to load one. Any other recorder on the loop records the replay
+/// too; a game detaches its live recording first.
 ///
 /// [history] is generous on purpose — the whole run plus a keyframe interval
 /// — so [RewindBuffer]'s own forgetting never triggers while every step is
@@ -27,18 +30,21 @@ import 'demo_recording.dart';
 /// A demo with `HR3` level swaps in it is refused: a keyframe before a swap
 /// is a state of the old level, and a scrub to it would restore that state
 /// under whichever level is up. Scrubbing across a swap needs the buffer to
-/// know which level each keyframe belongs to; until it does, [replayDemo]
-/// plays such a run and this does not pretend to scrub it.
+/// know which level each keyframe belongs to; until it does,
+/// `replayDemoOnLoop` plays such a run and this does not pretend to scrub it.
+///
+/// So is a run recorded on a simulation other than [simulation], when that is
+/// given: [ReplayException] carries the run's pose record, which scrubs on any
+/// build because nothing in it is simulated.
 RewindBuffer rewindBufferFromDemo({
   required Demo demo,
-  required int stepsPerSecond,
+  required EngineLoop loop,
+  required String part,
   int? keyframeEvery,
   double? history,
-  required InputState input,
-  required void Function(Snapshot snapshot) restore,
-  required Snapshot Function() save,
-  required void Function(double dt) stepSim,
+  SimulationVersion? simulation,
 }) {
+  if (simulation != null) demo.checkSimulation(simulation);
   if (demo.levelSwaps.isNotEmpty) {
     throw ArgumentError.value(
       demo,
@@ -47,7 +53,8 @@ RewindBuffer rewindBufferFromDemo({
           'across a swap would restore one level\'s state under the other',
     );
   }
-  restore(demo.start);
+  final stepsPerSecond = (1.0 / loop.stepSeconds).round();
+  loop.rewindTo(0, state: loopStateWith(loop, part, demo.start));
   final wholeRun = demo.tape.frames.length / stepsPerSecond;
   final buffer = RewindBuffer(
     stepsPerSecond: stepsPerSecond,
@@ -56,20 +63,19 @@ RewindBuffer rewindBufferFromDemo({
     seed: demo.tape.seed,
   );
   final playback = InputTapePlayback(demo.tape);
-  final wasMuted = input.muted;
-  input.muted = true;
+  final previous = loop.playback;
+  final wasMuted = loop.input.muted;
+  final attached = buffer.attach(loop);
+  loop.playback = playback;
+  loop.input.muted = true;
   try {
-    final dt = 1.0 / stepsPerSecond;
     while (!playback.isFinished) {
-      playback.applyTo(input);
-      buffer.recorder.record(input);
-      input.beginStep();
-      if (buffer.keyframeDue) buffer.keyframe(save());
-      stepSim(dt);
-      input.endStep();
+      loop.runSteps(1);
     }
   } finally {
-    input.muted = wasMuted;
+    attached.cancel();
+    loop.playback = previous;
+    loop.input.muted = wasMuted;
   }
   return buffer;
 }

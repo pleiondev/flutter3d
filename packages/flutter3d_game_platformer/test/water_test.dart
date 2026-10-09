@@ -9,14 +9,18 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
-({Runner runner, Water pool}) _pool({SwimTuning tuning = const SwimTuning()}) {
-  final world = CollisionWorld()
+({Runner runner, Water pool}) _pool({
+  SwimSettings tuning = const SwimSettings(),
+}) {
+  final world = CollisionWorld(properties: platformerWorld)
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
     ..update();
   final pool = Water(
@@ -111,12 +115,38 @@ void main() {
   test('and a tar pit and a stream are two different pools', () {
     // A level with two says so by giving them different tuning; putting these
     // on the runner would have made every pool in a level identical.
-    final tar = _pool(tuning: const SwimTuning(sinkSpeed: 0.5, drag: 8.0));
-    final stream = _pool(tuning: const SwimTuning(sinkSpeed: 4.0, drag: 1.0));
+    final tar = _pool(tuning: const SwimSettings(sinkSpeed: 0.5, drag: 8.0));
+    final stream = _pool(tuning: const SwimSettings(sinkSpeed: 4.0, drag: 1.0));
 
     expect(
       _fallAfter(tar.runner, submerged: true, pool: tar.pool),
       lessThan(_fallAfter(stream.runner, submerged: true, pool: stream.pool)),
     );
+  });
+  test('on the Moon a runner still sinks: the water pushes by its gravity', () {
+    // Mutation: put back a fixed 6 m/s² of buoyancy and the Moon's runner,
+    // pulled down by 1.62, is pushed up by nearly four times that and flies
+    // out of the pool.
+    final world = CollisionWorld(
+      properties: WorldProperties(gravity: Vector3(0.0, -1.62, 0.0)),
+    )..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+    world.update();
+    final pool = Water(
+      collider: world.add(
+        Collider(
+          shape: CollisionBox(Vector3(6.0, 4.0, 6.0)),
+          position: Vector3(0.0, 4.0, 0.0),
+        ),
+      ),
+    );
+    final runner = Runner(
+      body: CharacterController(world: world, position: Vector3(0.0, 4.0, 0.0)),
+    );
+    expect(runner.gravity, closeTo(1.62, 1e-6));
+    expect(_fallAfter(runner, submerged: true, pool: pool), greaterThan(0.0));
+  });
+
+  test('and the quarter of the run\'s gravity is the 6 m/s² it always was', () {
+    expect(const SwimSettings().buoyancyRatio * Runner.runGravity, 6.0);
   });
 }

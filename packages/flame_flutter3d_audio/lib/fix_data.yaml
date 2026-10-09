@@ -1,0 +1,36 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_audio-SoundEmitterComponent-SoundEmitterComponent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d_audio/flame_flutter3d_audio.dart']
+      constructor: ''
+      inClass: 'SoundEmitterComponent'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'playing'
+        newName: 'isPlaying'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_audio-SoundEmitterComponent-playing'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d_audio/flame_flutter3d_audio.dart']
+      field: 'playing'
+      inClass: 'SoundEmitterComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'isPlaying'
+  - title: 'flutter3d 1.0.0-rc.1: f4-audio-AudioSceneComponent-close'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d_audio/flame_flutter3d_audio.dart']
+      method: 'close'
+      inClass: 'AudioSceneComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'dispose'

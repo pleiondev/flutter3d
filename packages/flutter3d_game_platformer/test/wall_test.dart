@@ -6,15 +6,18 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'heard.dart';
+
 const double _dt = 1.0 / 60.0;
 
 final class _Stage {
-  /// What the last step reported, drained the way a game drains it.
-  final GameEvents _events = GameEvents();
+  /// What the last step published, taken the way a game hears a step.
+  final Heard _heard = Heard();
   List<GameEvent> lastStep = const <GameEvent>[];
 
   _Stage() {
@@ -23,10 +26,10 @@ final class _Stage {
     runner = Runner(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
     );
-    runner.events = _events;
+    runner.events = _heard.bus;
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
@@ -81,7 +84,7 @@ final class _Stage {
     mechanisms.step(_dt);
     world.reindex();
     runner.step(_dt, input);
-    lastStep = _events.drain();
+    lastStep = _heard.take();
     world.update();
     world.clearKinematicDeltas();
     input.endStep();
@@ -172,7 +175,7 @@ void main() {
       final from = stage.runner.position.clone();
       stage.step(holding: _intoWallAndJump);
 
-      expect(stage.lastStep.has<WallJumped>(), isTrue);
+      expect(stage.lastStep.whereType<WallJumped>().isNotEmpty, isTrue);
       expect(stage.runner.body.velocity.y, greaterThan(8.0));
       expect(
         stage.runner.body.velocity.x,
@@ -204,7 +207,7 @@ void main() {
       stage.run(2);
       stage.step(holding: _jump);
 
-      expect(stage.lastStep.has<WallJumped>(), isTrue);
+      expect(stage.lastStep.whereType<WallJumped>().isNotEmpty, isTrue);
     });
   });
 
@@ -219,7 +222,8 @@ void main() {
       stage.run(20, holding: _forward);
 
       expect(
-        stage.lastStep.has<Mantled>() || stage.runner.position.y > 2.0,
+        stage.lastStep.whereType<Mantled>().isNotEmpty ||
+            stage.runner.position.y > 2.0,
         isTrue,
       );
       expect(
@@ -242,7 +246,7 @@ void main() {
         ..velocity.setValues(0.0, -1.0, 0.0);
       stage.run(20, holding: _forward);
 
-      expect(stage.lastStep.has<Mantled>(), isFalse);
+      expect(stage.lastStep.whereType<Mantled>().isNotEmpty, isFalse);
       expect(stage.runner.position.y, lessThan(2.0));
     });
 
@@ -252,7 +256,7 @@ void main() {
       final stage = _Stage()..ledgeAt(1.0, top: 0.25);
       stage.run(30, holding: _forward);
 
-      expect(stage.lastStep.has<Mantled>(), isFalse);
+      expect(stage.lastStep.whereType<Mantled>().isNotEmpty, isFalse);
       expect(stage.runner.isGrounded, isTrue);
     });
   });
@@ -301,7 +305,7 @@ void main() {
       // A runner whose wall jump goes nowhere: the tuning is the switch.
       final crippled = Runner(
         body: stage.runner.body,
-        tuning: const RunnerTuning(wallJumpUp: 0.0, wallJumpPush: 0.0),
+        tuning: const RunnerSettings(wallJumpUp: 0.0, wallJumpPush: 0.0),
       );
       var best = crippled.position.y;
       for (var i = 0; i < 400; i++) {

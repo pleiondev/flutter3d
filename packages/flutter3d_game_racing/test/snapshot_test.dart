@@ -192,7 +192,7 @@ void main() {
     loaded.simulation.step(_step);
 
     expect(
-      loaded.simulation.events.drain(),
+      loaded.heard.take(),
       isEmpty,
       reason: 'a restored car reported passing what it had already passed',
     );
@@ -228,7 +228,7 @@ void main() {
     final saved = roundTrip(it.simulation.save());
     final loaded = Race()..simulation.restore(saved);
 
-    expect(loaded.simulation.events.drain(), isEmpty);
+    expect(loaded.heard.take(), isEmpty);
   });
 
   test('a saved race says which format it is in', () {

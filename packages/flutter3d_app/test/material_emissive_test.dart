@@ -12,10 +12,8 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('a glowing level material arrives with a factor and a strength', () {
@@ -25,19 +23,19 @@ void main() {
     // black, which is the surface not glowing at all.
     final material = LevelLoader.materialFrom(
       LevelMaterial(
-        baseColor: Vector4(0.75, 0.13, 0.10, 1.0),
+        baseColor: LinearColor.fromSrgb(0.75, 0.13, 0.10),
         roughness: 0.6,
         emissive: 0.5,
       ),
       const <String, TextureHandle?>{},
       name: 'hazard',
     );
-    expect(material.emissiveStrength, 0.5);
+    expect(material.emissiveStrength, 0.5 * Photometric.legacyNits);
     // The base colour, not white: the level says how much a surface glows,
     // never in what colour, so the colour can only be the one it is painted.
-    expect(material.emissive.x, closeTo(0.75, 1e-6));
-    expect(material.emissive.y, closeTo(0.13, 1e-6));
-    expect(material.emissive.z, closeTo(0.10, 1e-6));
+    expect(material.emissive.r, closeTo(0.75, 1e-6));
+    expect(material.emissive.g, closeTo(0.13, 1e-6));
+    expect(material.emissive.b, closeTo(0.10, 1e-6));
   });
 
   test('a level material that says nothing does not glow', () {
@@ -45,12 +43,12 @@ void main() {
     // goes through this seam, and a wall that emits its own base colour is a
     // crypt with no shadows in it.
     final material = LevelLoader.materialFrom(
-      LevelMaterial(baseColor: Vector4(0.5, 0.5, 0.5, 1.0)),
+      LevelMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5)),
       const <String, TextureHandle?>{},
     );
     expect(material.emissiveStrength, 0.0);
     expect(
-      material.emissive.x * material.emissiveStrength,
+      material.emissive.r * material.emissiveStrength,
       0.0,
       reason: 'the product is what the shader multiplies the map by',
     );
@@ -61,13 +59,13 @@ void main() {
     // grow a second copy of this wiring; one test on each side of it.
     final material = LevelLoader.materialFrom(
       LevelMaterial(
-        baseColor: Vector4(0.95, 0.95, 0.85, 1.0),
+        baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.85),
         albedo: 'exit.png',
         emissive: 0.7,
       ),
       const <String, TextureHandle?>{},
     );
-    expect(material.emissiveStrength, 0.7);
-    expect(material.albedoSampler, SamplerOptions.trilinearRepeat);
+    expect(material.emissiveStrength, 0.7 * Photometric.legacyNits);
+    expect(material.albedoSampler, SamplerDescriptor.trilinearRepeat);
   });
 }

@@ -11,6 +11,7 @@
 /// is, and where it was told to go.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -94,9 +95,11 @@ final class UnitType {
   final double sight;
 
   /// How much punishment one of these starts with.
+  /// In hit points (unitless).
   final double health;
 
   /// How much it takes off whatever it hits, per shot.
+  /// In hit points (unitless).
   final double damage;
 
   /// How far it can reach, in metres, measured centre to centre.
@@ -323,7 +326,7 @@ final class Unit {
   /// How fast it walks, in metres a second. Its kind's.
   double get speed => type.speed;
 
-  /// How far it uncovers the map around itself. Its kind's.
+  /// How far it uncovers the map around itself, in metres. Its kind's.
   double get sight => type.sight;
 
   /// What it is doing. Assigning a new one is how a game gives an order.

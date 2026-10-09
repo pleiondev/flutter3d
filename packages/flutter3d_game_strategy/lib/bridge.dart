@@ -29,7 +29,9 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
+    show meshDataOf;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -53,7 +55,7 @@ final class MeshLook {
   final DeviceMesh mesh;
 
   /// What it is drawn in.
-  final Material material;
+  final RenderMaterial material;
 }
 
 /// How one kind of unit looks, side by side.
@@ -131,30 +133,30 @@ final class StrategyVisuals {
   ///
   /// [resource] is drawn at every deposit, [props] are the map's furniture,
   /// and [waterLevel] floods everything below it with a sheet of [water].
-  /// [groundMetresPerTexture] is how far the ground goes before its texture
+  /// [groundMetersPerTexture] is how far the ground goes before its texture
   /// repeats — the width of the map, for a texture painted to fit it.
   StrategyVisuals({
     required this.simulation,
     required GraphicsDevice device,
     int capacity = 4096,
     this.viewer,
-    Material? ground,
-    Material? units,
-    Material? buildings,
-    Material? unseen,
-    Material? remembered,
+    RenderMaterial? ground,
+    RenderMaterial? units,
+    RenderMaterial? buildings,
+    RenderMaterial? unseen,
+    RenderMaterial? remembered,
     this.unitSize = const UnitSize(),
     DeviceMesh? unitMesh,
     DeviceMesh? buildingMesh,
     Vector3? buildingMeshSize,
     List<UnitLook> looks = const <UnitLook>[],
-    List<Material>? buildingSides,
-    this._buildingStandsTall = false,
-    this._resource,
+    List<RenderMaterial>? buildingSides,
+    bool buildingStandsTall = false,
+    MeshLook? resource,
     List<PropBatch> props = const <PropBatch>[],
     double? waterLevel,
-    Material? water,
-    double groundMetresPerTexture = 8.0,
+    RenderMaterial? water,
+    double groundMetersPerTexture = 8.0,
   }) : assert(
          (buildingMesh == null) == (buildingMeshSize == null),
          'a shared building mesh needs its own natural size to scale from, '
@@ -168,6 +170,12 @@ final class StrategyVisuals {
        _buildingSides = buildingSides,
        _buildingMesh = buildingMesh,
        _buildingMeshSize = buildingMeshSize,
+       // Not `this._…`: a private named parameter puts the private name in
+       // the API and needs the newest language version to call.
+       // ignore: prefer_initializing_formals
+       _buildingStandsTall = buildingStandsTall,
+       // ignore: prefer_initializing_formals
+       _resource = resource,
        waterLevel = waterLevel,
        // A real model stands on its own feet at its local origin, once
        // grounded the way the strategy demo grounds its workers; the
@@ -182,7 +190,7 @@ final class StrategyVisuals {
           const HeightfieldGeometry().build(
             simulation.ground,
             material: 'ground',
-            metresPerTexture: groundMetresPerTexture,
+            metersPerTexture: groundMetersPerTexture,
           ),
         ),
       ),
@@ -307,6 +315,7 @@ final class StrategyVisuals {
   MeshNode? get water => _water;
 
   /// How high the water stands, or null for a dry map.
+  /// In metres of world height.
   final double? waterLevel;
 
   /// The tiles over ground [viewer] has never seen, or null for a spectator.
@@ -341,7 +350,7 @@ final class StrategyVisuals {
   List<Matrix4> propPlacementsOf(int batch) =>
       List<Matrix4>.unmodifiable(_placements[batch]);
 
-  /// Draws prop [placement] of batch [batch] tinted [colour] and, when
+  /// Draws prop [placement] of batch [batch] tinted [color] and, when
   /// [transform] is given, placed by it rather than where it was planted;
   /// false, and nothing done, while the viewer has not found it yet.
   ///
@@ -351,13 +360,13 @@ final class StrategyVisuals {
   bool dressProp(
     int batch,
     int placement, {
-    required Vector4 colour,
+    required Vector4 color,
     Matrix4? transform,
   }) {
     final int slot = _slots[batch][placement];
     if (slot < 0) return false;
     final InstancedMeshNode node = _props[batch];
-    node.setColor(slot, colour);
+    node.setColor(slot, color.toLinearColor());
     if (transform != null) node.setTransform(slot, transform);
     return true;
   }
@@ -375,11 +384,11 @@ final class StrategyVisuals {
   static const double _tileDepth = 10.0;
 
   final GraphicsDevice _device;
-  final Material _buildingMaterial;
+  final RenderMaterial _buildingMaterial;
 
   /// One material per side for its buildings, or null to give every building
   /// [_buildingMaterial].
-  final List<Material>? _buildingSides;
+  final List<RenderMaterial>? _buildingSides;
 
   /// Whether a shared building mesh rises with its footprint; see the
   /// constructor.
@@ -466,7 +475,7 @@ final class StrategyVisuals {
 
   InstancedMeshNode _tileBatch(
     DeviceMesh mesh,
-    Material material,
+    RenderMaterial material,
     String name,
     int cells,
   ) {
@@ -490,8 +499,8 @@ final class StrategyVisuals {
   /// tile above the hill instead of through it, and the ones they miss are
   /// hidden by a tile deep enough to swallow them.
   static double _topOf(FogOfWar fog, int cell) {
-    final double x = fog.centreX(cell);
-    final double z = fog.centreZ(cell);
+    final double x = fog.centerX(cell);
+    final double z = fog.centerZ(cell);
     final double half = fog.cellSize / 2.0;
     final Heightfield ground = fog.ground;
     var top = ground.heightAt(x, z);
@@ -554,7 +563,7 @@ final class StrategyVisuals {
         ..setTranslationRaw(at.x, at.y + lift, at.z);
       batch
         ..setTransform(drawn, _transform)
-        ..setColor(drawn, _woundOf(unit));
+        ..setColor(drawn, _woundOf(unit).toLinearColor());
       _filled[which] = drawn + 1;
     }
     for (var i = 0; i < _batches.length; i++) {
@@ -579,15 +588,15 @@ final class StrategyVisuals {
       final Building building = simulation.buildings[i];
       if (side != null &&
           building.side != side &&
-          !simulation.fog.knows(side, building.centre.x, building.centre.z)) {
+          !simulation.fog.knows(side, building.center.x, building.center.z)) {
         continue;
       }
       // A copy each, not the one material shared. It costs a handful of
       // objects and it buys the only thing a picking pass is good for here:
       // a hall the cursor is over can be lit on its own. Shared, the
       // highlight would light every hall on the map at once.
-      final List<Material>? sides = _buildingSides;
-      final Material material =
+      final List<RenderMaterial>? sides = _buildingSides;
+      final RenderMaterial material =
           (sides == null
                   ? _buildingMaterial
                   : sides[building.side % sides.length])
@@ -611,9 +620,9 @@ final class StrategyVisuals {
             along,
           )
           ..setPosition(
-            building.centre.x,
-            building.centre.y,
-            building.centre.z,
+            building.center.x,
+            building.center.y,
+            building.center.z,
           );
       } else {
         node =
@@ -627,9 +636,9 @@ final class StrategyVisuals {
               material,
               name: building.name,
             )..setPosition(
-              building.centre.x,
-              building.centre.y + unitSize.height * 1.25,
-              building.centre.z,
+              building.center.x,
+              building.center.y + unitSize.height * 1.25,
+              building.center.z,
             );
       }
       _buildings[i] = node;
@@ -709,7 +718,7 @@ final class StrategyVisuals {
         if (deposit.isEmpty &&
             (side == null ||
                 simulation.fog.sees(side, deposit.at.x, deposit.at.z))) {
-          drawn.visible = false;
+          drawn.isVisible = false;
         }
         continue;
       }
@@ -783,9 +792,9 @@ final class StrategyVisuals {
       final bool known = fog.isExplored(side, cell);
       _transform.setIdentity();
       _transform.setTranslationRaw(
-        fog.centreX(cell),
+        fog.centerX(cell),
         _tileTop[cell] + 0.3 - _tileDepth / 2.0,
-        fog.centreZ(cell),
+        fog.centerZ(cell),
       );
       if (known) {
         remembered.setTransform(dim++, _transform);
@@ -809,27 +818,29 @@ final class UnitSize {
   const UnitSize({this.width = 0.8, this.height = 1.2});
 
   /// How wide the box is, along both ground axes.
+  /// In metres.
   final double width;
 
   /// How tall it stands.
+  /// In metres.
   final double height;
 }
 
-Material _turf() => Material(
+RenderMaterial _turf() => RenderMaterial(
   lighting: LightingModel.pbr,
-  baseColor: Vector4(0.32, 0.38, 0.24, 1.0),
+  baseColor: LinearColor.fromSrgb(0.32, 0.38, 0.24, 1.0),
   roughness: 0.95,
 );
 
-Material _cloth() => Material(
+RenderMaterial _cloth() => RenderMaterial(
   lighting: LightingModel.pbr,
-  baseColor: Vector4(0.74, 0.70, 0.62, 1.0),
+  baseColor: LinearColor.fromSrgb(0.74, 0.70, 0.62, 1.0),
   roughness: 0.7,
 );
 
-Material _stone() => Material(
+RenderMaterial _stone() => RenderMaterial(
   lighting: LightingModel.pbr,
-  baseColor: Vector4(0.55, 0.53, 0.5, 1.0),
+  baseColor: LinearColor.fromSrgb(0.55, 0.53, 0.5, 1.0),
   roughness: 0.85,
 );
 
@@ -865,25 +876,25 @@ Material _stone() => Material(
 
 /// Still water: blended so the bed shows through near the shore, and smooth
 /// so the sun catches it.
-Material _pond() => Material(
+RenderMaterial _pond() => RenderMaterial(
   lighting: LightingModel.pbr,
-  baseColor: Vector4(0.16, 0.34, 0.42, 0.72),
+  baseColor: LinearColor.fromSrgb(0.16, 0.34, 0.42, 0.72),
   roughness: 0.08,
   alphaMode: MaterialAlphaMode.blend,
 );
 
 /// Ground nobody has been to. Unlit, because fog is not a surface the sun
 /// falls on — a shaded one would report the shape of the hill it is hiding.
-Material _night() => Material(
+RenderMaterial _night() => RenderMaterial(
   lighting: LightingModel.unlit,
-  baseColor: Vector4(0.03, 0.035, 0.05, 1.0),
+  baseColor: LinearColor.fromSrgb(0.03, 0.035, 0.05, 1.0),
 );
 
 /// Ground somebody has been to and nobody is watching. Blended, so the hillside
 /// underneath stays legible: what a side remembers is the *place*, and the
 /// place is the part that has not changed.
-Material _dusk() => Material(
+RenderMaterial _dusk() => RenderMaterial(
   lighting: LightingModel.unlit,
-  baseColor: Vector4(0.05, 0.06, 0.09, 0.62),
+  baseColor: LinearColor.fromSrgb(0.05, 0.06, 0.09, 0.62),
   alphaMode: MaterialAlphaMode.blend,
 );

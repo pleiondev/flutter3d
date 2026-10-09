@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'vehicle/vehicle_controller.dart';
@@ -55,23 +56,48 @@ final class GhostRecorder {
 /// the file is this game's.
 extension GhostDocument on GhostTape {
   /// What the lap took. The reason anybody keeps the tape.
+  /// In seconds.
   double get lapTime => seconds;
 
+  /// The lap in the shared envelope (`f3d.ghost`, [ghostFormatVersion]),
+  /// then `lapTime` and `frames`.
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': 1,
+    ...ghostFormat.envelope(),
     'lapTime': seconds,
     'frames': <Map<String, Object?>>[for (final frame in poses) frame.toJson()],
   };
 }
 
+/// The version of the lap document this build writes, and the newest it
+/// reads.
+///
+/// Version 1 is the bare `{"version": 1, "lapTime": …, "frames": …}` every
+/// lap before 1.0 was kept as; version 2 is the same body in the shared
+/// envelope. The body did not change, so the step between them is the
+/// identity.
+const int ghostFormatVersion = 2;
+
+/// The lap document in the registry: `f3d.ghost`.
+const FormatSpec ghostFormat = FormatSpec(
+  id: 'f3d.ghost',
+  version: ghostFormatVersion,
+  suffixes: <String>['.ghost.json'],
+  fixture: 'test/fixtures/v<N>/lap.ghost.json',
+);
+
 /// Reads a lap back from what was written.
 ///
 /// Forwards compatibility in the one direction that matters: a player's best
-/// lap is the thing they would most mind losing to a format change.
-GhostTape ghostTapeFromJson(Map<String, Object?> json) => GhostTape(
-  seconds: (json['lapTime']! as num).toDouble(),
-  poses: <GhostFrame>[
-    for (final frame in json['frames']! as List<Object?>)
-      GhostFrame.fromJson(frame! as Map<String, Object?>),
-  ],
-);
+/// lap is the thing they would most mind losing to a format change. A lap
+/// from before the envelope reads as version 1; one from a newer build, or
+/// another format's document, throws a [DocumentFormatException] saying which.
+GhostTape ghostTapeFromJson(Map<String, Object?> json) {
+  final lap = ghostFormat.open(json, refuse: DocumentFormatException.new);
+  return GhostTape(
+    seconds: (lap['lapTime']! as num).toDouble(),
+    poses: <GhostFrame>[
+      for (final frame in lap['frames']! as List<Object?>)
+        GhostFrame.fromJson(frame! as Map<String, Object?>),
+    ],
+  );
+}

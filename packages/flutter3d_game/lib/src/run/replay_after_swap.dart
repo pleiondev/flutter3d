@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show HotSwap;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'game_events.dart';
 import 'run_timeline.dart';
@@ -15,29 +14,31 @@ import 'run_timeline.dart';
 /// this asks it on its own each time `HotSwap` finishes a swap, which a
 /// `SceneSurface`'s `reassemble` starts, so nobody has to remember to.
 ///
-/// [capture] is the simulation's present, as `registerTimelineExtensions`
-/// takes it. What happened goes to [onReplayed] — by default a line in the
-/// console — and, through [postGameEvent], to the VM service as a
+/// The present is the loop's capture, which the timeline takes itself. What
+/// happened goes to [onReplayed] — by default a line in the
+/// console — and, through [postToolEvent], to the VM service as a
 /// `flutter3d.timeline.replayedUnderNewCode` event, for an editor listening
 /// there. Nothing happens in a build where `HotSwap` is off, which is every
 /// build but a debug one.
 ///
+/// [hotSwap] is the swapper whose finished swaps start a replay:
+/// `HotSwap.instance` unless the game runs its own — an engine with a
+/// `HotSwap` of its own, or a test that swaps by hand.
+///
 /// Returns the call that stops it.
 VoidCallback replayAfterHotSwap(
   RunTimeline timeline, {
-  required Snapshot Function() capture,
+
+  /// How much of the timeline's end is replayed, in seconds.
   double seconds = 3.0,
   void Function(CodeReplay replay)? onReplayed,
-  @visibleForTesting HotSwap? hotSwap,
+  HotSwap? hotSwap,
 }) {
   final swaps = (hotSwap ?? HotSwap.instance).swaps;
   void replay() {
-    final done = timeline.replayUnderNewCode(
-      seconds: seconds,
-      capture: capture,
-    );
+    final done = timeline.replayUnderNewCode(seconds: seconds);
     if (done == null) return;
-    postGameEvent('timeline.replayedUnderNewCode', done.toJson());
+    postToolEvent('timeline.replayedUnderNewCode', done.toJson());
     (onReplayed ?? _say)(done);
   }
 

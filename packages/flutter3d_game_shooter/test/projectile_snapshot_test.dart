@@ -12,7 +12,8 @@
 library;
 
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -34,7 +35,7 @@ void main() {
     final loaded = _system()..entities.restore(saved);
 
     final rocket = loaded.entities
-        .query<InFlight>()
+        .queryOf<InFlight>()
         .map((Entity e) => loaded.entities.get<InFlight>(e)!)
         .single;
     expect(rocket.position.x, closeTo(1.0, 1e-6));
@@ -59,7 +60,7 @@ void main() {
     final loaded = _system();
     expect(() => loaded.entities.restore(saved), returnsNormally);
     expect(
-      loaded.entities.query<InFlight>(),
+      loaded.entities.queryOf<InFlight>(),
       isEmpty,
       reason: 'a rocket that cannot be read is not a rocket at the origin',
     );
@@ -85,7 +86,7 @@ void main() {
 
     final loaded = _system()..entities.restore(saved);
 
-    expect(loaded.entities.query<InFlight>(), isEmpty);
+    expect(loaded.entities.queryOf<InFlight>(), isEmpty);
   });
 
   test('and a row that is not a row at all is the same', () {
@@ -101,6 +102,6 @@ void main() {
       }),
       returnsNormally,
     );
-    expect(loaded.entities.query<InFlight>(), isEmpty);
+    expect(loaded.entities.queryOf<InFlight>(), isEmpty);
   });
 }

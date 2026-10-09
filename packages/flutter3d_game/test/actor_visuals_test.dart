@@ -18,11 +18,11 @@ library;
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Pose;
-import 'package:flutter3d_app/flutter3d_app.dart' show Issue;
+import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -213,7 +213,10 @@ void main() {
       visuals
         ..outlineOf = ((Actor it) => ring)
         ..sync();
-      expect(scene.meshes.single.outlineColor, Vector3(0.84, 0.37, 0.0));
+      expect(
+        scene.meshes.single.outlineColor,
+        LinearColor.fromSrgb(0.84, 0.37, 0.0),
+      );
 
       // A monster that died, say: the game stops naming a colour and the
       // ring comes off rather than staying on the corpse.
@@ -346,6 +349,69 @@ void main() {
     });
   });
 
+  group('an actor animated from published state', () {
+    test('dies and picks its clips by what the step published, not by the '
+        'live actor', () async {
+      // Decision A: the view reads the simulation only through published
+      // state, so a simulation in another isolate animates the same.
+      //
+      // Mutations: read `actor.isAlive` in `animate` (the live actor is
+      // well, so no corpse is begun), or ask `clipsFor` with published state
+      // in hand (`clipsFrom` never hears of the row).
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final actor = _actor();
+      var current = 10.0;
+      PublishedState state() => PublishedState(
+        step: 1,
+        seconds: 1.0 / 60.0,
+        components: <String, Map<Entity, Object?>>{
+          ActorCodecs.body.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{
+              'at': <double>[0, 1, 0],
+            },
+          },
+          ActorCodecs.vitality.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{'current': current},
+          },
+          ActorCodecs.gait.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{
+              'steppedUp': 0.25,
+              'grounded': true,
+            },
+          },
+        },
+      );
+      final corpses = _Corpses();
+      final look = _PublishedLook();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: look,
+        device: FakeBackend(),
+        corpses: corpses,
+        published: state,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      visuals.add(actor);
+      await visuals.settled;
+      visuals.animate(1.0 / 60.0);
+      expect(look.asked.single.isAlive, isTrue);
+      expect(look.asked.single.steppedUp, 0.25);
+      expect(corpses.begun, isEmpty, reason: 'alive as published');
+
+      current = 0.0;
+      visuals.animate(1.0 / 60.0);
+      expect(actor.isAlive, isTrue, reason: 'the live actor never died');
+      expect(corpses.begun, <Actor>[actor], reason: 'dead as published');
+      visuals.dispose();
+    });
+  });
+
   group('an actor a game animates by a graph', () {
     test('gets one over its model, driven and written once a frame', () async {
       // N1. Mutations: skip `drive` (the graph never leaves idle), or the
@@ -419,7 +485,7 @@ void main() {
       final graph = AnimationGraph(
         machine: _Graphs().machineFor(actor, doc.animations)!,
         clips: doc.animations,
-        pose: engine.Pose.fromNodes(doc.nodes),
+        pose: engine.AnimationPose.fromNodes(doc.nodes),
       )..parameters.setBool('running', true);
       final visuals = ActorVisuals(
         Scene(),
@@ -492,14 +558,14 @@ void main() {
 }
 
 /// Asks for a model nobody packaged.
-final class _ModelLook implements ActorAppearance {
+final class _ModelLook with ActorAppearance {
   const _ModelLook();
 
   @override
   String meshKeyFor(Actor actor) => 'modelled';
 
   @override
-  Material materialFor(Actor actor) => Material();
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
 
   @override
   String? modelFor(Actor actor) => 'assets_src/models/nobody_packaged_this.glb';
@@ -509,14 +575,14 @@ final class _ModelLook implements ActorAppearance {
 }
 
 /// One capsule, one material, no models — the least a bridge needs to draw.
-final class _PlainLook implements ActorAppearance {
+final class _PlainLook with ActorAppearance {
   const _PlainLook();
 
   @override
   String meshKeyFor(Actor actor) => 'plain';
 
   @override
-  Material materialFor(Actor actor) => Material();
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
 
   @override
   String? modelFor(Actor actor) => null;
@@ -526,14 +592,14 @@ final class _PlainLook implements ActorAppearance {
 }
 
 /// The hero from flutter3d's fixtures: a rigged model with clips.
-final class _HeroLook implements ActorAppearance {
+final class _HeroLook with ActorAppearance {
   const _HeroLook();
 
   @override
   String meshKeyFor(Actor actor) => 'hero';
 
   @override
-  Material materialFor(Actor actor) => Material();
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
 
   @override
   String? modelFor(Actor actor) => 'assets_src/models/hero.glb';
@@ -544,8 +610,32 @@ final class _HeroLook implements ActorAppearance {
   ];
 }
 
+/// The hero, whose clips are asked with what the step published.
+final class _PublishedLook with ActorAppearance {
+  /// Every published row it was asked with, in order.
+  final List<PublishedActor> asked = <PublishedActor>[];
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
+
+  @override
+  String? modelFor(Actor actor) => 'assets_src/models/hero.glb';
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
+
+  @override
+  List<String> clipsFrom(Actor actor, PublishedActor published) {
+    asked.add(published);
+    return const <String>['CharacterArmature|Idle'];
+  }
+}
+
 /// Takes every corpse, and remembers what it was told.
-final class _Corpses implements ActorCorpses {
+final class _Corpses with ActorCorpses {
   final List<Actor> begun = <Actor>[];
   final List<Actor> ended = <Actor>[];
   ModelInstance? model;
@@ -588,7 +678,7 @@ bool _near(Matrix4 a, Matrix4 b) {
 }
 
 /// Stands, and runs when told to.
-final class _Graphs implements ActorGraphs {
+final class _Graphs with ActorGraphs {
   bool running = false;
   int driven = 0;
   int dressed = 0;

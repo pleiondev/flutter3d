@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 /// A model's animations played on Flame's clock: a runner running, a frog
 /// crouching to hop, a door swinging.

@@ -3,7 +3,7 @@ import 'dart:async' show scheduleMicrotask;
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart'
     show OpacityProvider, ReadOnlyAngleProvider, ReadOnlyPositionProvider;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../host/has_flutter3d.dart';
 import 'bridge_space.dart';
@@ -178,7 +178,7 @@ class Object3dComponent extends PositionComponent
   /// A linear colour every mesh under [node] is multiplied by; its alpha
   /// multiplies [opacity]. White leaves them as their materials say.
   @override
-  final Vector4 tint = Vector4.all(1.0);
+  LinearColor tint = LinearColor.white;
 
   bool _tintWritten = false;
 
@@ -248,7 +248,7 @@ class Object3dComponent extends PositionComponent
 
   @override
   void removeFromParent() {
-    node.visible = false;
+    node.isVisible = false;
     _visibleWritten = false;
     super.removeFromParent();
   }
@@ -278,11 +278,11 @@ class Object3dComponent extends PositionComponent
     }
     _writeTint();
     if (isRemoving) {
-      node.visible = false;
+      node.isVisible = false;
     } else {
       final shown = shownInFlame(this);
       if (_visibleWritten != shown) {
-        node.visible = shown;
+        node.isVisible = shown;
         _visibleWritten = shown;
       }
     }
@@ -292,16 +292,16 @@ class Object3dComponent extends PositionComponent
   /// is not plain, so a model dressed onto the node later takes it too, and
   /// once more when they come back to plain.
   void _writeTint() {
-    final alpha = tint.w * opacity;
+    final alpha = tint.a * opacity;
     final plain =
-        tint.x == 1.0 && tint.y == 1.0 && tint.z == 1.0 && alpha == 1.0;
+        tint.r == 1.0 && tint.g == 1.0 && tint.b == 1.0 && alpha == 1.0;
     if (plain && !_tintWritten) return;
     _tintWritten = !plain;
     _paint(node, alpha);
   }
 
   void _paint(SceneNode at, double alpha) {
-    if (at is MeshNode) at.tint.setValues(tint.x, tint.y, tint.z, alpha);
+    if (at is MeshNode) at.tint = tint.withAlpha(alpha);
     for (final child in at.children) {
       _paint(child, alpha);
     }

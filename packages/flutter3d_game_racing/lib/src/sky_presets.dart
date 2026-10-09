@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 import 'sky.dart';
@@ -14,8 +16,8 @@ abstract final class SkyPresets {
   /// far side of the circuit.
   static final SkyPreset dawn = SkyPreset(
     name: 'dawn',
-    sunElevationDeg: 4.0,
-    sunAzimuthDeg: 95.0,
+    sunElevation: 4.0 * (math.pi / 180.0),
+    sunAzimuth: 95.0 * (math.pi / 180.0),
     sunColor: Vector3(1.0, 0.62, 0.38),
     sunIntensity: 2.1,
     zenith: Vector3(0.16, 0.24, 0.42),
@@ -35,8 +37,8 @@ abstract final class SkyPresets {
   /// the whole lap through.
   static final SkyPreset morning = SkyPreset(
     name: 'morning',
-    sunElevationDeg: 34.0,
-    sunAzimuthDeg: 112.0,
+    sunElevation: 34.0 * (math.pi / 180.0),
+    sunAzimuth: 112.0 * (math.pi / 180.0),
     sunColor: Vector3(1.0, 0.95, 0.86),
     sunIntensity: 3.1,
     zenith: Vector3(0.26, 0.42, 0.72),
@@ -56,8 +58,8 @@ abstract final class SkyPresets {
   /// shows whether the track reads without any help from the sky.
   static final SkyPreset noon = SkyPreset(
     name: 'noon',
-    sunElevationDeg: 78.0,
-    sunAzimuthDeg: 150.0,
+    sunElevation: 78.0 * (math.pi / 180.0),
+    sunAzimuth: 150.0 * (math.pi / 180.0),
     sunColor: Vector3(1.0, 0.99, 0.96),
     sunIntensity: 3.6,
     zenith: Vector3(0.20, 0.38, 0.76),
@@ -78,8 +80,8 @@ abstract final class SkyPresets {
   /// different places.
   static final SkyPreset golden = SkyPreset(
     name: 'golden',
-    sunElevationDeg: 11.0,
-    sunAzimuthDeg: 285.0,
+    sunElevation: 11.0 * (math.pi / 180.0),
+    sunAzimuth: 285.0 * (math.pi / 180.0),
     sunColor: Vector3(1.0, 0.78, 0.52),
     sunIntensity: 2.6,
     zenith: Vector3(0.22, 0.34, 0.60),
@@ -99,8 +101,8 @@ abstract final class SkyPresets {
   /// blue instead of warm.
   static final SkyPreset dusk = SkyPreset(
     name: 'dusk',
-    sunElevationDeg: -2.0,
-    sunAzimuthDeg: 292.0,
+    sunElevation: -2.0 * (math.pi / 180.0),
+    sunAzimuth: 292.0 * (math.pi / 180.0),
     sunColor: Vector3(0.72, 0.60, 0.66),
     sunIntensity: 1.2,
     zenith: Vector3(0.10, 0.14, 0.30),

@@ -203,7 +203,7 @@ final class Bot {
       // arrival, so "it still has somewhere to go" stayed true for the rest of
       // the match and the map beyond that point was never looked at.
       if (_nearestFoundHall(simulation) case final Building hall) {
-        simulation.orders.moveTo(<Unit>[unit], hall.centre);
+        simulation.orders.moveTo(<Unit>[unit], hall.center);
         continue;
       }
       _scout(simulation, unit);
@@ -247,9 +247,9 @@ final class Bot {
     var bestAt = double.infinity;
     for (final Building hall in simulation.buildings) {
       if (hall.side == side) continue;
-      if (!simulation.fog.knows(side, hall.centre.x, hall.centre.z)) continue;
-      final double dx = hall.centre.x - base.centre.x;
-      final double dz = hall.centre.z - base.centre.z;
+      if (!simulation.fog.knows(side, hall.center.x, hall.center.z)) continue;
+      final double dx = hall.center.x - base.center.x;
+      final double dz = hall.center.z - base.center.z;
       final double at = dx * dx + dz * dz;
       if (at >= bestAt) continue;
       best = hall;
@@ -305,7 +305,7 @@ final class Bot {
       },
     );
     if (cell < 0) return;
-    simulation.orders.moveTo(<Unit>[unit], simulation.fog.centreOf(cell));
+    simulation.orders.moveTo(<Unit>[unit], simulation.fog.centerOf(cell));
   }
 
   /// The nearest deposit this side has found that still has something in it.
@@ -328,8 +328,8 @@ final class Bot {
     for (final ResourceNode node in simulation.resources) {
       if (node.isEmpty) continue;
       if (!simulation.fog.knows(side, node.at.x, node.at.z)) continue;
-      final double dx = node.at.x - base.centre.x;
-      final double dz = node.at.z - base.centre.z;
+      final double dx = node.at.x - base.center.x;
+      final double dz = node.at.z - base.center.z;
       final double at = dx * dx + dz * dz;
       if (at >= bestAt) continue;
       best = node;

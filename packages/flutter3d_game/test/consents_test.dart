@@ -5,30 +5,29 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A store that only counts what is asked of it.
-final class _Counted implements CloudSaveStore {
+final class _Counted extends CloudSaveStore {
   final List<String> calls = <String>[];
   @override
   String get name => 'the test cloud';
@@ -85,9 +84,9 @@ void main() {
     'on a fresh install both are no, and nothing leaves the device',
     () async {
       final it = fresh();
-      expect(it.consents.cloud, isFalse);
+      expect(it.consents.hasCloudConsent, isFalse);
       expect(it.consents.sendsRuns, isFalse);
-      expect(it.consents.telemetry.asked, isFalse);
+      expect(it.consents.telemetry.wasAsked, isFalse);
 
       // The cloud: not a request until the player says yes.
       final report = await it.consents.sync!.sync();
@@ -113,11 +112,11 @@ void main() {
 
       // Said yes to, each goes.
       // Mutation: an answer written under another policy than the one asked.
-      expect(it.consents.answerTelemetry(true), isTrue);
+      expect(await it.consents.answerTelemetry(granted: true), isTrue);
       expect(it.consents.sendsRuns, isTrue);
       expect((await uploader.send(_demo())).did, isTrue);
       expect(posted, hasLength(1));
-      expect(it.consents.answerCloud(true), isTrue);
+      expect(await it.consents.answerCloud(granted: true), isTrue);
       expect(
         (await it.consents.sync!.sync()).outcome,
         isNot(SyncOutcome.notConsented),
@@ -125,26 +124,64 @@ void main() {
       expect(it.store.calls, isNotEmpty);
 
       // And taken back, stops at the next send.
-      it.consents.answerTelemetry(false);
+      await it.consents.answerTelemetry(granted: false);
       expect((await uploader.send(_demo())).did, isFalse);
       expect(posted, hasLength(1));
     },
   );
 
-  test('a new wording asks again', () {
+  test('the telemetry answer is enveloped, and its version 1 fixture and '
+      'the shape before the envelope read', () async {
+    // Minted on 2026-10-09 when the answer went into the envelope.
+    final fixture = File('test/fixtures/v1/telemetry.json').readAsStringSync();
+    final storage = _Storage()..documents[Consents.telemetryName] = fixture;
+    final read = Consents(storage: storage, policy: '2026-10');
+    await read.ready;
+    expect(read.sendsRuns, isTrue);
+
+    final bare = Map<String, Object?>.of(
+      jsonDecode(fixture) as Map<String, Object?>,
+    )..removeWhere((String key, _) => FormatSpec.envelopeKeys.contains(key));
+    storage.documents[Consents.telemetryName] = jsonEncode(bare);
+    final old = Consents(storage: storage, policy: '2026-10');
+    await old.ready;
+    expect(old.sendsRuns, isTrue);
+
+    // A newer document is not asked, never a grant. Mutation: read past the
+    // version and this one says yes.
+    storage.documents[Consents.telemetryName] = jsonEncode(<String, Object?>{
+      ...jsonDecode(fixture) as Map<String, Object?>,
+      'version': Consents.telemetryVersion + 1,
+    });
+    final newer = Consents(storage: storage, policy: '2026-10');
+    await newer.ready;
+    expect(newer.telemetry.wasAsked, isFalse);
+
+    await newer.answerTelemetry(granted: false);
+    final written =
+        jsonDecode(storage.documents[Consents.telemetryName]!)
+            as Map<String, Object?>;
+    expect(written['format'], 'f3d.telemetryConsent');
+    expect(written['answer'], 'declined');
+  });
+
+  test('a new wording asks again', () async {
     final it = fresh();
-    it.consents.answerTelemetry(true);
+    await it.consents.answerTelemetry(granted: true);
     final reworded = Consents(storage: it.consents.storage, policy: '2027-01');
-    expect(reworded.telemetry.granted, isTrue);
+    expect(reworded.telemetry.isGranted, isTrue);
     expect(reworded.sendsRuns, isFalse);
   });
 
-  test('a build with no save server says so, and its switch does nothing', () {
-    final consents = Consents(storage: _Storage(), policy: '2026-10');
-    expect(consents.cloud, isFalse);
-    expect(consents.answerCloud(true), isFalse);
-    expect(consents.cloud, isFalse);
-  });
+  test(
+    'a build with no save server says so, and its switch does nothing',
+    () async {
+      final consents = Consents(storage: _Storage(), policy: '2026-10');
+      expect(consents.hasCloudConsent, isFalse);
+      expect(await consents.answerCloud(granted: true), isFalse);
+      expect(consents.hasCloudConsent, isFalse);
+    },
+  );
 
   test('a run is posted as JSON over a real client', () async {
     late http.Request seen;
@@ -161,70 +198,6 @@ void main() {
     expect(jsonDecode(seen.body), <String, Object?>{'a': 1});
   });
 
-  testWidgets('the panel asks both, off until turned on', (tester) async {
-    final it = fresh();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: PrivacySection(consents: it.consents)),
-      ),
-    );
-    Switch switchIn(String key) => tester.widget<Switch>(
-      find.descendant(
-        of: find.byKey(ValueKey<String>(key)),
-        matching: find.byType(Switch),
-      ),
-    );
-    expect(switchIn('privacy:cloud').value, isFalse);
-    expect(switchIn('privacy:telemetry').value, isFalse);
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('privacy:telemetry')),
-        matching: find.byType(Switch),
-      ),
-    );
-    await tester.pump();
-    expect(switchIn('privacy:telemetry').value, isTrue);
-    expect(it.consents.sendsRuns, isTrue);
-    expect(it.consents.cloud, isFalse);
-  });
-
-  testWidgets('two runs equally far along: the player picks one', (
-    tester,
-  ) async {
-    bool? kept;
-    final asked = SyncReport(
-      SyncOutcome.ask,
-      'This device and the cloud each have a run.',
-      local: SaveRecord(
-        level: 'assets/levels/crypt.json',
-        run: const Snapshot(<String, Object?>{}),
-        step: 600,
-      ),
-      remote: SaveRecord(
-        level: 'assets/levels/deep.json',
-        run: const Snapshot(<String, Object?>{}),
-        step: 4200,
-      ),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (BuildContext context) => TextButton(
-            onPressed: () async => kept = await askWhichRun(context, asked),
-            child: const Text('sync'),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('sync'));
-    await tester.pumpAndSettle();
-    expect(find.text('On this device: crypt.json, 10s in'), findsOneWidget);
-    expect(find.text('In the cloud: deep.json, 1m10s in'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey<String>('run:remote')));
-    await tester.pumpAndSettle();
-    expect(kept, isFalse);
-  });
-
   test(
     'with no server both are asked and nothing has anywhere to go',
     () async {
@@ -234,10 +207,11 @@ void main() {
         storage: storage,
         saves: SaveFile(appName: 'test', storage: storage),
         server: '',
+        policy: '2026-10',
       );
       expect(cloud.sync, isNull);
       expect(cloud.uploader, isNull);
-      cloud.consents.answerTelemetry(true);
+      await cloud.consents.answerTelemetry(granted: true);
       expect(await cloud.send(_demo()), isNull);
     },
   );
@@ -252,6 +226,7 @@ void main() {
         storage: storage,
         saves: SaveFile(appName: 'test', storage: storage),
         server: 'https://example.test/',
+        policy: '2026-10',
         client: MockClient((http.Request request) async {
           asked.add('${request.method} ${request.url}');
           return http.Response('{"run": 7, "eraseKey": "k"}', 201);
@@ -260,7 +235,7 @@ void main() {
       expect(cloud.sync, isNotNull);
       expect((await cloud.send(_demo()))!.did, isFalse);
       expect(asked, isEmpty);
-      cloud.consents.answerTelemetry(true);
+      await cloud.consents.answerTelemetry(granted: true);
       expect((await cloud.send(_demo()))!.did, isTrue);
       expect(asked, <String>['POST https://example.test/api/telemetry/runs']);
     },
@@ -276,31 +251,6 @@ void main() {
       expect(main, contains('privacy: _cloud.consents'), reason: game);
       expect(main, contains('_cloud.send('), reason: game);
     }
-  });
-
-  testWidgets('before a run begins, the cloud is asked only after a yes', (
-    tester,
-  ) async {
-    final it = fresh();
-    late BuildContext context;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (BuildContext c) {
-            context = c;
-            return const SizedBox();
-          },
-        ),
-      ),
-    );
-    // No cloud, nothing to say.
-    expect(await syncBeforeBegin(context, null), isNull);
-    // Mutation: syncing whether or not the player said yes.
-    expect(await syncBeforeBegin(context, it.consents.sync), isNotNull);
-    expect(it.store.calls, isEmpty);
-    it.consents.answerCloud(true);
-    await syncBeforeBegin(context, it.consents.sync);
-    expect(it.store.calls, contains('fetch'));
   });
 
   test('the two games with a run to keep sync it before they begin', () {

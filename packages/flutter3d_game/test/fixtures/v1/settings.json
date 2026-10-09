@@ -1,0 +1,22 @@
+{
+  "bindings": {
+    "jump": [
+      "key:32",
+      "pad:face.south"
+    ],
+    "moveForward": [
+      "key:119"
+    ]
+  },
+  "volumes": {
+    "master": 0.8,
+    "music": 0.4
+  },
+  "settings": {
+    "a11y.cameraMotion": 0.5,
+    "a11y.toggleSprint": 1.0,
+    "colour.enemy": 2.0,
+    "mouse.look": 1.5,
+    "pad.deadzone.stick": 0.2
+  }
+}

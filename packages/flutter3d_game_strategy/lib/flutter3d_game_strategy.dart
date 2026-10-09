@@ -77,15 +77,22 @@
 /// did not would be a fog that lied to exactly one of them.
 library;
 
+export 'src/actions.dart';
 export 'src/bot.dart';
 export 'src/building.dart';
 export 'src/economy.dart';
+export 'src/events.dart';
 export 'src/fog.dart';
 export 'src/formation.dart';
+export 'src/headless.dart';
+export 'src/level_reader.dart';
 export 'src/map_camera.dart';
 export 'src/match.dart';
 export 'src/order_tape.dart';
 export 'src/orders.dart';
+export 'src/plugin.dart';
 export 'src/selection.dart';
 export 'src/simulation.dart';
+export 'src/simulation_version.dart';
+export 'src/step_phases.dart';
 export 'src/unit.dart';

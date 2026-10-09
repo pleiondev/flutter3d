@@ -24,6 +24,7 @@
 /// break when the step does; that is what it is for.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'orders.dart';
@@ -175,10 +176,76 @@ final class MatchDemo {
     required this.checkpoints,
     this.platform,
     this.recordedBy,
+    this.simulation,
+    this.poses,
+    this.unknown = const <String, Object?>{},
   });
 
   /// Bumped when an existing field changes meaning.
-  static const int formatVersion = 1;
+  ///
+  /// **Two since the map's world rode in the simulation's save.** A start
+  /// and the checkpoints of a version-one recording were taken of a match
+  /// whose water and fires were nowhere in its state, and whose waders were
+  /// held back after the step rather than in it; played now, the same tape
+  /// walks the crowd differently and the checkpoints cannot agree.
+  ///
+  /// **That is a different simulation, not an unreadable file** (decisions 8
+  /// and 9). A version-one file opens: its migration to two tags it with
+  /// [preWaterSimulation], and [refusalOn] then refuses its tape with the
+  /// sentence that says why, while its level, its stamp and its start are
+  /// still there to be read.
+  static const int formatVersion = 2;
+
+  /// The strategy simulation a version-one match was recorded on: the one
+  /// from before the map's water and fires rode in the match, which no 1.x
+  /// build runs.
+  static const SimulationVersion preWaterSimulation = SimulationVersion(
+    genre: 'strategy',
+    genreVersion: 0,
+  );
+
+  /// One step per version, `_upgrades[n - 1]` taking `n` to `n + 1`.
+  ///
+  /// 1 → 2 changes no field's shape; what changed is the simulation under
+  /// the tape, so the step writes that down — [preWaterSimulation] — where a
+  /// file that names none would otherwise be read as the current one.
+  static Map<String, Object?> _toPreWater(Map<String, Object?> v1) =>
+      <String, Object?>{
+        ...v1,
+        'simulation': v1['simulation'] ?? preWaterSimulation.toJson(),
+      };
+
+  /// A strategy match in the registry: `f3d.match`.
+  ///
+  /// **`.match.f3drun`**: a match is a `.f3drun` like a `Demo`, and the
+  /// registry gives `.f3drun` to `f3d.run`; the longer suffix wins in
+  /// `FormatRegistry.forPath`, and the envelope's `format` is what tells
+  /// the two apart once a file named either way is open. The envelope is
+  /// additive at version 2 — a build from before it ignores the keys.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.match',
+    suffixes: <String>['.match.f3drun'],
+    version: formatVersion,
+    fixture: 'test/fixtures/v<N>/match.f3drun',
+    migrations: <FormatMigration>[_toPreWater],
+  );
+
+  static const Set<String> _known = <String>{
+    'level',
+    'levelHash',
+    'run',
+    'tape',
+    'buildStamp',
+    'checkpoints',
+    'platform',
+    'recordedBy',
+    'simulation',
+    'poses',
+  };
+
+  /// The top-level keys of the file this match was read from that this
+  /// build did not understand, written back as they were.
+  final Map<String, Object?> unknown;
 
   /// The extension a match is written under — the same one `Demo` uses,
   /// because both are read the same way once opened: a `.f3drun` on disk, its
@@ -218,11 +285,30 @@ final class MatchDemo {
   /// Who recorded it, or null for anonymous.
   final String? recordedBy;
 
+  /// Which simulation the tape was recorded in, or null for a match written
+  /// before simulations had numbers — read as the first ([refusalOn]).
+  final SimulationVersion? simulation;
+
+  /// Where the match's bodies were every few steps, beside [tape] — what a
+  /// viewer plays when the tape cannot be replayed. Null when none was kept.
+  final PoseRecord? poses;
+
   /// How many steps the match lasted.
   int get steps => tape.steps;
 
+  /// Why this match's tape will not be replayed on [running] — the
+  /// `strategySimulationVersion` of this build — or null when it will.
+  String? refusalOn(SimulationVersion running) =>
+      (simulation ?? SimulationVersion.firstOf(running)).refusalOn(running);
+
+  /// Throws [ReplayException], carrying [poses], when [refusalOn] has a reason.
+  void checkSimulation(SimulationVersion running) {
+    final String? reason = refusalOn(running);
+    if (reason != null) throw ReplayException(reason, poses: poses);
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+    ...format.envelope(),
     'level': level,
     'levelHash': levelHash,
     'run': start.toJson(),
@@ -231,6 +317,10 @@ final class MatchDemo {
     'checkpoints': checkpoints.toJson(),
     if (platform != null) 'platform': platform,
     if (recordedBy != null) 'recordedBy': recordedBy,
+    if (simulation != null) 'simulation': simulation!.toJson(),
+    if (poses != null) 'poses': poses!.toJson(),
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!_known.contains(key)) key: value,
   };
 
   /// Reads a demo, or throws a [DemoFormatException] that says why not.
@@ -240,17 +330,23 @@ final class MatchDemo {
   /// wrote it, and a file with no tape in it was cut short by whatever wrote
   /// it, and whoever is holding it deserves to be told which of the two they
   /// have.
-  factory MatchDemo.fromJson(Map<String, Object?> json) {
-    final Object? version = json['version'];
+  factory MatchDemo.fromJson(Map<String, Object?> json) =>
+      _read(json, json['version']);
+
+  static MatchDemo _read(Map<String, Object?> written, Object? version) {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
     }
-    if (version > formatVersion) {
-      throw DemoFormatException(
-        'the match was recorded by a newer build (format $version, this build '
-        'reads $formatVersion) — update flutter3d to open it',
-      );
+    if (version < 1 || version != version.truncate()) {
+      throw DemoFormatException('the recording names format $version');
     }
+    // A newer match, a `Demo` or anything else that is not one, or a
+    // `requires` this build does not know, is refused by the spec; an older
+    // match is lifted through the chain.
+    final Map<String, Object?> json = format.open(
+      written,
+      refuse: DemoFormatException.new,
+    );
     final Object? level = json['level'];
     if (level is! String || level.isEmpty) {
       throw const DemoFormatException('the recording names no map');
@@ -297,6 +393,26 @@ final class MatchDemo {
     }
     final Object? platform = json['platform'];
     final Object? recordedBy = json['recordedBy'];
+    final SimulationVersion? simulation;
+    final PoseRecord? poses;
+    try {
+      simulation = switch (json['simulation']) {
+        null => null,
+        final Map<String, Object?> named => SimulationVersion.fromJson(named),
+        _ => throw const DemoFormatException(
+          'the simulation is not a document',
+        ),
+      };
+      poses = switch (json['poses']) {
+        null => null,
+        final Map<String, Object?> record => PoseRecord.fromJson(record),
+        _ => throw const DemoFormatException(
+          'the pose record is not a document',
+        ),
+      };
+    } on Flutter3dFormatException catch (error) {
+      throw DemoFormatException(error.message);
+    }
     return MatchDemo(
       level: level,
       levelHash: levelHash,
@@ -306,6 +422,9 @@ final class MatchDemo {
       checkpoints: trace,
       platform: platform is String ? platform : null,
       recordedBy: recordedBy is String ? recordedBy : null,
+      simulation: simulation,
+      poses: poses,
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
   }
 }

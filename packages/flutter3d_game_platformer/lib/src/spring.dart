@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -6,7 +7,11 @@ import 'package:vector_math/vector_math.dart';
 /// The same shape as [Gatherer] and [KeyTaker]: a collider says who it is, and
 /// whether that someone can be launched is a question they answer. A crate
 /// could implement this too and would then need no change here.
-abstract interface class Launchable {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Launchable {
   /// Throws this upward at [speed] metres a second.
   ///
   /// A speed rather than an impulse, because a spring is a promise about height

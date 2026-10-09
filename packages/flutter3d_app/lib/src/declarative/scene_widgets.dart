@@ -35,17 +35,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/rendering.dart' show RenderPositionedBox;
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show OriginShifted, Registration;
 
-import '../backend_native.dart'
-    if (dart.library.js_interop) '../backend_web.dart'
-    show openDevice, presentFrame;
-import '../surface/scene_surface.dart';
+import '../surface/scene_surface.dart' show FramePresenter;
+import '../view/flutter3d_view.dart';
+import '../view/frame_info.dart';
 
 part 'scene_widgets_features.dart';
 part 'scene_widgets_mount.dart';
@@ -65,12 +64,23 @@ abstract interface class _SceneHost {
 
 /// What a [Scene3D] has made, for a game that wants the graph underneath.
 final class Scene3DController {
-  Scene3DController._(this.device, this.renderer, this.scene, this._owner);
+  Scene3DController._(this.engine, this._owner);
 
-  final GraphicsDevice device;
-  final Renderer renderer;
-  final Scene scene;
+  /// The engine the scene is drawn by — its device, renderer and loop — as
+  /// the [Flutter3dView] underneath made it.
+  final Flutter3dEngine engine;
+
   final _Scene3DState _owner;
+
+  /// The device the scene's meshes are uploaded to. After a device loss it
+  /// is the one the scene was rebuilt on; read it where it is used.
+  GraphicsDevice get device => engine.device;
+
+  /// The renderer; see [device] on keeping it.
+  Renderer get renderer => engine.renderer;
+
+  /// The scene the widgets build.
+  Scene get scene => _owner._scene;
 
   /// The camera the frame is drawn through: the [Camera3D] built last, or a
   /// default one five metres back looking at the origin when there is none.
@@ -79,14 +89,22 @@ final class Scene3DController {
 
 /// The root of a scene written as widgets — `P10`.
 ///
-/// Opens a device through `openDevice` unless [device] is given, makes a
-/// [Renderer] and a [Scene], builds [children] into the scene, and draws it
-/// through [SceneSurface]. [placeholder] is shown while the device opens.
+/// **A [Flutter3dView] underneath, since 1.0**: it opens a device (unless
+/// [device] is given), makes the renderer and the loop, and owns the frame
+/// clock, focus, lifecycle and teardown as it does for any engine. What this
+/// adds is the scene: [children] built into it, the [Camera3D] built last
+/// drawn through, models and particles advanced before each frame.
+/// [placeholder] is shown while the device opens.
 ///
 /// **One frame per vsync while [continuous]**, which a scene with an
 /// animation needs; with it off a frame is drawn when this widget is built
 /// again, which is enough for a scene that changes only when its parent's
-/// state does.
+/// state does, and nothing is advanced between.
+///
+/// **A device lost and recovered** (a browser's WebGL context) has the
+/// children built again on the device that came back, so every mesh is
+/// uploaded again; [materials] went with the old device and is the
+/// application's to load again in [onCreated]'s controller's place.
 class Scene3D extends StatefulWidget {
   const Scene3D({
     super.key,
@@ -100,7 +118,14 @@ class Scene3D extends StatefulWidget {
     this.onCreated,
     this.onFrame,
     this.presenter,
+    this.frameRateCap,
   });
+
+  /// Frames a second this scene is drawn at most, held to a whole number of
+  /// the display's refreshes — `A1.5`: sixty on a 120 Hz screen is every
+  /// other refresh, thirty on sixty every other. Null, the default, draws on
+  /// every refresh while [continuous]. See `FrameCadence`.
+  final double? frameRateCap;
 
   /// The scene's contents: [Node3D], [Mesh3D], [Model3D], [Light3D] and
   /// [Camera3D], nested as the graph is.
@@ -109,10 +134,11 @@ class Scene3D extends StatefulWidget {
   /// What every frame is drawn with.
   final RenderSettings settings;
 
-  /// The colour behind everything, linear RGBA; the view's default if null.
-  final Vector4? clearColor;
+  /// The colour behind everything, in linear light; the view's default if
+  /// null. Encoded to sRGB once, for the view's `clearColorSrgb`.
+  final LinearColor? clearColor;
 
-  /// The device to draw on; `openDevice`'s answer if null.
+  /// The device to draw on, borrowed; one the view opens if null.
   final GraphicsDevice? device;
 
   /// A loaded shader library layered over the engine's, for materials whose
@@ -126,9 +152,10 @@ class Scene3D extends StatefulWidget {
   /// Called once, when the scene exists and before its first frame.
   final void Function(Scene3DController controller)? onCreated;
 
-  /// Called before every frame with the seconds since the last one — after
-  /// the animations have advanced and before the frame is drawn.
-  final void Function(double seconds)? onFrame;
+  /// Called before every frame — after the animations have advanced and
+  /// before the frame is drawn — with the seconds since the last one and
+  /// what the renderer answered for it, as one [FrameInfo].
+  final void Function(FrameInfo frame)? onFrame;
 
   /// `presentFrame`, normally; a test without a backend passes its own.
   final FramePresenter? presenter;
@@ -137,9 +164,7 @@ class Scene3D extends StatefulWidget {
   State<Scene3D> createState() => _Scene3DState();
 }
 
-class _Scene3DState extends State<Scene3D>
-    with SingleTickerProviderStateMixin
-    implements _SceneHost {
+class _Scene3DState extends State<Scene3D> implements _SceneHost {
   Scene3DController? _controller;
   late final Scene _scene = Scene();
   late final CameraNode _defaultCamera = CameraNode()
@@ -147,10 +172,16 @@ class _Scene3DState extends State<Scene3D>
     ..lookAt(Vector3.zero());
   final List<CameraNode> _cameras = <CameraNode>[];
   final Set<_Animated> _animated = <_Animated>{};
-  Ticker? _ticker;
-  Duration _last = Duration.zero;
-  double _pending = 0.0;
-  Object? _error;
+
+  /// The view the frame is drawn through, kept across frames so the
+  /// temporal history it carries is this scene's; made again when the
+  /// camera or the clear colour changes.
+  RenderView? _view;
+  LinearColor? _viewClear;
+
+  /// Bumped when the device comes back from a loss: the children are built
+  /// again, and each uploads again to the device that is there now.
+  int _generation = 0;
 
   CameraNode get _camera => _cameras.isEmpty ? _defaultCamera : _cameras.last;
 
@@ -170,99 +201,87 @@ class _Scene3DState extends State<Scene3D>
   void initState() {
     super.initState();
     _scene.add(_defaultCamera);
-    unawaited(_open());
-    if (widget.continuous) _startTicker();
   }
 
-  Future<void> _open() async {
-    try {
-      final device =
-          widget.device ?? await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      final renderer = Renderer.create(
-        device: device,
-        materials: widget.materials,
-      );
-      setState(() {
-        _controller = Scene3DController._(device, renderer, _scene, this);
-      });
-      widget.onCreated?.call(_controller!);
-    } on Object catch (error) {
-      if (mounted) setState(() => _error = error);
+  void _created(Flutter3dEngine engine) {
+    if (widget.materials case final materials?) {
+      engine.renderer.renderSteps.addMaterials(materials);
     }
-  }
-
-  void _startTicker() {
-    _ticker ??= createTicker((Duration elapsed) {
-      _pending += (elapsed - _last).inMicroseconds / 1e6;
-      _last = elapsed;
-      if (_controller != null) setState(() {});
-    })..start();
-  }
-
-  @override
-  void didUpdateWidget(Scene3D oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.continuous && _ticker == null) {
-      _startTicker();
-    } else if (!widget.continuous && _ticker != null) {
-      _ticker!.dispose();
-      _ticker = null;
-    }
-  }
-
-  @override
-  void dispose() {
-    _ticker?.dispose();
-    // What this widget made, it gives back: the renderer always, the device
-    // only when it opened it — one handed in belongs to whoever handed it.
-    if (_controller case final controller?) {
-      controller.renderer.dispose();
-      if (widget.device == null) controller.device.dispose();
-    }
-    super.dispose();
+    final controller = Scene3DController._(engine, this);
+    setState(() => _controller = controller);
+    widget.onCreated?.call(controller);
   }
 
   /// The animations advance by what passed since the last frame, then the
   /// game's own [Scene3D.onFrame]: one place for "before the frame".
-  void _beforeFrame() {
-    final seconds = _pending;
-    _pending = 0.0;
-    for (final animated in _animated) {
-      animated.advance(seconds);
+  void _beforeFrame(FrameInfo frame) {
+    for (final animated in List<_Animated>.of(_animated)) {
+      animated.advance(frame.seconds);
     }
-    widget.onFrame?.call(seconds);
+    widget.onFrame?.call(frame);
+  }
+
+  RenderView _viewFor(CameraNode camera) {
+    final view = _view;
+    final clear = widget.clearColor;
+    if (view != null && identical(view.camera, camera) && _viewClear == clear) {
+      return view;
+    }
+    view?.dispose();
+    _viewClear = clear;
+    final srgb = clear?.toSrgb();
+    return _view = RenderView(
+      camera: camera,
+      clearColorSrgb: srgb == null
+          ? null
+          : Vector4(srgb.r, srgb.g, srgb.b, srgb.a),
+    );
+  }
+
+  @override
+  void dispose() {
+    _view?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final error = _error;
-    if (error != null) {
-      return ErrorWidget('the scene could not open a device: $error');
-    }
     final controller = _controller;
-    if (controller == null) return widget.placeholder;
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
         // Built first and never painted: the children's whole job is the
-        // nodes they keep in the scene. The surface draws in layout, after
+        // nodes they keep in the scene. The view draws in layout, after
         // every one of them has been built for this frame.
-        Offstage(
-          child: _Scene3DScope(
-            host: this,
-            device: controller.device,
-            parent: _scene.root,
-            child: _Children(widget.children),
+        if (controller != null)
+          Offstage(
+            child: KeyedSubtree(
+              key: ValueKey<int>(_generation),
+              child: _Scene3DScope(
+                host: this,
+                device: controller.device,
+                parent: _scene.root,
+                child: _Children(widget.children),
+              ),
+            ),
           ),
-        ),
-        SceneSurface(
-          renderer: controller.renderer,
+        Flutter3dView(
           scene: _scene,
-          view: RenderView(camera: _camera, clearColor: widget.clearColor),
-          settings: () => widget.settings,
-          onBeforeFrame: _beforeFrame,
-          presentFrame: widget.presenter ?? presentFrame,
+          camera: _defaultCamera,
+          device: widget.device,
+          settings: widget.settings,
+          views: controller == null ? null : <RenderView>[_viewFor(_camera)],
+          continuous: widget.continuous,
+          frameRateCap: widget.frameRateCap,
+          presenter: widget.presenter,
+          placeholder: widget.placeholder,
+          failure: (Object error) =>
+              ErrorWidget('the scene could not open a device: $error'),
+          onCreated: _created,
+          onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
+              _beforeFrame(frame),
+          onDeviceRestored: (Flutter3dEngine engine) =>
+              setState(() => _generation++),
         ),
       ],
     );
@@ -359,7 +378,7 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
     if (widget.position case final p?) node.setPositionFrom(p);
     if (widget.rotation case final r?) node.setRotation(r);
     if (widget.scale case final s?) node.setScale(s.x, s.y, s.z);
-    node.visible = widget.visible;
+    node.isVisible = widget.visible;
     apply(node, _scope!);
   }
 
@@ -459,7 +478,7 @@ class Mesh3D extends Spatial3D {
 
   final Shape? shape;
   final MeshGeometry? geometry;
-  final engine.Material? material;
+  final engine.RenderMaterial? material;
   final bool castsShadow;
 
   /// See `MeshNode.drawOrder`.
@@ -490,7 +509,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
   /// The mirror this mesh is a surface of, while it hangs directly from one.
   PlanarReflectorNode? _reflector;
 
-  engine.Material _material() =>
+  engine.RenderMaterial _material() =>
       widget.material ??
       _MaterialScope.maybeOf(context) ??
       (throw FlutterError(
@@ -554,7 +573,7 @@ class Light3D extends Spatial3D {
     this.type = LightType.directional,
     this.direction,
     this.color,
-    this.intensity = 1.0,
+    this.intensity = Photometric.legacyUnit,
     this.range = 0.0,
     this.castsShadow,
     this.outerConeAngle,
@@ -567,7 +586,7 @@ class Light3D extends Spatial3D {
     super.key,
     required this.direction,
     this.color,
-    this.intensity = 1.0,
+    this.intensity = Photometric.legacyUnit,
     this.castsShadow,
   }) : type = LightType.directional,
        range = 0.0,
@@ -579,7 +598,7 @@ class Light3D extends Spatial3D {
     super.key,
     required super.position,
     this.color,
-    this.intensity = 1.0,
+    this.intensity = Photometric.legacyUnit,
     this.range = 0.0,
     this.castsShadow,
   }) : type = LightType.point,
@@ -592,8 +611,14 @@ class Light3D extends Spatial3D {
   final Vector3? direction;
 
   /// Linear RGB; white if null.
-  final Vector3? color;
+  final LinearColor? color;
+
+  /// How bright the light is: lux for a directional light, candela for a
+  /// point or spot (since 1.0). The default is the light a default
+  /// `LightNode` is.
   final double intensity;
+
+  /// How far the light reaches, in metres; nought is unbounded.
   final double range;
 
   /// Null leaves the engine's default: a directional light casts, others not.
@@ -617,7 +642,7 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
       ..type = widget.type
       ..intensity = widget.intensity
       ..range = widget.range;
-    node.color.setFrom(widget.color ?? Vector3(1.0, 1.0, 1.0));
+    node.color = widget.color ?? LinearColor.white;
     if (widget.castsShadow case final casts?) node.castsShadow = casts;
     if (widget.outerConeAngle case final cone?) node.outerConeAngle = cone;
     if (widget.direction case final direction?) {
@@ -710,6 +735,8 @@ class Model3D extends Spatial3D {
   final Widget? placeholder;
   final String? animation;
   final bool playing;
+
+  /// How fast the clip plays, a multiplier on its own speed.
   final double speed;
 
   /// Called once with the instance the model became.

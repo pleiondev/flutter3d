@@ -1,4 +1,5 @@
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -211,10 +212,10 @@ void main() {
       );
       _run(w.mechanisms, 0.5);
       expect(door.state, MoverState.closed);
-      expect(trigger.takeOutcome(), isA<Refused>());
+      expect(trigger.drainOutcome(), isA<Refused>());
 
       w.world.remove(empty);
-      final carrying = Inventory()..keyRing.take('blue');
+      final carrying = Inventory()..keyRing.add('blue');
       _player(w.world, Vector3(0.0, 1.0, 0.0), carrying: carrying);
       _run(w.mechanisms, 1.0);
 
@@ -234,9 +235,9 @@ void main() {
       _player(w.world, Vector3(0.0, 1.0, 0.0));
       _run(w.mechanisms, 0.2);
 
-      expect(trigger.takeOutcome(), isA<Activated>());
+      expect(trigger.drainOutcome(), isA<Activated>());
       _run(w.mechanisms, 0.5);
-      expect(trigger.takeOutcome(), isNull);
+      expect(trigger.drainOutcome(), isNull);
     });
 
     test('by default it arms once, because a trap should not rearm', () {

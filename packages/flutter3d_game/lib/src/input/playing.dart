@@ -26,12 +26,33 @@ import 'package:pointer_lock/pointer_lock.dart';
 /// So each question is now asked of the thing that knows the answer: the pointer
 /// capture backend for the first, the platform for the second.
 ///
-/// **A `flutter test` reports itself as Android**, which is `flutter_test`'s own
-/// default, so anything here answers as the touch build inside a test. That is
-/// harmless today because nothing mounts the game in a test, and it is a trap
-/// worth knowing about the day something does: pass the answer in rather than
-/// reading it, as `TitleCard` does.
-abstract final class Playing {
+/// **An object the game holds, not three globals.** It was a class of static
+/// getters read from anywhere, so a test could not say "a phone" without
+/// pretending the whole process was one — and `flutter test` reports itself
+/// as Android, so everything read as the touch build inside a test whether
+/// it wanted to or not. A game makes one with [Playing.ofPlatform] and hands
+/// it to what asks; a test makes the one it means:
+///
+/// ```dart
+/// final playing = Playing.ofPlatform();       // the game
+/// const phone = Playing(touch: true, capturesPointer: false); // a test
+/// ```
+final class Playing {
+  /// The answers given, for a test or a host that knows better.
+  const Playing({required this.touch, required this.capturesPointer});
+
+  /// The answers this platform gives: [touch] from the target platform,
+  /// [capturesPointer] from `pointer_lock`.
+  factory Playing.ofPlatform() {
+    final touch =
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    return Playing(
+      touch: touch,
+      capturesPointer: !touch && PointerLockPlatform.instance.isSupported,
+    );
+  }
+
   /// Whether the pointer can be taken, so the mouse reports motion.
   ///
   /// **Asked of `pointer_lock` rather than of a platform list**, because the
@@ -53,8 +74,7 @@ abstract final class Playing {
   /// There was briefly a second name for that second question. It carried one
   /// genre's word for the action, `no_genre_test.dart` said so, and the test was
   /// right twice: the word did not belong here, and neither did the field.
-  static bool get capturesPointer =>
-      !touch && PointerLockPlatform.instance.isSupported;
+  final bool capturesPointer;
 
   /// Whether the player has fingers rather than a keyboard and a mouse.
   ///
@@ -68,13 +88,11 @@ abstract final class Playing {
   /// the on-screen stick. A visible control nobody needs is the better half of
   /// that trade against no controls on a phone, and the keyboard keeps working
   /// underneath it either way.
-  static bool get touch =>
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS;
+  final bool touch;
 
   /// Whether the camera is turned by dragging.
   ///
   /// True wherever the pointer cannot be captured — a phone, and a desktop
   /// browser that refuses the lock.
-  static bool get dragLook => !capturesPointer;
+  bool get usesDragLook => !capturesPointer;
 }
