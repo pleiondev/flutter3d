@@ -5,8 +5,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'looks.dart';
 
@@ -67,16 +67,21 @@ final class StoneCar {
       (-0.8, -0.85),
       (-0.8, 0.85),
     ]) {
-      _world.addWheel(vehicle, (
-        attach: Vector3(x, -0.05, z),
-        rest: 0.35,
-        radius: _rollerRadius,
-        // Stiff enough that a loaded bed sags a hand's breadth, damped near
-        // critically.
-        stiffness: 26000.0,
-        damping: 2600.0,
-        grip: 0.9,
-      ));
+      _world.addWheel(
+        vehicle,
+        NativeWheelSettings(
+          attach: Vector3(x, -0.05, z),
+          rest: 0.35,
+          radius: _rollerRadius,
+          // Stiff enough that a loaded bed sags a hand's breadth, damped near
+          // critically.
+          stiffness: 26000.0,
+          damping: 2600.0,
+          grip: 0.9,
+          width: 2.0 * _rollerHalfWidth,
+          rollingResistance: _rolling,
+        ),
+      );
     }
     // Drawn about the deck's middle, which sits below the body's origin by
     // as far as the rails lift the centre of mass.
@@ -197,9 +202,9 @@ final class StoneCar {
       name: 'barrel',
     )..setPosition(-_halfLength + 0.4, _halfHeight + 0.42, 0);
     // Two hoops of twisted withies round the staves, where it bulges less.
-    final hoop = Material(
+    final hoop = RenderMaterial(
       name: 'hoop',
-      baseColor: Vector4(0.2, 0.14, 0.08, 1.0),
+      baseColor: LinearColor.fromSrgb(0.2, 0.14, 0.08, 1.0),
       roughness: 0.8,
     );
     final hoopMesh = DeviceMesh.upload(
@@ -267,7 +272,7 @@ final class StoneCar {
   static const double barrelHolds = 100.0;
 
   /// Where the car is and which way it faces.
-  Vector3 get position => _world.positionOf(body);
+  Vector3 get position => _world.localPositionOf(body);
   Quaternion get orientation => _world.orientationOf(body);
   Vector3 get forward =>
       orientation.asRotationMatrix().transformed(Vector3(1.0, 0.0, 0.0));
@@ -293,10 +298,9 @@ final class StoneCar {
     // F = min(F_max, P / v).
     final speed = _world.velocityOf(body).length;
     final force = speed > 0.1 ? (_power / speed).clamp(0.0, _push) : _push;
-    final weight = (_world.massOf(body)) * 9.81 / 4;
-    // Nobody pushing and nearly still: the driver's feet are down, or a
-    // stone is under a roller, and the car stays where it was left.
-    final parked = hold || (throttle == 0 && speed < 0.5);
+    // Left alone, the rollers' own resistance holds it on any slope
+    // gentler than a twentieth, and slows it on the flat; the brake is
+    // the driver's feet, down only while held.
     for (var k = 0; k < 4; k++) {
       final front = k < 2;
       _world.setWheel(
@@ -304,7 +308,7 @@ final class StoneCar {
         k,
         steer: front ? _steer * turn : 0.0,
         drive: front ? 0.0 : 0.5 * force * throttle,
-        brake: parked ? _brake : _rolling * weight,
+        brake: hold ? _brake : 0.0,
       );
     }
   }
@@ -313,7 +317,7 @@ final class StoneCar {
   void rightUp() {
     final p = position;
     final f = forward..y = 0;
-    final heading = f.length2 > 0 ? math.atan2(-f.z, f.x) : 0.0;
+    final heading = f.length2 > 0 ? Portable.atan2(-f.z, f.x) : 0.0;
     _world
       ..setPosition(body, Vector3(p.x, p.y + 1.5, p.z))
       ..setOrientation(body, Quaternion.axisAngle(Vector3(0, 1, 0), heading))
@@ -330,7 +334,7 @@ final class StoneCar {
       ..setRotation(q);
     // Oak-brown staves, darker as the water soaks them.
     final soaked = water / barrelHolds;
-    _barrel.material.baseColor.setValues(
+    _barrel.material.baseColor = LinearColor.fromSrgb(
       0.95 * (1.0 - 0.45 * soaked),
       0.74 * (1.0 - 0.4 * soaked),
       0.52 * (1.0 - 0.25 * soaked),
@@ -344,7 +348,7 @@ final class StoneCar {
           Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), w.steer) *
           Quaternion.axisAngle(Vector3(0.0, 0.0, -1.0), w.rotation);
       _rollers[k]
-        ..setPosition(w.centre.x, w.centre.y, w.centre.z)
+        ..setPosition(w.center.x, w.center.y, w.center.z)
         ..setRotation(turn);
     }
   }

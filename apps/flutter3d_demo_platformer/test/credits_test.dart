@@ -14,32 +14,31 @@
 /// disk, and one reads the screen a player can reach.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_app/flutter3d_app.dart' show MemoryStorage;
+import 'package:flutter3d_demo_content/repo_checks.dart'; // creditGaps
 import 'package:flutter3d_demo_platformer/src/credits.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game/testing.dart'; // creditGaps
 // creditGaps — test-only, not in the barrel
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The panel as the game mounts it: inside a [Scaffold], because the volume
 /// sliders need a [Material] ancestor and the game gives them one.
-Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
+Widget _panel({bool padConnected = false}) => MaterialApp(
   home: Scaffold(
     body: SettingsPanel(
-      mixer: Mixer(),
-      bindings: PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
-      config: config ?? GameConfig(),
-      padConnected: padConnected,
-      onVolume: (AudioBus bus, double volume) {},
-      onSetting: (String name, double value) {},
-      onClose: () {},
-      actions: const <GameAction>[GameAction.jump],
-      waitingFor: null,
-      onRebind: (GameAction? action) {},
-      onResetControls: () {},
-      credits: const CreditsSection(credits: Credits.models),
+      settings: GameSettingsController(
+        settings: const GameSettings(),
+        file: SettingsFile(appName: 'test', storage: MemoryStorage()),
+        apply: (_) {},
+      ),
+      sections: SettingsSection.standard(
+        padConnected: padConnected,
+        credits: CreditsSection(credits: credits.models),
+      ),
     ),
   ),
 );
@@ -52,7 +51,10 @@ void main() {
     //
     // The comparison is `flutter3d_game`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
+    final gaps = creditGaps(
+      credits.models.map((c) => c.file),
+      shippedFrom: 'assets_src/models',
+    );
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -78,7 +80,7 @@ void main() {
     // is one somebody found somewhere, and the test above reads that
     // directory.
     expect(
-      Credits.untraced,
+      credits.untraced,
       isEmpty,
       reason: 'this game cannot be released while anything is in this list',
     );
@@ -90,7 +92,7 @@ void main() {
     // if `untraced` stops meaning anything.
     const found = Credit.untraced(file: 'models/found.glb', work: 'A thing');
 
-    expect(found.traced, isFalse);
+    expect(found.isTraced, isFalse);
     expect(found.line, contains('untraced'));
     expect(found.owesAttribution, isFalse, reason: 'nobody to attribute it to');
   });
@@ -103,15 +105,15 @@ void main() {
     // would pass with the credits deleted from the game.
     await tester.pumpWidget(_panel());
 
-    for (final credit in Credits.owed) {
+    for (final credit in credits.owed) {
       expect(
         find.textContaining(credit.author!),
         findsWidgets,
         reason: '${credit.work} is CC BY and its author is not on screen',
       );
-      expect(find.textContaining(credit.licence!), findsWidgets);
+      expect(find.textContaining(credit.license!), findsWidgets);
       expect(
-        find.text(credit.licenceUrl!),
+        find.text(credit.licenseUrl!),
         findsWidgets,
         reason: 'the licence has to be reachable, not just named',
       );
@@ -121,15 +123,25 @@ void main() {
   testWidgets('and the screen lists every model, not only the owed ones', (
     WidgetTester tester,
   ) async {
-    // **This used to walk `Credits.untraced`**, which is empty now — so it
+    // **This used to walk `credits.untraced`**, which is empty now — so it
     // passed without looking at anything. What it was reaching for is the real
     // obligation: a credits screen listing three of four models reads as a
     // complete one, and the licence is discharged by the whole list.
     await tester.pumpWidget(_panel());
 
-    expect(Credits.models, isNotEmpty);
-    for (final credit in Credits.models) {
+    expect(credits.models, isNotEmpty);
+    for (final credit in credits.models) {
       expect(find.text(credit.line), findsOneWidget, reason: credit.file);
     }
+  });
+
+  test('and the licence record on disk says the same', () {
+    // `LICENSES.md` is the long version a person reads and the list above is
+    // the half a player sees; where a section names an author and a licence,
+    // the list has to name the same ones.
+    final record = LicenseRecord.parse(
+      File('assets_src/models/LICENSES.md').readAsStringSync(),
+    );
+    expect(credits.disagreementsWith(record), isEmpty);
   });
 }

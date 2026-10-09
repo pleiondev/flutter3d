@@ -5,25 +5,29 @@
 ///
 /// **Drawn only.** The game flies over a level plane at nought, and goes on
 /// doing so: nothing here is read by the run, and what moves the water is
-/// read off it. The water is in worlds of its own; the hulls in it are balls
-/// put where the craft are every frame, and what falls in is a ball dropped
-/// where the game shows something going down.
+/// read off it. The hulls in it are followed — bodies the water's world is
+/// told where to be, which push the water and are never moved back — and
+/// what falls in is a ball dropped where the game shows something going
+/// down. Once the water is drawn the game is told so and stops drawing its
+/// plane.
 ///
 /// **Only the water in sight is there.** The river never ends, so it is cut
-/// into reaches sixty metres long, a liquid and a world apiece; the reaches
-/// from just behind the jet to as far as the camera sees are kept, and each
-/// is let go once the jet has left it behind. A reach is fed by springs
-/// across its upper part and drained as fast across its lower part, so the
-/// current runs through it as it runs through the reach before; the seams
-/// between two reaches lie across the stream in the slack water beyond both,
-/// where the two have the same level and neither is moving.
+/// into reaches sixty metres long, a liquid apiece in one world; the reaches
+/// from the bottom of the camera's picture to one past the top of it are
+/// kept, and each is let go once the picture has left it behind. A reach
+/// takes the river in over its upper edge and stands at the river's level at
+/// its lower one, so the current runs through it as it runs through the
+/// reach before. Two reaches share the row of cells where they meet, so the
+/// surfaces each draws through its cells' middles meet along one line.
 ///
 /// **The weirs are where the level is put back.** The river is level from
 /// end to end and a falls has to drop somewhere. Under each bridge the reach
-/// below starts on a sill whose springs well up and pour over its lip into a
-/// scoured pool; the reach above is drained against the back of the sill,
-/// where the bridge's deck hides that the water there stands no higher than
-/// the pool. That is the one thing here that is not what water would do.
+/// below starts on a sill, the river let in over it and pouring over its lip
+/// into a scoured pool; the reach above stands at the river's level against
+/// the back of the sill, where the bridge's deck hides that the water there
+/// stands no higher than the pool. That is the one thing here that is not
+/// what water would do: a river that falls at each weir would have to fall
+/// in the game too, whose plane is level.
 library;
 
 import 'dart:async';
@@ -34,8 +38,9 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_game_physics/wrecks.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'course.dart';
 import 'river_game.dart';
@@ -74,13 +79,25 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
 
   Future<void> _open(Renderer drawing) async {
     try {
-      final look = await LiquidLook.load(
+      final elements = await Elements.open(
         device: game.device,
         renderer: drawing,
-        bundle: await rootBundle.load(LiquidLook.asset),
+        scene: game.scene,
+        load: rootBundle.load,
+        quality: ElementsQuality(
+          liquid: light ? LiquidDetail.light : RiverWater.detail,
+          fire: light ? FireDetail.light : FireDetail.full,
+        ),
       );
-      if (!game.has3d || isRemoved) return;
-      water = RiverWater(game: game, look: look, light: light);
+      if (!game.has3d || isRemoved) {
+        elements.dispose();
+        return;
+      }
+      water = RiverWater(game: game, elements: elements);
+      // The run's wrecks burn on the water, in its elements.
+      game
+        ..wrecks = BurningWrecks(elements, game.device)
+        ..waterDrawnElsewhere();
     } catch (error) {
       debugPrint('river: no water material, so the plane stays ($error)');
     }
@@ -88,6 +105,7 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
 
   /// Everything let go, before the device it is drawn on closes.
   void close() {
+    game.wrecks = null;
     water?.dispose();
     water = null;
   }
@@ -101,35 +119,20 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
 
 /// The reaches of shallow water along the stretch of river in sight.
 final class RiverWater {
-  RiverWater({
-    required RiverGame game,
-    required LiquidLook look,
-    required this._light,
-  }) : _game = game,
-       _look = look,
-       // A course of its own, laid out by the same seed: reading the game's
-       // would lay out its stretches ahead of when the game does.
-       _course = Course(seed: game.course.seed) {
-    final sun = Vector3(-0.35, -1.0, -0.45)..normalize();
-    look
-      ..sun(along: sun, light: Vector3(2.4, 2.34, 2.2))
-      // The sky the game clears to, a little deeper overhead.
-      ..sky(
-        zenith: Vector3(0.2, 0.38, 0.72),
-        horizon: Vector3(0.27, 0.48, 0.78),
-      )
-      // A lowland river: green-brown where it is shallow, and cloudy, so
-      // the plane under it reads as depth rather than as a floor.
-      ..tint(
-        shallow: Vector3(0.12, 0.27, 0.25),
-        deep: Vector3(0.02, 0.08, 0.13),
-        clearness: 0.04,
-      );
+  RiverWater({required RiverGame game, required this.elements})
+    : _game = game,
+      // A course of its own, laid out by the same seed: reading the game's
+      // would lay out its stretches ahead of when the game does.
+      _course = Course(seed: game.course.seed) {
+    elements
+      ..sun(along: -_toSun, light: _sunLight)
+      ..sky(zenith: _zenith, horizon: _horizon);
   }
 
   final RiverGame _game;
-  final LiquidLook _look;
-  final bool _light;
+
+  /// The river's world, its waters and what is followed into it.
+  final Elements elements;
   final Course _course;
 
   /// How long a reach is, m: a third of a stretch, so the seams fall where
@@ -143,30 +146,22 @@ final class RiverWater {
   /// had it one.
   static const double _first = -bridgeInset;
 
-  /// How far behind the jet and ahead of it the water is kept, m: as far
-  /// down as the camera's view reaches past the jet's tail, and as far up as
-  /// the haze lets anything be seen.
-  static const double _behind = 20.0, _ahead = 150.0;
-
   /// What runs down the river, m³/s: about a quarter of a metre a second
   /// where it is widest and close to a metre between the bridge's piers.
   static const double _flow = 3.0;
-
-  /// How far inside its ends a reach's springs and drains are, m.
-  static const double _slack = 7.0;
 
   /// The sill under a bridge: how high its top stands, how far down the
   /// river it reaches from the bridge's line, and how deep the pool scoured
   /// at its foot is and how long, m. High enough over the pool for the core
   /// to throw what goes over it as a falls, which takes a drop of more than
-  /// a cell; low enough that the water held on it stays under the grass.
+  /// a cell; low enough that the water on it stays under the grass.
   static const double _sillTop = 0.52, _sillLength = 1.5;
   static const double _poolDepth = -0.7, _poolLength = 1.5;
 
-  /// How much of a reach's falling water is drawn: a weir's on a desktop
-  /// and on a phone, and a reach with no weir, where nothing falls but the
-  /// splash of a hull going down.
-  static const LiquidDetail _weirDetail = LiquidDetail(
+  /// How much of a reach's falling water is drawn on a desktop: a weir's,
+  /// and a reach with no weir, where nothing falls but the splash of a hull
+  /// going down.
+  static const LiquidDetail detail = LiquidDetail(
     sheet: 1500,
     drops: 900,
     bubbles: 1500,
@@ -177,15 +172,32 @@ final class RiverWater {
     bubbles: 150,
   );
 
+  /// A lowland river: green-brown and cloudy, so the bed under it reads as
+  /// depth rather than as a floor — about a twenty-fifth of the light left
+  /// through a metre of it.
+  static final Liquid _river = Liquid.water().copyWith(
+    optics: LiquidOptics(
+      absorb: Vector3.all(3.219),
+      backscatter: Vector3(0.06569, 0.2799, 0.481),
+    ),
+  );
+
+  /// Towards the sun and its light, and the sky the game clears to, a little
+  /// deeper overhead, for the water to mirror.
+  static Vector3 get _toSun => Vector3(0.35, 1.0, 0.45)..normalize();
+  static Vector3 get _sunLight => Vector3(2.4, 2.34, 2.2);
+  static Vector3 get _zenith => Vector3(0.2, 0.38, 0.72);
+  static Vector3 get _horizon => Vector3(0.27, 0.48, 0.78);
+
   /// The stone the sills are built of.
-  final Material _stone = Material(
+  final RenderMaterial _stone = RenderMaterial(
     name: 'weir',
-    baseColor: Vector4(0.33, 0.31, 0.27, 1.0),
+    baseColor: LinearColor.fromSrgb(0.33, 0.31, 0.27, 1.0),
     roughness: 0.95,
   );
 
   final Map<int, _Reach> _reaches = <int, _Reach>{};
-  final Map<TargetComponent, _Hull> _hulls = <TargetComponent, _Hull>{};
+  final Map<TargetComponent, Follower> _hulls = <TargetComponent, Follower>{};
   final List<_Plunge> _plunges = <_Plunge>[];
 
   /// Each helicopter going down, where it was last seen: it falls into the
@@ -196,29 +208,6 @@ final class RiverWater {
   /// little after.
   final Map<BridgeComponent, double> _broken = <BridgeComponent, double>{};
   bool _jetDown = false;
-  double _seconds = 0.0;
-  int _frame = 0;
-
-  /// The game's own water, a plane at nought under every stretch, which
-  /// the reaches are drawn over: by name, as the game names it.
-  static final RegExp _plane = RegExp(r'^water -?\d+$');
-
-  /// How far under the water the plane is put, m: under every surface the
-  /// reaches draw, so it shows through them as depth and is seen as water
-  /// only past the last of them.
-  static const double _planeUnder = -0.12;
-
-  /// What the plane is drawn with while the reaches are over it: about the
-  /// colour the water itself is drawn, mostly its own light so the sun does
-  /// not take it darker or brighter. The game's navy showed through every
-  /// gap the reaches left — along a shore where the water stops a hand short
-  /// of the sand, beside a hull — as dark blue blotches on lighter water.
-  final Material _under = Material(
-    name: 'river under',
-    baseColor: Vector4(0.01, 0.02, 0.03, 1.0),
-    emissive: Vector3(0.05, 0.16, 0.27),
-    roughness: 1.0,
-  );
 
   int _reachAt(double distance) => ((distance - _first) / reachLength).floor();
 
@@ -226,48 +215,58 @@ final class RiverWater {
   void update(double dt) {
     final step = math.min(dt, 1.0 / 30.0);
     if (step <= 0.0) return;
-    _seconds += step;
-    _frame++;
-    final distance = _game.distance;
-    _cover(_reachAt(distance - _behind), _reachAt(distance + _ahead));
-    _wade(step);
+    final (:near, :far) = seen(_game.camera3d);
+    // And the reach past the top of the picture: each has run for as long
+    // as the jet takes to fly a reach, at least two seconds at full speed,
+    // before it comes into sight.
+    _cover(_reachAt(near), _reachAt(far) + 1);
+    _wade();
     _plunge(step);
-    for (final MapEntry(key: index, value: reach) in _reaches.entries) {
-      // The water near the jet is stepped and drawn every other frame, and
-      // far up the river every fourth, the reaches taking turns, each step
-      // as long as the frames it stands for. The ripples run in the look on
-      // the frame's own clock, so what is saved is only how often the
-      // surface under them is moved, which from the camera's height is a
-      // fraction of a pixel a frame.
-      final ahead = reach.near - distance;
-      final turn = _frame + index;
-      reach
-        ..unstepped += step
-        ..undrawn += step
-        ..age += step;
-      if (turn % (ahead < 60.0 ? 2 : 4) == 0) {
-        reach.world.step(math.min(reach.unstepped, 1.0 / 15.0));
-        reach.unstepped = 0.0;
-        // A reach just made has still water in it and nothing on its sill:
-        // a few steps more for its first seconds, while it is still far up
-        // the river, so it is running by the time it is close.
-        if (reach.age < 3.0) reach.world.step(1.0 / 15.0);
-      }
-      if (turn % (ahead < 40.0 ? 2 : 4) == 0) {
-        reach.view.update(reach.undrawn);
-        reach.undrawn = 0.0;
-      }
-    }
-    _look.update(seconds: _seconds, eye: _game.chase.rig.eye);
-    _lowerPlanes();
+    elements.update(step, eye: _game.chase.rig.eye);
   }
+
+  /// How far down and up the river [camera] sees the water: where the
+  /// bottom and the top of its picture meet the water's level, nought, as
+  /// distances along the river. Where the top of the picture is over the
+  /// horizon, as far as the haze or the camera's far plane lets it see.
+  static ({double near, double far}) seen(CameraNode camera) {
+    final eye = camera.readViewOrigin();
+    final forward = camera.readForward();
+    final m = camera.worldMatrix.storage;
+    final up = Vector3(m[4], m[5], m[6])..normalize();
+    final projection = camera.projection;
+    final half = (projection.verticalFieldOfView ?? math.pi / 2.0) / 2.0;
+    final reach = math.min(RiverGame.seenThroughHaze, projection.far);
+    double along(double side) {
+      final ray = forward + up.scaled(side * math.tan(half));
+      final level = ray.y < -1e-6
+          ? math.min(-eye.y / ray.y, reach / ray.length)
+          : reach / ray.length;
+      return -(eye.z + ray.z * level);
+    }
+
+    final (a, b) = (along(-1.0), along(1.0));
+    return (near: math.min(a, b), far: math.max(a, b));
+  }
+
+  /// Whether reach [index] is kept while the picture shows reaches [from]
+  /// to [to]: those, and one either side of them.
+  static bool keeps(int index, int from, int to) =>
+      index >= from - 1 && index <= to + 1;
 
   /// Keeps reaches [from] to [to] and lets go of the rest; makes at most
   /// two a frame, the nearest first, so starting again is not one long
   /// frame.
+  ///
+  /// **A reach is let go only once it is a whole reach out of the
+  /// picture.** The edges of the picture move with the camera, and the
+  /// camera shakes when something is hit: let go as soon as its edge left
+  /// the picture, the reach under the bottom of it went and came back as
+  /// the shake carried the edge across the seam, and the bare bed blinked
+  /// through where its water had been.
   void _cover(int from, int to) {
     for (final index in _reaches.keys.toList()) {
-      if (index < from || index > to) _drop(_reaches.remove(index)!);
+      if (!keeps(index, from, to)) _drop(_reaches.remove(index)!);
     }
     var made = 0;
     for (var index = from; index <= to && made < 2; index++) {
@@ -318,11 +317,14 @@ final class RiverWater {
   _Reach _make(int index) {
     final low = _first + index * reachLength;
     final high = low + reachLength;
-    // A row more than the reach at its upper end, under the lower end of
-    // the reach above: two surfaces a centimetre apart in height, meeting
-    // edge to edge, left a crack across the river between them.
-    final nz = (reachLength / cell).round() + 2;
-    double rowDistance(int j) => high + cell - j * cell;
+    // A row a reach shares with the reach above, its cells' middles on the
+    // line where they meet, so the two surfaces, each drawn through its
+    // cells' middles, meet along it. Two rows more, one cell's strip of
+    // river was drawn twice, a pale band across it and out over both banks
+    // sixty and a hundred and twenty metres short of every bridge; one row
+    // less, the two stopped a cell apart and the bed showed between them.
+    final nz = (reachLength / cell).round() + 1;
+    double rowDistance(int j) => high - j * cell;
     var lo = double.infinity, hi = double.negativeInfinity;
     for (var j = 0; j < nz; j++) {
       final row = _course.rowAt(rowDistance(j));
@@ -335,8 +337,8 @@ final class RiverWater {
     final section = _course.section(_course.sectionIndexAt(high - 1.0));
     final weir = section.hasBridge && (section.bridgeAt - high).abs() < 1e-6;
 
-    final drawn = List<double>.filled(nx * nz, 0.0);
     final ground = List<double>.filled(nx * nz, 0.0);
+    final walls = List<bool>.filled(nx * nz, false);
     for (var j = 0; j < nz; j++) {
       final distance = rowDistance(j);
       final row = _course.rowAt(distance);
@@ -344,92 +346,45 @@ final class RiverWater {
       for (var i = 0; i < nx; i++) {
         final c = i + j * nx;
         var h = groundAt(row, x0 + (i + 0.5) * cell);
-        var held = h;
         if (weir && below <= _sillLength) {
+          // The sill runs from bank to bank; where it meets the grass the
+          // bank is a wall, so what stands on the sill stays in the river.
+          if (h >= landHeight - 0.05) walls[c] = true;
           h = math.max(h, _sillTop);
-          // The water held on the sill stands a hand over its top; banks
-          // nobody sees keep it off the grass either side.
-          held = h >= landHeight - 0.05 ? landHeight + 0.4 : h;
         } else if (weir && below <= _sillLength + _poolLength && h < 0.0) {
           h = math.min(h, _poolDepth);
-          held = h;
         }
-        drawn[c] = h;
-        ground[c] = held;
+        ground[c] = h;
       }
     }
 
-    final world = NativeWorld();
-    final origin = Vector3(x0, 0.0, -high - cell * 1.5);
-    final liquid = world.createShallowLiquid(
-      nx: nx,
-      nz: nz,
-      cell: cell,
-      origin: origin,
-      ground: ground,
+    final origin = Vector3(x0, 0.0, -high - cell / 2.0);
+    final water = elements.addWater(
+      ground: ElementHeightfield.list(
+        origin: origin,
+        cell: cell,
+        nx: nx,
+        nz: nz,
+        heights: ground,
+      ),
+      liquid: _river,
+      bed: const Bed(roughness: Bed.naturalStream),
+      mist: weir ? const MistSettings() : null,
+      detail: weir ? null : _plainDetail,
     );
-    world
-      ..setShallowBed(liquid, roughness: 0.03)
-      ..fillShallowLiquid(
-        liquid,
-        x0: origin.x,
-        z0: origin.z,
-        x1: origin.x + nx * cell,
-        z1: origin.z + nz * cell,
-        level: 0.0,
-      );
-    var source = 0;
-    // Over the deep middle of each channel, a metre and more off its banks:
-    // a drain over the shallow foot of a bank drew it dry, and the plane
-    // under the water showed through the hole.
-    void across(double distance, double rate) {
-      final channels = <(double, double)>[
-        for (final (from, to) in _course.rowAt(distance).channels)
-          if (to - from > 3.0) (from + 1.2, to - 1.2),
-      ];
-      final total = channels.fold(0.0, (sum, c) => sum + c.$2 - c.$1);
-      for (final (from, to) in channels) {
-        final width = to - from;
-        final count = math.max(1, (6.0 * width / total).round());
-        for (var k = 0; k < count; k++) {
-          world.setShallowSource(
-            liquid,
-            source++,
-            x: from + (k + 0.5) * width / count,
-            z: -distance,
-            // Each spread over its share of the channel, so the level dips
-            // and swells evenly across it rather than in pits round each.
-            radius: math.max(0.5 * width / count, cell),
-            rate: rate * width / total / count,
-          );
-        }
-      }
-    }
-
-    // In over the sill or well inside the top, out well inside the foot.
-    // The water past them lies slack, and so does the water past the next
-    // reach's springs, so the two meet at a seam where both are still: a
-    // seam between a reach drawing into its drains and one spreading from
-    // its springs was a line across the river where the ripples changed
-    // course.
-    across(weir ? high - _sillLength / 2.0 : high - _slack, _flow);
-    across(low + _slack, -_flow);
-
-    final before = _game.scene.meshes.toSet();
-    final view = LiquidView(
-      world: world,
-      liquid: liquid,
-      ground: drawn,
-      device: _game.device,
-      scene: _game.scene,
-      look: _look.material,
-      detail: weir ? (_light ? LiquidDetail.light : _weirDetail) : _plainDetail,
+    if (weir) water.setWalls(walls);
+    // Its rows run down the river along +z: the river comes in over its
+    // upper edge and stands at its level, nought, past its lower one.
+    water
+      ..setEdge(GridSide.south, const NativeEdgeFlow.inflow(discharge: _flow))
+      ..setEdge(GridSide.north, const NativeEdgeFlow.level(0.0));
+    water.fill(
+      from: origin,
+      to: Vector3(origin.x + nx * cell, 0.0, origin.z + nz * cell),
+      level: 0.0,
     );
-    final nodes = <MeshNode>[
-      ..._game.scene.meshes.where((node) => !before.contains(node)),
-    ];
-    if (weir) nodes.add(_sill(high));
-    return _Reach(world, liquid, view, nodes, near: low);
+    final nodes = <MeshNode>[if (weir) _sill(high)];
+    return _Reach(water, nodes, near: low);
   }
 
   /// The sill under the bridge at [bridge], from bank to bank: stone from
@@ -469,19 +424,25 @@ final class RiverWater {
           ..releaseGeometry(mesh.indices);
       }
     }
-    _hulls.removeWhere((_, hull) => identical(hull.reach, reach));
-    _plunges.removeWhere((plunge) => identical(plunge.reach, reach));
-    reach.world.dispose();
+    elements.remove(reach.water);
   }
 
-  /// The reach the water at [distance] is in, if it is kept.
-  _Reach? _reachFor(double distance) => _reaches[_reachAt(distance)];
+  /// How far under the water the hulls reach, m: the bottom of a tanker's
+  /// hull and of a depot's pontoon as `models.dart` draws them, 0.12 − 0.45/2
+  /// and 0.1 − 0.3/2 under the waterline.
+  static const double _tankerDraft = 0.105, _depotDraft = 0.05;
 
-  /// Every tanker and fuel barge on the water stood in for by balls under
-  /// its hull, put where it is and moving as it moves, so the water parts
-  /// round it, the current piles against it, and a tanker going under
-  /// pushes the river aside as it goes. The craft are never touched.
-  void _wade(double dt) {
+  /// Every tanker and fuel barge on the water followed into it as its hull
+  /// is under the waterline — the craft's outline as the game has it, as
+  /// deep as it is drawn — so the water parts round it, the current piles
+  /// against it and it leaves a wake. The craft are never touched.
+  ///
+  /// **Its draft, not more.** Three balls stood in for a tanker, reaching
+  /// 0.62 m down into a river 0.4 m deep: they pushed every column they
+  /// passed through out of its way down to the bed, and a tanker turning at
+  /// a bank left a cell or two dry behind it, the sand of the bed showing
+  /// yellow-brown for a frame or two before the river closed over it again.
+  void _wade() {
     final seen = <TargetComponent>{};
     for (final target in _game.targets) {
       final kind = target.plan.kind;
@@ -495,33 +456,27 @@ final class RiverWater {
       // the water out of a block of cells, which showed as a pale square
       // of river bed under its burning oil long after it had sunk.
       if (target.down) continue;
-      final reach = _reachFor(target.plan.distance);
-      if (reach == null) continue;
+      if (!_reaches.containsKey(_reachAt(target.plan.distance))) continue;
       seen.add(target);
-      // Kept inside the hull's own outline and mostly under the surface:
-      // balls as wide as the hull pushed the water out from beside it, and
-      // the hollow round a tanker showed as a dark pit at its side.
-      final hull = _hulls[target] ??= _Hull(reach, <NativeBody>[
-        for (final _
-            in kind == TargetKind.tanker
-                ? const <int>[-1, 0, 1]
-                : const <int>[0])
-          _ball(reach.world, kind == TargetKind.tanker ? 0.4 : 0.6),
-      ], target.scenePosition);
-      final at = target.scenePosition;
-      final moved = (at - hull.last)..scale(1.0 / dt);
-      hull.last.setFrom(at);
-      for (var k = 0; k < hull.balls.length; k++) {
-        final along = hull.balls.length == 1 ? 0.0 : (k - 1) * 1.0;
-        reach.world
-          ..setPosition(hull.balls[k], Vector3(at.x + along, at.y - 0.22, at.z))
-          ..setVelocity(hull.balls[k], moved.clone())
-          ..setAngularVelocity(hull.balls[k], Vector3.zero());
-      }
+      // A box from the hull's bottom to the waterline, its length across
+      // the river as the craft lies and its beam along it.
+      final draft = kind == TargetKind.tanker ? _tankerDraft : _depotDraft;
+      _hulls[target] ??= elements.follow(
+        () {
+          final at = target.scenePosition;
+          return (
+            position: Vector3(at.x, at.y - draft / 2.0, at.z),
+            orientation: Quaternion.identity(),
+          );
+        },
+        shape: NativeShape.box(
+          Vector3(target.size.x / 2.0, draft / 2.0, target.size.y / 2.0),
+        ),
+      );
     }
     _hulls.removeWhere((target, hull) {
       if (seen.contains(target)) return false;
-      hull.balls.forEach(hull.reach.world.removeBody);
+      elements.remove(hull);
       return true;
     });
     // A helicopter the river has taken: gone from the game this frame.
@@ -564,89 +519,48 @@ final class RiverWater {
     _plunges.removeWhere((plunge) {
       plunge.life -= dt;
       if (plunge.life > 0.0) return false;
-      plunge.reach.world.removeBody(plunge.ball);
+      elements.remove(plunge.ball);
       return true;
     });
   }
 
-  /// A ball of [radius] dropped into the water at [at], going down at
-  /// [speed]; gone again once its rings have spread.
+  /// A ball of [radius], a little denser than water, dropped into the water
+  /// at [at] going down at [speed] — what is dropped in goes under rather
+  /// than bobbing; gone again once its rings have spread.
   void _splash(Vector3 at, {required double radius, required double speed}) {
-    final reach = _reachFor(-at.z);
-    if (reach == null) return;
-    final ball = _ball(reach.world, radius);
-    reach.world
-      ..setPosition(ball, at)
-      ..setVelocity(ball, Vector3(0.0, -speed, 0.0));
-    _plunges.add(_Plunge(reach, ball));
-  }
-
-  /// A ball of [radius], a little denser than water: what is dropped in
-  /// goes under rather than bobbing.
-  NativeBody _ball(NativeWorld world, double radius) {
-    final body = world.addBody(
-      position: Vector3(0.0, -50.0, 0.0),
-      mass: 1400.0 * 4.0 / 3.0 * math.pi * radius * radius * radius,
+    if (!_reaches.containsKey(_reachAt(-at.z))) return;
+    final ball = elements.addBody(
+      Solid.sphere(radius, material: NativeMaterial.stone(), density: 1400.0),
+      at: at,
+      velocity: Vector3(0.0, -speed, 0.0),
     );
-    world
-      ..setShape(body, NativeShape.sphere(radius))
-      ..setMaterial(body, NativeMaterial.wood());
-    return body;
+    _plunges.add(_Plunge(ball));
   }
 
-  /// The game's plane under each stretch, put under the reaches.
-  void _lowerPlanes() {
-    final at = Vector3.zero();
-    for (final node in _game.scene.meshes) {
-      final name = node.name;
-      if (name == null || !name.startsWith('water ')) continue;
-      if (!_plane.hasMatch(name)) continue;
-      node.readPosition(at);
-      if (at.y != _planeUnder) node.setPosition(at.x, _planeUnder, at.z);
-      node.material = _under;
-    }
-  }
-
-  /// Every reach let go.
+  /// Every reach let go, and the world with them.
   void dispose() {
     for (final reach in _reaches.values) {
       _drop(reach);
     }
     _reaches.clear();
+    elements.dispose();
   }
 }
 
-/// One reach of the river: its world, its water and how that is drawn, and
-/// what was put into the scene for it.
+/// One reach of the river: its water, what was put into the scene for it,
+/// and how far up the river its lower end is, m.
 final class _Reach {
-  _Reach(this.world, this.liquid, this.view, this.nodes, {required this.near});
+  _Reach(this.water, this.nodes, {required this.near});
 
-  final NativeWorld world;
-  final NativeShallowLiquid liquid;
-  final LiquidView view;
+  final WaterBody water;
   final List<MeshNode> nodes;
-
-  /// How far up the river its lower end is, m.
   final double near;
-
-  /// Seconds since it was made, and since it was last stepped and drawn.
-  double age = 0.0, unstepped = 0.0, undrawn = 0.0;
 }
 
-/// The balls standing in for one hull, and where it was last frame.
-final class _Hull {
-  _Hull(this.reach, this.balls, this.last);
-
-  final _Reach reach;
-  final List<NativeBody> balls;
-  final Vector3 last;
-}
-
-/// A ball dropped into a reach, and how long it has left.
+/// A ball dropped into the river, and how long it has left.
 final class _Plunge {
-  _Plunge(this.reach, this.ball);
+  _Plunge(this.ball);
 
-  final _Reach reach;
-  final NativeBody ball;
+  final TrackedBody ball;
   double life = 1.5;
 }

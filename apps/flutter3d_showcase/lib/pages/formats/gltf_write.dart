@@ -6,7 +6,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class GltfWriteDemo extends ShowcaseDemo {
   late final int _plainBytes;
@@ -30,7 +29,7 @@ final class GltfWriteDemo extends ShowcaseDemo {
       materials: <SurfaceMaterial>[
         SurfaceMaterial(
           name: 'shell',
-          baseColor: Vector4(0.8, 0.5, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.2, 1.0),
           roughness: 0.5,
         ),
       ],
@@ -48,20 +47,23 @@ final class GltfWriteDemo extends ShowcaseDemo {
 
     _plainBytes = plain.length;
     _compressedBytes = compressed.length;
-    _usedQuantization = compressor.usedGeometryQuantization;
-    _usedReordering = compressor.usedVertexCacheReordering;
+    _usedQuantization = compressor.didQuantizeGeometry;
+    _usedReordering = compressor.didReorderVertexCache;
     _magic = plain.take(4).toList();
 
     return Scene()
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, document.surfaces.single.mesh),
-          Material(baseColor: Vector4(0.8, 0.5, 0.2, 1.0), roughness: 0.5),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.2, 1.0),
+            roughness: 0.5,
+          ),
           name: 'shell',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

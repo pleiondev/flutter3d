@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FrameStatsDemo extends ShowcaseDemo {
   bool shadows = true;
@@ -22,20 +21,20 @@ final class FrameStatsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region geometry
-    final Material matte = Material(
+    final RenderMaterial matte = RenderMaterial(
       name: 'matte',
-      baseColor: Vector4(0.24, 0.62, 0.82, 1.0),
+      baseColor: LinearColor.fromSrgb(0.24, 0.62, 0.82, 1.0),
       roughness: 0.72,
     );
-    final Material metal = Material(
+    final RenderMaterial metal = RenderMaterial(
       name: 'metal',
-      baseColor: Vector4(0.82, 0.43, 0.18, 1.0),
+      baseColor: LinearColor.fromSrgb(0.82, 0.43, 0.18, 1.0),
       metallic: 0.76,
       roughness: 0.24,
     );
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.42, 0.5, 0.68)
-      ..ambientIntensity = 0.12
+      ..ambientColor = LinearColor(0.42, 0.5, 0.68)
+      ..ambientIntensity = 0.12 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -69,8 +68,11 @@ final class FrameStatsDemo extends ShowcaseDemo {
     // #endregion geometry
 
     // #region light
-    _sun = LightNode(name: 'sun', intensity: 3.2, castsShadow: shadows)
-      ..setLocalForward(Vector3(-0.45, -0.82, -0.35));
+    _sun = LightNode(
+      name: 'sun',
+      intensity: 3.2 * Photometric.legacyUnit,
+      castsShadow: shadows,
+    )..setLocalForward(Vector3(-0.45, -0.82, -0.35));
     scene.add(_sun);
     // #endregion light
     return scene;

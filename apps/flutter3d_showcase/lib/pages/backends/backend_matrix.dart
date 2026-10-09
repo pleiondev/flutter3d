@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BackendMatrixDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
@@ -18,9 +17,9 @@ final class BackendMatrixDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _device = context.device;
     _atBuild = context.caps;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.5, 0.5, 0.55, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.55, 1.0),
       roughness: 0.6,
     );
     final MeshNode ball = MeshNode(
@@ -34,22 +33,28 @@ final class BackendMatrixDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
 
   // #region rows
   List<(String, String)> _rows(GraphicsDevice device) => <(String, String)>[
-    ('wireframe', '${device.supportsWireframe}'),
-    ('cube textures', '${device.supportsCubeTextures}'),
-    ('mip maps', '${device.supportsMipmaps}'),
-    ('render into a mip level', '${device.supportsRenderToMip}'),
-    ('a stencil buffer', '${device.supportsStencil}'),
-    ('a blend constant', '${device.supportsBlendColor}'),
-    ('offscreen MSAA', '${device.supportsOffscreenMsaa}'),
-    ('max anisotropy', '${device.maxAnisotropy}'),
-    ('max colour attachments', '${device.maxColorAttachments}'),
+    ('wireframe', '${device.features.has(DeviceFeature.wireframe)}'),
+    ('cube textures', '${device.features.has(DeviceFeature.cubeTextures)}'),
+    ('mip maps', '${device.features.has(DeviceFeature.manualMipmaps)}'),
+    (
+      'render into a mip level',
+      '${device.features.has(DeviceFeature.renderToMipLevel)}',
+    ),
+    ('a stencil buffer', '${device.features.has(DeviceFeature.stencil)}'),
+    ('a blend constant', '${device.features.has(DeviceFeature.blendConstant)}'),
+    (
+      'offscreen MSAA',
+      '${device.features.has(DeviceFeature.offscreenMultisample)}',
+    ),
+    ('max anisotropy', '${device.limits.maxSamplerAnisotropy}'),
+    ('max colour attachments', '${device.limits.maxColorAttachments}'),
     ('preferred sample count', '${device.preferredSampleCount}'),
   ];
   // #endregion rows

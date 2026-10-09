@@ -21,9 +21,9 @@ library;
 import 'dart:ui' show Offset, PointerDeviceKind, Rect, Size;
 
 import 'package:flutter3d/flutter3d.dart' show CameraNode;
-import 'package:flutter3d_core/geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// How far from the pointer a vertex or an edge still counts, for a cursor, in
 /// logical pixels.
@@ -104,12 +104,12 @@ final class PickingView {
   /// what the person can see: geometry in front of the near plane is not on
   /// screen, so it is not clickable, and the depths [MeshPicker] compares are
   /// then depths from the first visible thing.
-  Ray rayThrough(Offset at) {
+  LocalRay rayThrough(Offset at) {
     final inverse = Matrix4.copy(_worldToClip)..invert();
     final ndc = _ndcOf(at);
     final from = _unproject(inverse, ndc.x, ndc.y, 0.0);
     final to = _unproject(inverse, ndc.x, ndc.y, 1.0);
-    return Ray(from, to - from).normalizeDirection();
+    return LocalRay(from, to - from).normalizeDirection();
   }
 
   /// Where [world] lands on screen, in the same logical pixels [rayThrough]
@@ -138,7 +138,7 @@ final class PickingView {
   /// ray through [at].
   ///
   /// **Measured by unprojecting, rather than from the field of view.** The
-  /// arithmetic `2 * distance * tan(fov / 2) / height` is right for a
+  /// arithmetic `2 * distance * tan(fovY / 2) / height` is right for a
   /// [PerspectiveProjection] and gives nonsense for an orthographic camera and
   /// for the off-axis projection a headset hands over, and picking that behaves
   /// differently per projection type is picking that will be wrong in the view
@@ -455,10 +455,13 @@ Frustum? frustumOverBox(PickingView view, Rect rect, {Matrix4? objectToWorld}) {
 /// distance, and under a scaled transform the rotated direction is not a unit
 /// vector. The length it had before normalising is exactly the factor between
 /// the two spaces, so it is kept rather than recovered from the matrix.
-({Ray ray, double shrink}) _intoMesh(Ray world, Matrix4? objectToWorld) {
+({LocalRay ray, double shrink}) _intoMesh(
+  LocalRay world,
+  Matrix4? objectToWorld,
+) {
   if (objectToWorld == null) return (ray: world, shrink: 1.0);
   final inverse = Matrix4.copy(objectToWorld)..invert();
-  final local = world.transformInto(inverse, Ray.zero());
+  final local = world.transformInto(inverse, LocalRay.zero());
   final shrink = local.direction.length;
   return (ray: local.normalizeDirection(), shrink: shrink);
 }
@@ -474,7 +477,7 @@ Frustum? frustumOverBox(PickingView view, Rect rect, {Matrix4? objectToWorld}) {
 ///
 /// Null when the mesh is empty or sits behind the pointer: there is no depth to
 /// size a radius at, and inventing one picks something arbitrary.
-double? _depthOfCentre(EditMesh mesh, Ray ray) {
+double? _depthOfCentre(EditMesh mesh, LocalRay ray) {
   final at = Vector3.zero();
   final low = Vector3.zero();
   final high = Vector3.zero();

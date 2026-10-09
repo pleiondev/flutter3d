@@ -58,7 +58,7 @@ matches it splat for splat, and the picture is the same to the byte.
 
 `gpuSort` is on by default and takes effect only where the device can run
 it. **GPU sort** turns it off, which on WebGPU sorts on the CPU instead and
-anywhere else changes nothing. A cloud larger than `kSplatGpuSortLimit`
+anywhere else changes nothing. A cloud larger than `splatGpuSortLimit`
 splats stays on the CPU too.
 
 {{code gpu}}

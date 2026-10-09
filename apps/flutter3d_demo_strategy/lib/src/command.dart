@@ -11,7 +11,7 @@
 /// ordered anywhere; and nothing ever took a unit out of it, so the day a unit
 /// can be lost it would still be receiving orders.
 ///
-/// **The picking is [Selection]'s, not the renderer's.** The picking pass
+/// **The picking is [UnitSelection]'s, not the renderer's.** The picking pass
 /// answers with the node that was drawn, and the crowd is one instanced batch —
 /// `Renderer.pickPixel` says so in its own doc: an instanced batch answers as
 /// the batch. So the pass can say *a unit was clicked* and never *which one*,
@@ -76,7 +76,7 @@ final class CommandPost {
   /// a player pointing at the other side's worker wants to be told it is
   /// theirs, not told there is nothing there.
   Unit? unitUnder(Vector3 origin, Vector3 direction) =>
-      Selection(simulation.units).unitAt(origin, direction);
+      UnitSelection(simulation.units).unitAt(origin, direction);
 
   /// Picks out [unit] alone, and returns whether it could be.
   ///
@@ -101,11 +101,11 @@ final class CommandPost {
   /// Picks out every unit of this side standing inside the rectangle whose
   /// opposite corners are [corner] and [opposite], and returns how many.
   ///
-  /// The rectangle is in the world, on the ground, which is what [Selection]
+  /// The rectangle is in the world, on the ground, which is what [UnitSelection]
   /// takes and why: a frustum test would put the camera inside the answer and
   /// make a replay depend on where somebody was looking.
   int selectWithin(Vector3 corner, Vector3 opposite) {
-    final List<Unit> inside = Selection(
+    final List<Unit> inside = UnitSelection(
       simulation.units,
     ).unitsWithin(corner, opposite);
     _selected

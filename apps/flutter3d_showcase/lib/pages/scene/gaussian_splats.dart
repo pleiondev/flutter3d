@@ -8,11 +8,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 typedef _SplatRow = ({
   Vector3 position,
-  Vector3 colour,
+  Vector3 color,
   double opacity,
   double scale,
 });
@@ -45,7 +44,7 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
             0.4 * math.sin(i * 0.6),
             (i ~/ 7 - 2) * 0.5,
           ),
-          colour: Vector3(
+          color: Vector3(
             0.3 + 0.5 * (i / _count),
             0.4,
             0.9 - 0.5 * (i / _count),
@@ -62,15 +61,17 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
     // #endregion decode
 
     // #region contributor
-    _contributor = context.renderer.addContributor(SplatContributor(_cloud));
+    _contributor = context.renderer.renderSteps.addContributor(
+      SplatContributor(_cloud),
+    );
     // #endregion contributor
     _device = context.device;
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.4, 0.46, 0.6)
-      ..ambientIntensity = 0.24
+      ..ambientColor = LinearColor(0.4, 0.46, 0.6)
+      ..ambientIntensity = 0.24 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'key', intensity: 1.2)
+        LightNode(name: 'key', intensity: 1.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
     return scene;
@@ -101,9 +102,9 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
     // and this device can run the sort: never on the software device, which
     // has no compute.
     final bool gpuExpected = gpuSort && SplatGpuSort.availableOn(_device);
-    if (_contributor.drewGpuOrder != gpuExpected) {
+    if (_contributor.didDrawGpuOrder != gpuExpected) {
       throw StateError(
-        'drew in the GPU order: ${_contributor.drewGpuOrder}, '
+        'drew in the GPU order: ${_contributor.didDrawGpuOrder}, '
         'expected $gpuExpected',
       );
     }
@@ -159,7 +160,7 @@ Uint8List _splatPlyBytes(List<_SplatRow> rows) {
   // The inverse of `splatChannel` and `splatOpacity`: a readable 0..1 colour
   // and probability, converted back to the coefficient and the logit the
   // file stores.
-  double coefficientFor(double channel01) => (channel01 - 0.5) / kSplatShC0;
+  double coefficientFor(double channel01) => (channel01 - 0.5) / splatShC0;
   double logitFor(double probability) =>
       math.log(probability / (1.0 - probability));
   void writeFloat(double value) {
@@ -171,9 +172,9 @@ Uint8List _splatPlyBytes(List<_SplatRow> rows) {
     writeFloat(row.position.x);
     writeFloat(row.position.y);
     writeFloat(row.position.z);
-    writeFloat(coefficientFor(row.colour.x));
-    writeFloat(coefficientFor(row.colour.y));
-    writeFloat(coefficientFor(row.colour.z));
+    writeFloat(coefficientFor(row.color.x));
+    writeFloat(coefficientFor(row.color.y));
+    writeFloat(coefficientFor(row.color.z));
     writeFloat(logitFor(row.opacity));
     writeFloat(math.log(row.scale));
     writeFloat(math.log(row.scale));

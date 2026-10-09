@@ -12,7 +12,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One part: the shape as the core takes it, and the mesh that draws it.
 typedef _Piece = ({NativeCompoundPart part, MeshData mesh});
@@ -161,9 +160,9 @@ final class CompoundShapesDemo extends ShowcaseDemo {
     ]) {
       final Vector3 n = (p[f[1]] - p[f[0]]).cross(p[f[2]] - p[f[0]])
         ..normalize();
-      final Vector3 centre =
+      final Vector3 center =
           (p[f[0]] + p[f[1]] + p[f[2]] + p[f[3]]) / 4.0 - middle;
-      final bool outward = n.dot(centre) > 0.0;
+      final bool outward = n.dot(center) > 0.0;
       final List<int> order = outward ? f : f.reversed.toList();
       final Vector3 normal = outward ? n : -n;
       final List<int> at = <int>[
@@ -273,10 +272,10 @@ final class CompoundShapesDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _start();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       )
       ..add(
@@ -285,7 +284,10 @@ final class CompoundShapesDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(8.0, 1.0, 6.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.42, 0.45, 0.48, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.42, 0.45, 0.48, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.5, 0.0),
       );
@@ -293,9 +295,9 @@ final class CompoundShapesDemo extends ShowcaseDemo {
     // A node follows each body; under it, a mesh for every part, where the
     // part sits once the core has moved it by the offset.
     for (final (int i, _Thing thing) in _things.indexed) {
-      final material = Material(
+      final material = RenderMaterial(
         name: thing.name,
-        baseColor: Vector4(
+        baseColor: LinearColor.fromSrgb(
           0.55 + 0.35 * math.sin(i * 1.3 + 0.4),
           0.45 + 0.3 * math.sin(i * 2.1 + 1.5),
           0.35 + 0.3 * math.sin(i * 0.7 + 2.6),
@@ -330,7 +332,7 @@ final class CompoundShapesDemo extends ShowcaseDemo {
     if (world == null) return;
     for (final (int i, _Thing thing) in _things.indexed) {
       _nodes[i]
-        ..setPositionFrom(world.positionOf(thing.body))
+        ..setPositionFrom(world.localPositionOf(thing.body))
         ..setRotation(world.orientationOf(thing.body));
     }
   }
@@ -364,7 +366,7 @@ final class CompoundShapesDemo extends ShowcaseDemo {
   Vector3 pointOf(String thing, Vector3 local) {
     final NativeWorld world = _world!;
     final _Thing t = _things.firstWhere((t) => t.name == thing);
-    return world.positionOf(t.body) +
+    return world.localPositionOf(t.body) +
         world
             .orientationOf(t.body)
             .asRotationMatrix()

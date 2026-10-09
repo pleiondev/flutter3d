@@ -7,7 +7,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BackendWebglDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
@@ -15,9 +14,9 @@ final class BackendWebglDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.4, 0.55, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.4, 0.55, 0.7, 1.0),
       roughness: 0.6,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +30,7 @@ final class BackendWebglDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -42,9 +41,10 @@ final class BackendWebglDemo extends ShowcaseDemo {
   // `--dart-define=FLUTTER3D_WEBGPU=true`. Either way it asks the shared
   // registry for a backend rather than choosing one by name:
   //
-  //     ensureWebGlBackendRegistered();
-  //     if (tryWebGpu) registerBackendOpener('WebGPU', openWebGpu);
-  //     return openRegisteredDevice(width: width, height: height, ...);
+  //     final registry = DeviceRegistry();
+  //     registerWebGlBackend(registry);
+  //     if (tryWebGpu) registry.addBackend('WebGPU', openWebGpu);
+  //     return registry.open(width: width, height: height, ...);
   //
   // A build that never asked for WebGPU never carries its code at all; a
   // canvas that only WebGL2 can open still draws.
@@ -58,10 +58,10 @@ final class BackendWebglDemo extends ShowcaseDemo {
 
   // #region read
   String _report(GraphicsDevice device) =>
-      'wireframe: ${device.supportsWireframe}\n'
-      'offscreen MSAA: ${device.supportsOffscreenMsaa}\n'
+      'wireframe: ${device.features.has(DeviceFeature.wireframe)}\n'
+      'offscreen MSAA: ${device.features.has(DeviceFeature.offscreenMultisample)}\n'
       'preferred samples: ${device.preferredSampleCount}\n'
-      'max anisotropy: ${device.maxAnisotropy}';
+      'max anisotropy: ${device.limits.maxSamplerAnisotropy}';
   // #endregion read
 
   @override
@@ -89,7 +89,8 @@ final class BackendWebglDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) {
       throw StateError('the ball was not drawn');
     }
-    if (frame.wireframeDeclined != !_device.supportsWireframe) {
+    if (frame.wireframeDeclined !=
+        !_device.features.has(DeviceFeature.wireframe)) {
       throw StateError(
         'wireframeDeclined disagreed with supportsWireframe for the open '
         'device',

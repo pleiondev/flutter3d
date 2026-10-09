@@ -10,16 +10,16 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_audio/testing.dart';
+import 'package:flutter3d_demo_content/repo_checks.dart';
 import 'package:flutter3d_demo_racing/src/sounds.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car whose numbers are set by hand, so that a test about sound is not also
 /// a test about driving.
-final class _Car implements VehicleController {
+final class _Car with VehicleController {
   _Car()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -51,7 +51,7 @@ final class _Car implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -195,7 +195,7 @@ void main() {
       final it = heard();
       it.car
         ..slipAngle = 0.8
-        ..grounded = false;
+        ..isGrounded = false;
 
       it.voice.update(offRoad: false);
       it.scene.update(AudioListener());

@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FlowFieldDemo extends ShowcaseDemo {
   late final String _report;
@@ -50,9 +49,9 @@ final class FlowFieldDemo extends ShowcaseDemo {
     // A floor with two walls across it, each leaving a gap at one end: an
     // agent has to snake round them, and the field knows how.
     _grid = NavGrid.bake(<Brush>[
-      Brush(centre: Vector3(10, 0, 10), size: Vector3(20, 1, 20)),
-      Brush(centre: Vector3(7, 2, 6), size: Vector3(1, 4, 12)),
-      Brush(centre: Vector3(13, 2, 14), size: Vector3(1, 4, 12)),
+      Brush(center: Vector3(10, 0, 10), size: Vector3(20, 1, 20)),
+      Brush(center: Vector3(7, 2, 6), size: Vector3(1, 4, 12)),
+      Brush(center: Vector3(13, 2, 14), size: Vector3(1, 4, 12)),
     ], cellSize: 0.5);
     _field = FlowField(_grid);
     // #endregion live
@@ -163,7 +162,7 @@ final class FlowFieldDemo extends ShowcaseDemo {
   static String _run() {
     // #region grid
     final grid = NavGrid.bake(<Brush>[
-      Brush(centre: Vector3(5, 0, 5), size: Vector3(10, 1, 10)),
+      Brush(center: Vector3(5, 0, 5), size: Vector3(10, 1, 10)),
     ], cellSize: 0.5);
     // #endregion grid
 

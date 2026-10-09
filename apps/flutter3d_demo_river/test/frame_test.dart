@@ -6,12 +6,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/models.dart';
 import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Plane;
 
 const int _width = 160;
 const int _height = 90;
@@ -30,10 +29,7 @@ Future<({Uint8List rgba, int drawCalls})> _frame({
 
   final camera =
       CameraNode(
-          projection: const PerspectiveProjection(
-            fovYRadians: 0.85,
-            far: 400.0,
-          ),
+          projection: const PerspectiveProjection(fovY: 0.85, far: 400.0),
         )
         ..setPosition(0.0, flightHeight + 11.0, -game.distance + 11.0)
         ..lookAt(Vector3(0.0, 0.0, -game.distance - 9.0));
@@ -51,12 +47,15 @@ Future<({Uint8List rgba, int drawCalls})> _frame({
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.27, 0.48, 0.78, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColorSrgb: Vector4(0.27, 0.48, 0.78, 1.0),
+      ),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  return (rgba: pixels!.buffer.asUint8List(), drawCalls: result.drawCalls);
+  final pixels = await it.device.readback(result.frame);
+  return (rgba: pixels.buffer.asUint8List(), drawCalls: result.drawCalls);
 }
 
 void main() {

@@ -21,9 +21,9 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'mesh_overlay_builder.dart';
+import 'overlay_ink.dart';
 
 /// How far apart two corners' own UV may read and still count as the same
 /// point — generous against the float noise a solved system like [lscm] can
@@ -71,7 +71,7 @@ bool _uvDisagrees(EditMesh mesh, int half) {
 /// Draws every seam [uvSeamEdges] finds into [overlay], as a ribbon per edge
 /// — [MeshOverlay.ribbon], the same primitive a selected edge is drawn with.
 ///
-/// [colour] defaults to [MeshOverlayColours.seam], the cool blue the
+/// [color] defaults to [MeshOverlayColours.seam], the cool blue the
 /// wireframe already uses for an [EdgeFlags.seam]-marked edge, so a UV seam
 /// reads the same whether the 3D view is drawing it from the flag alone or
 /// from this wider definition.
@@ -87,11 +87,11 @@ bool _uvDisagrees(EditMesh mesh, int half) {
 void emitUvSeamOverlay(
   MeshOverlay overlay,
   EditMesh mesh, {
-  Vector4? colour,
+  Vector4? color,
   List<int>? edges,
   double? width,
 }) {
-  final tint = colour ?? MeshOverlayColours().seam;
+  final tint = (color ?? MeshOverlayColours().seam).ink;
   final from = Vector3.zero();
   final to = Vector3.zero();
   for (final half in edges ?? uvSeamEdges(mesh)) {

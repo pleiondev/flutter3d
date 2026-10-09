@@ -21,12 +21,12 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Aabb3, Vector3;
 
 import '../../l10n/app_localizations.dart';
 import '../autorig_markers.dart';
@@ -87,7 +87,7 @@ class _AutorigDialogState extends State<_AutorigDialog> {
   late final double _depthZ;
 
   RigTemplate _template = RigTemplate.humanoid;
-  RigBuildOptions _options = const RigBuildOptions();
+  RigBuildSettings _options = const RigBuildSettings();
   bool _bindPrimaryWeights = true;
   bool _mirrorWeights = true;
   late Map<String, Vector3> _markers;
@@ -123,10 +123,10 @@ class _AutorigDialogState extends State<_AutorigDialog> {
   /// one — this stage is discarded when the dialog closes, so there is
   /// nothing to put back.
   void _paintDarkUnlit() {
-    final silhouette = engine.Material(
+    final silhouette = engine.RenderMaterial(
       name: 'autorigSilhouette',
       lighting: LightingModel.unlit,
-      baseColor: Vector4(0.18, 0.20, 0.21, 1.0),
+      baseColor: LinearColor.fromSrgb(0.18, 0.20, 0.21, 1.0),
     );
     _stage.subject.traverse((SceneNode node) {
       if (node is MeshNode) node.material = silhouette;
@@ -529,14 +529,14 @@ class _AutorigDialogState extends State<_AutorigDialog> {
     ),
   );
 
-  RigBuildOptions _copyOptions({
+  RigBuildSettings _copyOptions({
     int? spineCount,
     bool? fingers,
     bool? toes,
     bool? faceBones,
     bool? ikChains,
     bool? controllers,
-  }) => RigBuildOptions(
+  }) => RigBuildSettings(
     mirrorAxis: _options.mirrorAxis,
     spineCount: spineCount ?? _options.spineCount,
     fingers: fingers ?? _options.fingers,

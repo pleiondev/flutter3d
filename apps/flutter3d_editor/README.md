@@ -406,7 +406,39 @@ What is left here is the half that reaches a device:
   function, because it is the one screen whose whole subject is choosing a
   document.
 * `src/shader_watch.dart` reloads the shader bundle while somebody edits it.
+* `src/editor_panels.dart` lists the docked panels (see below), and
+  `src/layout_memory.dart` keeps where they were.
 * `main.dart` holds the window, the keys and the mouse.
+
+## The window
+
+The picture sits in the middle with panels docked around it, each side
+resizable by its edge, foldable to a row of icons, and remembered per person
+in `layout.json` beside the recent projects. Down the left are the outliner
+and the palette, down the right the inspector, the material panel and the
+step panel, and along the bottom the console and the render graph. A tab can
+be moved to another side from the menu at the end of its strip. Before this
+the panels were a `Stack` of overlays on top of the level, every one of them
+hiding part of what was being edited, and two of the toolbar's buttons once
+landed on top of each other.
+
+* **The outliner** lists everything in the level: brushes, lights, and the
+  entities by type. Clicking a row selects it and the viewport shows the
+  selection; clicking in the viewport selects the row. `⌘`-click adds to the
+  selection or takes a row out, in either place, and the arrow keys and
+  Delete then act on all of it. A double-click flies the camera there.
+* **The inspector** groups the selected thing's fields into components
+  (where it is, how it draws, how it collides, what a light does, an
+  entity's own properties), and an entity can be given a property or lose
+  one. Every edit is one step of undo.
+* **The console** keeps everything the strip along the top has said, and,
+  while a game is being played or is attached, that game's own console and
+  the events it posted, read from the same place the Play screen reads them.
+* **The render graph** is the last frame the viewport drew, pass by pass:
+  what ran, in order, what each cost, and what did not run and why.
+* **⌘K** (or `⇧⌘P`) opens the command palette: every command the keys,
+  the toolbar and the panels have, found by typing a few letters of its
+  name, with its shortcut beside it.
 
 ## Getting about
 

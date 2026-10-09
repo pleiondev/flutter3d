@@ -10,24 +10,21 @@
 /// game's own assembly and not a copy of it.
 library;
 
-import 'package:flutter3d/flutter3d.dart' show FootPlantGoal, LookGoal;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
-import 'package:flutter3d_demo_dungeon/src/ragdoll_corpses.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
     show ChaseBrain, MonsterState;
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
-import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show SkeletonRagdoll;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show startPhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The model the dungeon draws [actor] with, which says its kind.
 String? _modelOf(Actor actor) => const DungeonMonsters().modelFor(actor);
@@ -42,20 +39,19 @@ Vector3 _joint(SkeletonRagdoll ragdoll, String name) => ragdoll.skeleton.joints
 double _flat(Vector3 a, Vector3 b) => Vector3(a.x - b.x, 0.0, a.z - b.z).length;
 
 /// Saves kept in a map: nothing here saves.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> _documents = <String, String>{};
 
   @override
-  String? read(String name) => _documents[name];
+  Future<String?> read(String name) async => _documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     _documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => _documents.remove(name);
+  Future<void> remove(String name) async => _documents.remove(name);
 }
 
 void main() {
@@ -79,8 +75,8 @@ void main() {
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       ),
     );
-    final level = await run.open('assets/levels/crypt.json');
-    addTearDown(() => run.close(level));
+    final level = await run.loadLevel('assets/levels/crypt.json');
+    addTearDown(() => run.disposeLevel(level));
     final visuals = level.actorVisuals;
     await visuals.settled;
     final corpses = visuals.corpses! as RagdollCorpses;

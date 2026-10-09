@@ -12,7 +12,10 @@ flutter run -d macos --dart-define=FLUTTER3D_PHYSICS=dart   # the Dart reference
 W A S D walk, space jumps, shift runs, and dragging looks round. A click digs
 the block under the crosshair and a right click places the hotbar's block
 against the face you are looking at; Q and E do the same from the keyboard.
-1 to 5 or the mouse wheel pick the block.
+1 to 5 or the mouse wheel pick the block. P opens photo mode: the world
+stops, WASD flies a camera held within twelve metres of you and out of the
+blocks, `[` and `]` pick a filter, and Enter saves a picture twice the size
+of the window (Shift+Enter, four times).
 
 ## What it is made of
 
@@ -30,6 +33,13 @@ against the face you are looking at; Q and E do the same from the keyboard.
   blocks across, so a meadow seen from a hill is not one flat green.
 - `lib/src/block_surfaces.dart` loads the pictures into materials and holds
   the one way a block face becomes a mesh, which falling blocks use too.
+- `lib/src/daylight.dart` turns the day, twenty minutes long. The sky is
+  the engine's physical one, so its colours, the stars at night, the light
+  on the blocks and the ambient all come from where the sun stands. The moon
+  stands opposite it and is much brighter than the real one, so a night can
+  still be played.
+- `lib/src/photo_mode.dart` is photo mode's keys and bar over the engine's
+  `PhotoCamera`, `PhotoFilter` and `savePhoto`.
 - `lib/src/palette.dart` names the blocks and the surfaces each face shows:
   grass is turf on top, earth with a fringe of turf on the sides, and earth
   underneath.
@@ -45,8 +55,13 @@ It asks the navigation mesh, which is baked again around every edit, so
 walling yourself in or digging into a pit turns the answer to no.
 
 The save is a `Snapshot` of the terrain's seed, the edits, where the body
-stands and what is in hand. It is written a few seconds after you stop
-building and again when the window goes.
+stands, what is in hand and the hour. It is written a few seconds after you
+stop building and again when the window goes. It is not on
+`flutter3d_game`'s `Autosave`, which writes a `RunSession` of level
+documents at a checkpoint, a pause and the application going to the
+background. This game has no level documents, no checkpoints and no pause;
+it writes when the window is hidden or goes, as `Autosave` would, and
+otherwise when the building stops.
 
 ## Tests
 

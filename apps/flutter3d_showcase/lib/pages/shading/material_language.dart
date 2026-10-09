@@ -9,7 +9,6 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MaterialLanguageDemo extends ShowcaseDemo {
   late final MaterialProgram _specialised;
@@ -42,7 +41,7 @@ material RimLight {
     // #endregion source
 
     // #region specialise
-    _specialised = specialiseMaterial(
+    _specialised = specializeMaterial(
       program,
       const MaterialVariant('RimLight_sharp', {
         'rimPower': <double>[_rimPower],
@@ -73,12 +72,15 @@ material RimLight {
             context.device,
             SphereShape(segments: 40, rings: 20).build(),
           ),
-          Material(baseColor: Vector4(0.8, 0.65, 0.35, 1.0), roughness: 0.5),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.8, 0.65, 0.35, 1.0),
+            roughness: 0.5,
+          ),
           name: 'ball',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.6)),
       );
   }

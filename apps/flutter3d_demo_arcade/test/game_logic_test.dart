@@ -4,12 +4,11 @@
 library;
 
 import 'package:flame_flutter3d/flame_flutter3d.dart' show ActorComponent;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_arcade/src/arcade_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// A fresh [ArcadeGame] with its world already built, on a CPU device so the
 /// meshes have something to upload their geometry to.
@@ -151,12 +150,14 @@ void main() {
 
     var sawHidden = false;
     for (var i = 0; i < 40; i++) {
-      game.ship.update(1 / 60);
-      if (!game.ship.node.visible) sawHidden = true;
+      game.ship
+        ..fixedUpdate(1 / 60)
+        ..update(1 / 60);
+      if (!game.ship.node.isVisible) sawHidden = true;
     }
 
     expect(sawHidden, isTrue, reason: 'the ship never blinked');
-    expect(game.ship.node.visible, isTrue, reason: 'the blink never ended');
+    expect(game.ship.node.isVisible, isTrue, reason: 'the blink never ended');
   });
 
   test("the level's hits end it and stop stepping the world", () {
@@ -208,6 +209,45 @@ void main() {
     expect(arcadeLevels[1].bots, greaterThan(arcadeLevels[0].bots));
   });
 
+  test('the yard is played in fixed steps, whatever the frame took', () {
+    // The yard's rules were Flame's `update`, handed the frame's time: a
+    // half-step frame flew the ship half a step and stepped the meteors'
+    // world by it, and the same play at 120 Hz and at 30 came out apart.
+    //
+    // Mutation: count `elapsed` in `update` by the frame's dt.
+    final game = _newGame();
+
+    game.update(1 / 120);
+    expect(game.stepsThisFrame, 0);
+    expect(game.elapsed, 0.0, reason: 'half a step is no step');
+
+    game.update(1 / 120);
+    expect(game.stepsThisFrame, 1);
+    expect(game.elapsed, closeTo(1 / 60, 1e-12));
+
+    game.update(2.5 / 60);
+    expect(game.stepsThisFrame, 2);
+    expect(game.elapsed, closeTo(3 / 60, 1e-12), reason: 'whole steps only');
+  });
+
+  test('a blink runs down in the steps, not the frames', () {
+    // Whether the ship can be hit again is read in the steps, so the blink
+    // that guards it is counted there: a stalled frame of a whole second
+    // runs at most five steps, and the blink lasts half a second of them.
+    //
+    // Mutation: count the blink down in `ShipComponent.update`.
+    final game = _newGame();
+    _run(game, 1);
+    game.ship.flash();
+
+    game.update(1.0);
+    expect(game.stepsThisFrame, 5);
+    expect(game.ship.isFlashing, isTrue, reason: 'five steps, not a second');
+
+    _run(game, 30);
+    expect(game.ship.isFlashing, isFalse);
+  });
+
   test('the levels only ever get harder', () {
     for (var i = 1; i < arcadeLevels.length; i++) {
       final (easier, harder) = (arcadeLevels[i - 1], arcadeLevels[i]);
@@ -256,7 +296,8 @@ void _touch(ArcadeGame game, ActorComponent bot, {Vector3? offset}) {
 void _loseLevel(ArcadeGame game) {
   for (var i = 0; i < game.maxHits; i++) {
     _touch(game, game.bots[i % game.bots.length]);
-    game.ship.update(1.0);
+    // The blink runs out in the steps, where whether it can be hit is read.
+    game.ship.fixedUpdate(1.0);
   }
 }
 

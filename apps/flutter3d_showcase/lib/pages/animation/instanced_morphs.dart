@@ -44,7 +44,7 @@ final class InstancedMorphsDemo extends ShowcaseDemo {
       MorphTarget(vertexCount: flat.vertexCount, positions: bump, name: 'bump'),
     ]);
     final MorphTexture packed = MorphTexture.pack(withBump)!;
-    final TextureHandle? deltaTexture = context.device.createTextureFromPixels(
+    final TextureHandle deltaTexture = context.device.createTextureFromPixels(
       width: packed.width,
       height: packed.height,
       format: TextureFormat.r32g32b32a32Float,
@@ -54,9 +54,9 @@ final class InstancedMorphsDemo extends ShowcaseDemo {
     // #region batch
     final InstancedMeshNode faces = InstancedMeshNode(
       DeviceMesh.upload(context.device, withBump),
-      Material(
+      RenderMaterial(
         name: 'faces',
-        baseColor: Vector4(0.8, 0.8, 0.85, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.85, 1.0),
         doubleSided: true,
       ),
       capacity: _count,
@@ -67,20 +67,18 @@ final class InstancedMorphsDemo extends ShowcaseDemo {
         Matrix4.translation(Vector3((i - (_count - 1) / 2) * 1.1, 0.0, 0.0)),
       );
     }
-    if (deltaTexture != null) {
-      faces.morph = MorphState(
-        texture: deltaTexture,
-        targetCount: packed.targetCount,
-        reaches: packed.reaches,
-      );
-    }
+    faces.morph = MorphState(
+      texture: deltaTexture,
+      targetCount: packed.targetCount,
+      reaches: packed.reaches,
+    );
     _faces = faces;
     // #endregion batch
 
     return Scene()
       ..add(faces)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
   }

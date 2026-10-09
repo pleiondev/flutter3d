@@ -1,6 +1,5 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'block_surfaces.dart';
 import 'palette.dart';

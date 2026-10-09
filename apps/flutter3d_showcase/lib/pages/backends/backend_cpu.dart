@@ -7,7 +7,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BackendCpuDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
@@ -15,9 +14,9 @@ final class BackendCpuDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.6, 0.6, 0.65, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
       roughness: 0.7,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +30,7 @@ final class BackendCpuDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -39,10 +38,10 @@ final class BackendCpuDemo extends ShowcaseDemo {
   // #region read
   String _report(GraphicsDevice device) =>
       'preferred sample count: ${device.preferredSampleCount}\n'
-      'offscreen MSAA: ${device.supportsOffscreenMsaa}\n'
-      'wireframe: ${device.supportsWireframe}\n'
-      'stencil: ${device.supportsStencil}\n'
-      'mip maps: ${device.supportsMipmaps}';
+      'offscreen MSAA: ${device.features.has(DeviceFeature.offscreenMultisample)}\n'
+      'wireframe: ${device.features.has(DeviceFeature.wireframe)}\n'
+      'stencil: ${device.features.has(DeviceFeature.stencil)}\n'
+      'mip maps: ${device.features.has(DeviceFeature.manualMipmaps)}';
   // #endregion read
 
   @override
@@ -66,7 +65,8 @@ final class BackendCpuDemo extends ShowcaseDemo {
 
   // #region verify
   void _checkNoMultisampling() {
-    if (_device.preferredSampleCount != 1 || _device.supportsOffscreenMsaa) {
+    if (_device.preferredSampleCount != 1 ||
+        _device.features.has(DeviceFeature.offscreenMultisample)) {
       throw StateError(
         'the software rasteriser answering anything but "no multisampling" '
         'would be a silent difference from the picture a hardware backend '

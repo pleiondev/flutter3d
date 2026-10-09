@@ -54,6 +54,7 @@ audit has been written out. There is no test that reads this file itself.
 | order-independent-transparency | Transparency without sorting | `RenderSettings.transparency` | `flutter3d_core` CL 0.8.0 "Order-independent transparency." |
 | texture-transforms | A texture transform per map | `Material.textureTransforms` | `flutter3d_core` CL 0.8.0 "A texture transform per map." |
 | rough-surfaces | Rough metals and rough clay | `RenderSettings.energyCompensation`, `RenderSettings.diffuseModel` | `flutter3d_core` CL 0.8.0 "Energy compensation for rough metals." |
+| user-materials | A material of your own | `.f3dmat`, `BundledMaterials`, `renderer.renderSteps.addMaterials`, `InstancedMeshNode.setInstanceData` | core 1.0.0 |
 
 ## Set B: environment and shadows (`lib/pages/environment/`, `lib/pages/shadows/`)
 
@@ -77,8 +78,8 @@ audit has been written out. There is no test that reads this file itself.
 | irradiance-updates | The field kept current | `IrradianceField.gpuUpdates` | `flutter3d_core` CL 0.8.0 "The irradiance field can update on the GPU." |
 | evsm-shadows | EVSM shadows | `ShadowSettings.filter`, `ShadowFilter.evsm` | `flutter3d_core` CL 0.8.0 "EVSM for the sun." |
 | static-cascades | Cascades that keep what stands still | `MeshNode.shadowIsStatic` on a directional light's cascades | `flutter3d_core` CL 0.8.0 "Cascades are redrawn only where something changed." |
-| physical-sky | Physical sky | `SkySettings.physical`, `PhysicalSky`, `PhysicalSky.sunlight`, `FogSettings.heightFalloff` | `flutter3d_core` CL 0.9.0 "A physical sky, with stars, and fog that lies on the ground." |
-| planar-reflections | Planar reflections | `PlanarReflectorNode`, `RenderSettings.planarReflections` | `flutter3d_core` CL 0.9.0 "Planar reflections" |
+| physical-sky | Physical sky | `SkySettings.physical`, `PhysicalSky`, `PhysicalSky.sunlight`, `FogSettings.heightFalloff` | `flutter3d_core` CL 1.0.0 "A physical sky, with stars, and fog that lies on the ground." |
+| planar-reflections | Planar reflections | `PlanarReflectorNode`, `RenderSettings.planarReflections` | `flutter3d_core` CL 1.0.0 "Planar reflections" |
 
 ## Set C: post-processing (`lib/pages/post/`)
 
@@ -92,7 +93,7 @@ audit has been written out. There is no test that reads this file itself.
 | screen-space-reflections | Screen-space reflections | `ReflectionSettings` | F3D 0.2.0 |
 | ambient-occlusion | Ambient occlusion | `AmbientOcclusionSettings` | F3D 0.2.0; blur F3D 0.7.0 |
 | light-shafts | Light shafts | `LightShaftSettings` | F3D 0.7.0 |
-| anti-aliasing | FXAA, SMAA and sharpen | `AntiAliasSettings`, `EdgeSmoothing`, `FrameResult.antiAliasing` | F3D 0.7.0; SMAA `flutter3d_core` CL 0.9.0 |
+| anti-aliasing | FXAA, SMAA and sharpen | `AntiAliasSettings`, `EdgeSmoothing`, `FrameResult.antiAliasing` | F3D 0.7.0; SMAA `flutter3d_core` CL 1.0.0 |
 | msaa | Automatic multisampling | `device.preferredSampleCount`, `msaaDeclined` (needs offscreen MSAA) | unknown |
 | depth-of-field | Depth of field | `DepthOfFieldSettings` | F3D 0.7.0 |
 | user-post-effect | Your own post effect | `FullscreenEffect.overlay/present` | F3D 0.7.0 — **no page**: the engine's own proof of it (`flutter3d/test/fullscreen_effect_test.dart`) uses a shader written only for the CPU rasteriser; a real page needs a shader shipped for all four backends, which is asset-pipeline work, not a page under `lib/pages/post/` |
@@ -100,14 +101,17 @@ audit has been written out. There is no test that reads this file itself.
 | surface-buffer | The surface buffer | `RenderSettings.surfaceBuffer`, `showSurfaceBuffer` | unknown |
 | adaptive-resolution | Adaptive resolution | `RenderSettings.renderScale`, `AdaptiveScale` (the caller feeds it frame time) | F3D 0.7.0 |
 | xray | X-ray silhouettes | `XraySettings`, `renderer_xray_pass.dart` (needs stencil) | F3D 0.4.3 |
-| disabled-passes | Switching passes off | `RenderSettings.disabledPasses`, `passOrder` | F3D 0.7.0 |
+| disabled-passes | Switching steps off | `RenderSettings.without`, `RenderStep` | F3D 1.0.0 |
 | render-post | Post effects on your own image | `Renderer.renderPost` | F3D 0.7.0 |
 | temporal-anti-aliasing | Temporal anti-aliasing | `AntiAliasSettings.temporal`, `TemporalSettings.clip` | `flutter3d_core` CL 0.8.0 "Temporal anti-aliasing." |
 | motion-blur | Motion blur | `RenderSettings.motionBlur`, `MotionBlurSettings` | `flutter3d_core` CL 0.8.0 "Motion blur." |
 | spatial-upscale | Spatial upscaling | `RenderSettings.spatialUpscale` | `flutter3d_core` CL 0.8.0 "Spatial upscaling." |
 | horizon-occlusion | Horizon occlusion and bounced light | `AmbientOcclusionSettings.method` (`gtao`, `ssil`) | `flutter3d_core` CL 0.8.0 "Horizon-based occlusion and indirect light." |
 | local-exposure | Local exposure | `RenderSettings.localExposure`, `LocalExposureSettings` | `flutter3d_core` CL 0.8.0 "Local exposure." |
-| high-contrast | High contrast | `RenderSettings.highContrast`, `HighContrastSettings`, `MeshNode.outlineColor` | `flutter3d_core` CL 0.9.0 "A high-contrast look with outlines" |
+| high-contrast | High contrast | `RenderSettings.highContrast`, `HighContrastSettings`, `MeshNode.outlineColor` | `flutter3d_core` CL 1.0.0 "A high-contrast look with outlines" |
+| lens-effects | Lens flare, distortion and .cube tables | `BloomSettings.lensFlare`, `LookSettings.distortion`, `CubeLut.parse/upload` | `flutter3d_core` CL 1.0.0 "The lens: distortion, flare, and tables from a grading tool." |
+| debug-views | Debug views and render stats | `RenderSettings.debugView` (`DebugViewSettings`, `DebugView`), `FrameResult.targetBytes`, `textureBytes` | `flutter3d_core` CL 1.0.0 "A material channel in place of the light" |
+| colour-vision | Colour vision | `ColorVision.simulate/correct/upload/confusions`, `ColorRoles`, `LookSettings.lut` | `flutter3d_core` CL 1.0.0 "Colour vision, as a colour table." |
 
 ## Set D: scene and geometry (`lib/pages/scene/`)
 
@@ -119,7 +123,7 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | culling | BVH and frustum culling | `SceneBvh`, `FrameResult.culled` | F3D 0.1.0; box culling F3D 0.7.0 |
 | level-of-detail | Levels of detail | `LodGroup`, `LodLevel` (**needs the layout fix of phase 0**) | F3D 0.7.0 |
 | instancing | Instanced meshes | `InstancedMeshNode` `ensureCapacity/clear` | F3D 0.2.0 |
-| debug-draw | Debug drawing | `DebugDrawOptions` bounds, normals, gizmos, skeletons | F3D 0.7.0 |
+| debug-draw | Debug drawing | `DebugDrawSettings` bounds, normals, gizmos, skeletons | F3D 0.7.0 |
 | mesh-overlay | Mesh overlay | `MeshOverlay`, `OverlayBatch` | F3D 0.7.0 |
 | polylines | Polylines of a width in pixels | `buildPolyline`, `Material.polyline`, `PolylineShape` | F3D 0.7.0 |
 | gaussian-splats | Gaussian splats | `parseSplatPly`, `SplatCloud`, `SplatContributor` | F3D 0.7.0 |
@@ -137,8 +141,9 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | impostors | Impostors | `ModelLod.impostor`, `ModelImpostor`, `ImpostorNode` | `flutter3d_core` CL 0.8.0 "Impostors." |
 | occlusion-culling | Occlusion culling | `RenderSettings.occlusion`, `OcclusionMode`, `SoftwareOcclusion` | `flutter3d_core` CL 0.8.0 "Occlusion culling." |
 | splat-budget | Splats under a budget | `buildSplatOctree`, `SplatLod`, `SplatContributor.lod` | `flutter3d_core` CL 0.8.0 "Large captures by budget." |
-| decals | Decals | `DecalNode`, `RenderSettings.decals` (`DecalSettings`) | `flutter3d_core` CL 0.9.0 "Projected box decals." |
-| render-textures | A camera into a texture | `RenderTexture.create`, `Scene.addRenderTexture`, `RenderTexture.invalidate` | `flutter3d_core` CL 0.9.0 "A public camera into a texture" |
+| decals | Decals | `DecalNode`, `RenderSettings.decals` (`DecalSettings`) | `flutter3d_core` CL 1.0.0 "Projected box decals." |
+| render-textures | A camera into a texture | `RenderTexture.create`, `Scene.addRenderTexture`, `RenderTexture.invalidate` | `flutter3d_core` CL 1.0.0 "A public camera into a texture" |
+| draw-control | Draw order, alpha to coverage and index windows | `MeshNode.drawOrder`, `Material.alphaToCoverage`, `FrameResult.alphaToCoverageDeclined`, `PassEncoder.draw(firstIndex:, indexCount:)`, `indexWindow` | `flutter3d_core` CL 1.0.0 "`MeshNode.drawOrder`" |
 
 ## Set E: animation (`lib/pages/animation/`)
 
@@ -156,7 +161,8 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | fabrik-ik | A chain of any length | `FabrikIk` | F3D 0.7.0 |
 | pose-sampling | A pose with no scene | `Pose` | F3D 0.7.0 |
 | baked-crowd | A crowd from baked poses | `BakedPoses` + `InstancedMeshNode` | unknown |
-| skeleton-debug | The skeleton drawn | `DebugDrawOptions.skeletons` | F3D 0.7.0 |
+| skeleton-debug | The skeleton drawn | `DebugDrawSettings.skeletons` | F3D 0.7.0 |
+| animation-graph | An animation graph | `AnimationGraph`, `AnimationStateMachine`, `AnimationBlendSpace`, `AnimationGraphLayer`, `LookGoal`, `rootDelta` | `flutter3d_core` CL 1.0.0 "An animation graph decides which clip plays, in the fixed step." |
 
 ## Set F: views, picking, input and backends (`lib/pages/view_input/`, `lib/pages/backends/`)
 
@@ -175,6 +181,7 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | backend-webgpu | WebGPU | `flutter3d_webgpu` | 0.6.0 |
 | backend-cpu | The software rasteriser | `flutter3d_cpu` | 0.2.0 |
 | backend-matrix | What differs between them | every `GraphicsDevice.supports*`, live for the running device | n/a |
+| photo-mode | Photo mode | `shouldPause(photoMode:)`, `PhotoCamera`, `PhotoFilter`, `capturePhoto`, `photoSettings`, `CropProjection` | `flutter3d_core` CL 1.0.0 "A photo of any size." |
 
 **Removed pages:** `gamepad`, `pointer-lock`, `input-bindings` and `touch-controls` needed a
 physical gamepad, a locked pointer or a touchscreen to show anything, and
@@ -219,21 +226,21 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | collision-shapes | Collision shapes | sealed `CollisionShape` (box, sphere, capsule, wedge, heightfield) | CL physics 0.5.1, 0.6.0 |
 | collision-queries | Raycast, sweep and overlap | `CollisionWorld`, `SpatialGrid` | 0.5.0 |
 | collision-layers | Layers and contact callbacks | `Layers`, `Collider`, `CollisionListener` | unknown |
-| character-controller | A character controller | `CharacterController`, `MovementTuning` | 0.5.0 |
+| character-controller | A character controller | `CharacterController`, `MovementSettings` | 0.5.0 |
 | rigid-bodies | Rigid bodies | `RigidBody`, `Dynamics`, snapshot (fold) | unknown |
-| physics-core | The physics core | `PhysicsBackend`, `NativePhysics`, `DartPhysics`, `RigidDynamics`/`NativeDynamics` | `flutter3d_physics_native` CL 0.9.0 "The core is the default, and the Dart reference is the fallback." |
+| physics-core | The physics core | `PhysicsBackend`, `NativePhysics`, `DartPhysics`, `RigidDynamics`/`NativeDynamics` | `flutter3d_physics_native` CL 1.0.0 "The core is the default, and the Dart reference is the fallback." |
 | heightfield-collision | Walking on terrain | `CollisionHeightfield` | 0.5.1 |
 | xpbd-cloth | Cloth | `ClothMesh.grid`, `ClothSimulation`, `ClothObstacle`, `WindSettings` | 0.7.0 |
-| compound-shapes | Several shapes on one body | `NativeWorld.createCompound`, `NativeCompoundPart`, `compoundOffset`, `setCompound`, `createHull` | `flutter3d_physics_native` CL 0.9.0 "Several shapes on one body." |
-| breakable-joints | Joints that break | `NativeWorld.setJointBreak`, `jointForce`, `NativeEventKind.jointBroken`, `readEvents`, `containsJoint` | `flutter3d_physics_native` CL 0.9.0 "Joints that break." |
-| vehicle | A car on four springs | `NativeWorld.createVehicle`, `addWheel`, `setWheel`, `wheelsOf`, `NativeWheelState` | `flutter3d_physics_native` CL 0.9.0 "Vehicles on wheels that hang from springs." |
-| multibody-chain | A chain that does not stretch | `NativeWorld.createMultibody`, `addLink`, `createJoint` | `flutter3d_physics_native` CL 0.9.0 "Chains whose joints cannot come apart." |
-| joints-and-motors | Joints and motors | `NativeWorld.createJoint`/`createDistanceJoint`, `setJointLimits/Motor/Spring/Length/Cone/Friction`, `jointValue`/`jointSwing` | `flutter3d_physics_native` CL 0.9.0 "Fixed, spherical, revolute (a hinge), prismatic (a slider) and distance joints" |
-| ragdoll | A ragdoll | `NativeRagdoll`, `RagdollBone`, `RagdollBall`/`RagdollHinge`, `bodyOf`/`poseOf` | `flutter3d_physics_native` CL 0.9.0 "A ragdoll of eleven bodies on ten joints falls to a floor and sleeps within two seconds." |
-| convex-shapes | Convex shapes and mesh floors | `NativeShape.cylinder/cone`, `createHull`/`setHull`/`hullOffset`, `setRounding`, `createMesh`/`setMesh` | `flutter3d_physics_native` CL 0.9.0 "Cylinders, cones and convex hulls, and any shape rounded by a radius" |
-| continuous-collision | Fast bodies and thin walls | `NativeWorld.speculative`, `setBullet` | `flutter3d_physics_native` CL 0.9.0 "Continuous collision, phase 8." |
-| heat-and-fire | Heat and fire | `NativeMaterial`, `addHeat`/`addWater`, `readEvents` (ignited/extinguished), `readFires`, `setWindGrid`/`windAt` | `flutter3d_physics_native` CL 0.9.0 "Wind, heat and fire are the world's." |
-| liquids | Liquids on the core | `FluidWorld`, `Pipe`, `FloatingBody`, `Jet`, `NativeLiquid` | `flutter3d_physics_native` CL 0.9.0 "Pipes and floating bodies run on the core." |
+| compound-shapes | Several shapes on one body | `NativeWorld.createCompound`, `NativeCompoundPart`, `compoundOffset`, `setCompound`, `createHull` | `flutter3d_physics_native` CL 1.0.0 "Several shapes on one body." |
+| breakable-joints | Joints that break | `NativeWorld.setJointBreak`, `jointForce`, `NativeEventKind.jointBroken`, `readEvents`, `containsJoint` | `flutter3d_physics_native` CL 1.0.0 "Joints that break." |
+| vehicle | A car on four springs | `NativeWorld.createVehicle`, `addWheel`, `setWheel`, `wheelsOf`, `NativeWheelState` | `flutter3d_physics_native` CL 1.0.0 "Vehicles on wheels that hang from springs." |
+| multibody-chain | A chain that does not stretch | `NativeWorld.createMultibody`, `addLink`, `createJoint` | `flutter3d_physics_native` CL 1.0.0 "Chains whose joints cannot come apart." |
+| joints-and-motors | Joints and motors | `NativeWorld.createJoint`/`createDistanceJoint`, `setJointLimits/Motor/Spring/Length/Cone/Friction`, `jointValue`/`jointSwing` | `flutter3d_physics_native` CL 1.0.0 "Fixed, spherical, revolute (a hinge), prismatic (a slider) and distance joints" |
+| ragdoll | A ragdoll | `NativeRagdoll`, `RagdollBone`, `RagdollBall`/`RagdollHinge`, `bodyOf`/`poseOf` | `flutter3d_physics_native` CL 1.0.0 "A ragdoll of eleven bodies on ten joints falls to a floor and sleeps within two seconds." |
+| convex-shapes | Convex shapes and mesh floors | `NativeShape.cylinder/cone`, `createHull`/`setHull`/`hullOffset`, `setRounding`, `createMesh`/`setMesh` | `flutter3d_physics_native` CL 1.0.0 "Cylinders, cones and convex hulls, and any shape rounded by a radius" |
+| continuous-collision | Fast bodies and thin walls | `NativeWorld.speculative`, `setBullet` | `flutter3d_physics_native` CL 1.0.0 "Continuous collision, phase 8." |
+| heat-and-fire | Heat and fire | `NativeMaterial`, `addHeat`/`addWater`, `readEvents` (ignited/extinguished), `readFires`, `setWindGrid`/`windAt` | `flutter3d_physics_native` CL 1.0.0 "Wind, heat and fire are the world's." |
+| liquids | Liquids on the core | `FluidWorld`, `Pipe`, `FloatingBody`, `Jet`, `NativeLiquid` | `flutter3d_physics_native` CL 1.0.0 "Pipes and floating bodies run on the core." |
 | six-way-smoke | Smoke lit by the scene | `SixWayMaterial`, `ContributorLights` | `flutter3d_core` CL 0.8.0 "Lit particle sheets." |
 
 ## Set I: simulation, audio, XR, widgets and the rest (`lib/pages/sim_audio_xr/`, `lib/pages/widgets_misc/`)
@@ -242,7 +249,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 |---|---|---|---|
 | fixed-step | Fixed step and interpolation | `FixedStep`, `GameLoop`, `Interpolated*`, `PauseGate` | unknown |
 | ecs-world | The ECS world | `EcsWorld`, `remapEntitySave` | remap 0.7.0 |
-| step-systems | Systems and events | `StepSystems`, `GameEvents` | 0.5.0 |
+| step-systems | Systems and events | `StepSystems`, `DirectBus` | 0.5.0 |
 | replay-digest | Replays and digests | `Demo`, `Recorder`, `Playback`, `StateDigest`, `Divergence` | 0.7.0 |
 | portable-math | Portable determinism | `Portable`, `GameRandom` | 0.5.1 |
 | rewind | Rewinding | `RewindBuffer`, `Snapshot`, `StepTimeTrace` | 0.7.0 |
@@ -253,17 +260,17 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | lightmap-bake | Baking a lightmap | `LightmapLayout`, `LightmapBaker`, `Breaches` | 0.4.1, 0.4.2 |
 | baked-visibility | Baked visibility | `LevelVisibility`, `VisibilityCuller` | unknown |
 | terrain-tiles | Terrain in tiles | `Heightfield`, `HeightfieldTiles`, `TerrainTiles` | 0.5.2, 0.7.0 |
-| procedural-levels | Levels from a seed | `generateLevel`, `LevelRules`, `collapse`, `ExitReachable`, `expandRecipes` | `flutter3d_sim` CL 0.9.0 "Levels from a seed and some rules (N11)." |
-| voxel-world | A world of blocks | `VoxelWorld`, `VoxelTerrain`, `meshChunk`, `VoxelCollision`, `toJson`/`restoreEdits` | `flutter3d_voxel` CL 0.9.0 "A world of blocks, kept as a seed and the edits since." |
+| procedural-levels | Levels from a seed | `generateLevel`, `LevelRules`, `collapse`, `ExitReachable`, `expandRecipes` | `flutter3d_sim` CL 1.0.0 "Levels from a seed and some rules (N11)." |
+| voxel-world | A world of blocks | `VoxelWorld`, `VoxelTerrain`, `meshChunk`, `VoxelCollision`, `toJson`/`restoreEdits` | `flutter3d_voxel` CL 1.0.0 "A world of blocks, kept as a seed and the edits since." |
 | level-format | The level format | `Level`, `Brush`, `LevelValidator` | 0.4.2 |
 | level-mechanisms | Doors, lifts and buttons | `Door`, `Lift`, `Button`, `TriggerVolume` | unknown |
 | light-fixtures | Flickering lights | `LightFixture`, `FlameFlicker`, `PulseLight` | unknown |
 | actors | Actors, brains and health | `Actor`, `Brain`, `Health` | unknown |
-| camera-shake | The shared camera rig | `CameraRig`, `RigTuning` (the file must not be named `camera`) | unknown |
+| camera-shake | The shared camera rig | `CameraRig`, `RigSettings` (the file must not be named `camera`) | unknown |
 | splines | A Catmull-Rom path | `CatmullRom` | unknown |
 | difficulty | Difficulty axes | `Difficulty` | 0.5.0 |
-| pendulum-lab | The virtual pendulum lab | `flutter3d_lab` `PendulumSimulation`, `divergenceFrom` | 0.7.0 |
-| positional-audio | Positional audio | `AudioScene`, `SoundEmitter`, `AudioListener` (web needs the script tags and COOP/COEP) | 0.1.0 |
+| pendulum-lab | The virtual pendulum lab | `flutter3d_education/lab.dart` `PendulumSimulation`, `divergenceFrom` | 0.7.0 |
+| positional-audio | Positional audio | `AudioScene`, `AudioEmitter`, `AudioListener` (web needs the script tags and COOP/COEP) | 0.1.0 |
 | audio-rolloff | Distance rolloff | `InverseRolloff`, `LinearRolloff`, `ExponentialRolloff` | 0.1.0 |
 | audio-buses | Mixer buses | `AudioBus`, `Mixer` | 0.2.0 |
 | voice-limit | Voice limiting | `AudioScene(maxVoices:)` | 0.1.0 |
@@ -279,10 +286,23 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | level-loader | Loading a level | `LevelLoader`, `SharedMeshes` | 0.7.0 |
 | storage | Storage on every platform | `Storage`, `BinaryStorage`, `IndexedDbBinaryStorage` | 0.7.0 |
 | diagnostics | Frame timing and memory pressure | `FrameClock`, `FrameTimingLog`, `MemoryPressureRelease` | 0.7.0 |
-| game-settings | Settings, config and saves | `SettingsPanel`, `GameConfig`, `SaveFile` | unknown |
+| game-settings | Settings, config and saves | `SettingsPanel`, `GameSettings`, `SaveFile` | unknown |
 | run-timeline | Pausing and stepping a running game | `RunTimeline`, `RunSession` | 0.7.0 |
 | accommodations | Reduce motion | `Accommodations.reduceMotion` | unknown |
 | rollback-netcode | Rollback netcode over a loopback | `flutter3d_net` `NetSession`, `LoopbackTransport` (delay and loss sliders) | unknown |
+| replay-tests | Replays as tests | `testReplay` (shown through its loop: `Demo`, `InputTapePlayback`, `StateDigest`) | `flutter3d_testing` CL 1.0.0 "turns a recorded run into a test that needs no GPU" |
+| navmesh-crowds | Navigation meshes and crowds | `NavMesh.bake/route/rebake`, `JumpReach`, `NavMeshLink`, `Avoidance` | `flutter3d_sim` CL 1.0.0 "A level bakes into a navigation mesh as well as a grid." |
+| behaviour-trees | Behaviour trees | `BehaviorTree.read`, `BehaviorKinds`, `BehaviorBrain`, `Blackboard`, `BehaviorOverlay` | `flutter3d_sim` CL 1.0.0 "Behaviour trees and utility choices as data." |
+| cutscenes | Cutscenes | `Sequence.read`, `SequencePlayer`, `SequenceSignal`, skip by stepping | `flutter3d_sim` CL 1.0.0 "A cutscene is a document played in the fixed step." |
+| sharing-ghosts | Sharing runs and racing ghosts | `ShareBundle`, `RunService` over an in-memory transport, `Playback` | `flutter3d_sim` CL 1.0.0 "A level can be shared behind a short code." |
+| terrain-erosion | Terrain erosion | `erodeThermally`, `erodeHydraulically`, `Heightfield` | `flutter3d_sim` CL 1.0.0 "`erodeThermally` and `erodeHydraulically` shape a `Heightfield`." |
+| playtest-heatmaps | Playtest heatmaps | `resimulate`, `Heatmap.bin`, `HeadlessGame` | `flutter3d_sim` CL 1.0.0 "bins trails into cells" |
+| time-travel | A time-travel debugger | `RunTimeline.scrubTo/returnToPresent/branchHere/tracks`, `EntityTracks`, `bisectTapes`, `ReplaySide` | `flutter3d_game` CL 1.0.0 "`RunTimeline` scrubs without cutting." |
+| saves | Saves that survive an update | `SaveSchema`, `SaveRecord`, `resolveSaves`, `Autosave`, `SaveSync`, `CloudSaveStore` | `flutter3d_sim` CL 1.0.0 "A save says what version of the game wrote it" |
+| parties | Parties of more than two | `flame_multiplayer` `PartyRollback`, `LoopbackParty`, `PartyTape`/`PartyTapeWatcher` | `flutter3d_net` CL 1.0.0 "The relay holds parties." |
+| scene-widgets | A scene written as widgets | `Scene3D`, `SceneWidgets.mount`, `Mesh3D`, `Material3D` | app 1.0.0 |
+| render-inspection | Inspecting a running frame | `captureNextFrame(draws: true)`, `renderPasses`, `renderDraw`, `renderReadPixel`, `renderPicked`, `renderStats` | app 1.0.0 |
+| hot-swap | Changing a running game's assets | `HotSwap.registerTexture`/`registerModel`/`setMaterial`/`swap`, `Tunables` | app 1.0.0 |
 
 `flutter3d_net_webrtc` has no page (a native plugin and a signalling relay); it is named
 on the netcode page.
@@ -324,7 +344,7 @@ the plan, since a page's actual scope sometimes moved from what its coverage row
 |---|---|
 | Not a Flutter package any more… | no page: how the package resolves, not a capability |
 | The shadow pass no longer declares a block it never reads… | no page: an internal cleanup, nothing a page could show differently |
-| Ten new entry points in `kRequiredShaders`… (Fxaa, DoF, …) | anti-aliasing, depth-of-field, light-shafts, viewport-shading, contact-shadows, polylines, gaussian-splats |
+| Ten new entry points in `requiredShaders`… (Fxaa, DoF, …) | anti-aliasing, depth-of-field, light-shafts, viewport-shading, contact-shadows, polylines, gaussian-splats |
 | `post/composite.frag` has five tone curves… | tone-mapping, color-grading, lut-grading |
 | `lib/surface.glsl` reads lights past the eighth… | many-lights |
 | `lib/shadow.glsl` can widen an edge with distance… | soft-shadows |

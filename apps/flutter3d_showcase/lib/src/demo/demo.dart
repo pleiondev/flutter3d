@@ -10,7 +10,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 
 /// Makes a fresh demo. Called every time a page is opened, so nothing a demo

@@ -5,14 +5,16 @@
 ///     flutter test test/frame_test.dart
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'dart:typed_data';
+
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_sandbox/src/chunk_meshes.dart';
 import 'package:flutter3d_demo_sandbox/src/staging.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show DartPhysics;
+import 'package:flutter3d_game_kit/world.dart' show Daylight;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('a fresh world draws hills against the sky', () async {
@@ -25,7 +27,7 @@ void main() {
     final run = SandboxRun.fresh(backend: const DartPhysics());
     final camera = CameraNode(name: 'eye');
     final scene = Scene()
-      ..ambientIntensity = 0.35
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(LightNode(name: 'sun')..setLocalForward(Vector3(-0.4, -1, -0.3)))
       ..add(camera);
     final meshes = ChunkMeshes(it.device, scene, run.blocks);
@@ -38,14 +40,12 @@ void main() {
       height: 90,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.55, 0.72, 0.9, 1)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.55, 0.72, 0.9, 1)),
       ],
       settings: const RenderSettings(),
     );
     expect(result.drawCalls, greaterThan(0));
-    final rgba = (await it.device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final rgba = (await it.device.readback(result.frame)).buffer.asUint8List();
     // The bottom row is ground, the top row sky: two colours, the sky blue.
     int at(int x, int y, int channel) => rgba[(y * 160 + x) * 4 + channel];
     expect(at(80, 2, 2), greaterThan(at(80, 2, 0)), reason: 'blue sky');
@@ -56,6 +56,48 @@ void main() {
       reason: 'the ground is not the sky',
     );
   });
+
+  test(
+    'the morning sky is blue overhead, and the midnight one has stars',
+    () async {
+      // The sky alone, looked at straight up through the day's own settings.
+      Future<Uint8List> skyAt(double hour) async {
+        final it = cpuTestDevice(width: 96, height: 72);
+        final renderer = Renderer.create(
+          device: it.device,
+          fallbackAlbedo: it.albedo,
+          fallbackNormal: it.normal,
+        );
+        final camera = CameraNode(name: 'eye')
+          ..lookAt(Vector3(0.0, 1.0, 0.0), up: Vector3(0.0, 0.0, -1.0));
+        final result = renderer.render(
+          width: 96,
+          height: 72,
+          scene: Scene()..add(camera),
+          views: <RenderView>[RenderView(camera: camera)],
+          settings: RenderSettings(sky: Daylight(hour: hour).sky),
+        );
+        return (await it.device.readback(result.frame)).buffer.asUint8List();
+      }
+
+      final morning = await skyAt(Daylight.morning);
+      final middle = (36 * 96 + 48) * 4;
+      expect(morning[middle + 2], greaterThan(morning[middle] + 40));
+
+      // Mutation: a sun that stays up at midnight — the angle measured from
+      // midnight rather than from sunrise — puts the stars out.
+      final night = await skyAt(0.0);
+      var stars = 0;
+      var dark = 0;
+      for (var i = 0; i < night.length; i += 4) {
+        final light = night[i] + night[i + 1] + night[i + 2];
+        if (light > 120) stars++;
+        if (light < 30) dark++;
+      }
+      expect(dark, greaterThan(96 * 72 * 9 ~/ 10), reason: 'a night sky');
+      expect(stars, greaterThan(3), reason: 'with stars in it');
+    },
+  );
 
   test('an edit draws again the chunks it changed, and only those', () {
     final it = cpuTestDevice();
@@ -70,7 +112,7 @@ void main() {
       top--;
     }
     run.blocks.edit(20, top + 1, 20, Voxels.firstPlaced + 2);
-    meshes.refresh(run.blocks.takeChanges().surfaces);
+    meshes.refresh(run.blocks.drainChanges().surfaces);
 
     // Mutation: refreshing without taking the old nodes out of the scene
     // leaves them drawn under the new ones.

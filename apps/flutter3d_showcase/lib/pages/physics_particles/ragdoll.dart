@@ -7,9 +7,10 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart'
+    show SegmentMassShares, referenceBodyMass;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RagdollDemo extends ShowcaseDemo {
   NativeWorld? _world;
@@ -44,7 +45,9 @@ final class RagdollDemo extends ShowcaseDemo {
   // #region figure
   /// A figure standing with its feet at [o]: hips, chest, head, two arms
   /// and two legs, each bone from its head (where it meets its parent) to
-  /// its tail, with a radius and a mass. Its spine and neck are ball joints
+  /// its tail, with a radius and a mass — the reference man's 73 kg shared
+  /// as de Leva measured (`SegmentMassShares`), a forearm with its hand and a
+  /// shin with its foot. Its spine and neck are ball joints
   /// in a narrow cone, the shoulders and hips wide ones, the elbows and
   /// knees hinges that bend one way.
   static List<RagdollBone> _figure(Vector3 o) {
@@ -53,6 +56,7 @@ final class RagdollDemo extends ShowcaseDemo {
     const hip = RagdollBall(cone: 1.2, twistLower: -0.5, twistUpper: 0.5);
     final elbow = RagdollHinge(axis: Vector3(1, 0, 0), lower: 0, upper: 2.4);
     final knee = RagdollHinge(axis: Vector3(1, 0, 0), lower: -2.4, upper: 0);
+    double kg(double share) => referenceBodyMass * share;
     RagdollBone bone(
       String name,
       int parent,
@@ -72,25 +76,104 @@ final class RagdollDemo extends ShowcaseDemo {
       joint: joint,
     );
     return <RagdollBone>[
-      bone('hips', -1, (0, 0.92, 0), (0, 1.1, 0), 0.13, 10),
-      bone('chest', 0, (0, 1.1, 0), (0, 1.55, 0), 0.15, 15, spine),
-      bone('head', 1, (0, 1.58, 0), (0, 1.82, 0), 0.11, 4, spine),
-      bone('arm.L', 1, (-0.25, 1.5, 0), (-0.25, 1.2, 0), 0.05, 2, shoulder),
-      bone('arm.R', 1, (0.25, 1.5, 0), (0.25, 1.2, 0), 0.05, 2, shoulder),
+      bone(
+        'hips',
+        -1,
+        (0, 0.92, 0),
+        (0, 1.1, 0),
+        0.13,
+        kg(SegmentMassShares.lowerTrunk),
+      ),
+      bone(
+        'chest',
+        0,
+        (0, 1.1, 0),
+        (0, 1.55, 0),
+        0.15,
+        kg(SegmentMassShares.upperTrunk + SegmentMassShares.middleTrunk),
+        spine,
+      ),
+      bone(
+        'head',
+        1,
+        (0, 1.58, 0),
+        (0, 1.82, 0),
+        0.11,
+        kg(SegmentMassShares.head),
+        spine,
+      ),
+      bone(
+        'arm.L',
+        1,
+        (-0.25, 1.5, 0),
+        (-0.25, 1.2, 0),
+        0.05,
+        kg(SegmentMassShares.upperArm),
+        shoulder,
+      ),
+      bone(
+        'arm.R',
+        1,
+        (0.25, 1.5, 0),
+        (0.25, 1.2, 0),
+        0.05,
+        kg(SegmentMassShares.upperArm),
+        shoulder,
+      ),
       bone(
         'forearm.L',
         3,
         (-0.25, 1.2, 0),
         (-0.25, 0.92, 0),
         0.045,
-        1.5,
+        kg(SegmentMassShares.forearm + SegmentMassShares.hand),
         elbow,
       ),
-      bone('forearm.R', 4, (0.25, 1.2, 0), (0.25, 0.92, 0), 0.045, 1.5, elbow),
-      bone('thigh.L', 0, (-0.1, 0.92, 0), (-0.1, 0.5, 0), 0.07, 7, hip),
-      bone('thigh.R', 0, (0.1, 0.92, 0), (0.1, 0.5, 0), 0.07, 7, hip),
-      bone('shin.L', 7, (-0.1, 0.5, 0), (-0.1, 0.06, 0), 0.055, 4, knee),
-      bone('shin.R', 8, (0.1, 0.5, 0), (0.1, 0.06, 0), 0.055, 4, knee),
+      bone(
+        'forearm.R',
+        4,
+        (0.25, 1.2, 0),
+        (0.25, 0.92, 0),
+        0.045,
+        kg(SegmentMassShares.forearm + SegmentMassShares.hand),
+        elbow,
+      ),
+      bone(
+        'thigh.L',
+        0,
+        (-0.1, 0.92, 0),
+        (-0.1, 0.5, 0),
+        0.07,
+        kg(SegmentMassShares.thigh),
+        hip,
+      ),
+      bone(
+        'thigh.R',
+        0,
+        (0.1, 0.92, 0),
+        (0.1, 0.5, 0),
+        0.07,
+        kg(SegmentMassShares.thigh),
+        hip,
+      ),
+      bone(
+        'shin.L',
+        7,
+        (-0.1, 0.5, 0),
+        (-0.1, 0.06, 0),
+        0.055,
+        kg(SegmentMassShares.shank + SegmentMassShares.foot),
+        knee,
+      ),
+      bone(
+        'shin.R',
+        8,
+        (0.1, 0.5, 0),
+        (0.1, 0.06, 0),
+        0.055,
+        kg(SegmentMassShares.shank + SegmentMassShares.foot),
+        knee,
+      ),
     ];
   }
   // #endregion figure
@@ -124,9 +207,9 @@ final class RagdollDemo extends ShowcaseDemo {
       unavailable = '$e';
       return;
     }
-    for (final (Vector3 centre, Vector3 half) in _blocks) {
+    for (final (Vector3 center, Vector3 half) in _blocks) {
       final NativeBody block = world.addBody(
-        position: centre,
+        position: center,
         type: NativeBodyType.fixed,
         mass: 0.0,
       );
@@ -140,12 +223,12 @@ final class RagdollDemo extends ShowcaseDemo {
   // #endregion world
 
   // #region push
-  /// A shove to the chest, forward and a little to the side: sixty
-  /// newton seconds on fifteen kilograms.
+  /// A shove to the chest, forward and a little to the side: ninety-five
+  /// newton seconds on its 23.6 kilograms, four metres a second.
   void _push() {
     final NativeRagdoll? doll = _doll;
     if (doll == null) return;
-    _world!.applyImpulse(doll.bodyOf(1), Vector3(60.0, 0.0, 8.0));
+    _world!.applyImpulse(doll.bodyOf(1), Vector3(95.0, 0.0, 12.5));
   }
   // #endregion push
 
@@ -164,18 +247,18 @@ final class RagdollDemo extends ShowcaseDemo {
     _build();
     _push();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.3)),
       );
-    final stone = Material(
+    final stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
       roughness: 0.8,
     );
-    for (final (Vector3 centre, Vector3 half) in _blocks) {
+    for (final (Vector3 center, Vector3 half) in _blocks) {
       scene.add(
         MeshNode(
           DeviceMesh.upload(
@@ -184,15 +267,15 @@ final class RagdollDemo extends ShowcaseDemo {
           ),
           stone,
           name: 'block',
-        )..setPositionFrom(centre),
+        )..setPositionFrom(center),
       );
     }
     // #region bones
     // Each bone drawn as the capsule its body is: along the body's own y,
     // its straight part as long as the bone less its two rounded ends.
-    final cloth = Material(
+    final cloth = RenderMaterial(
       name: 'ragdoll',
-      baseColor: Vector4(0.8, 0.55, 0.35, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.55, 0.35, 1.0),
       roughness: 0.6,
     );
     for (final RagdollBone bone in _figure(_feet)) {
@@ -220,7 +303,7 @@ final class RagdollDemo extends ShowcaseDemo {
     for (var i = 0; i < _bones.length; i++) {
       final NativeBody body = doll.bodyOf(i);
       _bones[i]
-        ..setPositionFrom(doll.world.positionOf(body))
+        ..setPositionFrom(doll.world.localPositionOf(body))
         ..setRotation(doll.world.orientationOf(body));
     }
   }
@@ -295,7 +378,7 @@ final class RagdollDemo extends ShowcaseDemo {
       throw StateError('it never went down the stairs');
     }
     for (var i = 0; i < bones.length; i++) {
-      final double y = _world!.positionOf(doll.bodyOf(i)).y;
+      final double y = _world!.localPositionOf(doll.bodyOf(i)).y;
       if (y < bones[i].radius - 0.01) {
         throw StateError('${bones[i].name} ended in the floor at $y');
       }

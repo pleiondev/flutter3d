@@ -13,30 +13,30 @@ import 'dart:convert';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 /// Saves kept in a map: nothing here saves.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> _documents = <String, String>{};
 
   @override
-  String? read(String name) => _documents[name];
+  Future<String?> read(String name) async => _documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     _documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => _documents.remove(name);
+  Future<void> remove(String name) async => _documents.remove(name);
 }
 
 Future<LevelReady> _open() async {
@@ -52,30 +52,40 @@ Future<LevelReady> _open() async {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     ),
   );
-  final level = await run.open('assets/levels/crypt.json');
-  addTearDown(() => run.close(level));
+  final level = await run.loadLevel('assets/levels/crypt.json');
+  addTearDown(() => run.disposeLevel(level));
   return level;
 }
 
 /// Steps [level] [steps] times and says, each step, what the graphs hold
 /// and what happened.
-List<String> _run(LevelReady level, int steps) => <String>[
-  for (var i = 0; i < steps; i++)
-    (() {
-      level.staged.sim.step(1.0 / 60.0);
-      final animations = level.staged.actors.strides! as ActorAnimations;
-      // The poses too, not only what is saved: a pose made again from a
-      // snapshot with last frame's goals would differ here and nowhere
-      // else.
-      final poses = <String>[
-        for (final actor in level.staged.actors.actors)
-          if (animations.graphOf(actor) case final graph?)
-            '${graph.pose.translations.toList()}${graph.pose.rotations.toList()}',
-      ];
-      return '${jsonEncode(animations.save())} $poses '
-          '${level.staged.sim.events.drain().map((e) => e.name).toList()}';
-    })(),
-];
+/// An event as the run's text says it: a marker by which and where.
+String _said(GameEvent event) => switch (event) {
+  AnimationMarkerPassed(:final marker, :final state) =>
+    'animation marker $marker in $state',
+  _ => event.name,
+};
+
+List<String> _run(LevelReady level, int steps) {
+  final heard = HeardEvents.of(level.staged);
+  return <String>[
+    for (var i = 0; i < steps; i++)
+      (() {
+        level.staged.sim.step(1.0 / 60.0);
+        final animations = level.staged.actors.strides! as ActorAnimations;
+        // The poses too, not only what is saved: a pose made again from a
+        // snapshot with last frame's goals would differ here and nowhere
+        // else.
+        final poses = <String>[
+          for (final actor in level.staged.actors.actors)
+            if (animations.graphOf(actor) case final graph?)
+              '${graph.pose.translations.toList()}${graph.pose.rotations.toList()}',
+        ];
+        return '${jsonEncode(animations.save())} $poses '
+            '${heard.take().map(_said).toList()}';
+      })(),
+  ];
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

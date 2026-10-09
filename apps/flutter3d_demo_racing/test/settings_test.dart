@@ -13,24 +13,23 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // SettingsCubit, Storage
+import 'package:flutter3d_game/flutter3d_game.dart'; // GameSettingsController, Storage
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 const GameAction _throttle = GameAction('throttle');
@@ -45,17 +44,18 @@ Bindings _keys() => Bindings(<InputSource, GameAction>{})
   ..bind(InputSource.key(0x77), _throttle)
   ..bind(InputSource.key(0x73), _brake);
 
-({SettingsCubit cubit, _Storage storage, GameConfig config}) _open() {
+ActionMap _keyMap() => ActionMap(actions: ActionSet.common, buttons: _keys());
+
+({GameSettingsController cubit, _Storage storage}) _open() {
   final storage = _Storage();
-  final config = GameConfig();
   return (
-    cubit: SettingsCubit(
-      config: config,
+    cubit: GameSettingsController(
+      settings: const GameSettings(),
+      actions: _keyMap(),
       file: SettingsFile(appName: 'racing', storage: storage),
-      apply: (GameConfig _) {},
+      apply: (GameSettings _) {},
     ),
     storage: storage,
-    config: config,
   );
 }
 
@@ -82,9 +82,7 @@ void main() {
   test('a driver rebinds a throttle, not a forward', () {
     // The engine's default table names walking, and a car has a throttle and a
     // brake. Those are the actions the panel lists, and they are this game's.
-    final config = GameConfig();
-
-    final table = ownedBindings(config, _keys);
+    final table = const GameSettings().actionsOr(_keyMap).buttons;
 
     expect(table[InputSource.key(0x77)], _throttle);
     expect(
@@ -94,31 +92,34 @@ void main() {
     );
   });
 
-  test('and what they rebind survives a launch', () {
+  test('and what they rebind survives a launch', () async {
     // The bug this repository fixed in both other games on the same day: the
-    // config owns the table, so a rebind made on a first launch is in the
-    // document that gets written.
+    // controller holds the one map, so a rebind made on a first launch is in
+    // the document that gets written.
     final it = _open();
-    final table = ownedBindings(it.config, _keys);
-    expect(identical(table, it.config.bindings), isTrue);
 
     it.cubit.rebind(_brake);
     it.cubit.capture(InputSource.key(0x20));
 
-    final saved = SettingsFile(appName: 'racing', storage: it.storage).read();
-    expect(saved.bindings[InputSource.key(0x20)], _brake);
+    await it.cubit.saved;
+    final saved = await SettingsFile(
+      appName: 'racing',
+      storage: it.storage,
+    ).read();
+    expect(saved.actions!.buttons[InputSource.key(0x20)], _brake);
   });
 
-  test('and a volume survives one too', () {
+  test('and a volume survives one too', () async {
     final it = _open();
 
-    it.cubit.setVolume(AudioBus.sfx.name, 0.3);
+    it.cubit.setVolume(AudioBus.sfx, 0.3);
+    await it.cubit.saved;
 
     expect(
-      SettingsFile(
+      (await SettingsFile(
         appName: 'racing',
         storage: it.storage,
-      ).read().volumeOf(AudioBus.sfx.name),
+      ).read()).volumeOf(AudioBus.sfx),
       0.3,
     );
   });
@@ -127,14 +128,14 @@ void main() {
     // Escape opens the settings and opening them is what pauses — the same
     // clause `shouldPause` calls a menu. This game could not be paused at all.
     final it = _open();
-    expect(it.cubit.state.isOpen, isFalse);
+    expect(it.cubit.value.isOpen, isFalse);
 
     it.cubit.show();
 
     expect(
       shouldPause(
         ready: true,
-        menuOpen: it.cubit.state.isOpen,
+        menuOpen: it.cubit.value.isOpen,
         pointerIsTheGate: false,
         pointerHeld: false,
         padConnected: false,
@@ -149,8 +150,8 @@ void main() {
     // about exactly that, and this game was not listening.
     final it = _open();
 
-    it.cubit.setSetting('a11y.cameraMotion', 0.0);
+    it.cubit.setValue(GameSettingKeys.cameraMotion, 0.0);
 
-    expect(it.config.settingOf('a11y.cameraMotion', 1.0), 0.0);
+    expect(it.cubit.settings.valueOf(GameSettingKeys.cameraMotion), 0.0);
   });
 }

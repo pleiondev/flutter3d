@@ -89,7 +89,7 @@ Future<ImportChoice?> showImportScreen(
 ImportUnit unitForFile(String? fileName) {
   final String name = (fileName ?? '').toLowerCase();
   if (name.endsWith('.stl')) return ImportUnit.millimetres;
-  return ImportUnit.metres;
+  return ImportUnit.meters;
 }
 
 /// Whether a file of this name is likely to need topology built for it.
@@ -218,7 +218,7 @@ class _ImportScreenState extends State<_ImportScreen> {
                     label: Text('cm'),
                   ),
                   ButtonSegment<ImportUnit>(
-                    value: ImportUnit.metres,
+                    value: ImportUnit.meters,
                     label: Text('m'),
                   ),
                 ],

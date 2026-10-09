@@ -8,6 +8,11 @@
 /// focuses, and everything under it reddened away by the water between it
 /// and the eye. Bring up what lies there with bags of air before the tank
 /// runs dry.
+///
+/// The keys and the pointer write an [InputState] and the dive's step reads
+/// only that, so a dive is its tape: F5 writes the dive so far to a
+/// `.f3drun`, F9 plays the saved one back from its start and checks it
+/// against its own checkpoints.
 library;
 
 import 'dart:async';
@@ -15,21 +20,77 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show
+        ActionBinding,
+        ActionInput,
+        ActionMap,
+        AxisComposite,
+        Bindings,
+        DemoFile,
+        DemoRecording,
+        DemoReplay,
+        InputSource,
+        replayDemoOnLoop;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show preparePhysics;
-import 'package:vector_math/vector_math.dart' hide Colors;
+    show NativeWorld, preparePhysics, usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show
+        Divergence,
+        EngineLoop,
+        EventDivergence,
+        GameAction,
+        InputState,
+        ReplayException,
+        Snapshot,
+        StateDigest;
 
 import 'src/diver.dart';
 import 'src/looks.dart';
 import 'src/sound.dart';
 import 'src/staging.dart';
+
+/// Which build wrote a `.f3drun`: whatever the release passes in, `dev`
+/// otherwise — the convention every demo here keeps.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
+);
+
+/// What each key asks of the diver, as an action map over
+/// [ReefActions.set]. Held keys hold an action; E is pressed once and read by
+/// the next step. Rising and sinking are one axis on two keys.
+ActionMap reefControls() {
+  InputSource key(LogicalKeyboardKey key) => InputSource.key(key.keyId);
+  return ActionMap(
+    actions: ReefActions.set,
+    buttons: Bindings(<InputSource, GameAction>{
+      key(LogicalKeyboardKey.keyW): GameAction.moveForward,
+      key(LogicalKeyboardKey.keyS): GameAction.moveBack,
+      key(LogicalKeyboardKey.keyA): GameAction.moveLeft,
+      key(LogicalKeyboardKey.keyD): GameAction.moveRight,
+      key(LogicalKeyboardKey.keyR): ReefActions.fill,
+      key(LogicalKeyboardKey.keyQ): ReefActions.dump,
+      key(LogicalKeyboardKey.keyE): ReefActions.act,
+    }),
+    axes: <ActionBinding>[
+      AxisComposite(
+        ReefActions.ascend,
+        negative: key(LogicalKeyboardKey.keyC),
+        positive: key(LogicalKeyboardKey.space),
+      ),
+    ],
+  );
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,15 +124,10 @@ class _ReefScreenState extends State<ReefScreen>
   static Vector3 get _sunAlong => Vector3(0.3, -0.85, -0.42);
   static Vector3 get _sunLight => Vector3(2.0, 1.95, 1.85);
 
-  /// What a metre of sea takes out of red, green and blue, and gives back:
-  /// clear tropical water's.
-  static Vector3 get _absorb => Vector3(0.45, 0.065, 0.025);
-  static Vector3 get _scatter => Vector3(0.05, 0.22, 0.30);
-
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColor: Vector4(0.55, 0.75, 0.92, 1.0),
+    clearColorSrgb: Vector4(0.55, 0.75, 0.92, 1.0),
   );
   final FrameClock _frames = FrameClock();
   final FocusNode _keyboard = FocusNode();
@@ -79,13 +135,48 @@ class _ReefScreenState extends State<ReefScreen>
 
   ({Renderer renderer, ReefRun run})? _playing;
   Object? _error;
+
+  /// The dive's loop: its fixed steps, phase by phase, then the frame. Made
+  /// with the run.
+  EngineLoop? _loop;
+
+  /// What the keys and the pointer ask of the dive, which its step alone
+  /// reads.
+  final InputState _input = InputState();
+
+  /// The keys, as [reefControls] binds them.
+  final ActionMap _controls = reefControls();
+
+  /// Rising and sinking from their keys.
+  late final ActionInput _axes = ActionInput(state: _input, map: _controls);
+
+  /// Drops every held key and axis — a lost focus never sends the key-ups.
+  void _letGo() {
+    _input.clear();
+    _axes.letGo();
+  }
+
+  /// How far the pointer has dragged across since the loop last took it:
+  /// the eye's turn round the diver, which the step makes.
+  final Vector2 _drag = Vector2.zero();
+
+  /// The dive's own `.f3drun`, on disk, and the dive being written into it
+  /// from the moment it began.
+  final DemoFile _runs = DemoFile(appName: 'reef');
+  DemoRecording? _recording;
+  void Function()? _stopCheckpoints;
+
+  /// What the window last said about the run file, beside what the dive
+  /// says: a line of its own, since the dive's words are its state.
+  String _told = '';
+
   Speakers? _speakers;
   ReefSound? _sound;
   final AudioListener _listener = AudioListener();
 
-  /// Where the eye looks from: behind the diver by [_yaw], up by [_pitch],
-  /// [_distance] off; and which way the diver faces.
-  double _yaw = math.pi, _pitch = 0.25, _distance = 4.5, _heading = 0.0;
+  /// Where the eye looks from: behind the diver by the dive's own
+  /// [ReefRun.eyeYaw], up by [_pitch], [_distance] off.
+  double _pitch = 0.25, _distance = 4.5;
 
   /// Whether the eye is under the surface now.
   bool _under = false;
@@ -109,11 +200,7 @@ class _ReefScreenState extends State<ReefScreen>
             )
             ..sun(along: _sunAlong, light: _sunLight)
             // Open sea over sand: clear and blue-green.
-            ..tint(
-              shallow: Vector3(0.10, 0.45, 0.50),
-              deep: Vector3(0.02, 0.12, 0.22),
-              clearness: 0.06,
-            );
+            ..optics = LiquidOptics.pureWater;
       final floor =
           await SeabedLook.load(
               device: device,
@@ -121,126 +208,258 @@ class _ReefScreenState extends State<ReefScreen>
               bundle: await rootBundle.load(SeabedLook.asset),
             )
             ..sun(along: _sunAlong, light: _sunLight)
-            ..water(absorb: _absorb, scatter: _scatter);
+            ..optics = LiquidOptics.pureWater;
       final scene = Scene()
-        ..ambientIntensity = 0.5
-        ..ambientColor = Vector3(0.75, 0.85, 1.0)
+        ..ambientIntensity = 0.5 * Photometric.legacyUnit
+        ..ambientColor = LinearColor(0.75, 0.85, 1.0)
         ..add(
-          LightNode(name: 'sun', intensity: 2.0)..setLocalForward(_sunAlong),
+          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+            ..setLocalForward(_sunAlong),
         )
         ..add(_camera);
+      // A phone draws less of the water.
+      final phone =
+          defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS;
+      final elements =
+          await Elements.adopt(
+              NativeWorld(),
+              device: device,
+              renderer: renderer,
+              scene: scene,
+              load: rootBundle.load,
+              quality: ElementsQuality.of(phone: phone),
+              // Nothing burns on the reef.
+              lights: FireLights.none,
+              hearing: (world) => PhysicsHearing(
+                world,
+                fireScale: const HearingScale(
+                  quiet: 500.0,
+                  loud: 5e5,
+                  reference: 2e4,
+                ),
+                fallScale: const HearingScale(
+                  quiet: 50.0,
+                  loud: 1e5,
+                  reference: 5e3,
+                ),
+                splashScale: const HearingScale(
+                  quiet: 20.0,
+                  loud: 2e4,
+                  reference: 2e3,
+                ),
+              ),
+            )
+            ..sun(along: _sunAlong, light: _sunLight);
       final run = ReefRun(
         device: device,
         scene: scene,
+        elements: elements,
         surface: surface,
         floor: floor,
         looks: await ReefLooks.load(device),
-        // A phone draws less of the water and the fire.
-        light:
-            defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS,
+        input: _input,
       );
       if (!mounted) return;
+      final loop = _loopFor(run)..snapshots.add(_runPartOf(run));
+      _loop = loop;
+      _record(run, loop);
       setState(() => _playing = (renderer: renderer, run: run));
-      final speakers = await openSpeakers(bank: ReefSound.bank);
+      // A machine with no audio device plays the same dive, silent.
+      final Speakers speakers;
+      try {
+        speakers = await openSpeakers(bank: ReefSound.bank);
+      } on AudioDeviceException {
+        return;
+      }
       if (!mounted) {
-        await speakers?.backend.dispose();
+        await speakers.dispose();
         return;
       }
       _speakers = speakers;
-      if (speakers != null) _sound = ReefSound(speakers.scene, run.hearing);
+      _sound = ReefSound(speakers.scene, run.hearing);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
   }
 
-  /// How fast the diver turns at most, radians a second, and how quickly
-  /// the eye swings round behind them while they swim and nobody is
-  /// dragging it.
-  static const double _turnRate = 2.2, _follow = 1.2;
-
-  /// Seconds since the pointer last turned the eye.
-  double _sinceDrag = 10.0;
-
-  /// The way the fins push. The keys say where the diver means to go,
-  /// turned by where the eye looks; the diver turns towards it no faster
-  /// than a body in water turns, and the fins push the way they face, less
-  /// the further the diver still has to turn.
-  Vector3 _swim(Set<LogicalKeyboardKey> keys, double dt) {
-    double axis(LogicalKeyboardKey plus, LogicalKeyboardKey minus) =>
-        (keys.contains(plus) ? 1.0 : 0.0) - (keys.contains(minus) ? 1.0 : 0.0);
-    final ahead = axis(LogicalKeyboardKey.keyW, LogicalKeyboardKey.keyS);
-    final side = axis(LogicalKeyboardKey.keyD, LogicalKeyboardKey.keyA);
-    final rise = axis(LogicalKeyboardKey.space, LogicalKeyboardKey.keyC);
-    // Forward is away from the eye, level; the eye looks along −(yaw).
-    final forward = Vector3(-math.cos(_yaw), 0.0, math.sin(_yaw));
-    final right = Vector3(-forward.z, 0.0, forward.x);
-    final wanted = forward * ahead + right * side;
-    var push = 0.0;
-    if (wanted.length2 > 0.0) {
-      final target = math.atan2(-wanted.z, wanted.x);
-      final turn = _wrap(target - _heading);
-      // Eased in as the turn closes, so the diver settles on the new way
-      // rather than stopping on it.
-      final rate = math.min(_turnRate, 3.0 * turn.abs() + 0.4);
-      _heading = _wrap(_heading + turn.clamp(-rate * dt, rate * dt));
-      push = math.max(math.cos(_wrap(target - _heading)), 0.0);
-      // The eye drifts round behind a swimming diver.
-      if (_sinceDrag > 1.5 && ahead > 0.0) {
-        final behind = _wrap(_heading + math.pi - _yaw);
-        _yaw += behind * math.min(_follow * dt, 1.0);
-      }
-    }
-    final facing = Vector3(math.cos(_heading), 0.0, -math.sin(_heading));
-    final swim =
-        facing * (push * math.min(wanted.length, 1.0)) +
-        Vector3(0.0, rise, 0.0);
-    return swim.length > 1.0 ? swim.normalized() : swim;
-  }
-
-  /// [angle] brought into (−π, π].
-  static double _wrap(double angle) {
-    var a = angle % (2 * math.pi);
-    if (a > math.pi) a -= 2 * math.pi;
-    return a;
+  /// The dive's loop: [run]'s systems — its controls read off [_input] at
+  /// the top of each step among them — and the window's own, what is heard
+  /// once a frame. The pointer's drag reaches the step as the input's look,
+  /// shared out over the frame's steps.
+  ///
+  /// Never more than a thirtieth of a second of a stall is stepped, as
+  /// before the loop.
+  EngineLoop _loopFor(ReefRun run) {
+    final loop = EngineLoop(
+      input: _input,
+      longestFrame: 1.0 / 30.0,
+      drainLook: (Vector2 out) {
+        out.setFrom(_drag);
+        _drag.setZero();
+      },
+    );
+    run.install(loop);
+    loop.addSystem(
+      'reef.sound',
+      LoopPhase.audio,
+      (frame) => _sound?.update(
+        _listener,
+        frame.dt,
+        breathing: math.min(run.controls.swim.length, 1.0),
+        under: run.diver.depthUnder(run.level) > 0.3,
+      ),
+    );
+    return loop;
   }
 
   void _onTick(Duration _) {
-    // Never more than a thirtieth of a second at once.
-    final dt = math.min(_frames.tick(), 1.0 / 30.0);
-    final playing = _playing;
-    if (playing == null || dt <= 0.0) return;
-    final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    _sinceDrag += dt;
-    final swim = _swim(keys, dt);
-    playing.run.step(
-      dt,
-      swim: swim,
-      fill: keys.contains(LogicalKeyboardKey.keyR) ? 1.0 : 0.0,
-      dump: keys.contains(LogicalKeyboardKey.keyQ) ? 1.0 : 0.0,
-      heading: _heading,
-    );
-    _sound?.update(
-      _listener,
-      dt,
-      breathing: math.min(swim.length, 1.0),
-      under: playing.run.diver.depthUnder(playing.run.level) > 0.3,
-    );
+    final dt = _frames.tick();
+    final loop = _loop;
+    if (_playing == null || loop == null) return;
+    loop.frame(dt);
     if (mounted) setState(() {});
+  }
+
+  /// A key down presses its action and a key up lets it go; F5 and F9 are
+  /// the window's own, for the run file. A repeat is neither.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (_playing == null) return KeyEventResult.ignored;
+    if (event is KeyDownEvent) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.f5:
+          _saveRun();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.f9:
+          _replay();
+          return KeyEventResult.handled;
+      }
+    }
+    final source = InputSource.key(event.logicalKey.keyId);
+    final action = _controls.buttons[source];
+    final routed = _axes.routes(source);
+    if (action == null && !routed) return KeyEventResult.ignored;
+    switch (event) {
+      case KeyDownEvent():
+        if (action != null) _input.press(action);
+        if (routed) _axes.sourceDown(source);
+      case KeyUpEvent():
+        if (action != null) _input.release(action);
+        if (routed) _axes.sourceUp(source);
+      case _:
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// Starts writing the dive down from the state [run] is in now, through
+  /// [loop]: its input, its journal and each step's events, a checkpoint
+  /// every two seconds and the moving bodies' poses.
+  void _record(ReefRun run, EngineLoop loop) {
+    _stopRecording();
+    final start = run.save();
+    final recording = DemoRecording(
+      physics: usePhysics(),
+      level: 'reef:wreck',
+      levelHash: StateDigest.of(start.toJson()).toRadixString(16),
+      start: start,
+      seed: 0,
+      // The world's snapshot is the sea's grid as well as the bodies: taken
+      // every two seconds rather than every twenty-five steps.
+      checkpointEvery: 120,
+      simulation: reefSimulation,
+      bodies: run.poses,
+    )..attach(loop);
+    _stopCheckpoints = loop.onStepEnd((summary) {
+      if (!summary.resimulated) recording.observe(run.save);
+    }).cancel;
+    _recording = recording;
+  }
+
+  void _stopRecording() {
+    _stopCheckpoints?.call();
+    _stopCheckpoints = null;
+    _recording?.detach();
+    _recording = null;
+  }
+
+  /// F5: the dive so far, written to the reef's `.f3drun`.
+  Future<void> _saveRun() async {
+    final recording = _recording;
+    if (recording == null) return;
+    final written = await _runs.write(
+      recording.demo(
+        buildStamp: _buildStamp,
+        platform: defaultTargetPlatform.name,
+      ),
+    );
+    if (!mounted) return;
+    setState(
+      () => _told = written
+          ? 'Dive saved: ${recording.steps} steps. F9 plays it back.'
+          : 'The dive could not be saved.',
+    );
+  }
+
+  /// F9: the saved dive played back from its start, as fast as it steps,
+  /// checked against its own checkpoints; the dive is left where the run
+  /// ended, and a new recording begins from there.
+  Future<void> _replay() async {
+    final run = _playing?.run;
+    final loop = _loop;
+    if (run == null || loop == null) return;
+    final demo = await _runs.read();
+    if (!mounted) return;
+    if (demo == null) {
+      setState(() => _told = 'There is no saved dive to play back.');
+      return;
+    }
+    _stopRecording();
+    _letGo();
+    _drag.setZero();
+    String told;
+    try {
+      final result = replayDemoOnLoop(
+        demo: demo,
+        loop: loop,
+        part: _runPart,
+        simulation: reefSimulation,
+        // A dive from before rising was an axis replays with it.
+        actions: ReefActions.set,
+      );
+      told = switch (result) {
+        DemoReplay(divergence: final Divergence d) =>
+          'Played back ${result.steps} steps; it parted from the recording '
+              'at step ${d.step}.',
+        DemoReplay(eventDivergence: final EventDivergence e) =>
+          'Played back ${result.steps} steps; its events differed at step '
+              '${e.step}.',
+        _ => 'Played back ${result.steps} steps, matching the recording.',
+      };
+    } on ReplayException catch (refused) {
+      told = refused.message;
+    } on FormatException catch (error) {
+      told = 'The dive could not be played back: ${error.message}';
+    }
+    _letGo();
+    loop.resetClock();
+    _record(run, loop);
+    setState(() => _told = told);
   }
 
   void _placeCamera() {
     final run = _playing?.run;
     if (run == null) return;
     final target = run.diver.position;
-    final eye =
-        target +
-        Vector3(
-              math.cos(_yaw) * math.cos(_pitch),
-              math.sin(_pitch),
-              -math.sin(_yaw) * math.cos(_pitch),
-            ) *
-            _distance;
+    // Behind the diver, or nearer where the reef or the ship stands in the
+    // way: never inside either.
+    final yaw = Portable.sinCos(run.eyeYaw);
+    final pitch = Portable.sinCos(_pitch);
+    final eye = run.clearView(
+      target,
+      target +
+          Vector3(yaw.cos * pitch.cos, pitch.sin, -yaw.sin * pitch.cos) *
+              _distance,
+    );
     _camera
       ..setPosition(eye.x, eye.y, eye.z)
       ..lookAt(target);
@@ -249,22 +468,13 @@ class _ReefScreenState extends State<ReefScreen>
     _listener.aimAlong(eye, target - eye);
   }
 
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    final run = _playing?.run;
-    if (run == null || event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (event.logicalKey != LogicalKeyboardKey.keyE) {
-      return KeyEventResult.ignored;
-    }
-    run.act();
-    return KeyEventResult.handled;
-  }
-
   @override
   void dispose() {
+    _stopRecording();
     _ticker?.dispose();
     _keyboard.dispose();
     _sound?.stop();
-    unawaited(_speakers?.backend.dispose());
+    unawaited(_speakers?.dispose());
     _playing?.run.dispose();
     super.dispose();
   }
@@ -286,15 +496,20 @@ class _ReefScreenState extends State<ReefScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: _onKey,
+        // A key held when the window went away never comes up.
+        onFocusChange: (bool focused) {
+          if (!focused) _letGo();
+        },
         child: Listener(
           onPointerMove: (PointerMoveEvent event) {
-            _sinceDrag = 0.0;
-            _yaw -= event.delta.dx * 0.006;
+            // The turn round the diver is the dive's, made in the step; the
+            // tilt is the eye's alone.
+            _drag.x += event.delta.dx;
             _pitch = (_pitch + event.delta.dy * 0.004).clamp(-1.2, 1.2);
           },
           onPointerSignal: (PointerSignalEvent event) {
             if (event is! PointerScrollEvent) return;
-            _distance = (_distance * math.exp(event.scrollDelta.dy * 0.001))
+            _distance = (_distance * Portable.exp(event.scrollDelta.dy * 0.001))
                 .clamp(2.0, 30.0);
           },
           child: Stack(
@@ -323,15 +538,15 @@ class _ReefScreenState extends State<ReefScreen>
                   sky: _under
                       ? SkySettings(
                           enabled: true,
-                          zenith: Vector3(0.10, 0.42, 0.52),
-                          horizon: Vector3(0.04, 0.24, 0.34),
-                          nadir: Vector3(0.01, 0.08, 0.14),
+                          zenith: LinearColor(0.10, 0.42, 0.52),
+                          horizon: LinearColor(0.04, 0.24, 0.34),
+                          nadir: LinearColor(0.01, 0.08, 0.14),
                         )
                       : SkySettings(
                           enabled: true,
-                          zenith: Vector3(0.20, 0.45, 0.85),
-                          horizon: Vector3(0.70, 0.82, 0.92),
-                          nadir: Vector3(0.05, 0.25, 0.32),
+                          zenith: LinearColor(0.20, 0.45, 0.85),
+                          horizon: LinearColor(0.70, 0.82, 0.92),
+                          nadir: LinearColor(0.05, 0.25, 0.32),
                         ),
                   // Under the surface the sun comes down in shafts through
                   // the water, scattered blue-green.
@@ -339,7 +554,7 @@ class _ReefScreenState extends State<ReefScreen>
                     enabled: _under,
                     distance: 30.0,
                     strength: 0.02,
-                    color: Vector3(0.45, 0.85, 0.95),
+                    color: LinearColor(0.45, 0.85, 0.95),
                   ),
                 ),
                 onBeforeFrame: _placeCamera,
@@ -355,7 +570,7 @@ class _ReefScreenState extends State<ReefScreen>
                       fontSize: 14,
                       shadows: <Shadow>[Shadow(blurRadius: 4)],
                     ),
-                    child: _Panel(run: playing.run),
+                    child: _Panel(run: playing.run, told: _told),
                   ),
                 ),
               ),
@@ -369,9 +584,12 @@ class _ReefScreenState extends State<ReefScreen>
 
 /// The gauges, and what the diver can do.
 class _Panel extends StatelessWidget {
-  const _Panel({required this.run});
+  const _Panel({required this.run, required this.told});
 
   final ReefRun run;
+
+  /// What the window said about the run file.
+  final String told;
 
   @override
   Widget build(BuildContext context) {
@@ -390,7 +608,7 @@ class _Panel extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Depth ${depth.toStringAsFixed(1)} m · '
-          '${pressureAt(depth).toStringAsFixed(2)} atm',
+          '${pressureAt(run.world, depth).toStringAsFixed(2)} atm',
         ),
         Text(
           'Tank ${diver.tankBar.round()} bar — '
@@ -414,13 +632,30 @@ class _Panel extends StatelessWidget {
           ),
         if (run.said.isNotEmpty)
           Text(run.said, style: const TextStyle(color: Color(0xFFFFE0A0))),
+        if (told.isNotEmpty)
+          Text(told, style: const TextStyle(color: Color(0xFFB8E0FF))),
         const SizedBox(height: 6),
         const Text(
           'WASD swim · Space up · C down · R fill jacket · Q dump · '
-          'E bag / air into bag · drag to look',
+          'E bag / air into bag · drag to look · F5 save dive · '
+          'F9 play it back',
           style: TextStyle(color: Color(0xFFB8C2CF), fontSize: 12),
         ),
       ],
     );
   }
 }
+
+/// The dive as one part of the loop's snapshots, by id: what a replay
+/// restores a run file's start into and digests its checkpoints from
+/// (`replayDemoOnLoop`), and what every rewind of the loop covers.
+const String _runPart = 'reef.run';
+
+/// [run]'s own save and restore as the loop's part [_runPart].
+SnapshotPart _runPartOf(ReefRun run) => SnapshotPart.of(
+  id: _runPart,
+  capture: () => run.save().data,
+  restore: (Object? data, int _) {
+    if (data is Map) run.restore(Snapshot(data.cast<String, Object?>()));
+  },
+);

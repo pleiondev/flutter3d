@@ -25,7 +25,7 @@ const List<Feature> viewInputFeatures = <Feature>[
     ],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'Through the orthographic lens the box\'s highlight stays put as the camera pans: light is measured against the view axis rather than from the eye\'s position.',
         evidence:
@@ -129,5 +129,16 @@ const List<Feature> viewInputFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/screen_bounds.dart',
     ],
+  ),
+  Feature(
+    id: 'photo-mode',
+    title: 'Photo mode',
+    category: Category.viewInput,
+    summary:
+        'The world paused, a free camera that cannot leave the level, filters over the game\'s look, and a picture of any size drawn in tiles.',
+    since: '1.0.0-rc.1',
+    evidence: 'A photo of any size.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    packages: <String>['flutter3d', 'flutter3d_sim'],
   ),
 ];

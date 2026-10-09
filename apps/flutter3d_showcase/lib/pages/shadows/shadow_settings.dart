@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ShadowSettingsDemo extends ShowcaseDemo {
   int resolutionChoice = 0;
@@ -27,9 +26,9 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region ground
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.75, 0.73, 0.68, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.73, 0.68, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
@@ -47,9 +46,9 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
     // #endregion ground
 
     // #region casters
-    final Material clay = Material(
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     scene
@@ -77,8 +76,11 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0, castsShadow: true)
-        ..setLocalForward(Vector3(-0.5, -0.9, -0.4)),
+      LightNode(
+        name: 'sun',
+        intensity: 3.0 * Photometric.legacyUnit,
+        castsShadow: true,
+      )..setLocalForward(Vector3(-0.5, -0.9, -0.4)),
     );
     // #endregion sun
     return scene;

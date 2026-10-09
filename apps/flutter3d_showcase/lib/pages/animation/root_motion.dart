@@ -12,7 +12,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RootMotionDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
@@ -41,7 +40,10 @@ final class RootMotionDemo extends ShowcaseDemo {
           context.device,
           const PlaneShape(width: 7.0, depth: 11.0).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.32, 0.36, 0.34, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.32, 0.36, 0.34, 1.0),
+        ),
         name: 'floor',
       ),
     );
@@ -51,9 +53,9 @@ final class RootMotionDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.2, 0.6, 0.2)).build(),
     );
-    final Material postMaterial = Material(
+    final RenderMaterial postMaterial = RenderMaterial(
       name: 'post',
-      baseColor: Vector4(0.85, 0.8, 0.6, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.8, 0.6, 1.0),
     );
     for (var z = -5; z <= 5; z += 2) {
       for (final double x in <double>[-2.8, 2.8]) {
@@ -66,7 +68,10 @@ final class RootMotionDemo extends ShowcaseDemo {
 
     final MeshNode walker = MeshNode(
       DeviceMesh.upload(context.device, CuboidShape().build()),
-      Material(name: 'walker', baseColor: Vector4(0.3, 0.7, 0.4, 1.0)),
+      RenderMaterial(
+        name: 'walker',
+        baseColor: LinearColor.fromSrgb(0.3, 0.7, 0.4, 1.0),
+      ),
       name: 'walker',
     );
     // A nose, so the turn at each end reads as a turn.
@@ -76,7 +81,10 @@ final class RootMotionDemo extends ShowcaseDemo {
           context.device,
           CuboidShape(size: Vector3(0.3, 0.3, 0.4)).build(),
         ),
-        Material(name: 'nose', baseColor: Vector4(0.95, 0.9, 0.8, 1.0)),
+        RenderMaterial(
+          name: 'nose',
+          baseColor: LinearColor.fromSrgb(0.95, 0.9, 0.8, 1.0),
+        ),
         name: 'nose',
       )..setPosition(0.0, 0.0, 0.6),
     );
@@ -103,7 +111,7 @@ final class RootMotionDemo extends ShowcaseDemo {
       name: 'walk',
       tracks: <AnimationTrack>[bobTrack],
       extras: <String, Object?>{
-        kRootMotionExtra: <List<double>>[
+        rootMotionExtra: <List<double>>[
           <double>[0.0, 0.0, 0.0],
           <double>[0.0, 0.0, 1.0],
           <double>[0.0, 0.0, 2.0],
@@ -123,7 +131,7 @@ final class RootMotionDemo extends ShowcaseDemo {
     scene.add(_controller);
 
     return scene..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
     );
   }

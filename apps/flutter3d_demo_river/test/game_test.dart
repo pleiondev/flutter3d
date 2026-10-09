@@ -9,7 +9,7 @@ import 'dart:math' as math;
 import 'package:flame/collisions.dart' show ShapeHitbox;
 import 'package:flame/components.dart' show TextComponent, Vector2;
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart';
 import 'package:flutter3d_demo_river/src/levels.dart';
@@ -221,7 +221,7 @@ void main() {
     game.input.press(RiverGame.fire);
     await _run(game, 60);
     expect(shielded.down, isFalse);
-    expect(shielded.shield.visible, isTrue);
+    expect(shielded.shield.isVisible, isTrue);
     expect(game.lastCrash, Crash.collision);
     expect(game.banner, contains('TANKERS'));
 
@@ -233,7 +233,7 @@ void main() {
     final open = game.bridges.firstWhere((b) => b.section == stage.last);
     expect(game.shielded(open), isFalse);
     await _run(game, 1);
-    expect(open.shield.visible, isFalse);
+    expect(open.shield.isVisible, isFalse);
     for (var i = 0; i < 60 && !open.down; i++) {
       await _run(game, 1);
     }

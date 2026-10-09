@@ -38,7 +38,7 @@ no seam. One mesh comes back per material, and each becomes a node here.
 ## Step 4: An edit costs its chunk
 
 `edit` changes one voxel and remembers which chunks it touched.
-`takeChanges` hands those over: `surfaces` are the chunks whose faces may have
+`drainChanges` hands those over: `surfaces` are the chunks whose faces may have
 changed, which includes a neighbour when the voxel sits on a border, and
 `chunks` are the ones whose boxes did. Nothing else is meshed or rebuilt.
 

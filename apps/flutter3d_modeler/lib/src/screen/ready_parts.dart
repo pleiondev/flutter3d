@@ -79,6 +79,9 @@ extension _ReadyParts on _ModelerScreenState {
         ),
       ),
     ),
+    // The view-only build: the same document and viewport, none of the
+    // editor around it. See `viewer_parts.dart`.
+    final ModelerReady ready when kViewerOnly => _viewerScreen(ready),
     // `ux-30`: the title says which document this is, and on macOS the
     // window itself is told, since `Title` alone never reaches an `NSWindow`.
     ModelerReady(:final renderer, :final stage) => DocumentWindowTitle(
@@ -536,7 +539,7 @@ extension _ReadyParts on _ModelerScreenState {
                         selectedLayer: _paint.layer,
                         onSelectLayer: _setPaintLayer,
                         onAddLayer: _addPaintLayer,
-                        colour: _paint.colour,
+                        color: _paint.color,
                         onColour: _setPaintColour,
                         radius: _paint.diameter,
                         onRadius: _setPaintRadius,
@@ -678,7 +681,7 @@ extension _ReadyParts on _ModelerScreenState {
                       // underneath it, so it is worth the extra lines
                       // exactly while animation mode is open and not
                       // otherwise.
-                      debug: DebugDrawOptions(
+                      debug: DebugDrawSettings(
                         skeletons: _mode == ModelerMode.animation,
                       ),
                     ),

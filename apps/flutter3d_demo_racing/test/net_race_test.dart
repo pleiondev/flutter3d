@@ -25,6 +25,7 @@ import 'package:flutter3d_demo_racing/src/net_race_session.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -178,10 +179,10 @@ void main() {
     // and neither side's timeline was ever addressed by a message that
     // could correct it: the very first frame either side sends is
     // tagged for step `inputDelay`, so steps before it are never
-    // confirmed by anyone. `LoopbackTransport` with zero delay makes
+    // confirmed by anyone. `LoopbackWire` with zero delay makes
     // this reproduce in a few milliseconds rather than needing the real
     // relay above to catch it again.
-    final (transportA, transportB) = LoopbackTransport.pair(stepsPerSecond: 60);
+    final (transportA, transportB) = LoopbackWire.pair();
     final deviceA = _stageTwoCars();
     final deviceB = _stageTwoCars();
     final digestsA = DigestTrace(every: 1);

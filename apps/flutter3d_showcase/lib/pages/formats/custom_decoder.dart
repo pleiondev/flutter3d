@@ -8,13 +8,12 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region decoder
 /// A made-up format this engine has never heard of: one line, three
 /// numbers, a box of that size. `ModelDecoder` is the whole plugin
 /// boundary — a project's own studio format arrives exactly this way.
-final class _BoxTextDecoder implements ModelDecoder {
+final class _BoxTextDecoder extends ModelDecoder {
   const _BoxTextDecoder();
 
   @override
@@ -100,12 +99,15 @@ final class CustomDecoderDemo extends ShowcaseDemo {
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _decoded.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.7, 0.55, 0.35, 1.0), roughness: 0.7),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.7, 0.55, 0.35, 1.0),
+          roughness: 0.7,
+        ),
         name: 'crate',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

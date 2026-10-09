@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LocalExposureDemo extends ShowcaseDemo {
   bool local = true;
@@ -27,15 +26,16 @@ final class LocalExposureDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    MeshNode slab(Vector3 size, Vector3 at, Material material) => MeshNode(
-      DeviceMesh.upload(device, CuboidShape(size: size).build()),
-      material,
-    )..setPositionFrom(at);
+    MeshNode slab(Vector3 size, Vector3 at, RenderMaterial material) =>
+        MeshNode(
+          DeviceMesh.upload(device, CuboidShape(size: size).build()),
+          material,
+        )..setPositionFrom(at);
 
     // #region room
-    final Material plaster = Material(
+    final RenderMaterial plaster = RenderMaterial(
       name: 'plaster',
-      baseColor: Vector4(0.75, 0.72, 0.68, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.72, 0.68, 1.0),
       roughness: 0.9,
     );
     // A room six metres square and three high, with walls half a metre
@@ -85,7 +85,10 @@ final class LocalExposureDemo extends ShowcaseDemo {
         slab(
           Vector3(0.8, 0.8, 0.8),
           Vector3(-1.8, 0.4, -1.2),
-          Material(name: 'crate', baseColor: Vector4(0.6, 0.25, 0.15, 1.0)),
+          RenderMaterial(
+            name: 'crate',
+            baseColor: LinearColor.fromSrgb(0.6, 0.25, 0.15, 1.0),
+          ),
         ),
       );
     // #endregion room
@@ -94,16 +97,16 @@ final class LocalExposureDemo extends ShowcaseDemo {
     final MeshNode sky = slab(
       Vector3(8.0, 8.0, 0.1),
       Vector3(0.0, 1.5, -5.0),
-      Material(
+      RenderMaterial(
         name: 'sky',
-        baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-        emissive: Vector3(5.0, 6.0, 8.0),
+        baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        emissive: LinearColor(5.0, 6.0, 8.0),
       ),
     )..shadowCasting = ShadowCastingMode.off;
     // No lamp and no sun: the room has only a weak ambient light, and the
     // engine is told not to add a light of its own to a scene that has none.
     scene
-      ..ambientIntensity = 0.12
+      ..ambientIntensity = 0.12 * Photometric.legacyUnit
       ..defaultLightWhenUnlit = false;
     // #endregion outside
     return scene..add(sky);

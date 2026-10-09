@@ -5,11 +5,10 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class XrayDemo extends ShowcaseDemo {
   bool enabled = true;
-  int colourChoice = 0;
+  int colorChoice = 0;
 
   // #region layer
   /// One bit of `layerMask`, picked so it does not collide with the default.
@@ -18,7 +17,7 @@ final class XrayDemo extends ShowcaseDemo {
 
   static const List<String> _colourNames = <String>['Orange', 'Green', 'Cyan'];
 
-  Vector3 get _colour => switch (colourChoice) {
+  Vector3 get _color => switch (colorChoice) {
     1 => Vector3(0.1, 1.0, 0.2),
     2 => Vector3(0.1, 0.9, 1.0),
     _ => Vector3(1.0, 0.32, 0.08),
@@ -39,13 +38,13 @@ final class XrayDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    _stencil = device.supportsStencil;
+    _stencil = device.features.has(DeviceFeature.stencil);
 
     final MeshNode floor = MeshNode(
       DeviceMesh.upload(device, const PlaneShape(width: 12, depth: 12).build()),
-      Material(
+      RenderMaterial(
         name: 'floor',
-        baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+        baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
         roughness: 0.9,
         doubleSided: true,
       ),
@@ -57,9 +56,9 @@ final class XrayDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(4.0, 2.4, 0.3)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(0.65, 0.6, 0.55, 1.0),
+        baseColor: LinearColor.fromSrgb(0.65, 0.6, 0.55, 1.0),
         roughness: 0.9,
       ),
       name: 'wall',
@@ -71,9 +70,9 @@ final class XrayDemo extends ShowcaseDemo {
         device,
         const CapsuleShape(radius: 0.4, height: 0.9).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'monster',
-        baseColor: Vector4(0.3, 0.7, 0.35, 1.0),
+        baseColor: LinearColor.fromSrgb(0.3, 0.7, 0.35, 1.0),
         roughness: 0.5,
       ),
       name: 'monster',
@@ -87,7 +86,7 @@ final class XrayDemo extends ShowcaseDemo {
       ..add(wall)
       ..add(monster)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.6)),
       );
   }
@@ -95,7 +94,10 @@ final class XrayDemo extends ShowcaseDemo {
   @override
   RenderSettings settings(DemoContext context) => RenderSettings(
     // #region settings
-    xray: XraySettings(layerMask: enabled ? _watched : 0, color: _colour),
+    xray: XraySettings(
+      layerMask: enabled ? _watched : 0,
+      color: _color.toLinearColor(),
+    ),
     // #endregion settings
   );
 
@@ -109,8 +111,8 @@ final class XrayDemo extends ShowcaseDemo {
     ChoiceControl(
       'Colour',
       options: _colourNames,
-      index: () => colourChoice,
-      onChanged: (int i) => colourChoice = i,
+      index: () => colorChoice,
+      onChanged: (int i) => colorChoice = i,
     ),
   ];
 

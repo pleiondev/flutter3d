@@ -46,7 +46,7 @@ final class LutGradingDemo extends ShowcaseDemo {
           height: _size,
           format: TextureFormat.r8g8b8a8UNormInt,
           pixels: ByteData.sublistView(pixels),
-        )!,
+        ),
     ];
     // #endregion table
     return PostStage.build(context).scene;

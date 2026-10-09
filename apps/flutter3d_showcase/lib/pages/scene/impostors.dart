@@ -13,11 +13,11 @@ import 'package:vector_math/vector_math.dart';
 
 /// A ball of the tree: where it is, how big, and its colour as a paint
 /// program shows it.
-typedef _Ball = ({Vector3 centre, double radius, Vector3 colour});
+typedef _Ball = ({Vector3 center, double radius, Vector3 color});
 
 /// What a ray met first: how far along it, the surface normal there and the
 /// colour of the part it hit.
-typedef _Hit = ({double t, Vector3 normal, Vector3 colour});
+typedef _Hit = ({double t, Vector3 normal, Vector3 color});
 
 final class ImpostorsDemo extends ShowcaseDemo {
   bool markCards = false;
@@ -40,10 +40,10 @@ final class ImpostorsDemo extends ShowcaseDemo {
   static Aabb3 get _trunk =>
       Aabb3.minMax(Vector3(-0.12, 0.0, -0.12), Vector3(0.12, 1.2, 0.12));
   static List<_Ball> get _balls => <_Ball>[
-    (centre: Vector3(0.0, 1.75, 0.0), radius: 0.75, colour: _leaves),
-    (centre: Vector3(0.0, 2.4, 0.0), radius: 0.45, colour: _leaves),
+    (center: Vector3(0.0, 1.75, 0.0), radius: 0.75, color: _leaves),
+    (center: Vector3(0.0, 2.4, 0.0), radius: 0.45, color: _leaves),
     // One fruit on the +X side, so the tree looks different from each side.
-    (centre: Vector3(0.8, 1.45, 0.0), radius: 0.25, colour: _fruit),
+    (center: Vector3(0.8, 1.45, 0.0), radius: 0.25, color: _fruit),
   ];
   // #endregion tree
 
@@ -74,28 +74,28 @@ final class ImpostorsDemo extends ShowcaseDemo {
             radius: ball.radius,
             segments: 24,
             rings: 12,
-          ).build().transformed(Matrix4.translation(ball.centre)),
-          ball.colour,
+          ).build().transformed(Matrix4.translation(ball.center)),
+          ball.color,
         ),
     ]);
-    final Vector3 centre = tree.computeBounds().center;
+    final Vector3 center = tree.computeBounds().center;
     // A little over the furthest vertex: a ball's true edge can lie between
     // the vertices of its mesh.
-    final double radius = _radiusAround(tree, centre) * 1.02;
+    final double radius = _radiusAround(tree, center) * 1.02;
     // #endregion mesh
 
     // #region upload
     final ({Uint8List albedo, Uint8List normalDepth}) atlas = _bake(
-      centre,
+      center,
       radius,
     );
-    const int side = _cell * kImpostorGrid;
+    const int side = _cell * impostorGrid;
     TextureHandle upload(Uint8List rgba) => device.createTextureFromPixels(
       width: side,
       height: side,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(rgba),
-    )!;
+    );
     final TextureHandle albedo = upload(atlas.albedo);
     final TextureHandle normalDepth = upload(atlas.normalDepth);
     // #endregion upload
@@ -106,8 +106,8 @@ final class ImpostorsDemo extends ShowcaseDemo {
       // textures are handed over below.
       albedoImage: 0,
       normalDepthImage: 1,
-      grid: kImpostorGrid,
-      centre: centre,
+      grid: impostorGrid,
+      center: center,
       radius: radius,
     );
     final ModelAsset asset = ModelAsset(
@@ -115,7 +115,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
       parts: <ModelPart>[
         ModelPart(
           mesh: DeviceMesh.upload(device, tree),
-          material: Material(name: 'tree', roughness: 0.8),
+          material: RenderMaterial(name: 'tree', roughness: 0.8),
           name: 'tree',
         ),
       ],
@@ -134,7 +134,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
         impostor: (
           card: DeviceMesh.upload(
             device,
-            impostorCard(centre: centre, radius: radius),
+            impostorCard(center: center, radius: radius),
           ),
           albedo: albedo,
           normalDepth: normalDepth,
@@ -144,17 +144,17 @@ final class ImpostorsDemo extends ShowcaseDemo {
     // #endregion asset
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.6, 0.75)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.6, 0.75)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             device,
             const PlaneShape(width: 24, depth: 40).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'grass',
-            baseColor: Vector4(0.42, 0.5, 0.32, 1.0),
+            baseColor: LinearColor.fromSrgb(0.42, 0.5, 0.32, 1.0),
             roughness: 0.95,
           ),
           name: 'ground',
@@ -171,7 +171,8 @@ final class ImpostorsDemo extends ShowcaseDemo {
     // #endregion row
 
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0)..castsShadow = true;
+    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+      ..castsShadow = true;
     // #endregion sun
     return _scene..add(_sun);
   }
@@ -188,7 +189,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
     for (final LodGroup group in _scene.lodGroups) {
       for (final LodLevel level in group.levels) {
         if (level.node is ImpostorNode) {
-          level.node.material.baseColor.setValues(
+          level.node.material.baseColor = LinearColor.fromSrgb(
             markCards ? 0.55 : 1.0,
             markCards ? 0.75 : 1.0,
             1.0,
@@ -223,7 +224,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
     final List<LodGroup> groups = scene.lodGroups;
     bool showsCard(LodGroup g) =>
         g.levels[g.activeLevel].node is ImpostorNode &&
-        g.levels[g.activeLevel].node.visible;
+        g.levels[g.activeLevel].node.isVisible;
     if (groups.length != _count ||
         !groups.any(showsCard) ||
         !groups.any((LodGroup g) => g.activeLevel == 0) ||
@@ -235,19 +236,19 @@ final class ImpostorsDemo extends ShowcaseDemo {
 }
 
 // #region bake
-/// Both atlases, [kImpostorGrid] by [kImpostorGrid] views of [ImpostorsDemo._cell]
+/// Both atlases, [impostorGrid] by [impostorGrid] views of [ImpostorsDemo._cell]
 /// texels, found by casting one ray a texel at the tree's own shapes.
 ///
 /// Each view looks back along [impostorViewDirection] at the sphere of
-/// [radius] around [centre], with [impostorRight] to its right, and the top
+/// [radius] around [center], with [impostorRight] to its right, and the top
 /// row of a view is the side its up axis points to: the layout the impostor
 /// shader reads.
 ({Uint8List albedo, Uint8List normalDepth}) _bake(
-  Vector3 centre,
+  Vector3 center,
   double radius,
 ) {
   const int cell = ImpostorsDemo._cell;
-  const int side = cell * kImpostorGrid;
+  const int side = cell * impostorGrid;
   final Uint8List albedo = Uint8List(side * side * 4);
   final Uint8List normalDepth = Uint8List(side * side * 4);
   int byte(double v) => (v.clamp(0.0, 1.0) * 255.0).round();
@@ -256,15 +257,15 @@ final class ImpostorsDemo extends ShowcaseDemo {
   final Vector3 bark = ImpostorsDemo._bark;
   final Vector3 empty = ImpostorsDemo._leaves;
 
-  for (var row = 0; row < kImpostorGrid; row++) {
-    for (var column = 0; column < kImpostorGrid; column++) {
+  for (var row = 0; row < impostorGrid; row++) {
+    for (var column = 0; column < impostorGrid; column++) {
       final Vector3 d = impostorViewDirection(column, row);
       final Vector3 right = impostorRight(d);
       final Vector3 up = d.cross(right);
       for (var y = 0; y < cell; y++) {
         for (var x = 0; x < cell; x++) {
           final Vector3 origin =
-              centre +
+              center +
               right.scaled(((x + 0.5) / cell * 2.0 - 1.0) * radius) +
               up.scaled((1.0 - (y + 0.5) / cell * 2.0) * radius) +
               d.scaled(2.0 * radius);
@@ -272,17 +273,17 @@ final class ImpostorsDemo extends ShowcaseDemo {
           final int to = ((row * cell + y) * side + column * cell + x) * 4;
           // An empty texel still gets a leaf colour, with no coverage, so a
           // filtered read at the edge of the tree does not mix in black.
-          final Vector3 colour = hit?.colour ?? empty;
+          final Vector3 color = hit?.color ?? empty;
           albedo
-            ..[to] = byte(colour.x)
-            ..[to + 1] = byte(colour.y)
-            ..[to + 2] = byte(colour.z)
+            ..[to] = byte(color.x)
+            ..[to + 1] = byte(color.y)
+            ..[to + 2] = byte(color.z)
             ..[to + 3] = hit == null ? 0 : 255;
           if (hit == null) continue;
           final Vector3 point = origin + (-d).scaled(hit.t);
           // How far along the view the surface is: 0 at the near side of the
           // sphere, 1 at the far side.
-          final double depth = 0.5 - (point - centre).dot(d) / (2.0 * radius);
+          final double depth = 0.5 - (point - center).dot(d) / (2.0 * radius);
           normalDepth
             ..[to] = byte(hit.normal.x * 0.5 + 0.5)
             ..[to + 1] = byte(hit.normal.y * 0.5 + 0.5)
@@ -307,7 +308,7 @@ _Hit? _cast(
 ) {
   _Hit? nearest;
   for (final _Ball ball in balls) {
-    final Vector3 oc = origin - ball.centre;
+    final Vector3 oc = origin - ball.center;
     final double b = oc.dot(direction);
     final double disc = b * b - (oc.dot(oc) - ball.radius * ball.radius);
     if (disc < 0.0) continue;
@@ -316,8 +317,8 @@ _Hit? _cast(
     final Vector3 at = origin + direction.scaled(t);
     nearest = (
       t: t,
-      normal: (at - ball.centre)..scale(1.0 / ball.radius),
-      colour: ball.colour,
+      normal: (at - ball.center)..scale(1.0 / ball.radius),
+      color: ball.color,
     );
   }
 
@@ -344,7 +345,7 @@ _Hit? _cast(
   if (nearest != null && enter >= nearest.t) return nearest;
   final Vector3 normal = Vector3.zero()
     ..[axis] = direction[axis] > 0.0 ? -1.0 : 1.0;
-  return (t: enter, normal: normal, colour: bark);
+  return (t: enter, normal: normal, color: bark);
 }
 
 /// [mesh] with every vertex colour set to [srgb], converted to the linear
@@ -367,8 +368,8 @@ MeshData _painted(MeshData mesh, Vector3 srgb) {
   );
 }
 
-/// The furthest any vertex of [mesh] is from [centre].
-double _radiusAround(MeshData mesh, Vector3 centre) {
+/// The furthest any vertex of [mesh] is from [center].
+double _radiusAround(MeshData mesh, Vector3 center) {
   final int stride = mesh.layout.floatsPerVertex;
   final int at = mesh.layout.floatOffsetOf(VertexLayout.position.name);
   return Iterable<int>.generate(mesh.vertexCount).fold(0.0, (
@@ -379,9 +380,9 @@ double _radiusAround(MeshData mesh, Vector3 centre) {
     return math.max(
       furthest,
       Vector3(
-        mesh.vertices[o] - centre.x,
-        mesh.vertices[o + 1] - centre.y,
-        mesh.vertices[o + 2] - centre.z,
+        mesh.vertices[o] - center.x,
+        mesh.vertices[o + 1] - center.y,
+        mesh.vertices[o + 2] - center.z,
       ).length,
     );
   });

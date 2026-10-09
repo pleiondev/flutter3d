@@ -33,9 +33,9 @@ import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/looks.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 240;
 const int _height = 160;
@@ -73,7 +73,7 @@ final class _Shown {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -105,10 +105,13 @@ final class _Shown {
     // direction, and a copy in a test is the copy nobody updates — the picture
     // being asserted was lit from somewhere the game was not.
     scene.add(
-      LightNode(color: hour.sunColor, intensity: hour.sunIntensity, name: 'sun')
-        ..lookAt(hour.sunDirection),
+      LightNode(
+        color: hour.sunColor.toLinearColor(),
+        intensity: hour.sunIntensity * Photometric.legacyUnit,
+        name: 'sun',
+      )..lookAt(hour.sunDirection),
     );
-    scene.ambientIntensity = hour.ambientIntensity;
+    scene.ambientIntensity = hour.ambientIntensity * Photometric.legacyUnit;
 
     // The shipped assembly, not this file's own. What is left here is the half
     // that needs a device.
@@ -124,7 +127,7 @@ final class _Shown {
 
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.3,
         far: 1600.0,
       ),
@@ -163,11 +166,11 @@ final class _Shown {
   /// The preset as the renderer's own sky, exactly as `main.dart` builds it.
   SkySettings get skySettings => SkySettings(
     enabled: true,
-    zenith: sky.zenith,
-    horizon: sky.horizon,
-    nadir: sky.belowHorizon,
+    zenith: sky.zenith.toLinearColor(),
+    horizon: sky.horizon.toLinearColor(),
+    nadir: sky.belowHorizon.toLinearColor(),
     directionToSun: sky.directionToSun,
-    sunColor: sky.sunColor,
+    sunColor: sky.sunColor.toLinearColor(),
     glowExponent: sky.glowWide,
     glowStrength: sky.glowStrength,
     sunIntensity: sky.sunDisc,
@@ -196,7 +199,7 @@ final class _Shown {
     for (var step = 0; step < steps; step++) {
       for (var i = 0; i < cars.length; i++) {
         final car = cars[i];
-        track.centreAt(
+        track.centerAt(
           car.trackDistance + math.max(14.0, car.speed * 0.6),
           aim,
         );
@@ -246,7 +249,7 @@ final class _Shown {
   }) async {
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
-        if (piece.name == hiding) piece.visible = false;
+        if (piece.name == hiding) piece.isVisible = false;
       }
     }
     // The sky and the haze the application draws with, worked out the same way:
@@ -254,7 +257,7 @@ final class _Shown {
     // fog at all the background is black, and so is a tarmac road under a low
     // sun — the first draft of this file counted eighty percent of the frame as
     // road and was counting the empty sky.
-    final background = sky.colourAt(gaze);
+    final background = sky.colorAt(gaze);
     final result = renderer.render(
       width: _width,
       height: _height,
@@ -262,21 +265,26 @@ final class _Shown {
       views: <RenderView>[
         RenderView(
           camera: camera,
-          clearColor: Vector4(background.x, background.y, background.z, 1.0),
+          clearColorSrgb: Vector4(
+            background.x,
+            background.y,
+            background.z,
+            1.0,
+          ),
         ),
       ],
       settings: RenderSettings(
         sky: withSky ?? skySettings,
         fog: FogSettings(
-          color: sky.inScatterAlong(hazeAlong ?? gaze),
+          color: sky.inScatterAlong(hazeAlong ?? gaze).toLinearColor(),
           density: sky.fogDensity,
         ),
         exposure: sky.exposure,
       ),
     );
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 }
 
@@ -539,7 +547,7 @@ void main() {
         // changes only which way the *air* is lit, so the difference can come
         // from nowhere but `FogSettings.color` reaching the frame.
         //
-        // Mutation: return `horizonFogColour` from `inScatterAlong` and ignore
+        // Mutation: return `horizonFogColor` from `inScatterAlong` and ignore
         // the view direction — which is what the engine's own fog does, and what
         // makes distance the same grey whichever way a car is pointing. Nothing
         // else in the repository notices; the frames here go identical.
@@ -593,8 +601,8 @@ void main() {
           );
 
           expect(written.fogDensity, closeTo(named!.fogDensity, 1e-9));
-          expect(written.sunElevationDeg, closeTo(named.sunElevationDeg, 1e-9));
-          expect(written.sunAzimuthDeg, closeTo(named.sunAzimuthDeg, 1e-9));
+          expect(written.sunElevation, closeTo(named.sunElevation, 1e-9));
+          expect(written.sunAzimuth, closeTo(named.sunAzimuth, 1e-9));
           expect(written.exposure, closeTo(named.exposure, 1e-9));
           expect(written.sunDisc, closeTo(named.sunDisc, 1e-9));
           expect(

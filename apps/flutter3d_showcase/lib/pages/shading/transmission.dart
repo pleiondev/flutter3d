@@ -7,7 +7,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TransmissionDemo extends ShowcaseDemo {
   double transmission = 1.0;
@@ -15,8 +14,8 @@ final class TransmissionDemo extends ShowcaseDemo {
   double thickness = 0.9;
   double ior = 1.5;
 
-  late final Material _pane;
-  late final Material _ball;
+  late final RenderMaterial _pane;
+  late final RenderMaterial _ball;
 
   @override
   void configureView(DemoContext context) {
@@ -32,8 +31,10 @@ final class TransmissionDemo extends ShowcaseDemo {
       Vector3(1.0, 0.0, 0.0),
       math.pi / 2,
     );
-    Material flat(Vector4 colour) =>
-        Material(lighting: LightingModel.unlit, baseColor: colour);
+    RenderMaterial flat(Vector4 color) => RenderMaterial(
+      lighting: LightingModel.unlit,
+      baseColor: _fromSrgb(color),
+    );
 
     // #region wall
     final DeviceMesh half = DeviceMesh.upload(
@@ -45,7 +46,7 @@ final class TransmissionDemo extends ShowcaseDemo {
       const PlaneShape(width: 0.08, depth: 4.0).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.2
+      ..ambientIntensity = 0.2 * Photometric.legacyUnit
       ..add(
         MeshNode(half, flat(Vector4(0.8, 0.1, 0.1, 1.0)), name: 'red wall')
           ..setRotation(upright)
@@ -66,18 +67,19 @@ final class TransmissionDemo extends ShowcaseDemo {
     // #endregion wall
 
     // #region glass
-    Material glass(String name, {required double thickness}) => Material(
-      name: name,
-      lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
-      roughness: roughness,
-      doubleSided: true,
-      extensions: MaterialExtensions(
-        transmission: transmission,
-        thickness: thickness,
-        ior: ior,
-      ),
-    );
+    RenderMaterial glass(String name, {required double thickness}) =>
+        RenderMaterial(
+          name: name,
+          lighting: LightingModel.pbrLayered,
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+          roughness: roughness,
+          doubleSided: true,
+          extensions: MaterialExtensions(
+            transmission: transmission,
+            thickness: thickness,
+            ior: ior,
+          ),
+        );
     _pane = glass('pane', thickness: 0.0);
     _ball = glass('ball', thickness: thickness);
     scene
@@ -104,7 +106,7 @@ final class TransmissionDemo extends ShowcaseDemo {
         )..setPosition(0.6, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -1.0).normalized()),
       );
     // #endregion glass
@@ -114,10 +116,8 @@ final class TransmissionDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    for (final (Material material, double depth) in <(Material, double)>[
-      (_pane, 0.0),
-      (_ball, thickness),
-    ]) {
+    for (final (RenderMaterial material, double depth)
+        in <(RenderMaterial, double)>[(_pane, 0.0), (_ball, thickness)]) {
       material
         ..roughness = roughness
         ..extensions = MaterialExtensions(
@@ -186,3 +186,6 @@ final class TransmissionDemo extends ShowcaseDemo {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

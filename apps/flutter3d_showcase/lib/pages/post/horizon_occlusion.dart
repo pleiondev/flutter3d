@@ -8,7 +8,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class HorizonOcclusionDemo extends ShowcaseDemo {
   AmbientOcclusionMethod method = AmbientOcclusionMethod.ssil;
@@ -28,10 +27,13 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    MeshNode slab(Vector3 size, Vector3 at, Vector4 colour, String name) =>
+    MeshNode slab(Vector3 size, Vector3 at, Vector4 color, String name) =>
         MeshNode(
           DeviceMesh.upload(device, CuboidShape(size: size).build()),
-          Material(lighting: LightingModel.lambert, baseColor: colour),
+          RenderMaterial(
+            lighting: LightingModel.lambert,
+            baseColor: _fromSrgb(color),
+          ),
           name: name,
         )..setPositionFrom(at);
 
@@ -55,10 +57,11 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
     // #endregion room
 
     // #region light
-    scene.ambientIntensity = 0.3;
-    final LightNode sun = LightNode(name: 'sun', intensity: 1.5)
-      ..castsShadow = false
-      ..setRotationYawPitchRoll(0.0, -0.6, 0.0);
+    scene.ambientIntensity = 0.3 * Photometric.legacyUnit;
+    final LightNode sun =
+        LightNode(name: 'sun', intensity: 1.5 * Photometric.legacyUnit)
+          ..castsShadow = false
+          ..setRotationYawPitchRoll(0.0, -0.6, 0.0);
     // #endregion light
     return scene..add(sun);
   }
@@ -121,3 +124,6 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
     // #endregion ran
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

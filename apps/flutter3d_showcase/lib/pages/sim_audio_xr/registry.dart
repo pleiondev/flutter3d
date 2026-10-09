@@ -4,6 +4,13 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/sim_audio_xr/behaviour_trees.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/cutscenes.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/navmesh_crowds.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/playtest_heatmaps.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/replay_tests.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/sharing_ghosts.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/terrain_erosion.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'actors.dart';
@@ -74,4 +81,11 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'viewer-profiles': ViewerProfilesDemo.new,
   'stereo-lesson': StereoLessonDemo.new,
   'head-tracking': HeadTrackingDemo.new,
+  'replay-tests': ReplayTestsDemo.new,
+  'navmesh-crowds': NavmeshCrowdsDemo.new,
+  'behaviour-trees': BehaviourTreesDemo.new,
+  'cutscenes': CutscenesDemo.new,
+  'sharing-ghosts': SharingGhostsDemo.new,
+  'terrain-erosion': TerrainErosionDemo.new,
+  'playtest-heatmaps': PlaytestHeatmapsDemo.new,
 };

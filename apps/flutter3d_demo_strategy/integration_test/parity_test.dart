@@ -62,7 +62,7 @@ Match _mirror({
     final double z = 16.0 + side * 40.0;
     final base = sim.build(
       Building(
-        centre: Vector3(16.0, 0.0, z),
+        center: Vector3(16.0, 0.0, z),
         width: 6.0,
         depth: 6.0,
         name: 'base',

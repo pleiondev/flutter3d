@@ -21,9 +21,12 @@ import 'package:flutter3d_demo_platformer/src/sounds.dart';
 import 'package:flutter3d_demo_platformer/src/soundtrack.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -34,6 +37,7 @@ final class _Run {
     // `stage` is what `main.dart` calls. A harness that assembles the level its
     // own way is a harness that agrees with any bug the game has.
     staged = stage(level, world, input: input, registry: kinds);
+    sim.publishTo(published.bus);
   }
 
   final EntityRegistry kinds = platformerRegistry();
@@ -43,6 +47,9 @@ final class _Run {
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
   PlatformerSimulation get sim => staged.sim;
+
+  /// What [sim] publishes, step by step.
+  final HeardEvents published = HeardEvents();
 
   final Level level = Level.fromJson(
     jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
@@ -70,7 +77,7 @@ final class _Run {
       for (final Heard sound in soundtrack.listen(
         sim,
         runner,
-        sim.events.drain(),
+        published.take(),
       )) {
         heard.add(sound.sound);
       }

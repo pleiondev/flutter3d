@@ -14,11 +14,27 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_demo_content/map_world.dart' show nearestSeam;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'ground_paint.dart';
+
+/// The scale each of the map's kinds of tree is drawn at: two pines, then
+/// three broadleaves. One list for the picture and for the world the trees
+/// burn in, so both plant the same woods.
+const List<double> woodScales = <double>[4.0, 3.6, 4.2, 3.4, 3.8];
+
+/// A tree where it was planted: where its foot is, which way it is turned,
+/// and how much its model is scaled.
+typedef PlantedTree = ({
+  double x,
+  double y,
+  double z,
+  double yaw,
+  double scale,
+});
 
 /// Trees for [simulation]'s map: one list of placements per entry of
 /// [kinds], each entry the scale that kind's model is drawn at.
@@ -30,6 +46,31 @@ List<List<Matrix4>> plantWoods({
   required List<double> kinds,
   double? waterLevel,
   double spacing = 4.2,
+}) => <List<Matrix4>>[
+  for (final List<PlantedTree> kind in plantTrees(
+    simulation: simulation,
+    kinds: kinds,
+    waterLevel: waterLevel,
+    spacing: spacing,
+  ))
+    <Matrix4>[
+      // Sunk a little, so a tree on a slope does not stand on one edge of
+      // its trunk with daylight under the other.
+      for (final PlantedTree t in kind)
+        Matrix4.translationValues(t.x, t.y - 0.2, t.z)
+          ..rotateY(t.yaw)
+          ..scaleByDouble(t.scale, t.scale, t.scale, 1.0),
+    ],
+];
+
+/// The same woods as [plantWoods], as numbers rather than matrices: what the
+/// map's world burns, which has to be the same on every platform — and a
+/// matrix turned by the yaw holds `dart:math`'s sines in its scale.
+List<List<PlantedTree>> plantTrees({
+  required StrategySimulation simulation,
+  required List<double> kinds,
+  double? waterLevel,
+  double spacing = 4.2,
 }) {
   final Heightfield ground = simulation.ground;
   final List<Building> halls = simulation.buildings;
@@ -37,14 +78,14 @@ List<List<Matrix4>> plantWoods({
   final lanes = <(Vector3, Vector3)>[
     for (final Building hall in halls)
       for (final ResourceNode seam in seams)
-        if (nearestSeam(hall, seams) == seam) (hall.centre, seam.at),
+        if (nearestSeam(hall, seams) == seam) (hall.center, seam.at),
     for (var a = 0; a < halls.length; a++)
       for (var b = a + 1; b < halls.length; b++)
-        (halls[a].centre, halls[b].centre),
+        (halls[a].center, halls[b].center),
   ];
 
-  final List<List<Matrix4>> placed = <List<Matrix4>>[
-    for (final _ in kinds) <Matrix4>[],
+  final List<List<PlantedTree>> placed = <List<PlantedTree>>[
+    for (final _ in kinds) <PlantedTree>[],
   ];
   final int across = (ground.width / spacing).floor();
   final int down = (ground.depth / spacing).floor();
@@ -86,31 +127,10 @@ List<List<Matrix4>> plantWoods({
       final double scale =
           kinds[kind] * (0.8 + 0.5 * latticeHash(i - 17, j + 29));
       final double yaw = latticeHash(i + 5, j - 5) * math.pi * 2.0;
-      // Sunk a little, so a tree on a slope does not stand on one edge of
-      // its trunk with daylight under the other.
-      placed[kind].add(
-        Matrix4.translationValues(x, y - 0.2, z)
-          ..rotateY(yaw)
-          ..scaleByDouble(scale, scale, scale, 1.0),
-      );
+      placed[kind].add((x: x, y: y, z: z, yaw: yaw, scale: scale));
     }
   }
   return placed;
-}
-
-/// The seam nearest [hall], on the ground plane: the one its crowd wears a
-/// path to.
-ResourceNode? nearestSeam(Building hall, List<ResourceNode> seams) {
-  ResourceNode? best;
-  var bestDistance = double.infinity;
-  for (final ResourceNode seam in seams) {
-    final double d = _flat(seam.at, hall.centre.x, hall.centre.z);
-    if (d < bestDistance) {
-      bestDistance = d;
-      best = seam;
-    }
-  }
-  return best;
 }
 
 double _flat(Vector3 at, double x, double z) {

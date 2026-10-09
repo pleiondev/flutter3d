@@ -28,6 +28,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_demo_content/map_world.dart' show nearestSeam;
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:vector_math/vector_math.dart';
@@ -37,10 +38,11 @@ import 'woods.dart';
 
 /// How high the ponds stand, in metres.
 ///
-/// A property of the picture rather than of the map: the simulation has no
-/// water and units walk the bed of a pond as they walk anything else. Low
-/// enough here that only the deepest hollow of `map_a` holds any, and none
-/// of the paths a crowd takes runs through it.
+/// What the core's pond in `map_world.dart` is filled to, and the painted
+/// sheet stands at before it: the simulation's ground is the pond's floor,
+/// and a unit that walks into it wades. Low enough here that only the
+/// deepest hollow of `map_a` holds any, and none of the paths a crowd takes
+/// runs through it.
 const double pondLevel = 0.3;
 
 /// Everything the match is drawn in, loaded once.
@@ -65,7 +67,7 @@ final class StrategyKit {
   final Vector3 hallSize;
 
   /// The castle's material for each side.
-  final List<Material> hallSides;
+  final List<RenderMaterial> hallSides;
 
   /// What a seam looks like.
   final MeshLook seam;
@@ -74,7 +76,7 @@ final class StrategyKit {
   final List<PropBatch> woods;
 
   /// The painted hillside.
-  final Material ground;
+  final RenderMaterial ground;
 
   /// Loads and composes the whole kit for [simulation]'s map, or null if
   /// any of it fails to load.
@@ -128,15 +130,15 @@ final class _Loader {
   Future<StrategyKit> load(StrategySimulation simulation) async {
     final Rgba8Image castlePalette = await _image('castle-colormap.png');
     final Rgba8Image arenaPalette = await _image('arena-colormap.png');
-    final Material castleBlue = _textured(castlePalette);
-    final Material castleRed = _textured(
+    final RenderMaterial castleBlue = _textured(castlePalette);
+    final RenderMaterial castleRed = _textured(
       _repaint(castlePalette, from: _blue, to: _red),
     );
-    final Material arenaRed = _textured(arenaPalette);
-    final Material arenaBlue = _textured(
+    final RenderMaterial arenaRed = _textured(arenaPalette);
+    final RenderMaterial arenaBlue = _textured(
       _repaint(arenaPalette, from: _red, to: _blue),
     );
-    final Material plain = Material(
+    final RenderMaterial plain = RenderMaterial(
       lighting: LightingModel.pbr,
       roughness: 0.85,
     );
@@ -181,7 +183,7 @@ final class _Loader {
       ],
       hall: _upload(hall),
       hallSize: hallBounds.max - hallBounds.min,
-      hallSides: <Material>[castleBlue, castleRed],
+      hallSides: <RenderMaterial>[castleBlue, castleRed],
       seam: MeshLook(_upload(await _seam()), plain),
       woods: await _woods(simulation, plain),
       ground: await _ground(simulation),
@@ -208,7 +210,7 @@ final class _Loader {
               switch (surface.materialIndex) {
                 final int i =>
                   _natureColours[document.materials[i].name] ??
-                      document.materials[i].baseColor,
+                      _srgbVector(document.materials[i].baseColor),
                 null => Vector4(1.0, 1.0, 1.0, 1.0),
               },
             ),
@@ -397,24 +399,25 @@ final class _Loader {
 
   Future<List<PropBatch>> _woods(
     StrategySimulation simulation,
-    Material plain,
+    RenderMaterial plain,
   ) async {
-    const List<(String, double)> kinds = <(String, double)>[
-      ('nature-tree_pineTallA_detailed.glb', 4.0),
-      ('nature-tree_pineRoundC.glb', 3.6),
-      ('nature-tree_oak.glb', 4.2),
-      ('nature-tree_default.glb', 3.4),
-      ('nature-tree_detailed.glb', 3.8),
+    // In the order of `woodScales`, whose scales they are drawn at.
+    const List<String> kinds = <String>[
+      'nature-tree_pineTallA_detailed.glb',
+      'nature-tree_pineRoundC.glb',
+      'nature-tree_oak.glb',
+      'nature-tree_default.glb',
+      'nature-tree_detailed.glb',
     ];
     final List<List<Matrix4>> placed = plantWoods(
       simulation: simulation,
-      kinds: <double>[for (final (_, double scale) in kinds) scale],
+      kinds: woodScales,
       waterLevel: pondLevel,
     );
     return <PropBatch>[
       for (var i = 0; i < kinds.length; i++)
         PropBatch(
-          look: MeshLook(_upload(await _whole(kinds[i].$1)), plain),
+          look: MeshLook(_upload(await _whole(kinds[i])), plain),
           placements: placed[i],
           name: 'trees',
         ),
@@ -423,7 +426,7 @@ final class _Loader {
 
   // ------------------------------------------------------------------ ground
 
-  Future<Material> _ground(StrategySimulation simulation) async {
+  Future<RenderMaterial> _ground(StrategySimulation simulation) async {
     Future<Rgba8Image> swatch(String file) async =>
         shrinkSwatch(await _image(file), 128);
     final List<Building> halls = simulation.buildings;
@@ -440,8 +443,8 @@ final class _Loader {
       wear: <Wear>[
         for (final Building hall in halls)
           (
-            x: hall.centre.x,
-            z: hall.centre.z,
+            x: hall.center.x,
+            z: hall.center.z,
             halfWidth: hall.width / 2.0,
             halfDepth: hall.depth / 2.0,
             spread: 7.0,
@@ -460,8 +463,8 @@ final class _Loader {
         for (final Building hall in halls)
           if (nearestSeam(hall, seams) case final ResourceNode seam)
             (
-              fromX: hall.centre.x,
-              fromZ: hall.centre.z,
+              fromX: hall.center.x,
+              fromZ: hall.center.z,
               toX: seam.at.x,
               toZ: seam.at.z,
               width: 5.0,
@@ -475,10 +478,10 @@ final class _Loader {
     // mosaic of eight-centimetre squares, and from up high the far slopes
     // shimmer as the camera pans. The kits' palettes keep the default on
     // purpose — their swatches are meant to have hard edges.
-    return Material(
+    return RenderMaterial(
       lighting: LightingModel.pbr,
       albedo: texture,
-      albedoSampler: SamplerOptions.trilinearRepeat,
+      albedoSampler: SamplerDescriptor.trilinearRepeat,
       roughness: 0.95,
     );
   }
@@ -494,7 +497,7 @@ final class _Loader {
     return image;
   }
 
-  Material _textured(Rgba8Image image) => Material(
+  RenderMaterial _textured(Rgba8Image image) => RenderMaterial(
     lighting: LightingModel.pbr,
     albedo: uploadRgba8(device, image),
     roughness: 0.8,
@@ -503,17 +506,17 @@ final class _Loader {
   DeviceMesh _upload(MeshData mesh) => DeviceMesh.upload(device, mesh);
 }
 
-/// [mesh] with every vertex's colour set to [colour].
-MeshData _coloured(MeshData mesh, Vector4 colour) {
+/// [mesh] with every vertex's colour set to [color].
+MeshData _coloured(MeshData mesh, Vector4 color) {
   final int stride = mesh.layout.floatsPerVertex;
   final int offset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
   if (offset < 0) return mesh;
   final Float32List vertices = mesh.vertices;
   for (var o = offset; o < vertices.length; o += stride) {
-    vertices[o] = colour.x;
-    vertices[o + 1] = colour.y;
-    vertices[o + 2] = colour.z;
-    vertices[o + 3] = colour.w;
+    vertices[o] = color.x;
+    vertices[o + 1] = color.y;
+    vertices[o + 2] = color.z;
+    vertices[o + 3] = color.w;
   }
   return mesh;
 }
@@ -569,4 +572,10 @@ Rgba8Image _repaint(
     out[at + 2] = ((bb + m) * 255.0).round().clamp(0, 255);
   }
   return Rgba8Image(width: image.width, height: image.height, pixels: out);
+}
+
+/// [color] sRGB-encoded, as the `Vector4` this file paints with.
+Vector4 _srgbVector(LinearColor color) {
+  final srgb = color.toSrgb();
+  return Vector4(srgb.r, srgb.g, srgb.b, srgb.a);
 }

@@ -10,10 +10,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A straight tube [radius] wide and [height] tall with a flat floor, its
 /// floor at the origin of its own frame.
@@ -68,7 +68,9 @@ final class LiquidsDemo extends ShowcaseDemo {
   double _age = 0.0;
 
   static const double _frame = 1 / 60;
-  static Vector3 get _gravity => Vector3(0.0, -9.81, 0.0);
+
+  /// The one gravity both worlds on this page are made with.
+  static Vector3 get _gravity => standardGravityVector;
 
   /// Half the block: six by four centimetres and two and a half thick.
   static Vector3 get _half => Vector3(0.03, 0.012, 0.02);
@@ -183,16 +185,16 @@ final class LiquidsDemo extends ShowcaseDemo {
     _pourTotal = _pouring.volume;
     // #endregion pour
 
-    final Material glassLook = Material(
+    final RenderMaterial glassLook = RenderMaterial(
       name: 'glass',
-      baseColor: Vector4(0.85, 0.92, 1.0, 0.18),
+      baseColor: LinearColor.fromSrgb(0.85, 0.92, 1.0, 0.18),
       roughness: 0.1,
       alphaMode: MaterialAlphaMode.blend,
       doubleSided: true,
     );
-    final Material waterLook = Material(
+    final RenderMaterial waterLook = RenderMaterial(
       name: 'water',
-      baseColor: Vector4(0.2, 0.45, 0.85, 1.0),
+      baseColor: LinearColor.fromSrgb(0.2, 0.45, 0.85, 1.0),
       roughness: 0.2,
     );
     final DeviceMesh cylinder = DeviceMesh.upload(
@@ -226,7 +228,10 @@ final class LiquidsDemo extends ShowcaseDemo {
       ..setScale(0.004, 0.07, 0.004);
     _blockNode = MeshNode(
       DeviceMesh.upload(context.device, CuboidShape(size: _half * 2.0).build()),
-      Material(name: 'pine', baseColor: Vector4(0.8, 0.62, 0.38, 1.0)),
+      RenderMaterial(
+        name: 'pine',
+        baseColor: LinearColor.fromSrgb(0.8, 0.62, 0.38, 1.0),
+      ),
       name: 'block',
     );
     scene
@@ -237,7 +242,8 @@ final class LiquidsDemo extends ShowcaseDemo {
       const SphereShape(radius: 0.0015, segments: 8, rings: 4).build(),
     );
     for (var i = 0; i < 160; i++) {
-      final node = MeshNode(drop, waterLook, name: 'drop $i')..visible = false;
+      final node = MeshNode(drop, waterLook, name: 'drop $i')
+        ..isVisible = false;
       _drops.add(node);
       scene.add(node);
     }
@@ -278,10 +284,10 @@ final class LiquidsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.55, 0.6, 0.7)
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(
@@ -290,7 +296,10 @@ final class LiquidsDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(0.7, 0.02, 0.35)).build(),
           ),
-          Material(name: 'bench', baseColor: Vector4(0.3, 0.3, 0.32, 1.0)),
+          RenderMaterial(
+            name: 'bench',
+            baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.32, 1.0),
+          ),
           name: 'bench',
         )..setPosition(0.0, -0.011, 0.0),
       );
@@ -322,7 +331,7 @@ final class LiquidsDemo extends ShowcaseDemo {
           : g.body.volume / (math.pi * g.radius * g.radius);
       final double shown = depth.clamp(0.0, g.height);
       g.fill
-        ..visible = shown > 1e-4
+        ..isVisible = shown > 1e-4
         ..setRotation(q)
         ..setPositionFrom(g.at + axis * (0.5 * shown))
         ..setScale(0.97 * g.radius, shown, 0.97 * g.radius);
@@ -339,7 +348,7 @@ final class LiquidsDemo extends ShowcaseDemo {
     ];
     for (var i = 0; i < _drops.length; i++) {
       final bool shown = i < airborne.length;
-      _drops[i].visible = shown;
+      _drops[i].isVisible = shown;
       if (shown) _drops[i].setPositionFrom(airborne[i]);
     }
   }

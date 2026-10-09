@@ -500,7 +500,7 @@ final class OrbitGestures {
     _syncTouchPair(fingers);
     if (previousCentre == null) return CameraIntent.none;
 
-    final GesturePoint centre = _touchCentre!;
+    final GesturePoint center = _touchCentre!;
     // Below a pixel of spread the ratio is noise — two fingers that close are
     // one contact the digitiser has not merged yet, and dividing by it throws
     // the camera to the far side of the model.
@@ -508,8 +508,8 @@ final class OrbitGestures {
         ? previousSpread / _touchSpread
         : 1.0;
     return CameraIntent(
-      panRight: centre.x - previousCentre.x,
-      panUp: -(centre.y - previousCentre.y),
+      panRight: center.x - previousCentre.x,
+      panUp: -(center.y - previousCentre.y),
       zoomBy: zoom,
     );
   }

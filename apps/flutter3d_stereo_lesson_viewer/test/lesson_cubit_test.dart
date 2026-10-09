@@ -68,7 +68,7 @@ void main() {
       ]),
     );
     for (final node in ready.nodes.values) {
-      expect(node.visible, isTrue, reason: 'nothing has been torn down yet');
+      expect(node.isVisible, isTrue, reason: 'nothing has been torn down yet');
     }
   });
 
@@ -80,10 +80,10 @@ void main() {
     ready.player.next();
     ready.player.applyCurrent(ready.rig, nodes: ready.nodes);
 
-    expect(ready.nodes['valve-cover']!.visible, isFalse);
-    expect(ready.nodes['engine-block']!.visible, isTrue);
-    expect(ready.nodes['air-filter']!.visible, isTrue);
-    expect(ready.nodes['spark-plug']!.visible, isTrue);
+    expect(ready.nodes['valve-cover']!.isVisible, isFalse);
+    expect(ready.nodes['engine-block']!.isVisible, isTrue);
+    expect(ready.nodes['air-filter']!.isVisible, isTrue);
+    expect(ready.nodes['spark-plug']!.isVisible, isTrue);
   });
 
   test("ls-x-01's own prerequisite: the level's widget_surface resolves onto "

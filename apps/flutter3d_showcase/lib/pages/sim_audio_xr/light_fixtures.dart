@@ -7,35 +7,36 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LightFixturesDemo extends ShowcaseDemo {
   bool pulseInstead = false;
 
   late final LightNode _torchLight;
-  late final Material _torchMaterial;
+  late final RenderMaterial _torchMaterial;
 
   // #region fixture
   late LightFixture _fixture = LightFixture(
     name: 'torch',
     light: 'torch',
-    behaviour: const FlameFlicker(),
+    behavior: const FlameFlicker(),
   );
   // #endregion fixture
 
   @override
   Scene build(DemoContext context) {
-    _torchMaterial = Material(
+    _torchMaterial = RenderMaterial(
       name: 'torch',
-      baseColor: Vector4(0.9, 0.6, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.9, 0.6, 0.2, 1.0),
     );
     final ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
       _torchMaterial,
       name: 'torch-ball',
     );
-    _torchLight = LightNode(name: 'torch', intensity: 4.0)
-      ..setLocalForward(Vector3(-0.2, -1.0, -0.1));
+    _torchLight = LightNode(
+      name: 'torch',
+      intensity: 4.0 * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.2, -1.0, -0.1));
     return Scene()
       ..add(ball)
       ..add(_torchLight);
@@ -45,8 +46,8 @@ final class LightFixturesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _fixture.step(dt);
-    _torchLight.intensity = 4.0 * _fixture.brightness;
-    _torchMaterial.emissive.setValues(
+    _torchLight.intensity = 4.0 * _fixture.brightness * Photometric.legacyUnit;
+    _torchMaterial.emissive = LinearColor(
       _fixture.brightness,
       _fixture.brightness * 0.6,
       _fixture.brightness * 0.2,
@@ -64,7 +65,7 @@ final class LightFixturesDemo extends ShowcaseDemo {
         _fixture = LightFixture(
           name: 'torch',
           light: 'torch',
-          behaviour: pulseInstead ? const PulseLight() : const FlameFlicker(),
+          behavior: pulseInstead ? const PulseLight() : const FlameFlicker(),
         );
       },
     ),

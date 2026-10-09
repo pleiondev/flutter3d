@@ -85,7 +85,7 @@ void main() {
       },
     );
     applyLessonStepToCamera(camera, hideStep, nodes: state.nodes);
-    expect(panel!.visible, isFalse);
+    expect(panel!.isVisible, isFalse);
 
     final showStep = EntityDef(
       type: 'edu_step',
@@ -94,6 +94,6 @@ void main() {
       },
     );
     applyLessonStepToCamera(camera, showStep, nodes: state.nodes);
-    expect(panel.visible, isTrue);
+    expect(panel.isVisible, isTrue);
   });
 }

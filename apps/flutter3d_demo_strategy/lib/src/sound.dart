@@ -45,13 +45,13 @@ final class StrategySound {
 
   final AudioScene _scene;
   final PhysicsHearing _hearing;
-  final Map<int, SoundEmitter> _fires = <int, SoundEmitter>{};
-  final Map<int, SoundEmitter> _falling = <int, SoundEmitter>{};
+  final HeldVoices _fires = HeldVoices(_fire);
+  final HeldVoices _falling = HeldVoices(_falls);
 
   /// The frame heard from [listener].
   void update(AudioListener listener) {
-    _hold(_fires, _hearing.fires, _fire);
-    _hold(_falling, _hearing.falls, _falls);
+    _fires.hold(_scene, _hearing.fires.map(_held));
+    _falling.hold(_scene, _hearing.falls.map(_held));
     for (final Audible s in _hearing.splashes) {
       _scene.play(_splash, s.at)
         ..gain = s.loudness
@@ -60,23 +60,8 @@ final class StrategySound {
     _scene.update(listener);
   }
 
-  /// One looping voice per thing heard, moved to it; the voices of things no
-  /// longer heard stopped.
-  void _hold(Map<int, SoundEmitter> voices, List<Audible> heard, SoundDef def) {
-    final live = <int>{};
-    for (final Audible h in heard) {
-      live.add(h.key);
-      (voices[h.key] ??= _scene.play(def, h.at))
-        ..position.setFrom(h.at)
-        ..gain = h.loudness
-        ..rate = h.rate;
-    }
-    voices.removeWhere((int key, SoundEmitter voice) {
-      if (live.contains(key)) return false;
-      voice.stop();
-      return true;
-    });
-  }
+  static Held _held(Audible a) =>
+      (key: a.key, at: a.at, gain: a.loudness, rate: a.rate);
 
   /// Every voice stopped, for the window closing.
   void stop() => _scene.stopAll();

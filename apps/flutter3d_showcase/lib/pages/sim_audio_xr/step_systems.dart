@@ -8,7 +8,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class _ScoreChanged extends GameEvent {
   const _ScoreChanged(this.total);
@@ -21,7 +20,7 @@ final class _ScoreChanged extends GameEvent {
 final class StepSystemsDemo extends ShowcaseDemo {
   late final String _report;
 
-  double scoringOrder = 0.0;
+  bool scoringFirst = false;
   bool loggingOn = true;
 
   bool _dirty = true;
@@ -32,7 +31,7 @@ final class StepSystemsDemo extends ShowcaseDemo {
   int _score = 0;
   double _sinceStep = 0.0;
 
-  static const Map<String, List<double>> _colours = <String, List<double>>{
+  static const Map<String, List<double>> _colors = <String, List<double>>{
     'input': <double>[0.45, 0.65, 0.95],
     'scoring': <double>[0.95, 0.8, 0.3],
     'logging': <double>[0.75, 0.45, 0.85],
@@ -77,7 +76,8 @@ final class StepSystemsDemo extends ShowcaseDemo {
   }
 
   /// The three systems of the page, registered in one order and asked to run
-  /// in another: `scoring` is registered before `input` and after it in order.
+  /// in another: `scoring` is registered before `input` and, unless the
+  /// toggle says otherwise, named to run after it.
   void _register() {
     // #region live
     final StepSystems systems = StepSystems();
@@ -87,21 +87,20 @@ final class StepSystemsDemo extends ShowcaseDemo {
         _ran.add('scoring');
         _score += 5;
       },
-      order: scoringOrder.round(),
       label: 'scoring',
+      after: scoringFirst ? const <String>[] : const <String>['input'],
     );
     systems.add(
       StepPhase.begin,
       (StepContext step) => _ran.add('input'),
-      order: -10,
       label: 'input',
     );
     if (loggingOn) {
       systems.add(
         StepPhase.begin,
         (StepContext step) => _ran.add('logging'),
-        order: 10,
         label: 'logging',
+        after: const <String>['scoring', 'input'],
       );
     }
     // #endregion live
@@ -126,26 +125,28 @@ final class StepSystemsDemo extends ShowcaseDemo {
     final double glow = 1.0 - _sinceStep / 0.6;
     for (var i = 0; i < _slots.length; i++) {
       final List<double> c = i < _ran.length
-          ? _colours[_ran[i]]!
+          ? _colors[_ran[i]]!
           : const <double>[0.25, 0.26, 0.3];
       final double k = i < _ran.length ? 0.35 + 0.65 * glow : 1.0;
-      _slots[i].material.baseColor.setValues(c[0] * k, c[1] * k, c[2] * k, 1.0);
+      _slots[i].material.baseColor = LinearColor.fromSrgb(
+        c[0] * k,
+        c[1] * k,
+        c[2] * k,
+        1.0,
+      );
     }
     _tower.set(_score / 100.0);
   }
 
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
-    SliderControl(
-      'Scoring order',
-      min: -20,
-      max: 20,
-      value: () => scoringOrder,
-      onChanged: (double v) {
-        scoringOrder = v.roundToDouble();
+    ToggleControl(
+      'Scoring before input',
+      value: () => scoringFirst,
+      onChanged: (bool v) {
+        scoringFirst = v;
         _dirty = true;
       },
-      format: (double v) => v.round().toString(),
     ),
     ToggleControl(
       'Logging registered',
@@ -160,33 +161,34 @@ final class StepSystemsDemo extends ShowcaseDemo {
   static String _run() {
     // #region systems
     final systems = StepSystems();
-    final events = GameEvents();
+    // The bus the step publishes onto. A game's is its `EngineLoop`'s; this
+    // page runs a phase by hand, so a `DirectBus`, which hands each event to
+    // its subscribers as it is published.
+    final events = DirectBus();
+    final heard = <GameEvent>[];
+    events.onStep<GameEvent>('step_systems.heard', (d) => heard.add(d.event));
     var score = 0;
     final order = <String>[];
 
     final logging = systems.add(
       StepPhase.begin,
       (StepContext step) => order.add('logging'),
-      order: 10,
       label: 'logging',
+      after: const <String>['scoring'],
     );
-    systems.add(
-      StepPhase.begin,
-      (StepContext step) {
-        order.add('scoring');
-        score += 5;
-        events.add(_ScoreChanged(score));
-      },
-      order: 0,
-      label: 'scoring',
-    );
+    systems.add(StepPhase.begin, (StepContext step) {
+      order.add('scoring');
+      score += 5;
+      events.publish(_ScoreChanged(score));
+    }, label: 'scoring');
     // #endregion systems
 
     // #region run
-    // Registered "logging" first but ordered after "scoring": order wins,
-    // and only ties fall back on registration.
+    // Registered "logging" first but named to run after "scoring": the
+    // constraint wins, and only what nothing names falls back on
+    // registration.
     systems.run(StepPhase.begin, 1 / 60);
-    final drained = events.drain();
+    final published = List<GameEvent>.of(heard);
     final firstOrder = List<String>.of(order);
     // #endregion run
 
@@ -201,7 +203,7 @@ final class StepSystemsDemo extends ShowcaseDemo {
 
     return 'ran in order: ${firstOrder.join(', ')}; '
         'score is now $score; '
-        'events this step: ${drained.map((GameEvent e) => e.name).join(', ')}; '
+        'events this step: ${published.map((GameEvent e) => e.name).join(', ')}; '
         'after removing logging: $afterRemoval';
   }
 

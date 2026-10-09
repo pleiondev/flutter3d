@@ -13,7 +13,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One pile: its world, what steps it and the crates in it.
 final class _Pile {
@@ -133,13 +132,13 @@ final class PhysicsCoreDemo extends ShowcaseDemo {
     _right = _drop(_rightBackend());
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
-    for (final (double x, String side, Vector4 colour)
+    for (final (double x, String side, Vector4 color)
         in <(double, String, Vector4)>[
           (-_apart, 'reference', Vector4(0.45, 0.47, 0.5, 1.0)),
           (_apart, 'core', Vector4(0.42, 0.5, 0.43, 1.0)),
@@ -150,7 +149,7 @@ final class PhysicsCoreDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(2.4, 1.0, 2.4)).build(),
           ),
-          Material(name: 'floor $side', baseColor: colour),
+          RenderMaterial(name: 'floor $side', baseColor: _fromSrgb(color)),
           name: 'floor $side',
         )..setPosition(x, -0.5, 0.0),
       );
@@ -160,9 +159,9 @@ final class PhysicsCoreDemo extends ShowcaseDemo {
       CuboidShape(size: Vector3.all(0.6)).build(),
     );
     for (var i = 0; i < _count; i++) {
-      final material = Material(
+      final material = RenderMaterial(
         name: 'crate $i',
-        baseColor: Vector4(
+        baseColor: LinearColor.fromSrgb(
           0.55 + 0.4 * math.sin(i * 0.9),
           0.5 + 0.3 * math.sin(i * 1.7 + 1.0),
           0.35 + 0.3 * math.sin(i * 2.3 + 2.0),
@@ -268,3 +267,6 @@ final class PhysicsCoreDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) throw StateError('nothing reached the frame');
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

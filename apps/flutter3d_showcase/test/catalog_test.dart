@@ -20,9 +20,11 @@ List<(String, String)> _sections(String changelog) {
   final StringBuffer body = StringBuffer();
   for (final String line in changelog.split('\n')) {
     // A build number is part of the heading: `## 0.8.2+1` is its own
-    // section, and read as `0.8.2` it shadowed the real one above it.
+    // section, and read as `0.8.2` it shadowed the real one above it. A
+    // pre-release is too: `## 1.0.0-rc.1` read as `1.0.0` would be the
+    // release that follows it.
     final RegExpMatch? heading = RegExp(
-      r'^## (\d+\.\d+\.\d+(?:\+\d+)?)',
+      r'^## (\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?(?:\+\d+)?)',
     ).firstMatch(line);
     if (heading != null) {
       if (version != null) out.add((version, body.toString()));

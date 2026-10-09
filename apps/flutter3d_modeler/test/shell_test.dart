@@ -433,15 +433,15 @@ void main() {
     });
 
     test('the modeller colours travel on the theme', () {
-      final colours = modelerTheme().extension<ModelerColors>();
+      final colors = modelerTheme().extension<ModelerColors>();
 
       // Read off the theme rather than imported as constants, so a second
       // theme has somewhere to put its own answers. The viewport's is the one
       // that matters most: it is the colour every judgement about a shape is
       // made against, and it is the design's `#0E1112`.
-      expect(colours, isNotNull);
-      expect(colours!.viewport, const Color(0xFF0E1112));
-      expect(colours.gridMinor, const Color(0xFF2A3234));
+      expect(colors, isNotNull);
+      expect(colors!.viewport, const Color(0xFF0E1112));
+      expect(colors.gridMinor, const Color(0xFF2A3234));
     });
   });
 

@@ -62,13 +62,13 @@ dependencies:
     path: ../../packages/flutter3d_mesh
 
   # The same editor over a local HTTP socket — `mcp-13n`'s `--mcp-port`.
-  flutter3d_model_mcp:
-    path: ../../packages/flutter3d_model_mcp
+  flutter3d_mcp:
+    path: ../../packages/flutter3d_mcp
 
   # `Tool`/`ObjectSchema` — `mcp-16d`'s own `ui.*` tools (`src/mcp_ui_tools.
   # dart`) describe their own schema directly, the same protocol
-  # `flutter3d_model_mcp`'s own tools already build on rather than a copy of
-  # it. Pinned to the same range `flutter3d_mcp_kit` gives it.
+  # `flutter3d_mcp/model.dart`'s own tools already build on rather than a copy of
+  # it. Pinned to the same range `flutter3d_mcp/kit.dart` gives it.
   dart_mcp: ">=0.5.2 <0.6.0"
 
   # `CollisionShape`, for drawing what a played-back simulation collides
@@ -185,6 +185,10 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.7
 
   flutter_lints: ^6.0.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
 
 flutter:
   uses-material-design: true

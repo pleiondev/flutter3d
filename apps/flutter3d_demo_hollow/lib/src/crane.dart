@@ -17,6 +17,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -67,8 +68,9 @@ final class DinoCrane {
     // degrees, each bending about the torso's side at its root.
     final side = turn.asRotationMatrix().transformed(Vector3(0, 0, 1));
     final rise = 40.0 * math.pi / 180.0;
+    final lean = Portable.sinCos(rise);
     final along = turn.asRotationMatrix().transformed(
-      Vector3(math.cos(rise), math.sin(rise), 0),
+      Vector3(lean.cos, lean.sin, 0),
     );
     var root2 = local(1.2, 2.6, 0);
     var parent = _torso;
@@ -133,13 +135,13 @@ final class DinoCrane {
           height: 1.0,
         ).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'rope',
-        baseColor: Vector4(0.55, 0.45, 0.30, 1.0),
+        baseColor: LinearColor.fromSrgb(0.55, 0.45, 0.30, 1.0),
         roughness: 0.8,
       ),
       name: 'rope',
-    )..visible = false;
+    )..isVisible = false;
     scene.add(_rope);
   }
 
@@ -159,7 +161,7 @@ final class DinoCrane {
   NativeBody? carried;
 
   /// Where the jaw is.
-  Vector3 get jaw => _world.positionOf(head);
+  Vector3 get jaw => _world.localPositionOf(head);
 
   /// What the operator asks: [lift] and [swing] from −1 to 1.
   void work({required double lift, required double swing}) {
@@ -181,14 +183,14 @@ final class DinoCrane {
       _world.removeJoint(_hold!);
       _hold = null;
       carried = null;
-      _rope.visible = false;
+      _rope.isVisible = false;
       return;
     }
     final at = jaw;
     NativeBody? best;
     var nearest = 4.0;
     for (final s in stones) {
-      final d = (_world.positionOf(s) - at).length;
+      final d = (_world.localPositionOf(s) - at).length;
       if (d < nearest) {
         nearest = d;
         best = s;
@@ -199,10 +201,26 @@ final class DinoCrane {
       head,
       best,
       anchorA: at,
-      anchorB: _world.positionOf(best) + Vector3(0, 0.3, 0),
+      anchorB: _world.localPositionOf(best) + Vector3(0, 0.3, 0),
     );
     carried = best;
-    _rope.visible = true;
+    _rope.isVisible = true;
+  }
+
+  /// The rope and what hangs on it, by their handles; the neck and its
+  /// motors are the world's, and come back with it.
+  Map<String, Object?> save() => <String, Object?>{
+    'hold': _hold?.raw,
+    'carried': carried?.raw,
+  };
+
+  /// Back to what [save] wrote, the world already restored under it.
+  void restore(Object? saved) {
+    final hold = saved is Map ? saved['hold'] : null;
+    final stone = saved is Map ? saved['carried'] : null;
+    _hold = hold is num ? NativeJoint(hold.toInt()) : null;
+    carried = stone is num ? NativeBody(stone.toInt()) : null;
+    _rope.isVisible = _hold != null;
   }
 
   /// The crane drawn where the world has it.
@@ -215,13 +233,13 @@ final class DinoCrane {
         .transformed(Vector3(0, 1, 0));
     final points = <Vector3>[
       for (final link in _neckBodies)
-        _world.positionOf(link) - axisOf(link) * (0.5 * _neckLength),
-      _world.positionOf(_neckBodies.last) +
+        _world.localPositionOf(link) - axisOf(link) * (0.5 * _neckLength),
+      _world.localPositionOf(_neckBodies.last) +
           axisOf(_neckBodies.last) * (0.5 * _neckLength),
     ];
     // The beast faces the way the neck leaves the torso, whichever way the
     // torso has turned.
-    final p = _world.positionOf(_torsoBody);
+    final p = _world.localPositionOf(_torsoBody);
     final ahead = (points.first - p)
       ..y = 0
       ..normalize();
@@ -237,7 +255,7 @@ final class DinoCrane {
     _pose?.follow(points);
     final stone = carried;
     if (stone != null) {
-      final a = jaw, b = _world.positionOf(stone) + Vector3(0, 0.3, 0);
+      final a = jaw, b = _world.localPositionOf(stone) + Vector3(0, 0.3, 0);
       final span = b - a;
       final length = span.length;
       _rope
@@ -283,11 +301,9 @@ final class _NeckPose {
       final material = look.material
         ..metallic = 0.0
         ..roughness = 0.85;
-      material.baseColor.setFrom(
-        material.name == 'Brown'
-            ? Vector4(0.5, 0.52, 0.4, 1.0)
-            : Vector4(0.66, 0.6, 0.47, 1.0),
-      );
+      material.baseColor = material.name == 'Brown'
+          ? LinearColor.fromSrgb(0.5, 0.52, 0.4, 1.0)
+          : LinearColor.fromSrgb(0.66, 0.6, 0.47, 1.0);
     }
     if (drawn.skeletons.isEmpty || drawn.meshes.isEmpty) return null;
     final skin = drawn.skeletons.first;

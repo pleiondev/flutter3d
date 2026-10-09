@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:file_selector/file_selector.dart' show XTypeGroup;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
 import 'disk/editor_disk.dart';

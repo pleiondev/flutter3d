@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TextureTransformDemo extends ShowcaseDemo {
   late final MeshData _plain;
@@ -52,12 +51,12 @@ final class TextureTransformDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _moved),
-          Material(albedo: albedo, roughness: 0.8, doubleSided: true),
+          RenderMaterial(albedo: albedo, roughness: 0.8, doubleSided: true),
           name: 'floor',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

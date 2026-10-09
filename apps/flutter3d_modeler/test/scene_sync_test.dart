@@ -39,7 +39,7 @@ import 'package:vector_math/vector_math.dart';
 /// does that is not an upload is left to `noSuchMethod`: `apply` touches no
 /// other member, and a fake that pretends to is a fake that hides what it is
 /// standing in for.
-final class RefusingDevice implements GraphicsDevice {
+final class RefusingDevice extends GraphicsDevice {
   RefusingDevice(this.inner, {this.refuseFirst = 1});
 
   /// A `GraphicsDevice` rather than a `CpuDevice`: what this stands in front

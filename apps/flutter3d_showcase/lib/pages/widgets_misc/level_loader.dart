@@ -9,7 +9,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LevelLoaderDemo extends ShowcaseDemo {
   late LoadedLevel _loaded;
@@ -19,7 +18,7 @@ final class LevelLoaderDemo extends ShowcaseDemo {
   static Level _document() => Level(
     name: 'room',
     brushes: <Brush>[
-      Brush(centre: Vector3(0, -0.5, 0), size: Vector3(4, 1, 4)),
+      Brush(center: Vector3(0, -0.5, 0), size: Vector3(4, 1, 4)),
     ],
     lights: <LevelLight>[
       LevelLight(position: Vector3(0, 3, 0), intensity: 5.0, range: 10.0),
@@ -45,7 +44,10 @@ final class LevelLoaderDemo extends ShowcaseDemo {
       final mesh = _shared.box(Vector3(0.2, 1.0, 0.2));
       final post = MeshNode(
         mesh,
-        Material(name: 'post', baseColor: Vector4(0.4, 0.3, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'post',
+          baseColor: LinearColor.fromSrgb(0.4, 0.3, 0.2, 1.0),
+        ),
       )..setPosition(-1.0 + i.toDouble(), 0.0, 1.5);
       _loaded.scene.add(post);
     }

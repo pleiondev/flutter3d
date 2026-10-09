@@ -20,7 +20,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'overlay_ink.dart';
 
 /// The grid of the ground plane, written into an overlay's line batch.
 ///
@@ -199,7 +200,7 @@ final class GroundGrid {
     final middle = (from + to) * 0.5;
     final strength = strengthAt(middle, eye: eye, fadeRadius: fadeRadius);
     if (strength <= _invisible) return false;
-    overlay.edge(from, to, fadedColour(ink, strength));
+    overlay.edge(from, to, fadedColour(ink, strength).ink);
     return true;
   }
 
@@ -236,14 +237,14 @@ final class GroundGrid {
   /// colour the grid meant rather than a fade smuggled into a channel nothing
   /// reads.
   Vector4 fadedColour(int ink, double strength) {
-    final colour = _rgba(ink);
+    final color = _rgba(ink);
     final ground = _rgba(backgroundColour);
     final mix = strength.clamp(0.0, 1.0);
     return Vector4(
-      ground.x + (colour.x - ground.x) * mix,
-      ground.y + (colour.y - ground.y) * mix,
-      ground.z + (colour.z - ground.z) * mix,
-      colour.w,
+      ground.x + (color.x - ground.x) * mix,
+      ground.y + (color.y - ground.y) * mix,
+      ground.z + (color.z - ground.z) * mix,
+      color.w,
     );
   }
 

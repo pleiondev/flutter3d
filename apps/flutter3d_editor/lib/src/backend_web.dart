@@ -6,7 +6,7 @@ import 'package:flutter3d_app/flutter3d_app.dart' as app;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The size a browser frame is drawn at before CSS stretches it to the
-/// window: `kFixedResolution` is true on the web, and the reason is the
+/// window: `fixedResolution` is true on the web, and the reason is the
 /// canvas's rather than the editor's — see `flutter3d_app`'s
 /// `backend_web.dart`. 720p, as in the crypt, because the editor's viewport
 /// is the crypt's picture with panels over it.

@@ -6,8 +6,10 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GameRandom;
 
 import 'looks.dart';
 import 'terrain.dart';
@@ -32,7 +34,7 @@ final class QuarryStones {
     final boulder = looks.boulder;
     final bounds = boulder.localBounds;
     final extent = bounds.max - bounds.min;
-    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final center = (bounds.min + bounds.max)..scale(0.5);
     final granite = covered(
       'granite',
       looks.granite,
@@ -67,7 +69,7 @@ final class QuarryStones {
       final node = SceneNode(name: 'granite')..add(fit);
       scene.add(node);
       final drawn = boulder.instantiate(scene, parent: fit, name: 'granite');
-      drawn.root.setPosition(-centre.x, -centre.y, -centre.z);
+      drawn.root.setPosition(-center.x, -center.y, -center.z);
       for (final mesh in drawn.meshes) {
         mesh.material = granite;
       }
@@ -82,13 +84,13 @@ final class QuarryStones {
 
   /// How many lie on the builder's ground.
   int get delivered => stones.where((s) {
-    final p = _world.positionOf(s.body);
+    final p = _world.localPositionOf(s.body);
     return Vector2(p.x - siteX, p.z - siteZ).length < siteRadius;
   }).length;
 
   void update() {
     for (final s in stones) {
-      final p = _world.positionOf(s.body);
+      final p = _world.localPositionOf(s.body);
       s.node
         ..setPosition(p.x, p.y, p.z)
         ..setRotation(_world.orientationOf(s.body));
@@ -101,14 +103,8 @@ final class QuarryStones {
 /// lagoon and out by the ford. A handful at a time: the oldest is taken
 /// away when another comes.
 final class Rafts {
-  Rafts(
-    this._world,
-    GraphicsDevice device,
-    this._scene,
-    this._hearing,
-    this._river,
-    HollowLooks looks,
-  ) : _logMesh = DeviceMesh.upload(
+  Rafts(this._world, GraphicsDevice device, this._scene, HollowLooks looks)
+    : _logMesh = DeviceMesh.upload(
         device,
         const CylinderShape(
           radiusTop: _logRadius * 0.92,
@@ -128,10 +124,8 @@ final class Rafts {
 
   final NativeWorld _world;
   final Scene _scene;
-  final PhysicsHearing _hearing;
-  final NativeShallowLiquid _river;
   final DeviceMesh _logMesh;
-  final Material _bark;
+  final RenderMaterial _bark;
   final List<Prop> rafts = <Prop>[];
   double _since = _every - 3.0;
 
@@ -155,7 +149,7 @@ final class Rafts {
       _launch();
     }
     for (final r in rafts) {
-      final p = _world.positionOf(r.body);
+      final p = _world.localPositionOf(r.body);
       r.node
         ..setPosition(p.x, p.y, p.z)
         ..setRotation(_world.orientationOf(r.body));
@@ -165,7 +159,6 @@ final class Rafts {
   void _launch() {
     if (rafts.length >= _most) {
       final oldest = rafts.removeAt(0);
-      _hearing.forget(oldest.body);
       _world.removeBody(oldest.body);
       _scene.remove(oldest.node);
     }
@@ -179,6 +172,11 @@ final class Rafts {
     _world
       ..setCompound(body, _shape)
       ..setMaterial(body, NativeMaterial.wood());
+    rafts.add(_drawn(body));
+  }
+
+  /// [body] with three logs drawn on it, in the scene.
+  Prop _drawn(NativeBody body) {
     final node = SceneNode(name: 'raft');
     for (final x in <double>[-0.31, 0.0, 0.31]) {
       node.add(
@@ -190,8 +188,33 @@ final class Rafts {
       );
     }
     _scene.add(node);
-    rafts.add(Prop(body, node));
-    _hearing.watch(body, _river);
+    return Prop(body, node);
+  }
+
+  /// The time since the last raft and the rafts afloat, by their bodies.
+  Map<String, Object?> save() => <String, Object?>{
+    'since': _since,
+    'bodies': <int>[for (final r in rafts) r.body.raw],
+  };
+
+  /// Back to what [save] wrote, the world already restored under it: the
+  /// rafts drawn again for the bodies it names.
+  void restore(Object? saved) {
+    if (saved case {
+      'since': final num since,
+      'bodies': final List<Object?> bodies,
+    }) {
+      _since = since.toDouble();
+      for (final r in rafts) {
+        _scene.remove(r.node);
+      }
+      rafts
+        ..clear()
+        ..addAll(<Prop>[
+          for (final raw in bodies.whereType<num>())
+            _drawn(NativeBody(raw.toInt())),
+        ]);
+    }
   }
 }
 
@@ -287,7 +310,7 @@ final class Trees {
     }
     if (far(volcanoX, volcanoZ) < volcanoRadius + 1.0) return false;
     for (final t in trees) {
-      final p = _world.positionOf(t.body);
+      final p = _world.localPositionOf(t.body);
       if (far(p.x, p.z) < 4.0) return false;
     }
     return true;
@@ -352,7 +375,7 @@ final class Idol {
   late final MeshNode _look;
   NativeJoint? _lashed;
 
-  Vector3 get position => _world.positionOf(body);
+  Vector3 get position => _world.localPositionOf(body);
 
   /// Whether it rides on the car, and whether it stands in the village.
   bool get carried => _lashed != null;
@@ -390,6 +413,13 @@ final class Idol {
   void update() => _look
     ..setPosition(position.x, position.y, position.z)
     ..setRotation(_world.orientationOf(body));
+
+  /// The lashing to the car, by its joint, or null.
+  Object? save() => _lashed?.raw;
+
+  /// Back to what [save] wrote, the world already restored under it.
+  void restore(Object? saved) =>
+      _lashed = saved is num ? NativeJoint(saved.toInt()) : null;
 }
 
 /// One hut: wooden walls and a thatched roof, each a body of its own, so
@@ -471,14 +501,15 @@ final class Village {
       ).build(),
     );
     final frame = covered('door frame', looks.bark, repeat: Vector2(1.0, 2.0));
-    final thatch = _thatch();
-    // The core puts a compound's centre of mass on its body's origin: the
-    // body stands that far above the walls' top for the cone to sit on it.
-    final lift = _world.compoundOffset(thatch);
+    // The core puts a cone's origin at its centre of mass, a quarter of its
+    // height over its base: the body stands that far above the walls' top
+    // for the cone to sit on it.
+    final lift = Vector3(0.0, _peak / 4.0, 0.0);
     for (var k = 0; k < 4; k++) {
       final angle = k * math.pi / 2 + math.pi / 4;
-      final x = villageX + 5.0 * math.cos(angle);
-      final z = villageZ + 5.0 * math.sin(angle);
+      final corner = Portable.sinCos(angle);
+      final x = villageX + 5.0 * corner.cos;
+      final z = villageZ + 5.0 * corner.sin;
       final g = groundAt(x, z);
       // Fixed, but of a mass: a fixed body of none is a reservoir to heat,
       // and these warm and burn as wood and straw do.
@@ -490,18 +521,33 @@ final class Village {
       _world
         ..setShape(walls, NativeShape.box(Vector3(half, wall, half)))
         ..setMaterial(walls, NativeMaterial.wood());
-      // The thatch in sectors, each warming and catching on its own: a
-      // red-hot stone in one heats the straw round it, not the whole roof
-      // at once, and the fire goes on from sector to sector.
+      // The thatch, one cone: where a red-hot stone lies on it the straw
+      // under the stone catches, and the fire creeps out over the roof from
+      // there as fast as flame spreads over straw.
       final roof = _world.addBody(
         position: Vector3(x, g + 2 * wall, z) + lift,
         type: NativeBodyType.fixed,
-        mass: 80.0,
+        mass:
+            _thatch *
+            math.pi *
+            _eaves *
+            math.sqrt(_eaves * _eaves + _peak * _peak),
       );
       _world
-        ..setCompound(roof, thatch)
-        // Dry stalks, that catch as paper does.
-        ..setMaterial(roof, NativeMaterial.paper());
+        ..setShape(roof, const NativeShape.cone(_eaves, _peak))
+        // Dry stalks, that catch as paper does, laid as a bed of fine fuel:
+        // Anderson's fuel model 3, tall grass, σ = 1500 ft⁻¹ = 4921 m⁻¹,
+        // and Rothermel's particle density, 32 lb/ft³ = 513 kg/m³ (USDA
+        // INT-122, 1982; INT-115, 1972). A bed's stalks heat through and
+        // no crust of char closes over them, so a roof a stone sets alight
+        // burns on over the thatch rather than out under its own char.
+        ..setMaterial(
+          roof,
+          NativeMaterial.paper().copyWith(
+            elementSurface: 4921.0,
+            elementDensity: 513.0,
+          ),
+        );
       final wallLook = MeshNode(
         wallMesh,
         covered(
@@ -527,20 +573,21 @@ final class Village {
       )..setPosition(x, g + 2 * wall, z);
       // The doorway on the side that faces the yard: the dark inside, flush
       // with the wall, in a frame of barked poles.
-      final toYard = math.atan2(villageX - x, villageZ - z);
+      final toYard = Portable.atan2(villageX - x, villageZ - z);
+      final facing = Portable.sinCos(toYard);
       final door = SceneNode(name: 'doorway')
         ..setPosition(
-          x + (_round + 0.02) * math.sin(toYard),
+          x + (_round + 0.02) * facing.sin,
           g,
-          z + (_round + 0.02) * math.cos(toYard),
+          z + (_round + 0.02) * facing.cos,
         )
         ..setRotation(Quaternion.axisAngle(Vector3(0, 1, 0), toYard))
         ..add(
           MeshNode(
             doorway,
-            Material(
+            RenderMaterial(
               name: 'doorway',
-              baseColor: Vector4(0.05, 0.04, 0.03, 1.0),
+              baseColor: LinearColor.fromSrgb(0.05, 0.04, 0.03, 1.0),
               roughness: 1.0,
             ),
             name: 'doorway',
@@ -569,46 +616,19 @@ final class Village {
   final NativeWorld _world;
   final List<Hut> huts = <Hut>[];
 
-  /// The roof's cone: its radius at the eaves and its height, m, and how
-  /// many sectors its thatch is in.
+  /// The roof's cone: its radius at the eaves and its height, m.
   static const double _eaves = 2.3, _peak = 1.8;
+
+  /// What a square metre of thatch weighs, kg: 24–34 kg/m², 5–7 lb a
+  /// square foot (Thatch Advice Centre, Thatch Thursdays, June 2017), the
+  /// middle of it here. Over the cone's slope, π·r·√(r² + h²) = 21 m², that
+  /// is about 600 kg of straw for a red-hot stone lying in it to set
+  /// alight.
+  static const double _thatch = 29.0;
 
   /// The drawn wall's radius at its top, m: as far out as the core's box
   /// reaches at the middle of a side, and a little more.
   static const double _round = 1.6;
-  static const int _sectors = 6;
-
-  /// One roof's thatch: [_sectors] wedges of the cone from its peak to its
-  /// eaves, each its own part, the cone's base on the walls' top.
-  NativeCompound _thatch() {
-    const arc = 4;
-    final wedge = _world.createHull(<Vector3>[
-      Vector3(0, _peak, 0),
-      Vector3.zero(),
-      for (var i = 0; i <= arc; i++)
-        Vector3(
-          _eaves * math.cos(2 * math.pi / _sectors * i / arc),
-          0,
-          _eaves * math.sin(2 * math.pi / _sectors * i / arc),
-        ),
-    ]);
-    final centre = _world.hullOffset(wedge);
-    NativeCompoundPart sector(int k) {
-      final turn = Quaternion.axisAngle(
-        Vector3(0, 1, 0),
-        -2 * math.pi / _sectors * k,
-      );
-      return NativeCompoundPart.hull(
-        wedge,
-        at: turn.asRotationMatrix().transformed(centre),
-        turn: turn,
-      );
-    }
-
-    return _world.createCompound(<NativeCompoundPart>[
-      for (var k = 0; k < _sectors; k++) sector(k),
-    ]);
-  }
 
   /// How many huts burn.
   int get burning => huts
@@ -636,7 +656,8 @@ final class Village {
 }
 
 /// The volcano: quiet, then for a while it pours lava from its crater and
-/// throws red-hot bombs towards the village.
+/// blows red-hot bombs out of it, through the breach in its rim on the
+/// village's side.
 final class Volcano {
   Volcano(
     this._world,
@@ -654,22 +675,27 @@ final class Volcano {
 
   final NativeWorld _world;
   final Scene _scene;
-  final NativeShallowLiquid _lava;
+
+  /// The lava, and the vent in the crater it wells up from.
+  final WaterBody _lava;
+  late final int _vent = _lava.addSpring(
+    at: Vector3(volcanoX, 0.0, volcanoZ),
+    discharge: 0.0,
+    radius: 1.2,
+  );
+  bool _pouring = false;
   final DeviceMesh _bombMesh;
 
   /// What a bomb is: the volcano's own black rock.
   final TextureHandle? _basalt;
 
-  /// What it throws at: the huts' roofs.
+  /// The huts its bombs come down among.
   final List<Hut> _huts;
   final List<Prop> bombs = <Prop>[];
 
-  /// How far a bomb sinks into the thatch that catches it, m.
-  static const double _sinks = 0.04;
-
-  /// The bombs a roof has caught, so each is caught once.
-  final Set<NativeBody> _caught = <NativeBody>{};
-  final math.Random _random = math.Random(7);
+  /// Which hut a bomb is aimed at and how far off: the simulation's own
+  /// dice, whose state a snapshot keeps.
+  final GameRandom _random = GameRandom(7);
 
   /// Seconds into the run, and when it next wakes and for how long.
   double _clock = 0.0, _next = 40.0;
@@ -688,14 +714,10 @@ final class Volcano {
   void update(double dt) {
     _clock += dt;
     final on = erupting;
-    _world.setShallowSource(
-      _lava,
-      0,
-      x: volcanoX,
-      z: volcanoZ,
-      radius: 1.2,
-      rate: on ? 0.12 : 0.0,
-    );
+    if (on != _pouring) {
+      _pouring = on;
+      _lava.setSpring(_vent, discharge: on ? 0.12 : 0.0);
+    }
     if (on) {
       _sinceBomb += dt;
       if (_sinceBomb > 3.5) {
@@ -704,9 +726,21 @@ final class Volcano {
       }
     }
     if (_clock >= _next + _erupting) _next = _clock + _quiet;
+    // The ground ends at the valley's edge: a bomb that rolls off it falls
+    // for ever, faster than anything in the valley moves, and is gone.
+    bombs.removeWhere((b) {
+      final p = _world.localPositionOf(b.body);
+      final off =
+          p.x < 0.0 || p.x > hollowSize || p.z < 0.0 || p.z > hollowSize;
+      if (off) {
+        _world.removeBody(b.body);
+        _scene.remove(b.node);
+      }
+      return off;
+    });
     _lodge();
     for (final b in bombs) {
-      final p = _world.positionOf(b.body);
+      final p = _world.localPositionOf(b.body);
       b.node
         ..setPosition(p.x, p.y, p.z)
         ..setRotation(_world.orientationOf(b.body));
@@ -714,7 +748,7 @@ final class Volcano {
       // hundred.
       final t = _world.surfaceTemperatureOf(b.body);
       final glow = ((t - 600.0) / 700.0).clamp(0.0, 1.0);
-      (b.node as MeshNode).material.emissive.setValues(
+      (b.node as MeshNode).material.emissive = LinearColor(
         4.0 * glow,
         1.0 * glow * glow,
         0.2 * glow * glow * glow,
@@ -722,69 +756,155 @@ final class Volcano {
     }
   }
 
-  /// A bomb that comes down into thatch stays in it, as a red-hot stone
-  /// sinks into dry straw rather than bouncing off it: held where it
-  /// struck, still touching, so the stone's heat goes into the straw it
-  /// lies in as well as across the air.
+  /// Bombs that have come down on a roof, and stay in its thatch.
+  final Set<NativeBody> _lodged = <NativeBody>{};
+
+  /// A bomb that strikes a roof sinks into the thatch: a bed of loose
+  /// stalks a hand or two deep takes a falling stone in rather than
+  /// throwing it back, and holds it where it struck, so it neither bounces
+  /// off nor rolls down the slope as off a hard cone. The core's roof is a
+  /// hard cone, so the straw's hold is a slider along the roof's normal
+  /// where the bomb struck: the bomb cannot roll or slide down, but bears
+  /// on the roof with its weight, which is what presses the two together
+  /// for heat to pass between them.
   void _lodge() {
-    if (_caught.length == bombs.length) return;
-    final roofs = <NativeBody, Hut>{for (final h in _huts) h.roof: h};
-    for (final contact in _world.readContacts()) {
-      final (bomb, roof) = roofs.containsKey(contact.a)
-          ? (contact.b, contact.a)
-          : (contact.a, contact.b);
-      if (!roofs.containsKey(roof) || _caught.contains(bomb)) continue;
-      if (!bombs.any((b) => b.body == bomb)) continue;
-      // Sunk a few centimetres into the straw, and held there. A bomb this
-      // fast is found a step before it strikes, the gap still between it
-      // and the roof: it closes that first.
-      final at = _world.positionOf(bomb);
-      final gap = math.max(0.0, -contact.depth);
+    if (bombs.length == _lodged.length) return;
+    final roofs = <NativeBody>{for (final h in _huts) h.roof};
+    final flying = <NativeBody>{
+      for (final b in bombs)
+        if (!_lodged.contains(b.body)) b.body,
+    };
+    for (final c in _world.readContacts()) {
+      final bomb = flying.contains(c.a) && roofs.contains(c.b)
+          ? c.a
+          : flying.contains(c.b) && roofs.contains(c.a)
+          ? c.b
+          : null;
+      if (bomb == null || !_lodged.add(bomb)) continue;
+      final roof = bomb == c.a ? c.b : c.a;
       _world
-        ..setPosition(
-          bomb,
-          at - (at - contact.point).normalized() * (gap + _sinks),
-        )
         ..setVelocity(bomb, Vector3.zero())
         ..setAngularVelocity(bomb, Vector3.zero());
-      _world.setJointCollide(
-        _world.createJoint(
-          NativeJointType.fixed,
-          roof,
-          bomb,
-          anchor: contact.point,
-        ),
-        collide: true,
+      final hold = _world.createJoint(
+        NativeJointType.prismatic,
+        roof,
+        bomb,
+        anchor: _world.localPositionOf(bomb),
+        axis: c.normal,
       );
-      _caught.add(bomb);
+      _world.setJointCollide(hold, collide: true);
     }
   }
 
-  /// A bomb thrown from the crater to come down on a roof, give or take a
-  /// metre, in three and a half seconds: v = Δ/t − ½gt.
+  /// A bomb of molten rock in the crater, as hot as the lava it is torn
+  /// from, and a pocket of gas half a metre under it going off: the blast
+  /// throws it as the share of its momentum the bomb stands across says.
+  ///
+  /// The breach points it at one of the huts, a different one from bomb to
+  /// bomb, within a few degrees either way; the blast is as strong as
+  /// throws a bomb onto that hut's roof at forty-five degrees. The yard
+  /// between the huts is empty, so a bomb aimed at their middle comes down
+  /// on bare ground; and the crater stands some seventeen metres over the
+  /// roofs, so the level-ground range v = √(g·D) throws it ten metres past
+  /// them. A projectile launched at θ that comes down h lower over D
+  /// needs v² = g·D² / (2·cos²θ·(D·tanθ + h)), which at forty-five degrees
+  /// is g·D² / (D + h).
   void _throw() {
     final from = crater + Vector3(0, 1.0, 0);
-    final target =
-        _huts[_random.nextInt(_huts.length)].roofTop +
-        Vector3(
-          (_random.nextDouble() - 0.5) * 2.0,
-          0.0,
-          (_random.nextDouble() - 0.5) * 2.0,
-        );
-    const t = 3.5;
-    final v = (target - from) / t + Vector3(0, 0.5 * 9.81 * t, 0);
-    final body = _world.addBody(position: from, mass: 400.0);
+    final hut = _huts[_random.nextInt(_huts.length)];
+    final away = Vector3(hut.roofTop.x - from.x, 0.0, hut.roofTop.z - from.z);
+    final reach = away.length;
+    final drop = from.y - hut.roofTop.y;
+    final speed = reach * math.sqrt(_world.gravityMagnitude / (reach + drop));
+    final spread = (_random.nextDouble() - 0.5) * 2.0 * _aim;
+    final heading = Portable.sinCos(Portable.atan2(away.z, away.x) + spread);
+    final up = Portable.sinCos(
+      math.pi / 4 + (_random.nextDouble() - 0.5) * 2.0 * _aim,
+    );
+    final along = Vector3(up.cos * heading.cos, up.sin, up.cos * heading.sin);
+    final body = _world.addBody(position: from, mass: _bombMass);
     _world
-      ..setShape(body, const NativeShape.sphere(0.35))
+      ..setShape(body, const NativeShape.sphere(_bombRadius))
       ..setMaterial(body, NativeMaterial.stone())
-      ..setTemperature(body, 1300.0)
-      ..setVelocity(body, v);
+      ..setTemperature(body, 1300.0);
+    bombs.add(_drawn(body));
+    // The share of the blast's momentum a ball of the bomb's radius takes
+    // from [_pocket] off, its solid angle over the sphere's; and the
+    // momentum of a charge of energy E, √(2·0.71·E·m) with m = E / 4.184 MJ,
+    // TNT's Gurney share and its equivalent.
+    const r = _bombRadius / _pocket;
+    final share = 0.5 * (1.0 - math.sqrt(1.0 - r * r));
+    final momentum = _bombMass * speed / share;
+    final energy = momentum / math.sqrt(2.0 * 0.7115 / 4.184e6);
+    _world.explode(
+      from - along * _pocket,
+      NativeExplosion(energy: energy, mass: energy / 4.184e6),
+    );
+  }
+
+  /// [body] drawn as a bomb, in the scene.
+  Prop _drawn(NativeBody body) {
     final node = MeshNode(
       _bombMesh,
       covered('bomb', _basalt, repeat: Vector2(2.0, 1.0)),
       name: 'bomb',
     );
     _scene.add(node);
-    bombs.add(Prop(body, node));
+    return Prop(body, node);
   }
+
+  /// The clock, the dice, the vent and the bombs, flying and lodged, by
+  /// their bodies.
+  Map<String, Object?> save() => <String, Object?>{
+    'clock': _clock,
+    'next': _next,
+    'sinceBomb': _sinceBomb,
+    'pouring': _pouring,
+    'random': _random.state,
+    'bombs': <int>[for (final b in bombs) b.body.raw],
+    'lodged': <int>[for (final b in _lodged) b.raw],
+  };
+
+  /// Back to what [save] wrote, the world already restored under it: the
+  /// bombs drawn again for the bodies it names. The vent's flow came back
+  /// with the world.
+  void restore(Object? saved) {
+    if (saved case {
+      'clock': final num clock,
+      'next': final num next,
+      'sinceBomb': final num sinceBomb,
+      'pouring': final bool pouring,
+      'random': final num random,
+      'bombs': final List<Object?> flying,
+      'lodged': final List<Object?> lodged,
+    }) {
+      _clock = clock.toDouble();
+      _next = next.toDouble();
+      _sinceBomb = sinceBomb.toDouble();
+      _pouring = pouring;
+      _random.state = random.toInt();
+      for (final b in bombs) {
+        _scene.remove(b.node);
+      }
+      bombs
+        ..clear()
+        ..addAll(<Prop>[
+          for (final raw in flying.whereType<num>())
+            _drawn(NativeBody(raw.toInt())),
+        ]);
+      _lodged
+        ..clear()
+        ..addAll(<NativeBody>[
+          for (final raw in lodged.whereType<num>()) NativeBody(raw.toInt()),
+        ]);
+    }
+  }
+
+  /// A bomb's mass, kg, and radius, m; and how far under it the gas that
+  /// throws it is, m.
+  static const double _bombMass = 400.0, _bombRadius = 0.35, _pocket = 0.5;
+
+  /// How far off its line the breach lets a bomb go, either way, rad: three
+  /// degrees, the "few degrees" above.
+  static const double _aim = 3.0 * math.pi / 180.0;
 }

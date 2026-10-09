@@ -1,7 +1,6 @@
 @Tags(['golden', 'skip_very_good_optimization'])
 library;
 
-import 'package:flame/components.dart' show Vector2;
 import 'package:flame/game.dart' show FlameGame;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/services.dart'
@@ -11,7 +10,7 @@ import 'package:flutter/services.dart'
         KeyUpEvent,
         LogicalKeyboardKey,
         PhysicalKeyboardKey;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_camera_bridge.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_ecs_bridge.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_horde.dart';
@@ -88,15 +87,15 @@ void main() {
         final FlameInputBridge wasd = demo.seats.candidates[0];
         final FlameInputBridge arrows = demo.seats.candidates[1];
         expect(demo.seats.seated, isEmpty);
-        expect(demo.markers.every((MeshNode m) => !m.visible), isTrue);
+        expect(demo.markers.every((MeshNode m) => !m.isVisible), isTrue);
 
         // The second layout presses first, through the keyboard alone.
         _key(LogicalKeyboardKey.slash, PhysicalKeyboardKey.slash, true);
         _frames(demo.game, 1);
         _key(LogicalKeyboardKey.slash, PhysicalKeyboardKey.slash, false);
         expect(demo.seats.seated, <FlameInputBridge>[arrows]);
-        expect(demo.markers[1].visible, isTrue);
-        expect(demo.markers[0].visible, isFalse);
+        expect(demo.markers[1].isVisible, isTrue);
+        expect(demo.markers[0].isVisible, isFalse);
 
         // Held, the join key seats nobody else on later frames.
         _frames(demo.game, 5);
@@ -107,8 +106,8 @@ void main() {
         _key(LogicalKeyboardKey.space, PhysicalKeyboardKey.space, false);
         expect(demo.seats.seated, <FlameInputBridge>[arrows, wasd]);
         // Player one wears the first seat's colour, whichever layout it is.
-        expect(demo.markers[1].material.baseColor.x, greaterThan(0.9));
-        expect(demo.markers[0].material.baseColor.z, greaterThan(0.9));
+        expect(demo.markers[1].material.baseColor.toSrgb().r, greaterThan(0.9));
+        expect(demo.markers[0].material.baseColor.toSrgb().b, greaterThan(0.9));
 
         // A seated player walks with its own keys, and only its marker goes.
         final double arrowsX = demo.markers[1].readPosition().x;
@@ -256,7 +255,10 @@ void main() {
           (SceneNode n) => n.name == 'landing pad',
         );
         // Flame heard the landing and the pad answered by turning green.
-        expect((pad as MeshNode).material.baseColor.y, greaterThan(0.5));
+        expect(
+          (pad as MeshNode).material.baseColor.toSrgb().g,
+          greaterThan(0.5),
+        );
       } finally {
         run.dispose();
       }

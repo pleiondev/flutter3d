@@ -9,7 +9,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DecalsDemo extends ShowcaseDemo {
   bool decals = true;
@@ -35,10 +34,10 @@ final class DecalsDemo extends ShowcaseDemo {
     String name,
     Vector3 size,
     Vector3 at,
-    Vector4 colour,
+    Vector4 color,
   ) => MeshNode(
     DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-    Material(name: name, baseColor: colour, roughness: 0.8),
+    RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.8),
     name: name,
   )..setPositionFrom(at);
 
@@ -46,8 +45,8 @@ final class DecalsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region room
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.55, 0.6, 0.7)
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(
         _slab(
           context,
@@ -78,30 +77,45 @@ final class DecalsDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.0, castsShadow: true)
-          ..setLocalForward(Vector3(-0.4, -0.8, -0.35)),
+        LightNode(
+          name: 'sun',
+          intensity: 2.0 * Photometric.legacyUnit,
+          castsShadow: true,
+        )..setLocalForward(Vector3(-0.4, -0.8, -0.35)),
       );
     // #endregion room
 
     // #region floor
     // With no rotation a decal's box lies flat and stamps down its own y
     // axis: x and z are the size of the picture, y how deep it reaches.
-    _stain = DecalNode(name: 'stain', color: Vector4(0.85, 0.2, 0.1, opacity))
-      ..setPosition(0.3, 0.0, 0.3)
-      ..setScale(2.0, 1.4, 2.0);
-    _puddle = DecalNode(name: 'puddle', color: Vector4(0.15, 0.3, 0.9, opacity))
-      ..setPosition(-0.6, 0.0, 0.6)
-      ..setScale(1.8, 0.4, 1.4);
+    _stain =
+        DecalNode(
+            name: 'stain',
+            color: LinearColor.fromSrgb(0.85, 0.2, 0.1, opacity),
+          )
+          ..setPosition(0.3, 0.0, 0.3)
+          ..setScale(2.0, 1.4, 2.0);
+    _puddle =
+        DecalNode(
+            name: 'puddle',
+            color: LinearColor.fromSrgb(0.15, 0.3, 0.9, opacity),
+          )
+          ..setPosition(-0.6, 0.0, 0.6)
+          ..setScale(1.8, 0.4, 1.4);
     scene
       ..add(_stain)
       ..add(_puddle);
     // #endregion floor
 
-    // #region wall
+    // #region wall().toLinearColor()
     // On a wall the box is turned until its up points out of the wall.
-    _sign = DecalNode(name: 'sign', color: Vector4(0.95, 0.8, 0.1, 1.0))
-      ..setPosition(-1.2, 1.6, -1.95)
-      ..setScale(1.4, 0.3, 0.8);
+    _sign =
+        DecalNode(
+            name: 'sign',
+            color: LinearColor.fromSrgb(0.95, 0.8, 0.1, 1.0),
+          )
+          ..setPosition(-1.2, 1.6, -1.95)
+          ..setScale(1.4, 0.3, 0.8);
     _sign.setRotation(
       Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
     );
@@ -123,8 +137,8 @@ final class DecalsDemo extends ShowcaseDemo {
     // under ninety keeps the stain off them, one past it paints them too.
     _stain.angleLimit = angleLimitDegrees * math.pi / 180.0;
     // #endregion angle
-    _stain.color.w = opacity;
-    _puddle.color.w = opacity;
+    _stain.color = _stain.color.withAlpha(opacity);
+    _puddle.color = _puddle.color.withAlpha(opacity);
   }
 
   @override
@@ -182,3 +196,6 @@ final class DecalsDemo extends ShowcaseDemo {
     // #endregion check
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

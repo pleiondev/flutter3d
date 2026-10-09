@@ -24,7 +24,7 @@ final class ModelPiece {
     this.mesh,
     this.data,
     this.place,
-    this.colour,
+    this.color,
     this.picture,
   );
 
@@ -36,7 +36,7 @@ final class ModelPiece {
   /// small model into one mesh rather than drawing each.
   final MeshData data;
   final Matrix4 place;
-  final Vector4 colour;
+  final Vector4 color;
   final TextureHandle? picture;
 }
 
@@ -78,7 +78,7 @@ final class ReefModel {
       final material = underWith(
         floor,
         piece.name,
-        recolour?.call(piece.name) ?? piece.colour,
+        recolour?.call(piece.name) ?? piece.color,
         picture: piece.picture,
         roughness: roughness,
       );
@@ -110,22 +110,22 @@ final class ReefModel {
   ) {
     final data = piece.data;
     final stride = data.layout.floatsPerVertex;
-    final colourAt = data.layout.floatOffsetOf(VertexLayout.color.name);
+    final colorAt = data.layout.floatOffsetOf(VertexLayout.color.name);
     final vertices = Float32List.fromList(data.vertices);
-    if (colourAt < 0) return data;
+    if (colorAt < 0) return data;
     for (var o = 0; o < vertices.length; o += stride) {
-      final colour = painted(
+      final color = painted(
         piece.name,
         piece.place.transformed3(
           Vector3(vertices[o], vertices[o + 1], vertices[o + 2]),
         ),
       );
-      if (colour == null) continue;
+      if (color == null) continue;
       vertices
-        ..[o + colourAt] = colour.x
-        ..[o + colourAt + 1] = colour.y
-        ..[o + colourAt + 2] = colour.z
-        ..[o + colourAt + 3] = colour.w;
+        ..[o + colorAt] = color.x
+        ..[o + colorAt + 1] = color.y
+        ..[o + colorAt + 2] = color.z
+        ..[o + colorAt + 3] = color.w;
     }
     return MeshData(
       layout: data.layout,
@@ -161,22 +161,32 @@ MeshData insideOut(MeshData mesh) {
 /// the sea's shader reads the base colour as texture times colour times
 /// vertex colour, so a model's own picture comes through the water as it
 /// does on land.
-Material underWith(
+///
+/// A [relief], a normal map read along the same coordinates as the
+/// picture, bends the light over it as the engine's own light loop bends it
+/// for any lit material: the sea's material is one, its sun handed in by
+/// that loop.
+RenderMaterial underWith(
   SeabedLook floor,
   String name,
-  Vector4 colour, {
+  Vector4 color, {
   TextureHandle? picture,
+  TextureHandle? relief,
   double roughness = 0.85,
   bool doubleSided = false,
   MaterialAlphaMode alphaMode = MaterialAlphaMode.opaque,
-}) => Material(
+}) => RenderMaterial(
   name: name,
   lighting: floor.material.lighting,
   parameters: floor.material.parameters,
-  baseColor: colour,
+  baseColor: _fromSrgb(color),
   roughness: roughness,
   albedo: picture,
   albedoSampler: picture == null
+      ? null
+      : samplerOptionsFor(const TextureSampling()),
+  normal: relief,
+  normalSampler: relief == null
       ? null
       : samplerOptionsFor(const TextureSampling()),
   doubleSided: doubleSided,
@@ -193,6 +203,7 @@ final class ReefLooks {
     required this.rocks,
     required this.sand,
     required this.reefRock,
+    required this.reefRelief,
   });
 
   /// The ship, cut down to her bottom; keel at nought, bow along +x.
@@ -210,9 +221,11 @@ final class ReefLooks {
   final List<ReefModel> rocks;
 
   /// The sand, and the rock of the reef, each a picture that repeats; the
-  /// rock's alpha is its height, crevice to crest.
+  /// rock's alpha is its height, crevice to crest, and [reefRelief] the
+  /// same rock's normal map, texel for texel over its picture.
   final TextureHandle sand;
   final TextureHandle reefRock;
+  final TextureHandle reefRelief;
 
   static Future<ReefLooks> load(GraphicsDevice device) async {
     Future<ReefModel> model(String file) =>
@@ -239,6 +252,7 @@ final class ReefLooks {
       ],
       sand: await picture('sand.jpg'),
       reefRock: await picture('reef_rock.png'),
+      reefRelief: await picture('reef_rock_normal.jpg'),
     );
   }
 
@@ -265,7 +279,9 @@ final class ReefLooks {
           DeviceMesh.upload(device, surface.mesh),
           surface.mesh,
           surface.transform,
-          material?.baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
+          material == null
+              ? Vector4(1.0, 1.0, 1.0, 1.0)
+              : _srgbVector(material.baseColor),
           texture == null ? null : await picture(texture.imageIndex),
         ),
       );
@@ -280,4 +296,13 @@ final class ReefLooks {
           ),
     });
   }
+}
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);
+
+/// [color] sRGB-encoded, as the `Vector4` this file paints with.
+Vector4 _srgbVector(LinearColor color) {
+  final srgb = color.toSrgb();
+  return Vector4(srgb.r, srgb.g, srgb.b, srgb.a);
 }

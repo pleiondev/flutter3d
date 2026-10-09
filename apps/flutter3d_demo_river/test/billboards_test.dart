@@ -127,7 +127,7 @@ void main() {
     final it = cpuTestDevice(width: 160, height: 90);
     late final RiverGame game;
     final camera = CameraNode(
-      projection: const PerspectiveProjection(fovYRadians: 0.85, far: 400.0),
+      projection: const PerspectiveProjection(fovY: 0.85, far: 400.0),
     );
     await tester.runAsync(() async {
       game = await initializeGame(() => RiverGame(billboards: true));
@@ -154,11 +154,14 @@ void main() {
         height: 90,
         scene: game.scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.27, 0.48, 0.78, 1)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.27, 0.48, 0.78, 1),
+          ),
         ],
         settings: const RenderSettings(),
       );
-      final pixels = (await it.device.readPixels(result.frame))!;
+      final pixels = await it.device.readback(result.frame);
       final rgba = pixels.buffer.asUint8List();
       var count = 0;
       for (var i = 0; i < rgba.length; i += 4) {

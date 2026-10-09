@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PlanarReflectionsDemo extends ShowcaseDemo {
   bool reflections = true;
@@ -34,9 +33,9 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
         context.device,
         const PlaneShape(width: 14, depth: 14).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'polished floor',
-        baseColor: Vector4(0.08, 0.08, 0.09, 1.0),
+        baseColor: LinearColor.fromSrgb(0.08, 0.08, 0.09, 1.0),
         roughness: 0.2,
       ),
       name: 'floor',
@@ -44,10 +43,10 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
     // #endregion floor
 
     final Scene scene = Scene()
-      ..ambientIntensity = 0.3
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(floor)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.5, -0.7, -0.4)),
       );
 
@@ -60,7 +59,10 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
             context.device,
             SphereShape(radius: 0.8, segments: 32, rings: 16).build(),
           ),
-          Material(name: 'red', baseColor: Vector4(0.8, 0.12, 0.1, 1.0)),
+          RenderMaterial(
+            name: 'red',
+            baseColor: LinearColor.fromSrgb(0.8, 0.12, 0.1, 1.0),
+          ),
           name: 'ball',
         )..setPosition(-1.2, 0.8, 0.4),
       )
@@ -70,9 +72,9 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'gold',
-            baseColor: Vector4(1.0, 0.75, 0.3, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 0.75, 0.3, 1.0),
             metallic: 1.0,
             roughness: 0.3,
           ),
@@ -85,7 +87,10 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(0.4, 3.0, 0.4)).build(),
           ),
-          Material(name: 'blue', baseColor: Vector4(0.15, 0.3, 0.8, 1.0)),
+          RenderMaterial(
+            name: 'blue',
+            baseColor: LinearColor.fromSrgb(0.15, 0.3, 0.8, 1.0),
+          ),
           name: 'post',
         )..setPosition(0.2, 1.5, -2.0),
       );

@@ -16,9 +16,11 @@ name, exactly as `assets/CREDITS.md` lists them:
 Every glb this writes is static and self-contained: one mesh per material,
 positions, normals and texture coordinates (and colours where the source had
 them), the base colour texture embedded as a JPEG and nothing else. The game
-draws every one of them with the sea floor's own material, which reads the base
-colour and nothing more, so normal, roughness and occlusion maps would be bytes
-shipped for nobody.
+draws every one of them with the sea floor's own material, plain but for the
+picture, so a model's normal, roughness and occlusion maps would be bytes
+shipped for nobody. The reef rock alone keeps its normal map: the wall is
+drawn close enough for the relief of its rock to be seen, and that relief is
+what the map is.
 
 What is changed on the way is said beside each model below: the ship is cut
 down to what a wooden hull keeps after a century on the bottom, and the man is
@@ -514,6 +516,18 @@ def textures(downloads):
     image.thumbnail((768, 768), Image.LANCZOS)
     image.save(TEXTURES / "reef_rock.png", optimize=True)
     print("assets/textures/reef_rock.png")
+    relief(downloads)
+
+
+def relief(downloads):
+    """The reef rock's relief: its published normal map, the OpenGL one
+    (green up the picture), at the colour's 768 a side so the two lie on
+    each other texel for texel."""
+    rock = downloads / "Rock053"
+    image = Image.open(rock / "Rock053_1K-JPG_NormalGL.jpg").convert("RGB")
+    image.thumbnail((768, 768), Image.LANCZOS)
+    image.save(TEXTURES / "reef_rock_normal.jpg", quality=90, optimize=True)
+    print("assets/textures/reef_rock_normal.jpg")
 
 
 def main():

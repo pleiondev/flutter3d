@@ -1,69 +1,10 @@
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
+import 'package:flutter3d_game_kit/soundtrack.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sounds.dart';
-
-/// What is happening to a sound that has a lifetime.
-enum Voice {
-  /// Start it, at [Sustained.at].
-  begin,
-
-  /// It is still running, and this is where it is now.
-  follow,
-
-  /// Stop it.
-  end,
-}
-
-/// A sound with a lifetime: it starts, it follows the thing making it, and it
-/// stops.
-///
-/// **Still this game's, while [Heard] moved to the audio package.** The rule is
-/// the second consumer, and there is not one: the platformer has no sound that
-/// outlives a step, and the racing game's engine is not this shape either — it
-/// is one voice per car that never stops and is modulated rather than begun and
-/// ended. Moving this on the strength of one user would be guessing what the
-/// second one needs, and the second one is exactly what makes a shape right.
-///
-/// **Not the same as a [Heard], and the difference is the whole reason this
-/// class exists.** A shot is over before the next step; a stone door grinding
-/// open runs for as long as the door moves, has to be repositioned while it
-/// runs, and has to be stopped by the same key that started it. Emitting that
-/// as a one-shot per step would be a door that stutters instead of grinds.
-///
-/// The lifetime is decided here rather than in the caller, which is what makes
-/// the caller a player rather than a bookkeeper: it holds a map of voices by
-/// key and does exactly what each of these says.
-final class Sustained {
-  const Sustained.begin(this.key, SoundDef this.sound, Vector3 this.at)
-    : what = Voice.begin;
-  const Sustained.follow(this.key, Vector3 this.at)
-    : what = Voice.follow,
-      sound = null;
-  const Sustained.end(this.key) : what = Voice.end, sound = null, at = null;
-
-  final Voice what;
-
-  /// Whatever is making the noise. The mechanism itself, so two doors are two
-  /// voices and the same door twice is one.
-  final Object key;
-
-  /// Only on [Voice.begin]: which sound to start.
-  final SoundDef? sound;
-
-  /// Where it is now. Null only when stopping.
-  final Vector3? at;
-}
-
-/// Everything one step made a noise about.
-final class Sounding {
-  const Sounding(this.once, this.loops);
-
-  final List<Heard> once;
-  final List<Sustained> loops;
-}
 
 /// What a step of this game sounds like.
 ///
@@ -81,7 +22,44 @@ final class Sounding {
 ///
 /// Playing, stopping and repositioning are somebody else's. This decides.
 final class Soundtrack {
-  Soundtrack({this.stride = 1.9});
+  Soundtrack({this.stride = 1.9}) : _feet = Footsteps(stride: stride) {
+    _cues
+      ..on<ShotFired>((ShotFired event, List<Heard> out) {
+        // At the eye rather than at the muzzle, for the same reason the shot
+        // starts there: a sound half a metre to one side pans audibly wrong
+        // when the player is against a wall.
+        out.add(Heard(forWeapon(event.weapon), event.from));
+      })
+      ..on<ActorDied>((ActorDied event, List<Heard> out) {
+        final where = event.actor.position;
+        if (where != null) out.add(Heard(Sounds.monsterDie, where));
+      })
+      ..on<ActorHurt>((ActorHurt event, List<Heard> out) {
+        // Only the ones that flinched. A hit that did not stagger reads as a
+        // hit that did not land, and every hit screaming is worse than none.
+        final where = event.actor.position;
+        if (event.staggered && where != null) {
+          out.add(Heard(Sounds.monsterPain, where));
+        }
+      })
+      ..on<SequenceSignal>((SequenceSignal event, List<Heard> out) {
+        // A cutscene names the sound it wants and where, in the level's own
+        // document; a name this bank has not got is silence rather than a
+        // guess. Where it is not said, at the player.
+        final named = event.data['sound'];
+        final sound = Sounds.all
+            .where((SoundDef s) => s.name == named)
+            .firstOrNull;
+        if (sound != null) {
+          out.add(Heard(sound, _place(event.data['at']) ?? _at));
+        }
+      })
+      ..on<MechanismUsed>((MechanismUsed event, List<Heard> out) {
+        // A door that will not open. The refusal is the simulation's; saying
+        // so is this.
+        if (event.outcome is Refused) out.add(Heard(Sounds.locked, _at));
+      });
+  }
 
   /// How far the player walks between footsteps, in metres.
   ///
@@ -92,9 +70,15 @@ final class Soundtrack {
   /// somebody else's look.
   final double stride;
 
-  double _sinceStep = 0.0;
-  final Vector3 _wasAt = Vector3.zero();
-  bool _placed = false;
+  final Footsteps _feet;
+
+  /// What each event sounds like: the soundtrack addon's cue sheet, with this
+  /// game's rows.
+  final CueSheet _cues = CueSheet();
+
+  /// Where the player is on the step being heard, for the cues that sound
+  /// there.
+  Vector3 _at = Vector3.zero();
 
   /// The mechanisms whose voices are running, so this can say where each one is
   /// on every step. Held here rather than by the caller for the same reason
@@ -112,49 +96,41 @@ final class Soundtrack {
         )
       : null;
 
-  /// Called once per simulation step, in order.
+  /// The cue sheet heard from the engine's bus and played through [scene]:
+  /// what the game installs.
+  ///
+  /// **The events' half only.** The footsteps and the machinery are not
+  /// events — a distance walked, a mover's voice held while it travels — and
+  /// are heard in the step by [listenStep]. The sheet's rows are played on
+  /// the frame channel, after the frame's steps, in the same frame.
+  SoundtrackPlugin plugin({required AudioScene Function() scene}) =>
+      SoundtrackPlugin(_cues, scene: scene);
+
+  /// Everything a step sounds like: what the sheet makes of [events], then
+  /// [listenStep]'s. The two halves the game hears apart, together, for a
+  /// test that steps the simulation by hand.
   Sounding listen(GameSimulation sim, Player player, List<GameEvent> events) {
+    _at = player.body.position;
+    final once = <Heard>[];
+    _cues.hear(events, once);
+    final step = listenStep(sim, player);
+    return Sounding(<Heard>[...once, ...step.once], step.loops);
+  }
+
+  /// What a step sounds like that is not an event: the machinery and the
+  /// player's footsteps. Called once per simulation step, in order.
+  Sounding listenStep(GameSimulation sim, Player player) {
     final once = <Heard>[];
     final loops = <Sustained>[];
     final at = player.body.position;
-
-    for (final GameEvent event in events) {
-      switch (event) {
-        case ShotFired():
-          // At the eye rather than at the muzzle, for the same reason the shot
-          // starts there: a sound half a metre to one side pans audibly wrong
-          // when the player is against a wall.
-          once.add(Heard(forWeapon(event.weapon), event.from));
-        case ActorDied():
-          final where = event.actor.position;
-          if (where != null) once.add(Heard(Sounds.monsterDie, where));
-        case ActorHurt():
-          // Only the ones that flinched. A hit that did not stagger reads as a
-          // hit that did not land, and every hit screaming is worse than none.
-          final where = event.actor.position;
-          if (event.staggered && where != null) {
-            once.add(Heard(Sounds.monsterPain, where));
-          }
-        case SequenceSignal(:final data):
-          // A cutscene names the sound it wants and where, in the level's
-          // own document; a name this bank has not got is silence rather
-          // than a guess. Where it is not said, at the player.
-          final named = data['sound'];
-          final sound = Sounds.all
-              .where((SoundDef s) => s.name == named)
-              .firstOrNull;
-          if (sound != null) once.add(Heard(sound, _place(data['at']) ?? at));
-        case MechanismUsed(outcome: Refused()):
-          // A door that will not open. The refusal is the simulation's; saying
-          // so is this.
-          once.add(Heard(Sounds.locked, at));
-      }
-    }
+    _at = at;
 
     final mechanisms = sim.mechanisms;
     if (mechanisms != null) _machinery(mechanisms, at, once, loops);
 
-    _step(player, at, once);
+    if (_feet.walked(at, grounded: player.body.isGrounded)) {
+      once.add(Heard(Sounds.step, at));
+    }
     return Sounding(once, loops);
   }
 
@@ -208,35 +184,9 @@ final class Soundtrack {
     }
   }
 
-  /// Footsteps, paid for in metres travelled on the ground.
-  void _step(Player player, Vector3 at, List<Heard> out) {
-    if (!_placed) {
-      _wasAt.setFrom(at);
-      _placed = true;
-      return;
-    }
-
-    final moved = Vector3(at.x - _wasAt.x, 0.0, at.z - _wasAt.z).length;
-    _wasAt.setFrom(at);
-
-    // Only while the feet are down. A player crossing a gap covers ground and
-    // takes no steps, and hearing footsteps in mid-air is the sort of thing
-    // nobody reports and everybody notices.
-    if (!player.body.isGrounded) {
-      _sinceStep = stride * 0.6;
-      return;
-    }
-
-    _sinceStep += moved;
-    if (_sinceStep < stride) return;
-    _sinceStep = 0.0;
-    out.add(Heard(Sounds.step, at));
-  }
-
   /// For a level change or a restart: a fresh level makes its own noises.
   void reset() {
-    _sinceStep = 0.0;
-    _placed = false;
+    _feet.reset();
     _running.clear();
   }
 }

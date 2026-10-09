@@ -8,9 +8,9 @@ import 'package:flutter/material.dart' show KeyEventResult;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_demo_platformer/src/photo_mode.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
   physicalKey: PhysicalKeyboardKey.keyA,
@@ -18,7 +18,7 @@ KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
   timeStamp: Duration.zero,
 );
 
-PhotoMode _open() => PhotoMode()
+PhotoMode _open() => runnerPhotoMode()
   ..enter(
     world: CollisionWorld()..update(),
     eye: Vector3(0.0, 2.0, 5.0),
@@ -62,7 +62,7 @@ void main() {
   });
 
   test('a closed photo mode takes no keys, and a busy one takes them all', () {
-    final closed = PhotoMode();
+    final closed = runnerPhotoMode();
     expect(
       closed.key(_down(LogicalKeyboardKey.enter), onCapture: (_) {}),
       isNull,
@@ -70,7 +70,7 @@ void main() {
     // Mutation: drop the `busy` check. A second Enter while a 4x picture is
     // drawing starts another capture on the same renderer.
     final asked = <int>[];
-    final busy = _open()..busy = true;
+    final busy = _open()..isBusy = true;
     expect(
       busy.key(_down(LogicalKeyboardKey.enter), onCapture: asked.add),
       KeyEventResult.handled,
@@ -83,7 +83,7 @@ void main() {
     final input = InputState()..press(GameAction.moveForward);
     final node = CameraNode(projection: const PerspectiveProjection());
     mode
-      ..fly(input, Vector2.zero(), 0.5)
+      ..fly(0.5, input: input, look: Vector2.zero())
       ..applyTo(node);
     // Two metres along the view, which looks from (0, 2, 5) at the origin.
     expect(node.readPosition().z, lessThan(5.0 - 1.0));

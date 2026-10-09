@@ -10,10 +10,13 @@ import 'package:flutter3d_showcase/pages/post/anti_aliasing.dart';
 import 'package:flutter3d_showcase/pages/post/auto_exposure.dart';
 import 'package:flutter3d_showcase/pages/post/bloom.dart';
 import 'package:flutter3d_showcase/pages/post/color_grading.dart';
+import 'package:flutter3d_showcase/pages/post/colour_vision.dart';
+import 'package:flutter3d_showcase/pages/post/debug_views.dart';
 import 'package:flutter3d_showcase/pages/post/depth_of_field.dart';
 import 'package:flutter3d_showcase/pages/post/disabled_passes.dart';
 import 'package:flutter3d_showcase/pages/post/high_contrast.dart';
 import 'package:flutter3d_showcase/pages/post/horizon_occlusion.dart';
+import 'package:flutter3d_showcase/pages/post/lens_effects.dart';
 import 'package:flutter3d_showcase/pages/post/light_shafts.dart';
 import 'package:flutter3d_showcase/pages/post/local_exposure.dart';
 import 'package:flutter3d_showcase/pages/post/lut_grading.dart';
@@ -53,4 +56,7 @@ final Map<String, DemoBuilder> postDemos = <String, DemoBuilder>{
   'horizon-occlusion': HorizonOcclusionDemo.new,
   'local-exposure': LocalExposureDemo.new,
   'high-contrast': HighContrastDemo.new,
+  'lens-effects': LensEffectsDemo.new,
+  'debug-views': DebugViewsDemo.new,
+  'colour-vision': ColourVisionDemo.new,
 };

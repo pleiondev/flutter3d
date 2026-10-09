@@ -14,13 +14,13 @@ import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-/// A sphere with enough triangles that three different [LodSpec] ratios
+/// A sphere with enough triangles that three different [LodSettings] ratios
 /// actually land on three different triangle counts, unlike a cuboid's
 /// twelve — `simplifyMeshWithAttributes` hands a mesh back unchanged the
 /// moment its own triangle count is already at or under what was asked for.
 MeshData _testMesh() => const SphereShape(segments: 24, rings: 12).build();
 
-ModelObject _objectWith(List<LodSpec> lods) => ModelObject(
+ModelObject _objectWith(List<LodSettings> lods) => ModelObject(
   id: 1,
   name: 'subject',
   geometry: ImportedGeometry(_testMesh()),
@@ -28,10 +28,10 @@ ModelObject _objectWith(List<LodSpec> lods) => ModelObject(
   lods: lods,
 );
 
-const List<LodSpec> _threeLevels = <LodSpec>[
-  LodSpec(ratio: 1.0, maxScreenFraction: 1.0),
-  LodSpec(ratio: 0.5, maxScreenFraction: 0.4),
-  LodSpec(ratio: 0.15, maxScreenFraction: 0.1),
+const List<LodSettings> _threeLevels = <LodSettings>[
+  LodSettings(ratio: 1.0, maxScreenFraction: 1.0),
+  LodSettings(ratio: 0.5, maxScreenFraction: 0.4),
+  LodSettings(ratio: 0.15, maxScreenFraction: 0.1),
 ];
 
 Future<void> show(

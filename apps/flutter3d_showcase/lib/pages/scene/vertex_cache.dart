@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VertexCacheDemo extends ShowcaseDemo {
   double _beforeRatio = 0.0;
@@ -75,21 +74,21 @@ final class VertexCacheDemo extends ShowcaseDemo {
     // #endregion rebuild
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.44, 0.5, 0.66)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.44, 0.5, 0.66)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, reordered),
-          Material(
+          RenderMaterial(
             name: 'sphere',
-            baseColor: Vector4(0.3, 0.62, 0.86, 1.0),
+            baseColor: LinearColor.fromSrgb(0.3, 0.62, 0.86, 1.0),
             roughness: 0.5,
           ),
           name: 'sphere',
         ),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.2)
+        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.36)),
       );
     return scene;

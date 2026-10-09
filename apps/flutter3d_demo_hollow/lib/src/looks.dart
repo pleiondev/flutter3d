@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Everything the valley's meshes are drawn with besides plain colour.
 ///
@@ -102,7 +101,7 @@ final LightingModel repeating = LightingModel.pbr.withLayers(
 /// A material of its own (so a fire can char it alone) covered in [map],
 /// repeating [repeat] times across the mesh's own coordinates, tinted by
 /// [tint] (sRGB, as the photograph is), its relief from [relief] if given.
-Material covered(
+RenderMaterial covered(
   String name,
   TextureHandle? map, {
   Vector4? tint,
@@ -111,11 +110,13 @@ Material covered(
   double roughness = 0.9,
 }) {
   final scale = repeat ?? Vector2(1.0, 1.0);
-  return Material(
+  return RenderMaterial(
     name: name,
     lighting: repeating,
     albedo: map,
-    baseColor: tint,
+    baseColor: tint == null
+        ? LinearColor.white
+        : LinearColor.fromSrgb(tint.x, tint.y, tint.z, tint.w),
     normal: relief,
     roughness: roughness,
     textureTransforms: <MaterialMap, TextureTransform>{

@@ -6,7 +6,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BloomDemo extends ShowcaseDemo {
   double threshold = 1.0;
@@ -29,11 +28,11 @@ final class BloomDemo extends ShowcaseDemo {
         context.device,
         const SphereShape(radius: 0.25, segments: 24, rings: 12).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'lamp',
-        baseColor: Vector4(0.1, 0.1, 0.1, 1.0),
-        emissive: Vector3(1.0, 0.85, 0.6),
-        emissiveStrength: 9.0,
+        baseColor: LinearColor.fromSrgb(0.1, 0.1, 0.1, 1.0),
+        emissive: LinearColor(1.0, 0.85, 0.6),
+        emissiveStrength: 9.0 * Photometric.legacyNits,
       ),
       name: 'lamp',
     )..setPosition(1.0, 2.3, 0.7);

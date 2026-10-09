@@ -71,6 +71,7 @@ final class Wreck {
     world
       ..setCompound(body, shape)
       ..setOrientation(body, turn);
+    bodies.add(body);
     final ship = SceneNode(name: 'wreck')
       ..setPosition(wreckX, wreckFloor, wreckZ)
       ..setRotation(turn);
@@ -131,6 +132,7 @@ final class Wreck {
     world
       ..setShape(mast, const NativeShape.cylinder(0.2, 6.0))
       ..setOrientation(mast, lying);
+    bodies.add(mast);
     // Snapped a third of the way up: the stump end ragged, the top with its
     // cap still on, half in the sand.
     ship.add(
@@ -169,10 +171,95 @@ final class Wreck {
     scene.add(ship);
   }
 
+  /// Her timbers and her mast, as the world has them.
+  final List<NativeBody> bodies = <NativeBody>[];
+
   /// How deep her hull is sunk in the sand, m: down to where her sides
   /// begin to turn under, so what stands of her stands as high as her
   /// timbers do.
   static const double _sunk = 0.6;
+}
+
+/// Where the hull that is drawn stands, read off its own vertices: for
+/// each half metre of her length and each quarter metre of height, how far
+/// out her planking is on either side. What grows on the reef asks it
+/// whether a branch would be inside her, and where her side is to grow on.
+///
+/// Her boxes are what the diver meets of her, and are narrower than the
+/// planking at her turn of bilge and lower at her ends, where her stern
+/// stands near six metres over the sand: asked of them, a sea fan could
+/// stand through her planking into the hold.
+final class HullRoom {
+  /// The hull from the [pieces] of the model `wreck.dart` draws her with,
+  /// each its vertices and where it sits in the model.
+  HullRoom(Iterable<(MeshData, Matrix4)> pieces) {
+    for (final (data, place) in pieces) {
+      final v = data.vertices;
+      final stride = data.layout.floatsPerVertex;
+      for (var o = 0; o < v.length; o += stride) {
+        final p = place.transformed3(Vector3(v[o], v[o + 1], v[o + 2]));
+        // Her frame as drawn: along her keel, up from the sand at her
+        // middle, across to starboard.
+        final key = (_slice(p.x), _band(p.y - Wreck._sunk), p.z >= 0.0);
+        final out = p.z.abs();
+        if (out > (_out[key] ?? -1.0)) _out[key] = out;
+      }
+    }
+  }
+
+  /// How far out her planking stands, by slice of her length, band of
+  /// height and side, starboard true.
+  final Map<(int, int, bool), double> _out = <(int, int, bool), double>{};
+
+  static const double _length = 0.5, _height = 0.25;
+  static int _slice(double along) => (along / _length).floor();
+  static int _band(double up) => (up / _height).floor();
+
+  /// [at] in her frame: along her keel from her middle, up from the sand
+  /// there, and across to starboard.
+  static Vector3 frame(Vector3 at) {
+    final dx = at.x - wreckX, dz = at.z - wreckZ;
+    return Vector3(
+      dx * wreckTurn.cos + dz * wreckTurn.sin,
+      at.y - wreckFloor,
+      -dx * wreckTurn.sin + dz * wreckTurn.cos,
+    );
+  }
+
+  /// [frame] undone: the point [along], [up] and [across] in her frame.
+  static Vector3 world(double along, double up, double across) => Vector3(
+    wreckX + along * wreckTurn.cos - across * wreckTurn.sin,
+    wreckFloor + up,
+    wreckZ + along * wreckTurn.sin + across * wreckTurn.cos,
+  );
+
+  /// Whether [at] is inside her, or within [margin] of her planking: within
+  /// her widest planking, either side, over the slices and bands [reach]
+  /// round it — one by default, as her vertices may stand that far apart
+  /// along a long plank; nought for what grows on her side, which stands
+  /// past her planking in its own slice and band. The hold counts as inside
+  /// up to her standing side where the other has broken away, and above her
+  /// highest timbers nothing is.
+  bool holds(Vector3 at, {double margin = 0.0, int reach = 1}) {
+    final p = frame(at);
+    final i = _slice(p.x), j = _band(p.y);
+    var widest = -1.0;
+    for (var di = -reach; di <= reach; di++) {
+      for (var dj = -reach; dj <= reach; dj++) {
+        for (final starboard in const <bool>[false, true]) {
+          final out = _out[(i + di, j + dj, starboard)];
+          if (out != null && out > widest) widest = out;
+        }
+      }
+    }
+    return widest >= 0.0 && p.z.abs() < widest + margin;
+  }
+
+  /// How far out her planking stands on the [starboard] side or the other,
+  /// [along] her keel and [up] over the sand, or null where she has no side
+  /// there.
+  double? side(double along, double up, {required bool starboard}) =>
+      _out[(_slice(along), _band(up), starboard)];
 }
 
 /// The dive boat: afloat, anchored over the reef flat.
@@ -187,28 +274,7 @@ final class Boat {
     _world
       ..setShape(body, NativeShape.box(Vector3(2.4, 0.4, 1.0)))
       ..lockRotation(body);
-    final anchor = _world.addBody(
-      position: Vector3(boatX - 6.0, floorAt(boatX - 6.0, boatZ) + 0.2, boatZ),
-      type: NativeBodyType.fixed,
-      mass: 0.0,
-    );
-    _world.setShape(anchor, const NativeShape.sphere(0.2));
-    final rope = _world.createDistanceJoint(
-      anchor,
-      body,
-      anchorA: _world.positionOf(anchor),
-      anchorB: _world.positionOf(body) + Vector3(-2.2, 0, 0),
-    );
-    _world
-      ..setJointSpring(rope, (hertz: 0.0, damping: 0.0))
-      ..setJointLength(
-        rope,
-        length:
-            (_world.positionOf(anchor) - _world.positionOf(body)).length + 1.0,
-        least: 0.0,
-        most:
-            (_world.positionOf(anchor) - _world.positionOf(body)).length + 1.0,
-      );
+    _drop();
     // Bow to the west, into the current, with the anchor's rope off her
     // stem: the way a boat lies at anchor in a stream.
     look = launchLook(device)
@@ -220,7 +286,78 @@ final class Boat {
   late final NativeBody body;
   late final SceneNode look;
 
-  Vector3 get position => _world.positionOf(body);
+  /// What the launch's engine pulls with at a standstill, N: a small
+  /// inboard's; the water's drag on the hull sets how fast that drives her.
+  static const double _pull = 1500.0;
+
+  /// Her anchor on the bottom and its rope, while she lies to it.
+  NativeBody? _anchor;
+  NativeJoint? _rope;
+
+  /// Anchor down six metres up-current of her, on a rope a metre longer
+  /// than the way to it: she lies to it bow to the current.
+  void _drop() {
+    final p = _world.localPositionOf(body);
+    final anchor = _world.addBody(
+      position: Vector3(p.x - 6.0, floorAt(p.x - 6.0, p.z) + 0.2, p.z),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    _world.setShape(anchor, const NativeShape.sphere(0.2));
+    final from = _world.localPositionOf(body) + Vector3(-2.2, 0, 0);
+    final rope = _world.createDistanceJoint(
+      anchor,
+      body,
+      anchorA: _world.localPositionOf(anchor),
+      anchorB: from,
+    );
+    final length =
+        (_world.localPositionOf(anchor) - _world.localPositionOf(body)).length +
+        1.0;
+    _world
+      ..setJointSpring(rope, (hertz: 0.0, damping: 0.0))
+      ..setJointLength(rope, length: length, least: 0.0, most: length);
+    _anchor = anchor;
+    _rope = rope;
+  }
+
+  /// Anchor up, and her engine pulling her towards [at].
+  void motorTo(Vector3 at) {
+    if (_rope != null) {
+      _world
+        ..removeJoint(_rope!)
+        ..removeBody(_anchor!);
+      _rope = null;
+      _anchor = null;
+    }
+    final p = position;
+    final way = Vector3(at.x - p.x, 0.0, at.z - p.z);
+    if (way.length2 == 0.0) return;
+    _world
+      ..wake(body)
+      ..addForce(body, way.normalized() * _pull);
+  }
+
+  /// Engine off, and her anchor down where she is, if it is up.
+  void stop() {
+    if (_rope == null) _drop();
+  }
+
+  Vector3 get position => _world.localPositionOf(body);
+
+  /// Her anchor and its rope, by their handles, or nulls while she motors.
+  Map<String, Object?> save() => <String, Object?>{
+    'anchor': _anchor?.raw,
+    'rope': _rope?.raw,
+  };
+
+  /// Back to what [save] wrote, the world already restored under it.
+  void restore(Object? saved) {
+    final anchor = saved is Map ? saved['anchor'] : null;
+    final rope = saved is Map ? saved['rope'] : null;
+    _anchor = anchor is num ? NativeBody(anchor.toInt()) : null;
+    _rope = rope is num ? NativeJoint(rope.toInt()) : null;
+  }
 
   /// Whether [at] is alongside, near enough to be hauled aboard.
   bool alongside(Vector3 at) =>

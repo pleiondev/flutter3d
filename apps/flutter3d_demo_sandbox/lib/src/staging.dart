@@ -2,9 +2,13 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException;
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show Bindings, DesktopInput, InputSource, LevelWalk;
+    show ActionMap, DesktopInput, InputSource, LevelWalk;
+import 'package:flutter3d_game_kit/world.dart' show Daylight;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 import 'package:vector_math/vector_math.dart';
@@ -12,39 +16,71 @@ import 'package:vector_math/vector_math.dart';
 import 'elements.dart';
 import 'palette.dart';
 
-/// The two things this game does that no other does.
+/// The things this game does that no other does.
 abstract final class SandboxActions {
   /// Takes out the block looked at.
   static const GameAction dig = GameAction('dig');
 
   /// Puts the hotbar's block against the face looked at.
   static const GameAction place = GameAction('place');
+
+  /// Strikes flint at the block looked at.
+  static const GameAction strike = GameAction('strike');
+
+  /// Tips a bucket of water onto the column looked at.
+  static const GameAction pour = GameAction('pour');
 }
 
 /// The keys: walking as every game here walks, Q to dig and E to place —
-/// E taken back from `use`, which nothing here is.
-Bindings sandboxBindings() => DesktopInput.defaultBindings()
-  ..bind(InputSource.key(LogicalKeyboardKey.keyQ.keyId), SandboxActions.dig)
-  ..bind(InputSource.key(LogicalKeyboardKey.keyE.keyId), SandboxActions.place)
-  ..bind(InputSource.key(LogicalKeyboardKey.keyF.keyId), SandboxActions.place);
-
-/// The number row, one key a hotbar slot.
-Map<LogicalKeyboardKey, int> sandboxSlotKeys() => <LogicalKeyboardKey, int>{
-  for (final (i, key) in const <LogicalKeyboardKey>[
+/// E taken back from `use`, which nothing here is — and the number row, one
+/// key a hotbar slot.
+ActionMap sandboxActionMap() {
+  final map = DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common));
+  map.buttons
+    ..bind(InputSource.key(LogicalKeyboardKey.keyQ.keyId), SandboxActions.dig)
+    ..bind(InputSource.key(LogicalKeyboardKey.keyE.keyId), SandboxActions.place)
+    ..bind(
+      InputSource.key(LogicalKeyboardKey.keyF.keyId),
+      SandboxActions.place,
+    );
+  const row = <LogicalKeyboardKey>[
     LogicalKeyboardKey.digit1,
     LogicalKeyboardKey.digit2,
     LogicalKeyboardKey.digit3,
     LogicalKeyboardKey.digit4,
     LogicalKeyboardKey.digit5,
-  ].indexed)
-    if (i < hotbar.length) key: i,
-};
+  ];
+  // A number past the hotbar picks nothing.
+  for (final key in row.skip(hotbar.length)) {
+    map.buttons.unbind(InputSource.key(key.keyId));
+  }
+  return DesktopInput.addSlotsTo(map, row.take(hotbar.length).toList());
+}
 
 /// The hills every new world is, and every save is a delta against.
 const VoxelTerrain sandboxTerrain = VoxelTerrain(seed: 2026);
 
 /// The name the world is saved under in the game's storage.
 const String sandboxSaveName = 'world.json';
+
+/// The sandbox's simulation, written into its run files: a run recorded on
+/// another one is refused rather than replayed wrong, and its pose record
+/// plays instead.
+///
+/// Bump [SimulationVersion.genreVersion] when the step reads its input
+/// differently, or a block, a dig or the elements over them behave
+/// differently.
+const SimulationVersion sandboxSimulation = SimulationVersion(genre: 'sandbox');
+
+/// What a run file names as its level: the hills [sandboxTerrain] draws.
+/// The edits a run starts from are in its starting state, not here.
+const String sandboxLevel = 'sandbox-terrain';
+
+/// The hills as a run file checks them: a run recorded over another seed
+/// says so rather than parting at its first dig.
+String get sandboxLevelHash => StateDigest.of(<String, Object?>{
+  'terrain': sandboxTerrain.toJson(),
+}).toRadixString(16).padLeft(8, '0');
 
 /// One sandbox being played: the blocks, the physics they collide in, the
 /// navigation kept on them, and the body walking them.
@@ -59,7 +95,7 @@ const String sandboxSaveName = 'world.json';
 final class SandboxRun {
   /// A run over [blocks], its physics on [backend] — the run's own, chosen
   /// once in `main` — with the body at [at] facing [yaw], or on the middle
-  /// of the world when not given.
+  /// of the world when not given, and the day at [hour].
   SandboxRun(
     this.blocks, {
     PhysicsBackend? backend,
@@ -67,11 +103,13 @@ final class SandboxRun {
     double yaw = 0.0,
     double pitch = 0.0,
     this.slot = 0,
-  }) {
+    double hour = Daylight.morning,
+  }) : day = Daylight(hour: hour),
+       physics = CollisionWorld(backend: backend ?? const DartPhysics()) {
     // Attached before anything collides: the core mirrors the world's
     // statics — every chunk's boxes — at the end of each `update`, and
     // moves the body and casts its rays from then on.
-    (backend ?? PhysicsBackend.current).attach(physics);
+    physics.backend.attach(physics);
     collision = VoxelCollision(blocks, physics);
     navigation = VoxelNavigation(blocks);
     spawn = _standingAt(blocks.sizeX ~/ 2, blocks.sizeZ ~/ 2);
@@ -91,12 +129,23 @@ final class SandboxRun {
   /// **Never throws**: a save that will not read is a world started again,
   /// which costs a player their building; a game that will not open costs
   /// them the game.
-  factory SandboxRun.open(
+  static Future<SandboxRun> open(
     Storage storage, {
     PhysicsBackend? backend,
     void Function(Object error)? onUnread,
+  }) async => SandboxRun.fromSaved(
+    await storage.read(sandboxSaveName),
+    backend: backend,
+    onUnread: onUnread,
+  );
+
+  /// [open], given the document already read — null for none — for a
+  /// caller that read it before it had anywhere to wait: the app's `main`.
+  factory SandboxRun.fromSaved(
+    String? text, {
+    PhysicsBackend? backend,
+    void Function(Object error)? onUnread,
   }) {
-    final text = storage.read(sandboxSaveName);
     if (text == null) return SandboxRun.fresh(backend: backend);
     try {
       final saved = Snapshot.fromJson(
@@ -116,6 +165,9 @@ final class SandboxRun {
         yaw: saved.number('yaw'),
         pitch: saved.number('pitch'),
         slot: saved.integer('slot').clamp(0, hotbar.length - 1),
+        // A save from before the day turned has no hour, and opens in the
+        // morning a new world starts in.
+        hour: saved.number('hour', Daylight.morning),
       );
     } on Object catch (error) {
       onUnread?.call(error);
@@ -127,7 +179,7 @@ final class SandboxRun {
   final VoxelWorld blocks;
 
   /// What the body and the blocks collide in.
-  final CollisionWorld physics = CollisionWorld();
+  final CollisionWorld physics;
 
   /// The blocks' boxes in [physics].
   late final VoxelCollision collision;
@@ -145,10 +197,14 @@ final class SandboxRun {
   /// Which of [hotbar] is in hand.
   int slot;
 
+  /// The hour, and the sun and the sky that go with it. Made again by
+  /// [restore], at the hour the state holds.
+  Daylight day;
+
   /// Water, fire and falling blocks over the world, when the application
   /// has a renderer to draw them with and asks for them; null in a run that
   /// is only blocks.
-  Elements? elements;
+  BlockElements? elements;
 
   /// How far a block can be reached, in metres from the eye.
   static const double reach = 6.0;
@@ -182,9 +238,42 @@ final class SandboxRun {
   /// The block looked at, within [reach], or null.
   VoxelHit? get target => blocks.raycast(eye, gaze, reach);
 
-  /// One frame of play: the hotbar, the look, a dig or a place if one was
-  /// asked for, then the walk, and the physics brought up to date.
+  /// One step of play, in the order [install] runs it: the hotbar, the
+  /// look, a dig, a place, a flint or a bucket if one was asked for, then
+  /// the walk, the physics brought up to date, the elements, and the day
+  /// moved on.
   void step(double dt, InputState input) {
+    _hands(input);
+    _walk(dt, input);
+    elements?.step(dt, eye);
+    _world(dt);
+  }
+
+  /// The run's step, phase by phase, on [loop], reading [input]: what the
+  /// hands do in `input`, the walk and the physics in `physics`, the water,
+  /// the fire and the falling blocks in `elements`, and the void and the
+  /// day in `rules`.
+  ///
+  /// **A fixed step now, at the loop's world rate.** The sandbox was stepped
+  /// with each frame's own time, unclamped; it is stepped in sixtieths
+  /// whatever the display, and a long frame is cut as the loop cuts one.
+  void install(LoopRegistry loop, InputState input) {
+    loop
+      ..addSystem('sandbox.hands', LoopPhase.input, (_) => _hands(input))
+      ..addSystem(
+        'sandbox.walk',
+        LoopPhase.physics,
+        (step) => _walk(step.dt, input),
+      )
+      ..addSystem(
+        'sandbox.elements',
+        LoopPhase.fields,
+        (step) => elements?.step(step.dt, eye),
+      )
+      ..addSystem('sandbox.world', LoopPhase.rules, (step) => _world(step.dt));
+  }
+
+  void _hands(InputState input) {
     if (input.slotRequest case final asked?
         when asked >= 0 && asked < hotbar.length) {
       slot = asked;
@@ -193,10 +282,18 @@ final class SandboxRun {
     if (look.x != 0.0 || look.y != 0.0) walk.look(look.x, look.y);
     if (input.pressed(SandboxActions.dig)) dig();
     if (input.pressed(SandboxActions.place)) place();
+    if (input.pressed(SandboxActions.strike)) strike();
+    if (input.pressed(SandboxActions.pour)) pour();
+  }
+
+  void _walk(double dt, InputState input) {
     walk.step(dt, input);
     physics.update();
-    elements?.step(dt, eye);
+  }
+
+  void _world(double dt) {
     if (walk.body.position.y < floorOfTheVoid) walk.body.teleport(spawn);
+    day.advance(dt);
   }
 
   /// Takes out the block looked at, and says whether there was one to take.
@@ -240,7 +337,7 @@ final class SandboxRun {
       false;
 
   /// The run as a save keeps it: the world's seed and edits, where the body
-  /// is, how it looks, and what is in hand.
+  /// is, how it looks, what is in hand, and the hour.
   Snapshot snapshot() => Snapshot(<String, Object?>{
     'world': blocks.toJson(),
     'body': <double>[
@@ -251,16 +348,72 @@ final class SandboxRun {
     'yaw': walk.yaw,
     'pitch': walk.pitch,
     'slot': slot,
+    'hour': day.hour,
   });
 
+  /// The run's whole state, as a run file starts from and a checkpoint
+  /// compares: [snapshot]'s, with what a step reads beyond a save — the
+  /// body's speed, its footing and the jump it was asked for — and the
+  /// water, the fires and the falling blocks when [elements] are up.
+  Snapshot state() => Snapshot(<String, Object?>{
+    ...snapshot().data,
+    'walk': walk.body.save(),
+    if (elements case final elements?) 'elements': elements.save(),
+  });
+
+  /// Back to what [state] wrote, in place: the edits put right block by
+  /// block — the collision, the navigation and the chunks drawn following
+  /// them — the body where it stood and moving as it moved, the hand, the
+  /// hour, and the elements.
+  ///
+  /// **Throws a [FormatException] for edits over other hills** — a state
+  /// from another seed is not this world's.
+  void restore(Snapshot state) {
+    final data = state.data;
+    if (data.object('world') case final world?) {
+      blocks.restoreEdits(world);
+      final changes = blocks.drainChanges();
+      if (changes.chunks.isNotEmpty) {
+        collision.refresh(changes.chunks);
+        navigation.follow(changes);
+        _stale.addAll(changes.surfaces);
+      }
+    }
+    if (data.object('walk') case final saved?) walk.body.restore(saved);
+    walk
+      ..yaw = data.number('yaw')
+      ..pitch = data.number('pitch');
+    slot = data.integer('slot').clamp(0, hotbar.length - 1);
+    day = Daylight(hour: data.number('hour', Daylight.morning));
+    elements?.restore(data.object('elements'));
+    physics.update();
+    _homeReachable = null;
+    _unsaved = true;
+  }
+
+  /// Where the body is, and every falling block: a run file's pose record,
+  /// for a build that cannot replay its tape.
+  List<BodyPose> poses() => <BodyPose>[
+    BodyPose(
+      'walker',
+      walk.body.position,
+      Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), -walk.yaw),
+    ),
+    ...?elements?.poses(),
+  ];
+
   /// Writes the run into [storage], and says whether it was kept.
-  bool save(Storage storage) {
-    final kept = storage.write(
-      sandboxSaveName,
-      jsonEncode(snapshot().toJson()),
-    );
-    if (kept) _unsaved = false;
-    return kept;
+  ///
+  /// The world is read now; only the write waits.
+  Future<bool> save(Storage storage) async {
+    final text = jsonEncode(snapshot().toJson());
+    try {
+      await storage.write(sandboxSaveName, text);
+    } on StorageException {
+      return false;
+    }
+    _unsaved = false;
+    return true;
   }
 
   /// Takes the blocks' boxes out of the physics, for a run being left.
@@ -291,7 +444,7 @@ final class SandboxRun {
 
   bool _edit(int x, int y, int z, int material) {
     if (!blocks.edit(x, y, z, material)) return false;
-    final changes = blocks.takeChanges();
+    final changes = blocks.drainChanges();
     collision.refresh(changes.chunks);
     navigation.follow(changes);
     _stale.addAll(changes.surfaces);

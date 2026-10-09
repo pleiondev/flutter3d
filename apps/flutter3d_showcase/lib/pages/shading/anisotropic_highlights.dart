@@ -7,13 +7,12 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AnisotropicHighlightsDemo extends ShowcaseDemo {
   double strength = 0.9;
   double rotation = 0.0;
 
-  late final Material _brushed;
+  late final RenderMaterial _brushed;
 
   @override
   void configureView(DemoContext context) {
@@ -26,16 +25,16 @@ final class AnisotropicHighlightsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region materials
-    final Material plain = Material(
+    final RenderMaterial plain = RenderMaterial(
       name: 'plain',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: 0.3,
     );
-    _brushed = Material(
+    _brushed = RenderMaterial(
       name: 'brushed',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: 0.3,
       extensions: MaterialExtensions(
         anisotropyStrength: strength,
@@ -54,13 +53,13 @@ final class AnisotropicHighlightsDemo extends ShowcaseDemo {
     // #endregion mesh
 
     return Scene()
-      ..ambientIntensity = 0.15
+      ..ambientIntensity = 0.15 * Photometric.legacyUnit
       ..add(MeshNode(ball, plain, name: 'plain')..setPosition(-0.6, 0.0, 0.0))
       ..add(
         MeshNode(ball, _brushed, name: 'brushed')..setPosition(0.6, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
   }

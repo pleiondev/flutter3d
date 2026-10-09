@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class UsdzDemo extends ShowcaseDemo {
   late final Uint8List _archive;
@@ -47,12 +46,12 @@ final class UsdzDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _document.surfaces.single.mesh),
-          Material(baseColor: Vector4(0.85, 0.82, 0.7, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.85, 0.82, 0.7, 1.0)),
           name: 'cube',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

@@ -43,9 +43,9 @@ final class AntiAliasingDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.1, 2.8, 0.1)).build(),
     );
-    final Material material = Material(
+    final RenderMaterial material = RenderMaterial(
       name: 'spokes',
-      baseColor: Vector4(0.95, 0.95, 0.95, 1.0),
+      baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.95, 1.0),
       lighting: LightingModel.unlit,
     );
     final Scene scene = Scene();

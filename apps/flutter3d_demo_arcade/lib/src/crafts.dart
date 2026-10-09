@@ -66,7 +66,7 @@ extension ArcadeGameCrafts on ArcadeGame {
     final (r, g, b) = _looks[role]!.accent;
     instance.root.traverse((SceneNode node) {
       if (node is MeshNode && node.material.name == 'metalRed') {
-        node.material.baseColor.setValues(r, g, b, 1.0);
+        node.material.baseColor = LinearColor.fromSrgb(r, g, b, 1.0);
       }
     });
   }

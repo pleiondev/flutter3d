@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AutomapDemo extends ShowcaseDemo {
   late final NavGrid _grid;
@@ -36,16 +35,16 @@ final class AutomapDemo extends ShowcaseDemo {
     // #region grid
     // Two rooms and a corridor between them.
     _grid = NavGrid.bake(<Brush>[
-      Brush(centre: Vector3(5, 0, 5), size: Vector3(10, 1, 10)),
-      Brush(centre: Vector3(13, 0, 5), size: Vector3(6, 1, 2)),
-      Brush(centre: Vector3(21, 0, 5), size: Vector3(10, 1, 10)),
+      Brush(center: Vector3(5, 0, 5), size: Vector3(10, 1, 10)),
+      Brush(center: Vector3(13, 0, 5), size: Vector3(6, 1, 2)),
+      Brush(center: Vector3(21, 0, 5), size: Vector3(10, 1, 10)),
     ], cellSize: 0.5);
     _map = Automap(_grid, revealRadius: 3.0);
     // #endregion grid
 
-    final material = Material(
+    final material = RenderMaterial(
       name: 'walker',
-      baseColor: Vector4(0.6, 0.9, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.9, 0.7, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -54,7 +53,7 @@ final class AutomapDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

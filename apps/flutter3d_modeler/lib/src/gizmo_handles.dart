@@ -42,8 +42,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
+import 'overlay_ink.dart';
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
 
@@ -157,7 +157,7 @@ final class GizmoDrawing {
   /// which is the price of every drawn pixel being a pixel that can be hit.
   void _arrows(MeshOverlay overlay, List<GizmoHandle> handles, GizmoAxis? hot) {
     for (final handle in handles) {
-      final ink = _inkFor(handle.tint, handle.axis == hot);
+      final ink = _inkFor(handle.tint, handle.axis == hot).ink;
       overlay.ribbon(handle.base, handle.headBase, ink, width: shaftPixels);
       overlay.point(
         (handle.headBase + handle.tip) * 0.5,
@@ -181,13 +181,13 @@ final class GizmoDrawing {
     bool uniformHot,
   ) {
     for (final handle in handles) {
-      final ink = _inkFor(handle.tint, handle.axis == hot);
+      final ink = _inkFor(handle.tint, handle.axis == hot).ink;
       overlay.ribbon(handle.base, handle.tip, ink, width: shaftPixels);
       overlay.point(handle.tip, ink, size: boxPixels);
     }
     overlay.point(
       pivot,
-      _inkFor(kGizmoTintUniform, uniformHot),
+      _inkFor(kGizmoTintUniform, uniformHot).ink,
       size: boxPixels,
     );
   }
@@ -214,7 +214,7 @@ final class GizmoDrawing {
   ) {
     final radius = overlay.worldSize(turnPixels, pivot);
     for (final handle in handles) {
-      final ink = _inkFor(handle.tint, handle.axis == hot);
+      final ink = _inkFor(handle.tint, handle.axis == hot).ink;
       final (across, andAcross) = _planeOf(handle.axis);
       var from = pivot + across * radius;
       for (var i = 1; i <= _turnSegments; i++) {

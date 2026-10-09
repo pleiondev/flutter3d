@@ -12,7 +12,6 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
@@ -21,22 +20,20 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _first = 'assets/levels/first_steps.json';
-const double _dt = 1.0 / 60.0;
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 PlatformerRun _game(InputState input) {
@@ -66,25 +63,20 @@ void _play(InputState input, int step) {
   if (step % 60 == 3) input.release(GameAction.jump);
 }
 
-/// Steps [from] to [to] the way `GameLoop` and `main.dart`'s `_step` do:
-/// both recorders, the keyframe before the step, the checkpoint after it.
+/// Steps [from] to [to] through [loop], as `main.dart` does: the rewind and
+/// the demo recording through it, the checkpoint after each step.
 void _live(
   PlatformerRun run,
   InputState input,
-  RewindBuffer rewind,
+  EngineLoop loop,
   DemoRecording demo, {
   required int from,
   required int to,
 }) {
   for (var step = from; step < to; step++) {
     _play(input, step);
-    rewind.recorder.record(input);
-    demo.recorder.record(input);
-    input.beginStep();
-    if (rewind.keyframeDue) rewind.keyframe(run.level!.sim.save());
-    run.level!.sim.step(_dt);
+    loop.runSteps(1);
     demo.observe(run.level!.sim.save);
-    input.endStep();
   }
 }
 
@@ -131,14 +123,12 @@ void main() {
       seed: start.data.integer('random'),
     );
     final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
-    final timeline = RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (double dt) => run.level!.sim.step(dt),
-      restore: (Snapshot snapshot) => run.level!.sim.restore(snapshot),
-    );
+    final (:loop, genre: _) = run.ownLoop();
+    rewind.attach(loop);
+    demo.attach(loop);
+    final timeline = RunTimeline(rewind: rewind, loop: loop);
 
-    _live(run, input, rewind, demo, from: 0, to: edited);
+    _live(run, input, loop, demo, from: 0, to: edited);
     final applied = await LiveLevel(
       level: run.level!.loaded.level,
       timeline: timeline,
@@ -148,7 +138,7 @@ void main() {
       swapped: (Level next, int step) =>
           demo.levelSwapped(next, stepsAgo: rewind.step - step),
     ).applyWhenReady(_lowered(run.level!.loaded.level));
-    _live(run, input, rewind, demo, from: edited, to: end);
+    _live(run, input, loop, demo, from: edited, to: end);
     final arrived = _bytes(run.level!.sim.save());
 
     final sent = jsonEncode(demo.demo(buildStamp: 'test-build').toJson());

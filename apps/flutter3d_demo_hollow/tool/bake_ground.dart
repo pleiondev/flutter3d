@@ -26,8 +26,8 @@ const int _size = 2048;
 
 Future<void> main() async {
   final root = File.fromUri(Platform.script).parent.parent.path;
-  _Tile tile(String name, double metres, {List<double>? tint}) =>
-      _Tile.read('$root/assets_src/ground/$name.jpg', metres, tint);
+  _Tile tile(String name, double meters, {List<double>? tint}) =>
+      _Tile.read('$root/assets_src/ground/$name.jpg', meters, tint);
   // Leafy grass, a little greener than the photograph's late summer.
   final grass = tile('grass', 3.5, tint: <double>[0.74, 0.95, 0.6]);
   final earth = tile('earth', 4.0);
@@ -38,16 +38,16 @@ Future<void> main() async {
   final basalt = tile('basalt', 6.0, tint: <double>[1.0, 0.94, 0.88]);
 
   final out = Uint8List(_size * _size * 3);
-  const metres = hollowSize / _size;
-  final colour = Float64List(3);
+  const meters = hollowSize / _size;
+  final color = Float64List(3);
   for (var py = 0; py < _size; py++) {
-    final z = (py + 0.5) * metres;
+    final z = (py + 0.5) * meters;
     for (var px = 0; px < _size; px++) {
-      final x = (px + 0.5) * metres;
+      final x = (px + 0.5) * meters;
       _cover(
         x,
         z,
-        colour,
+        color,
         grass: grass,
         earth: earth,
         sand: sand,
@@ -56,9 +56,9 @@ Future<void> main() async {
         basalt: basalt,
       );
       final o = (px + py * _size) * 3;
-      out[o] = colour[0].round().clamp(0, 255);
-      out[o + 1] = colour[1].round().clamp(0, 255);
-      out[o + 2] = colour[2].round().clamp(0, 255);
+      out[o] = color[0].round().clamp(0, 255);
+      out[o + 1] = color[1].round().clamp(0, 255);
+      out[o + 2] = color[2].round().clamp(0, 255);
     }
   }
   final picture = img.Image.fromBytes(
@@ -166,15 +166,15 @@ double _noise(double x, double z) {
   return a + (b - a) * sx + (c - a) * sz + (a - b - c + e) * sx * sz;
 }
 
-/// One ground photograph, repeating every [metres], already shrunk to the
+/// One ground photograph, repeating every [meters], already shrunk to the
 /// pixels it covers at the baked scale so that sampling it does not alias.
 final class _Tile {
-  _Tile(this._pixels, this._side, this.metres);
+  _Tile(this._pixels, this._side, this.meters);
 
-  factory _Tile.read(String path, double metres, List<double>? tint) {
+  factory _Tile.read(String path, double meters, List<double>? tint) {
     final decoded = img.decodeJpg(File(path).readAsBytesSync());
     if (decoded == null) throw StateError('$path is not a JPEG');
-    final side = (metres / hollowSize * _size).round();
+    final side = (meters / hollowSize * _size).round();
     final small = img.copyResize(
       decoded,
       width: side,
@@ -192,12 +192,12 @@ final class _Tile {
         pixels[o + 2] = p.b * t[2];
       }
     }
-    return _Tile(pixels, side, metres);
+    return _Tile(pixels, side, meters);
   }
 
   final Float64List _pixels;
   final int _side;
-  final double metres;
+  final double meters;
 
   /// The tile's colour at world (x, z), into [into]: the photograph as it
   /// lies in some broad patches and turned a quarter and shifted in others,
@@ -209,7 +209,7 @@ final class _Tile {
     if (a < 1.0) _bilinear(x, z, into);
     if (a <= 0.0) return;
     final r = into[0], g = into[1], b = into[2];
-    _bilinear(z + 0.37 * metres, -x + 0.61 * metres, into);
+    _bilinear(z + 0.37 * meters, -x + 0.61 * meters, into);
     if (a >= 1.0) return;
     into[0] = r + (into[0] - r) * a;
     into[1] = g + (into[1] - g) * a;
@@ -218,7 +218,7 @@ final class _Tile {
 
   /// The photograph's colour at (x, z), bilinear and wrapping, into [into].
   void _bilinear(double x, double z, Float64List into) {
-    final u = x / metres * _side - 0.5, v = z / metres * _side - 0.5;
+    final u = x / meters * _side - 0.5, v = z / meters * _side - 0.5;
     final i = u.floor(), j = v.floor();
     final fu = u - i, fv = v - j;
     final i0 = i % _side, i1 = (i + 1) % _side;

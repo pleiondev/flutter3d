@@ -1,15 +1,17 @@
-import 'package:flutter/widgets.dart' show WidgetBuilder;
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, RunStatus
+import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart' show WidgetBuilder;
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/crypt.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, RunStatus
+import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show NativeDynamics, NativePhysics, preparePhysics, usePhysics;
+    show NativeDynamics, NativePhysics, NativeWorld, preparePhysics, usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'depths.dart';
 import 'exit_door.dart';
@@ -18,7 +20,6 @@ import 'game_posts.dart';
 import 'layers.dart';
 import 'monster_graphs.dart';
 import 'monster_looks.dart';
-import 'ragdoll_corpses.dart';
 import 'staging.dart';
 
 /// A level, drawn and playable.
@@ -35,6 +36,7 @@ final class LevelReady {
     required this.fixtureVisuals,
     required this.widgetSurfaces,
     this.exitModel,
+    this.crypt,
   });
 
   final LoadedLevel loaded;
@@ -49,6 +51,10 @@ final class LevelReady {
   /// The doorway's uploaded model, held so `DungeonRun.close` can release it.
   /// Null when the level has no exit or the file would not read.
   final ModelAsset? exitModel;
+
+  /// The fire, the water and the loose wood, in the run — see [CryptWorld].
+  /// Null on the Dart reference, which has no core to burn or flood with.
+  final CryptWorld? crypt;
 }
 
 /// What a crawl has come to: what it killed, how long it took, and how much of
@@ -140,7 +146,14 @@ final class DungeonRun extends RunSession<LevelReady> {
     this.widgetRegistry = const <String, WidgetBuilder>{},
     this.eyeOffset = 0.7,
     this.lookSensitivity = 0.0022,
+    this.published,
   });
+
+  /// What the simulation last published — `() => loop.published` — which
+  /// the monsters are drawn from: where each stands, which way it faces,
+  /// whether it lives. Null draws them from the actors themselves, as a test
+  /// with no loop does.
+  final PublishedState Function()? published;
 
   /// One registry validates the document and then spawns it.
   final EntityRegistry registry;
@@ -183,75 +196,55 @@ final class DungeonRun extends RunSession<LevelReady> {
   int depthsFrom = 1;
 
   @override
-  Future<LevelReady> open(String asset) async {
+  Future<LevelReady> loadLevel(String asset) async =>
+      _withCrypt(await _build(asset));
+
+  /// [asset] built and staged — or [document], an edit of it — without the
+  /// crypt's elements, which [_withCrypt] stands in: they share one world,
+  /// and an edit is built while the level it replaces still plays in it.
+  Future<LevelReady> _build(String asset, {Level? document}) async {
     // The run's physics: the core, which the browser fetches as WebAssembly
     // once — natively it is in the app — or the reference where it will not
     // start. Chosen once; every level after asks the same.
     await preparePhysics();
     // The depths are made, not read: a seed where an asset would be.
     final depth = Depths.seedOf(asset);
-    final loaded = depth == null
-        ? await const LevelLoader().load(
-            asset,
-            device: device,
-            registry: registry,
-            rules: sampleRules(),
-          )
-        : await const LevelLoader().build(
-            await Depths.level(depth, first: depthsFrom),
-            device: device,
-            registry: registry,
-            rules: sampleRules(),
-          );
+    final loaded = switch ((document, depth)) {
+      (final Level edited, _) => await const LevelLoader().build(
+        edited,
+        device: device,
+        registry: registry,
+        rules: sampleRules(),
+        physics: usePhysics(),
+      ),
+      (null, null) => await const LevelLoader().load(
+        asset,
+        device: device,
+        registry: registry,
+        rules: sampleRules(),
+        physics: usePhysics(),
+      ),
+      (null, final int seed) => await const LevelLoader().build(
+        await Depths.level(seed, first: depthsFrom),
+        device: device,
+        registry: registry,
+        rules: sampleRules(),
+        physics: usePhysics(),
+      ),
+    };
 
     // The player, once the level is staged below: the corpses ask it where
     // the killing shot came from.
     Player? shooter;
-    final watched = Vector3.zero();
-    // The monsters are animated by a graph over their own clips: idle,
-    // walking into running by speed, attacking, struck, dying — turning
-    // their heads to watch the player once they have seen them, and their
-    // feet on the floor under them.
-    final monsterGraphs = MonsterGraphs(
-      lookAt: () {
-        final player = shooter;
-        if (player == null) return null;
-        player.eye(watched);
-        return watched;
-      },
-      // The level's own floor under a foot: a ray from half a metre
-      // above it down through a metre, against the world and nothing
-      // that walks.
-      groundAt: (at) {
-        final from = Vector3(at.x, at.y + 0.5, at.z);
-        final hit = RayHit();
-        return loaded.collision.raycast(
-              from,
-              Vector3(0.0, -1.0, 0.0),
-              1.0,
-              hit,
-              mask: CollisionLayers.world,
-            )
-            ? hit.point.y
-            : null;
-      },
-    );
+    // The monsters are walked by a graph over their own clips — see
+    // [MonsterClips], the same strides a headless run of this level hangs.
     // **In the simulation's step, not on the frame**, so a footfall is a game
     // event in order with the shots and a rewind or a replay steps the same
-    // strides: the clips are read here, from the models' documents, before
-    // the first step rather than whenever a model arrives on screen. Each
-    // monster's graph is made on its first step.
-    final documents = <String, ModelDocument?>{
-      for (final path in DungeonMonsters.modelsForKind.values)
-        path: await _documentOf(path),
-    };
-    final animations = ActorAnimations(
-      write: monsterGraphs.step,
-      graphFor: (actor) =>
-          switch (documents[const DungeonMonsters().modelFor(actor)]) {
-            final document? => monsterGraphs.graphOver(actor, document),
-            null => null,
-          },
+    // strides: the clips are read here, before the first step rather than
+    // whenever a model arrives on screen.
+    final animations = (await MonsterClips.load()).animate(
+      collision: loaded.collision,
+      player: () => shooter,
     );
     final scene = (
       actors: ActorVisuals(
@@ -263,6 +256,9 @@ final class DungeonRun extends RunSession<LevelReady> {
         // Drawn in the pose the simulation's step left each monster's graph
         // in; see `animations` below.
         simulated: animations.graphOf,
+        // Placed from what the step published, not from the actors: the
+        // view's side of the boundary.
+        published: published,
         device: device,
         // On their own layer as well as the world's, which is what lets the
         // sensor draw their silhouettes and nothing else's.
@@ -273,7 +269,7 @@ final class DungeonRun extends RunSession<LevelReady> {
         corpses: usePhysics() is NativePhysics
             ? RagdollCorpses(
                 loaded.collision,
-                shotFrom: () => shooter?.body.position,
+                pushedFrom: () => shooter?.body.position,
               )
             : null,
       ),
@@ -310,7 +306,8 @@ final class DungeonRun extends RunSession<LevelReady> {
       lookSensitivity: lookSensitivity,
     );
     shooter = staged.player;
-    animations.events = staged.sim.events;
+    // Its markers go onto the bus the game points it at, each step, beside
+    // the run's own events (`_beforeStep` in `main.dart`).
     staged.actors.strides = animations;
 
     // `wg-02`: every `widget_surface` entity, resolved against
@@ -338,21 +335,118 @@ final class DungeonRun extends RunSession<LevelReady> {
     );
   }
 
-  /// [path]'s document for its clips and nodes, or null when it does not
-  /// load — that monster then names its clips on screen, as before graphs.
-  static Future<ModelDocument?> _documentOf(String path) async {
+  /// [level] with the crypt's fire, water and loose wood stood in after the
+  /// run is, so they hang on its step and ride in its snapshot. On the core
+  /// only: the reference has nothing to burn or flood with, and a run
+  /// recorded there never met them.
+  ///
+  /// The world is put back to blank first, so whatever level was in it — a
+  /// level being replaced by this one — is gone from it.
+  LevelReady _withCrypt(LevelReady level) {
+    if (usePhysics() is! NativePhysics) return level;
+    final loaded = level.loaded;
+    return LevelReady(
+      loaded: loaded,
+      staged: level.staged,
+      actorVisuals: level.actorVisuals,
+      fixtureVisuals: level.fixtureVisuals,
+      widgetSurfaces: level.widgetSurfaces,
+      exitModel: level.exitModel,
+      // The package's own staging, the one a headless run stands too: the
+      // torches' flames from the level, not from where the scene drew them.
+      crypt: CryptWorld.stage(
+        world: _elementsWorld,
+        blank: _blankElements,
+        sim: level.staged.sim,
+        level: loaded.level,
+        collision: loaded.collision,
+        fixtures: level.staged.fixtures,
+      ),
+    );
+  }
+
+  // ------------------------------------------------------- live edits (HR3)
+
+  /// An edit of the level being played, built and waiting for
+  /// [installEdit], with the build it was made to replace.
+  ({LevelReady edited, LevelReady replaces})? _edit;
+
+  /// Whether the last change of level the run reported was an edit put in
+  /// under it rather than a level entered: read once, by [takeEdited].
+  bool _edited = false;
+
+  /// The run as it stood when an edit was installed, carried into the edit
+  /// by [replaceLevel] — taken before the crypt's world is restaged for it.
+  Snapshot? _carrying;
+
+  /// Builds [next], an edit of the level being played, without touching the
+  /// run: textures, meshes, colliders and a simulation of its own, so the
+  /// swap itself can be synchronous. Throws, and changes nothing, when
+  /// nothing is being played, when [next] is another level, or when it does
+  /// not build.
+  ///
+  /// **The crypt's elements are not stood in here.** They are in one world
+  /// with the level still being played, which goes on stepping while this
+  /// builds; [installEdit] stands them in at the swap.
+  Future<void> prepareEdit(Level next) async {
+    final playing = status;
+    if (playing is! RunPlaying<LevelReady>) {
+      throw StateError('no level is being played');
+    }
+    final name = playing.level.loaded.level.name;
+    if (next.name != name) {
+      throw StateError('the game is playing $name, not ${next.name}');
+    }
+    final edited = await _build(playing.asset, document: next);
+    final waiting = _edit;
+    if (waiting != null) disposeLevel(waiting.edited);
+    _edit = (edited: edited, replaces: playing.level);
+  }
+
+  /// Swaps in what [prepareEdit] built, the run carried over: the run as it
+  /// stands is written down first, then the crypt's elements are stood into
+  /// the edit — which clears the world the level being replaced had them in
+  /// — and the run, elements and all, is restored into it. Called inside the
+  /// timeline's replay when the edit reaches the simulation.
+  ///
+  /// A build made for a level that has since been left is let go.
+  void installEdit() {
+    final edit = _edit;
+    if (edit == null) return;
+    _edit = null;
+    if (!identical(level, edit.replaces)) {
+      disposeLevel(edit.edited);
+      return;
+    }
+    _carrying = snapshotOf(edit.replaces);
     try {
-      return await loadModelByPath(path);
-    } on Object catch (error) {
-      printIssue(
-        Issue(
-          'dungeon: could not read $path for its clips ($error); its '
-          'monsters name their clips on screen instead of a graph',
-        ),
-      );
-      return null;
+      _edited = replaceLevel(_withCrypt(edit.edited)) || _edited;
+    } finally {
+      _carrying = null;
     }
   }
+
+  /// Whether the level the run now reports came in as an edit, and so is
+  /// not a new level to begin a run in; true once per edit.
+  bool takeEdited() {
+    final edited = _edited;
+    _edited = false;
+    return edited;
+  }
+
+  /// The core's world the crypt's elements are in: one for the whole run,
+  /// so what draws them is made once, and put back to [_blankElements]
+  /// whenever a level is stood into it. Made on the first level, once the
+  /// core has been chosen.
+  late final NativeWorld _elementsWorld = NativeWorld();
+
+  /// The elements' world as it was made, before anything was in it.
+  late final Uint8List _blankElements = _elementsWorld.snapshot();
+
+  /// The elements' world, for what draws it; null before the first level
+  /// is open on the core.
+  NativeWorld? get elementsWorld =>
+      usePhysics() is NativePhysics ? _elementsWorld : null;
 
   /// Gives a finished level's uploads back to the device.
   ///
@@ -362,7 +456,7 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// because the fixtures were built on its textures and share the objects
   /// rather than copies.
   @override
-  void close(LevelReady level) {
+  void disposeLevel(LevelReady level) {
     // The core's world, and with it the characters' mover.
     if (level.staged.sim.dynamics case final NativeDynamics native) {
       native.dispose();
@@ -370,7 +464,7 @@ final class DungeonRun extends RunSession<LevelReady> {
     level.actorVisuals.dispose();
     level.fixtureVisuals.dispose();
     level.widgetSurfaces.dispose();
-    level.exitModel?.release(device);
+    level.exitModel?.dispose();
     level.loaded.dispose(device);
   }
 
@@ -381,7 +475,7 @@ final class DungeonRun extends RunSession<LevelReady> {
   String? nextOf(LevelReady level) => level.staged.sim.nextLevel;
 
   @override
-  Snapshot snapshotOf(LevelReady level) => level.staged.sim.save();
+  Snapshot snapshotOf(LevelReady level) => _carrying ?? level.staged.sim.save();
 
   @override
   void restoreInto(LevelReady level, Snapshot snapshot) =>
@@ -433,6 +527,7 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
   Future<void> restart() => run.restart();
   Future<void> startOver() => run.startOver();
   Future<void> advance() => run.advance();
+
   /// Once per step, after it: what the step took off the floor is posted,
   /// then the run reads how it is going. Not called while a kill camera
   /// replays the last seconds, so a pickup taken again there is not posted
@@ -441,6 +536,7 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
     posts.stepped();
     run.observe();
   }
+
   void save() => run.save();
 
   @override

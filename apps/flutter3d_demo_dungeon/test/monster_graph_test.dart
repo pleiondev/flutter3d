@@ -10,9 +10,10 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart' show Monsters;
 import 'package:flutter3d_demo_dungeon/src/monster_graphs.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' show Monsters;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,7 +26,7 @@ Future<AnimationGraph> _graphOf(String model) async {
   return AnimationGraph(
     machine: machine,
     clips: doc.animations,
-    pose: Pose.fromNodes(doc.nodes),
+    pose: AnimationPose.fromNodes(doc.nodes),
   );
 }
 

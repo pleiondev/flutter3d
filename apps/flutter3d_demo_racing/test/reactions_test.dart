@@ -15,17 +15,18 @@ import 'package:flutter3d_demo_racing/src/effects.dart';
 import 'package:flutter3d_demo_racing/src/reactions.dart';
 import 'package:flutter3d_demo_racing/src/sounds.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car that reports exactly what a test wants it to report.
-final class _Car implements VehicleController {
+final class _Car with VehicleController {
   _Car({
     this.speed = 40.0,
     this.slipRatio = 0.0,
     this.slipAngle = 0.0,
-    this.grounded = true,
+    this.isGrounded = true,
     this.impactThisStep = 0.0,
     Vector3? at,
   }) : collider = Collider(
@@ -59,7 +60,7 @@ final class _Car implements VehicleController {
   double slipRatio;
 
   @override
-  bool grounded;
+  bool isGrounded;
 
   @override
   double impactThisStep;
@@ -88,7 +89,7 @@ RaceState _race(TrackSpline track, int cars) =>
     RaceState(mode: RaceMode.race, track: track, racers: cars, laps: 3);
 
 TrackSpline _ring() => TrackSpline(
-  centre: CatmullRom(<Vector3>[
+  center: CatmullRom(<Vector3>[
     Vector3(40.0, 0.0, 0.0),
     Vector3(0.0, 0.0, 40.0),
     Vector3(-40.0, 0.0, 0.0),
@@ -152,7 +153,7 @@ void main() {
 
   test('and a car in the air shows nothing', () {
     final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
-      _Car(slipRatio: -1.0, grounded: false),
+      _Car(slipRatio: -1.0, isGrounded: false),
     ]);
 
     expect(reaction.bursts, isEmpty);

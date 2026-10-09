@@ -1,7 +1,7 @@
 name: flutter3d_showcase
 description: "Every capability of the flutter3d engine on a page of its own, with the version it appeared in and a step-by-step guide."
 publish_to: 'none'
-version: 0.9.0+1
+version: 1.0.0+1
 resolution: workspace
 
 environment:
@@ -39,6 +39,16 @@ dependencies:
   # WebAssembly in the browser.
   flutter3d_physics_native:
     path: ../../packages/flutter3d_physics_native
+  # The camera rig and the photo-mode camera the camera pages fly.
+  flutter3d_camera:
+    path: ../../packages/flutter3d_camera
+  # The heat and fire page's flames, smoke and firelight.
+  flutter3d_effects:
+    path: ../../packages/flutter3d_effects
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements:
+    path: ../../packages/flutter3d_elements
   flutter3d_samples:
     path: ../../packages/flutter3d_samples
   flutter3d_sim:
@@ -47,6 +57,13 @@ dependencies:
     path: ../../packages/flutter3d_stereo
   flutter3d_voxel:
     path: ../../packages/flutter3d_voxel
+  # Rollback for parties of more than two; pure Dart, with no dependencies.
+  flame_multiplayer:
+    path: ../../packages/flame_multiplayer
+  # The software device: a page that compiles a material source on it at run
+  # time names its shader library. Pure Dart, so the web build carries it too.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
 
   # The Flame bridge's own pages: a mechanism each, alongside every other
   # capability.
@@ -61,14 +78,21 @@ dependencies:
   # The links from a page to its guide on the documentation site.
   url_launcher: ^6.3.0
 
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter:
+    path: ../../packages/flutter3d_matter
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # A device that draws with no window and no GPU, so a page can be built and
-  # rendered in a test.
-  flutter3d_cpu:
-    path: ../../packages/flutter3d_cpu
 
   flutter_lints: ^6.0.0
 

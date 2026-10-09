@@ -16,7 +16,7 @@ final class TiledRenderDemo extends ShowcaseDemo {
   double gap = 0.0;
 
   // #region base
-  final Projection _base = const PerspectiveProjection(fovYRadians: 0.9);
+  final Projection _base = const PerspectiveProjection(fovY: 0.9);
   // #endregion base
 
   static const int _largestGrid = 4;
@@ -36,10 +36,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 
@@ -51,7 +51,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
           context.device,
           const PlaneShape(width: 16.0, depth: 10.0).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.4, 0.45, 0.42, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.4, 0.45, 0.42, 1.0),
+        ),
         name: 'floor',
       )..setPosition(0.0, -0.6, 0.0),
     );
@@ -67,19 +70,23 @@ final class TiledRenderDemo extends ShowcaseDemo {
       context.device,
       TorusShape(radius: 0.7, tubeRadius: 0.25).build(),
     );
-    Material colour(String name, double r, double g, double b) =>
-        Material(name: name, baseColor: Vector4(r, g, b, 1.0), roughness: 0.6);
+    RenderMaterial color(String name, double r, double g, double b) =>
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+          roughness: 0.6,
+        );
     scene
       ..add(
-        MeshNode(ball, colour('ball', 0.9, 0.4, 0.3), name: 'ball')
+        MeshNode(ball, color('ball', 0.9, 0.4, 0.3), name: 'ball')
           ..setPosition(-2.6, 0.0, 0.0),
       )
       ..add(
-        MeshNode(box, colour('box', 0.3, 0.6, 0.9), name: 'box')
+        MeshNode(box, color('box', 0.3, 0.6, 0.9), name: 'box')
           ..setPosition(0.0, 0.0, 0.0),
       )
       ..add(
-        MeshNode(ring, colour('ring', 0.4, 0.8, 0.5), name: 'ring')
+        MeshNode(ring, color('ring', 0.4, 0.8, 0.5), name: 'ring')
           ..setPosition(2.6, 0.0, 0.0),
       );
 

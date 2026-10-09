@@ -72,7 +72,7 @@ final class _FakePicker extends FileSelectorPlatform
 
 /// Where the six committed case documents live.
 const String _fixtures =
-    '../../packages/flutter3d_model_mcp/test/fixtures/tutorial';
+    '../../packages/flutter3d_mcp/test/model/fixtures/tutorial';
 
 /// The teapot case 1 actually imports — a real STL, which is what puts the
 /// import screen on the screen at all.

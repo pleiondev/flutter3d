@@ -12,8 +12,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter3d_demo_platformer/src/run_elements.dart'
+    show elementsPart;
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,7 +70,7 @@ final class _Game {
       jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       _jump = jump;
     }
-    staged.sim.step(_dt);
+    staged.step(_dt);
     input.endStep();
   }
 
@@ -194,7 +197,17 @@ void main() {
     expect(crate.isAsleep, isFalse);
     final mid = game.staged.sim.save();
     expect(mid.data['dynamics'], isA<Map<String, Object?>>());
-    expect((mid.data['dynamics']! as Map)['core'], isA<String>());
+    // The bodies' core, and beside it the elements' world as one of the
+    // simulation's parts, which the run steps after the genre's step: the
+    // ninety saves below carry the water too.
+    //
+    // Mutation: leave `stage` registering no part for the elements, and
+    // `parts` is missing; save the elements inside the dynamics again, and
+    // `core` is not at the top of the dynamics' state.
+    final dynamics = mid.data['dynamics']! as Map;
+    expect(dynamics['core'], isA<String>());
+    final parts = mid.data['parts']! as Map;
+    expect((parts[elementsPart]! as Map)['world'], isA<String>());
     // Every step's save, as a demo's checkpoints and a rewind's resim check
     // them: a crate that fell asleep a step later ends where it would have,
     // and only the steps between say so.

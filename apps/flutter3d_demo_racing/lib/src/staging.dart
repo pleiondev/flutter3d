@@ -1,10 +1,8 @@
-import 'dart:math' as math;
-
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A circuit with a field of cars on the grid, ready to be stepped.
@@ -74,6 +72,9 @@ Staged stage(
   // the run is on the reference — however the world was made; a world a
   // track loader made is on it already, and asking again changes nothing.
   usePhysics().attach(world);
+  // The race's world — its gravity is what the cars fall and grip by — with
+  // whatever the circuit's level says of its own laid over it.
+  raceIn(world, level: document.level);
   final track = document.track;
   final field = TrackField(track: track, world: world);
   final race = RaceState(mode: mode, track: track, racers: cars, laps: laps);
@@ -92,14 +93,14 @@ Staged stage(
       ground: field,
       // The body is a sphere whose centre floats above the road.
       position: position.clone()..y += 0.6,
-      headingYaw: math.atan2(forward.x, forward.z),
+      headingYaw: Portable.atan2(forward.x, forward.z),
     );
     // Told where it is on the lap, or its first step is a car that has never
     // been on the circuit and counts the grid as somewhere off it.
     car.placeAt(
       car.position,
       car.headingYaw,
-      trackDistance: track.centre.wrap(track.grid.s),
+      trackDistance: track.center.wrap(track.grid.s),
     );
     vehicles[carIndex] = car;
   }

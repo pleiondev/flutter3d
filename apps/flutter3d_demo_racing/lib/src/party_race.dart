@@ -5,7 +5,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'net_race.dart';
 
 /// A race of up to [cars] machines, each driving the car its party slot
-/// names, kept in step by [PartyRollback] — `NetRace` for more than two.
+/// names, kept in step by [RollbackSession] — `NetRace` for more than two.
 ///
 /// **Every slot ghosts until its machine's frames come**, as `NetRace`'s
 /// two do and for its reason: the first steps of a run have no frames from
@@ -30,7 +30,7 @@ final class PartyRace {
   }) : assert(cars >= 2, 'a party is at least two'),
        // ignore: prefer_initializing_formals
        _sim = sim {
-    session = PartyRollback<Snapshot>(
+    session = RollbackSession<Snapshot>(
       wire: wire,
       players: cars,
       captureLocalFrame: () => captureDriverFrame(localInput),
@@ -45,12 +45,12 @@ final class PartyRace {
   }
 
   final RacingSimulation _sim;
-  final PartyWire wire;
+  final PeerWire wire;
 
   /// How many cars the race has — the party's size.
   final int cars;
   final InputState localInput;
-  late final PartyRollback<Snapshot> session;
+  late final RollbackSession<Snapshot> session;
 
   /// The car this machine drives.
   int get localCarIndex => wire.slot;

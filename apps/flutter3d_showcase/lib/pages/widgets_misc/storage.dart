@@ -11,16 +11,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class StorageDemo extends ShowcaseDemo {
   late final String _report;
 
   @override
   Scene build(DemoContext context) {
-    final material = Material(
+    final material = RenderMaterial(
       name: 'disk',
-      baseColor: Vector4(0.6, 0.6, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.7, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -29,7 +28,7 @@ final class StorageDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -37,13 +36,15 @@ final class StorageDemo extends ShowcaseDemo {
   static Future<String> _run() async {
     // #region text
     final storage = defaultStorage('flutter3d-showcase-demo');
-    final wrote = storage.write('settings.json', '{"volume":0.8}');
-    final readBack = storage.read('settings.json');
+    final wrote = await storage
+        .write('settings.json', '{"volume":0.8}')
+        .then((_) => true, onError: (Object _) => false);
+    final readBack = await storage.read('settings.json');
     // #endregion text
 
     // #region remove
-    storage.remove('settings.json');
-    final afterRemove = storage.read('settings.json');
+    await storage.remove('settings.json');
+    final afterRemove = await storage.read('settings.json');
     // #endregion remove
 
     // #region binary

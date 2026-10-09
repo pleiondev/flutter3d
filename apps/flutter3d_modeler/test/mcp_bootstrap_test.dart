@@ -83,7 +83,7 @@ void main() {
 
       // The protocol's own handshake — a raw JSON-RPC exchange rather than
       // `dart_mcp`'s own `MCPClient` (which `http_transport_test.dart`,
-      // in `flutter3d_model_mcp` itself, already runs against this same
+      // in `flutter3d_mcp/model.dart` itself, already runs against this same
       // server): this row's own acceptance is that *this* wiring — the port
       // and token this session actually wrote — reaches a live server
       // answering for the GUI's own document, not a second, disconnected

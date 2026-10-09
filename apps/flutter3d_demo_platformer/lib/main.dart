@@ -4,35 +4,43 @@
 /// The assembly is the dungeon's, minus everything that was a shooter's: no
 /// weapons, no arsenal, no monsters, no view model with its own field of view.
 /// What is left is the shape every application on this stack has — a device, a
-/// renderer, a loop, a level, a camera — and it is short enough to read in one
-/// sitting, which the dungeon's 898 lines are not.
+/// renderer, a loop, a level, a camera — and here all of it is one
+/// [Flutter3dView]: it opens the device, makes the renderer, runs the loop
+/// with the genre in it, and owns focus and the lifecycle. The game hands it
+/// each level's scene as the level comes up, and hangs its own work on the
+/// loop's phases.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart'
     show KeyDownEvent, LogicalKeyboardKey, rootBundle;
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_effects/flutter3d_effects.dart' show LiquidLook;
+import 'package:flutter3d_effects/flutter3d_effects.dart'
+    show Elements, ElementsQuality, HearingScale, LiquidLook, PhysicsHearing;
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
+import 'package:flutter3d_game_kit/reactions.dart' show ReactionsPlugin;
+import 'package:flutter3d_game_kit/soundtrack.dart' show SoundtrackPlugin;
+import 'package:flutter3d_game_physics/elements.dart' show ElementSounds;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show usePhysics;
+    show NativeWorld, usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/air.dart';
 import 'src/audio_cubit.dart';
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/effects.dart';
-import 'src/element_sounds.dart';
 import 'src/elements.dart';
 import 'src/ghost.dart';
 import 'src/hud.dart';
@@ -41,12 +49,13 @@ import 'src/photo_mode.dart';
 import 'src/reactions.dart';
 import 'src/run.dart';
 import 'src/run_cubit.dart';
+import 'src/run_elements.dart';
 import 'src/runner_looks.dart';
 import 'src/runner_visuals.dart';
 import 'src/screen_cubit.dart';
-import 'src/share_strip.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
+import 'src/staging.dart' show headlessPlatformer;
 import 'src/title_card.dart';
 import 'src/touch_runner.dart';
 
@@ -57,17 +66,46 @@ const String _buildStamp = String.fromEnvironment(
   defaultValue: 'dev',
 );
 
-void main() {
-  // Landscape and no system bars on a handset — see `configureForTouch`,
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Landscape and no system bars on a handset — see `lockLandscapeForTouch`,
   // which two applications had written out and the third had not.
-  configureForTouch();
-  runApp(const PlatformerApp());
+  lockLandscapeForTouch(_playing);
+  // Settings before the screen: the bindings a player saved are the ones the
+  // keyboard should be reading from the first key press, not from the first
+  // rebind.
+  var unread = false;
+  final config = await SettingsFile(
+    appName: 'platformer',
+    defaultActions: _GameScreenState._actionMap,
+    onIssue: (Issue reported) {
+      printIssue(reported);
+      unread = true;
+    },
+  ).read();
+  runApp(PlatformerApp(config: config, configUnread: unread));
 }
 
-class PlatformerApp extends StatelessWidget {
-  const PlatformerApp({super.key, this.openGraphics});
+/// How this build is played — fingers or keys, a pointer that can be taken
+/// — asked of the platform once, for the whole game.
+final Playing _playing = Playing.ofPlatform();
 
-  /// How to obtain the device this game draws with.
+class PlatformerApp extends StatelessWidget {
+  const PlatformerApp({
+    super.key,
+    this.device,
+    this.config,
+    this.configUnread = false,
+  });
+
+  /// What the player changed, read before the first frame; the defaults
+  /// when null, which is what a test that mounts the game starts with.
+  final GameSettings? config;
+
+  /// Whether the stored settings could not be read, which the game says.
+  final bool configUnread;
+
+  /// The device this game draws with, borrowed by its [Flutter3dView].
   ///
   /// **Null in the application, and the only reason it exists is that nothing
   /// could ever mount this game.** `main.dart` opened the backend its build was
@@ -77,29 +115,48 @@ class PlatformerApp extends StatelessWidget {
   /// `CpuDevice`, which is a `GraphicsDevice` with no GPU under it.
   ///
   /// One field, and it changes nothing about how the game runs: an application
-  /// that passes nothing gets exactly what it got before.
-  final Future<GraphicsDevice> Function()? openGraphics;
+  /// that passes nothing gets the device the view opens for its platform.
+  final GraphicsDevice? device;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Ascent',
     debugShowCheckedModeBanner: false,
-    home: GameScreen(openGraphics: openGraphics),
+    localizationsDelegates: const <LocalizationsDelegate<Object>>[
+      Flutter3dGameLocalizations.delegate,
+      DefaultMaterialLocalizations.delegate,
+      DefaultWidgetsLocalizations.delegate,
+    ],
+    home: GameScreen(
+      device: device,
+      config: config,
+      configUnread: configUnread,
+    ),
   );
 }
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.openGraphics});
+  const GameScreen({
+    super.key,
+    this.device,
+    this.config,
+    this.configUnread = false,
+  });
 
-  /// See [PlatformerApp.openGraphics].
-  final Future<GraphicsDevice> Function()? openGraphics;
+  /// See [PlatformerApp.config].
+  final GameSettings? config;
+
+  /// See [PlatformerApp.configUnread].
+  final bool configUnread;
+
+  /// See [PlatformerApp.device].
+  final GraphicsDevice? device;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen>
-    with SingleTickerProviderStateMixin {
+class _GameScreenState extends State<GameScreen> {
   /// Where a new game begins: the level that teaches the verbs.
   ///
   /// `ascent.json` is no longer the first thing a player sees — it is what
@@ -145,6 +202,7 @@ class _GameScreenState extends State<GameScreen>
   /// word is indistinguishable from never having set them.
   late final SettingsFile _settingsFile = SettingsFile(
     appName: 'platformer',
+    defaultActions: _actionMap,
     onIssue: (Issue reported) {
       printIssue(reported);
       // The same line the levels and the save file talk on, and it outlives
@@ -154,7 +212,10 @@ class _GameScreenState extends State<GameScreen>
       _sayFor = 6.0;
     },
   );
-  late final GameConfig _config;
+
+  /// The player's settings as they are now: replaced on every change, by
+  /// [_applyConfig].
+  late GameSettings _config;
 
   /// The colour table for the player's colour vision. See
   /// `ColorVisionLook`.
@@ -168,15 +229,11 @@ class _GameScreenState extends State<GameScreen>
   /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
   final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
 
-  /// `rp-02`'s door onto this run, over the VM service. Reads `_sim` fresh on
-  /// every call rather than capturing it, since which simulation that getter
-  /// answers changes every time a level does.
-  late final RunTimeline _timeline = RunTimeline(
-    rewind: _rewind,
-    input: _input,
-    stepSim: (double dt) => _sim?.step(dt),
-    restore: (Snapshot snapshot) => _sim?.restore(snapshot),
-  );
+  /// `rp-02`'s door onto this run, over the VM service: through the view's
+  /// loop and its snapshots, so whichever level the genre is stepping is the
+  /// one rewound, its elements with it. Made once the loop is, in
+  /// [_engineReady].
+  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
 
   /// `rp-04`'s "send this run", called remotely rather than from a button
   /// this game draws itself — the last few seconds `_rewind` has kept, as
@@ -184,7 +241,8 @@ class _GameScreenState extends State<GameScreen>
   /// is nothing to report yet, the same case `bugReportTape` itself returns
   /// null for.
   Map<String, Object?> _remoteBugReport() {
-    final report = bugReportTape(_rewind);
+    // The start as the run's own snapshot, which is what a `.f3drun` holds.
+    final report = bugReportTape(_rewind, part: PlatformerPlugin.id);
     if (report == null) {
       throw StateError('nothing has been recorded yet');
     }
@@ -209,7 +267,7 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Built in [initState] rather than inline, because it needs the devices and
   /// the pad to exist before it can apply anything to them.
-  late final SettingsCubit _settings;
+  late final GameSettingsController _settings;
 
   /// Everything the game is heard through — see [AudioCubit], which is where
   /// the scene, the listener, the backend and the music flag now live.
@@ -219,22 +277,36 @@ class _GameScreenState extends State<GameScreen>
   /// [ScreenCubit] for where the line between the two is drawn.
   final ScreenCubit _screen = ScreenCubit();
 
-  late final GameLoop _loop;
+  /// The engine the view made: the device, the renderer, the scene being
+  /// drawn and the loop. Null until the device is open.
+  Flutter3dEngine? _engine;
 
-  /// Nullable, because the device may never open.
-  ///
-  /// It used to be `late final`, assigned only on the success path of
-  /// `_openGraphics` — and `dispose` called it unconditionally. So a player who
-  /// met "The renderer did not start", read it, and closed the screen got a
-  /// `LateInitializationError` thrown over the top of the real error, which is
-  /// the one moment a game can least afford a second failure.
-  Ticker? _ticker;
+  /// The frame: the genre's step and this game's work around it, phase by
+  /// phase — see [_installLoop] for what runs where. The view's; read only
+  /// once [_engine] is there, which everything that steps or records is.
+  EngineLoop get _loop => _engine!.loop;
 
-  final CameraNode _camera = CameraNode(projection: Lens.base);
-  late final RenderView _view;
+  /// The platformer, as the engine runs it: its step, its events, its
+  /// entity kinds. Pointed at the level being played by [_preStep].
+  final PlatformerPlugin _platformer = PlatformerPlugin(
+    headless: headlessPlatformer(),
+  );
+
+  /// The level the current step is stepping, or null when nothing is: no
+  /// level, or one whose runner or camera is not up yet. Set at the top of
+  /// every step, so the genre, the elements and the reaction after them
+  /// agree about one level.
+  LevelReady? _stepping;
+
+  /// The real seconds of the frame being run, for the frame phases: they
+  /// were handed the unclamped frame time before the loop owned them, and
+  /// still are.
+  double _frameDt = 0.0;
+
+  final CameraNode _camera = CameraNode(projection: ascentLens.base);
 
   /// P stops the world and hands the player a camera — see `photo_mode.dart`.
-  final PhotoMode _photo = PhotoMode();
+  final PhotoMode _photo = runnerPhotoMode();
 
   /// The device, for whoever needs it before it exists.
   ///
@@ -246,7 +318,9 @@ class _GameScreenState extends State<GameScreen>
   /// test` loses it every time, which is how it was found, and a cold driver or
   /// a slow machine is the same race with worse luck.
   final Completer<GraphicsDevice> _deviceReady = Completer<GraphicsDevice>();
-  Renderer? _renderer;
+
+  /// The view's renderer, once it has made one.
+  Renderer? get _renderer => _engine?.renderer;
 
   /// The scene being drawn. Empty until the level arrives, and **never null**.
   ///
@@ -282,15 +356,16 @@ class _GameScreenState extends State<GameScreen>
   /// Dust, sparks and flame. One pool for the whole game, one draw call.
   final ParticleSystem _particles = ParticleSystem(capacity: 2000);
 
-  /// The level's water, fire and floating wood, in a physics world of
-  /// their own that reads the run and never writes to it. Null until the
-  /// water's material has been read, and for good where it cannot be:
-  /// the level is then drawn as it always was.
+  /// The level's water, fire and floating wood, drawn. The run owns and
+  /// steps them (`Staged.elements`); this draws a copy. Null until the
+  /// water's material has been read, and for good where it cannot be: the
+  /// run still wades and burns, and the level is drawn as it was before
+  /// there was any water to draw.
   LevelElements? _elements;
 
   /// What the fires, falls and splashes of [_elements] sound like, through
   /// whichever scene the game is heard through.
-  late final ElementSounds _elementSounds = ElementSounds(() => _audio.scene);
+  final ElementSounds _elementSounds = ElementSounds();
 
   /// How the runner is drawn, from what it is doing. See `RunnerLooks`.
   final RunnerLooks _pose = RunnerLooks();
@@ -315,8 +390,8 @@ class _GameScreenState extends State<GameScreen>
 
   final Vector3 _scratch = Vector3.zero();
 
-  /// How long since the last frame, and how long since the first.
-  final FrameClock _frames = FrameClock();
+  /// How long since the first frame, in seconds: the fixtures' own clock.
+  double _elapsed = 0.0;
 
   /// **A save that will not read used to become a new game, silently.** The
   /// package said so to the console and handed back null, and null is also
@@ -336,14 +411,14 @@ class _GameScreenState extends State<GameScreen>
 
   /// The run: which level is up, how it is going, and where next.
   ///
-  /// Built in [_openGraphics]; its `open` waits on [_deviceReady], so the
+  /// Built in [_engineReady]; its `open` waits on [_deviceReady], so the
   /// first level may be asked for before the renderer has finished opening.
-  /// Nullable for the reason [_ticker] is: it is assigned only on the success
-  /// path, and as `late final` a device that failed to open turned `dispose`
-  /// into a `LateInitializationError` thrown over the top of the real error.
+  /// Nullable because it is assigned only once the device is open: as `late
+  /// final`, a device that failed to open turned `dispose` into a
+  /// `LateInitializationError` thrown over the top of the real error.
   RunCubit? _runOrNull;
 
-  /// The run, once [_openGraphics] has built it. Everything behind the
+  /// The run, once [_engineReady] has built it. Everything behind the
   /// renderer guard in [build] may use this; anything that can fire earlier
   /// reads [_runOrNull].
   RunCubit get _run => _runOrNull!;
@@ -359,6 +434,25 @@ class _GameScreenState extends State<GameScreen>
 
   /// What a step looks like. A class for the same reason [Soundtrack] is one.
   final Reactions _reactions = Reactions();
+
+  /// The sounds an event places by itself, played off the bus once a frame
+  /// — see [Soundtrack.placed].
+  late final SoundtrackPlugin _placedSounds = SoundtrackPlugin(
+    _soundtrack.placed,
+    scene: () => _audio.scene,
+  );
+
+  /// The bursts an event places by itself, decided off the bus once a frame
+  /// and shown by `platformer_demo.reactions` — see [Reactions.placed].
+  late final ReactionsPlugin _placedBursts = ReactionsPlugin(_reactions.placed);
+
+  /// What happens to the runner, said to a screen reader: the level's own
+  /// lines, a checkpoint and a death.
+  final SpokenEvents _spoken = SpokenEvents(<Spoken<BusEvent>>[
+    Spoken<LevelSaid>((LevelSaid event) => event.message),
+    Spoken<CheckpointReached>((_) => 'Checkpoint.'),
+    Spoken<RunnerDied>((_) => 'You died.'),
+  ]);
 
   /// The last thing the level said, and how much longer to say it for.
   ///
@@ -399,19 +493,29 @@ class _GameScreenState extends State<GameScreen>
   }) {
     _endRecording();
     final demo = DemoRecording(
+      physics: usePhysics(),
       level: asset,
       levelHash: levelHash,
       start: start,
       seed: start.data.integer('random'),
+      simulation: platformerSimulationVersion,
+      // Beside the tape, the runner's place every few steps: the ghost a
+      // build on another simulation still races (`ghostOf`).
+      bodies: () => switch (_runner) {
+        final Runner runner => runnerPoses(runner),
+        null => const <BodyPose>[],
+      },
     );
     _demo = demo;
-    _loop.recorders.add(demo.recorder);
+    // The loop's input, its journal — the plugins as they stand and every
+    // switch after — and each step's event digest, all into the one file.
+    demo.attach(_loop);
   }
 
-  /// Stops the demo's recorder.
+  /// Stops the demo's recording.
   DemoRecording? _endRecording() {
     final demo = _demo;
-    if (demo != null) _loop.recorders.remove(demo.recorder);
+    demo?.detach();
     _demo = null;
     return demo;
   }
@@ -444,7 +548,7 @@ class _GameScreenState extends State<GameScreen>
       buildStamp: _buildStamp,
       platform: defaultTargetPlatform.name,
     );
-    _demos?.write(written);
+    unawaited(_demos?.write(written));
     // To the server too, if the player said runs may go: the uploader asks
     // their answer at the moment of sending.
     unawaited(_cloud.send(written));
@@ -458,7 +562,7 @@ class _GameScreenState extends State<GameScreen>
   /// level it was run in, and what draws it.
   Tape? _ghostTrack;
   String? _ghostLevel;
-  GhostRunner? _ghost;
+  Ghost? _ghost;
 
   /// Files [_lastRun] with its level, and answers its code or why not.
   Future<String> _share() async {
@@ -501,7 +605,11 @@ class _GameScreenState extends State<GameScreen>
       return 'That run is through another level, or another version of '
           'this one.';
     }
-    final (:ghost, :says) = ghostOf(Level.fromJson(bundle.level), run);
+    final (:ghost, :note) = ghostOf(Level.fromJson(bundle.level), run);
+    if (!mounted) return '';
+    final says = note.say(
+      Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
+    );
     if (ghost == null) return says;
     setState(() {
       _ghostTrack = ghost;
@@ -517,7 +625,7 @@ class _GameScreenState extends State<GameScreen>
     if (_ghostTrack == null || _ghostLevel != level.loaded.level.digestHex) {
       return;
     }
-    _ghost = GhostRunner.build(
+    _ghost = runnerGhost(
       device,
       level.scene,
       halfExtents: level.runner.body.halfExtents,
@@ -534,17 +642,16 @@ class _GameScreenState extends State<GameScreen>
     game: 'platformer',
     storage: _saveFile.storage,
     saves: _saveFile,
+    server: const String.fromEnvironment('FLUTTER3D_CLOUD'),
+    policy: '2026-10',
   );
 
   /// `HR3`: the level on screen, as the editor sees it.
   LiveLevel? _live;
 
-  /// Stops the replay [replayAfterHotSwap] starts after every hot reload.
-  late final VoidCallback _stopReplays;
-
-  /// The run as it stands, for the replay to compare against. Empty before
-  /// a level is up, when there is also nothing recorded to replay.
-  Snapshot _present() => _sim?.save() ?? const Snapshot(<String, Object?>{});
+  /// Stops the replay [replayAfterHotSwap] starts after every hot reload;
+  /// null until the loop is up.
+  VoidCallback? _stopReplays;
 
   /// Lets a level saved in the editor into this run, or tells the door
   /// which level is up now.
@@ -583,43 +690,48 @@ class _GameScreenState extends State<GameScreen>
     // Settings before devices: the bindings a player saved are the ones the
     // keyboard should be reading from the first key press, not from the first
     // rebind.
-    _config = _settingsFile.read();
-    // **One table, and it is the config's** — see `ownedBindings`, which is
-    // named after the bug this replaces: the ternary that used to be here
-    // handed the keyboard a fresh table on a first launch, so a rebind worked
-    // until the player quit and was then gone.
-    _devices = DesktopInput(
-      state: _input,
-      bindings: ownedBindings(_config, _bindings),
-    );
+    _config = widget.config ?? const GameSettings();
+    if (widget.configUnread) {
+      // The same line the levels and the save file talk on, and it outlives
+      // this frame for the same reason: nothing has started yet, and
+      // `_sayFor` only counts down once the ticker runs.
+      _said = 'Your settings could not be read. Starting with the defaults.';
+      _sayFor = 6.0;
+    }
+    // **One map, and the settings controller holds it**: the keyboard, the
+    // pad and the rebinding screen read the same object, and every change is
+    // saved from it. A fresh table on a first launch, edited by the screen
+    // and never saved, is the bug this replaced.
+    final controls = _config.actionsOr(_actionMap);
+    _devices = DesktopInput(state: _input, actions: controls);
     // A saved config written before the gamepad existed has no `pad:` in it, and
     // a player should not have to delete their settings to use a controller. The
     // rebindings they did make are left alone.
-    if (!PadInput.knowsPad(_devices.bindings)) _padBindings(_devices.bindings);
-    // One table for both devices, because a player's bindings are one file.
-    _pad = PadInput(state: _input, bindings: _devices.bindings)
-      ..applySettings(_config);
-    _settings = SettingsCubit(
-      config: _config,
+    if (!PadInput.knowsPad(controls)) _padBindings(controls.buttons);
+    // One map for both devices, because a player's bindings are one file.
+    _pad = PadInput(state: _input, actions: controls)..applySettings(_config);
+    _settings = GameSettingsController(
+      settings: _config,
+      actions: controls,
       file: _settingsFile,
       apply: _applyConfig,
     );
     _applyConfig(_config);
     _demos = DemoFile(appName: 'platformer', onIssue: printIssue);
-    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
-      ..recorders.add(_rewind.recorder);
-    // `rp-02`: harmless where the VM service is off — `registerExtension`
-    // just adds an entry nothing ever asks for.
-    registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
     // `P12`: the frame this game draws, pass by pass and draw by draw, for
     // whichever renderer is open when somebody asks.
     registerRenderExtensions(() => _renderer);
-    // `HR4`: after every hot reload, the last three seconds lived again under
-    // the new code, and the console says whether they came out the same.
-    _stopReplays = replayAfterHotSwap(_timeline, capture: _present);
-    _view = RenderView(camera: _camera);
-    unawaited(_openGraphics());
   }
+
+  /// [_bindings] as an action map over [PlatformerActions.set], with the
+  /// mouse's motion bound to looking.
+  static ActionMap _actionMap() => ActionMap(
+    actions: PlatformerActions.set,
+    buttons: _bindings(),
+    axes: const <ActionBinding>[
+      DualAxisBinding(DualAxisAction.look, InputSource.pointerMotion),
+    ],
+  );
 
   /// The engine's table plus this game's own two keys.
   ///
@@ -627,16 +739,17 @@ class _GameScreenState extends State<GameScreen>
   /// where a player looks for crouch and is what it becomes when crouching
   /// exists.
   static Bindings _bindings() {
-    final bindings = DesktopInput.defaultBindings()
-      ..bind(
-        InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
-        PlatformerActions.dropThrough,
-      )
-      ..bind(
-        InputSource.key(LogicalKeyboardKey.keyC.keyId),
-        PlatformerActions.dropThrough,
-      );
-    if (!Playing.capturesPointer) {
+    final bindings =
+        DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common)).buttons
+          ..bind(
+            InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
+            PlatformerActions.dropThrough,
+          )
+          ..bind(
+            InputSource.key(LogicalKeyboardKey.keyC.keyId),
+            PlatformerActions.dropThrough,
+          );
+    if (!_playing.capturesPointer) {
       // The pointer is the dash on the desktop. Anywhere else a press is
       // something else — a drag that turns the camera, or a finger — and a
       // press that also dashed would spend one on every look. So those builds
@@ -658,7 +771,10 @@ class _GameScreenState extends State<GameScreen>
   /// while the other hand is doing something and a thumb cannot be in two
   /// places.
   static Bindings _padBindings(Bindings bindings) {
-    return PadInput.addDefaultsTo(bindings)
+    PadInput.addDefaultsTo(
+      ActionMap(actions: PlatformerActions.set, buttons: bindings),
+    );
+    return bindings
       ..bind(InputSource.pad(PadButton.faceEast.id), PlatformerActions.dash)
       ..bind(
         InputSource.pad(PadButton.shoulderLeft.id),
@@ -692,47 +808,41 @@ class _GameScreenState extends State<GameScreen>
   /// Mouse motion picked up from a drag, where there is no pointer to lock.
   final DragLook _dragLook = DragLook();
 
-  Future<void> _openGraphics() async {
-    final GraphicsDevice device;
-    try {
-      // Which backend this is was decided at compile time by
-      // `src/backend.dart`. The size is ignored by a backend that sizes itself
-      // per frame, and is the canvas for one that does not.
-      device =
-          await (widget.openGraphics?.call() ??
-              openDevice(width: kRenderWidth, height: kRenderHeight));
-    } catch (error) {
-      // Told to whoever is waiting as well, or a level load blocks for ever on
-      // a device that is never coming. On this path nobody is: `_run`, the
-      // only listener, is built further down and never will be — so the error
-      // is marked handled, or it resurfaces as an unhandled-async crash beside
-      // the screen already showing it.
-      if (!_deviceReady.isCompleted) {
-        _deviceReady.completeError(error);
-        _deviceReady.future.ignore();
-      }
-      if (mounted) _screen.failed(error);
-      return;
-    }
-    if (!mounted) return;
+  /// Everything that waits for the device, once the view has opened it and
+  /// made the renderer and the loop.
+  ///
+  /// A device that will not open never gets here: the view shows [_failed]
+  /// instead, and nothing waits on [_deviceReady], since the run that would
+  /// is built below.
+  void _engineReady(Flutter3dEngine engine) {
+    final device = engine.device;
     if (!_deviceReady.isCompleted) _deviceReady.complete(device);
-
-    setState(() {
-      try {
-        _renderer = Renderer.create(device: device);
-        _vision = ColorVisionLook(device);
-        // One pool, one draw call, added once. Everything this game throws
-        // into the air goes through it.
-        _renderer?.addContributor(ParticleContributor(_particles));
-      } catch (error) {
-        _screen.failed(error);
-      }
+    _installLoop(engine.loop);
+    _engine = engine;
+    if (_stopReplays == null) {
+      // `rp-02`: harmless where the VM service is off — `registerExtension`
+      // just adds an entry nothing ever asks for. Once the loop is up, since
+      // the timeline rewinds through it.
+      registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
+      // `HR4`: after every hot reload, the last three seconds lived again
+      // under the new code, and the console says whether they came out the
+      // same.
+      _stopReplays = replayAfterHotSwap(_timeline);
+    }
+    _vision = ColorVisionLook(device);
+    // One pool, one draw call, added once. Everything this game throws into
+    // the air goes through it.
+    engine.renderer.renderSteps.addContributor(ParticleContributor(_particles));
+    // Redrawn once this call is over rather than inside it: a borrowed device
+    // has the view call this while it is still being built, and an ancestor
+    // marked dirty then is an error.
+    scheduleMicrotask(() {
+      if (mounted) setState(() {});
     });
     // Not under a device handed in from outside: that is a test drawing the
     // run alone, and its frames are the run's, not the effects'.
-    final renderer = _renderer;
-    if (renderer != null && widget.openGraphics == null) {
-      unawaited(_openElements(device, renderer));
+    if (widget.device == null) {
+      unawaited(_openElements(device, engine.renderer));
     }
 
     // A cubit and nothing more: `RunSession` decides nothing about state
@@ -746,6 +856,9 @@ class _GameScreenState extends State<GameScreen>
         saves: _saveFile,
         input: _input,
         openDevice: () => _deviceReady.future,
+        // The guards are drawn from what the step published, not from the
+        // actors: the view's side of the boundary.
+        published: () => _loop.published,
         onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) {
           setState(() => _levelArrived(level, device));
           _beginDemo(asset, level);
@@ -759,14 +872,23 @@ class _GameScreenState extends State<GameScreen>
     );
     _autosave = Autosave(_run.run)..watchLifecycle();
 
-    _ticker = createTicker(_onTick)..start();
-
     // A run in progress beats a fresh one, and the file says which level it was
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
     // `begin` also falls back when the saved level is gone, which this game
     // used to handle by showing an error screen with a button on it.
     unawaited(_beginRun());
   }
+
+  /// What shows when no device would open.
+  Widget _failed(Object error) => DidNotStart(
+    // The sentence is this game's; the screen is `flutter3d_app`'s, and it
+    // was the same four widgets in five applications.
+    'The renderer did not start.\n\n$error',
+    explaining:
+        'The shader bundle is built by '
+        'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
+        'in the repository.',
+  );
 
   /// Reads the water's material and builds [_elements], then dresses the
   /// level already up, if one is.
@@ -777,23 +899,47 @@ class _GameScreenState extends State<GameScreen>
   /// water to draw.
   Future<void> _openElements(GraphicsDevice device, Renderer renderer) async {
     try {
+      // A phone draws less of the water and the fire. It steps the same
+      // water: that is the run's, and a phone's run is a desktop's run.
+      final phone =
+          defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS;
+      // The run steps the elements of each level in a world of its own;
+      // what is drawn is a copy of it, in this world, never stepped.
+      final drawn = NativeWorld();
       final bundle = await rootBundle.load(LiquidLook.asset);
-      final water = await LiquidLook.load(
+      final world = await Elements.adopt(
+        drawn,
         device: device,
         renderer: renderer,
-        bundle: bundle,
+        // A scene of its own until a level is up: each level's in turn.
+        scene: Scene(),
+        load: rootBundle.load,
+        quality: ElementsQuality.of(phone: phone),
+        hearing: (world) => PhysicsHearing(
+          world,
+          fireScale: const HearingScale(
+            quiet: 500.0,
+            loud: 5e5,
+            reference: 2e4,
+          ),
+          fallScale: const HearingScale(quiet: 50.0, loud: 1e5, reference: 5e3),
+          splashScale: const HearingScale(
+            quiet: 20.0,
+            loud: 2e4,
+            reference: 2e3,
+          ),
+        ),
       );
-      if (!mounted) return;
       final elements = LevelElements(
+        elements: world,
         device: device,
-        renderer: renderer,
-        water: water,
-        molten: LiquidLook.of(bundle),
-        // A phone steps coarser water and draws less of it and the fire.
-        light:
-            defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS,
+        liquidBundle: bundle,
       );
+      if (!mounted) {
+        elements.dispose();
+        return;
+      }
       _elements = elements;
       final level = _level;
       if (level != null) elements.stage(level);
@@ -827,8 +973,9 @@ class _GameScreenState extends State<GameScreen>
   /// numbers in a third, and each caller picked the subset it thought it
   /// needed. Moving a volume never re-applied the dead zone; nothing depended
   /// on that, and nothing said so either.
-  void _applyConfig(GameConfig config) {
-    _audio.applyVolumes(_config);
+  void _applyConfig(GameSettings config) {
+    _config = config;
+    _audio.applyVolumes(config);
     _pad.applySettings(config);
     _applyAccessibility();
   }
@@ -841,33 +988,9 @@ class _GameScreenState extends State<GameScreen>
   /// pointer to release, so a key held as the panel opened stayed held, and
   /// closing the panel sent the runner walking off on their own.
   void _openSettings() {
-    unawaited(_devices.release());
+    unawaited(_devices.releaseMouse());
     _input.clear();
   }
-
-  /// What a player can move, in the order the panel lists it.
-  ///
-  /// The game's list rather than the engine's `GameAction.common`: this one has
-  /// a dash and a drop-through in it, and a screen that could not rebind those
-  /// two would be a screen that could not rebind the moves the levels ask for.
-  static const List<GameAction> _rebindable = <GameAction>[
-    GameAction.moveForward,
-    GameAction.moveBack,
-    GameAction.moveLeft,
-    GameAction.moveRight,
-    GameAction.jump,
-    GameAction.sprint,
-    PlatformerActions.dash,
-    PlatformerActions.dropThrough,
-    // **`use` is not here, and it used to be.** Nothing in this game reads it:
-    // `GameAction.use` is a shooter's verb — doors, lifts, buttons and notes —
-    // and the only consumer in the repository is the shooter simulation. E and
-    // F are still bound to it by the shared default table, so the row was live
-    // in every sense except the one that matters: a player could rebind it,
-    // the binding was written to disk, and the key did nothing in any level.
-    // That is the one row in the panel a player cannot tell apart from a
-    // rebind that failed to take.
-  ];
 
   /// Puts the accessibility settings where they take effect.
   ///
@@ -879,13 +1002,12 @@ class _GameScreenState extends State<GameScreen>
     // The system answer is the **default**, not an override: somebody who turned
     // reduce-motion on years ago should not have to find the slider, and
     // somebody who has moved the slider should not be argued with.
-    _followCamera?.motion = _config.settingOf(
-      'a11y.cameraMotion',
-      _system.cameraMotion,
-    );
+    _followCamera?.motion =
+        _config.chosenValueOf(GameSettingKeys.cameraMotion) ??
+        _system.cameraMotion;
     _input.setToggled(
       GameAction.sprint,
-      toggled: _config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
+      toggled: _config.valueOf(GameSettingKeys.toggleSprint),
     );
   }
 
@@ -894,7 +1016,7 @@ class _GameScreenState extends State<GameScreen>
   /// Applied before it is written, because the point of a dead-zone slider is
   /// that the player moves it and feels the stick change — a setting that took
   /// effect on the next launch could not be chosen at all. That order is
-  /// `SettingsCubit`'s promise now rather than this method's.
+  /// `GameSettingsController`'s promise now rather than this method's.
   /// Loads [asset], and shows why if it cannot.
   ///
   /// **A level that will not read used to be a black screen for ever.** There
@@ -912,11 +1034,14 @@ class _GameScreenState extends State<GameScreen>
   /// something the run does not own.
   void _levelArrived(LevelReady level, GraphicsDevice device) {
     final runner = level.runner;
+    // The level's scene is the one drawn from the next frame, and the eye
+    // moves into it.
+    _engine?.scene = level.scene;
     _haunt(level, device);
     // A load takes far longer than a frame and drops simulated time every time.
     // Counting that against the machine would light the slow-machine warning on
     // every level of every run, which is the same as not having one.
-    _pace.reset(_loop.clock.droppedSteps);
+    _pace.reset(_loop.lostSteps);
 
     // A box now, the model when it arrives. Doing it any other way is what
     // turned out to matter: awaiting the model here puts it in the scene before
@@ -970,7 +1095,7 @@ class _GameScreenState extends State<GameScreen>
     final sim = _sim;
     if (sim == null) return;
     if (!_screen.shouldSave(sim.respawnPoint)) return;
-    _autosave?.checkpoint();
+    unawaited(_autosave?.checkpoint());
   }
 
   /// What the pad means to a screen rather than to the runner.
@@ -1058,77 +1183,179 @@ class _GameScreenState extends State<GameScreen>
   /// the new one. The shared version calls `startFresh` between the two.
   void _startOver() => unawaited(_run.startOver());
 
-  void _onTick(Duration _) {
-    // The ticker's argument is the frame's scheduled time, not the present;
-    // `FrameClock` says why the wall is measured instead.
-    final dt = _frames.tick();
-
+  /// The top of a frame, before the view steps the loop: the pad read, and
+  /// whether the loop is paused this frame.
+  void _beforeFrame(Flutter3dEngine engine, FrameInfo frame) {
+    final dt = frame.seconds;
+    _elapsed += dt;
     // Before the loop, so the frame that reads the pad is the frame it moves in.
     _pad.tick(dt);
     _padScreenButtons();
 
     // Four facts and no devices — see `pause_gate.dart`, which carries the three
     // ways this line has been wrong and a test for each.
-    _loop.paused = shouldPause(
+    _loop.isPaused = shouldPause(
       ready: _sim != null,
-      menuOpen: _settings.state.isOpen,
-      pointerIsTheGate: Playing.capturesPointer,
+      menuOpen: _settings.value.isOpen,
+      pointerIsTheGate: _playing.capturesPointer,
       pointerHeld: _devices.isCaptured,
       padConnected: _pad.isConnected,
-      photoMode: _photo.active,
+      photoMode: _photo.isActive,
     );
     // A pause is where most sessions end — the menu opened to quit, the pad
     // put down — so the run is written on the way in.
-    _autosave?.paused(_loop.paused);
-    _loop.advance(dt);
+    unawaited(_autosave?.paused(now: _loop.isPaused));
+    // The view steps the loop next, then everything else the frame does,
+    // phase by phase — see [_installLoop].
+    _frameDt = dt;
+  }
+
+  /// The bottom of a frame, after the loop: the screen around the picture
+  /// redrawn with what the frame did.
+  void _afterFrame(Flutter3dEngine engine, FrameInfo frame) {
+    // Not while a photo is drawn: a rebuild draws a frame on the renderer the
+    // tiles are drawn on — see `capturePhoto`. The view itself is held still
+    // then too, under a `TickerMode` in [_game].
+    if (mounted && !_photo.isBusy) setState(() {});
+  }
+
+  /// The engine's loop with this game in it.
+  ///
+  /// **The order the game always had, now said by phase.** A step was this
+  /// widget's `_step` around the simulation's; it is now:
+  ///
+  /// 1. `input` — `platformer_demo.aim`: which level is stepped, the camera's
+  ///    yaw handed to the run, the rewind's keyframe taken;
+  /// 2. `physics` — `platformer.step`, the genre's own ([PlatformerPlugin]);
+  /// 3. `elements` — `platformer_demo.elements`, the level's water and fires
+  ///    ([stepElements]), which until this loop rode inside the genre's step;
+  /// 4. `publish` — `platformer_demo.react`: the demo's checkpoint;
+  /// 5. the step's end ([_afterStep], `onStepEnd`): the step's events, as the
+  ///    bus's step channel handed them out, shown, and the drawn runner
+  ///    pushed on.
+  ///
+  /// The sounds and bursts an event places by itself are not in the step:
+  /// [SoundtrackPlugin] and [ReactionsPlugin] hear them on the bus's frame
+  /// channel after the frame's steps, and `platformer_demo.reactions` shows
+  /// the bursts first thing in `animate`. [SpokenEvents] says the runner's
+  /// moments there too.
+  ///
+  /// And a frame, after its steps, what the frame did before the view owned
+  /// the loop, in the same order: the pace, the particles and the runner's
+  /// clips (`animate`); the camera, the ghost and the photo camera
+  /// (`camera`); the fixtures, the elements' drawing and the lamps
+  /// (`render`); the save and the run's own state (`ui`).
+  ///
+  /// The loop itself is the view's, made with [_plugins], the level format's
+  /// [EntityKinds] and [_drainLook]; this hangs the game on it.
+  void _installLoop(EngineLoop loop) {
+    // The last ten seconds, kept as the loop's own captures.
+    _rewind.attach(loop);
+    loop.onStepEnd(_afterStep);
+    loop
+      ..addSystem('platformer_demo.aim', LoopPhase.input, _preStep)
+      ..addSystem('platformer_demo.elements', LoopPhase.fields, _stepElements)
+      ..addSystem('platformer_demo.react', LoopPhase.publish, _postStep)
+      // What the frame channel decided, shown before the particles advance:
+      // the frame a burst thrown from the step's own `react` was shown in.
+      ..addSystem(
+        'platformer_demo.reactions',
+        LoopPhase.animate,
+        (LoopContext _) => _placedBursts.drain()
+          ..showIn(_particles)
+          ..feel(_followCamera?.rig),
+      )
+      ..addSystem('platformer_demo.pace', LoopPhase.animate, _notePace)
+      ..addSystem(
+        'platformer_demo.particles',
+        LoopPhase.animate,
+        // The frame the loop accepted — see `EngineLoop.lastFrame`.
+        (LoopContext frame) => _particles.advance(frame.dt),
+      )
+      ..addSystem(
+        'platformer_demo.runner',
+        LoopPhase.animate,
+        (LoopContext _) => _runnerVisuals.animate(_frameDt, _runner),
+      )
+      ..addSystem('platformer_demo.camera', LoopPhase.camera, _frameCamera)
+      ..addSystem('platformer_demo.scene', LoopPhase.render, _frameScene)
+      ..addSystem('platformer_demo.run', LoopPhase.ui, _frameRun);
+  }
+
+  /// The plugins the view's loop installs: the genre, and the sounds, bursts
+  /// and spoken lines an event places by itself.
+  late final List<Flutter3dPlugin> _plugins = <Flutter3dPlugin>[
+    _platformer,
+    _placedSounds,
+    _placedBursts,
+    _spoken,
+  ];
+
+  /// The registries the view's loop is made with: the level format's kinds,
+  /// which the genre adds its own to.
+  final List<PluginRegistry> _registries = <PluginRegistry>[EntityKinds()];
+
+  void _notePace(LoopContext _) {
+    final dt = _frameDt;
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
     // nothing about it.
     _pace.note(
-      dropped: _loop.clock.droppedSteps,
+      dropped: _loop.lostSteps,
       dt: dt,
-      stepSeconds: _loop.clock.stepSeconds,
+      stepSeconds: _loop.stepSeconds,
     );
 
     if (_sayFor > 0.0) {
       _sayFor -= dt;
       if (_sayFor <= 0.0) _said = null;
     }
-    // The frame the loop accepted — see `GameLoop.lastFrame`.
-    _particles.advance(_loop.lastFrame);
-    _runnerVisuals.animate(dt, _runner);
+  }
+
+  void _frameCamera(LoopContext _) {
+    final dt = _frameDt;
     _placeCamera(dt);
     // The ghost on the run's own clock: both started at the top together.
     if ((_ghost, _ghostTrack, _sim) case (
-      final GhostRunner ghost,
+      final Ghost ghost,
       final Tape track,
       final PlatformerSimulation sim,
     )) {
       ghost.showAt(sim.elapsed, track);
     }
-    if (_photo.active) {
+    if (_photo.isActive) {
       // The paused loop drains nothing, so the look is taken here, and the
       // photo camera is put on the node after the follow camera was.
       final look = Vector2.zero();
       _drainLook(look);
       _photo
-        ..fly(_input, look, dt)
+        ..fly(dt, input: _input, look: look)
         ..applyTo(_camera);
     }
-    _fixtures?.sync(_frames.elapsed);
+  }
+
+  void _frameScene(LoopContext _) {
+    final dt = _frameDt;
+    _fixtures?.sync(_elapsed);
     final elements = _elements;
     if (elements != null) {
       elements
         ..hideDressed()
-        // Held still with the photograph, and never more than a thirtieth
-        // of a second at once: a stall in the window is not a flood.
+        // Drawn as the run's last step left them. The clock that ripples
+        // the surface and ages the spray is held still with the photograph,
+        // and never more than a thirtieth of a second at once.
         ..update(
-          _photo.active ? 0.0 : (dt < 1.0 / 30.0 ? dt : 1.0 / 30.0),
+          _photo.isActive ? 0.0 : (dt < 1.0 / 30.0 ? dt : 1.0 / 30.0),
           eye: _followCamera?.eye ?? Vector3.zero(),
         );
-      _elementSounds.update(elements.hearing);
+      // The scene asked each frame: the game swaps its silent one for the
+      // speakers' once they open.
+      _elementSounds.play(_audio.scene, elements.hearing);
     }
     _burnLamps();
+  }
+
+  void _frameRun(LoopContext _) {
     _keepSaved();
     // The run's own state, republished on the step it changes — see
     // `RunSession.observe`. **Missing here, this game's next level and its
@@ -1137,9 +1364,6 @@ class _GameScreenState extends State<GameScreen>
     // cached outcome off `RunOutcome.playing`.
     _run.observe();
     unawaited(_run.advance());
-    // Not while a photo is drawn: a rebuild draws a frame on the renderer the
-    // tiles are drawn on — see `capturePhoto`.
-    if (mounted && !_photo.busy) setState(() {});
   }
 
   /// Opens photo mode where the follow camera is, or closes it.
@@ -1147,7 +1371,7 @@ class _GameScreenState extends State<GameScreen>
     final camera = _followCamera;
     final level = _loaded;
     final runner = _runner;
-    if (_photo.active) {
+    if (_photo.isActive) {
       setState(_photo.leave);
       return;
     }
@@ -1158,7 +1382,7 @@ class _GameScreenState extends State<GameScreen>
         eye: camera.eye,
         target: camera.target,
         anchor: runner.body.position,
-        fieldOfView: Lens.base.fovYRadians + camera.extraFov,
+        fieldOfView: ascentLens.base.fovY + camera.extraFovY,
       ),
     );
   }
@@ -1166,14 +1390,14 @@ class _GameScreenState extends State<GameScreen>
   /// Draws the photo at [scale] times the window and saves it.
   Future<void> _takePhoto(int scale) async {
     final renderer = _renderer;
-    if (renderer == null || _photo.busy) return;
+    if (renderer == null || _photo.isBusy) return;
     final size =
         MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
-    setState(() => _photo.busy = true);
+    setState(() => _photo.isBusy = true);
     // The frame saying so is drawn first; after it nothing redraws until the
     // picture is done.
     await SchedulerBinding.instance.endOfFrame;
-    final taken = await takePhoto(
+    final taken = await savePhoto(
       renderer: renderer,
       scene: _scene,
       camera: _camera,
@@ -1181,24 +1405,30 @@ class _GameScreenState extends State<GameScreen>
       height: (size.height * scale).round(),
       settings: _renderSettings(filtered: false),
       filter: _photo.filter,
-      clearColor: _view.clearColor,
+      clearColorSrgb: _engine!.view.clearColorSrgb,
       shelf: defaultPhotoShelf('platformer'),
       name: 'platformer-${DateTime.now().millisecondsSinceEpoch}.png',
     );
     if (!mounted) return;
     setState(() {
       _photo
-        ..busy = false
+        ..isBusy = false
         ..said = taken.saved.message;
     });
   }
 
   /// What every frame is drawn with; [filtered] puts photo mode's filter on.
   RenderSettings _renderSettings({bool filtered = true}) => RenderSettings(
-    fog: FogSettings(
-      color: _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
-      density: _loaded?.level.fogDensity ?? 0.0,
-    ),
+    // The level's sky and its fog lying low — see `air.dart`. Nothing before
+    // a level is up: the first frames draw an empty scene.
+    fog: switch (_loaded?.level) {
+      final Level level => levelFog(level),
+      null => const FogSettings(),
+    },
+    sky: switch (_loaded?.level) {
+      final Level level => levelSky(level),
+      null => const SkySettings(),
+    },
     // Three cascades, because this level is a hundred and twenty metres by two
     // hundred and sixty and one map over that is fourteen centimetres of world
     // per texel — which drew the runner's own shadow as a blurred slab beside
@@ -1212,7 +1442,7 @@ class _GameScreenState extends State<GameScreen>
     shadows: const ShadowSettings(cascades: 3, resolution: 2048),
     // Photo mode's filter, and over it the player's colour vision.
     look: _seen(
-      filtered && _photo.active
+      filtered && _photo.isActive
           ? _photo.look(const LookSettings())
           : const LookSettings(),
     ),
@@ -1222,33 +1452,64 @@ class _GameScreenState extends State<GameScreen>
   /// for one in the settings.
   LookSettings _seen(LookSettings look) => _vision?.of(_config, look) ?? look;
 
-  /// One simulation step. Nothing here draws.
-  /// What the last simulated step reported. See where it is drained.
+  /// What the last simulated step published. See [_afterStep].
   List<GameEvent> _lastStep = const <GameEvent>[];
 
-  void _step(double dt) {
-    final sim = _sim;
-    final runner = _runner;
+  /// The top of a step: which level it steps, and what the run is handed
+  /// before the genre steps it. Nothing here draws.
+  void _preStep(LoopContext step) {
+    final level = _level;
     final camera = _followCamera;
-    if (sim == null || runner == null || camera == null) return;
+    final stepping = camera == null ? null : level;
+    _stepping = stepping;
+    // Nothing steps until the level's camera is up, as before the loop.
+    _platformer.simulation = stepping?.sim;
+    if (stepping == null || camera == null) return;
+    final sim = stepping.sim;
 
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
-    // Before the step, so the keyframe is the state this step's recorded
-    // entry acts on — the moment `RewindBuffer` and the loop agree about.
-    if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
-    sim.step(dt);
+  }
+
+  /// The level's water and fires, after the genre's step. See
+  /// [stepElements].
+  void _stepElements(LoopContext step) {
+    final level = _stepping;
+    if (level == null) return;
+    stepElements(level.sim, level.staged.elements, step.dt);
+  }
+
+  /// The bottom of a step: what it did, written down.
+  void _postStep(LoopContext step) {
+    final level = _stepping;
+    final camera = _followCamera;
+    if (level == null || camera == null) return;
+
     // `rp-01`'s own checkpoint, taken here rather than replayed later from the
     // finished tape — see the dungeon's identical placement for why the step
     // number has to be the recorder's own.
-    _demo?.observe(sim.save);
-    // Drained once, here, and handed to everything that wants it. Draining
-    // empties the buffer, so two readers each draining would each get half of
-    // what happened — and which half would depend on the order they ran in.
-    // Kept as well as passed on: the pose is built in the draw path, which
-    // runs between steps, and what it used to read were flags that stayed set
-    // until the next step cleared them. This is the same window.
-    final events = _lastStep = sim.events.drain();
+    _demo?.observe(level.sim.save);
+  }
+
+  /// The end of a step, once the bus has handed out what it published: the
+  /// step shown, the drawn runner pushed on.
+  ///
+  /// At the step's end rather than in `publish`, because the step channel
+  /// hands a step's events out only once all of its phases have run. Read
+  /// once, here, and handed to everything that wants it, so every reader sees
+  /// the whole step in the order it happened. Kept as well as passed on: the
+  /// pose is built in the draw path, which runs between steps, and what it
+  /// used to read were flags that stayed set until the next step cleared
+  /// them. This is the same window.
+  void _afterStep(StepEventSummary summary) {
+    final level = _stepping;
+    final camera = _followCamera;
+    if (level == null || camera == null) return;
+    final sim = level.sim;
+    final runner = level.runner;
+    final dt = _loop.stepSeconds;
+
+    final events = _lastStep = summary.events.whereType<GameEvent>().toList();
     _react(sim, runner, events);
 
     if (events.any((GameEvent event) => event is RunnerDied)) {
@@ -1304,9 +1565,7 @@ class _GameScreenState extends State<GameScreen>
   /// game shipped mute, and then shipped without a particle for a collected
   /// coin, with nothing red either time.
   void _react(PlatformerSimulation sim, Runner runner, List<GameEvent> events) {
-    final camera = _followCamera;
-
-    for (final Heard heard in _soundtrack.listen(sim, runner, events)) {
+    for (final Heard heard in _soundtrack.heardOnStep(sim, runner, events)) {
       _audio.scene.play(heard.sound, heard.at);
     }
 
@@ -1321,15 +1580,9 @@ class _GameScreenState extends State<GameScreen>
     // here — the same split as the sound above, and for the same reason: what
     // a coin looks like when it is taken was a private method of a widget
     // nothing can mount, so nothing checked that it looked like anything.
-    final reaction = _reactions.listen(sim, runner, events);
-    for (final Shown shown in reaction.bursts) {
-      _particles.burst(shown.effect, shown.at, direction: shown.direction);
-    }
-    if (camera != null) {
-      for (final Felt felt in reaction.jolts) {
-        felt.applyTo(camera);
-      }
-    }
+    _reactions.shownOnStep(sim, runner, events)
+      ..showIn(_particles)
+      ..feel(_followCamera?.rig);
   }
 
   void _placeCamera(double dt) {
@@ -1339,14 +1592,14 @@ class _GameScreenState extends State<GameScreen>
 
     // A captured pointer reports through the loop; a drag reports here.
     // A captured pointer reports through the loop; a drag reports here.
-    camera.look(Playing.dragLook ? _dragLook.take() : _input.lookDelta);
+    camera.look(_playing.usesDragLook ? _dragLook.drain() : _input.lookDelta);
     _drawnAt.read(_loop.alpha, _scratch);
     // The way the runner is *going*, so the camera drifts round behind them
     // over a long level instead of having to be steered by hand at every
     // corner. Velocity rather than facing: a runner sliding backwards off a
     // ledge is going one way and looking another, and the camera should show
     // where they are about to land.
-    camera.follow(_scratch, dt, travelling: _runner?.body.velocity);
+    camera.follow(_scratch, dt, traveling: _runner?.body.velocity);
 
     // The pose: squash, stretch, lean, and the flip a double jump turns. Built
     // from what the runner did this step and applied here, because this is the
@@ -1390,17 +1643,27 @@ class _GameScreenState extends State<GameScreen>
     _camera
       ..setPositionFrom(camera.eye)
       ..lookAt(camera.target)
-      ..projection = Lens.widened(camera.extraFov);
+      ..projection = ascentLens.widened(camera.extraFovY);
+    // The ears follow this camera: the view says where it ended up after the
+    // frame, through [_listenerMoved].
+  }
 
-    // Along the camera's own forward rather than through a yaw: `aimAt` reads
-    // an angle as a first-person camera's, and this one is not.
-    _audio.ears.aimAlong(camera.eye, camera.target - camera.eye);
+  /// The ears where the camera is, in the world and facing its way, as the
+  /// view hands them over after every frame: relative to the drawn scene's
+  /// origin, which is where the mixer's sounds are placed from.
+  void _listenerMoved(ListenerPose ears) {
+    _audio.ears.placeAt(
+      ears.position,
+      ears.forward,
+      origin: ears.origin,
+      up: ears.up,
+    );
     _audio.scene.update(_audio.ears);
   }
 
   @override
   void dispose() {
-    _stopReplays();
+    _stopReplays?.call();
     // Null if the device never opened: nothing ran, so there is nothing to
     // keep — and the cubit to close was never built either.
     _runOrNull?.save();
@@ -1410,9 +1673,8 @@ class _GameScreenState extends State<GameScreen>
     unawaited(_runOrNull?.close());
     unawaited(_audio.close());
     unawaited(_screen.close());
-    unawaited(_settings.close());
+    _settings.dispose();
     _keyboard.dispose();
-    _ticker?.dispose();
     unawaited(_devices.dispose());
     _elements?.dispose();
     super.dispose();
@@ -1420,31 +1682,13 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   Widget build(BuildContext context) {
-    final error = _screen.state.error;
-    if (error != null) {
-      // The sentence is this game's; the screen is `flutter3d_app`'s,
-      // and it was the same four widgets in five applications.
-      return DidNotStart(
-        'The renderer did not start.\n\n$error',
-        explaining:
-            'The shader bundle is built by '
-            'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
-            'in the repository.',
-      );
-    }
+    final run = _runOrNull;
+    // Before the device is open there is no run to watch: the view shows its
+    // placeholder, and the screen around it waits with it.
+    if (run == null) return _game();
 
-    final renderer = _renderer;
-    if (renderer == null) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // `_run` is assigned in the same synchronous stretch as `_renderer`, so by
-    // the time a frame actually reaches this widget it is there to read.
     return BlocConsumer<RunCubit, RunStatus<LevelReady>>(
-      bloc: _run,
+      bloc: run,
       // `rp-01`/`rp-04`: the one moment `_beginDemo` cannot cover, because it
       // fires from `onLevelBuilt` rather than from a republished status —
       // this game's own outcome ending, win or lose. `RunSession.observe`
@@ -1459,126 +1703,89 @@ class _GameScreenState extends State<GameScreen>
           default:
         }
       },
-      builder: (BuildContext context, RunStatus<LevelReady> run) {
-        if (run is RunFailed<LevelReady>) {
-          // **This used to be a black screen for ever**: the load caught its
-          // own throw and printed it, which is a line in a console nobody
-          // playing the game can see.
-          return LevelLoadFailed(
-            asset: run.asset,
-            error: run.error,
-            onStartOver: _startOver,
-          );
-        }
-        return _game(renderer);
-      },
+      builder: (BuildContext context, RunStatus<LevelReady> run) => _game(
+        // **This used to be a black screen for ever**: the load caught its
+        // own throw and printed it, which is a line in a console nobody
+        // playing the game can see. Over the view, which stays, so a level
+        // that does load after a start-over is drawn by the same engine.
+        failed: run is RunFailed<LevelReady>
+            ? LevelLoadFailed(
+                asset: run.asset,
+                error: run.error,
+                onStartOver: _startOver,
+              )
+            : null,
+      ),
     );
   }
 
-  /// The game itself, once the renderer is up and the level either loaded or
-  /// is loading.
-  ///
-  /// Split out of [build] so the `RunFailed` branch above can return early
-  /// without also having to indent everything else a level deeper.
-  Widget _game(Renderer renderer) {
-    final scene = _scene;
+  /// The game itself: the view, and the screen around it once the view's
+  /// engine is up — the HUD, the touch controls, the title card and the
+  /// settings — with [failed] over everything when a level would not load.
+  Widget _game({Widget? failed}) {
     final sim = _sim;
-
+    final renderer = _renderer;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Focus(
-        focusNode: _keyboard,
-        autofocus: true,
-        onKeyEvent: (_, KeyEvent event) {
-          // Photo mode before the settings: Escape there means "back to the
-          // game", and the panel would take it as "open me".
-          if (event is KeyDownEvent &&
-              _screen.state.started &&
-              !_settings.state.isOpen &&
-              !_photo.busy &&
-              (event.logicalKey == LogicalKeyboardKey.keyP ||
-                  (_photo.active &&
-                      event.logicalKey == LogicalKeyboardKey.escape))) {
-            _togglePhoto();
-            return KeyEventResult.handled;
-          }
-          final photoSays = _photo.key(
-            event,
-            onCapture: (int scale) => unawaited(_takePhoto(scale)),
-          );
-          if (photoSays != null) {
-            setState(() {});
-            return photoSays;
-          }
-          // The settings get the key first — see `settingsKeys` for the order
-          // and for the bug this call fixed here: R sat above the rebinding, so
-          // a player at the end of a run could not bind R to anything.
-          //
-          // The panel is offered only once the game has started; the title card
-          // carries the same credits and is the one screen a panel over the top
-          // of it adds nothing to.
-          final settingsSay = settingsKeys(
-            event,
-            _settings,
-            opening: _openSettings,
-            canOpen: _screen.state.started,
-          );
-          if (settingsSay != null) return settingsSay;
-          // R starts a finished run over. Handled here rather than through a
-          // binding because it is not a verb the runner has: the simulation it
-          // would be asking is the one that has stopped.
-          //
-          // **Both ways a run ends, not just the losing one.** A player who
-          // reached the summit was offered nothing at all and had to quit the
-          // application to climb it again.
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.keyR &&
-              _runIsOver) {
-            _restart();
-            return KeyEventResult.handled;
-          }
-          return _devices.handleKeyEvent(event);
+      body: Listener(
+        // Wherever the pointer can be captured, which now includes a desktop
+        // browser: `_playing.capturesPointer` asks the capture backend and no
+        // longer a platform list. The drag-look layer above the platform view
+        // is the other half of the same question and stands down when this
+        // one answers yes — handling both at once doubled every look delta.
+        //
+        // **The capture must stay inside this handler**, because a browser
+        // refuses `requestPointerLock` without a user gesture behind it.
+        onPointerDown: (_) {
+          _keyboard.requestFocus();
+          _begin();
+          if (!_playing.capturesPointer) return;
+          _devices.pressPointer(PlatformerActions.dash);
+          if (!_devices.isCaptured) unawaited(_devices.captureMouse());
         },
-        child: Listener(
-          // Wherever the pointer can be captured, which now includes a desktop
-          // browser: `Playing.capturesPointer` asks the capture backend and no
-          // longer a platform list. The drag-look layer above the platform view
-          // is the other half of the same question and stands down when this
-          // one answers yes — handling both at once doubled every look delta.
-          //
-          // **The capture must stay inside this handler**, because a browser
-          // refuses `requestPointerLock` without a user gesture behind it.
-          onPointerDown: (_) {
-            _keyboard.requestFocus();
-            _begin();
-            if (!Playing.capturesPointer) return;
-            _devices.pressPointer(PlatformerActions.dash);
-            if (!_devices.isCaptured) unawaited(_devices.captureMouse());
-          },
-          onPointerUp: (_) {
-            if (!Playing.capturesPointer) return;
-            _devices.releasePointer(PlatformerActions.dash);
-          },
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              // **`gfx-71n`.** This build ships to Android and iOS, and the
-              // pool it draws through settles at the high-water mark of every
-              // attachment shape any frame has needed — which here includes a
-              // 6144 x 2048 shadow atlas and bloom's five levels. On a phone
-              // that is the difference between a slow frame and the operating
-              // system killing the process, so the platform's own warning is
-              // wired to giving the pooled ones back.
+        onPointerUp: (_) {
+          if (!_playing.capturesPointer) return;
+          _devices.releasePointer(PlatformerActions.dash);
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            // Held still while a photo is drawn: a frame drawn then would be
+            // drawn on the renderer the photo's tiles are — see
+            // `capturePhoto`.
+            TickerMode(
+              enabled: !_photo.isBusy,
+              child: Flutter3dView(
+                scene: _empty,
+                camera: _camera,
+                device: widget.device,
+                input: _input,
+                drainLook: _drainLook,
+                plugins: _plugins,
+                registries: _registries,
+                settings: _renderSettings(),
+                focusNode: _keyboard,
+                autofocus: true,
+                onKeyEvent: _onKey,
+                onCreated: _engineReady,
+                onBeforeFrame: _beforeFrame,
+                onFrame: _afterFrame,
+                onListenerMoved: _listenerMoved,
+                placeholder: const Center(child: CircularProgressIndicator()),
+                failure: _failed,
+              ),
+            ),
+            // **`gfx-71n`.** This build ships to Android and iOS, and the
+            // pool it draws through settles at the high-water mark of every
+            // attachment shape any frame has needed — which here includes a
+            // 6144 x 2048 shadow atlas and bloom's five levels. On a phone
+            // that is the difference between a slow frame and the operating
+            // system killing the process, so the platform's own warning is
+            // wired to giving the pooled ones back.
+            if (renderer != null) ...<Widget>[
               MemoryPressureRelease(
                 renderer: renderer,
-                child: SceneSurface(
-                  renderer: renderer,
-                  scene: scene,
-                  view: _view,
-                  onBeforeFrame: () {},
-                  settings: _renderSettings,
-                  presentFrame: presentFrame,
-                ),
+                child: const SizedBox.shrink(),
               ),
               // The web build draws into a platform view, and a platform view
               // takes every pointer event over it — the `Listener` outside this
@@ -1586,7 +1793,7 @@ class _GameScreenState extends State<GameScreen>
               // layer *above* the view does, because it is an ordinary Flutter
               // widget again. Nothing below it is interactive, so opaque hit
               // testing costs nothing.
-              if (Playing.dragLook)
+              if (_playing.usesDragLook)
                 Positioned.fill(
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
@@ -1604,10 +1811,10 @@ class _GameScreenState extends State<GameScreen>
               // Not behind the title card: the tallies and its own "Click to
               // play" banner showed through it, saying the same thing twice
               // and counting a run the player has not started.
-              if (_photo.active) PhotoBar(mode: _photo),
+              if (_photo.isActive) PhotoBar(mode: _photo),
               // Not in photo mode either: the picture is the level, and the
               // tallies over it are not.
-              if (sim != null && _screen.state.started && !_photo.active)
+              if (sim != null && _screen.state.started && !_photo.isActive)
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,
@@ -1615,26 +1822,26 @@ class _GameScreenState extends State<GameScreen>
                   elapsed: sim.elapsed,
                   state: sim.state,
                   // Nothing to capture in a browser, so nothing to prompt for.
-                  captured: !Playing.capturesPointer || _devices.isCaptured,
+                  captured: !_playing.capturesPointer || _devices.isCaptured,
                   levelName: _loaded?.level.name ?? '',
                   keys: _runner?.keys ?? const <String>{},
                   message: _said,
-                  behind: _pace.behind,
+                  behind: _pace.isBehind,
                   lost: _pace.lost,
                   // The end of the *game*, not of a level: the last level is
                   // the one with nowhere to go next, which the document says
                   // and this widget must not guess at.
                   finale: sim.nextLevel == null,
                   // So the end of a run asks for something this build can do.
-                  touch: Playing.touch,
+                  touch: _playing.touch,
                 ),
               // Above the drag layer on purpose: a widget higher in the stack
               // takes the pointers that land on it, so a thumb on the stick is
               // never also a turn of the camera. Everything the drag layer
               // still sees is screen the controls are not on.
-              if (Playing.touch &&
+              if (_playing.touch &&
                   _screen.state.started &&
-                  !_settings.state.isOpen)
+                  !_settings.value.isOpen)
                 // **`TouchRunner` rather than `TouchControls` written out
                 // here.** The list of buttons was inline in this method, where
                 // nothing could pump it — and it was one verb short: sprint is
@@ -1651,55 +1858,107 @@ class _GameScreenState extends State<GameScreen>
               // jump over and the stick is where a thumb already rests; above
               // the HUD, which is an `IgnorePointer` and takes no touch at all;
               // and below the settings overlay, so the gear still opens.
-              if (Playing.touch && _screen.state.started && _runIsOver)
+              if (_playing.touch && _screen.state.started && _runIsOver)
                 TapToRestart(onRestart: _restart),
               // Share the run just ended, or race somebody's: where a run
               // is over, and only in a build with somewhere to share to.
-              if (_cloud.shares != null && _runIsOver && !_photo.active)
+              if (_cloud.shares != null && _runIsOver && !_photo.isActive)
                 Positioned(
                   top: 12,
                   right: 12,
                   child: ShareStrip(
                     onShare: _lastRun == null ? null : _share,
-                    onRace: _race,
+                    onOpen: _race,
                   ),
                 ),
               if (!_screen.state.started)
                 TitleCard(
-                  prompt: Playing.touch
+                  prompt: _playing.touch
                       ? 'Touch to begin.'
-                      : Playing.capturesPointer
+                      : _playing.capturesPointer
                       ? 'Click to take the mouse, or press a button on the '
                             'pad.'
                       : 'Click to begin, or press a button on the pad.',
-                  dashOnPointer: Playing.capturesPointer,
-                  touch: Playing.touch,
+                  dashOnPointer: _playing.capturesPointer,
+                  touch: _playing.touch,
                   resuming: _screen.state.resumed,
                 ),
               SettingsOverlay(
                 settings: _settings,
-                mixer: _audio.mixer,
-                // Only the sliders this game's own sounds can be heard through.
-                // `busesIn` reads the bank, so a soundtrack arriving one day brings
-                // its slider with it and nobody has to remember.
-                buses: busesIn(Sounds.all),
-                bindings: _devices.bindings,
-                config: _config,
-                padConnected: _pad.isConnected,
-                actions: _rebindable,
-                defaultBindings: _bindings,
+                sections: SettingsSection.standard(
+                  // Only the sliders this game's own sounds can be heard
+                  // through. `busesIn` reads the bank, so a soundtrack
+                  // arriving one day brings its slider with it.
+                  buses: busesIn(Sounds.all),
+                  padConnected: _pad.isConnected,
+                  defaultActions: _actionMap,
+                  credits: CreditsSection(credits: credits.models),
+                  // Cloud saves and sending runs, both off until answered.
+                  privacy: _cloud.consents,
+                ),
                 opening: _openSettings,
-                credits: const CreditsSection(credits: Credits.models),
-                // Cloud saves and sending runs, both off until answered.
-                privacy: _cloud.consents,
                 // Not over the title card, which carries the same settings on
                 // it and is the one screen a stray gear has nothing to add to.
                 canOpen: _screen.state.started,
               ),
             ],
-          ),
+            ?failed,
+          ],
         ),
       ),
     );
+  }
+
+  /// A key, while the view has focus: photo mode, the settings and the end
+  /// of a run first, then the keyboard's bindings.
+  KeyEventResult _onKey(KeyEvent event) {
+    // Photo mode before the settings: Escape there means "back to the
+    // game", and the panel would take it as "open me".
+    if (event is KeyDownEvent &&
+        _screen.state.started &&
+        !_settings.value.isOpen &&
+        !_photo.isBusy &&
+        (event.logicalKey == LogicalKeyboardKey.keyP ||
+            (_photo.isActive &&
+                event.logicalKey == LogicalKeyboardKey.escape))) {
+      _togglePhoto();
+      return KeyEventResult.handled;
+    }
+    final photoSays = _photo.key(
+      event,
+      onCapture: (int scale) => unawaited(_takePhoto(scale)),
+    );
+    if (photoSays != null) {
+      setState(() {});
+      return photoSays;
+    }
+    // The settings get the key first — see `settingsKeys` for the order
+    // and for the bug this call fixed here: R sat above the rebinding, so
+    // a player at the end of a run could not bind R to anything.
+    //
+    // The panel is offered only once the game has started; the title card
+    // carries the same credits and is the one screen a panel over the top
+    // of it adds nothing to.
+    final settingsSay = settingsKeys(
+      event,
+      _settings,
+      opening: _openSettings,
+      canOpen: _screen.state.started,
+    );
+    if (settingsSay != null) return settingsSay;
+    // R starts a finished run over. Handled here rather than through a
+    // binding because it is not a verb the runner has: the simulation it
+    // would be asking is the one that has stopped.
+    //
+    // **Both ways a run ends, not just the losing one.** A player who
+    // reached the summit was offered nothing at all and had to quit the
+    // application to climb it again.
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyR &&
+        _runIsOver) {
+      _restart();
+      return KeyEventResult.handled;
+    }
+    return _devices.handleKeyEvent(event);
   }
 }

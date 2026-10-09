@@ -13,7 +13,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_racing/src/looks.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A device is needed only because a [MeshNode] owns an uploaded mesh; nothing
 /// here draws, so the smallest one that can accept an upload will do.
@@ -25,7 +24,7 @@ CpuDevice _device() => CpuDevice(
 
 /// One node wearing a material by that name, which is all [Looks.paint] reads.
 MeshNode _part(CpuDevice device, String name) =>
-    carBox(device, Material(name: name), name: name);
+    carBox(device, RenderMaterial(name: name), name: name);
 
 /// A texture standing in for a livery: only its presence is ever read.
 TextureHandle? _anyTexture(CpuDevice device) => device.createTextureFromPixels(
@@ -63,41 +62,34 @@ void main() {
   });
 
   group('only the bodywork is painted', () {
-    test('the panels are found by name', () {
-      // The exporter suffixes duplicates, so the names in the asset are
-      // `car_chassis.005` and `car_chassis2.005` rather than anything stable.
-      expect(Looks.isBodywork('car_chassis.005'), isTrue);
-      expect(Looks.isBodywork('car_chassis2.005'), isTrue);
-      expect(Looks.isBodywork('CHASSIS'), isTrue);
+    test('the paint is found by the name the model gives it', () {
+      // `tool/prepare_models.py` moves the body's paint onto a material called
+      // `paint`; everything else keeps the kit's atlas, `colormap`.
+      expect(Looks.isBodywork('paint'), isTrue);
     });
 
-    test('and the tyres, glass and carbon are not', () {
+    test('and the atlas the tyres, glass and stripes are drawn from is not', () {
       // Mutation: match every material — fails here first, which is the point:
       // a rival with red tyres and a red windscreen is the failure this guards.
-      expect(Looks.isBodywork('Tyre.005'), isFalse);
-      expect(Looks.isBodywork('WIND_MCL'), isFalse);
-      expect(Looks.isBodywork('CARBON.005'), isFalse);
-      expect(Looks.isBodywork('Brake_Disk.005'), isFalse);
+      expect(Looks.isBodywork('colormap'), isFalse);
     });
 
     test('and a material with no name is not', () {
-      // glTF does not require material names. Mutation: drop the null guard —
-      // throws instead of failing, which is worse: it takes the whole load
-      // path down and the field silently stays boxes.
+      // glTF does not require material names.
       expect(Looks.isBodywork(null), isFalse);
     });
 
     test('so painting a car leaves everything but its panels alone', () {
       final device = _device();
-      final chassis = _part(device, 'car_chassis.005');
-      final tyre = _part(device, 'Tyre.005');
-      final colour = Looks.carPaint(1);
+      final chassis = _part(device, 'paint');
+      final tyre = _part(device, 'colormap');
+      final color = Looks.carPaint(1);
 
-      Looks.paint(<MeshNode>[chassis, tyre], colour);
+      Looks.paint(<MeshNode>[chassis, tyre], color);
 
-      expect(chassis.material.baseColor, equals(colour));
-      // White, because `baseColor` multiplies the livery texture and one is
-      // the tint that changes nothing.
+      expect(chassis.material.baseColor, equals(color));
+      // White, because `baseColor` multiplies the atlas and one is the tint
+      // that changes nothing.
       expect(tyre.material.baseColor, equals(Vector4(1.0, 1.0, 1.0, 1.0)));
     });
 
@@ -106,13 +98,13 @@ void main() {
       // and the single-paint test above does not, because one multiplication
       // against white is indistinguishable from a set.
       final device = _device();
-      final chassis = _part(device, 'car_chassis.005');
-      final colour = Looks.carPaint(3);
+      final chassis = _part(device, 'paint');
+      final color = Looks.carPaint(3);
 
-      Looks.paint(<MeshNode>[chassis], colour);
-      Looks.paint(<MeshNode>[chassis], colour);
+      Looks.paint(<MeshNode>[chassis], color);
+      Looks.paint(<MeshNode>[chassis], color);
 
-      expect(chassis.material.baseColor, equals(colour));
+      expect(chassis.material.baseColor, equals(color));
     });
 
     test('but a ghost is haunted all over', () {
@@ -120,8 +112,8 @@ void main() {
       // walk the same list: a ghost is one translucent shape, so its tyres and
       // its engine go too. Mutation: guard `haunt` with `isBodywork` — fails.
       final device = _device();
-      final chassis = _part(device, 'car_chassis.005');
-      final tyre = _part(device, 'Tyre.005');
+      final chassis = _part(device, 'paint');
+      final tyre = _part(device, 'colormap');
 
       Looks.haunt(<MeshNode>[chassis, tyre]);
 
@@ -142,7 +134,7 @@ void main() {
       final device = _device();
       final part = carBox(
         device,
-        Material(name: 'car_chassis.005', albedo: _anyTexture(device)),
+        RenderMaterial(name: 'car_chassis.005', albedo: _anyTexture(device)),
       );
 
       Looks.haunt(<MeshNode>[part]);
@@ -155,8 +147,8 @@ void main() {
       // call; what this pins is that `paint` writes only into the materials it
       // was handed, so that flag is the only thing that has to be right.
       final device = _device();
-      final mine = _part(device, 'car_chassis.005');
-      final theirs = _part(device, 'car_chassis.005');
+      final mine = _part(device, 'paint');
+      final theirs = _part(device, 'paint');
 
       Looks.paint(<MeshNode>[mine], Looks.carPaint(1));
 

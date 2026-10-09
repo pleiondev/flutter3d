@@ -1,0 +1,65 @@
+{
+  "f3dfx": 1,
+  "effects": [
+    {
+      "name": "flame",
+      "description": "A torch flame: small, short-lived, rising, orange into dark red.",
+      "rate": 150.0,
+      "lifetime": [0.20, 0.40],
+      "size": [0.10, 0.19],
+      "color": [1.0, 0.62, 0.22, 1.0],
+      "emitter": {"shape": "cone", "halfAngleDegrees": 10.0, "speed": [0.22, 0.55]},
+      "affectors": [
+        {"type": "gravity", "acceleration": 1.1},
+        {"type": "drag", "perSecond": 2.6},
+        {"type": "turbulence", "strength": 0.55, "scale": 3.0},
+        {"type": "colorGradient", "keys": [
+          {"at": 0.0, "color": [1.0, 0.86, 0.55, 1.0], "ease": "smooth"},
+          {"at": 0.35, "color": [1.0, 0.66, 0.24, 1.0]},
+          {"at": 1.0, "color": [0.55, 0.08, 0.02, 1.0]}
+        ]},
+        {"type": "fade", "startsAt": 0.35},
+        {"type": "sizeOverLife", "from": 1.0, "to": 0.25}
+      ]
+    },
+    {
+      "name": "splash",
+      "description": "Water thrown up by a stride or a body falling in, falling back by the world's gravity.",
+      "count": 16,
+      "lifetime": [0.3, 0.6],
+      "size": [0.025, 0.055],
+      "color": [0.32, 0.34, 0.33, 1.0],
+      "emitter": {"shape": "cone", "speed": [1.2, 2.8], "halfAngleDegrees": 40.0},
+      "affectors": [
+        {"type": "gravity", "acceleration": "world"},
+        {"type": "fade", "startsAt": 0.4}
+      ]
+    },
+    {
+      "name": "splinters",
+      "description": "Wood splinters off where a round strikes it.",
+      "count": 8,
+      "lifetime": [0.25, 0.6],
+      "size": [0.03, 0.07],
+      "color": [0.42, 0.33, 0.22, 1.0],
+      "emitter": {"shape": "cone", "speed": [1.5, 4.5], "halfAngleDegrees": 35.0},
+      "affectors": [
+        {"type": "gravity"},
+        {"type": "fade", "startsAt": 0.5}
+      ]
+    },
+    {
+      "name": "impactSparks",
+      "description": "Sparks where a bullet met stone.",
+      "count": 14,
+      "lifetime": [0.12, 0.35],
+      "size": [0.03, 0.08],
+      "color": [2.4, 1.6, 0.7, 1.0],
+      "emitter": {"shape": "cone", "speed": [2.5, 7.0], "halfAngleDegrees": 42.0},
+      "affectors": [
+        {"type": "gravity"},
+        {"type": "fade", "startsAt": 0.4}
+      ]
+    }
+  ]
+}

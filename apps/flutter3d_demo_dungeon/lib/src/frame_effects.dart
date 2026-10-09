@@ -1,14 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_kit/reactions.dart';
+import 'package:flutter3d_game_kit/soundtrack.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'effects.dart';
-import 'reactions.dart';
-import 'soundtrack.dart';
 
 /// What one step's decisions turn into: particles, sounds, and the flashes
 /// and message the HUD reads.
@@ -23,11 +21,13 @@ import 'soundtrack.dart';
 /// camera), only the four things a reaction or a sound can change.
 final class FrameEffects {
   /// Fades after the player's shot connects. Read by the HUD's crosshair.
-  double hitFlash = 0.0;
+  double get hitFlash => _hit.value;
+  final ScreenFlash _hit = ScreenFlash(fadePerSecond: 4.0);
 
   /// Fades after the player is hurt. Red rather than the crosshair's white,
   /// because taking damage and dealing it must never look alike.
-  double painFlash = 0.0;
+  double get painFlash => _pain.value;
+  final ScreenFlash _pain = ScreenFlash(fadePerSecond: 1.6);
 
   /// The last thing the level said, and how long it has left on screen.
   String message = '';
@@ -50,7 +50,7 @@ final class FrameEffects {
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
   /// would be a stone slab that grinds for exactly as long as the sample.
-  final Map<Object, SoundEmitter> moverVoices = <Object, SoundEmitter>{};
+  final SustainedVoices moverVoices = SustainedVoices();
 
   // Scratch, reused every step. Allocating this per frame is the easiest way
   // to hand the collector work it does not need.
@@ -67,8 +67,8 @@ final class FrameEffects {
 
   /// Fades the flashes and the message. Called once per simulated step.
   void fade(double dt) {
-    if (hitFlash > 0.0) hitFlash = math.max(0.0, hitFlash - dt * 4.0);
-    if (painFlash > 0.0) painFlash = math.max(0.0, painFlash - dt * 1.6);
+    _hit.fade(dt);
+    _pain.fade(dt);
     if (messageFor > 0.0) messageFor = math.max(0.0, messageFor - dt);
   }
 
@@ -86,26 +86,15 @@ final class FrameEffects {
   /// flash can be turned down without turning the camera down with it. A
   /// full-screen flash on every hit is a photosensitivity question, which is
   /// not the same harm as a camera that moves by itself.
-  void hurt(double screenFlash) => painFlash = screenFlash;
+  void hurt(double screenFlash) => _pain.fire(screenFlash);
 
   /// Performs what `Reactions` decided. Nothing here chooses anything.
   void show(Reaction reaction, ParticleSystem particles, double screenFlash) {
-    for (final shown in reaction.bursts) {
-      particles.burst(shown.effect, shown.at, direction: shown.direction);
-    }
-    for (final lingering in reaction.lingering) {
-      particles.emitTimed(
-        lingering.key,
-        lingering.effect,
-        lingering.at,
-        perSecond: lingering.perSecond,
-        seconds: lingering.seconds,
-      );
-    }
+    reaction.showIn(particles);
     // Scaled by the player's own setting rather than decided in `Reactions`: a
     // full-screen flash on every hit is a photosensitivity question, and how
     // much of one is the player's answer.
-    if (reaction.flash) hitFlash = screenFlash;
+    if (reaction.flash) _hit.fire(screenFlash);
   }
 
   /// Every torch, every step. The rate is per second and the system keeps each
@@ -136,7 +125,7 @@ final class FrameEffects {
         // Only once the glow has seen a particle. Before that its centre is
         // the world origin, and a torch whose light spends its first frames
         // inside a wall is worse than one that never moved at all.
-        at: fire.glow.located ? fire.glow.centre : null,
+        at: fire.glow.isLocated ? fire.glow.center : null,
       );
     }
   }
@@ -147,12 +136,7 @@ final class FrameEffects {
   /// mechanism that began it, and that mechanism is gone with its level — so a
   /// mover caught mid-travel by a level change was a loop nothing could ever
   /// stop.
-  void stopVoices() {
-    for (final voice in moverVoices.values) {
-      voice.stop();
-    }
-    moverVoices.clear();
-  }
+  void stopVoices() => moverVoices.stop();
 
   /// Plays what the soundtrack decided, and keeps the running voices in place.
   ///
@@ -160,19 +144,6 @@ final class FrameEffects {
   /// than decisions: a grinding door is one voice that has to be started,
   /// moved and stopped by the same key, and which key that is was decided in
   /// `Soundtrack`.
-  void perform(Sounding sounding, AudioScene audio) {
-    for (final heard in sounding.once) {
-      audio.play(heard.sound, heard.at);
-    }
-    for (final loop in sounding.loops) {
-      switch (loop.what) {
-        case Voice.begin:
-          moverVoices[loop.key] = audio.play(loop.sound!, loop.at!);
-        case Voice.follow:
-          moverVoices[loop.key]?.position.setFrom(loop.at!);
-        case Voice.end:
-          moverVoices.remove(loop.key)?.stop();
-      }
-    }
-  }
+  void perform(Sounding sounding, AudioScene audio) =>
+      moverVoices.perform(sounding, audio);
 }

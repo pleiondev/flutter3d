@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DiagnosticsDemo extends ShowcaseDemo {
   late final String _report;
@@ -21,9 +20,9 @@ final class DiagnosticsDemo extends ShowcaseDemo {
     _report = report;
     _firstTick = firstTick;
     _hasTimingLine = hasTimingLine;
-    final material = Material(
+    final material = RenderMaterial(
       name: 'clock',
-      baseColor: Vector4(0.7, 0.7, 0.4, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.4, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -32,7 +31,7 @@ final class DiagnosticsDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

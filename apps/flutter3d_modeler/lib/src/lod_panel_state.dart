@@ -38,13 +38,15 @@ final class LodPanelState {
 /// Floored rather than allowed to reach nought — `AddLod` refuses a ratio or
 /// a threshold of zero, and the sixth halving of a threshold is a level for
 /// an object three pixels tall.
-({double ratio, double maxScreenFraction}) nextLodAfter(List<LodSpec> levels) {
+({double ratio, double maxScreenFraction}) nextLodAfter(
+  List<LodSettings> levels,
+) {
   if (levels.isEmpty) return (ratio: 0.5, maxScreenFraction: 0.25);
-  final LodSpec coarsest = levels.reduce(
-    (LodSpec a, LodSpec b) => a.ratio <= b.ratio ? a : b,
+  final LodSettings coarsest = levels.reduce(
+    (LodSettings a, LodSettings b) => a.ratio <= b.ratio ? a : b,
   );
-  final LodSpec smallest = levels.reduce(
-    (LodSpec a, LodSpec b) =>
+  final LodSettings smallest = levels.reduce(
+    (LodSettings a, LodSettings b) =>
         a.maxScreenFraction <= b.maxScreenFraction ? a : b,
   );
   return (

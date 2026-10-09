@@ -5,10 +5,10 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class _Position {
   const _Position(this.x);
@@ -105,10 +105,12 @@ final class EcsWorldDemo extends ShowcaseDemo {
   }
 
   EcsWorld _newWorld() => EcsWorld()
-    ..register<_Position>(
-      'position',
-      encode: (_Position p) => p.x,
-      decode: (Object? data) => _Position((data! as num).toDouble()),
+    ..components.register<_Position>(
+      ComponentCodec<_Position>.of(
+        id: 'position',
+        encode: (_Position p) => p.x,
+        decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+      ),
     );
 
   /// The position stored in each slot of a level laid out as [names], or null
@@ -144,16 +146,16 @@ final class EcsWorldDemo extends ShowcaseDemo {
     for (var i = 0; i < _balls.length; i++) {
       final bool has = i < names.length;
       final double? x = has ? found[i] : null;
-      _pedestals[i].visible = has;
-      _balls[i].visible = x != null;
+      _pedestals[i].isVisible = has;
+      _balls[i].isVisible = x != null;
       for (final SceneNode n in _bars[i].nodes) {
-        n.visible = x != null;
+        n.isVisible = x != null;
       }
       if (x == null) continue;
       // Whoever held 3 is the goblin and whoever held 9 the troll.
-      _balls[i].material.baseColor.setFrom(
-        x < 5.0 ? Vector4(0.5, 0.8, 0.35, 1.0) : Vector4(0.85, 0.35, 0.3, 1.0),
-      );
+      _balls[i].material.baseColor = x < 5.0
+          ? LinearColor.fromSrgb(0.5, 0.8, 0.35, 1.0)
+          : LinearColor.fromSrgb(0.85, 0.35, 0.3, 1.0);
       _bars[i].set(x / 9.0);
     }
   }
@@ -176,10 +178,12 @@ final class EcsWorldDemo extends ShowcaseDemo {
   static (String, double?, double?) _run() {
     // #region world
     final world = EcsWorld()
-      ..register<_Position>(
-        'position',
-        encode: (_Position p) => p.x,
-        decode: (Object? data) => _Position((data! as num).toDouble()),
+      ..components.register<_Position>(
+        ComponentCodec<_Position>.of(
+          id: 'position',
+          encode: (_Position p) => p.x,
+          decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+        ),
       );
     final goblin = world.spawn();
     final troll = world.spawn();
@@ -201,10 +205,12 @@ final class EcsWorldDemo extends ShowcaseDemo {
       newFree: <int>[],
     );
     final reloaded = EcsWorld()
-      ..register<_Position>(
-        'position',
-        encode: (_Position p) => p.x,
-        decode: (Object? data) => _Position((data! as num).toDouble()),
+      ..components.register<_Position>(
+        ComponentCodec<_Position>.of(
+          id: 'position',
+          encode: (_Position p) => p.x,
+          decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+        ),
       );
     // Three spawns to give the world the same three slots `newNames` describes.
     final ids = <Entity>[for (var i = 0; i < 3; i++) reloaded.spawn()];

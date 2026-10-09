@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // applySavedVolumes
-// GameConfig
+import 'package:flutter3d_game_physics/elements.dart' show ElementCues;
+// GameSettings
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'element_sounds.dart';
 import 'sounds.dart';
 
 /// Whether the game can be heard, and whether its music has started.
@@ -65,13 +65,13 @@ final class AudioCubit extends Cubit<AudioReady> {
   /// The mixer the settings panel offers, which is the scene's own.
   Mixer get mixer => scene.mixer;
 
-  SoLoudBackend? _backend;
+  AudioBackend? _backend;
 
   /// The game's own sounds and the level's fires, falls and splashes,
   /// loaded together when the speakers open.
   static final SoundBank _bank = SoundBank(<SoundDef>[
     ...Sounds.all,
-    ...ElementSounds.bank,
+    ...ElementCues.near.all,
   ]);
 
   /// Finds real speakers, or stays silent.
@@ -79,21 +79,25 @@ final class AudioCubit extends Cubit<AudioReady> {
   /// Opened by `flutter3d_audio`, which owns the trap: no device, no plugin, no
   /// native assets — every one of those is a launch that dies for want of a
   /// sound unless somebody catches it, and all three games had written the same
-  /// catch. Null means silent.
+  /// catch. No device means silent.
   ///
   /// [stillWanted] is asked after the await, because a widget can be gone by
   /// the time speakers answer.
   Future<void> open(
-    GameConfig config, {
+    GameSettings config, {
     required bool Function() stillWanted,
   }) async {
-    final speakers = await openSpeakers(bank: _bank, mixer: scene.mixer);
-    if (speakers == null) return;
+    final Speakers speakers;
+    try {
+      speakers = await openSpeakers(bank: _bank, mixer: scene.mixer);
+    } on AudioDeviceException {
+      return;
+    }
     if (!stillWanted()) {
       // Nobody wants what just opened, and [close] will never see it — the
       // backend has to go down here, or the engine it leaves initialized
       // blocks the next open().
-      unawaited(speakers.backend.dispose());
+      unawaited(speakers.dispose());
       return;
     }
     _backend = speakers.backend;
@@ -122,7 +126,7 @@ final class AudioCubit extends Cubit<AudioReady> {
   ///
   /// The list of buses is `flutter3d_game`'s, beside the panel that offers them:
   /// there were four copies of it and they had already disagreed once.
-  void applyVolumes(GameConfig config) =>
+  void applyVolumes(GameSettings config) =>
       applySavedVolumes(config, scene.mixer);
 
   @override

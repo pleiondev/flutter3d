@@ -8,7 +8,7 @@ seats go in the order people join, whichever layout is listed first.
 
 ## Step 1: A table and a state for each layout
 
-Each layout is a bridge of its own: the same `Bindings` and `InputState`
+Each layout is a bridge of its own: the same `ActionMap` and `InputState`
 pair a native `flutter3d_game` reads, one per player, so a key reaches the
 player it is bound for and no other.
 

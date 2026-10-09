@@ -167,7 +167,7 @@ void main() {
 
   test('a rectangle takes this side and leaves the other', () {
     // The whole map, so that what is being measured is the side filter rather
-    // than the geometry — `Selection.unitsWithin` has its own tests for that.
+    // than the geometry — `UnitSelection.unitsWithin` has its own tests for that.
     final CommandPost command = _open().command;
 
     final int took = command.selectWithin(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,15 +12,27 @@ import 'editor_cubit.dart';
 /// have. The count beside each is worth its space: a level with no exit and a
 /// level with three are both worth noticing before playing it.
 final class EditorPalette extends StatelessWidget {
-  const EditorPalette({super.key, required this.state});
+  const EditorPalette({
+    super.key,
+    required this.state,
+    this.width = 168,
+    this.pieces,
+  });
 
   final EditorReady state;
+
+  /// What the installed plugins offer to place, beside what the level and its
+  /// looks name. Null offers those alone.
+  final EditorPieces? pieces;
+
+  /// How wide it is, or null to fill a docked side.
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
     final editing = state.editing;
     return Container(
-      width: 168,
+      width: width,
       color: const Color(0xCC0E1013),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -52,6 +64,7 @@ final class EditorPalette extends StatelessWidget {
                   for (final it in paletteOf(
                     editing.level,
                     declared: state.looks.types,
+                    pieces: pieces,
                   ))
                     PaletteRow(
                       it: it,

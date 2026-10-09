@@ -8,7 +8,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class StaticShadowCacheDemo extends ShowcaseDemo {
   bool wallsAreStatic = true;
@@ -32,15 +31,15 @@ final class StaticShadowCacheDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
     );
-    final Material floorStone = stone.copy()..doubleSided = true;
-    final Material clay = Material(
+    final RenderMaterial floorStone = stone.copy()..doubleSided = true;
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     _scene = Scene()
@@ -96,7 +95,7 @@ final class StaticShadowCacheDemo extends ShowcaseDemo {
       LightNode(
         name: 'lamp',
         type: LightType.point,
-        intensity: 50.0,
+        intensity: 50.0 * Photometric.legacyUnit,
         range: 14.0,
         castsShadow: true,
       )..setPosition(0.0, 3.6, 0.0),

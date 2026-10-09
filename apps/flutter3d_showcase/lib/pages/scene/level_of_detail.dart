@@ -4,7 +4,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LevelOfDetailDemo extends ShowcaseDemo {
   late final LodGroup _group;
@@ -42,9 +41,9 @@ final class LevelOfDetailDemo extends ShowcaseDemo {
       for (final (String name, SphereShape shape, Vector4 color) in definitions)
         ModelPart(
           mesh: DeviceMesh.upload(context.device, shape.build()),
-          material: Material(
+          material: RenderMaterial(
             name: '$name material',
-            baseColor: color,
+            baseColor: _fromSrgb(color),
             roughness: 0.52,
           ),
           name: name,
@@ -72,10 +71,10 @@ final class LevelOfDetailDemo extends ShowcaseDemo {
 
     // #region instantiate
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.42, 0.5, 0.68)
-      ..ambientIntensity = 0.14
+      ..ambientColor = LinearColor(0.42, 0.5, 0.68)
+      ..ambientIntensity = 0.14 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 3.2)
+        LightNode(name: 'sun', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.46, -0.82, -0.34)),
       );
     asset.instantiate(scene);
@@ -93,7 +92,7 @@ final class LevelOfDetailDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     final int visibleLevels = _group.levels
-        .where((LodLevel level) => level.node.visible)
+        .where((LodLevel level) => level.node.isVisible)
         .length;
     final double fraction = _screenFraction(scene);
     if (scene.lodGroups.single != _group ||
@@ -107,3 +106,6 @@ final class LevelOfDetailDemo extends ShowcaseDemo {
     // #endregion check
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

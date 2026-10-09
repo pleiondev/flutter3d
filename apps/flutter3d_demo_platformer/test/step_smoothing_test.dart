@@ -26,6 +26,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -37,7 +38,7 @@ Level _shipped() => Level.fromJson(
       as Map<String, Object?>,
 );
 
-double _top(Brush brush) => brush.centre.y + brush.size.y / 2.0;
+double _top(Brush brush) => brush.center.y + brush.size.y / 2.0;
 
 /// Somewhere in the shipped level a walk crosses a ledge under [limit].
 ///
@@ -51,13 +52,13 @@ final class _Riser {
   final Brush upper;
 
   double get rise => _top(upper) - _top(lower);
-  double get facing => (upper.centre.x - lower.centre.x).sign;
+  double get facing => (upper.center.x - lower.center.x).sign;
 
   /// The middle of the lower top, a step back from the ledge.
   Vector3 get standing => Vector3(
-    lower.centre.x - facing * (lower.size.x / 2.0 - 0.8),
+    lower.center.x - facing * (lower.size.x / 2.0 - 0.8),
     _top(lower),
-    lower.centre.z,
+    lower.center.z,
   );
 }
 
@@ -72,10 +73,10 @@ List<_Riser> _risersIn(Level level, double limit) {
       // other. Touching or overlapping counts: a plank laid on a terrace does
       // both.
       final apartX =
-          (upper.centre.x - lower.centre.x).abs() -
+          (upper.center.x - lower.center.x).abs() -
           (lower.size.x + upper.size.x) / 2.0;
       final apartZ =
-          (upper.centre.z - lower.centre.z).abs() -
+          (upper.center.z - lower.center.z).abs() -
           (lower.size.z + upper.size.z) / 2.0;
       if (apartX > 0.2 || apartZ > -1.5) continue;
       found.add(_Riser(lower, upper));
@@ -107,7 +108,7 @@ final class _Walk {
   }
 
   final Level level = _shipped();
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final Runner runner;
   late final PlatformerSimulation sim;
@@ -180,7 +181,7 @@ void main() {
     // to walk between says eighteen. The smaller number is the one that means
     // anything, because the other includes ledges nothing can cross.
     final level = _shipped();
-    final risers = _risersIn(level, const MovementTuning().stepHeight);
+    final risers = _risersIn(level, const MovementSettings().stepHeight);
 
     expect(
       risers.length,

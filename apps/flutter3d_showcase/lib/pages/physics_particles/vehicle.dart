@@ -12,7 +12,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VehicleDemo extends ShowcaseDemo {
   NativeWorld? _world;
@@ -33,9 +32,9 @@ final class VehicleDemo extends ShowcaseDemo {
 
   late MeshNode _body;
   late MeshNode _cabin;
-  final List<MeshNode> _tyres = <MeshNode>[];
+  final List<MeshNode> _tireSet = <MeshNode>[];
   final List<MeshNode> _spokes = <MeshNode>[];
-  final List<Material> _tyrePaint = <Material>[];
+  final List<RenderMaterial> _tyrePaint = <RenderMaterial>[];
 
   static const double _step = 1 / 60;
   static const double _mass = 1200.0;
@@ -119,14 +118,17 @@ final class VehicleDemo extends ShowcaseDemo {
       (-0.8, -1.3),
       (0.8, -1.3),
     ]) {
-      world.addWheel(car, (
-        attach: Vector3(x, -0.2, z),
-        rest: 0.4,
-        radius: 0.35,
-        stiffness: _stiffness,
-        damping: 3000.0,
-        grip: icy ? 0.1 : 1.0,
-      ));
+      world.addWheel(
+        car,
+        NativeWheelSettings(
+          attach: Vector3(x, -0.2, z),
+          rest: 0.4,
+          radius: 0.35,
+          stiffness: _stiffness,
+          damping: 3000.0,
+          grip: icy ? 0.1 : 1.0,
+        ),
+      );
     }
   }
   // #endregion wheels
@@ -171,10 +173,10 @@ final class VehicleDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _restart();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       )
       ..add(
@@ -183,7 +185,10 @@ final class VehicleDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(120.0, 1.0, 120.0)).build(),
           ),
-          Material(name: 'road', baseColor: Vector4(0.36, 0.38, 0.4, 1.0)),
+          RenderMaterial(
+            name: 'road',
+            baseColor: LinearColor.fromSrgb(0.36, 0.38, 0.4, 1.0),
+          ),
           name: 'road',
         )..setPosition(0.0, -0.5, 0.0),
       )
@@ -193,7 +198,10 @@ final class VehicleDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(4.0, 0.08, 0.6)).build(),
           ),
-          Material(name: 'plank', baseColor: Vector4(0.62, 0.45, 0.28, 1.0)),
+          RenderMaterial(
+            name: 'plank',
+            baseColor: LinearColor.fromSrgb(0.62, 0.45, 0.28, 1.0),
+          ),
           name: 'plank',
         )..setPositionFrom(_plank),
       );
@@ -203,9 +211,9 @@ final class VehicleDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.25, 0.8, 0.25)).build(),
     );
-    final postPaint = Material(
+    final postPaint = RenderMaterial(
       name: 'post',
-      baseColor: Vector4(0.9, 0.85, 0.75, 1.0),
+      baseColor: LinearColor.fromSrgb(0.9, 0.85, 0.75, 1.0),
     );
     for (var i = 0; i < 24; i++) {
       final double a = i * math.pi / 12;
@@ -216,9 +224,9 @@ final class VehicleDemo extends ShowcaseDemo {
         );
       }
     }
-    final paint = Material(
+    final paint = RenderMaterial(
       name: 'chassis',
-      baseColor: Vector4(0.75, 0.2, 0.15, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.2, 0.15, 1.0),
       roughness: 0.4,
     );
     _body = MeshNode(
@@ -234,7 +242,10 @@ final class VehicleDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(1.5, 0.45, 1.9)).build(),
       ),
-      Material(name: 'cabin', baseColor: Vector4(0.2, 0.25, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'cabin',
+        baseColor: LinearColor.fromSrgb(0.2, 0.25, 0.3, 1.0),
+      ),
       name: 'cabin',
     );
     scene
@@ -253,21 +264,21 @@ final class VehicleDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.27, 0.6, 0.1)).build(),
     );
-    final spokePaint = Material(
+    final spokePaint = RenderMaterial(
       name: 'spoke',
-      baseColor: Vector4(0.85, 0.85, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.85, 0.8, 1.0),
     );
     for (var i = 0; i < 4; i++) {
-      final tyrePaint = Material(
+      final tyrePaint = RenderMaterial(
         name: 'tyre $i',
-        baseColor: Vector4(0.08, 0.08, 0.08, 1.0),
+        baseColor: LinearColor.fromSrgb(0.08, 0.08, 0.08, 1.0),
         roughness: 0.9,
       );
       _tyrePaint.add(tyrePaint);
-      _tyres.add(MeshNode(tyre, tyrePaint, name: 'tyre $i'));
+      _tireSet.add(MeshNode(tyre, tyrePaint, name: 'tyre $i'));
       _spokes.add(MeshNode(spoke, spokePaint, name: 'spoke $i'));
       scene
-        ..add(_tyres[i])
+        ..add(_tireSet[i])
         ..add(_spokes[i]);
     }
     _place(context);
@@ -281,7 +292,7 @@ final class VehicleDemo extends ShowcaseDemo {
   void _place(DemoContext context) {
     final NativeWorld? world = _world;
     if (world == null) return;
-    final Vector3 at = world.positionOf(_chassis!);
+    final Vector3 at = world.localPositionOf(_chassis!);
     final Quaternion turn = world.orientationOf(_chassis!);
     final Matrix3 frame = turn.asRotationMatrix();
     final Vector3 roof = at + frame.transformed(Vector3(0.0, 0.5, -0.3));
@@ -299,16 +310,21 @@ final class VehicleDemo extends ShowcaseDemo {
           Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), w.steer) *
           Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), w.rotation);
       _spokes[i]
-        ..setPositionFrom(w.centre)
+        ..setPositionFrom(w.center)
         ..setRotation(rolled);
-      _tyres[i]
-        ..setPositionFrom(w.centre)
+      _tireSet[i]
+        ..setPositionFrom(w.center)
         // The cylinder stands along its y; its axle is the wheel's x.
         ..setRotation(
           rolled * Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), math.pi / 2),
         );
       final double slide = math.min(w.skid, 1.0);
-      _tyrePaint[i].baseColor.setValues(0.08 + 0.8 * slide, 0.08, 0.08, 1.0);
+      _tyrePaint[i].baseColor = LinearColor.fromSrgb(
+        0.08 + 0.8 * slide,
+        0.08,
+        0.08,
+        1.0,
+      );
     }
     context.orbit.target.setValues(at.x, 0.8, at.z);
     context.orbit.apply();
@@ -321,7 +337,7 @@ final class VehicleDemo extends ShowcaseDemo {
     if (world == null) return;
     _drive();
     // Off the road, or on its roof: start again.
-    final Vector3 at = world.positionOf(_chassis!);
+    final Vector3 at = world.localPositionOf(_chassis!);
     final double up = world
         .orientationOf(_chassis!)
         .asRotationMatrix()
@@ -377,7 +393,7 @@ final class VehicleDemo extends ShowcaseDemo {
   ({Vector3 at, Vector3 forward}) get _pose {
     final NativeWorld world = _world!;
     return (
-      at: world.positionOf(_chassis!),
+      at: world.localPositionOf(_chassis!),
       forward: world
           .orientationOf(_chassis!)
           .asRotationMatrix()
@@ -407,7 +423,7 @@ final class VehicleDemo extends ShowcaseDemo {
     speed = 0.0;
     _restart();
     drive(180);
-    final double squeeze = _mass * 9.81 / 4 / _stiffness;
+    final double squeeze = _mass * _world!.gravityMagnitude / 4 / _stiffness;
     final double height = _pose.at.y;
     if ((height - (0.95 - squeeze)).abs() > 3e-3) {
       throw StateError('the chassis rests at $height, not ${0.95 - squeeze}');

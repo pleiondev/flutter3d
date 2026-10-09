@@ -380,12 +380,12 @@ final class ModelerUiActions implements UiActions {
   }
 
   @override
-  Future<UiAnswer> galleryList({String? category, String? licence}) async {
+  Future<UiAnswer> galleryList({String? category, String? license}) async {
     final List<GalleryItem> items = await _catalogue();
     final List<GalleryItem> shown = <GalleryItem>[
       for (final GalleryItem item in items)
         if ((category == null || item.category.name == category) &&
-            (licence == null || item.licence.id == licence))
+            (license == null || item.license.id == license))
           item,
     ];
     if (shown.isEmpty) {
@@ -397,7 +397,7 @@ final class ModelerUiActions implements UiActions {
           .map(
             (GalleryItem it) =>
                 '${it.id} (${it.name}, ${it.category.name}, '
-                '${it.licence.id}${it.author == null ? '' : ', by ${it.author}'})',
+                '${it.license.id}${it.author == null ? '' : ', by ${it.author}'})',
           )
           .join('\n'),
     );

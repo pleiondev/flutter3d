@@ -18,7 +18,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show MaterialDocument, readFmat;
 import 'package:flutter3d_editor/src/material_panel.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';

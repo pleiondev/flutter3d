@@ -22,20 +22,20 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('the game is played wider than the engine default, and not as deep', () {
-    // Mutation: give `Lens.base` the bare `PerspectiveProjection()` the camera
+    // Mutation: give `ascentLens.base` the bare `PerspectiveProjection()` the camera
     // was really running on. Both of these fail, and they are the two numbers
     // that were silently thrown away.
     const bare = PerspectiveProjection();
 
     expect(
-      Lens.base.fovYRadians,
-      greaterThan(bare.fovYRadians),
+      ascentLens.base.fovY,
+      greaterThan(bare.fovY),
       reason:
           'a narrow lens in a third-person platformer hides the ledge '
           'you are aiming at',
     );
     expect(
-      Lens.base.far,
+      ascentLens.base.far,
       lessThan(bare.far),
       reason:
           'a kilometre of depth range over a 260 m level is precision '
@@ -48,18 +48,18 @@ void main() {
     // from a different base, so the far plane and the field of view both
     // reverted. Mutation: build `widened` from `const PerspectiveProjection()`
     // instead of from `base` — the far plane jumps back to a kilometre here.
-    final wide = Lens.widened(0.12);
+    final wide = ascentLens.widened(0.12);
 
-    expect(wide.fovYRadians, closeTo(Lens.base.fovYRadians + 0.12, 1e-9));
-    expect(wide.far, Lens.base.far, reason: 'the far plane moved');
-    expect(wide.near, Lens.base.near, reason: 'the near plane moved');
+    expect(wide.fovY, closeTo(ascentLens.base.fovY + 0.12, 1e-9));
+    expect(wide.far, ascentLens.base.far, reason: 'the far plane moved');
+    expect(wide.near, ascentLens.base.near, reason: 'the near plane moved');
   });
 
   test('and widening by nothing is the lens itself', () {
     // The property that makes it safe to call every frame: a camera at rest
     // must be looking through exactly what the level was authored for, not
     // through something a rounding away from it.
-    expect(Lens.widened(0.0).fovYRadians, Lens.base.fovYRadians);
-    expect(Lens.widened(0.0).far, Lens.base.far);
+    expect(ascentLens.widened(0.0).fovY, ascentLens.base.fovY);
+    expect(ascentLens.widened(0.0).far, ascentLens.base.far);
   });
 }

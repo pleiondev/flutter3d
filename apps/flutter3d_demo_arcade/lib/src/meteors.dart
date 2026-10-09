@@ -1,16 +1,21 @@
 /// The meteors over the yard: stones that come down red-hot where a shadow
 /// on the floor has grown under them, burst into fragments that scatter as
-/// bodies, and set the litter of the yard alight — fires that spread to the
-/// wooden crates standing about. All of it the physics core's own: a world
-/// of its own with gravity in it, the yard's being a top-down one without.
+/// bodies, and set the litter of the yard alight where they touch it —
+/// fires that spread to the wooden crates standing about. All of it the
+/// physics core's own: a world of its own with gravity in it, the yard's
+/// being a top-down one without, drawn by [Elements] once there is a
+/// renderer to draw it.
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A thing in the yard's sky or on its floor, and what draws it.
 final class _Piece {
@@ -18,6 +23,10 @@ final class _Piece {
 
   final NativeBody body;
   final MeshNode node;
+
+  /// Its body in the elements, once there are any: they keep [node] on it
+  /// and char it as it burns.
+  TrackedBody? tracked;
 }
 
 /// A meteor on its way: where it will land, how long until it does, and the
@@ -85,9 +94,9 @@ final class MeteorShower {
         ..setMaterial(body, NativeMaterial.wood());
       final node = MeshNode(
         crateMesh,
-        Material(
+        RenderMaterial(
           name: 'crate',
-          baseColor: Vector4(0.55, 0.40, 0.22, 1.0),
+          baseColor: LinearColor.fromSrgb(0.55, 0.40, 0.22, 1.0),
           roughness: 0.85,
         ),
         name: 'crate',
@@ -115,7 +124,7 @@ final class MeteorShower {
   final List<_Falling> _falling = <_Falling>[];
   final math.Random _random = math.Random(3);
   double _since = 0.0;
-  FireView? _fire;
+  Elements? _elements;
 
   static const double _crateHalf = 0.4;
 
@@ -123,37 +132,37 @@ final class MeteorShower {
   /// how fast a meteor comes down, m/s.
   static const double warning = 1.8, _speed = 30.0;
 
-  /// The fires drawn, once the renderer they draw through is there.
-  void drawFires(Renderer renderer) {
-    final fire = FireView(
-      world: world,
+  /// The fires drawn, once the renderer they draw through is there; [load]
+  /// reads the effects' compiled materials from the bundle. The world is
+  /// the shower's, which [step] steps.
+  Future<void> drawFires(
+    Renderer renderer,
+    Future<ByteData> Function(String asset) load,
+  ) async {
+    final elements = await Elements.adopt(
+      world,
       device: _device,
-      scene: _scene,
       renderer: renderer,
-      baseWidth: 0.6,
+      scene: _scene,
+      load: load,
     );
-    for (final c in _crates) {
-      fire.watch(c.body, c.node);
+    for (final p in <_Piece>[..._crates, ..._craters]) {
+      p.tracked = elements.track(p.body, look: p.node, chars: p.node);
     }
-    for (final c in _craters) {
-      fire.watch(c.body, c.node);
+    for (final r in _rocks) {
+      r.tracked = elements.track(r.body, look: r.node);
     }
-    _fire = fire;
+    _elements = elements;
   }
 
   /// The places a ship at [at] would be hurt this step: under a meteor as
-  /// it lands, or in a fire.
+  /// it lands, or over a fire's base.
   bool hurts(Vector3 at) {
     for (final f in _falling) {
       if (f.until <= 0.0 && _flat(f.target, at) < 1.3) return true;
     }
-    final read = world.readFires();
-    for (var i = 0; i < read.bodies.length; i++) {
-      final o = i * nativeFireFloats;
-      final fire = Vector3(read.fires[o], read.fires[o + 1], read.fires[o + 2]);
-      // Within the flame's foot: its reach over the floor, at least a metre.
-      final reach = math.max(read.fires[o + 4] * 0.35, 1.0);
-      if (_flat(fire, at) < reach) return true;
+    for (final fire in world.fires()) {
+      if (_flat(fire.at, at) < 0.5 * fire.base) return true;
     }
     return false;
   }
@@ -181,25 +190,40 @@ final class MeteorShower {
       }
     }
     world.step(dt);
-    for (final p in <_Piece>[..._crates, ..._rocks]) {
-      final at = world.positionOf(p.body);
-      p.node
-        ..setPosition(at.x, at.y, at.z)
-        ..setRotation(world.orientationOf(p.body));
+    // Before there are elements to keep the looks on their bodies, kept
+    // here.
+    if (_elements == null) {
+      for (final p in <_Piece>[..._crates, ..._rocks]) {
+        final at = world.positionOf(p.body);
+        p.node
+          ..setPosition(at.x, at.y, at.z)
+          ..setRotation(world.orientationOf(p.body));
+      }
     }
     for (final r in _rocks) {
-      // Glowing as hot as it is: red at a thousand kelvin, dark below six
-      // hundred.
+      // Glowing as hot as it is: its surface's luminance, the exitance εσT⁴
+      // over π as a Lambertian surface's is, as the lumens a blackbody that
+      // hot gives, in its colour.
       final t = world.surfaceTemperatureOf(r.body);
-      final glow = ((t - 600.0) / 700.0).clamp(0.0, 1.0);
-      r.node.material.emissive.setValues(
-        4.0 * glow,
-        1.0 * glow * glow,
-        0.2 * glow * glow * glow,
-      );
+      final nits =
+          _stoneEmissivity *
+          stefanBoltzmann *
+          t *
+          t *
+          t *
+          t *
+          Blackbody.efficacy(t) /
+          math.pi;
+      r.node.material.emissive = (Blackbody.color(
+        t,
+      )..scale(nits / Photometric.bulbAtOneMeter)).toLinearColor();
     }
-    _fire?.update(dt);
+    // No water here for the eye to see ripples on.
+    _elements?.update(dt, eye: Vector3.zero());
   }
+
+  /// A weathered stone's emissivity: the core's stone's.
+  static const double _stoneEmissivity = 0.93;
 
   /// How long a stone is in the air above the yard, s: launched from high
   /// enough to come down at [_speed] in that time.
@@ -213,9 +237,9 @@ final class MeteorShower {
     );
     final shadow = MeshNode(
       _discMesh,
-      Material(
+      RenderMaterial(
         name: 'shadow',
-        baseColor: Vector4(0.02, 0.02, 0.03, 1.0),
+        baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.03, 1.0),
         roughness: 1.0,
       ),
       name: 'meteor shadow',
@@ -232,11 +256,13 @@ final class MeteorShower {
   }
 
   /// Where the stone lands it bursts: fragments fly out across the floor,
-  /// and the dry litter under it catches.
+  /// and the dry litter it comes down on catches where the hot stone
+  /// touches it.
   void _land(_Falling f) {
     for (var k = 0; k < 4; k++) {
       final a = k * math.pi / 2 + _random.nextDouble();
-      final out = Vector3(math.cos(a), 0.0, math.sin(a));
+      final turn = Portable.sinCos(a);
+      final out = Vector3(turn.cos, 0.0, turn.sin);
       _rock(
         f.target + out * 0.5 + Vector3(0, 0.4, 0),
         out * (5.0 + _random.nextDouble() * 3.0) + Vector3(0, 3.0, 0),
@@ -251,16 +277,14 @@ final class MeteorShower {
     );
     world
       ..setShape(crater, const NativeShape.cylinder(0.9, 0.03))
-      // Dry litter: straw and splinters, that burn as paper does, and
-      // that the stone has set alight.
-      ..setMaterial(crater, NativeMaterial.paper())
-      ..setTemperature(crater, 900.0);
+      // Dry litter: straw and splinters, that burn as paper does.
+      ..setMaterial(crater, NativeMaterial.paper());
     final node =
         MeshNode(
             _discMesh,
-            Material(
+            RenderMaterial(
               name: 'scorch',
-              baseColor: Vector4(0.30, 0.24, 0.16, 1.0),
+              baseColor: LinearColor.fromSrgb(0.30, 0.24, 0.16, 1.0),
               roughness: 1.0,
             ),
             name: 'crater',
@@ -268,12 +292,19 @@ final class MeteorShower {
           ..setPosition(f.target.x, 0.02, f.target.z)
           ..setScale(0.9, 1.0, 0.9);
     _scene.add(node);
-    _craters.add(_Piece(crater, node));
-    _fire?.watch(crater, node);
+    _craters.add(
+      _Piece(crater, node)
+        ..tracked = _elements?.track(crater, look: node, chars: node),
+    );
     // A yard keeps a dozen fragments; the oldest are swept away.
     while (_rocks.length > 16) {
       final old = _rocks.removeAt(0);
-      world.removeBody(old.body);
+      final tracked = old.tracked;
+      if (tracked != null) {
+        _elements!.remove(tracked);
+      } else {
+        world.removeBody(old.body);
+      }
       _scene.remove(old.node);
     }
   }
@@ -288,19 +319,22 @@ final class MeteorShower {
     world
       ..setShape(body, NativeShape.sphere(radius))
       ..setMaterial(body, NativeMaterial.stone())
+      // The game's stones come down red-hot: where they start, not a
+      // law. What they light, they light by touching it.
       ..setTemperature(body, 1400.0)
       ..setVelocity(body, velocity);
     final node = MeshNode(
       _rockMesh,
-      Material(
+      RenderMaterial(
         name: 'meteor',
-        baseColor: Vector4(0.18, 0.15, 0.13, 1.0),
+        baseColor: LinearColor.fromSrgb(0.18, 0.15, 0.13, 1.0),
         roughness: 0.9,
       ),
       name: 'meteor',
     )..setScale(radius, radius, radius);
     _scene.add(node);
-    final piece = _Piece(body, node);
+    final piece = _Piece(body, node)
+      ..tracked = _elements?.track(body, look: node);
     _rocks.add(piece);
     return piece;
   }

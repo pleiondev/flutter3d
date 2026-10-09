@@ -1,12 +1,14 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'dart:async';
+
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'looks.dart';
+import 'run_elements.dart';
 import 'staging.dart';
 
 /// A level, loaded and playable.
@@ -40,7 +42,7 @@ typedef Carried = ({int lives, int deaths, double elapsed, int coins});
 
 /// Reads a level document and builds the half of it that draws.
 ///
-/// **A named function rather than four lines inside [PlatformerRun.open],
+/// **A named function rather than four lines inside [PlatformerRun.loadLevel],
 /// because `frame_test.dart` was the second copy of them.** Its copy happened
 /// to be right; the crypt's equivalent copy had lost `bindLights()`, so every
 /// torch in that harness lit nothing. A frame test is only worth having if the
@@ -57,6 +59,10 @@ openLevel(
   String asset, {
   required GraphicsDevice device,
   Level? document,
+
+  /// What the simulation last published, which the guards are drawn from —
+  /// see [PlatformerLooks.published]. Null asks the actors themselves.
+  PublishedState Function()? published,
 }) async {
   final kinds = platformerRegistry();
   final loaded = document == null
@@ -65,17 +71,19 @@ openLevel(
           device: device,
           registry: kinds,
           rules: platformerRules(),
+          physics: usePhysics(),
         )
       : await const LevelLoader().build(
           document,
           device: device,
           registry: kinds,
           rules: platformerRules(),
+          physics: usePhysics(),
         );
   final fixtures = FixtureVisuals(
     loaded.scene,
     loaded,
-    appearance: const PlatformerLooks(),
+    appearance: PlatformerLooks(published: published),
     device: device,
     // Before spawning, so a light-bearing fixture can find the light it drives.
   )..bindLights();
@@ -99,7 +107,12 @@ final class PlatformerRun extends RunSession<LevelReady> {
     this.onLevelEdited,
     this.startingLives = 3,
     this.pauseBetweenLevels = const Duration(milliseconds: 1400),
+    this.published,
   });
+
+  /// What the simulation last published — `() => loop.published` — which
+  /// the level's guards are drawn from ([PlatformerLooks.published]).
+  final PublishedState Function()? published;
 
   final InputState input;
 
@@ -110,7 +123,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// Everything the widget has to do with a level once it exists — the runner's
   /// node, the camera, the interpolators, and (`rp-01`/`rp-04`) starting the
   /// demo recording. Handed in because it touches the widget's own fields,
-  /// which a run has no business holding. Carries [asset] too — [open]'s own
+  /// which a run has no business holding. Carries [asset] too — [loadLevel]'s own
   /// argument — because the widget needs the source path a demo names itself
   /// by, and `_status` still reads the load this level is replacing at the
   /// moment this fires, not the `RunPlaying` this one becomes.
@@ -135,13 +148,13 @@ final class PlatformerRun extends RunSession<LevelReady> {
 
   Carried? _carried;
 
-  /// The device the last [open] uploaded through, kept so [close] can release
+  /// The device the last [loadLevel] uploaded through, kept so [disposeLevel] can release
   /// a level's resources without waiting on [openDevice] again — a level only
-  /// exists once the device does, so this is never null when [close] runs.
+  /// exists once the device does, so this is never null when [disposeLevel] runs.
   GraphicsDevice? _device;
 
   @override
-  Future<LevelReady> open(String asset) async {
+  Future<LevelReady> loadLevel(String asset) async {
     final device = await openDevice();
     _device = device;
     final level = await _build(asset, device);
@@ -161,6 +174,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
       asset,
       device: device,
       document: document,
+      published: published,
     );
 
     final staged = stage(
@@ -202,7 +216,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
     final device = await openDevice();
     final edited = await _build(playing.asset, device, document: next);
     final waiting = _edit;
-    if (waiting != null) close(waiting.edited);
+    if (waiting != null) disposeLevel(waiting.edited);
     _edit = (edited: edited, replaces: playing.level);
   }
 
@@ -216,7 +230,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
     if (edit == null) return;
     _edit = null;
     if (!identical(level, edit.replaces)) {
-      close(edit.edited);
+      disposeLevel(edit.edited);
       return;
     }
     _editUntold = replaceLevel(edit.edited);
@@ -247,7 +261,18 @@ final class PlatformerRun extends RunSession<LevelReady> {
   ///
   /// Throws, and plays nothing, when the level up is not the one the demo
   /// starts in, by path or by content.
-  Future<DemoReplay> replay(Demo demo) async {
+  ///
+  /// The demo plays through a loop ([replayDemoOnLoop]), its start restored
+  /// as the genre's part of the loop's snapshots: the plugins it switched
+  /// are switched at the same steps, and each step's events are compared
+  /// with the digests the file holds as well as its checkpoints
+  /// ([DemoReplay.eventDivergence]). A run on another simulation is refused
+  /// there with `ReplayException`. Given [loop] — the game's own, whose
+  /// systems step this run's level — it plays through that; without one,
+  /// through a loop of its own that steps the level as [Staged.step] does,
+  /// the genre's step and then the elements', for a test or a tool with no
+  /// view.
+  Future<DemoReplay> replay(Demo demo, {EngineLoop? loop}) async {
     final playing = status;
     if (playing is! RunPlaying<LevelReady>) {
       throw StateError('no level is being played');
@@ -280,16 +305,55 @@ final class PlatformerRun extends RunSession<LevelReady> {
         await _build(playing.asset, device, document: swap.level),
     ];
     final next = edits.iterator;
-    return replayDemo(
-      demo: demo,
-      input: input,
-      restore: (Snapshot snapshot) => level!.sim.restore(snapshot),
-      save: () => level!.sim.save(),
-      stepSim: (double dt) => level!.sim.step(dt),
-      swapLevel: (Level _) {
-        if (next.moveNext()) replaceLevel(next.current);
-      },
-    );
+    void swapLevel(Level _) {
+      if (next.moveNext()) replaceLevel(next.current);
+    }
+
+    if (loop != null) {
+      return replayDemoOnLoop(
+        demo: demo,
+        loop: loop,
+        part: PlatformerPlugin.id,
+        swapLevel: swapLevel,
+        simulation: platformerSimulationVersion,
+      );
+    }
+    final (loop: own, :genre) = ownLoop();
+    try {
+      return replayDemoOnLoop(
+        demo: demo,
+        loop: own,
+        part: PlatformerPlugin.id,
+        swapLevel: swapLevel,
+      );
+    } finally {
+      // The run publishes onto the game's bus again, not this loop's.
+      genre.simulation = null;
+    }
+  }
+
+  /// A loop of the run's own, on [input]: the genre stepping whichever
+  /// level is up — an edit replaces it — and the level's elements after it,
+  /// as [Staged.step] steps them; the genre's run is its part of the loop's
+  /// snapshots, under [PlatformerPlugin.id].
+  ///
+  /// For a test or a tool with no view, whose loop is the game's own
+  /// otherwise. While the genre holds a level, the run's events go onto this
+  /// loop's bus; set [genre]'s simulation to null to let it go.
+  ({EngineLoop loop, PlatformerPlugin genre}) ownLoop() {
+    final genre = PlatformerPlugin(kinds: const <EntityKind>[]);
+    final loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre])
+      ..addSystem('platformer_run.level', LoopPhase.input, (_) {
+        genre.simulation = level?.sim;
+      })
+      ..addSystem('platformer_run.elements', LoopPhase.fields, (
+        LoopContext step,
+      ) {
+        final up = level;
+        if (up != null) stepElements(up.sim, up.staged.elements, step.dt);
+      });
+    genre.simulation = level?.sim;
+    return (loop: loop, genre: genre);
   }
 
   @override
@@ -331,7 +395,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
   @override
   void onLost(LevelReady level) {
     _carried = null;
-    saves.clear();
+    unawaited(saves.clear());
   }
 
   @override
@@ -345,13 +409,14 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// own brushes and maps go back. The level's last, because the fixtures
   /// were built on its textures and share the objects rather than copies.
   @override
-  void close(LevelReady level) {
+  void disposeLevel(LevelReady level) {
     level.fixtures.dispose();
     // The core's world, which the collector would get to eventually, let go
     // with the rest of the level.
     if (level.staged.dynamics case final NativeDynamics native) {
       native.dispose();
     }
+    level.staged.elements?.dispose();
     final device = _device;
     if (device != null) level.loaded.dispose(device);
   }

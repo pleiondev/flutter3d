@@ -22,8 +22,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh, ShapeKey;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -257,7 +257,7 @@ final class SceneSync {
     // walk is a handful of parent lookups per object and runs when a command
     // lands rather than per frame.
     for (final MapEntry<int, _Tracked> each in _tracked.entries) {
-      each.value.node.visible = project.isVisible(each.key);
+      each.value.node.isVisible = project.isVisible(each.key);
     }
 
     // Anything the project no longer holds. Removed after the pass rather than
@@ -414,7 +414,7 @@ final class SceneSync {
   }
 
   /// What [object] is painted with: its slot's material, or clay.
-  engine.Material _paintFor(ModelObject object) =>
+  engine.RenderMaterial _paintFor(ModelObject object) =>
       materials?.forObject(object) ?? clay();
 
   /// The buffers [object] draws as, in [layout] — [object.geometry] run

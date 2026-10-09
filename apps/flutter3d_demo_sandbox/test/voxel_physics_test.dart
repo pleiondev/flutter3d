@@ -70,7 +70,7 @@ void main() {
         expect(run.blocks.edit(12, y, z, 5), isTrue);
       }
     }
-    final changes = run.blocks.takeChanges();
+    final changes = run.blocks.drainChanges();
     run.collision.refresh(changes.chunks);
     run.navigation.follow(changes);
 
@@ -91,7 +91,7 @@ void main() {
         }
       }
     }
-    final changes = run.blocks.takeChanges();
+    final changes = run.blocks.drainChanges();
     run.collision.refresh(changes.chunks);
 
     _walk(run, 50);

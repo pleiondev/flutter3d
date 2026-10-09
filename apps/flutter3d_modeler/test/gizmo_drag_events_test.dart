@@ -14,8 +14,8 @@
 library;
 
 import 'package:flutter/gestures.dart' hide Matrix4;
-import 'package:flutter/material.dart' hide Material, Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart' hide Matrix4;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart';

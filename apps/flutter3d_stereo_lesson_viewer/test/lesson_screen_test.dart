@@ -8,7 +8,7 @@
 ///     flutter test test/lesson_screen_test.dart
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_stereo_lesson_viewer/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 

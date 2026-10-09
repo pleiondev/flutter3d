@@ -18,7 +18,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter3d_demo_racing/src/hud_pieces.dart';
+import 'package:flutter3d_game_ui/hud.dart' show HudLine, HudPanel;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Every label the HUD can show, including the one that only appears for a

@@ -54,13 +54,16 @@ final class FlameOverviewDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
       ),
-      Material(name: 'cube', baseColor: Vector4(0.5, 0.6, 0.8, 1.0)),
+      RenderMaterial(
+        name: 'cube',
+        baseColor: LinearColor.fromSrgb(0.5, 0.6, 0.8, 1.0),
+      ),
       name: 'cube',
     );
     _scene = Scene()
       ..add(_cube)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

@@ -25,7 +25,7 @@ this one value.
 ## Step 2: Put it in the sky
 
 `SkySettings.physical` takes the air, and `directionToSun` says where the sun
-is. A cube map on the same settings would still win. Since 0.9.0 a sky that
+is. A cube map on the same settings would still win. Since 1.0.0 a sky that
 is switched on with none of the gradient's colours given draws
 `const PhysicalSky()` without being asked, so a level that never chose a
 gradient gets this sky.

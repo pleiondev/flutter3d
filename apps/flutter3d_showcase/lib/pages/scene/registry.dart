@@ -7,6 +7,7 @@ library;
 import 'package:flutter3d_showcase/pages/scene/culling.dart';
 import 'package:flutter3d_showcase/pages/scene/debug_draw.dart';
 import 'package:flutter3d_showcase/pages/scene/decals.dart';
+import 'package:flutter3d_showcase/pages/scene/draw_control.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_capture.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_graph.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_stats.dart';
@@ -55,4 +56,5 @@ final Map<String, DemoBuilder> sceneDemos = <String, DemoBuilder>{
   'tangents': TangentsDemo.new,
   'vertex-cache': VertexCacheDemo.new,
   'view-model': ViewModelDemo.new,
+  'draw-control': DrawControlDemo.new,
 };

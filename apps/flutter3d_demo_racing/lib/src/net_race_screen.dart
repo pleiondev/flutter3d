@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -97,10 +98,10 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
     final document = TrackDocument.fromJson(
       jsonDecode(text) as Map<String, Object?>,
     );
-    final world = CollisionWorld();
-    document.level?.addTo(world);
     // On the run's physics, as a track loaded alone is.
-    usePhysics().attach(world);
+    final world = CollisionWorld(backend: usePhysics());
+    document.level?.addTo(world);
+    world.backend.attach(world);
     return (document: document, world: world);
   }
 

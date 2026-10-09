@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ProceduralLevelsDemo extends ShowcaseDemo {
   double seed = 7;
@@ -74,16 +73,16 @@ final class ProceduralLevelsDemo extends ShowcaseDemo {
       _rooms.add(
         MeshNode(
             _cube,
-            Material(
+            RenderMaterial(
               name: brush.material,
               baseColor: floor
-                  ? Vector4(0.42, 0.44, 0.47, 1.0)
-                  : Vector4(0.72, 0.66, 0.56, 1.0),
+                  ? LinearColor.fromSrgb(0.42, 0.44, 0.47, 1.0)
+                  : LinearColor.fromSrgb(0.72, 0.66, 0.56, 1.0),
               roughness: 0.85,
             ),
             name: brush.material,
           )
-          ..setPositionFrom(brush.centre)
+          ..setPositionFrom(brush.center)
           ..setScale(brush.size.x, brush.size.y, brush.size.z),
       );
     }

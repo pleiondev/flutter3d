@@ -69,7 +69,7 @@ void main() {
       ]),
     );
     for (final node in ready.nodes.values) {
-      expect(node.visible, isTrue, reason: 'nothing has been opened yet');
+      expect(node.isVisible, isTrue, reason: 'nothing has been opened yet');
     }
   });
 
@@ -78,10 +78,10 @@ void main() {
     _advance(ready, 3);
 
     expect(ready.player.current?.name, 'step-4');
-    expect(ready.nodes['case-base']!.visible, isTrue);
-    expect(ready.nodes['housing-lid']!.visible, isFalse);
-    expect(ready.nodes['circuit-board']!.visible, isFalse);
-    expect(ready.nodes['battery']!.visible, isFalse);
+    expect(ready.nodes['case-base']!.isVisible, isTrue);
+    expect(ready.nodes['housing-lid']!.isVisible, isFalse);
+    expect(ready.nodes['circuit-board']!.isVisible, isFalse);
+    expect(ready.nodes['battery']!.isVisible, isFalse);
   });
 
   test(
@@ -92,18 +92,18 @@ void main() {
 
       ready.player.next(); // step-5: the battery goes back in
       ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
-      expect(ready.nodes['battery']!.visible, isTrue);
-      expect(ready.nodes['circuit-board']!.visible, isFalse);
-      expect(ready.nodes['housing-lid']!.visible, isFalse);
+      expect(ready.nodes['battery']!.isVisible, isTrue);
+      expect(ready.nodes['circuit-board']!.isVisible, isFalse);
+      expect(ready.nodes['housing-lid']!.isVisible, isFalse);
 
       ready.player.next(); // step-6: the board goes back in
       ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
-      expect(ready.nodes['circuit-board']!.visible, isTrue);
-      expect(ready.nodes['housing-lid']!.visible, isFalse);
+      expect(ready.nodes['circuit-board']!.isVisible, isTrue);
+      expect(ready.nodes['housing-lid']!.isVisible, isFalse);
 
       ready.player.next(); // step-7: the lid closes
       ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
-      expect(ready.nodes['housing-lid']!.visible, isTrue);
+      expect(ready.nodes['housing-lid']!.isVisible, isTrue);
     },
   );
 
@@ -116,7 +116,7 @@ void main() {
       expect(ready.player.current?.name, 'step-7');
       expect(ready.player.isLast, isTrue);
       for (final node in ready.nodes.values) {
-        expect(node.visible, isTrue, reason: 'fully reassembled');
+        expect(node.isVisible, isTrue, reason: 'fully reassembled');
       }
     },
   );

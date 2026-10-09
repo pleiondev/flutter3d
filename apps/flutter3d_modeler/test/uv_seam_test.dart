@@ -9,19 +9,19 @@ library;
 import 'dart:ui';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/uv_seam_overlay.dart';
 import 'package:flutter3d_modeler/src/uv_unwrap_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An overlay with no device behind it — the same no-op fixture
 /// `mesh_overlay_builder_test.dart` uses, since nothing here ever encodes a
 /// frame.
 MeshOverlay _overlay() =>
     MeshOverlay(
-      vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-      fragmentShader: const ShaderHandle(backend: 0, name: 'DebugLineFragment'),
+      vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+      fragmentShader: wrapShader(backend: 0, name: 'DebugLineFragment'),
     )..lookFrom(
       eye: Vector3(0, 0, 5),
       right: Vector3(1, 0, 0),

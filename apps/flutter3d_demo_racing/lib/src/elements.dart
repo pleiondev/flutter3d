@@ -1,6 +1,6 @@
 /// Water standing on the circuit, wrecks burning where cars hit hard, and the
-/// dust and smoke a car throws up: the physics core's water and fire, in a
-/// world of their own beside the race.
+/// dust and smoke a car throws up: the physics core's water and fire, in the
+/// effects' own world beside the race.
 ///
 /// **Nothing here reaches the race.** The cars, the laps, the ghosts and the
 /// recorded demos are `flutter3d_game_racing`'s and are stepped exactly as
@@ -17,11 +17,11 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    hide ParticleSystem;
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 
 import 'looks.dart';
 
@@ -62,70 +62,62 @@ abstract final class ElementSounds {
   static const List<SoundDef> all = <SoundDef>[fire, wash, splash];
 }
 
-/// A stretch of water on the circuit: its liquid, what draws it, and the
-/// square of ground it covers.
+/// A stretch of water on the circuit, and the square of ground it covers.
 final class _Pool {
-  _Pool(this.liquid, this.view, this.x0, this.z0, this.x1, this.z1);
+  _Pool(this.water, this.along, this.x0, this.z0, this.x1, this.z1);
 
-  final NativeShallowLiquid liquid;
-  final LiquidView view;
+  final WaterBody water;
+
+  /// How far round the circuit it lies, m.
+  final double along;
   final double x0, z0, x1, z1;
-
-  /// How much longer the water is moving, s: kept up while a car or a
-  /// piece of a wreck is in it, and running down once it has left, as the
-  /// wake and the waves it made settle.
-  double restless = 3.0;
 
   /// Whether ([x], [z]) is within [margin] metres of the pool's grid.
   bool near(double x, double z, double margin) =>
       x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin;
 }
 
-/// One car's stand-in in this layer's world: a ball at each of its four
-/// wheels, put where the wheels are every frame — which is what parts the
-/// water and scatters the pieces of a wreck the car drives through.
-///
-/// Wheels rather than one body the size of the car, because the water sees
-/// any body as a ball of the same volume. A box as long and as low as the car
-/// came to a ball over a metre across standing half in the ford, which
-/// emptied every cell under it down to the tarmac and heaped what it held
-/// into walls of water either side. A tyre in ten or twenty centimetres of
-/// water moves only what its own tread ploughs through, and four of those
-/// part the water in narrow furrows that close again behind the car.
+/// Whether a car was in water last frame, and how long until its wheels are
+/// heard hitting it again.
 final class _Wader {
-  _Wader(this.wheels);
-
-  final List<NativeBody> wheels;
-
-  /// Whether the car was in water last frame, and how long until its wheels
-  /// are heard hitting it again.
   bool wet = false;
   double hush = 0.0;
 }
 
-/// A piece of a wrecked car, and what draws it.
+/// A piece of a wrecked car.
 final class _Debris {
   _Debris(this.body, this.node);
 
-  final NativeBody body;
+  final TrackedBody body;
   final MeshNode node;
 }
 
-/// What a hard crash left on the circuit: a floor for its pieces to land on
-/// and the pieces, some of them alight.
+/// What a hard crash left on the circuit: a floor for its pieces to land on,
+/// the pieces, and the fuel that spilled from the tank burning on what is
+/// left of the car.
 final class _Wreck {
-  _Wreck(this.floor, this.pieces, this.floorNode, this.ground, this.along);
+  _Wreck(
+    this.floor,
+    this.pieces,
+    this.heap,
+    this.floorNode,
+    this.ground,
+    this.along,
+  );
 
   /// The slabs of road laid under the wreck, by which four metres of the
   /// circuit each is: more are laid as a piece rolls on down the road, so a
   /// tyre running away downhill rolls on the road rather than through it.
-  final Map<int, NativeBody> floor;
+  final Map<int, TrackedBody> floor;
   final MeshNode floorNode;
 
   /// Where the car crashed, on the road, and how far round the circuit.
   final Vector3 ground;
   final double along;
   final List<_Debris> pieces;
+
+  /// What is left of the car, where the spilt fuel burns.
+  final _Debris heap;
   double age = 0.0;
 
   /// Whether the marshals have put it out.
@@ -140,41 +132,31 @@ final class _Wreck {
 /// would miss; and [frame] once a frame, for everything that is drawn and
 /// heard.
 final class TrackElements {
-  TrackElements({
+  TrackElements._({
+    required this._elements,
     required GraphicsDevice device,
-    required Scene scene,
+    required this._scene,
     required Renderer renderer,
     required this._track,
     required List<SphereVehicle> cars,
     required SkyPreset sky,
-    LiquidLook? water,
-    this._light = false,
+    required List<PassContributor> before,
+    required this._light,
   }) : _device = device,
-       _scene = scene,
        _renderer = renderer,
-       _cars = cars,
-       _water = water {
-    final before = renderer.contributors.all;
-    _fire = FireView(
-      world: _world,
-      device: device,
-      scene: scene,
-      renderer: renderer,
-      baseWidth: 0.5,
-      detail: _light ? FireDetail.light : FireDetail.full,
-    );
+       _cars = cars {
     final sheet = _smokeSheet;
     TextureHandle upload(Uint8List bytes) => device.createTextureFromPixels(
       width: sheet.width,
       height: sheet.height,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(bytes),
-    )!;
+    );
     // Dust and smoke lit by the sun, so a cloud is bright on the side
     // facing it and grey in its own shade, and hides what is behind it; the
     // spray after it, added on top, because water in the sun glitters.
     renderer
-      ..addContributor(
+      ..renderSteps.addContributor(
         ParticleContributor(
           _haze,
           sixWay: SixWayMaterial(
@@ -186,56 +168,115 @@ final class TrackElements {
           softness: 0.5,
         ),
       )
-      ..addContributor(ParticleContributor(_spray));
+      ..renderSteps.addContributor(ParticleContributor(_spray));
     _contributors.addAll(
-      renderer.contributors.all.where((c) => !before.contains(c)),
+      renderer.renderSteps.contributors.where((c) => !before.contains(c)),
     );
-
-    if (water != null) {
-      water
-        ..sun(
-          along: -sky.directionToSun,
-          light: sky.sunColor * sky.sunIntensity,
-        )
-        ..sky(zenith: sky.zenith, horizon: sky.horizon);
-      _floodLowSpots();
+    // Every water mirrors this circuit's sky and glints in its sun.
+    _elements
+      ..sun(along: -sky.directionToSun, light: sky.sunColor * sky.sunIntensity)
+      ..sky(zenith: sky.zenith, horizon: sky.horizon);
+    // The race's world — its gravity, air and wind — so the spray, the fires
+    // and the water fall and drift as the cars do: one gravity in a race.
+    if (cars.isNotEmpty) {
+      _elements.world.applyProperties(cars.first.world.properties);
     }
+    _floodLowSpots();
     for (var i = 0; i < cars.length; i++) {
       _lastVelocity.add(cars[i].velocity.clone());
       _lastPosition.add(cars[i].position.clone());
       _cooldown.add(0.0);
-      _waders.add(null);
+      _waders.add(_Wader());
       _wet.add(false);
+      _follow(i);
     }
   }
 
+  /// The circuit's elements, their water's look loaded through [load]: null
+  /// when it cannot be, and the circuit is raced dry and unburnt.
+  static Future<TrackElements?> open({
+    required GraphicsDevice device,
+    required Scene scene,
+    required Renderer renderer,
+    required TrackSpline track,
+    required List<SphereVehicle> cars,
+    required SkyPreset sky,
+    required Future<ByteData> Function(String asset) load,
+    bool light = false,
+  }) async {
+    final before = renderer.renderSteps.contributors.toList();
+    final Elements elements;
+    try {
+      elements = await Elements.open(
+        device: device,
+        renderer: renderer,
+        scene: scene,
+        load: load,
+        quality: ElementsQuality.of(phone: light),
+        hearing: (world) => PhysicsHearing(
+          world,
+          fireScale: _fireHeard,
+          fallScale: _fallHeard,
+          splashScale: _splashHeard,
+        ),
+      );
+    } on Object {
+      return null;
+    }
+    return TrackElements._(
+      elements: elements,
+      device: device,
+      scene: scene,
+      renderer: renderer,
+      track: track,
+      cars: cars,
+      sky: sky,
+      before: before,
+      light: light,
+    );
+  }
+
+  /// How loud this game plays what the physics does: a fire from half a
+  /// kilowatt, a candle, to half a megawatt, a car alight from end to end;
+  /// water falling from fifty watts to a hundred kilowatts; a splash from
+  /// twenty joules, a stone dropped from a hand, to twenty kilojoules.
+  static const HearingScale _fireHeard = HearingScale(
+    quiet: 500.0,
+    loud: 5e5,
+    reference: 2e4,
+  );
+  static const HearingScale _fallHeard = HearingScale(
+    quiet: 50.0,
+    loud: 1e5,
+    reference: 5e3,
+  );
+  static const HearingScale _splashHeard = HearingScale(
+    quiet: 20.0,
+    loud: 2e4,
+    reference: 2e3,
+  );
+
+  final Elements _elements;
   final GraphicsDevice _device;
   final Scene _scene;
   final Renderer _renderer;
   final TrackSpline _track;
   final List<SphereVehicle> _cars;
-  final LiquidLook? _water;
 
   /// Whether to draw less of everything, for a phone.
   final bool _light;
 
-  /// The world the water and the fires are in. Its own, with gravity in it,
-  /// and nothing of the race's.
-  final NativeWorld _world = NativeWorld();
-
-  /// What the fires and the water sound like this frame.
-  late final PhysicsHearing _hearing = PhysicsHearing(_world);
-
-  late final FireView _fire;
   final List<PassContributor> _contributors = <PassContributor>[];
   final List<_Pool> _pools = <_Pool>[];
-  final List<_Wader?> _waders = <_Wader?>[];
+  final List<_Wader> _waders = <_Wader>[];
+
+  /// Each car's four tyres in the world.
+  final List<List<Follower>> _tireSet = <List<Follower>>[];
   final List<_Wreck> _wrecks = <_Wreck>[];
   final List<Vector3> _lastVelocity = <Vector3>[];
   final List<Vector3> _lastPosition = <Vector3>[];
   final List<double> _cooldown = <double>[];
   final math.Random _random = math.Random(29);
-  double _clock = 0.0;
 
   late final ParticleSystem _haze = ParticleSystem(
     capacity: _light ? 500 : 1400,
@@ -330,7 +371,7 @@ final class TrackElements {
     double s0,
     double y0,
   ) {
-    final s = _track.centre.closestS(Vector3(x, y0, z), nearS: s0, window: 30);
+    final s = _track.center.closestS(Vector3(x, y0, z), nearS: s0, window: 30);
     _track.frameAt(s, _frame);
     final r = _frame.right;
     final flat = r.x * r.x + r.z * r.z;
@@ -366,8 +407,8 @@ final class TrackElements {
         final reachAlong =
             _fordHalf *
             (0.78 +
-                0.14 * math.sin(across * 0.55 + s0) +
-                0.08 * math.sin(across * 1.7 - 2.0 * s0) * along.sign);
+                0.14 * Portable.sin(across * 0.55 + s0) +
+                0.08 * Portable.sin(across * 1.7 - 2.0 * s0) * along.sign);
         final a = along / reachAlong, b = across / reachAcross;
         return a * a + b * b * b * b * b * b <= 1.0;
       },
@@ -409,9 +450,9 @@ final class TrackElements {
 
   /// A pool of water laid over the road about [s0], everywhere within
   /// [reach] metres of it that [inside] says is water, filled to the height
-  /// [level] works out from the ground under it. The cells round it stand
-  /// as a rim over the water, so the water ends where [inside] does and not
-  /// at the square edge of its grid.
+  /// [level] works out from the ground under it. Round it the grid's cells
+  /// are walls, so the water ends where [inside] does and not at the square
+  /// edge of its grid, and the road under the walls is drawn as the road.
   void _pool(
     double s0, {
     required double reach,
@@ -422,10 +463,8 @@ final class TrackElements {
     )
     level,
   }) {
-    final water = _water;
-    if (water == null) return;
     _track.frameAt(s0, _frame);
-    final centre = _frame.position.clone();
+    final center = _frame.position.clone();
     // On the road or its verge only: past the verge is the level's own
     // ground, which this water does not know the shape of.
     bool wetHere(
@@ -437,9 +476,9 @@ final class TrackElements {
     // that and a margin, not over the whole square round the spot.
     var lowX = double.infinity, lowZ = double.infinity;
     var highX = -double.infinity, highZ = -double.infinity;
-    for (var z = centre.z - reach; z <= centre.z + reach; z += 1.0) {
-      for (var x = centre.x - reach; x <= centre.x + reach; x += 1.0) {
-        if (!wetHere(_onRoad(x, z, s0, centre.y))) continue;
+    for (var z = center.z - reach; z <= center.z + reach; z += 1.0) {
+      for (var x = center.x - reach; x <= center.x + reach; x += 1.0) {
+        if (!wetHere(_onRoad(x, z, s0, center.y))) continue;
         lowX = math.min(lowX, x);
         lowZ = math.min(lowZ, z);
         highX = math.max(highX, x);
@@ -453,16 +492,16 @@ final class TrackElements {
     final x0 = (lowX + highX) / 2.0 - nx * cell / 2.0;
     final z0 = (lowZ + highZ) / 2.0 - nz * cell / 2.0;
     final wet = <({double across, double height, double halfWidth})>[];
-    final ground = List<double>.filled(nx * nz, 0.0);
-    final inWater = List<bool>.filled(nx * nz, false);
+    final road = List<double>.filled(nx * nz, 0.0);
+    final walls = List<bool>.filled(nx * nz, true);
     for (var j = 0; j < nz; j++) {
       for (var i = 0; i < nx; i++) {
         final x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
-        final at = _onRoad(x, z, s0, centre.y);
+        final at = _onRoad(x, z, s0, center.y);
         final k = i + j * nx;
-        ground[k] = at.height;
+        road[k] = at.height;
         if (wetHere(at)) {
-          inWater[k] = true;
+          walls[k] = false;
           wet.add((
             across: at.across,
             height: at.height,
@@ -473,108 +512,65 @@ final class TrackElements {
     }
     if (wet.length < 8) return;
     final surface = level(wet);
-    // The road as it is, for the view: a cell away from the water is sunk
-    // under the ground it is given, and given the rim it would be drawn as
-    // a dark sheet a metre over the road.
-    final road = List<double>.of(ground);
-    for (var k = 0; k < ground.length; k++) {
-      // The rim: a metre over the water, so it holds it in.
-      if (!inWater[k]) ground[k] = math.max(ground[k], surface + 1.0);
-    }
-    final liquid = _world.createShallowLiquid(
-      nx: nx,
-      nz: nz,
-      cell: cell,
-      origin: Vector3(x0, 0.0, z0),
-      ground: ground,
+    final water = _elements.addWater(
+      ground: ElementHeightfield.list(
+        origin: Vector3(x0, 0.0, z0),
+        cell: cell,
+        nx: nx,
+        nz: nz,
+        heights: road,
+      ),
+      // As warm as the circuit's air: the world's, read as it is poured.
+      liquid: Liquid.water(),
+      // Asphalt: smooth asphalt's normal Manning n is troweled concrete's,
+      // 0.013 (Chow, Open-Channel Hydraulics, table 5-6).
+      bed: const Bed(roughness: Bed.concrete),
+      mist: const MistSettings(),
+    )..setWalls(walls);
+    water.fill(
+      from: Vector3(x0, 0.0, z0),
+      to: Vector3(x0 + nx * cell, 0.0, z0 + nz * cell),
+      level: surface,
     );
-    _world
-      // Tarmac and grass, smoother than a stream's bed.
-      ..setShallowBed(liquid, roughness: 0.02)
-      ..fillShallowLiquid(
-        liquid,
-        x0: x0,
-        z0: z0,
-        x1: x0 + nx * cell,
-        z1: z0 + nz * cell,
-        level: surface,
-      );
-    final view = LiquidView(
-      world: _world,
-      liquid: liquid,
-      ground: road,
-      device: _device,
-      scene: _scene,
-      look: water.material,
-      detail: _light ? LiquidDetail.light : LiquidDetail.full,
-    );
-    _hearing.listen(liquid);
-    _pools.add(_Pool(liquid, view, x0, z0, x0 + nx * cell, z0 + nz * cell));
+    _pools.add(_Pool(water, s0, x0, z0, x0 + nx * cell, z0 + nz * cell));
   }
 
-  /// How big the ball standing in for a tyre is, m: a little under the
-  /// tyre's own radius, since the ball is round across where the tyre is
-  /// flat and would otherwise move water from beside the tread as well.
-  static const double _tyre = 0.24;
+  // ------------------------------------------------------------ the wheels
+
+  /// A car's tyre: its radius and half its width, m.
+  static const double _tyreRadius = 0.33, _tyreHalfWidth = 0.17;
 
   /// Where a car's wheels are from the middle of it, m: half its track
   /// across, and its axles fore and aft.
   static const double _halfTrack = 0.8, _frontAxle = 1.6, _rearAxle = -1.4;
 
-  /// Every car near water or a wreck stood in for by its four wheels,
-  /// moving as the car moves, so the water parts round them and closes
-  /// behind them and the pieces of a wreck are knocked aside; taken out
-  /// again once the car has left. The wheels are pushed back by what they
-  /// meet and put back where the car is the next frame: the car itself is
-  /// never touched.
-  void _wade() {
-    for (var i = 0; i < _cars.length; i++) {
-      final car = _cars[i];
-      final p = car.position;
-      final near =
-          _pools.any((pool) => pool.near(p.x, p.z, 4.0)) ||
-          _wrecks.any((w) => w.ground.distanceTo(p) < 30.0);
-      if (!near) {
-        if (_waders[i] case final had?) had.wheels.forEach(_world.removeBody);
-        _waders[i] = null;
-        continue;
-      }
-      final wader = _waders[i] ??= _Wader(<NativeBody>[
-        for (var k = 0; k < 4; k++) _addWheel(),
-      ]);
-      for (final pool in _pools) {
-        if (pool.near(p.x, p.z, 4.0)) pool.restless = 6.0;
-      }
-      final right = car.visualBasis.getColumn(0);
-      final up = car.visualBasis.getColumn(1);
-      final forward = car.visualBasis.getColumn(2);
-      // Each ball resting on the road, where its tyre touches it: the
-      // sphere the race drives floats a ride height over the road.
-      final road = p - up * car.tuning.rideHeight;
-      for (var k = 0; k < 4; k++) {
-        final across = k.isEven ? -_halfTrack : _halfTrack;
-        final along = k < 2 ? _frontAxle : _rearAxle;
-        final wheel = wader.wheels[k];
-        _world
-          ..setPosition(
-            wheel,
-            road + right * across + forward * along + up * _tyre,
-          )
-          ..setVelocity(wheel, car.velocity.clone())
-          ..setAngularVelocity(wheel, Vector3.zero());
-      }
+  /// Car [index]'s four wheels followed into the world as tyres: carried
+  /// each frame to where the car's wheels are, they part the water and
+  /// knock the pieces of a wreck aside, and nothing they meet ever reaches
+  /// the car — the race is stepped as it was.
+  void _follow(int index) {
+    final car = _cars[index];
+    // A cylinder stands along its own y; a tyre's axle is the car's right.
+    final axle = Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), math.pi / 2);
+    final wheels = <Follower>[];
+    for (var k = 0; k < 4; k++) {
+      final across = k.isEven ? -_halfTrack : _halfTrack;
+      final along = k < 2 ? _frontAxle : _rearAxle;
+      wheels.add(
+        _elements.follow(() {
+          final right = car.visualBasis.getColumn(0);
+          final up = car.visualBasis.getColumn(1);
+          final forward = car.visualBasis.getColumn(2);
+          final road = car.position - up * car.tuning.rideHeight;
+          return (
+            position:
+                road + right * across + forward * along + up * _tyreRadius,
+            orientation: Quaternion.fromRotation(car.visualBasis) * axle,
+          );
+        }, shape: const NativeShape.cylinder(_tyreRadius, _tyreHalfWidth)),
+      );
     }
-  }
-
-  NativeBody _addWheel() {
-    final body = _world.addBody(
-      position: Vector3(0.0, -50.0, 0.0),
-      mass: 120.0,
-    );
-    _world
-      ..setShape(body, const NativeShape.sphere(_tyre))
-      ..setMaterial(body, NativeMaterial.rubber());
-    return body;
+    _tireSet.add(wheels);
   }
 
   // ------------------------------------------------------------- the fires
@@ -592,6 +588,14 @@ final class TrackElements {
   /// s: a car bouncing along a wall is one crash.
   static const double _between = 6.0;
 
+  /// How far round the circuit each stretch of water lies, m, fords first.
+  List<double> get waterAlong => <double>[for (final p in _pools) p.along];
+
+  /// Car [index]'s wreck left where it stands now, as a hard crash there
+  /// would leave it.
+  void wreckNow(int index) =>
+      _wreck(index, _cars[index].velocity.clone(), _cars[index].trackDistance);
+
   /// After every step of the race: a car struck hard enough leaves a wreck
   /// where it was struck. Read from how hard the race says it was pushed
   /// back and from how much speed it lost, never written to.
@@ -600,6 +604,13 @@ final class TrackElements {
       final car = _cars[i];
       _cooldown[i] = math.max(0.0, _cooldown[i] - seconds);
       final jump = car.position.distanceTo(_lastPosition[i]);
+      // A car put back on the road: its tyres put there too, not swept
+      // through everything between.
+      if (jump >= 4.0) {
+        for (final tyre in _tireSet[i]) {
+          tyre.jump();
+        }
+      }
       // Along the road only: a car landing from a crest, or dropped back on
       // the road after a fall, loses its speed downwards, and that is the
       // springs' business, not a crash.
@@ -632,9 +643,9 @@ final class TrackElements {
   late final DeviceMesh _tyreMesh = DeviceMesh.upload(
     _device,
     const CylinderShape(
-      radiusTop: 0.33,
-      radiusBottom: 0.33,
-      height: 0.34,
+      radiusTop: _tyreRadius,
+      radiusBottom: _tyreRadius,
+      height: 2.0 * _tyreHalfWidth,
       segments: 14,
     ).build(),
   );
@@ -661,9 +672,25 @@ final class TrackElements {
     ).build(),
   );
 
+  /// Petrol: its heat of combustion, 43.7 MJ/kg, and the absorption of its
+  /// flame, 2.1 per metre (Babrauskas, "Heat release rates", SFPE Handbook,
+  /// table of large pool burning); its specific heat as a liquid, about
+  /// 2.2 kJ/(kg K); and a sooty flame, as rubber's is.
+  static final NativeMaterial _petrol = NativeMaterial.rubber().copyWith(
+    specificHeat: 2220.0,
+    heatOfCombustion: 43.7e6,
+    flameAbsorption: 2.1,
+  );
+
+  /// How fast spilt petrol burns off a large pool, kg/(m² s) (Babrauskas,
+  /// SFPE Handbook), and the pool a racing car's ruptured tank leaves under
+  /// it, m²: a car's floor.
+  static const double _petrolBurns = 0.055, _spill = 1.5;
+
   /// Car [index]'s wreck, thrown along [velocity] — the car's speed before
-  /// it struck: a floor where it crashed, a burning heap of what came off,
-  /// a tyre alight and panels of its paint, still hot.
+  /// it struck: a floor where it crashed, the car's tub with the fuel from
+  /// its split tank burning on it, a tyre and panels of its paint thrown
+  /// off. What else catches catches from that fire.
   void _wreck(int index, Vector3 velocity, double along) {
     final car = _cars[index];
     final up = car.visualBasis.getColumn(1);
@@ -672,7 +699,7 @@ final class TrackElements {
     // stopped, as slabs the pieces land and roll on: the road and its
     // verges, banked as they are.
     final first = (along / _slabLength).round();
-    final floor = <int, NativeBody>{
+    final floor = <int, TrackedBody>{
       for (var k = first - 3; k <= first + 8; k++) k: _slab(k),
     };
     // Laid along the road, banked as it is, and the hulk turned a little
@@ -689,9 +716,9 @@ final class TrackElements {
         );
     // Burnt road: longer than it is wide, where the car slid as it burned,
     // and black at the heart of it, browner out to where the heat ended.
-    Material burnt(double r, double g, double b) => Material(
+    RenderMaterial burnt(double r, double g, double b) => RenderMaterial(
       name: 'scorch',
-      baseColor: Vector4(r, g, b, 1.0),
+      baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
       roughness: 1.0,
     );
     final scorch =
@@ -714,11 +741,8 @@ final class TrackElements {
         : Looks.carPaint(index);
     _Debris piece(
       DeviceMesh mesh,
-      NativeShape shape,
-      NativeMaterial material, {
-      required double mass,
-      required double kelvin,
-      required Vector4 colour,
+      Solid solid, {
+      required Vector4 color,
       required double throwAt,
       bool stays = false,
     }) {
@@ -727,59 +751,60 @@ final class TrackElements {
         0.0,
         _random.nextDouble() * 2.0 - 1.0,
       );
-      final body = _world.addBody(
-        position: stays ? ground + up * 0.16 : ground + up * 0.6 + out * 0.6,
-        type: stays ? NativeBodyType.fixed : NativeBodyType.dynamic,
-        mass: mass,
-      );
-      _world
-        ..setShape(body, shape)
-        ..setMaterial(body, material)
-        ..setTemperature(body, kelvin);
-      if (stays) {
-        _world.setOrientation(body, lying);
-      } else {
-        _world
-          ..setVelocity(
-            body,
-            velocity * throwAt +
-                out * (2.0 + 3.0 * _random.nextDouble()) +
-                up * (2.5 + 2.5 * _random.nextDouble()),
-          )
-          ..setAngularVelocity(
-            body,
-            Vector3(
-              _random.nextDouble() * 8.0 - 4.0,
-              _random.nextDouble() * 8.0 - 4.0,
-              _random.nextDouble() * 8.0 - 4.0,
-            ),
-          );
-      }
       final node = MeshNode(
         mesh,
-        Material(name: 'wreck', baseColor: colour, roughness: 0.6),
+        RenderMaterial(
+          name: 'wreck',
+          baseColor: _fromSrgb(color),
+          roughness: 0.6,
+        ),
         name: 'wreck',
       );
       _scene.add(node);
+      final thrown = stays
+          ? null
+          : velocity * throwAt +
+                out * (2.0 + 3.0 * _random.nextDouble()) +
+                up * (2.5 + 2.5 * _random.nextDouble());
+      final tumbling = stays
+          ? null
+          : Vector3(
+              _random.nextDouble() * 8.0 - 4.0,
+              _random.nextDouble() * 8.0 - 4.0,
+              _random.nextDouble() * 8.0 - 4.0,
+            );
+      final body = _elements.addBody(
+        solid,
+        at: stays ? ground + up * 0.16 : ground + up * 0.6 + out * 0.6,
+        turn: stays ? lying : null,
+        velocity: thrown,
+        spin: tumbling,
+        look: node,
+        type: stays ? NativeBodyType.fixed : NativeBodyType.dynamic,
+      );
       final debris = _Debris(body, node);
       pieces.add(debris);
       return debris;
     }
 
-    // What burns: the heap, and a tyre. Rubber lights at a few hundred
-    // degrees and burns long and sooty, which is what a wreck on a circuit
-    // looks like from across it. The heap is what is left of the car and
-    // stays where it stopped, the core of the fire; what came off it is
-    // thrown, and knocked about again by the cars driving through.
+    // What is left of the car stays where it stopped: seventy kilograms of
+    // carbon tub, rubber-like as fire sees it, the core of the fire.
+    final tub = Vector3(0.375, 0.15, 0.85);
     final heap = piece(
       _tubMesh,
-      NativeShape.box(Vector3(0.375, 0.15, 0.85)),
-      NativeMaterial.rubber(),
-      mass: 70.0,
-      kelvin: 950.0,
-      colour: Vector4(0.12, 0.11, 0.1, 1.0),
+      Solid.box(
+        tub,
+        material: NativeMaterial.rubber(),
+        density: 70.0 / (8.0 * tub.x * tub.y * tub.z),
+      ),
+      color: Vector4(0.12, 0.11, 0.1, 1.0),
       throwAt: 0.0,
       stays: true,
+    );
+    // The fuel from its split tank burns on it, as a pool of petrol does.
+    _elements.fires.setBurner(
+      heap.body,
+      NativeBurner(fuel: _petrol, rate: _petrolBurns * _spill),
     );
     // What is left round the tub, in the tub's own colour, so it chars and
     // glows with it: the engine, the nose bent aside, the rear wing torn
@@ -802,42 +827,35 @@ final class TrackElements {
         part(_tyreMesh, Vector3(0.58, 0.03, 0.55), roll: math.pi / 2)
           ..setUniformScale(0.9),
       );
-    final tyre = piece(
+    // A tyre torn off: eleven kilograms of rubber.
+    final tyreVolume =
+        math.pi * _tyreRadius * _tyreRadius * 2.0 * _tyreHalfWidth;
+    piece(
       _tyreMesh,
-      const NativeShape.cylinder(0.33, 0.17),
-      NativeMaterial.rubber(),
-      mass: 11.0,
-      kelvin: 900.0,
-      colour: Vector4(0.05, 0.05, 0.05, 1.0),
+      Solid.cylinder(
+        _tyreRadius,
+        _tyreHalfWidth,
+        material: NativeMaterial.rubber(),
+        density: 11.0 / tyreVolume,
+      ),
+      color: Vector4(0.05, 0.05, 0.05, 1.0),
       throwAt: 0.3,
     );
-    for (final debris in <_Debris>[heap, tyre]) {
-      _fire.watch(debris.body, debris.node);
-    }
-    // Bodywork: steel does not burn, but it comes off hot.
+    // Bodywork: steel panels, six kilograms each, which do not burn.
+    final panel = Vector3(0.5, 0.03, 0.35);
     for (var k = 0; k < (_light ? 1 : 2); k++) {
       piece(
         _panelMesh,
-        NativeShape.box(Vector3(0.5, 0.03, 0.35)),
-        NativeMaterial.steel(),
-        mass: 6.0,
-        kelvin: 600.0,
-        colour: paint,
+        Solid.box(
+          panel,
+          material: NativeMaterial.steel(),
+          density: 6.0 / (8.0 * panel.x * panel.y * panel.z),
+        ),
+        color: paint,
         throwAt: 0.25,
       );
     }
-    for (final p in _pools) {
-      if (p.near(ground.x, ground.z, 2.0)) {
-        for (final d in pieces) {
-          _hearing.watch(d.body, p.liquid);
-        }
-      }
-    }
-    // One wreck burns at a time: the marshals put out the one before. The
-    // fire's light stands where its fires are, between them all, so two
-    // burning far apart would light the empty road between them.
-    _wrecks.forEach(_douse);
-    _wrecks.add(_Wreck(floor, pieces, scorch, ground, along));
+    _wrecks.add(_Wreck(floor, pieces, heap, scorch, ground, along));
     // A circuit keeps a few; the oldest is cleared away.
     while (_wrecks.length > (_light ? 2 : 3)) {
       _clear(_wrecks.removeAt(0));
@@ -847,33 +865,29 @@ final class TrackElements {
   /// How much of the circuit a slab of a wreck's floor stands for, m.
   static const double _slabLength = 4.0;
 
+  /// Granite's density, kg/m³: what a slab of road is made of as heat
+  /// sees it.
+  static const double _stone = 2700.0;
+
   /// Slab [k] of road, the [_slabLength] metres of it [k] slabs round the
   /// circuit from the line, as wide as the road and both verges, its top the
   /// road's surface. A little longer than it stands for, so the slabs
   /// either side of a bend still meet.
-  NativeBody _slab(int k) {
+  TrackedBody _slab(int k) {
     final s = (k * _slabLength) % _track.length;
     _track.frameAt(s, _frame);
-    final slab = _world.addBody(
-      position: _frame.position - _frame.up * 0.25,
+    return _elements.addBody(
+      Solid.box(
+        Vector3(_track.widthAt(s) / 2.0 + _track.shoulder, 0.25, 2.3),
+        material: NativeMaterial.stone(),
+        density: _stone,
+      ),
+      at: _frame.position - _frame.up * 0.25,
+      turn: Quaternion.fromRotation(
+        Matrix3.columns(_frame.right, _frame.up, _frame.forward),
+      ),
       type: NativeBodyType.fixed,
-      mass: 0.0,
     );
-    _world
-      ..setShape(
-        slab,
-        NativeShape.box(
-          Vector3(_track.widthAt(s) / 2.0 + _track.shoulder, 0.25, 2.3),
-        ),
-      )
-      ..setOrientation(
-        slab,
-        Quaternion.fromRotation(
-          Matrix3.columns(_frame.right, _frame.up, _frame.forward),
-        ),
-      )
-      ..setMaterial(slab, NativeMaterial.stone());
-    return slab;
   }
 
   /// Road laid under a piece of [wreck] at [at] and either side of it, if
@@ -881,7 +895,7 @@ final class TrackElements {
   /// rolls on over the line is still on the same floor.
   void _floorUnder(_Wreck wreck, Vector3 at) {
     final length = _track.length;
-    final s = _track.centre.closestS(at, nearS: wreck.along, window: 80.0);
+    final s = _track.center.closestS(at, nearS: wreck.along, window: 80.0);
     final d = (s - wreck.along + length * 1.5) % length - length / 2;
     final k = ((wreck.along + d) / _slabLength).round();
     for (var n = k - 1; n <= k + 1; n++) {
@@ -895,50 +909,33 @@ final class TrackElements {
   /// How long a wreck burns before the marshals reach it and put it out, s.
   static const double _burnsFor = 25.0;
 
-  /// [wreck]'s fires put out, as an extinguisher does: water onto every
-  /// piece, which holds it at boiling until it has gone, and the heat that
-  /// kept it alight taken away with it.
+  /// How much water a marshal's extinguisher puts on each piece, kg.
+  static const double _extinguisher = 6.0;
+
+  /// [wreck]'s fires put out, as the marshals do: the fuel's flame smothered
+  /// and water onto every piece, which holds it at boiling until it has
+  /// gone.
   void _douse(_Wreck wreck) {
     if (wreck.doused) return;
     wreck.doused = true;
+    _elements.fires.setBurner(wreck.heap.body, null);
     for (final d in wreck.pieces) {
-      _world
-        ..addWater(d.body, 6.0)
-        ..setTemperature(d.body, 340.0);
+      _elements.fires.douse(d.body, _extinguisher);
     }
   }
 
   void _clear(_Wreck wreck) {
     wreck.pieces.forEach(_forgetPiece);
-    wreck.floor.values.forEach(_world.removeBody);
+    wreck.floor.values.forEach(_elements.remove);
     _scene.remove(wreck.floorNode);
   }
 
   void _forgetPiece(_Debris d) {
-    _haze.stopEmitting(('soot', d.body.raw));
-    _fire.forget(d.body);
-    _hearing.forget(d.body);
-    _world.removeBody(d.body);
+    _elements.remove(d.body);
     _scene.remove(d.node);
   }
 
   // ------------------------------------------------------------ the dust
-
-  /// Rubber burning: thick, black, rising and spreading for seconds.
-  static final ParticleEffect _soot = ParticleEffect(
-    count: 1,
-    emitter: const ConeEmitter(speed: Range(3.0, 5.5), halfAngleDegrees: 12.0),
-    lifetime: const Range(5.0, 8.0),
-    size: const Range(1.3, 2.0),
-    color: Vector4(0.06, 0.055, 0.05, 0.7),
-    affectors: <ParticleAffector>[
-      const ParticleGravity(0.8),
-      const ParticleDrag(0.35),
-      const ParticleTurbulence(strength: 0.8, scale: 3.0),
-      ParticleSizeCurve(ParticleCurve.linear(1.0, 6.0)),
-      const ParticleFade(startsAt: 0.35),
-    ],
-  );
 
   /// Earth thrown up by a car off the road, hanging in the air behind it:
   /// lit and solid, so a car running wide leaves a cloud a pursuer drives
@@ -954,7 +951,7 @@ final class TrackElements {
       count: 1,
       emitter: ConeEmitter(
         speed: Range(0.6 + 0.2 * speed, 1.6 + 0.45 * speed),
-        halfAngleDegrees: 30.0,
+        halfAngle: 30.0 * math.pi / 180.0,
       ),
       lifetime: const Range(1.8, 3.0),
       size: const Range(1.1, 1.8),
@@ -976,7 +973,7 @@ final class TrackElements {
       count: 1,
       emitter: ConeEmitter(
         speed: Range(2.0 + 0.2 * speed, 4.0 + 0.5 * speed),
-        halfAngleDegrees: 35.0,
+        halfAngle: 35.0 * math.pi / 180.0,
       ),
       lifetime: const Range(0.5, 0.9),
       size: const Range(1.0, 1.7),
@@ -997,7 +994,10 @@ final class TrackElements {
   /// lingering on the line long after the car has gone.
   static final ParticleEffect _rubber = ParticleEffect(
     count: 1,
-    emitter: const ConeEmitter(speed: Range(0.3, 1.2), halfAngleDegrees: 60.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.3, 1.2),
+      halfAngle: 60.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(1.4, 2.4),
     size: const Range(0.6, 1.0),
     color: Vector4(0.88, 0.88, 0.9, 0.42),
@@ -1013,7 +1013,10 @@ final class TrackElements {
   /// A broken car's engine smoking: dark, and the more broken the more of it.
   static final ParticleEffect _broken = ParticleEffect(
     count: 1,
-    emitter: const ConeEmitter(speed: Range(0.8, 1.8), halfAngleDegrees: 20.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.8, 1.8),
+      halfAngle: 20.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(1.0, 1.8),
     size: const Range(0.35, 0.6),
     color: Vector4(0.16, 0.15, 0.15, 0.55),
@@ -1029,12 +1032,15 @@ final class TrackElements {
   /// falling. Bright, because water in the sun is.
   static final ParticleEffect _drops = ParticleEffect(
     count: 1,
-    emitter: const ConeEmitter(speed: Range(4.0, 11.0), halfAngleDegrees: 22.0),
+    emitter: const ConeEmitter(
+      speed: Range(4.0, 11.0),
+      halfAngle: 22.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.4, 0.8),
     size: const Range(0.05, 0.11),
     color: Vector4(0.9, 0.95, 1.0, 0.9),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-9.8),
+      const ParticleGravity(),
       const ParticleDrag(0.6),
       const ParticleFade(startsAt: 0.5),
     ],
@@ -1044,12 +1050,15 @@ final class TrackElements {
   /// low and spreading, falling back within a few metres of the car.
   static final ParticleEffect _bow = ParticleEffect(
     count: 1,
-    emitter: const ConeEmitter(speed: Range(3.0, 8.0), halfAngleDegrees: 28.0),
+    emitter: const ConeEmitter(
+      speed: Range(3.0, 8.0),
+      halfAngle: 28.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.35, 0.7),
     size: const Range(0.04, 0.09),
     color: Vector4(0.88, 0.93, 1.0, 0.8),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-9.8),
+      const ParticleGravity(),
       const ParticleDrag(1.2),
       const ParticleFade(startsAt: 0.4),
     ],
@@ -1074,7 +1083,7 @@ final class TrackElements {
           : -car.visualBasis.getColumn(2);
       final behind = patch + back * 1.6 + up * 0.2;
       final offRoad = i < progress.length && progress[i].offRoad;
-      final moving = car.grounded && speed > _moving;
+      final moving = car.isGrounded && speed > _moving;
 
       final wet = _wading(car, patch);
       _wet[i] = wet;
@@ -1146,16 +1155,16 @@ final class TrackElements {
   }
 
   /// Whether [car], its tyres on the road at [patch], is driving through
-  /// water. Asked just outside its wheels rather than under them: the balls
-  /// standing in for the tyres push the water out of the furrows they run
-  /// in, which is the point of them, and leave it shallow there.
+  /// water. Asked just outside its wheels rather than under them: the tyres
+  /// followed into the water push it out of the furrows they run in, and
+  /// leave it shallow there.
   bool _wading(SphereVehicle car, Vector3 patch) {
     final right = car.visualBasis.getColumn(0);
     for (final side in <double>[-1.3, 1.3]) {
       final x = patch.x + right.x * side, z = patch.z + right.z * side;
       for (final pool in _pools) {
         if (!pool.near(x, z, 0.0)) continue;
-        final here = _world.sampleShallow(pool.liquid, x, z);
+        final here = pool.water.sample(Vector3(x, patch.y, z));
         if (here != null &&
             here.depth > 0.015 &&
             here.surface > patch.y - 0.1) {
@@ -1180,14 +1189,12 @@ final class TrackElements {
   }) {
     if (dt <= 0.0) return;
     final step = math.min(dt, 1.0 / 30.0);
-    _clock += step;
-    _wade();
-    _world.step(step);
+    _elements.update(step, eye: eye);
     for (final wreck in _wrecks) {
       wreck.age += step;
       if (wreck.age > _burnsFor) _douse(wreck);
       wreck.pieces.removeWhere((d) {
-        final at = _world.positionOf(d.body);
+        final at = _elements.world.localPositionOf(d.body.native);
         // Over the edge of the embankment and out of the world this layer
         // knows: let go rather than fall for ever.
         final lost = at.y < wreck.ground.y - 8.0;
@@ -1195,127 +1202,85 @@ final class TrackElements {
           _forgetPiece(d);
         } else {
           _floorUnder(wreck, at);
-          d.node
-            ..setPositionFrom(at)
-            ..setRotation(_world.orientationOf(d.body));
-          for (final pool in _pools) {
-            if (pool.near(at.x, at.z, 0.0)) pool.restless = 6.0;
-          }
         }
-        // Burning rubber's smoke is black, and a lot of it: the plume a
-        // wreck is seen by from across the circuit.
-        _haze.emit(
-          ('soot', d.body.raw),
-          _soot,
-          at + Vector3(0.0, 0.4, 0.0),
-          perSecond: !lost && _world.isBurning(d.body) ? 16.0 : 0.0,
-          direction: Vector3(0.0, 1.0, 0.0),
-        );
         return lost;
       });
     }
     _wrecks.removeWhere((w) {
       final out =
           w.age > _wreckLasts ||
-          (w.age > 30.0 && !w.pieces.any((d) => _world.isBurning(d.body)));
+          (w.age > 30.0 &&
+              !w.pieces.any((d) => _elements.world.isBurning(d.body.native)));
       if (out) _clear(w);
       return out;
     });
     _throwUp(progress);
-    for (final pool in _pools) {
-      // Redrawn only while something is stirring it and the eye is near
-      // enough to see: water left alone lies still, its ripples are the
-      // material's, and a ford across the circuit is a few pixels. It is
-      // stepped all the same, so it is right when the car gets there.
-      final dx = eye.x - (pool.x0 + pool.x1) / 2;
-      final dz = eye.z - (pool.z0 + pool.z1) / 2;
-      if (pool.restless > 0.0 && dx * dx + dz * dz < 200.0 * 200.0) {
-        pool.view.update();
-      }
-      pool.restless -= step;
-    }
-    _water?.update(seconds: _clock, eye: eye);
-    _fire.update(step);
-    _hearing.update(step);
+    // The drops fall as the circuit's world does.
+    _spray.gravity = _elements.world.gravityMagnitude;
     _haze.advance(step);
     _spray.advance(step);
   }
 
   // ------------------------------------------------------------- the sound
 
-  AudioScene? _heardOn;
-  final Map<int, SoundEmitter> _fires = <int, SoundEmitter>{};
-  final Map<int, SoundEmitter> _washes = <int, SoundEmitter>{};
+  /// A crackle held to every fire, as loud as its heat.
+  final HeldVoices _fires = HeldVoices(ElementSounds.fire);
+
+  /// The wash of each car's wheels, held while it ploughs through water.
+  final HeldVoices _washes = HeldVoices(ElementSounds.wash);
 
   /// What this frame sounds like, played on [scene]: a crackle held to every
-  /// fire, a splash where a car hits the water, and the wash of its wheels
-  /// for as long as it ploughs through it. Called before the scene is
-  /// updated for the frame.
+  /// fire, a splash where a car or a piece of a wreck hits the water, and
+  /// the wash of a car's wheels for as long as it ploughs through it.
+  /// Called before the scene is updated for the frame.
   void hear(AudioScene scene, double dt) {
-    if (!identical(scene, _heardOn)) {
-      _silence();
-      _heardOn = scene;
-    }
-    final live = <int>{};
-    for (final f in _hearing.fires) {
-      live.add(f.key);
-      (_fires[f.key] ??= scene.play(ElementSounds.fire, f.at))
-        ..position.setFrom(f.at)
-        ..gain = f.loudness
-        ..rate = f.rate;
-    }
-    _fires.removeWhere((key, voice) {
-      if (live.contains(key)) return false;
-      voice.stop();
-      return true;
-    });
-    for (final s in _hearing.splashes) {
+    final hearing = _elements.hearing!;
+    _fires.hold(scene, <Held>[
+      for (final f in hearing.fires)
+        (key: f.key, at: f.at, gain: f.loudness, rate: f.rate),
+    ]);
+    for (final s in hearing.splashes) {
       scene.play(ElementSounds.splash, s.at)
         ..gain = s.loudness
         ..rate = s.rate;
     }
+    final washing = <Held>[];
     for (var i = 0; i < _cars.length; i++) {
       final car = _cars[i];
       final wader = _waders[i];
       final p = car.position;
       final wet = _wet[i];
       final speed = car.speed;
-      if (wader != null) {
-        wader.hush = math.max(0.0, wader.hush - dt);
-        // Into the water at speed: a splash as loud as the car is fast.
-        if (wet && !wader.wet && speed > 4.0 && wader.hush <= 0.0) {
-          wader.hush = 0.4;
-          scene.play(ElementSounds.splash, p)
-            ..gain = (speed / 40.0).clamp(0.3, 1.0)
-            ..rate = 0.8 + 0.2 * _random.nextDouble();
-        }
-        wader.wet = wet;
+      wader.hush = math.max(0.0, wader.hush - dt);
+      // Into the water at speed: a splash as loud as the car is fast.
+      if (wet && !wader.wet && speed > 4.0 && wader.hush <= 0.0) {
+        wader.hush = 0.4;
+        scene.play(ElementSounds.splash, p)
+          ..gain = (speed / 40.0).clamp(0.3, 1.0)
+          ..rate = 0.8 + 0.2 * _random.nextDouble();
       }
-      final ploughing = wet && speed > 3.0;
-      if (ploughing) {
-        (_washes[i] ??= scene.play(ElementSounds.wash, p))
-          ..position.setFrom(p)
-          ..gain = (speed / 35.0).clamp(0.2, 1.0)
-          ..rate = 0.9 + 0.3 * (speed / 60.0).clamp(0.0, 1.0);
-      } else {
-        _washes.remove(i)?.stop();
+      wader.wet = wet;
+      if (wet && speed > 3.0) {
+        washing.add((
+          key: i,
+          at: p,
+          gain: (speed / 35.0).clamp(0.2, 1.0),
+          rate: 0.9 + 0.3 * (speed / 60.0).clamp(0.0, 1.0),
+        ));
       }
     }
-  }
-
-  void _silence() {
-    for (final voice in <SoundEmitter>[..._fires.values, ..._washes.values]) {
-      voice.stop();
-    }
-    _fires.clear();
-    _washes.clear();
+    _washes.hold(scene, washing);
   }
 
   /// Everything let go: the sounds stopped, the particles no longer drawn,
   /// the world freed. The scene goes with the circuit.
   void dispose() {
-    _silence();
-    _contributors.forEach(_renderer.removeContributor);
-    _world.dispose();
+    _fires.silence();
+    _washes.silence();
+    _contributors.forEach(_renderer.renderSteps.removeContributor);
+    _elements.dispose();
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

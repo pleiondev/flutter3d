@@ -26,10 +26,10 @@ dependencies:
 
   # `PendulumSimulation`/`PendulumLabRun` — `edu-04`'s own physics, plain
   # Dart, moved out of `flutter3d_sim` into its own package for the reason
-  # `flutter3d_lab`'s own doc comment gives: a lab experiment is domain
+  # `flutter3d_education/lab.dart`'s own doc comment gives: a lab experiment is domain
   # content, not simulation infrastructure.
-  flutter3d_lab:
-    path: ../../packages/flutter3d_lab
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
 
   # `DataSourceTrace` — `edu-05`'s mechanism, reused here for the one
   # parameter a tap on the panel changes.

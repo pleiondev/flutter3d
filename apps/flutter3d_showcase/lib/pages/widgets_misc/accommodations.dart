@@ -13,7 +13,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region value
 /// A default, never an override: a game reads this where the player has not
@@ -41,9 +40,9 @@ final class _Accommodations {
 final class AccommodationsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
-    final material = Material(
+    final material = RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.8, 0.6, 0.4, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.4, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -52,7 +51,7 @@ final class AccommodationsDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

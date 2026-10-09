@@ -57,7 +57,7 @@ const List<Feature> flameFeatures = <Feature>[
     packages: <String>['flame_flutter3d', 'flutter3d_physics'],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'The body falls on whichever physics the run chose, the native core by default, since the step component takes the Dart reference\'s solver and the core\'s alike.',
         evidence: 'steps whichever physics the run chose.',

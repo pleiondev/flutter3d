@@ -162,7 +162,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     for (final EntityDef it in level.ofType(StrategyEntities.camp))
       it.name!: simulation.build(
         Building(
-          centre: it.position,
+          center: it.position,
           width: it.number('width')!,
           depth: it.number('depth')!,
           name: it.name!,
@@ -253,19 +253,23 @@ int _sides(Level level) =>
 
 // MARK: - What a map has to be
 
-/// What this build can read, and what it requires of a whole map.
+/// The entity kinds a map may name: this game's own vocabulary rather than a
+/// default the engine hands out — there is none, deliberately, because a
+/// racing game has no camps and a dungeon has no seams.
 ///
-/// The registry is this game's own vocabulary rather than a default the engine
-/// hands out — there is none, deliberately, because a racing game has no camps
-/// and a dungeon has no seams.
+/// Read twice, by [strategyValidator] and by the `StrategyPlugin` the game
+/// installs, which adds them to the engine's `EntityKinds`.
+const List<EntityKind> strategyKinds = <EntityKind>[
+  _CampKind(),
+  _WorkerKind(),
+  _ResourceNodeKind(),
+  _StockpileKind(),
+  _ProducerKind(),
+];
+
+/// What this build can read, and what it requires of a whole map.
 final LevelValidator strategyValidator = LevelValidator(
-  registry: EntityRegistry(<EntityKind>[
-    const _CampKind(),
-    const _WorkerKind(),
-    const _ResourceNodeKind(),
-    const _StockpileKind(),
-    const _ProducerKind(),
-  ]),
+  registry: EntityRegistry(strategyKinds),
   rules: const <LevelRule>[
     AtLeastOne(
       StrategyEntities.camp,

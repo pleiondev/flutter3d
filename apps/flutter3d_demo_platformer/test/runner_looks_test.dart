@@ -12,14 +12,16 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_demo_platformer/src/runner_looks.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const double _dt = 1.0 / 60.0;
 
 final class _Run {
-  /// What the last step reported, drained the way a game drains it.
+  /// What the last step published, as a game hears a step.
   List<GameEvent> lastStep = const <GameEvent>[];
 
   _Run() {
@@ -39,13 +41,15 @@ final class _Run {
       startAt: Vector3.zero(),
       random: GameRandom(1),
     );
+    sim.publishTo(_heard.bus);
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   final RunnerLooks looks = RunnerLooks();
   late final Runner runner;
   late final PlatformerSimulation sim;
+  final HeardEvents _heard = HeardEvents();
 
   final Set<GameAction> _held = <GameAction>{};
 
@@ -61,7 +65,7 @@ final class _Run {
       ..clear()
       ..addAll(holding);
     sim.step(_dt);
-    lastStep = sim.events.drain();
+    lastStep = _heard.take();
     input.endStep();
     looks.advance(runner, _dt, lastStep);
   }
@@ -101,7 +105,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.lastStep.has<Landed>();
+      landed = run.lastStep.whereType<Landed>().isNotEmpty;
     }
     expect(landed, isTrue);
     expect(run.scale.y, lessThan(0.95), reason: 'a landing should squash');
@@ -136,7 +140,9 @@ void main() {
       run.runner.body.teleport(Vector3(0.0, from, 0.0));
       for (var i = 0; i < 400; i++) {
         run.step();
-        if (run.lastStep.has<Landed>()) return _distortion(run.scale);
+        if (run.lastStep.whereType<Landed>().isNotEmpty) {
+          return _distortion(run.scale);
+        }
       }
       return 0.0;
     }
@@ -167,7 +173,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.lastStep.has<Landed>();
+      landed = run.lastStep.whereType<Landed>().isNotEmpty;
     }
     expect(landed, isTrue);
 

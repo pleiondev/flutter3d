@@ -15,10 +15,10 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_demo_content/repo_checks.dart'; // creditGaps
 import 'package:flutter3d_demo_dungeon/src/credits.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game/testing.dart'; // creditGaps
 // creditGaps — test-only, not in the barrel
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -29,7 +29,10 @@ void main() {
     //
     // The comparison is `flutter3d_game`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
+    final gaps = creditGaps(
+      credits.models.map((c) => c.file),
+      shippedFrom: 'assets_src/models',
+    );
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -46,7 +49,7 @@ void main() {
 
   test('and nothing it ships is untraceable', () {
     expect(
-      Credits.untraced,
+      credits.untraced,
       isEmpty,
       reason: 'this game cannot be released while anything is in this list',
     );
@@ -55,16 +58,16 @@ void main() {
   test('and every entry names a licence somebody can read', () {
     // A licence with no URL is a licence a player is told the name of and
     // cannot look up, which is most of the way to not saying it.
-    for (final credit in Credits.models) {
+    for (final credit in credits.models) {
       expect(
-        credit.licence,
+        credit.license,
         isNotNull,
         reason: '${credit.file} has no licence',
       );
       expect(
-        credit.licenceUrl,
+        credit.licenseUrl,
         isNotNull,
-        reason: '${credit.file} names ${credit.licence} and no URL',
+        reason: '${credit.file} names ${credit.license} and no URL',
       );
       expect(credit.line, contains(credit.work));
     }
@@ -75,7 +78,7 @@ void main() {
     // are rescaled and have their clip names rewritten by
     // `tool/prepare_monsters.py`, and a credit that said otherwise would be
     // describing a file this game does not ship.
-    final monsters = Credits.models
+    final monsters = credits.models
         .where((Credit c) => c.file.contains('monster_'))
         .toList();
 
@@ -85,19 +88,14 @@ void main() {
     }
   });
 
-  test('and the licence table on disk covers the same files', () {
+  test('and the licence table on disk says the same', () {
     // Two records of the same fact, which is one too many — so they are checked
     // against each other. `LICENSES.md` is the long version a person reads; the
-    // list above is the half a player sees.
-    final table = File('assets_src/models/LICENSES.md').readAsStringSync();
-
-    for (final credit in Credits.models) {
-      final name = credit.file.split('/').last;
-      expect(
-        table,
-        contains(name),
-        reason: 'LICENSES.md does not mention $name',
-      );
-    }
+    // list above is the half a player sees. Read rather than searched: where a
+    // section names an author and a licence, the list has to name the same.
+    final record = LicenseRecord.parse(
+      File('assets_src/models/LICENSES.md').readAsStringSync(),
+    );
+    expect(credits.disagreementsWith(record), isEmpty);
   });
 }

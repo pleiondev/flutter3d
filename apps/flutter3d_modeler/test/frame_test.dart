@@ -86,9 +86,9 @@ Future<Uint8List> _drawWith(
     views: stage.views(),
     settings: settings,
   );
-  final pixels = await device.readPixels(result.frame);
+  final pixels = await device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 void main() {
@@ -101,10 +101,10 @@ void main() {
     // The overlay the viewport builds every frame, built here the same way, so
     // that what this asserts is the chain from a grid line to a pixel rather
     // than a second arrangement that happens to agree with the first.
-    final overlay = renderer.addContributor(
+    final overlay = renderer.renderSteps.addContributor(
       MeshOverlay(
-        vertexShader: renderer.debugLineVertexShader,
-        fragmentShader: renderer.debugLineFragmentShader,
+        vertexShader: renderer.shaders['DebugLineVertex']!,
+        fragmentShader: renderer.shaders['DebugLine']!,
       ),
     );
     final look = stage.overlayView(_height.toDouble());
@@ -169,15 +169,15 @@ void main() {
     final EditMesh? edit = stage.editMesh;
     expect(edit, isNotNull, reason: 'a new project is the cube, and has one');
 
-    final overlay = renderer.addContributor(
+    final overlay = renderer.renderSteps.addContributor(
       MeshOverlay(
-        vertexShader: renderer.debugLineVertexShader,
-        fragmentShader: renderer.debugLineFragmentShader,
+        vertexShader: renderer.shaders['DebugLineVertex']!,
+        fragmentShader: renderer.shaders['DebugLine']!,
       ),
     );
     final look = stage.overlayView(_height.toDouble());
-    final colours = MeshOverlayColours();
-    MeshOverlayBuilder(colours: colours).build(
+    final colors = MeshOverlayColours();
+    MeshOverlayBuilder(colors: colors).build(
       overlay,
       mesh: edit!,
       selection: Selection.empty(ElementLevel.vertex),
@@ -203,9 +203,9 @@ void main() {
     // clay is warm and much lighter, the background is nearly black, and the
     // floor is not in this frame.
     final wire = <int>[
-      (colours.wire.x * 255).round(),
-      (colours.wire.y * 255).round(),
-      (colours.wire.z * 255).round(),
+      (colors.wire.x * 255).round(),
+      (colors.wire.y * 255).round(),
+      (colors.wire.z * 255).round(),
     ];
     var edges = 0;
     for (var i = 0; i < rgba.length; i += 4) {
@@ -529,7 +529,7 @@ void main() {
     // pinched a pole, a boolean that bit into the wrong face, or a mirror
     // seam that never welded.
     for (final subject in <(String, EditMesh Function())>[
-      ('mesh-bevel', bevelledCube),
+      ('mesh-bevel', beveledCube),
       ('mesh-catmull-clark', subdividedCube),
       ('mesh-cube-minus-sphere', cubeMinusSphere),
       ('mesh-mirror-vase', mirroredVase),
@@ -671,17 +671,17 @@ void main() {
           views: <RenderView>[
             RenderView(
               camera: stage.camera,
-              clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+              clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
             ),
           ],
           settings: const RenderSettings(
-            debug: DebugDrawOptions(skeletons: true),
+            debug: DebugDrawSettings(skeletons: true),
           ),
         );
-        final pixels = await it.device.readPixels(result.frame);
+        final pixels = await it.device.readback(result.frame);
         expect(pixels, isNotNull, reason: 'the frame could not be read back');
         return (
-          pixels: pixels!.buffer.asUint8List(),
+          pixels: pixels.buffer.asUint8List(),
           width: 240,
           height: 160,
           drawCalls: result.drawCalls,
@@ -729,7 +729,7 @@ void main() {
     // rather than building a scene by hand.
     test('a weighted target matches its reference frame', () async {
       final it = cpuTestDevice(width: 240, height: 160);
-      // `kSamplesPath` is relative to a package under `packages/`; this app
+      // `samplesPath` is relative to a package under `packages/`; this app
       // lives under `apps/`, one directory further from the repo root — the
       // same reason `texture_info_upload_test.dart` spells its own sample
       // path out rather than using the constant.
@@ -761,14 +761,14 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: stage.camera,
-            clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
           ),
         ],
       );
-      final pixels = await it.device.readPixels(result.frame);
+      final pixels = await it.device.readback(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
       final frame = (
-        pixels: pixels!.buffer.asUint8List(),
+        pixels: pixels.buffer.asUint8List(),
         width: 240,
         height: 160,
         drawCalls: result.drawCalls,
@@ -905,10 +905,10 @@ void main() {
                 request.device,
                 const ParametricSphere().toEditMesh().toMeshData(),
               )
-              ..material = Material(
+              ..material = RenderMaterial(
                 name: 'preview',
                 lighting: LightingModel.pbr,
-                baseColor: Vector4(0.75, 0.15, 0.12, 1.0),
+                baseColor: LinearColor.fromSrgb(0.75, 0.15, 0.12, 1.0),
                 roughness: 0.25,
                 metallic: 0.8,
               );
@@ -926,10 +926,10 @@ void main() {
                     depth: 8,
                   ).toEditMesh().toMeshData(),
                 ),
-                Material(
+                RenderMaterial(
                   name: 'floor',
                   lighting: LightingModel.pbr,
-                  baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+                  baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
                   roughness: 0.85,
                 ),
                 name: 'floor',

@@ -5,7 +5,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor/src/documents_dialog.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Sequence;
@@ -84,13 +84,13 @@ void main() {
       '{"kind": "sequence", "children": ['
       '{"kind": "goTo", "key": "post"}, {"kind": "wait", "seconds": 1}]}',
     );
-    expect(editing.level.behaviours['guard']?['kind'], 'sequence');
+    expect(editing.level.behaviors['guard']?['kind'], 'sequence');
     expect(find.byKey(const ValueKey<String>('behaviour:guard')), findsOne);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     editing.undo();
-    expect(editing.level.behaviours, isEmpty);
+    expect(editing.level.behaviors, isEmpty);
   });
 
   testWidgets('a tree that does not read says where, and is not written', (
@@ -109,7 +109,7 @@ void main() {
       '{"kind": "sequence", "children": [{"kind": "teleport"}]}',
     );
     expect(find.textContaining('children[0]'), findsOne);
-    expect(editing.level.behaviours, isEmpty);
+    expect(editing.level.behaviors, isEmpty);
     expect(editing.canUndo, isFalse);
 
     await _write(tester, '{"kind": ');
@@ -120,7 +120,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final editing = _level()
-      ..setBehaviour('guard', <String, Object?>{'kind': 'wait', 'seconds': 1});
+      ..setBehavior('guard', <String, Object?>{'kind': 'wait', 'seconds': 1});
     bool? changed;
     await _open(tester, editing, closed: (bool it) => changed = it);
     await tester.tap(find.byKey(const ValueKey<String>('behaviour:guard')));
@@ -128,7 +128,7 @@ void main() {
     expect(find.textContaining('"seconds": 1'), findsOne);
     await tester.tap(find.byKey(const ValueKey<String>('behaviour:remove')));
     await tester.pumpAndSettle();
-    expect(editing.level.behaviours, isEmpty);
+    expect(editing.level.behaviors, isEmpty);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(changed, isTrue);

@@ -8,7 +8,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VolumetricFogDemo extends ShowcaseDemo {
   bool fog = true;
@@ -35,14 +34,14 @@ final class VolumetricFogDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region torches
     final Scene scene = Scene()
-      ..ambientIntensity = 0.03
+      ..ambientIntensity = 0.03 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(12.0, 0.1, 12.0)).build(),
           ),
-          Material(name: 'floor', lighting: LightingModel.lambert),
+          RenderMaterial(name: 'floor', lighting: LightingModel.lambert),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       );
@@ -52,9 +51,9 @@ final class VolumetricFogDemo extends ShowcaseDemo {
           LightNode(
             name: 'torch $i $j',
             type: LightType.point,
-            intensity: 1.0,
+            intensity: 1.0 * Photometric.legacyUnit,
             range: 1.0,
-            color: _hue((i * 8 + j) / 64.0),
+            color: _hue((i * 8 + j) / 64.0).toLinearColor(),
           )..setPosition(i - 3.5, 0.3, j - 3.5),
         );
       }
@@ -75,7 +74,7 @@ final class VolumetricFogDemo extends ShowcaseDemo {
       heightFalloff: heightFalloff,
       steps: 16,
       distance: 20.0,
-      color: Vector3.all(1.0),
+      color: LinearColor.white,
     ),
     // #endregion fog
   );

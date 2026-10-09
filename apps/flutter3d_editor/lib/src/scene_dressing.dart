@@ -1,12 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'editor_state.dart' show EditorAxis;
 
@@ -33,9 +32,14 @@ const bool kLightsOnly = _only == 'lights';
 /// hidden set every time something changes; it owns the nodes it puts into the
 /// scene and nothing about why they changed.
 final class SceneDressing {
-  SceneDressing(this.device);
+  SceneDressing(this.device, {this.decoders});
 
   final GraphicsDevice device;
+
+  /// The decoders and asset sources the installed plugins brought; every
+  /// model a mark is drawn as is read through them. Null reads with the
+  /// built-in readers only.
+  final ModelDecoders? decoders;
 
   /// The box drawn around whatever is selected.
   ///
@@ -134,7 +138,7 @@ final class SceneDressing {
 
     final at = editing.where;
     if (at == null) return;
-    final size = editing.brush?.size ?? Vector3.all(kGizmoSize);
+    final size = editing.brush?.size ?? Vector3.all(gizmoSize);
 
     // **A cage, not a solid box.** A wall is six metres by five, and a glowing
     // slab that size over the thing somebody just selected hides both it and
@@ -197,6 +201,40 @@ final class SceneDressing {
       final isLight = handle.kind == Piece.light;
       final material = named == null ? null : editing.level.materials[named];
 
+      // **An instance draws what its prefab stands for**, each piece the way
+      // the game describes it, all owned by the instance's handle: a click on
+      // any of them selects the instance, which is what moves them. Drawn
+      // beside the instance's own mark, which is where it is picked from.
+      // A prefab that will not expand draws only the mark; the validator
+      // says why.
+      if (entity != null && entity.type == EntityTypes.prefab) {
+        try {
+          if (PrefabInstance.of(entity) case final PrefabInstance instance) {
+            for (final piece in expandPrefabInstance(
+              instance,
+              editing.level.prefabs,
+            )) {
+              final pieceParts = looks.partsFor(piece);
+              if (pieceParts.isEmpty) continue;
+              buildParts(
+                scene,
+                pieceParts,
+                Handle(
+                  kind: handle.kind,
+                  index: handle.index,
+                  center: piece.position,
+                  size: handle.size,
+                  tint: handle.tint,
+                ),
+                piece,
+              );
+            }
+          }
+        } on LevelFormatException {
+          // The mark below is drawn regardless.
+        }
+      }
+
       // A silhouette the game described: a torch's plate, shaft, cup and
       // flame, built out of the engine's own primitives. Drawn instead of the
       // mark, not beside it.
@@ -213,7 +251,7 @@ final class SceneDressing {
       // their own size, and what tells them apart without knowing either word
       // is that one says what it is made of.
       if (handle.volume && material == null) {
-        final cage = buildCage(scene, handle.centre, handle.size, handle.tint);
+        final cage = buildCage(scene, handle.center, handle.size, handle.tint);
         gizmos.add(cage);
         owners[cage] = handle;
         continue;
@@ -225,13 +263,13 @@ final class SceneDressing {
               isLight
                   ? SharedMeshes(device).shape(
                       'gizmo-light',
-                      () => SphereShape(radius: kGizmoSize * 0.45),
+                      () => SphereShape(radius: gizmoSize * 0.45),
                     )
                   : SharedMeshes(device).box(handle.size),
               material == null
-                  ? engine.Material(
+                  ? engine.RenderMaterial(
                       name: 'gizmo',
-                      baseColor: Vector4(
+                      baseColor: LinearColor.fromSrgb(
                         handle.tint.x,
                         handle.tint.y,
                         handle.tint.z,
@@ -239,12 +277,12 @@ final class SceneDressing {
                       ),
                       // Lit by itself, or a mark in an unlit corner is a mark
                       // nobody can find.
-                      emissive: handle.tint * 0.9,
+                      emissive: (handle.tint * 0.9).toLinearColor(),
                     )
                   : LevelLoader.materialFrom(material, textures, name: named),
               name: 'gizmo',
             )
-            ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+            ..setPosition(handle.center.x, handle.center.y, handle.center.z)
             ..castsShadow = false;
       if (entity != null && entity.yaw != 0.0) {
         node.setRotation(
@@ -264,19 +302,19 @@ final class SceneDressing {
   /// width cannot be visible on the first and slender on the second.
   SceneNode buildCage(
     Scene scene,
-    Vector3 centre,
+    Vector3 center,
     Vector3 size,
     Vector3 tint, {
     String name = 'gizmo',
   }) {
     final holder = SceneNode(name: name)
-      ..setPosition(centre.x, centre.y, centre.z);
+      ..setPosition(center.x, center.y, center.z);
     scene.add(holder);
     final meshes = SharedMeshes(device);
-    final material = engine.Material(
+    final material = engine.RenderMaterial(
       name: name,
-      baseColor: Vector4(tint.x, tint.y, tint.z, 1.0),
-      emissive: tint * 0.9,
+      baseColor: LinearColor.fromSrgb(tint.x, tint.y, tint.z, 1.0),
+      emissive: (tint * 0.9).toLinearColor(),
     );
 
     for (final edge in edgesOf(size)) {
@@ -300,7 +338,7 @@ final class SceneDressing {
     EntityDef entity,
   ) {
     final holder = SceneNode(name: 'gizmo')
-      ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+      ..setPosition(handle.center.x, handle.center.y, handle.center.z)
       ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
     scene.add(holder);
     gizmos.add(holder);
@@ -310,12 +348,19 @@ final class SceneDressing {
     for (final part in parts) {
       final node = MeshNode(
         _meshFor(meshes, part),
-        engine.Material(
+        engine.RenderMaterial(
           name: part.glows ? 'flame' : 'part',
-          baseColor: Vector4(part.colour.x, part.colour.y, part.colour.z, 1.0),
+          baseColor: LinearColor.fromSrgb(
+            part.color.x,
+            part.color.y,
+            part.color.z,
+            1.0,
+          ),
           // A flame is the light rather than the thing holding it, and a dark
           // corridor would otherwise swallow the one part that is the point.
-          emissive: part.glows ? part.colour * 1.4 : null,
+          emissive: part.glows
+              ? (part.color * 1.4).toLinearColor()
+              : LinearColor.black,
         ),
         name: part.shape,
       )..setPosition(part.at.x, part.at.y, part.at.z);
@@ -383,7 +428,7 @@ final class SceneDressing {
 
       final asset = await _models.putIfAbsent(
         path,
-        () => _loadModel(device, '$root/$path'),
+        () => _loadModel(device, root, path, decoders),
       );
       if (!stillCurrent()) return;
       // **One model that will not read is one mark left as a box**, and it
@@ -428,7 +473,7 @@ final class SceneDressing {
       }
 
       instance.root
-        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+        ..setPosition(handle.center.x, handle.center.y, handle.center.z)
         ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
       gizmos.add(instance.root);
       owners[instance.root] = handle;
@@ -437,21 +482,35 @@ final class SceneDressing {
       for (final gizmo in gizmos) {
         if (gizmo.name != 'gizmo') continue;
         final at = gizmo.localMatrix.getTranslation();
-        if ((at - handle.centre).length2 < 1e-6) {
-          gizmo.visible = false;
+        if ((at - handle.center).length2 < 1e-6) {
+          gizmo.isVisible = false;
           break;
         }
       }
     }
   }
 
+  /// [path] under [root], or — a path with a scheme a plugin registered,
+  /// `pak:models/crate.glb` — through that plugin's source, as a game reads
+  /// it.
   static Future<ModelAsset?> _loadModel(
     GraphicsDevice device,
-    String path,
+    String root,
+    String relative,
+    ModelDecoders? decoders,
   ) async {
+    final path = '$root/$relative';
     try {
+      final request = ModelLoadRequest(
+        source:
+            decoders?.sourceFor(
+              relative,
+              fallback: (String _) => FileAssetSource(path),
+            ) ??
+            FileAssetSource(path),
+      );
       final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: FileAssetSource(path)),
+        decoders?.withDecoders(request) ?? request,
       );
       return await ModelAsset.fromDocument(
         document,
@@ -537,13 +596,13 @@ final class GizmoBar {
 /// middle of every face stays free for the camera.
 const double kGrabMargin = 0.06;
 
-/// The bars of a cage [size] across at [centre], fattened to be grabbable.
-List<GizmoBar> gizmoBarsAround(Vector3 centre, Vector3 size) => <GizmoBar>[
+/// The bars of a cage [size] across at [center], fattened to be grabbable.
+List<GizmoBar> gizmoBarsAround(Vector3 center, Vector3 size) => <GizmoBar>[
   for (final edge in edgesOf(size))
     GizmoBar(
       axis: edge.axis,
-      min: centre + edge.at - edge.extent / 2.0 - Vector3.all(kGrabMargin),
-      max: centre + edge.at + edge.extent / 2.0 + Vector3.all(kGrabMargin),
+      min: center + edge.at - edge.extent / 2.0 - Vector3.all(kGrabMargin),
+      max: center + edge.at + edge.extent / 2.0 + Vector3.all(kGrabMargin),
     ),
 ];
 
@@ -659,8 +718,8 @@ final class AxisDrag {
     // move is then made once, through the same command the arrow keys use.
     at.setFrom(from);
     return editing.history.transaction(
-      'drag by ${_metres(total)}',
-      () => MoveBy(total).apply(editing),
+      'drag by ${_meters(total)}',
+      () => MoveSelectionBy(total).apply(editing),
     );
   }
 
@@ -681,7 +740,7 @@ final class AxisDrag {
           (at.z / step).roundToDouble() * step,
         );
 
-  static String _metres(Vector3 v) =>
+  static String _meters(Vector3 v) =>
       '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
 }

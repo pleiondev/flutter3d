@@ -9,7 +9,6 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
@@ -28,12 +27,15 @@ FlameInputBridge _layout(
   LogicalKeyboardKey right,
   LogicalKeyboardKey joins,
 ) => FlameInputBridge(
-  bindings: Bindings()
-    ..bind(InputSource.key(up.keyId), GameAction.moveForward)
-    ..bind(InputSource.key(left.keyId), GameAction.moveLeft)
-    ..bind(InputSource.key(down.keyId), GameAction.moveBack)
-    ..bind(InputSource.key(right.keyId), GameAction.moveRight)
-    ..bind(InputSource.key(joins.keyId), join),
+  actions: ActionMap(
+    actions: ActionSet.common,
+    buttons: Bindings()
+      ..bind(InputSource.key(up.keyId), GameAction.moveForward)
+      ..bind(InputSource.key(left.keyId), GameAction.moveLeft)
+      ..bind(InputSource.key(down.keyId), GameAction.moveBack)
+      ..bind(InputSource.key(right.keyId), GameAction.moveRight)
+      ..bind(InputSource.key(joins.keyId), join),
+  ),
   inputState: InputState(),
 );
 
@@ -94,20 +96,23 @@ final class FlameSeatsDemo extends ShowcaseDemo {
     _context = context;
     _secondFirst = _run();
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(9.0, 0.1, 9.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.36, 0.4, 0.38, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
     _game = _Lobby(context.camera, _twoLayouts())
@@ -194,11 +199,11 @@ final class _Lobby extends FlameGame with HasFlutter3d {
       final MeshNode marker =
           MeshNode(
               cube,
-              Material(name: 'player', baseColor: Vector4.all(1.0)),
+              RenderMaterial(name: 'player', baseColor: LinearColor.white),
               name: 'layout $i',
             )
             ..setPosition(-1.5 + 3.0 * i, 0.4, 0.0)
-            ..visible = false;
+            ..isVisible = false;
       markers.add(marker);
       scene.add(marker);
     }
@@ -222,8 +227,8 @@ final class _Lobby extends FlameGame with HasFlutter3d {
       final int seat = seats.seated.indexOf(joined);
       final MeshNode marker = markers[seats.candidates.indexOf(joined)];
       marker
-        ..material.baseColor.setFrom(_seatColours[seat])
-        ..visible = true;
+        ..material.baseColor = _fromSrgb(_seatColours[seat])
+        ..isVisible = true;
     }
     for (final FlameInputBridge player in seats.seated) {
       final Vector2 axis = player.inputState.moveAxis;
@@ -257,3 +262,6 @@ final class _Seating extends Component {
     _lobby.seatAndWalk(dt);
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

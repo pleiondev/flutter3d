@@ -26,7 +26,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'settings.dart' show Workspace;
@@ -378,8 +378,8 @@ final class JobKeyRig extends JobKey {
 /// One call an agent made over `--mcp-port` — `tut-16`'s own row: screen
 /// 26's "tool calls" feed reads a bounded list of these, appended as they
 /// happen by `mcp_bootstrap_io.dart`'s own `onToolCall` hook
-/// (`flutter3d_model_mcp`'s `ModelHttpServer.start`/`ModelMcpServer`,
-/// `flutter3d_mcp_kit`'s `ToolTableServer.onCall` underneath both).
+/// (`flutter3d_mcp/model.dart`'s `ModelHttpServer.start`/`ModelMcpServer`,
+/// `flutter3d_mcp/kit.dart`'s `ToolTableServer.onCall` underneath both).
 ///
 /// **Not a `HistoryStep`.** A history step is only ever a document command
 /// that actually landed; a tool call is every MCP call at all — a `ui.*`

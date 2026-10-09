@@ -7,7 +7,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 /// A box of [size] centred at [at], in one flat colour.
 MeshNode blockNode(
@@ -19,7 +18,7 @@ MeshNode blockNode(
 }) {
   final MeshNode node = MeshNode(
     DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-    Material(name: name, baseColor: color, roughness: 0.8),
+    RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.8),
     name: name,
   );
   if (at != null) node.setPositionFrom(at);
@@ -39,7 +38,7 @@ MeshNode ballNode(
       context.device,
       SphereShape(segments: 24, rings: 12, radius: radius).build(),
     ),
-    Material(name: name, baseColor: color, roughness: 0.6),
+    RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.6),
     name: name,
   );
   if (at != null) node.setPositionFrom(at);
@@ -63,13 +62,13 @@ MeshNode floorNode(
 /// A scene with a little ambient light, a sun and [nodes].
 Scene sceneOf(Iterable<SceneNode> nodes) {
   final Scene scene = Scene()
-    ..ambientColor = Vector3(0.5, 0.55, 0.65)
-    ..ambientIntensity = 0.3;
+    ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+    ..ambientIntensity = 0.3 * Photometric.legacyUnit;
   for (final SceneNode node in nodes) {
     scene.add(node);
   }
   return scene..add(
-    LightNode(name: 'sun', intensity: 2.8)
+    LightNode(name: 'sun', intensity: 2.8 * Photometric.legacyUnit)
       ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
   );
 }
@@ -164,3 +163,6 @@ final class RailGauge {
     );
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

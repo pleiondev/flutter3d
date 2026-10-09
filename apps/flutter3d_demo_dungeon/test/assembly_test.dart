@@ -11,14 +11,13 @@
 /// so the two concerns can be told apart at a glance.
 library;
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
-import 'package:flutter3d_demo_dungeon/src/way_out_glow.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_ui/hud.dart' show beaconGlow;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -37,20 +36,19 @@ GraphicsDevice _device() => CpuDevice(
 );
 
 /// A storage that keeps everything in a map.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A cubit over the shipped documents, with a real device and no window.
@@ -169,7 +167,7 @@ void main() {
     // of a hundred and twenty thousand: iron at 0.17 in a corner no torch
     // reaches is the same black as the wall behind it.
     //
-    // Mutation: drop the `_lightTheWayOut` call, or set `kWayOutGlow` back to
+    // Mutation: drop the `lightBeacon` call, or set `beaconGlow` back to
     // the 0.05 the generator writes — fails.
     final it = _game();
     await it.run.begin();
@@ -180,9 +178,9 @@ void main() {
       if (node is MeshNode) {
         final glow = node.material.emissive;
         final brightest = <double>[
-          glow.x,
-          glow.y,
-          glow.z,
+          glow.r,
+          glow.g,
+          glow.b,
         ].reduce((double a, double b) => a > b ? a : b);
         if (brightest > 0.0) glows.add(brightest);
       }
@@ -204,7 +202,7 @@ void main() {
     expect(glows, isNotEmpty, reason: 'nothing in the doorway emits');
     expect(
       glows.reduce((double a, double b) => a > b ? a : b),
-      closeTo(kWayOutGlow, 1e-6),
+      closeTo(beaconGlow, 1e-6),
     );
   });
 }

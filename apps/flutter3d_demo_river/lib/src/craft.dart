@@ -44,16 +44,16 @@ final class _Kit {
     : playerJet = _upload(
         device,
         jetPlaneMesh(
-          Vector4(0.9, 0.2, 0.15, 1.0),
-          Vector4(0.95, 0.95, 0.9, 1.0),
+          const LinearColor(0.9, 0.2, 0.15),
+          const LinearColor(0.95, 0.95, 0.9),
         ),
         math.pi,
       ),
       enemyJet = _upload(
         device,
         jetPlaneMesh(
-          Vector4(0.25, 0.3, 0.55, 1.0),
-          Vector4(0.6, 0.65, 0.75, 1.0),
+          const LinearColor(0.25, 0.3, 0.55),
+          const LinearColor(0.6, 0.65, 0.75),
         ),
         math.pi,
       ),
@@ -81,41 +81,41 @@ final class _Kit {
   final DeviceMesh water;
 
   /// White, so the vertex colours are the colours.
-  final engine.Material painted = engine.Material(
+  final engine.RenderMaterial painted = engine.RenderMaterial(
     name: 'painted',
-    baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+    baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     roughness: 0.8,
   );
 
-  final engine.Material waterMaterial = engine.Material(
+  final engine.RenderMaterial waterMaterial = engine.RenderMaterial(
     name: 'water',
-    baseColor: Vector4(0.02, 0.09, 0.26, 1.0),
+    baseColor: LinearColor.fromSrgb(0.02, 0.09, 0.26, 1.0),
     roughness: 0.15,
   );
 
   /// A shot: lit from inside, so it reads against the water and the land.
-  final engine.Material glow = engine.Material(
+  final engine.RenderMaterial glow = engine.RenderMaterial(
     name: 'glow',
-    baseColor: Vector4(1.0, 0.85, 0.4, 1.0),
-    emissive: Vector3(1.0, 0.75, 0.3),
-    emissiveStrength: 4.0,
+    baseColor: LinearColor.fromSrgb(1.0, 0.85, 0.4, 1.0),
+    emissive: LinearColor(1.0, 0.75, 0.3),
+    emissiveStrength: 4.0 * Photometric.legacyNits,
   );
 
   /// A helicopter's bullet: red, so it reads as the enemy's and not a
   /// shot of the jet's own.
-  final engine.Material tracer = engine.Material(
+  final engine.RenderMaterial tracer = engine.RenderMaterial(
     name: 'tracer',
-    baseColor: Vector4(1.0, 0.2, 0.15, 1.0),
-    emissive: Vector3(1.0, 0.15, 0.1),
-    emissiveStrength: 6.0,
+    baseColor: LinearColor.fromSrgb(1.0, 0.2, 0.15, 1.0),
+    emissive: LinearColor(1.0, 0.15, 0.1),
+    emissiveStrength: 6.0 * Photometric.legacyNits,
   );
 
   /// A bridge's shield, while the level's task is not done.
-  final engine.Material shield = engine.Material(
+  final engine.RenderMaterial shield = engine.RenderMaterial(
     name: 'shield',
-    baseColor: Vector4(0.3, 0.95, 1.0, 1.0),
-    emissive: Vector3(0.2, 0.9, 1.0),
-    emissiveStrength: 5.0,
+    baseColor: LinearColor.fromSrgb(0.3, 0.95, 1.0, 1.0),
+    emissive: LinearColor(0.2, 0.9, 1.0),
+    emissiveStrength: 5.0 * Photometric.legacyNits,
   );
 
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>

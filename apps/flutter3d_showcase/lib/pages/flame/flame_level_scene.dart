@@ -76,22 +76,25 @@ final class FlameLevelSceneDemo extends ShowcaseDemo {
       device,
       CuboidShape(size: Vector3(0.8, 1.2, 0.8)).build(),
     );
-    final Material stone = Material(name: 'rock', baseColor: rocks);
+    final RenderMaterial stone = RenderMaterial(
+      name: 'rock',
+      baseColor: _fromSrgb(rocks),
+    );
     final Scene level = Scene()
-      ..ambientColor = air
-      ..ambientIntensity = 0.35
+      ..ambientColor = air.toLinearColor()
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             device,
             CuboidShape(size: Vector3(20.0, 0.1, 20.0)).build(),
           ),
-          Material(name: 'floor', baseColor: floor),
+          RenderMaterial(name: 'floor', baseColor: _fromSrgb(floor)),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.4)
+        LightNode(name: 'sun', intensity: 2.4 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
     for (var i = 0; i < 14; i++) {
@@ -151,7 +154,7 @@ final class FlameLevelSceneDemo extends ShowcaseDemo {
 }
 
 /// The party's colours, one a member.
-final List<Vector4> _colours = <Vector4>[
+final List<Vector4> _colors = <Vector4>[
   Vector4(0.95, 0.55, 0.2, 1.0),
   Vector4(0.3, 0.7, 0.95, 1.0),
   Vector4(0.6, 0.9, 0.35, 1.0),
@@ -179,10 +182,10 @@ final class _Tour extends FlameGame with HasFlutter3d {
       device,
       SphereShape(segments: 20, radius: 0.4).build(),
     );
-    for (var i = 0; i < _colours.length; i++) {
+    for (var i = 0; i < _colors.length; i++) {
       final MeshNode member = MeshNode(
         ball,
-        Material(name: 'member $i', baseColor: _colours[i]),
+        RenderMaterial(name: 'member $i', baseColor: _fromSrgb(_colors[i])),
         name: 'member $i',
       );
       party.add(member);
@@ -274,3 +277,6 @@ final class _Tour extends FlameGame with HasFlutter3d {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

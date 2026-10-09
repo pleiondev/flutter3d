@@ -8,12 +8,12 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
-/// Spelled out rather than `kSamplesPath`, which is relative to a package
+/// Spelled out rather than `samplesPath`, which is relative to a package
 /// under `packages/`. This app lives under `apps/`, one directory further
 /// from the root, so the constant pointed at an `apps/flutter3d_samples` that
 /// does not exist — the same reason the modeller's `frame_test.dart` spells

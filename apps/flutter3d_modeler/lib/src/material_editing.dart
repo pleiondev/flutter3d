@@ -3,7 +3,7 @@
 /// for which section a mode shows.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// The material row [object] is painted with, or null when it has none.

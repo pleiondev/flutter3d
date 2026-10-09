@@ -165,22 +165,45 @@ final class Feature {
   };
 }
 
-/// Compares two `major.minor.patch` version strings.
+/// Compares two `major.minor.patch` version strings, the way semver orders
+/// them.
 ///
-/// Numeric, not textual: `0.10.0` comes after `0.9.0`. Anything after a `+` or
-/// a `-` is ignored, since a build number does not say when a capability
-/// arrived.
+/// Numeric, not textual: `0.10.0` comes after `0.9.0`. Anything after a `+`
+/// is ignored, since a build number does not say when a capability arrived.
+/// A pre-release after a `-` is not: `1.0.0-rc.1` comes before `1.0.0`, and
+/// read as `1.0.0` it would be the same release as the one it precedes.
 int compareVersions(String a, String b) {
-  List<int> parts(String version) => <int>[
-    for (final String part in version.split(RegExp('[+-]')).first.split('.'))
-      int.tryParse(part) ?? 0,
-  ];
-  final List<int> x = parts(a);
-  final List<int> y = parts(b);
+  (List<int>, List<String>) parts(String version) {
+    final String core = version.split('+').first;
+    final int dash = core.indexOf('-');
+    final String release = dash < 0 ? core : core.substring(0, dash);
+    return (
+      <int>[for (final String p in release.split('.')) int.tryParse(p) ?? 0],
+      dash < 0 ? const <String>[] : core.substring(dash + 1).split('.'),
+    );
+  }
+
+  int identifier(String l, String r) =>
+      switch ((int.tryParse(l), int.tryParse(r))) {
+        (final int x, final int y) => x.compareTo(y),
+        (int(), null) => -1,
+        (null, int()) => 1,
+        _ => l.compareTo(r),
+      };
+
+  final (List<int> x, List<String> xPre) = parts(a);
+  final (List<int> y, List<String> yPre) = parts(b);
   for (var i = 0; i < 3; i++) {
     final int left = i < x.length ? x[i] : 0;
     final int right = i < y.length ? y[i] : 0;
     if (left != right) return left.compareTo(right);
   }
-  return 0;
+  if (xPre.isEmpty || yPre.isEmpty) {
+    return (xPre.isEmpty ? 1 : 0) - (yPre.isEmpty ? 1 : 0);
+  }
+  for (var i = 0; i < xPre.length && i < yPre.length; i++) {
+    final int c = identifier(xPre[i], yPre[i]);
+    if (c != 0) return c;
+  }
+  return xPre.length.compareTo(yPre.length);
 }

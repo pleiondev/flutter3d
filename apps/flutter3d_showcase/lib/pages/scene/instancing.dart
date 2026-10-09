@@ -36,9 +36,9 @@ final class InstancingDemo extends ShowcaseDemo {
           rings: 6,
         ).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'instance material',
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         roughness: 0.48,
       ),
       capacity: instanceCount,
@@ -58,7 +58,7 @@ final class InstancingDemo extends ShowcaseDemo {
         ..scaleByDouble(1.0, 0.85 + height * 0.2, 1.0, 1.0);
       _field.addInstance(
         transform,
-        color: Vector4(
+        color: LinearColor(
           0.3 + x / 12.0,
           0.32 + z / 13.0,
           0.78 - (x + z) / 36.0,
@@ -70,11 +70,11 @@ final class InstancingDemo extends ShowcaseDemo {
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.52, 0.68)
-      ..ambientIntensity = 0.13
+      ..ambientColor = LinearColor(0.45, 0.52, 0.68)
+      ..ambientIntensity = 0.13 * Photometric.legacyUnit
       ..add(_field)
       ..add(
-        LightNode(name: 'sun', intensity: 3.2)
+        LightNode(name: 'sun', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.5, -0.8, -0.32)),
       );
     // #endregion scene

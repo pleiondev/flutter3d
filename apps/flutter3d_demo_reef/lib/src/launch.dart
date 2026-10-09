@@ -35,7 +35,7 @@ final Vector4 _flag = Vector4(0.75, 0.04, 0.03, 1.0);
 /// vertices.
 SceneNode launchLook(GraphicsDevice device) {
   final parts = <MeshData>[_hull(), _deckPlate()];
-  MeshData box(Vector3 size, Vector3 at, Vector4 colour, {Quaternion? turn}) =>
+  MeshData box(Vector3 size, Vector3 at, Vector4 color, {Quaternion? turn}) =>
       CuboidShape(size: size)
           .build()
           .transformed(
@@ -45,8 +45,8 @@ SceneNode launchLook(GraphicsDevice device) {
               Vector3(1, 1, 1),
             ),
           )
-          .withColor(colour);
-  MeshData rod(Vector3 from, Vector3 to, double r, Vector4 colour) {
+          .withColor(color.toLinearColor());
+  MeshData rod(Vector3 from, Vector3 to, double r, Vector4 color) {
     final along = to - from;
     return CylinderShape(
           radiusTop: r,
@@ -62,7 +62,7 @@ SceneNode launchLook(GraphicsDevice device) {
             Vector3(1, 1, 1),
           ),
         )
-        .withColor(colour);
+        .withColor(color.toLinearColor());
   }
 
   const deck = 0.30;
@@ -123,7 +123,7 @@ SceneNode launchLook(GraphicsDevice device) {
           const CapsuleShape(radius: 0.09, height: 0.62)
               .build()
               .transformed(Matrix4.translation(at + Vector3(0, 0.36, 0)))
-              .withColor(_tank),
+              .withColor(_tank.toLinearColor()),
         )
         ..add(
           rod(at + Vector3(0, 0.72, 0), at + Vector3(0, 0.8, 0), 0.03, _steel),
@@ -163,7 +163,7 @@ SceneNode launchLook(GraphicsDevice device) {
                 Vector3(1, 1, 1),
               ),
             )
-            .withColor(_engine),
+            .withColor(_engine.toLinearColor()),
       );
   }
   for (final z in <double>[-0.18, 0.18]) {
@@ -180,7 +180,7 @@ SceneNode launchLook(GraphicsDevice device) {
       DeviceMesh.upload(device, MeshData.merge(parts)),
       // Both sides: the hull is a skin with no inside, and from the deck
       // its inside is what shows.
-      Material(name: 'boat', roughness: 0.45, doubleSided: true),
+      RenderMaterial(name: 'boat', roughness: 0.45, doubleSided: true),
       name: 'launch',
     ),
   );
@@ -248,8 +248,8 @@ MeshData _hull() {
   final hull = _smooth(positions, indices, (p) => _paint(p.y, _sheer(p.x)));
   // The transom: a fan over the stern section, painted as the hull is.
   final stern = rows.first;
-  final centre = Vector3(-2.5, (stern.first.y + stern[width ~/ 2].y) / 2, 0);
-  final fan = <Vector3>[centre, ...stern];
+  final center = Vector3(-2.5, (stern.first.y + stern[width ~/ 2].y) / 2, 0);
+  final fan = <Vector3>[center, ...stern];
   final fanIndices = <int>[
     for (var p = 1; p < fan.length - 1; p++) ...<int>[0, p + 1, p],
   ];
@@ -286,7 +286,7 @@ MeshData _deckPlate() {
 MeshData _smooth(
   List<Vector3> positions,
   List<int> indices,
-  Vector4 Function(Vector3) colour,
+  Vector4 Function(Vector3) color,
 ) {
   final normals = <Vector3>[for (final _ in positions) Vector3.zero()];
   for (var t = 0; t < indices.length; t += 3) {
@@ -301,7 +301,7 @@ MeshData _smooth(
     positions,
     <Vector3>[for (final n in normals) n.normalized()],
     indices,
-    colour,
+    color,
   );
 }
 
@@ -310,24 +310,24 @@ MeshData _flat(
   List<Vector3> positions,
   List<int> indices,
   Vector3 normal,
-  Vector4 Function(Vector3) colour,
+  Vector4 Function(Vector3) color,
 ) => _mesh(
   positions,
   <Vector3>[for (final _ in positions) normal],
   indices,
-  colour,
+  color,
 );
 
 MeshData _mesh(
   List<Vector3> positions,
   List<Vector3> normals,
   List<int> indices,
-  Vector4 Function(Vector3) colour,
+  Vector4 Function(Vector3) color,
 ) {
   const stride = 16;
   final v = Float32List(positions.length * stride);
   for (var i = 0; i < positions.length; i++) {
-    final p = positions[i], n = normals[i], c = colour(p);
+    final p = positions[i], n = normals[i], c = color(p);
     final o = i * stride;
     v
       ..[o] = p.x

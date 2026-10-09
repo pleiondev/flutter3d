@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart' show printIssue;
+import 'package:flutter3d_demo_content/shooter_staging.dart' show Staged;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:vector_math/vector_math.dart';
 
@@ -11,7 +14,7 @@ import 'monster_looks.dart';
 /// How the crypt's monsters move — N1: an animation graph over each
 /// model's own clips, a head that turns to watch whoever it has seen, and
 /// feet put on whatever floor is under them.
-final class MonsterGraphs implements ActorGraphs {
+final class MonsterGraphs with ActorGraphs {
   /// [lookAt] says where a watching monster looks — the player's eyes —
   /// in the world; null, or a null from it, watches nothing. [groundAt] says
   /// how high the floor is under a point in the world, or null where there
@@ -342,7 +345,7 @@ final class MonsterGraphs implements ActorGraphs {
     final graph = AnimationGraph(
       machine: machine,
       clips: document.animations,
-      pose: Pose.fromNodes(document.nodes),
+      pose: AnimationPose.fromNodes(document.nodes),
     );
     dressNamed(graph, <String?>[for (final n in document.nodes) n.name]);
     return graph;
@@ -423,4 +426,101 @@ final class MonsterGraphs implements ActorGraphs {
   /// Whether [actor] watches: alive, and in a state of having seen someone.
   static bool shouldWatch(Actor actor) =>
       actor.isAlive && watching.contains(DungeonMonsters.brainOf(actor)?.state);
+}
+
+/// The crypt's monsters' clips, read once, and the strides a run walks them
+/// by — the one way the game and a headless run of it hang them on a level.
+///
+/// **The strides are simulation state**: the graphs step in the run's own
+/// step, move the monsters by their root motion and ride in its snapshot.
+/// So a tool that replays a run the game recorded has to walk the monsters
+/// the same way, or the replay parts at the first stride; this is what both
+/// call, with the documents read the same way.
+final class MonsterClips {
+  MonsterClips._(this._documents);
+
+  /// Every monster model's document, by path; null where one did not load —
+  /// that monster then names its clips on screen, as before graphs.
+  final Map<String, ModelDocument?> _documents;
+
+  /// Reads every monster model's clips.
+  static Future<MonsterClips> load() async =>
+      MonsterClips._(<String, ModelDocument?>{
+        for (final path in DungeonMonsters.modelsForKind.values)
+          path: await _documentOf(path),
+      });
+
+  /// [path]'s document for its clips and nodes, or null when it does not
+  /// load.
+  static Future<ModelDocument?> _documentOf(String path) async {
+    try {
+      return await loadModelByPath(path);
+    } on Object catch (error) {
+      printIssue(
+        Issue(
+          'dungeon: could not read $path for its clips ($error); its '
+          'monsters name their clips on screen instead of a graph',
+        ),
+      );
+      return null;
+    }
+  }
+
+  /// The strides of a level whose walls and floors are [collision], each
+  /// monster's graph made on its first step: idle, walking into running by
+  /// speed, attacking, struck, dying — turning their heads to watch the
+  /// eyes of whoever [player] answers, and their feet on the floor under
+  /// them.
+  ActorAnimations animate({
+    required CollisionWorld collision,
+    required Player? Function() player,
+  }) {
+    final watched = Vector3.zero();
+    final hit = RayHit();
+    final graphs = MonsterGraphs(
+      lookAt: () {
+        final eyes = player();
+        if (eyes == null) return null;
+        eyes.eye(watched);
+        return watched;
+      },
+      // The level's own floor under a foot: a ray from half a metre above
+      // it down through a metre, against the world and nothing that walks.
+      groundAt: (at) {
+        final from = Vector3(at.x, at.y + 0.5, at.z);
+        return collision.raycast(
+              from,
+              Vector3(0.0, -1.0, 0.0),
+              1.0,
+              hit,
+              mask: CollisionLayers.world,
+            )
+            ? hit.point.y
+            : null;
+      },
+    );
+    return ActorAnimations(
+      write: graphs.step,
+      graphFor: (actor) =>
+          switch (_documents[const DungeonMonsters().modelFor(actor)]) {
+            final document? => graphs.graphOver(actor, document),
+            null => null,
+          },
+    );
+  }
+
+  /// Walks [staged]'s monsters by their clips: their markers published onto
+  /// [events] — the bus the run publishes on, or null for nobody listening —
+  /// their strides in its step and its snapshot.
+  void hangOn(
+    Staged staged,
+    CollisionWorld collision, {
+    EventRegistry? events,
+  }) {
+    final animations = animate(
+      collision: collision,
+      player: () => staged.player,
+    )..events = events;
+    staged.actors.strides = animations;
+  }
 }

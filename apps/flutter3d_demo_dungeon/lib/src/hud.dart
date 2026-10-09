@@ -37,11 +37,11 @@ const Map<String, Color> keyPipColours = <String, Color>{
 /// bluish green, which stay apart from each other for every common kind of
 /// colour blindness; a player who runs one into a key's colour moves it here.
 final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
-  for (final MapEntry(key: name, value: colour) in keyPipColours.entries)
+  for (final MapEntry(key: name, value: color) in keyPipColours.entries)
     ColorRole(
       'key.$name',
       '${name[0].toUpperCase()}${name.substring(1)} key',
-      colour,
+      color,
     ),
   const ColorRole('monster', 'Monsters', Color(0xFFD55E00)),
   const ColorRole('pickup', 'Pickups', Color(0xFF009E73)),
@@ -69,7 +69,7 @@ class Hud extends StatelessWidget {
     required this.message,
     required this.messageOpacity,
     required this.keys,
-    required this.armour,
+    required this.armor,
     required this.pouches,
     required this.powers,
     this.keyColours = keyPipColours,
@@ -119,7 +119,7 @@ class Hud extends StatelessWidget {
   /// What the player is carrying, drawn as coloured pips.
   final Set<String> keys;
 
-  final double armour;
+  final double armor;
 
   /// Every pouch, not only the one in use: a player deciding whether to switch
   /// needs to see what switching would cost.
@@ -285,7 +285,7 @@ class Hud extends StatelessWidget {
             ),
 
           // Armour beside health, in the corner the eye already goes to.
-          if (armour > 0.0)
+          if (armor > 0.0)
             Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
@@ -299,7 +299,7 @@ class Hud extends StatelessWidget {
                       style: TextStyle(color: Colors.white38, fontSize: 12.0),
                     ),
                     Text(
-                      '${armour.round()}',
+                      '${armor.round()}',
                       style: const TextStyle(
                         color: Color(0xFF8FC6E8),
                         fontSize: 34.0,

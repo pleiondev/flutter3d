@@ -23,6 +23,8 @@
 /// is actually there disagree.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart'
     show
@@ -486,7 +488,7 @@ void main() {
     WidgetTester tester,
   ) async {
     // The label is for the person; the key is still what goes in the file. A
-    // row that showed `Base colour` and wrote `Base colour` would be a document
+    // row that showed `Base color` and wrote `Base color` would be a document
     // no reader has ever heard of.
     await tester.pumpWidget(
       _row(
@@ -497,5 +499,163 @@ void main() {
 
     expect(find.text('Roughness'), findsOneWidget);
     expect(find.text('field'), findsNothing);
+  });
+
+  group('as a component inspector', () {
+    /// A level with one monster in it, carrying two properties of its own.
+    Editing monster() => Editing.parse(
+      jsonEncode(<String, Object?>{
+        'version': 1,
+        'name': 'test',
+        'brushes': <Object?>[],
+        'entities': <Object?>[
+          <String, Object?>{
+            'type': 'monster',
+            'at': <double>[1.0, 0.0, 2.0],
+            'health': 30,
+            'behaviour': 'patrol',
+          },
+        ],
+      }),
+      path: '/levels/test.json',
+    )..select(Piece.entity, 0);
+
+    Finder section(String title) =>
+        find.byKey(ValueKey<String>('component:$title'));
+
+    double top(WidgetTester tester, Finder it) => tester.getTopLeft(it).dy;
+
+    testWidgets('a brush reads as where it is, how it draws, how it collides', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: put every key in the last section (drop the `known`
+      // test in `sectionsOf`). `material` lands under "Other" and the
+      // "Rendering" heading is never drawn.
+      final editing = openTestDocument()..select(Piece.brush, 0);
+      editing.setField('solid', false);
+      await tester.pumpWidget(_inspector(editing));
+
+      expect(section('Transform'), findsOneWidget);
+      expect(section('Rendering'), findsOneWidget);
+      expect(section('Collision'), findsOneWidget);
+      // Each field under its own heading.
+      final transform = top(tester, section('Transform'));
+      final rendering = top(tester, section('Rendering'));
+      final collision = top(tester, section('Collision'));
+      final size = top(
+        tester,
+        find.byKey(const ValueKey<String>('field:size')),
+      );
+      final material = top(
+        tester,
+        find.byKey(const ValueKey<String>('field:material')),
+      );
+      final solid = top(
+        tester,
+        find.byKey(const ValueKey<String>('field:solid')),
+      );
+      expect(size, inExclusiveRange(transform, rendering));
+      expect(material, inExclusiveRange(rendering, collision));
+      expect(solid, greaterThan(collision));
+    });
+
+    test('a key no section names is never lost', () {
+      // The grouping is a reading aid; a field outside it must still have a
+      // row. Mutation: drop the "last section takes the rest" clause. The
+      // unknown key disappears from every section.
+      final sections = sectionsOf(Piece.brush, <String>['at', 'rain']);
+      expect(sections.last.$1, 'Other');
+      expect(sections.last.$2, <String>['rain']);
+    });
+
+    testWidgets("an entity's own properties are its last component", (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_inspector(monster()));
+
+      expect(section('Entity'), findsOneWidget);
+      expect(section('Properties'), findsOneWidget);
+      expect(
+        top(tester, find.byKey(const ValueKey<String>('field:health'))),
+        greaterThan(top(tester, section('Properties'))),
+      );
+    });
+
+    testWidgets('a property is added as the value it looks like, undoably', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: write the typed text through as a string. `speed` then
+      // reads back as "2.5" rather than a number.
+      final editing = monster();
+      var told = 0;
+      await tester.pumpWidget(
+        _inspector(editing, onChanged: (String _) => told++),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('inspector.addName')),
+        'speed',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('inspector.addValue')),
+        '2.5',
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('inspector.add')));
+      await tester.pump();
+
+      expect(editing.entity!.properties['speed'], 2.5);
+      expect(told, 1);
+      expect(editing.history.undoSays, 'set speed to 2.5');
+
+      editing.history.undo();
+      expect(editing.entity!.properties.containsKey('speed'), isFalse);
+    });
+
+    testWidgets('and a word stays a word', (WidgetTester tester) async {
+      final editing = monster();
+      await tester.pumpWidget(_inspector(editing));
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('inspector.addName')),
+        'faction',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('inspector.addValue')),
+        'goblins',
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('inspector.add')));
+      await tester.pump();
+
+      expect(editing.entity!.properties['faction'], 'goblins');
+    });
+
+    testWidgets('a property of its own can be taken out; its type cannot', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: offer the remove button on every entity row. `type` gets
+      // one, and removing it would make a document that does not load.
+      final editing = monster();
+      await tester.pumpWidget(_inspector(editing));
+
+      expect(find.byKey(const ValueKey<String>('remove:type')), findsNothing);
+      expect(find.byKey(const ValueKey<String>('remove:at')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey<String>('remove:behaviour')));
+      await tester.pump();
+
+      expect(editing.entity!.properties.containsKey('behaviour'), isFalse);
+      expect(editing.history.undoSays, 'clear behaviour');
+    });
+
+    testWidgets('with more than one selected it says whose fields these are', (
+      WidgetTester tester,
+    ) async {
+      final editing = openTestDocument()
+        ..select(Piece.brush, 0)
+        ..toggle(Piece.brush, 1);
+      await tester.pumpWidget(_inspector(editing));
+
+      expect(find.byKey(const ValueKey<String>('inspector.more')), findsOne);
+    });
   });
 }

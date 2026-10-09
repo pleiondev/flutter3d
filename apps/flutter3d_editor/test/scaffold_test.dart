@@ -12,8 +12,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -84,7 +84,7 @@ void main() {
       );
 
       expect(editing.generatedBy, isNull);
-      expect(editing.mayOverwrite, isTrue);
+      expect(editing.canOverwrite, isTrue);
     });
 
     test('and the template it came from is still written on it', () {
@@ -126,7 +126,6 @@ void main() {
       final project = _project();
 
       expect(project.keys, contains('lib/main.dart'));
-      expect(project.keys, contains('lib/src/backend.dart'));
       expect(_text(project, 'lib/main.dart'), contains('void main()'));
     });
 
@@ -179,9 +178,7 @@ void main() {
       // rather than a template.
       final project = _project();
       final pubspec = _text(project, 'pubspec.yaml');
-      final source =
-          _text(project, 'lib/main.dart') +
-          _text(project, 'lib/src/backend.dart');
+      final source = _text(project, 'lib/main.dart');
 
       for (final match in RegExp(
         r"package:(flutter3d\w*)/",
@@ -261,8 +258,8 @@ void main() {
       // true only on the machine that made the project.
       final pubspec = _text(_project(), 'pubspec.yaml');
 
-      expect(pubspec, contains('flutter3d: ^0.9.0'));
-      expect(pubspec, contains('flutter3d_game: ^0.9.0'));
+      expect(pubspec, contains('flutter3d: ^1.0.0-rc.1'));
+      expect(pubspec, contains('flutter3d_game: ^1.0.0-rc.1'));
       expect(pubspec, isNot(contains('path:')));
     });
 

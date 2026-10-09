@@ -116,7 +116,7 @@ class TransformRows extends StatelessWidget {
                     // an arrow key or a scrub moves by something the size of
                     // what the row measures.
                     unit: switch (row) {
-                      0 => NumberUnit.metres,
+                      0 => NumberUnit.meters,
                       1 => NumberUnit.degrees,
                       _ => NumberUnit.plain,
                     },

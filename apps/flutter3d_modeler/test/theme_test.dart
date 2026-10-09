@@ -102,9 +102,9 @@ void main() {
       // hand-off is protecting — one accent family, nothing competing with
       // the model — the warm accent protects too, against a grey model on a
       // near-black ground.
-      final MeshOverlayColours colours = MeshOverlayColours();
-      expect(colours.selected.x, greaterThan(colours.selected.z));
-      expect(colours.seam.z, greaterThan(colours.seam.x));
+      final MeshOverlayColours colors = MeshOverlayColours();
+      expect(colors.selected.x, greaterThan(colors.selected.z));
+      expect(colors.seam.z, greaterThan(colors.seam.x));
     });
   });
 

@@ -11,6 +11,7 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
@@ -58,20 +59,23 @@ final class FlameHordeDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _context = context;
     _scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.45, 0.5, 0.6)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(28.0, 0.1, 28.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.34, 0.36, 0.33, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.34, 0.36, 0.33, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.2)
+        LightNode(name: 'sun', intensity: 2.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     _game = _Horde(context.camera)..open3d(context.device, scene: _scene);
@@ -142,7 +146,7 @@ final class _Horde extends FlameGame with HasFlutter3d {
       device,
       CuboidShape(size: Vector3(0.6, 1.0, 0.6)).build(),
     ),
-    Material(name: 'monster', baseColor: Vector4.all(1.0)),
+    RenderMaterial(name: 'monster', baseColor: LinearColor.white),
     capacity: _monsters,
     name: 'horde',
   );
@@ -166,11 +170,11 @@ final class _Horde extends FlameGame with HasFlutter3d {
     for (var i = 0; i < 2; i++) {
       final MeshNode hero = MeshNode(
         ball,
-        Material(
+        RenderMaterial(
           name: 'player $i',
-          baseColor: _playerColours[i],
-          emissive: _playerColours[i].xyz,
-          emissiveStrength: 1.5,
+          baseColor: _fromSrgb(_playerColours[i]),
+          emissive: _playerColours[i].xyz.toLinearColor(),
+          emissiveStrength: 1.5 * Photometric.legacyNits,
         ),
         name: 'player $i',
       );
@@ -208,7 +212,7 @@ final class _Horde extends FlameGame with HasFlutter3d {
             0.9,
             radius * math.sin(angle),
           ),
-          tuning: const MovementTuning(walkSpeed: 2.2),
+          tuning: const MovementSettings(walkSpeed: 2.2),
         ),
         brain: brain,
       );
@@ -264,7 +268,10 @@ final class _Monster extends InstancedActorComponent {
     final InstanceHandle? at = slot;
     if (at == null || brain.attended == _shown || brain.attended < 0) return;
     _shown = brain.attended;
-    at.setColor(_playerColours[_shown]);
+    at.setColor(_playerColours[_shown].toLinearColor());
   }
 }
 // #endregion monster
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -1,41 +1,42 @@
-# Switching passes off
+# Switching steps off
 
 A frame is a list of passes: shadows, the scene, occlusion, bloom, the final
 composite and so on. Each one has its own settings, but sometimes you want to
-skip one without touching them, for a screenshot, a profile, or a device that is
-running late. `RenderSettings.disabledPasses` takes the names of the passes to
-leave out, and the frame tells you what it did about each name.
+skip a few without remembering which flag turns each one off, for a
+screenshot, a profile, or a device that is running late.
+`RenderSettings.without` takes the steps to leave out, and the frame tells you
+what it did about each of their passes.
 
-## Step 1: Know the names
+## Step 1: Know the steps
 
-A name is typed exactly as the frame prints it, spaces included. The engine
-publishes the full list, in the order the passes run, as
-`RenderSettings.passOrder`, so nobody has to guess whether it is `ssao` or
-`occlusion`. This page picks the five passes its scene turns on.
+`RenderStep` names every step of the frame that can be switched off, as one
+vocabulary: `RenderStep.bloom`, `RenderStep.ambientOcclusion`,
+`RenderStep.shadows` and the rest, in `RenderStep.values`. Each one knows the
+passes it owns, by the names the frame prints. This page picks the five steps
+its scene turns on.
 
 {{code names}}
 
-## Step 2: Hand the names to the settings
+## Step 2: Hand the steps to the settings
 
-`disabledPasses` is a set of strings. It is data and not a function, so it can be
-written into a file, compared with another set and printed in a bug report. A
-name that no pass carries is refused with the name in the message, which is how
-a typo shows up.
+`without` switches each step off through its own setting, the same `copyWith`
+you would have written by hand, so the frame is the one you would get that
+way. A step that another needs takes that one with it: the lens flare is
+drawn from the glow, so switching bloom off switches the flare off too.
 
 {{code disabled}}
 
-The switches beside the picture add and remove names. Bloom starts switched off.
-Turn on Skip ssao and the soft dark at the base of the shapes goes away, while
-the shadows the sun casts stay. Turn on Skip antialias and the edges of the ball
-turn to stairs.
+The switches beside the picture add and remove steps. Bloom starts switched
+off. Turn on Skip ambientOcclusion and the soft dark at the base of the shapes
+goes away, while the shadows the sun casts stay. Turn on Skip edgeSmoothing
+and the edges of the ball turn to stairs.
 
-Three passes cannot be switched off: `scene`, `composite` and `object ids`.
-`RenderSettings.undisablePasses` lists them, because a frame with no scene or no
-composite would have no picture to give back.
+The scene and the composite are not steps: they are the frame, and there is
+no way to ask for a frame without a picture.
 
 ## Step 3: Read what the frame says
 
-A pass that was switched off by name is reported as `PassSkip.disabled`.
+A pass whose step was switched off is reported as `PassSkip.switchedOff`.
 That is a different answer from `PassSkip.settings`, which means the pass had
 nothing to do because its own settings were off. If a picture is missing an
 effect you expected, this is the place to look first.

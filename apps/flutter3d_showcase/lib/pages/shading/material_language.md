@@ -7,6 +7,10 @@ came from. What a material may not do is declare a uniform block, sample a
 texture the engine does not bind, or loop. Those are refusals with a
 sentence attached, not omissions.
 
+A file may start with `f3dmat 1`, the language version it is written in.
+Without that line it is read as version 1. A build reads every version up
+to its own and refuses a newer one with the version to update to.
+
 ## Step 1: A material, as source
 
 Rim lighting: a glow that grows at the edge of a surface as it turns away
@@ -17,7 +21,7 @@ returned colour.
 
 ## Step 2: Pick a variant, and emit GLSL
 
-`specialiseMaterial` folds a variant's values into the parsed tree; a
+`specializeMaterial` folds a variant's values into the parsed tree; a
 parameter nobody set keeps its default. `emitMaterialFragment` turns the
 result into the `.frag` source the shader build already compiles.
 

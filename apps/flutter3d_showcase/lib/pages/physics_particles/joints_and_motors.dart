@@ -10,7 +10,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Everything the row is made of in one world: the joints, and the bodies
 /// they hold, in the order the scene draws them.
@@ -171,7 +170,7 @@ final class JointsAndMotorsDemo extends ShowcaseDemo {
       _fixed(w, hook),
       weight,
       anchorA: hook,
-      anchorB: w.positionOf(weight),
+      anchorB: w.localPositionOf(weight),
     );
     NativeBody weight(Vector3 at) {
       final NativeBody b = w.addBody(position: at);
@@ -249,15 +248,19 @@ final class JointsAndMotorsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _row = _build();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.5)),
       );
     DeviceMesh upload(MeshData data) => DeviceMesh.upload(context.device, data);
-    Material paint(String name, double r, double g, double b) =>
-        Material(name: name, baseColor: Vector4(r, g, b, 1.0), roughness: 0.6);
+    RenderMaterial paint(String name, double r, double g, double b) =>
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+          roughness: 0.6,
+        );
 
     scene.add(
       MeshNode(
@@ -268,7 +271,7 @@ final class JointsAndMotorsDemo extends ShowcaseDemo {
     );
     // The fixed points: a pin, a rail, a shoulder and three hooks.
     final DeviceMesh pin = upload(const SphereShape(radius: 0.07).build());
-    final Material steel = paint('steel', 0.3, 0.32, 0.36);
+    final RenderMaterial steel = paint('steel', 0.3, 0.32, 0.36);
     for (final Vector3 at in <Vector3>[_hingeAt, _shoulderAt, ..._hooks]) {
       scene.add(MeshNode(pin, steel, name: 'pin')..setPositionFrom(at));
     }
@@ -330,12 +333,12 @@ final class JointsAndMotorsDemo extends ShowcaseDemo {
     final List<NativeBody> moving = row.moving;
     for (var i = 0; i < moving.length; i++) {
       _meshes[i]
-        ..setPositionFrom(row.world.positionOf(moving[i]))
+        ..setPositionFrom(row.world.localPositionOf(moving[i]))
         ..setRotation(row.world.orientationOf(moving[i]));
     }
     final List<NativeBody> weights = moving.sublist(3);
     for (var i = 0; i < _cords.length; i++) {
-      final Vector3 to = row.world.positionOf(weights[i]);
+      final Vector3 to = row.world.localPositionOf(weights[i]);
       final Vector3 along = to - _hooks[i];
       _cords[i]
         ..setPositionFrom((to + _hooks[i]) * 0.5)

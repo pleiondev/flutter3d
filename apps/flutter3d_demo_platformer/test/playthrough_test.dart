@@ -22,9 +22,12 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -37,11 +40,11 @@ Level _shipped() => Level.fromJson(
 ///
 /// Measured in an empty world rather than written down, because every number
 /// it depends on — jump speed, air-jump speed, gravity — lives in
-/// `RunnerTuning` and may be tuned. A level whose walls are sized against a
+/// `RunnerSettings` and may be tuned. A level whose walls are sized against a
 /// constant copied into a test is a level that silently becomes climbable the
 /// day somebody makes the jump feel better.
 double _doubleJumpHeight() {
-  final world = CollisionWorld()
+  final world = CollisionWorld(properties: platformerWorld)
     ..add(
       Collider(
         shape: CollisionBox(Vector3(50.0, 0.5, 50.0)),
@@ -95,6 +98,7 @@ final class _Game {
     // harness that is not the game is a harness that agrees with any bug the
     // game has. Now there is nothing here to leave out.
     staged = stage(level, world, input: input, registry: kinds);
+    sim.publishTo(published.bus);
   }
 
   final EntityRegistry kinds = platformerRegistry();
@@ -105,8 +109,11 @@ final class _Game {
   Runner get runner => staged.runner;
   PlatformerSimulation get sim => staged.sim;
 
+  /// What [sim] publishes, step by step.
+  final HeardEvents published = HeardEvents();
+
   final Level level = _shipped();
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
 
   bool _forward = false;
@@ -126,7 +133,7 @@ final class _Game {
       jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       _jump = jump;
     }
-    sim.step(_dt);
+    staged.step(_dt);
     input.endStep();
   }
 
@@ -443,7 +450,7 @@ void main() {
       for (var i = 0; i < 120; i++) {
         game.input.beginStep();
         game.input.press(PlatformerActions.dropThrough);
-        game.sim.step(_dt);
+        game.staged.step(_dt);
         game.input.endStep();
       }
 
@@ -502,7 +509,7 @@ void main() {
           game.input.beginStep();
           game.input.press(GameAction.moveForward);
           if (crouching) game.input.press(PlatformerActions.dropThrough);
-          game.sim.step(_dt);
+          game.staged.step(_dt);
           game.input.endStep();
         }
         return game.runner.position.z;
@@ -553,7 +560,7 @@ void main() {
       game.wait(4);
       game.input.beginStep();
       game.input.press(PlatformerActions.dropThrough);
-      game.sim.step(_dt);
+      game.staged.step(_dt);
       game.input.endStep();
       game.wait(120);
 
@@ -594,7 +601,7 @@ void main() {
       var stomped = false;
       for (var i = 0; i < 200 && !stomped; i++) {
         game.step();
-        stomped = game.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
+        stomped = game.published.take().whereType<EnemyStomped>().isNotEmpty;
       }
 
       expect(stomped, isTrue, reason: 'it landed beside it');
@@ -616,7 +623,7 @@ void main() {
         isA<Refused>(),
       );
 
-      game.runner.keyRing.take('blue');
+      game.runner.keyRing.add('blue');
       expect(
         gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
         isA<Activated>(),
@@ -644,7 +651,7 @@ void main() {
       // has to leave it before it can be walked into again.
       game.putAt(Vector3(0.0, 0.0, 72.0));
       game.wait(5);
-      game.runner.keyRing.take('blue');
+      game.runner.keyRing.add('blue');
       game.walk(240);
 
       expect(gate.progress, greaterThan(0.99), reason: 'wide open');

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'runner_clips.dart';
 
@@ -60,9 +59,9 @@ final class RunnerVisuals {
   SceneNode box(GraphicsDevice device, Scene scene, Runner runner) {
     final box = MeshNode(
       SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-      Material(
+      RenderMaterial(
         name: 'runner',
-        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
+        baseColor: LinearColor.fromSrgb(0.90, 0.42, 0.28, 1.0),
         lighting: LightingModel.pbr,
       )..roughness = 0.5,
       name: 'runner box',

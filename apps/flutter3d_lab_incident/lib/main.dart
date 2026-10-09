@@ -18,11 +18,10 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/incident_panel.dart';
 import 'src/incident_scenario.dart';
@@ -91,8 +90,11 @@ class _IncidentScreenState extends State<IncidentScreen>
     scene.add(camera);
 
     scene.add(
-      LightNode(type: LightType.point, intensity: 8.0, name: 'sun')
-        ..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
+      LightNode(
+        type: LightType.point,
+        intensity: 8.0 * Photometric.legacyUnit,
+        name: 'sun',
+      )..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
     );
 
     final floor = MeshNode(
@@ -100,9 +102,9 @@ class _IncidentScreenState extends State<IncidentScreen>
         device,
         CuboidShape(size: Vector3(6.0, 0.1, 6.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.32, 0.32, 0.34, 1.0),
+        baseColor: LinearColor.fromSrgb(0.32, 0.32, 0.34, 1.0),
         roughness: 0.9,
       ),
       name: 'floor',
@@ -114,9 +116,9 @@ class _IncidentScreenState extends State<IncidentScreen>
         device,
         CuboidShape(size: Vector3(1.2, 1.0, 1.2)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.3, 0.32, 0.36, 1.0),
+        baseColor: LinearColor.fromSrgb(0.3, 0.32, 0.36, 1.0),
         roughness: 0.55,
       ),
       name: 'machine',

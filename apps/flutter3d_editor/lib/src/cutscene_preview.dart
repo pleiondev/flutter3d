@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter3d/flutter3d.dart'
     show CameraNode, PerspectiveProjection;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Sequence;
@@ -29,11 +27,11 @@ final class CutscenePreview {
   /// left on the last key.
   bool placeOn(CameraNode camera, double seconds) {
     final step = seconds * sequence.stepsPerSecond;
-    final fov = sequence.cameraAt(step, _at, _look);
+    final fovY = sequence.cameraAt(step, _at, _look);
     camera
       ..setPosition(_at.x, _at.y, _at.z)
       ..lookAt(_look, up: Vector3(0.0, 1.0, 0.0))
-      ..projection = PerspectiveProjection(fovYRadians: fov * math.pi / 180.0);
+      ..projection = PerspectiveProjection(fovY: fovY);
     return seconds < this.seconds;
   }
 }

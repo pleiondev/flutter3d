@@ -39,11 +39,11 @@ import 'dart:async';
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/arcade_game.dart';
 
@@ -160,6 +160,7 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
         Flutter3dFlameWidget(
           game: _game,
           camera: _camera,
+          settings: () => arcadeRenderSettings,
           buildScene: (GraphicsDevice device) {
             final scene = Scene();
             _game
@@ -173,8 +174,10 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
           onTick: _onTick,
           // The meteors' fires draw through the 3D layer's renderer, which
           // there is only once the scene is built.
-          onRendererReady: (Renderer renderer) =>
-              _game.meteors?.drawFires(renderer),
+          onRendererReady: (Renderer renderer) => unawaited(
+            _game.meteors?.drawFires(renderer, rootBundle.load) ??
+                Future<void>.value(),
+          ),
         ),
         // Below the status bar and any notch: a phone draws the app edge to
         // edge, and the HUD sat under the clock.

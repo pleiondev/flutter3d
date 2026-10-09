@@ -14,7 +14,7 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_mesh/flutter3d_mesh.dart' hide ImportReport;
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:vector_math/vector_math.dart' show Matrix4;
 
@@ -89,7 +89,7 @@ GalleryInsert insertIntoProject(
 /// — and the obligation belongs to the moment somebody took the model, not
 /// to whatever the internet says the day they export.
 ModelCredit? creditFor(GalleryItem item) {
-  if (!item.licence.requiresAttribution) return null;
+  if (!item.license.requiresAttribution) return null;
   final String? author = item.author;
   // `gal-01` refuses an item that asks for a credit and names nobody, so
   // this cannot happen through the screen; it is here because a caller
@@ -98,8 +98,8 @@ ModelCredit? creditFor(GalleryItem item) {
   return (
     title: item.name,
     author: author,
-    licence: item.licence.name,
-    url: item.licence.url,
+    license: item.license.name,
+    url: item.license.url,
   );
 }
 
@@ -110,9 +110,9 @@ ModelCredit? creditFor(GalleryItem item) {
 /// rather than at export time.
 String insertSaid(GalleryItem item, int objects) {
   final String what = objects == 1 ? 'object' : 'objects';
-  if (item.licence.requiresAttribution && item.author != null) {
+  if (item.license.requiresAttribution && item.author != null) {
     return 'inserted ${item.name} ($objects $what) — '
-        '${item.licence.name}, by ${item.author}';
+        '${item.license.name}, by ${item.author}';
   }
   return 'inserted ${item.name} ($objects $what)';
 }

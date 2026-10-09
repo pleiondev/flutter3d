@@ -254,7 +254,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     ],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'The walker\'s sliding, stepping and slope are worked out by the run\'s physics, the native core by default, while its speed, gravity and jump stay the controller\'s.',
         evidence: 'A world can say who moves its characters.',
@@ -279,7 +279,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     ],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'The crates fall on the run\'s physics, the native core by default and the Dart reference where it will not start, and a body can now be built to turn.',
         evidence: '`PhysicsBackend`, one for the whole run.',
@@ -294,7 +294,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     summary:
         'The same crates dropped twice, one pile stepped in Dart and one by '
         'the physics core in C, ending in the same place.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence:
         'The core is the default, and the Dart reference is the fallback.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
@@ -363,7 +363,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
         evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
       ),
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'The sheet is stepped on the run\'s physics, the native core by default, which moves the same particle arrays the Dart reference does.',
         evidence: 'Cloth comes from the run\'s backend.',
@@ -377,7 +377,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A table, a dumbbell and a hammer, each one body built from several shapes, landing and resting on their parts.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Several shapes on one body.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['createCompound'],
@@ -393,7 +393,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A shelf on two brackets that let go when a crate lands past their limit, and say so with an event.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Joints that break.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['setJointBreak'],
@@ -409,7 +409,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A box chassis on four ray wheels driving a loop over a plank, steered and braked, gripping on tarmac and sliding on ice.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Vehicles on wheels that hang from springs.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['createVehicle'],
@@ -425,7 +425,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'The same heavy-ended chain twice: on ordinary hinges it stretches, as a multibody in reduced coordinates every joint stays shut.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Chains whose joints cannot come apart.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['createMultibody'],
@@ -441,7 +441,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A hinge with limits, a slider on a motor, a ball joint in a cone, and a distance joint as a rod, a spring and a rope.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence:
         'Fixed, spherical, revolute (a hinge), prismatic (a slider) and distance joints',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
@@ -457,7 +457,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'Eleven capsules on ten joints, pushed down a flight of stairs until they come to rest.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence:
         'A ragdoll of eleven bodies on ten joints falls to a floor and sleeps within two seconds.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
@@ -474,7 +474,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A cylinder rolling down a triangle-mesh ramp, a cone, a hull of six points and a rounded box coming to rest.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence:
         'Cylinders, cones and convex hulls, and any shape rounded by a radius',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
@@ -490,7 +490,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'Balls fired at a wall a centimetre thick: speculative contacts and a bullet stop them, and with neither one goes through.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Continuous collision, phase 8.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['setBullet', 'speculative'],
@@ -506,7 +506,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A wooden board catches beside a hot block, burns lighter and is put out with water; a steel one only warms.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Wind, heat and fire are the world\'s.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['NativeMaterial', 'setWindGrid'],
@@ -522,7 +522,7 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     category: Category.physicsParticles,
     summary:
         'A U-tube that levels out, a floating block and a pour between test tubes, stepped by the physics core.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Pipes and floating bodies run on the core.',
     evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
     keywords: <String>['NativeLiquid'],

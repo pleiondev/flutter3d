@@ -7,7 +7,7 @@ import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
 /// Opens the device the editor draws through, or throws with something worth
 /// putting on screen.
-Future<GraphicsDevice> openEditorDevice() => GpuRenderBackend.create();
+Future<GraphicsDevice> openEditorDevice() => GpuRenderBackend.open();
 
 /// The widget that shows [frame] — always drawn through `GpuRenderBackend`,
 /// since that is the only device [openEditorDevice] opens here.

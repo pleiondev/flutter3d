@@ -190,7 +190,7 @@ final class TargetComponent extends Object3dComponent
     _hitbox.removeFromParent();
     // Burnt: the wreck goes down charred, over the material every craft of
     // its kind shares.
-    tint.setValues(0.35, 0.3, 0.28, 1.0);
+    tint = const LinearColor(0.35, 0.3, 0.28);
     return true;
   }
 
@@ -344,7 +344,7 @@ final class BridgeComponent extends Object3dComponent
 
   @override
   void fixedUpdate(double dt) {
-    shield.visible = !down && game.shielded(this);
+    shield.isVisible = !down && game.shielded(this);
     if (down) {
       _falling += dt;
       final swing = math.min(0.8, _falling * 1.3);

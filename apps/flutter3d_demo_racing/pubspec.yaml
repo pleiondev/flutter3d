@@ -54,11 +54,18 @@ dependencies:
   # race is stepped exactly as it was.
   flutter3d_effects:
     path: ../../packages/flutter3d_effects
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements:
+    path: ../../packages/flutter3d_elements
 
   # The world a car stands in. Named by `staging.dart`, which is the one place
   # this game assembles a race.
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
+  # `Portable`, which a step's trigonometry calls.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
   # The physics core the cars drive on, the Dart reference where it will
   # not start — see `preparePhysics` in `main`.
   flutter3d_physics_native:
@@ -83,10 +90,27 @@ dependencies:
   # the whole point of `GameSimulation`.
   flutter_bloc: ^9.1.1
 
+  # The game parts other games use too (`tasks/1.0-addons.md`).
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+  flutter3d_game_kit:
+    path: ../../packages/flutter3d_game_kit
+  flutter3d_game_physics:
+    path: ../../packages/flutter3d_game_physics
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # `soundTableIn`, the repository's check of a sound bank against its
+  # source, which no published package carries.
+  flutter3d_demo_content:
+    path: ../../packages/flutter3d_demo_content
 
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
   # note. Carries `rp-00`'s determinism probe onto Android and iOS.

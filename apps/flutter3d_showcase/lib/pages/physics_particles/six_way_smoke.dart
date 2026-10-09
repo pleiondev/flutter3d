@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class SixWaySmokeDemo extends ShowcaseDemo {
   bool sixWay = true;
@@ -45,7 +44,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
           height: _cell,
           format: TextureFormat.r8g8b8a8UNormInt,
           pixels: ByteData.sublistView(bytes),
-        )!;
+        );
     _sheet = SixWayMaterial(
       positive: upload(baked.positive),
       negative: upload(baked.negative),
@@ -57,13 +56,15 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     _burst();
     _lit = ParticleContributor(_particles, sixWay: _sheet);
     _plain = ParticleContributor(_particles);
-    context.renderer.addContributor(_lit);
+    context.renderer.renderSteps.addContributor(_lit);
     // #endregion puffs
 
     // #region lights
-    LightNode point(Vector3 colour) =>
-        LightNode(type: LightType.point, intensity: intensity, color: colour)
-          ..castsShadow = false;
+    LightNode point(Vector3 color) => LightNode(
+      type: LightType.point,
+      intensity: intensity * Photometric.legacyUnit,
+      color: color.toLinearColor(),
+    )..castsShadow = false;
     _red = point(Vector3(1.0, 0.2, 0.1));
     _blue = point(Vector3(0.1, 0.2, 1.0));
     final Scene scene = Scene()
@@ -80,9 +81,9 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
           context.device,
           CuboidShape(size: Vector3(40.0, 40.0, 0.1)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(0.04, 0.04, 0.05, 1.0),
+          baseColor: LinearColor.fromSrgb(0.04, 0.04, 0.05, 1.0),
         ),
         name: 'backdrop',
       )..setPosition(0.0, 0.0, -6.0),
@@ -125,8 +126,8 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     // #region swap
     final ParticleContributor shown = sixWay ? _lit : _plain;
     final ParticleContributor hidden = sixWay ? _plain : _lit;
-    if (context.renderer.removeContributor(hidden)) {
-      context.renderer.addContributor(shown);
+    if (context.renderer.renderSteps.removeContributor(hidden)) {
+      context.renderer.renderSteps.addContributor(shown);
     }
     // #endregion swap
   }

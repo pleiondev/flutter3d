@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class HeightfieldCollisionDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
@@ -78,17 +77,20 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(0.7, 1.8, 0.7)).build(),
       ),
-      Material(name: 'walker', baseColor: Vector4(0.8, 0.5, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'walker',
+        baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
+      ),
       name: 'walker',
     )..setPositionFrom(_controller.position);
 
     return Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(_terrain(context, heights))
       ..add(_body)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
   }
@@ -134,7 +136,10 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     }
     return MeshNode(
       DeviceMesh.upload(context.device, builder.build()),
-      Material(name: 'ground', baseColor: Vector4(0.6, 0.55, 0.4, 1.0)),
+      RenderMaterial(
+        name: 'ground',
+        baseColor: LinearColor.fromSrgb(0.6, 0.55, 0.4, 1.0),
+      ),
       name: 'ground',
     );
   }

@@ -12,7 +12,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RigidBodiesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
@@ -60,20 +59,23 @@ final class RigidBodiesDemo extends ShowcaseDemo {
     if (_dynamics case final NativeDynamics core) _native = core;
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(6.0, 1.0, 6.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.42, 0.46, 0.43, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.42, 0.46, 0.43, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.5, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -103,9 +105,9 @@ final class RigidBodiesDemo extends ShowcaseDemo {
           context.device,
           CuboidShape(size: Vector3.all(half * 2)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'crate $i',
-          baseColor: Vector4(
+          baseColor: LinearColor.fromSrgb(
             0.55 + 0.4 * math.sin(i * 0.9),
             0.5 + 0.3 * math.sin(i * 1.7 + 1.0),
             0.35 + 0.3 * math.sin(i * 2.3 + 2.0),

@@ -8,7 +8,7 @@
 /// without looking.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -300,7 +300,7 @@ class TopBarActions extends StatelessWidget {
           ),
         ),
         // `S9`'s own entry: screen 19's full-screen preview, beside Export for
-        // the same reason Material Studio already sits here — a route, not a
+        // the same reason RenderMaterial Studio already sits here — a route, not a
         // shape to add and not a mode the switcher would otherwise offer.
         MergeSemantics(
           child: Semantics(

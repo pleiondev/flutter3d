@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -33,7 +34,8 @@ Level _shipped() => Level.fromJson(
       as Map<String, Object?>,
 );
 
-({PlatformerSimulation sim, InputState input}) _stage() {
+({PlatformerSimulation sim, void Function(double dt) step, InputState input})
+_stage() {
   final level = _shipped();
   final world = CollisionWorld();
   level.addTo(world);
@@ -45,7 +47,7 @@ Level _shipped() => Level.fromJson(
     registry: platformerRegistry(),
   );
   world.update();
-  return (sim: staged.sim, input: input);
+  return (sim: staged.sim, step: staged.step, input: input);
 }
 
 /// The same route `demo_test.dart` plays — every kind of input the tape
@@ -73,8 +75,13 @@ void main() {
     for (var i = 0; i < _steps; i++) {
       _play(live.input, i);
       recorder.record(live.input);
-      live.sim.step(_dt);
-      checkpoints.observe(recorder.tape.steps, live.sim.save().toJson());
+      live.step(_dt);
+      // Saved only on a checkpoint's step: a save carries the water's
+      // world, and six hundred of them is most of the script's time.
+      final step = recorder.tape.steps;
+      if (step % checkpoints.every == 0) {
+        checkpoints.observe(step, live.sim.save().toJson());
+      }
       live.input.endStep();
     }
 

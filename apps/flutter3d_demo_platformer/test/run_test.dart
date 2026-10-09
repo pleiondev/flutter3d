@@ -14,7 +14,6 @@
 /// across it, and the four rules a run has to keep.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
@@ -22,25 +21,23 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // RunPlaying/RunFailed, Sa
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const String _first = 'assets/levels/first_steps.json';
 
 /// A storage that keeps everything in a map.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// Sixteen by nine, because nothing here looks at the picture: the device
@@ -132,7 +129,7 @@ void main() {
         final first = (it.run.status as RunPlaying<LevelReady>).level;
 
         // Spend something on the first level, so there is a tally to carry.
-        first.sim.step(1.0 / 60.0);
+        first.staged.step(1.0 / 60.0);
         final spent = first.sim.elapsed;
         expect(spent, greaterThan(0.0));
 
@@ -188,14 +185,14 @@ void main() {
       // lives, so its save is where you come back to.
       final it = _game();
       await it.run.begin();
-      it.run.save();
+      await it.run.save();
       expect(it.storage.documents['save.json'], isNotNull);
 
       final level = (it.run.status as RunPlaying<LevelReady>).level;
       // Straight to nought lives, which is what falling three times does.
       while (level.sim.state != RunState.lost) {
         level.staged.runner.body.teleport(Vector3(0.0, -80.0, 0.0));
-        level.sim.step(1.0 / 60.0);
+        level.staged.step(1.0 / 60.0);
       }
       it.run.observe();
       await it.run.advance();
@@ -212,7 +209,7 @@ void main() {
       await it.run.begin();
       final first = (it.run.status as RunPlaying<LevelReady>).level;
       for (var i = 0; i < 120; i++) {
-        first.sim.step(1.0 / 60.0);
+        first.staged.step(1.0 / 60.0);
       }
       await _finish(it.run);
 
@@ -238,7 +235,7 @@ void main() {
   test('the save is a level and a snapshot, and comes back as both', () async {
     final it = _game();
     await it.run.begin();
-    it.run.save();
+    await it.run.save();
 
     final again = _game();
     again.storage.documents.addAll(it.storage.documents);
@@ -257,7 +254,7 @@ void main() {
       final timeline = _played(it.run, input, steps: 90);
       final elapsed = before.sim.elapsed;
       final standing = before.runner.body.position.clone();
-      final lastBrush = before.loaded.level.brushes.last.centre.y;
+      final lastBrush = before.loaded.level.brushes.last.center.y;
       built.clear();
 
       final applied = await _live(
@@ -268,7 +265,7 @@ void main() {
       final after = it.run.level!;
       expect(applied.swappedAt, isNotNull, reason: 'a brush is the sim’s');
       expect(after, isNot(same(before)));
-      expect(after.loaded.level.brushes.last.centre.y, lastBrush + 40.0);
+      expect(after.loaded.level.brushes.last.center.y, lastBrush + 40.0);
       expect(
         after.sim.elapsed,
         closeTo(elapsed, 1e-9),
@@ -336,23 +333,15 @@ LiveLevel _live(PlatformerRun run, RunTimeline timeline) => LiveLevel(
   present: (Level next, LevelDiff diff) => run.announceEdit(),
 );
 
-/// Plays [steps] steps of the level that is up the way `GameLoop` does,
-/// keyframes and all, and hands back the timeline over them.
+/// Plays [steps] steps of the level that is up through the run's own loop
+/// ([PlatformerRun.ownLoop]), the rewind attached, and hands back the
+/// timeline over them.
 RunTimeline _played(PlatformerRun run, InputState input, {required int steps}) {
   final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
-  for (var i = 0; i < steps; i++) {
-    rewind.recorder.record(input);
-    input.beginStep();
-    if (rewind.keyframeDue) rewind.keyframe(run.level!.sim.save());
-    run.level!.sim.step(1.0 / 60.0);
-    input.endStep();
-  }
-  return RunTimeline(
-    rewind: rewind,
-    input: input,
-    stepSim: (double dt) => run.level!.sim.step(dt),
-    restore: (Snapshot snapshot) => run.level!.sim.restore(snapshot),
-  );
+  final (:loop, genre: _) = run.ownLoop();
+  rewind.attach(loop);
+  loop.runSteps(steps);
+  return RunTimeline(rewind: rewind, loop: loop);
 }
 
 /// [level] with its last brush forty metres up, out of the runner's way.
@@ -389,7 +378,7 @@ Future<void> _finish(PlatformerRun run) async {
   final exit = level.staged.mechanisms.all.whereType<Exit>().first;
   level.staged.runner.body.teleport(exit.collider.position);
   for (var i = 0; i < 4 && level.sim.nextLevel == null; i++) {
-    level.sim.step(1.0 / 60.0);
+    level.staged.step(1.0 / 60.0);
   }
   run.observe();
   await run.advance();

@@ -9,6 +9,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
 /// The valley's side, m, and how many cells of the liquids' grid a side.
 const double hollowSize = 64.0;
 const int hollowCells = 128;
@@ -42,13 +44,17 @@ double riverX(double z) {
   final t = ((z - springZ) / (cliffTop - springZ)).clamp(0.0, 1.0);
   return springX +
       (lagoonX - springX) * t * t * (3 - 2 * t) +
-      2.0 * math.sin(0.5 * z);
+      2.0 * Portable.sin(0.5 * z);
 }
 
 double _smooth(double a, double b, double x) {
   final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
+
+/// How far (dx, dz) reaches: squares and a square root, every one of which
+/// IEEE 754 rounds the same way on every machine.
+double _distance(double dx, double dz) => math.sqrt(dx * dx + dz * dz);
 
 double _bump(double distance, double width) {
   final t = distance / width;
@@ -98,9 +104,7 @@ double groundAt(double x, double z) {
         0.05 * off * (1.0 - _smooth(cliffTop - 1, cliffFoot, z));
   }
   // The lagoon's bowl, and the channel draining it east.
-  final toLagoon = math.sqrt(
-    math.pow(x - lagoonX, 2) + math.pow(z - lagoonZ, 2),
-  );
+  final toLagoon = _distance(x - lagoonX, z - lagoonZ);
   h -= 3.2 * _bump(toLagoon, lagoonRadius);
   if (x > lagoonX) {
     // Wide and shallow, its banks gentle: a ford the car can cross, the
@@ -118,20 +122,18 @@ double groundAt(double x, double z) {
   final ramp = _smooth(quarryX, quarryX + quarryHalfX + 3, x);
   h -= 2.2 * inQuarry * (1.0 - ramp);
   // The volcano, its crater open at the top.
-  final toVolcano = math.sqrt(
-    math.pow(x - volcanoX, 2) + math.pow(z - volcanoZ, 2),
-  );
+  final toVolcano = _distance(x - volcanoX, z - volcanoZ);
   final cone =
       volcanoHeight *
-          math.pow((1.0 - toVolcano / volcanoRadius).clamp(0.0, 1.0), 1.4) -
+          Portable.pow((1.0 - toVolcano / volcanoRadius).clamp(0.0, 1.0), 1.4) -
       3.0 * _bump(toVolcano, craterRadius);
   if (toVolcano < volcanoRadius) {
     h = math.max(h, 1.0 + 5.5 * (1.0 - _smooth(cliffTop, cliffFoot, z)) + cone);
   }
   // Flat ground where the village and the builder stand.
   final flat = math.max(
-    _bump(math.sqrt(math.pow(x - villageX, 2) + math.pow(z - villageZ, 2)), 9),
-    _bump(math.sqrt(math.pow(x - siteX, 2) + math.pow(z - siteZ, 2)), 5),
+    _bump(_distance(x - villageX, z - villageZ), 9),
+    _bump(_distance(x - siteX, z - siteZ), 5),
   );
   return h + (1.2 - h) * flat * _smooth(0.0, 0.2, flat);
 }

@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_demo_content/crypt.dart' show CryptWood;
 
 /// Floats a vertex of [VertexLayout.standard] takes: place, normal, picture
 /// coordinates, tangent and colour.
@@ -38,12 +38,12 @@ final class _Builder {
     shade, shade, shade, 1.0,
   ]);
 
-  /// A box about [centre] with half-sizes [half], each face's picture laid
+  /// A box about [center] with half-sizes [half], each face's picture laid
   /// on from the side it faces, in metres, so boards run on across the
   /// parts of a crate rather than being squeezed onto each batten; one
   /// repeat of the picture every [every] metres.
   void box(
-    Vector3 centre,
+    Vector3 center,
     Vector3 half, {
     double shade = 1.0,
     double every = _boardsEvery,
@@ -62,7 +62,7 @@ final class _Builder {
           (1.0, 1.0),
           (-1.0, 1.0),
         ]) {
-          final p = centre.clone()
+          final p = center.clone()
             ..[axis] += sign * half[axis]
             ..[a] += su * half[a]
             ..[b] += sv * half[b];
@@ -90,11 +90,11 @@ final class _Builder {
   );
 }
 
-/// A block about [centre] with half-sizes [half], its picture laid on each
+/// A block about [center] with half-sizes [half], its picture laid on each
 /// face from the side, repeating every [every] metres: the stone the
 /// flooded vault's sill and culvert are built of.
-MeshData blockMesh(Vector3 centre, Vector3 half, {double every = 1.0}) =>
-    (_Builder()..box(centre, half, every: every)).build();
+MeshData blockMesh(Vector3 center, Vector3 half, {double every = 1.0}) =>
+    (_Builder()..box(center, half, every: every)).build();
 
 /// The meshes and pictures every crate and barrel of a run shares; each
 /// prop has a material of its own, so a fire chars it alone.
@@ -111,16 +111,18 @@ final class WoodenProps {
     required this.stave,
   });
 
-  /// A crate's side, m.
-  static const double crateSize = 0.8;
+  /// A crate's side, m: the run's, so what is drawn is the size of what
+  /// falls and burns.
+  static const double crateSize = CryptWood.crateSize;
 
   /// A barrel's radius at its ends and its height, m.
-  static const double barrelRadius = 0.3, barrelHeight = 0.9;
+  static const double barrelRadius = CryptWood.barrelRadius,
+      barrelHeight = CryptWood.barrelHeight;
 
   /// A broken crate's planks and a broken barrel's staves, as boxes: their
   /// half-sizes.
-  static Vector3 get plankHalf => Vector3(0.38, 0.06, 0.016);
-  static Vector3 get staveHalf => Vector3(0.05, 0.44, 0.016);
+  static Vector3 get plankHalf => CryptWood.plankHalf;
+  static Vector3 get staveHalf => CryptWood.staveHalf;
 
   final TextureHandle? _boards, _relief, _iron, _ironRelief;
 
@@ -170,22 +172,22 @@ final class WoodenProps {
   /// Its glow, which stays off until a fire chars it, is the same picture:
   /// embers show along the grain and in the seams between boards, not as
   /// one lit face.
-  Material wood({Vector4? tint}) => Material(
+  RenderMaterial wood({Vector4? tint}) => RenderMaterial(
     name: 'boards',
     albedo: _boards,
     normal: _relief,
     normalScale: 0.9,
     emissiveTexture: _boards,
-    baseColor: tint ?? Vector4(1.0, 0.86, 0.7, 1.0),
+    baseColor: _fromSrgb(tint ?? Vector4(1.0, 0.86, 0.7, 1.0)),
     roughness: 0.88,
   );
 
   /// The barrels' hoops, which a fire blackens no further than iron is.
-  late final Material iron = Material(
+  late final RenderMaterial iron = RenderMaterial(
     name: 'hoops',
     albedo: _iron,
     normal: _ironRelief,
-    baseColor: Vector4(0.55, 0.5, 0.46, 1.0),
+    baseColor: LinearColor.fromSrgb(0.55, 0.5, 0.46, 1.0),
     metallic: 0.85,
     roughness: 0.55,
   );
@@ -270,7 +272,7 @@ final class WoodenProps {
     }
     // The two heads, a fan each.
     for (final sign in const <double>[1.0, -1.0]) {
-      final centre = b.count;
+      final center = b.count;
       final y = sign * half;
       b.vertex(
         Vector3(0.0, y, 0.0),
@@ -299,8 +301,8 @@ final class WoodenProps {
       for (var i = 0; i < sides; i++) {
         b.indices.addAll(
           sign > 0
-              ? <int>[centre, centre + i + 2, centre + i + 1]
-              : <int>[centre, centre + i + 1, centre + i + 2],
+              ? <int>[center, center + i + 2, center + i + 1]
+              : <int>[center, center + i + 1, center + i + 2],
         );
       }
     }
@@ -336,3 +338,6 @@ final class WoodenProps {
     return b.build();
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

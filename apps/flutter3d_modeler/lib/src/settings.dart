@@ -24,7 +24,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException, defaultStorage;
 
 import 'recent_projects.dart' show RecentModels;
 import 'ui/dock_layout.dart';
@@ -129,7 +130,7 @@ enum TransformStart {
 
 /// Which set of screens the mode switcher offers — `ux-37`'s own workspaces.
 enum Workspace {
-  /// Object, Material and Scene: what "open a model, paint it, export it"
+  /// Object, RenderMaterial and Scene: what "open a model, paint it, export it"
   /// needs and nothing past it. The default.
   essential,
 
@@ -430,8 +431,8 @@ final class SettingsStore {
   /// What is stored, or the defaults on a first launch — and on a document
   /// that will not parse, which is the same thing as far as a person can
   /// tell.
-  ModelerSettings read() {
-    final String? text = storage.read(name);
+  Future<ModelerSettings> read() async {
+    final String? text = await storage.read(name);
     if (text == null) return const ModelerSettings();
     try {
       final Object? json = jsonDecode(text);
@@ -449,8 +450,15 @@ final class SettingsStore {
   /// remembered — unlike the recent list, which is a convenience nobody
   /// requested — and a preference that silently did not stick is worse than
   /// one that says so.
-  bool write(ModelerSettings settings) => storage.write(
-    name,
-    const JsonEncoder.withIndent('  ').convert(settings.toJson()),
-  );
+  Future<bool> write(ModelerSettings settings) async {
+    try {
+      await storage.write(
+        name,
+        const JsonEncoder.withIndent('  ').convert(settings.toJson()),
+      );
+      return true;
+    } on StorageException {
+      return false;
+    }
+  }
 }

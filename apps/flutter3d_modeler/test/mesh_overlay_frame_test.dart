@@ -28,13 +28,12 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 100;
 
-/// How many pixels of [rgba] land within [tolerance] of [colour] on every
-/// channel, [colour] given as three 0..255 bytes.
+/// How many pixels of [rgba] land within [tolerance] of [color] on every
+/// channel, [color] given as three 0..255 bytes.
 ///
 /// A wider tolerance than `frame_test.dart`'s own wire-colour check needs:
 /// that one reads a thousand-pixel floor and a whole wireframe, where most of
@@ -44,27 +43,27 @@ const int _height = 100;
 /// sits nowhere near this file's three colours — the closest pair of them is
 /// well over a hundred apart on some channel — so it cannot mistake one for
 /// another; it only forgives what the handle's own edge costs it.
-int _countNear(Uint8List rgba, List<int> colour, {int tolerance = 40}) {
+int _countNear(Uint8List rgba, List<int> color, {int tolerance = 40}) {
   var count = 0;
   for (var i = 0; i < rgba.length; i += 4) {
-    if ((rgba[i] - colour[0]).abs() <= tolerance &&
-        (rgba[i + 1] - colour[1]).abs() <= tolerance &&
-        (rgba[i + 2] - colour[2]).abs() <= tolerance) {
+    if ((rgba[i] - color[0]).abs() <= tolerance &&
+        (rgba[i + 1] - color[1]).abs() <= tolerance &&
+        (rgba[i + 2] - color[2]).abs() <= tolerance) {
       count++;
     }
   }
   return count;
 }
 
-/// [colour] as the bytes it round-trips to with the composite's transfer
+/// [color] as the bytes it round-trips to with the composite's transfer
 /// function turned off — the same trick `frame_test.dart`'s own wire-colour
 /// assertion uses, and for the same reason: `MeshOverlay.asDrawn` treats every
 /// colour handed to it as light, so comparing bytes only works with the tone
 /// curve and the exposure both out of the way.
-List<int> _bytesOf(Vector4 colour) => <int>[
-  (colour.x * 255).round(),
-  (colour.y * 255).round(),
-  (colour.z * 255).round(),
+List<int> _bytesOf(Vector4 color) => <int>[
+  (color.x * 255).round(),
+  (color.y * 255).round(),
+  (color.z * 255).round(),
 ];
 
 /// A stage, a renderer and the overlay the viewport would build over it — the
@@ -80,10 +79,10 @@ _rig() {
   final renderer = Renderer.create(device: it.device);
   final stage = ModelerStage.build(device: it.device);
   stage.frameSubject();
-  final overlay = renderer.addContributor(
+  final overlay = renderer.renderSteps.addContributor(
     MeshOverlay(
-      vertexShader: renderer.debugLineVertexShader,
-      fragmentShader: renderer.debugLineFragmentShader,
+      vertexShader: renderer.shaders['DebugLineVertex']!,
+      fragmentShader: renderer.shaders['DebugLine']!,
     ),
   );
   return (
@@ -126,12 +125,12 @@ int _nearestVertex(EditMesh mesh, Vector3 eye) {
   );
 }
 
-/// Whether some pixel within [radius] of ([x],[y]) is near [colour].
+/// Whether some pixel within [radius] of ([x],[y]) is near [color].
 bool _nearAt(
   Uint8List rgba,
   int x,
   int y,
-  List<int> colour, {
+  List<int> color, {
   int radius = 6,
   int tolerance = 40,
 }) {
@@ -142,9 +141,9 @@ bool _nearAt(
       final col = x + dx;
       if (col < 0 || col >= _width) continue;
       final i = (row * _width + col) * 4;
-      if ((rgba[i] - colour[0]).abs() <= tolerance &&
-          (rgba[i + 1] - colour[1]).abs() <= tolerance &&
-          (rgba[i + 2] - colour[2]).abs() <= tolerance) {
+      if ((rgba[i] - color[0]).abs() <= tolerance &&
+          (rgba[i + 1] - color[1]).abs() <= tolerance &&
+          (rgba[i + 2] - color[2]).abs() <= tolerance) {
         return true;
       }
     }
@@ -178,9 +177,9 @@ Future<Uint8List> _draw(
     // and the tone curve would move every byte away from the hex it names.
     settings: const RenderSettings(tonemap: false, exposure: 1.0),
   );
-  final pixels = await device.readPixels(result.frame);
+  final pixels = await device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 void main() {
@@ -190,14 +189,14 @@ void main() {
     () async {
       final rig = _rig();
       final edit = rig.stage.editMesh!;
-      final colours = MeshOverlayColours();
+      final colors = MeshOverlayColours();
       final view = _viewOf(rig.stage);
       final vertex = _nearestVertex(edit, view.eye);
       final at = Vector3.zero();
       edit.positionOf(vertex, at);
       final screen = _screenOf(rig.stage, at);
 
-      MeshOverlayBuilder(colours: colours).build(
+      MeshOverlayBuilder(colors: colors).build(
         rig.overlay,
         mesh: edit,
         selection: Selection.of(ElementLevel.vertex, <int>[vertex]),
@@ -207,16 +206,16 @@ void main() {
       );
 
       final rgba = await _draw(rig.device, rig.renderer, rig.stage);
-      final ordinary = _countNear(rgba, _bytesOf(colours.vertex));
+      final ordinary = _countNear(rgba, _bytesOf(colors.vertex));
 
-      // Mutation: swap `picked ? colours.selected : colours.vertex` in
+      // Mutation: swap `picked ? colors.selected : colors.vertex` in
       // `_emitHandles` for its own reverse. Every handle still gets drawn, in
       // one colour or the other — a check that only asked "does the selected
       // colour appear somewhere" would still pass, since it would just be
       // sitting on a different vertex. Reading the exact pixel the selected
       // vertex projects to is what tells the two apart.
       expect(
-        _nearAt(rgba, screen.$1, screen.$2, _bytesOf(colours.selected)),
+        _nearAt(rgba, screen.$1, screen.$2, _bytesOf(colors.selected)),
         isTrue,
         reason: 'the selected vertex has no handle in the selected colour',
       );
@@ -232,10 +231,10 @@ void main() {
       'wire', () async {
     final rig = _rig();
     final edit = rig.stage.editMesh!;
-    final colours = MeshOverlayColours();
+    final colors = MeshOverlayColours();
     final edge = Selection.all(edit, ElementLevel.edge).ids.first;
 
-    MeshOverlayBuilder(colours: colours).build(
+    MeshOverlayBuilder(colors: colors).build(
       rig.overlay,
       mesh: edit,
       selection: Selection.of(ElementLevel.edge, <int>[edge]),
@@ -245,7 +244,7 @@ void main() {
     );
 
     final rgba = await _draw(rig.device, rig.renderer, rig.stage);
-    final ribbon = _countNear(rgba, _bytesOf(colours.selected));
+    final ribbon = _countNear(rgba, _bytesOf(colors.selected));
 
     // Mutation: build the overlay from an empty selection at the same
     // level instead of the one that names `edge` — the wireframe drawn

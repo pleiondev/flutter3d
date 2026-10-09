@@ -2,12 +2,23 @@
 /// river and its lagoon, the volcano's lava, and what is drawn of them.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show
+        ActionDeclaration,
+        ActionSet,
+        AxisAction,
+        BodyPose,
+        GameAction,
+        InputState,
+        Snapshot;
 
 import 'car.dart';
 import 'crane.dart';
@@ -30,78 +41,130 @@ const double _lip = 0.42;
 /// the volcano.
 const double _plateau = 8.3;
 
+/// The lava: molten basalt, dark and opaque, glowing where its flow breaks
+/// the crust. Until molten basalt's heat is measured here it takes heat as
+/// water at the air's temperature does, which is what it did before it had
+/// any.
+final Liquid _lava = Liquid(
+  properties: NativeLiquidProperties.moltenBasalt,
+  optics: LiquidOptics(
+    absorb: Vector3.all(13.82),
+    backscatter: Vector3(0.7271, 0.2819, 0.1396),
+  ),
+  heat: NativeLiquidHeat.water(),
+  glow: Vector3(6.0, 1.6, 0.25),
+);
+
+/// The river's water: a mountain stream's, clear.
+final Liquid _water = Liquid.water();
+
+/// The valley's rules, as a `.f3drun` names them: a tape recorded under one
+/// number is refused by a build whose valley steps differently, and its pose
+/// record is shown instead.
+const SimulationVersion hollowSimulation = SimulationVersion(genre: 'hollow');
+
+/// What the player asks of the valley beyond the four ways to drive, which
+/// are [GameAction.moveForward] and its kin: the brake held, the crane's
+/// neck and swing held, and the four one-off asks — act, right the car, the
+/// crane taken or left, the rope.
+abstract final class HollowActions {
+  static const GameAction brake = GameAction('brake');
+  static const GameAction act = GameAction('act');
+  static const GameAction rightUp = GameAction('rightUp');
+  static const GameAction crane = GameAction('crane');
+  static const GameAction grab = GameAction('grab');
+  static const GameAction liftUp = GameAction('liftUp');
+  static const GameAction liftDown = GameAction('liftDown');
+  static const GameAction swingLeft = GameAction('swingLeft');
+  static const GameAction swingRight = GameAction('swingRight');
+
+  /// The crane's neck, up positive: what [liftUp] less [liftDown] was.
+  static const AxisAction lift = AxisAction('lift');
+
+  /// The crane's swing, left positive: what [swingLeft] less [swingRight]
+  /// was.
+  static const AxisAction swing = AxisAction('swing');
+
+  /// What the valley declares. [lift] and [swing] name the button pairs a
+  /// run recorded before they were axes, so such a run replays with the
+  /// crane moving as it did.
+  static const ActionSet set = ActionSet('hollow', <ActionDeclaration>[
+    ActionDeclaration(GameAction.moveForward, label: 'accelerate'),
+    ActionDeclaration(GameAction.moveBack, label: 'reverse'),
+    ActionDeclaration(GameAction.moveLeft, label: 'turn left'),
+    ActionDeclaration(GameAction.moveRight, label: 'turn right'),
+    ActionDeclaration(brake),
+    ActionDeclaration(act),
+    ActionDeclaration(rightUp, label: 'right the car'),
+    ActionDeclaration(crane),
+    ActionDeclaration(grab),
+    ActionDeclaration(
+      lift,
+      fromButtons: (negative: liftDown, positive: liftUp),
+    ),
+    ActionDeclaration(
+      swing,
+      fromButtons: (negative: swingRight, positive: swingLeft),
+    ),
+  ]);
+}
+
 /// The valley, stepped and drawn.
 final class HollowRun {
   HollowRun({
     required GraphicsDevice device,
     required this.scene,
-    required Renderer renderer,
-    required this.water,
-    required this.lava,
+    required this.elements,
     required HollowLooks looks,
-    this.light = false,
-  }) : _device = device {
+    InputState? input,
+  }) : _device = device,
+       input = input ?? InputState() {
     _ground = groundGrid();
     _buildGround(looks);
-    _river = world.createShallowLiquid(
-      nx: hollowCells,
-      nz: hollowCells,
-      cell: hollowCell,
-      origin: Vector3.zero(),
-      ground: _ground,
+    // The river runs off the valley's open edges.
+    river = elements.addWater(
+      ground: ElementHeightfield.list(
+        origin: Vector3.zero(),
+        cell: hollowCell,
+        nx: hollowCells,
+        nz: hollowCells,
+        heights: _ground,
+      ),
+      liquid: _water,
+      bed: const Bed(roughness: Bed.mountainStream),
+      mist: const MistSettings(),
     );
-    world
-      ..setShallowBed(_river, roughness: 0.035, openEdges: true)
-      ..fillShallowLiquid(
-        _river,
-        x0: lagoonX - lagoonRadius,
-        z0: cliffFoot,
-        x1: lagoonX + lagoonRadius,
-        z1: lagoonZ + lagoonRadius,
-        level: 0.6,
-      )
-      ..setShallowSource(
-        _river,
-        0,
-        x: springX,
-        z: springZ,
+    for (final side in <GridSide>[
+      GridSide.west,
+      GridSide.east,
+      GridSide.south,
+      GridSide.north,
+    ]) {
+      river.setEdge(side, NativeEdgeFlow.free);
+    }
+    river
+      ..fillBasin(from: Vector3(lagoonX, 0.0, lagoonZ), level: 0.6)
+      ..addSpring(
+        at: Vector3(springX, 0.0, springZ),
+        discharge: 0.6,
         radius: 0.8,
-        rate: 0.6,
       );
-    riverView = LiquidView(
-      world: world,
-      liquid: _river,
-      ground: _ground,
-      device: device,
-      scene: scene,
-      look: water.material,
-      detail: light ? LiquidDetail.light : LiquidDetail.full,
-    );
     // The lava's own grid, over the volcano's south flank.
-    final lavaGround = groundGrid(
-      x0: _lavaX0,
-      z0: 0.0,
-      nx: _lavaCells,
-      nz: _lavaCells,
-    );
-    _lava = world.createShallowLiquid(
-      nx: _lavaCells,
-      nz: _lavaCells,
-      cell: hollowCell,
-      origin: Vector3(_lavaX0, 0.0, 0.0),
-      ground: lavaGround,
-    );
-    world
-      ..setShallowProperties(_lava, NativeLiquidProperties.moltenBasalt)
-      ..setShallowBed(_lava, roughness: 0.05);
-    lavaView = LiquidView(
-      world: world,
+    lava = elements.addWater(
+      ground: ElementHeightfield.list(
+        origin: Vector3(_lavaX0, 0.0, 0.0),
+        cell: hollowCell,
+        nx: _lavaCells,
+        nz: _lavaCells,
+        heights: groundGrid(
+          x0: _lavaX0,
+          z0: 0.0,
+          nx: _lavaCells,
+          nz: _lavaCells,
+        ),
+      ),
       liquid: _lava,
-      ground: lavaGround,
-      device: device,
-      scene: scene,
-      look: lava.material,
-      detail: LiquidDetail.light,
+      bed: const Bed(roughness: 0.05),
     );
     car = StoneCar(
       world,
@@ -110,24 +173,12 @@ final class HollowRun {
       Vector3(siteX, groundAt(siteX, siteZ - 6) + 1.2, siteZ - 6),
       looks,
     );
-    fire = FireView(
-      world: world,
-      device: device,
-      scene: scene,
-      renderer: renderer,
-      baseWidth: 0.5,
-      detail: light ? FireDetail.light : FireDetail.full,
-    );
     stones = QuarryStones(world, scene, looks);
     idol = Idol(world, device, scene, looks);
-    rafts = Rafts(world, device, scene, hearing, _river, looks);
+    rafts = Rafts(world, device, scene, looks);
     trees = Trees(world, scene, fire, looks);
-    hearing
-      ..listen(_river)
-      ..listen(_lava, density: NativeLiquidProperties.moltenBasalt.density)
-      ..watch(idol.body, _river);
     village = Village(world, device, scene, fire, looks);
-    volcano = Volcano(world, device, scene, _lava, village.huts, looks);
+    volcano = Volcano(world, device, scene, lava, village.huts, looks);
     // On the quarry's north rim, facing into it.
     final craneAt = Vector3(
       quarryX,
@@ -153,17 +204,14 @@ final class HollowRun {
   final GraphicsDevice _device;
   final Scene scene;
 
-  /// Whether to draw less of the water and the fire, for a phone.
-  final bool light;
+  /// The river, the lava and the fires as the core has them, drawn and
+  /// heard; the run steps the world itself.
+  final Elements elements;
 
-  /// The looks of the river and of the lava.
-  final LiquidLook water, lava;
-
-  final NativeWorld world = NativeWorld();
+  NativeWorld get world => elements.world;
   late final List<double> _ground;
-  late final NativeShallowLiquid _river, _lava;
-  late final LiquidView riverView, lavaView;
-  late final FireView fire;
+  late final WaterBody river, lava;
+  FireView get fire => elements.fireView;
   late final StoneCar car;
   late final QuarryStones stones;
   late final Idol idol;
@@ -171,7 +219,7 @@ final class HollowRun {
   late final Trees trees;
 
   /// What the fires, the falls and the splashes sound like this frame.
-  late final PhysicsHearing hearing = PhysicsHearing(world);
+  PhysicsHearing get hearing => elements.hearing!;
   late final Village village;
   late final Volcano volcano;
   late final DinoCrane crane;
@@ -181,7 +229,6 @@ final class HollowRun {
 
   /// What the last action did, for the panel.
   String said = '';
-  double _clock = 0.0;
 
   late final Vector3 _craneAt;
 
@@ -202,7 +249,7 @@ final class HollowRun {
       said = 'The idol is on the car: bring it to the village.';
       return;
     }
-    final here = world.sampleShallow(_river, p.x, p.z);
+    final here = world.sampleShallow(river.native, p.x, p.z);
     if (here != null && here.depth > 0.3) {
       car.water = StoneCar.barrelHolds;
       said = 'The barrel is full.';
@@ -223,7 +270,7 @@ final class HollowRun {
 
   /// The lagoon's surface over the origin, m.
   double get lagoonLevel =>
-      world.sampleShallow(_river, lagoonX, lagoonZ)?.surface ?? 0.0;
+      world.sampleShallow(river.native, lagoonX, lagoonZ)?.surface ?? 0.0;
 
   void _buildGround(HollowLooks looks) {
     final n = hollowCells;
@@ -240,7 +287,9 @@ final class HollowRun {
           -(at(i, j + 1) - at(i, j - 1)) / (2 * hollowCell),
         )..normalize();
         // Along u, which runs with x: east, bent to lie in the slope. Its
-        // fourth number turns the bitangent from −z to +z, the way v runs.
+        // fourth number leaves the bitangent n × t at −z: the shaders take
+        // the bitangent the way v decreases, a normal map's green pointing
+        // up the picture (material_maps.glsl), and v runs with z.
         final tangent = (Vector3(1.0, 0.0, 0.0) - normal * normal.x)
           ..normalize();
         final o = (i + j * n) * _stride;
@@ -262,7 +311,7 @@ final class HollowRun {
           ..[o + 8] = tangent.x
           ..[o + 9] = tangent.y
           ..[o + 10] = tangent.z
-          ..[o + 11] = -1
+          ..[o + 11] = 1
           ..[o + 12] = shade
           ..[o + 13] = shade
           ..[o + 14] = shade
@@ -357,7 +406,7 @@ final class HollowRun {
             indices: Uint32List.fromList(level),
           ),
         ),
-        Material(
+        RenderMaterial(
           name: 'ground',
           lighting: repeating,
           albedo: looks.ground,
@@ -400,7 +449,7 @@ final class HollowRun {
     Float32List ground,
     List<int> indices,
     List<int> triangles,
-    Material material,
+    RenderMaterial material,
   ) {
     if (triangles.isEmpty) return;
     final vertices = Float32List(triangles.length * 3 * _stride);
@@ -447,23 +496,168 @@ final class HollowRun {
     );
   }
 
-  /// One frame: the world on by [dt], and what is drawn of it.
+  /// What the player asks for: the window's keys write it, a tape writes it
+  /// on a replay, and the step alone reads it, at its top, so a run is its
+  /// tape. Nothing a step does reads a key.
+  final InputState input;
+
+  /// The valley's step, phase by phase, on [loop]: the controls in
+  /// `input`, the rafts and the volcano in `movers` (what the valley drives
+  /// on its own, before the world sweeps), the core's world in `physics`,
+  /// the elements — the flames held, the world's events read, the water and
+  /// fire drawn — in `elements`, and the bodies' looks put where the world
+  /// has them once a frame, in `animate`.
+  ///
+  /// **A fixed step now, at the loop's world rate.** The valley was stepped
+  /// with each frame's own time, a thirtieth of a second at most; it is
+  /// stepped in sixtieths whatever the display, so a run is the same run on
+  /// a fast machine and a slow one.
+  void install(LoopRegistry loop) {
+    loop
+      ..addSystem('hollow.controls', LoopPhase.input, (_) => _control())
+      ..addSystem('hollow.valley', LoopPhase.movers, (step) {
+        rafts.update(step.dt);
+        volcano.update(step.dt);
+      })
+      ..addSystem(
+        'hollow.world',
+        LoopPhase.physics,
+        (step) => world.step(step.dt),
+      )
+      ..addSystem(
+        'hollow.elements',
+        LoopPhase.fields,
+        (step) => elements.update(step.dt, eye: eye),
+      )
+      ..addSystem('hollow.show', LoopPhase.animate, (_) => show());
+  }
+
+  /// One step of [dt] and what is drawn of it, in the order [install] runs
+  /// them: for a reel, which steps the valley by its own frames.
   void step(double dt) {
+    _control();
+    rafts.update(dt);
+    volcano.update(dt);
     world.step(dt);
-    _clock += dt;
+    elements.update(dt, eye: eye);
+    show();
+  }
+
+  /// The one-off asks first — act, right the car, the crane, the rope, in
+  /// that order, as the keys used to be heard before the step — then the car
+  /// or the crane worked as the held actions say.
+  void _control() {
+    final i = input;
+    if (i.pressed(HollowActions.act)) act();
+    if (i.pressed(HollowActions.rightUp)) car.rightUp();
+    if (i.pressed(HollowActions.crane)) {
+      craning = !craning && nearCrane;
+      said = craning
+          ? 'At the crane: I/K neck, J/L swing, G rope, C to drive.'
+          : nearCrane
+          ? 'Back in the car.'
+          : 'Drive up to the crane at the quarry first.';
+    }
+    if (craning && i.pressed(HollowActions.grab)) crane.grab(stones.bodies);
+    double axis(GameAction plus, GameAction minus) =>
+        (i.held(plus) ? 1.0 : 0.0) - (i.held(minus) ? 1.0 : 0.0);
+    if (craning) {
+      car.drive(throttle: 0, turn: 0, hold: true);
+      // Axes now, bound to I/K and J/L as composites; a run recorded when
+      // they were four buttons is upgraded by [HollowActions.set].
+      crane.work(
+        lift: i.axis(HollowActions.lift),
+        swing: i.axis(HollowActions.swing),
+      );
+    } else {
+      crane.work(lift: 0, swing: 0);
+      car.drive(
+        throttle: axis(GameAction.moveForward, GameAction.moveBack),
+        turn: axis(GameAction.moveLeft, GameAction.moveRight),
+        hold: i.held(HollowActions.brake),
+      );
+    }
+  }
+
+  // ------------------------------------------------------------- saving
+
+  /// The valley as it stands after a step: the core's world with the water,
+  /// the lava, the heat and every body in it, the flames the elements hold,
+  /// and what only this side keeps — the barrel, the crane taken or not, the
+  /// rafts and bombs launched, the volcano's clock and dice, the lashings.
+  ///
+  /// **The bodies by their handles**, which the core gives back the same
+  /// after a restore: a raft launched after this was taken is gone again
+  /// when it is put back, and one taken out since comes back.
+  Snapshot save() => Snapshot(<String, Object?>{
+    'world': base64Encode(world.snapshot()),
+    'elements': elements.saveElements(),
+    'water': car.water,
+    'craning': craning,
+    'said': said,
+    'rafts': rafts.save(),
+    'volcano': volcano.save(),
+    'idol': idol.save(),
+    'crane': crane.save(),
+  });
+
+  /// Puts the valley back as [save] wrote it. Throws a [FormatException] for
+  /// a snapshot that is not one of this valley's.
+  void restore(Snapshot snapshot) {
+    final d = snapshot.data;
+    if (d case {
+      'world': final String bytes,
+      'elements': final Map<String, Object?> saved,
+      'water': final num water,
+      'craning': final bool craning,
+      'said': final String said,
+    }) {
+      world.restore(base64Decode(bytes));
+      // Contacts and events of the world that was left are not this one's.
+      world.readEvents();
+      elements.restoreElements(saved);
+      car.water = water.toDouble();
+      this.craning = craning;
+      this.said = said;
+      rafts.restore(d['rafts']);
+      volcano.restore(d['volcano']);
+      idol.restore(d['idol']);
+      crane.restore(d['crane']);
+      show();
+      return;
+    }
+    throw const FormatException('not a snapshot of Cobble Hollow');
+  }
+
+  /// Where the run's moving bodies are, for the pose record a `.f3drun`
+  /// carries beside its tape: the car, the idol, the quarry's blocks, the
+  /// rafts and the bombs, each by a name it keeps for the run.
+  Iterable<BodyPose> poses() sync* {
+    BodyPose pose(String name, NativeBody body) =>
+        BodyPose(name, world.localPositionOf(body), world.orientationOf(body));
+    yield pose('car', car.body);
+    yield pose('idol', idol.body);
+    for (var k = 0; k < stones.stones.length; k++) {
+      yield pose('stone#$k', stones.stones[k].body);
+    }
+    for (final r in rafts.rafts) {
+      yield pose('raft#${r.body.raw}', r.body);
+    }
+    for (final b in volcano.bombs) {
+      yield pose('bomb#${b.body.raw}', b.body);
+    }
+  }
+
+  /// The bodies drawn where the world has them.
+  void show() {
     car.update();
     stones.update();
     idol.update();
-    rafts.update(dt);
     crane.update();
-    volcano.update(dt);
-    riverView.update(dt);
-    lavaView.update(dt);
-    fire.update(dt);
-    hearing.update(dt);
-    water.update(seconds: _clock, eye: eye);
-    lava.update(seconds: _clock, eye: eye);
   }
 
-  void dispose() => world.dispose();
+  void dispose() {
+    elements.dispose();
+    world.dispose();
+  }
 }

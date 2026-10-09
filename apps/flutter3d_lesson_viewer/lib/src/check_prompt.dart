@@ -12,7 +12,7 @@
 /// anything to send.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 
 /// A `check` object, read once from a step's own properties.

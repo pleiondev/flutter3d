@@ -1,7 +1,8 @@
 /// A wooden board and a steel one either side of a block of stone at a
 /// thousand degrees. The wood heats, catches, burns and loses mass; the
 /// steel heats as well and never catches; water put on the wood puts it
-/// out. The flames are particles carried up by a wind grid.
+/// out. The page steps the core's world itself; the effects package's
+/// elements, adopting it, draw the fire.
 ///
 /// Quoted by `heat_and_fire.md` and shown whole in the Source tab.
 library;
@@ -10,25 +11,22 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
-
-/// One flame particle: where it is and how long it has left, s.
-final class _Flame {
-  _Flame(this.node);
-
-  final MeshNode node;
-  final Vector3 position = Vector3.zero();
-  double life = 0.0;
-}
 
 final class HeatAndFireDemo extends ShowcaseDemo {
   NativeWorld? _world;
-  late NativeBody _heater;
-  late NativeBody _wood;
-  late NativeBody _steel;
+  Elements? _elements;
+  Scene? _scene;
+  late TrackedBody _heaterBody, _woodBody, _steelBody;
+  NativeBody get _heater => _heaterBody.native;
+  NativeBody get _wood => _woodBody.native;
+  NativeBody get _steel => _steelBody.native;
 
   /// Why there is no fire, or null when the core started.
   String? fallback;
@@ -43,12 +41,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   double? _caught;
   double? _doused;
 
-  final List<_Flame> _flames = <_Flame>[];
-  int _nextFlame = 0;
-  final math.Random _random = math.Random(7);
-
-  late Material _woodLook;
-  late Material _steelLook;
+  late RenderMaterial _steelLook;
   late MeshNode _woodNode;
   late MeshNode _steelNode;
 
@@ -73,42 +66,77 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   }
 
   // #region bench
+  /// The world, once, and the elements that draw its fires, adopting it:
+  /// the page steps it itself, faster than the clock.
+  @override
+  Future<void> prepare(DemoContext context) async {
+    try {
+      final world = NativeWorld();
+      _world = world;
+      final scene = _scene = Scene();
+      _elements = await Elements.adopt(
+        world,
+        device: context.device,
+        renderer: context.renderer,
+        scene: scene,
+        load: rootBundle.load,
+        quality: const ElementsQuality(
+          liquid: LiquidDetail.light,
+          fire: FireDetail.light,
+        ),
+      );
+    } on Object catch (e) {
+      _world?.dispose();
+      _world = null;
+      fallback = physicsCoreLoaded
+          ? '$e'
+          : 'the core is not loaded in this browser yet';
+    }
+  }
+
   /// The heater and the two boards, all fixed: nothing here has to move to
   /// burn. The heater has no mass, which makes it a reservoir: whatever it
   /// gives, it stays at its temperature.
   void _setUp() {
-    _world?.dispose();
-    final world = NativeWorld();
-    _world = world;
-    _heater = world.addBody(
-      position: Vector3(0.0, 0.15, 0.0),
-      type: NativeBodyType.fixed,
-      mass: 0.0,
-    );
-    world
-      ..setShape(_heater, NativeShape.box(Vector3.all(0.15)))
-      ..setMaterial(_heater, NativeMaterial.stone())
-      ..setTemperature(_heater, _hot);
-    NativeBody board(double x, NativeMaterial material, double density) {
-      final NativeBody b = world.addBody(
-        position: Vector3(x, 0.1, 0.0),
-        type: NativeBodyType.fixed,
-        // A fixed body's mass is its thermal mass, and what burns away.
-        mass: density * 8.0 * _board.x * _board.y * _board.z,
-      );
-      world
-        ..setShape(b, NativeShape.box(_board))
-        ..setMaterial(b, material);
-      return b;
+    final elements = _elements!;
+    for (final TrackedBody body in _bodies) {
+      elements.remove(body);
     }
-
-    _wood = board(-_apart, NativeMaterial.wood(), 500.0);
-    _steel = board(_apart, NativeMaterial.steel(), 7800.0);
+    _heaterBody = elements.addBody(
+      Solid.box(
+        Vector3.all(0.15),
+        material: NativeMaterial.stone(),
+        density: 0,
+      ),
+      at: Vector3(0.0, 0.15, 0.0),
+      type: NativeBodyType.fixed,
+    );
+    elements.world.setTemperature(_heater, _hot);
+    // A fixed body's mass is its thermal mass, and what burns away.
+    _woodBody = elements.addBody(
+      Solid.box(_board, material: NativeMaterial.wood(), density: 500.0),
+      at: Vector3(-_apart, 0.1, 0.0),
+      type: NativeBodyType.fixed,
+      look: _woodNode,
+    );
+    _steelBody = elements.addBody(
+      Solid.box(_board, material: NativeMaterial.steel(), density: 7800.0),
+      at: Vector3(_apart, 0.1, 0.0),
+      type: NativeBodyType.fixed,
+      look: _steelNode,
+    );
+    _bodies = <TrackedBody>[_heaterBody, _woodBody, _steelBody];
     _setWind();
     _clock = 0.0;
     _caught = null;
     _doused = null;
   }
+
+  List<TrackedBody> _bodies = const <TrackedBody>[];
+
+  /// What the steps since the elements last drew said happened: the page
+  /// reads the world's events, and hands them on.
+  final List<NativeEvent> _said = <NativeEvent>[];
   // #endregion bench
 
   // #region wind
@@ -147,8 +175,10 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   List<NativeEvent> _advance(double dt) {
     // #region step
     _world!.step(dt);
+    final List<NativeEvent> said = _world!.readEvents();
+    _said.addAll(said);
     final List<NativeEvent> fire = <NativeEvent>[
-      for (final NativeEvent e in _world!.readEvents())
+      for (final NativeEvent e in said)
         if (e.kind == NativeEventKind.ignited ||
             e.kind == NativeEventKind.extinguished ||
             e.kind == NativeEventKind.burntOut)
@@ -163,42 +193,41 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   }
 
   @override
-  void dispose() => _world?.dispose();
+  void dispose() {
+    // The elements adopted the world, and leave it to the page.
+    _elements?.dispose();
+    _world?.dispose();
+  }
 
   @override
   Scene build(DemoContext context) {
-    try {
-      _setUp();
-    } on Object catch (e) {
-      _world = null;
-      fallback = physicsCoreLoaded
-          ? '$e'
-          : 'the core is not loaded in this browser yet';
-    }
     final DeviceMesh board = DeviceMesh.upload(
       context.device,
       CuboidShape(size: _board * 2.0).build(),
     );
-    _woodLook = Material(
-      name: 'wood',
-      baseColor: Vector4(0.55, 0.36, 0.2, 1.0),
-      roughness: 0.8,
-    );
-    _steelLook = Material(
+    _steelLook = RenderMaterial(
       name: 'steel',
-      baseColor: Vector4(0.6, 0.62, 0.65, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.62, 0.65, 1.0),
       metallic: 0.8,
       roughness: 0.4,
     );
-    _woodNode = MeshNode(board, _woodLook, name: 'wood')
-      ..setPosition(-_apart, 0.1, 0.0);
+    // The wood chars and glows as it burns, as the elements draw it.
+    _woodNode = MeshNode(
+      board,
+      RenderMaterial(
+        name: 'wood',
+        baseColor: LinearColor.fromSrgb(0.55, 0.36, 0.2, 1.0),
+        roughness: 0.8,
+      ),
+      name: 'wood',
+    )..setPosition(-_apart, 0.1, 0.0);
     _steelNode = MeshNode(board, _steelLook, name: 'steel')
       ..setPosition(_apart, 0.1, 0.0);
-    final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+    final Scene scene = (_scene ?? Scene())
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.0)
+        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(
@@ -207,7 +236,10 @@ final class HeatAndFireDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(1.2, 0.04, 0.6)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.35, 0.35, 0.37, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.35, 0.35, 0.37, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.02, 0.0),
       )
@@ -217,89 +249,60 @@ final class HeatAndFireDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3.all(0.3)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'heater',
-            baseColor: Vector4(0.4, 0.2, 0.15, 1.0),
-            emissive: Vector3(1.0, 0.35, 0.08),
-            emissiveStrength: 2.0,
+            baseColor: LinearColor.fromSrgb(0.4, 0.2, 0.15, 1.0),
+            emissive: LinearColor(1.0, 0.35, 0.08),
+            emissiveStrength: 2.0 * Photometric.legacyNits,
           ),
           name: 'heater',
         )..setPosition(0.0, 0.15, 0.0),
       )
       ..add(_woodNode)
       ..add(_steelNode);
-    final DeviceMesh spark = DeviceMesh.upload(
-      context.device,
-      const SphereShape(radius: 0.012, segments: 8, rings: 4).build(),
-    );
-    for (var i = 0; i < 80; i++) {
-      final flame = _Flame(
-        MeshNode(
-          spark,
-          Material(
-            name: 'flame $i',
-            baseColor: Vector4(1.0, 0.6, 0.2, 1.0),
-            emissive: Vector3(1.0, 0.45, 0.1),
-            emissiveStrength: 3.0,
-          ),
-          name: 'flame $i',
-        )..visible = false,
-      );
-      _flames.add(flame);
-      scene.add(flame.node);
-    }
+    if (_elements != null) _setUp();
     return scene;
   }
 
-  /// A board glows from dull red at 700 K to orange at 1100 K, and is
-  /// darkened by the water on it.
-  void _look(Material look, NativeBody body) {
+  // #region glow
+  /// The steel glows as hot metal does: a grey body at its surface's
+  /// temperature, ε·σT⁴·η(T)/π candela a square metre, η the lumens a
+  /// radiated watt is worth at T, in the renderer's units — nothing to see
+  /// at the room's temperature, a dull red past 800 K. Its surface's
+  /// temperature is what the core says, held at boiling while water is on
+  /// it.
+  void _look(RenderMaterial look, NativeBody body) {
     final NativeWorld world = _world!;
-    final double t = world.temperatureOf(body);
-    final double glow = ((t - 700.0) / 400.0).clamp(0.0, 1.0);
-    look.emissive.setValues(glow, 0.3 * glow * glow, 0.0);
-    final double wet = world.waterOf(body) > 0.0 ? 0.6 : 1.0;
-    look.emissiveStrength = 2.0 * wet;
+    final double t = world.surfaceTemperatureOf(body);
+    final double nits =
+        NativeMaterial.steel().emissivity *
+        stefanBoltzmann *
+        t *
+        t *
+        t *
+        t *
+        Blackbody.efficacy(t) /
+        math.pi;
+    final Vector3 color = Blackbody.color(t);
+    final double y = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+    // Over `bulbAtOneMeter` and drawn at `legacyNits`: about 29 times the
+    // true luminance, the gain `FireView` draws its flames with, so the hot
+    // block glows beside them as it would beside a fire.
+    look.emissive =
+        (color * (y > 0.0 ? nits / Photometric.bulbAtOneMeter / y : 0.0))
+            .toLinearColor();
+    look.emissiveStrength = 1.0 * Photometric.legacyNits;
   }
+  // #endregion glow
 
   // #region flames
-  /// Flames from every burning body, as many as its fire gives off heat,
-  /// risen by their own heat and carried by the wind where they are.
-  void _flicker(double seconds) {
-    final NativeWorld world = _world!;
-    final ({Float32List fires, List<NativeBody> bodies}) burning = world
-        .readFires();
-    for (var i = 0; i < burning.bodies.length; i++) {
-      final double watts = burning.fires[i * nativeFireFloats + 3];
-      final int count = (watts / 5000.0).ceil().clamp(1, 4);
-      for (var k = 0; k < count; k++) {
-        final _Flame f = _flames[_nextFlame];
-        _nextFlame = (_nextFlame + 1) % _flames.length;
-        f
-          ..life = 0.8
-          ..position.setValues(
-            burning.fires[i * nativeFireFloats] + (_random.nextDouble() - 0.5) * 0.05,
-            burning.fires[i * nativeFireFloats + 1] + _board.y * _random.nextDouble(),
-            burning.fires[i * nativeFireFloats + 2] + (_random.nextDouble() - 0.5) * 0.18,
-          );
-      }
-    }
-    for (final _Flame f in _flames) {
-      if (f.life <= 0.0) {
-        f.node.visible = false;
-        continue;
-      }
-      final Vector3 carry = world.windAt(f.position);
-      f.position
-        ..x += carry.x * seconds
-        ..y += 0.5 * seconds
-        ..z += carry.z * seconds;
-      f.life -= seconds;
-      f.node
-        ..visible = true
-        ..setPosition(f.position.x, f.position.y, f.position.z)
-        ..setUniformScale(math.max(f.life, 0.0) / 0.8);
-    }
+  /// The fires drawn as the world has them: the elements adopted the world,
+  /// so they draw and do not step it. Each flame stands on the patch alight
+  /// and is as long as the core says, its smoke and embers carried by the
+  /// wind where it is, its light the radiant share of its heat.
+  void _flicker(double seconds, Vector3 eye) {
+    _elements?.update(seconds, eye: eye, events: List<NativeEvent>.of(_said));
+    _said.clear();
   }
   // #endregion flames
 
@@ -313,9 +316,8 @@ final class HeatAndFireDemo extends ShowcaseDemo {
     if (caught != null && _doused == null && _clock - caught > 60.0) _douse();
     final double? doused = _doused;
     if (doused != null && _clock - doused > 30.0) _setUp();
-    _look(_woodLook, _wood);
     _look(_steelLook, _steel);
-    _flicker(dt);
+    _flicker(dt, context.camera.readWorldPosition());
   }
 
   @override
@@ -367,17 +369,20 @@ final class HeatAndFireDemo extends ShowcaseDemo {
       steps++;
     }
     if (_caught == null) throw StateError('the wood never caught');
-    // Burning, it loses mass: eleven grams a second per square metre.
+    // Burning, it loses what it gives off, over a patch that is still
+    // small twenty seconds after it caught.
     final double atIgnition = world.massOf(_wood);
     for (var i = 0; i < 20; i++) {
       said.addAll(_advance(1.0));
     }
     if (!world.isBurning(_wood)) throw StateError('the wood went out');
-    if (world.massOf(_wood) >= atIgnition - 0.01) {
+    if (world.massOf(_wood) >= atIgnition) {
       throw StateError('the wood burnt nothing: ${world.massOf(_wood)} kg');
     }
-    // The steel had the same heater, and was warmed by it, but never caught.
-    if (world.temperatureOf(_steel) < world.airTemperature + 20.0) {
+    // The steel had the same heater, and was warmed by it, but never caught:
+    // with fifteen times the wood's mass it warms slowly, a few kelvin in
+    // the half minute the wood took to catch and burn.
+    if (world.temperatureOf(_steel) <= world.airTemperature + 1.0) {
       throw StateError('the steel was never warmed');
     }
     if (world.isBurning(_steel) || said.any((e) => e.body == _steel)) {

@@ -3,9 +3,11 @@
 Every body in a world of the physics core has a material and a temperature.
 It loses heat to the air by convection and radiation, takes heat from what it
 touches and from hot bodies near it, and can carry water, which holds it at the boiling point until it has
-boiled away. Wood, paper and rubber catch at their ignition temperature, burn
-their fuel at a rate per square metre of surface, keep part of the fire's heat
-and give the rest off as hot gas. A burning body gets lighter.
+boiled away. Wood, paper and rubber catch at their ignition temperature and
+burn at the rate their heat balance gives: the flame's heat and what reaches
+the burning patch, less what it radiates and what the wood under it draws,
+over the heat it takes to turn a kilogram to fuel gas. A patch that cannot
+keep itself alight goes out. A burning body gets lighter.
 
 This page puts a wooden board and a steel one either side of a block of stone
 at a thousand degrees Celsius. The wood catches and burns, the steel only
@@ -15,12 +17,16 @@ minutes.
 
 ## Step 1: A heater and two boards
 
-All three are fixed bodies: nothing here needs to move to burn. A fixed body's
-mass is its thermal mass, and it is what burns away. The heater is given no
-mass at all, which makes it a reservoir: whatever heat it gives, it stays at
-the temperature it was set to. The boards are twenty centimetres square and
-four thick, one pine at 500 kg/m³ and one steel at 7800, each with the core's
-preset for its material.
+The page owns a world of the physics core's and steps it itself, faster than
+the clock; the effects package's `Elements` adopt it, which means they draw
+and hear it and never step it. All three bodies are put in through the
+elements as solids of a shape, a material and a density, and fixed: nothing
+here needs to move to burn. A fixed body's mass is its thermal mass, and it
+is what burns away. The heater has no density, so no mass, which makes it a
+reservoir: whatever heat it gives, it stays at the temperature it was set to.
+The boards are twenty centimetres square and four thick, one pine at
+500 kg/m³ and one steel at 7800, each with the core's preset for its
+material.
 
 {{code bench}}
 
@@ -33,7 +39,11 @@ that, as much as nothing stands in the way. A burning body also sends its
 material's radiant share of its fire's heat, and anything standing in its
 flame is heated by the flame's gas. Both boards get the same. The steel, with fifteen times the wood's mass, warms
 slowly; it has no ignition temperature in its preset, so it never catches
-however hot it gets.
+however hot it gets. What the page draws of it is what the core says of it:
+its surface's temperature, glowing as a grey body of steel's emissivity does
+at that temperature.
+
+{{code glow}}
 
 ## Step 3: Wind
 
@@ -60,11 +70,12 @@ switch beside the viewport pours it sooner.
 
 ## Step 5: Flames
 
-`readFires` lists every burning body with its position and the watts its fire
-gives off as hot gas, which is what a smoke grid would take as its sources.
-Here it seeds a pool of small glowing particles that rise and drift with the
-wind where they are. The boards themselves glow from dull red to orange with
-their temperature.
+The elements draw every fire the core has: the flame standing on the patch
+alight and as long as the core says, smoke rising in the fire's own plume
+and drifting with the wind where it is, embers lagging it, and the firelight
+the radiant share of the fire's heat, as bright and as coloured as a
+blackbody at the temperature of the flame's soot. The wood chars and glows
+as it burns; the steel glows from dull red to orange with its temperature.
 
 {{code flames}}
 
@@ -79,8 +90,8 @@ Then water goes on, and the next step has to put the fire out with an
 
 {{code check}}
 
-> **Note.** A body is one temperature throughout, which is right for a crate
-> or a board but not for a log whose outside chars while its middle is cold.
+> **Note.** A body keeps its surface's temperature apart from its middle's,
+> so a log's outside catches long before its middle has warmed.
 > Radiation sees every body as a ball of its own surface, and five rays
 > decide how much of it a wall hides. A crate stacked on a burning one
 > catches in its flame; one beside it catches when the fire is big enough or

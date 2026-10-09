@@ -37,7 +37,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart'
     show
         MaterialDocument,
@@ -163,14 +163,14 @@ bool setLevelMaterialField(
 /// the glow's colour too.
 Map<String, Object?>? liveMaterialFields(String key, Object? value) =>
     switch ((key, value)) {
-      ('baseColor', final List<Object?> colour)
-          when colour.length >= 3 && colour.every((it) => it is num) =>
+      ('baseColor', final List<Object?> color)
+          when color.length >= 3 && color.every((it) => it is num) =>
         <String, Object?>{
           'baseColor': <num>[
-            ...colour.take(3).cast<num>(),
-            colour.length > 3 ? colour[3]! as num : 1.0,
+            ...color.take(3).cast<num>(),
+            color.length > 3 ? color[3]! as num : 1.0,
           ],
-          'emissive': colour.take(3).cast<num>().toList(),
+          'emissive': color.take(3).cast<num>().toList(),
         },
       ('roughness', final num at) => <String, Object?>{'roughness': at},
       ('metallic', final num at) => <String, Object?>{'metallic': at},

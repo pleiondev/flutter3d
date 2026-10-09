@@ -11,8 +11,8 @@ final class PaintBrush {
   /// Which layer a stroke lands on.
   int layer = 0;
 
-  /// Linear RGBA, the range `PaintStroke.colour` reads.
-  List<double> colour = const <double>[0.85, 0.2, 0.2, 1];
+  /// Linear RGBA, the range `PaintStroke.color` reads.
+  List<double> color = const <double>[0.85, 0.2, 0.2, 1];
 
   /// The cursor's width in logical pixels — a diameter, and named one here
   /// for the reason [SculptBrush.diameter] gives: the screen's field was

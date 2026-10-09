@@ -43,38 +43,26 @@ final class HollowSound {
 
   final AudioScene _scene;
   final PhysicsHearing _hearing;
-  final Map<int, SoundEmitter> _fires = <int, SoundEmitter>{};
-  final Map<int, SoundEmitter> _falls = <int, SoundEmitter>{};
+  final HeldVoices _fires = HeldVoices(fire);
+  final HeldVoices _falls = HeldVoices(falls);
 
   /// The frame heard from [listener].
   void update(AudioListener listener) {
-    _hold(_fires, _hearing.fires, fire);
-    _hold(_falls, _hearing.falls, falls);
+    _fires.hold(_scene, _hearing.fires.map(_held));
+    _falls.hold(_scene, _hearing.falls.map(_held));
     for (final s in _hearing.splashes) {
       _scene.play(splash, s.at)
         ..gain = s.loudness
         ..rate = s.rate;
     }
+    // Played once: the valley steps at its own rate now, and a frame that
+    // ran no step would otherwise hear the last step's splashes again.
+    _hearing.splashes.clear();
     _scene.update(listener);
   }
 
-  /// One looping voice per thing heard, moved and turned to it; the voices
-  /// of things no longer heard stopped.
-  void _hold(Map<int, SoundEmitter> voices, List<Audible> heard, SoundDef def) {
-    final live = <int>{};
-    for (final h in heard) {
-      live.add(h.key);
-      (voices[h.key] ??= _scene.play(def, h.at))
-        ..position.setFrom(h.at)
-        ..gain = h.loudness
-        ..rate = h.rate;
-    }
-    voices.removeWhere((key, voice) {
-      if (live.contains(key)) return false;
-      voice.stop();
-      return true;
-    });
-  }
+  static Held _held(Audible a) =>
+      (key: a.key, at: a.at, gain: a.loudness, rate: a.rate);
 
   /// Every voice stopped, for the window closing.
   void stop() => _scene.stopAll();

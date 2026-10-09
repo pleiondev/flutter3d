@@ -4,8 +4,9 @@
 ///     flutter test test/replay_test.dart
 ///
 /// **What a game built on flutter3d writes to keep its CI honest**, and the
-/// shortest version of it: one [testReplay] call and the four methods of a
-/// [ReplaySubject]. The tape is `tool/record_sample.dart`'s, written beside
+/// shortest version of it: one [testReplay] call and a [ReplaySubject] — the
+/// loop the run is stepped in, the genre whose run the tape is, and the
+/// picture. The tape is `tool/record_sample.dart`'s, written beside
 /// the site's sample; when the simulation changes on purpose, that script
 /// records it again and the goldens are deleted and re-recorded.
 ///
@@ -15,23 +16,48 @@
 /// picture is only worth checking if it is the picture that ships.
 library;
 
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_platformer/src/lens.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
+import 'package:flutter3d_demo_platformer/src/run_elements.dart';
 import 'package:flutter3d_demo_platformer/src/runner_visuals.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The Ascent, loaded and staged the way `PlatformerRun` does it.
-final class _Ascent implements ReplaySubject {
-  _Ascent._(this._loaded, this._staged, this._fixtures, this._runnerNode)
-    : _follow = FollowCamera(world: _loaded.collision);
+/// The Ascent, loaded and staged the way `PlatformerRun` does it, and
+/// stepped in a loop the way the game steps it: `platformer.step` in
+/// `physics`, the level's water and fires in `elements` after it.
+final class _Ascent extends ReplaySubject {
+  _Ascent._(
+    this._loaded,
+    this._staged,
+    this._fixtures,
+    this._runnerNode,
+    InputState input,
+  ) : _follow = FollowCamera(world: _loaded.collision) {
+    genre.simulation = _staged.sim;
+    loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre])
+      ..addSystem(
+        'replay.elements',
+        LoopPhase.fields,
+        (step) => stepElements(_staged.sim, _staged.elements, step.dt),
+      );
+    // Followed every step, as the game follows it every frame: a camera
+    // placed only when a golden is drawn would start from where it was
+    // built. Cut first, so the first step's follow lands on the runner
+    // wherever the tape's start put it.
+    _follow.cut();
+    loop.onStepEnd((_) {
+      final dt = loop.stepSeconds;
+      _elapsed += dt;
+      final runner = _staged.runner;
+      _follow.follow(runner.position, dt, traveling: runner.body.velocity);
+    });
+  }
 
   static Future<_Ascent> open(ReplayStart start) async {
     // On the backend it was recorded on: the two are not promised to agree.
@@ -51,7 +77,7 @@ final class _Ascent implements ReplaySubject {
     final runnerNode = RunnerVisuals(
       model: '',
     ).box(start.device, loaded.scene, staged.runner);
-    return _Ascent._(loaded, staged, fixtures, runnerNode);
+    return _Ascent._(loaded, staged, fixtures, runnerNode, start.input);
   }
 
   final LoadedLevel _loaded;
@@ -59,31 +85,17 @@ final class _Ascent implements ReplaySubject {
   final FixtureVisuals _fixtures;
   final SceneNode _runnerNode;
   final FollowCamera _follow;
-  final CameraNode _camera = CameraNode(projection: Lens.base);
+  final CameraNode _camera = CameraNode(projection: ascentLens.base);
   double _elapsed = 0.0;
 
   @override
+  final PlatformerPlugin genre = PlatformerPlugin();
+
+  @override
+  late final EngineLoop loop;
+
+  @override
   String? get levelHash => _loaded.level.digestHex;
-
-  @override
-  void restore(Snapshot start) {
-    _staged.sim.restore(start);
-    _follow.cut();
-  }
-
-  @override
-  void step(double dt) {
-    _staged.sim.step(dt);
-    _staged.sim.events.drain();
-    _elapsed += dt;
-    // Followed every step, as the game follows it every frame: a camera
-    // placed only when a golden is drawn would start from where it was built.
-    final runner = _staged.runner;
-    _follow.follow(runner.position, dt, travelling: runner.body.velocity);
-  }
-
-  @override
-  Snapshot save() => _staged.sim.save();
 
   @override
   Future<FrameSubject> frame(int step) async {

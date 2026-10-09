@@ -13,7 +13,6 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class XpbdClothDemo extends ShowcaseDemo {
   double wind = 1.5;
@@ -69,9 +68,9 @@ final class XpbdClothDemo extends ShowcaseDemo {
     _upload = () => DeviceMesh.upload(context.device, _mesh());
     _sheet = MeshNode(
       _upload(),
-      Material(
+      RenderMaterial(
         name: 'cloth',
-        baseColor: Vector4(0.8, 0.3, 0.35, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.35, 1.0),
         roughness: 0.8,
         doubleSided: true,
       ),
@@ -82,17 +81,20 @@ final class XpbdClothDemo extends ShowcaseDemo {
         context.device,
         SphereShape(segments: 24, rings: 12, radius: _ballRadius).build(),
       ),
-      Material(name: 'ball', baseColor: Vector4(0.4, 0.5, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'ball',
+        baseColor: LinearColor.fromSrgb(0.4, 0.5, 0.7, 1.0),
+      ),
       name: 'ball',
     )..setPositionFrom(_obstacle.position);
 
     return Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(_sheet)
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.5, -0.6)),
       );
   }

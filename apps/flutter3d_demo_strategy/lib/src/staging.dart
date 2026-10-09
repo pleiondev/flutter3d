@@ -17,7 +17,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'kit.dart';
 import 'level_document.dart';
@@ -95,7 +94,7 @@ Future<Staged> stage({
     capacity: start.simulation.units.length + 256,
     viewer: viewerSide,
     ground: kit?.ground,
-    groundMetresPerTexture: kit == null ? 8.0 : ground.width,
+    groundMetersPerTexture: kit == null ? 8.0 : ground.width,
     looks: kit?.looks ?? const <UnitLook>[],
     buildingMesh: kit?.hall,
     buildingMeshSize: kit?.hallSize,

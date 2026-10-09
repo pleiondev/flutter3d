@@ -79,10 +79,10 @@ void main() {
       reason: 'the sky must not be counted among the scene\'s own triangles',
     );
 
-    final pixels = await it.device.readPixels(withSky.frame);
+    final pixels = await it.device.readback(withSky.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
     final RenderedFrame frame = (
-      pixels: pixels!.buffer.asUint8List(),
+      pixels: pixels.buffer.asUint8List(),
       width: 240,
       height: 160,
       drawCalls: withSky.drawCalls,

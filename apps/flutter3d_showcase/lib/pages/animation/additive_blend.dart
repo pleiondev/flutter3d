@@ -11,7 +11,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AdditiveBlendDemo extends ShowcaseDemo {
   late final AnimationTrack _turnTrack;
@@ -48,10 +47,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.3, 0.3, 0.5)).build(),
     );
-    MeshNode head(String name, Vector4 colour, double x) {
+    MeshNode head(String name, Vector4 color, double x) {
       final MeshNode node = MeshNode(
         box,
-        Material(name: name, baseColor: colour, roughness: 0.6),
+        RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.6),
         name: name,
       )..setPosition(x, 0.0, 0.0);
       // A face, so a turn and a nod each read as one: a plain cube looks
@@ -59,7 +58,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       node.add(
         MeshNode(
           nose,
-          Material(name: '$name nose', baseColor: Vector4(0.95, 0.9, 0.8, 1.0)),
+          RenderMaterial(
+            name: '$name nose',
+            baseColor: LinearColor.fromSrgb(0.95, 0.9, 0.8, 1.0),
+          ),
           name: '$name nose',
         )..setPosition(0.0, 0.0, 0.7),
       );
@@ -115,7 +117,7 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       ..add(_additiveHead)
       ..add(_overrideHead)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       );
   }
@@ -263,3 +265,6 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) throw StateError('the heads were not drawn');
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

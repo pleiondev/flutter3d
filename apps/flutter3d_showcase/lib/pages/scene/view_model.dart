@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ViewModelDemo extends ShowcaseDemo {
   double fovDegrees = 48.0;
@@ -25,14 +24,14 @@ final class ViewModelDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region world
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.58, 0.56, 0.52, 1.0),
+      baseColor: LinearColor.fromSrgb(0.58, 0.56, 0.52, 1.0),
       roughness: 0.82,
     );
     final Scene world = Scene()
-      ..ambientColor = Vector3(0.4, 0.46, 0.6)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.4, 0.46, 0.6)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -54,7 +53,7 @@ final class ViewModelDemo extends ShowcaseDemo {
         )..setPosition(0.0, 1.2, -3.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     // #endregion world
@@ -67,9 +66,9 @@ final class ViewModelDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(0.12, 0.12, 0.6)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'tool',
-            baseColor: Vector4(0.66, 0.68, 0.72, 1.0),
+            baseColor: LinearColor.fromSrgb(0.66, 0.68, 0.72, 1.0),
             metallic: 0.85,
             roughness: 0.28,
           ),
@@ -77,20 +76,18 @@ final class ViewModelDemo extends ShowcaseDemo {
         )..setPosition(0.22, -0.2, -0.5),
       )
       ..add(
-        LightNode(name: 'hand key', intensity: 2.6)
+        LightNode(name: 'hand key', intensity: 2.6 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.5, -0.8)),
       );
     _handCamera = CameraNode(
       name: 'hand camera',
-      projection: PerspectiveProjection(
-        fovYRadians: fovDegrees * math.pi / 180.0,
-      ),
+      projection: PerspectiveProjection(fovY: fovDegrees * math.pi / 180.0),
     );
     handsScene.add(_handCamera);
     // #endregion hands
 
     // #region pass
-    context.renderer.addNode(
+    context.renderer.renderSteps.addNode(
       ViewModelNode(scene: handsScene, camera: _handCamera),
     );
     // #endregion pass
@@ -103,7 +100,7 @@ final class ViewModelDemo extends ShowcaseDemo {
     _bob += dt;
     _tool.setPosition(0.22, -0.2 + math.sin(_bob * 2.4) * 0.02, -0.5);
     _handCamera.projection = PerspectiveProjection(
-      fovYRadians: fovDegrees * math.pi / 180.0,
+      fovY: fovDegrees * math.pi / 180.0,
     );
     // #endregion motion
   }

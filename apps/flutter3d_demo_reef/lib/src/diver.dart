@@ -9,18 +9,35 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'looks.dart';
 
-/// Pascals a metre of seawater weighs, over the atmosphere's: a diver at
-/// ten metres breathes air at about two atmospheres.
-const double _seaPerMetre = 1025.0 * 9.81, _atmosphere = 101325.0;
+/// What the reef's sea is made of: the sea's preset, whose density is what
+/// a metre of it weighs and what a jacket's air displaces.
+final NativeLiquidProperties reefSea = NativeLiquidProperties.seawater;
 
-/// The pressure, atmospheres, [depth] metres under the surface.
-double pressureAt(double depth) =>
-    1.0 + math.max(depth, 0.0) * _seaPerMetre / _atmosphere;
+/// The pressure [depth] metres under the surface of [world]'s sea, in
+/// standard atmospheres: what the depth gauge reads. Its air's pressure and
+/// the weight of the water above, ρ g per metre — the sea's density, the
+/// world's gravity — over one standard atmosphere, 101 325 Pa
+/// ([standardAtmosphere]). A diver at ten metres breathes air at about two.
+double pressureAt(NativeWorld world, double depth) =>
+    (world.airPressure +
+        math.max(depth, 0.0) * reefSea.density * world.gravityMagnitude) /
+    standardAtmosphere;
+
+/// How many times the surface's pressure the water presses with [depth]
+/// metres under [world]'s sea: a ratio, no unit — what Boyle's law squeezes
+/// air drawn at the surface by. One at the surface, whatever the world's
+/// air; in the standard world, [pressureAt] to rounding.
+double squeezeAt(NativeWorld world, double depth) {
+  final perMetre = reefSea.density * world.gravityMagnitude;
+  final air = world.airPressure;
+  return 1.0 + math.max(depth, 0.0) * perMetre / air;
+}
 
 /// The diver and their gear.
 final class Diver {
@@ -41,7 +58,7 @@ final class Diver {
     // which is his shirt, shorts, hair and socks gone black and his skin
     // with them everywhere below his chin, where the shirt's collar ends.
     final neoprene = Vector4(0.025, 0.028, 0.035, 1.0);
-    final skin = figure.pieces.firstWhere((p) => p.name == 'Skin').colour;
+    final skin = figure.pieces.firstWhere((p) => p.name == 'Skin').color;
     final suited = Vector4(
       neoprene.x / skin.x,
       neoprene.y / skin.y,
@@ -63,11 +80,11 @@ final class Diver {
           roughness: 0.6,
         ),
       );
-    Material under(String name, Vector4 colour) =>
-        floor.under(name, colour, roughness: 0.4);
-    MeshNode part(MeshData mesh, String name, Vector4 colour) => MeshNode(
+    RenderMaterial under(String name, Vector4 color) =>
+        floor.under(name, color, roughness: 0.4);
+    MeshNode part(MeshData mesh, String name, Vector4 color) => MeshNode(
       DeviceMesh.upload(device, mesh),
-      under(name, colour),
+      under(name, color),
       name: name,
     );
     final lying = Quaternion.axisAngle(Vector3(0, 0, 1), -math.pi / 2);
@@ -205,11 +222,10 @@ final class Diver {
   /// 0.6 m long: a domed shoulder, a black rubber boot over its base and
   /// the two black cam bands that hold it to the jacket.
   static MeshData _tank() {
-    MeshData lathe(List<(double, double)> profile, Vector4 colour) =>
-        LatheShape(
-          profile: <Vector2>[for (final (r, y) in profile) Vector2(r, y)],
-          segments: 20,
-        ).build().withColor(colour);
+    MeshData lathe(List<(double, double)> profile, Vector4 color) => LatheShape(
+      profile: <Vector2>[for (final (r, y) in profile) Vector2(r, y)],
+      segments: 20,
+    ).build().withColor(color.toLinearColor());
     final rubber = Vector4(0.03, 0.03, 0.035, 1.0);
     return MeshData.merge(<MeshData>[
       lathe(<(double, double)>[
@@ -283,7 +299,7 @@ final class Diver {
     final indices = <int>[];
     // Four corners, wound so they face [outward]; the triangle's own normal
     // is what each is shaded by.
-    void quad(List<Vector3> corners, Vector3 outward, Vector4 colour) {
+    void quad(List<Vector3> corners, Vector3 outward, Vector4 color) {
       final ordered =
           (corners[1] - corners[0])
                   .cross(corners[2] - corners[0])
@@ -297,7 +313,7 @@ final class Diver {
       for (final p in ordered) {
         vertices.addAll(<double>[
           p.x, p.y, p.z, normal.x, normal.y, normal.z, 0, 0, //
-          1, 0, 0, 1, colour.x, colour.y, colour.z, colour.w,
+          1, 0, 0, 1, color.x, color.y, color.z, color.w,
         ]);
       }
       indices.addAll(<int>[
@@ -364,10 +380,10 @@ final class Diver {
   /// Air left in the tank, and in the jacket, litres as at the surface.
   double air = tankLitres, jacket = 0.0;
 
-  Vector3 get position => _world.positionOf(body);
+  Vector3 get position => _world.localPositionOf(body);
   Vector3 get velocity => _world.velocityOf(body);
 
-  /// Metres under the sea's [level], and the pressure there, atmospheres.
+  /// Metres under the sea's [level].
   double depthUnder(double level) => level - position.y;
 
   /// The tank's pressure, bar.
@@ -375,11 +391,13 @@ final class Diver {
 
   /// The jacket's volume where the diver is, litres: Boyle's law, the air in
   /// it squeezed by the water's weight.
-  double jacketVolume(double level) => jacket / pressureAt(depthUnder(level));
+  double jacketVolume(double level) =>
+      jacket / squeezeAt(_world, depthUnder(level));
 
   /// Minutes of air left at this depth, breathing as now.
   double minutesLeft(double level, {double effort = 0.0}) =>
-      air / (restingBreath * (1.0 + effort) * pressureAt(depthUnder(level)));
+      air /
+      (restingBreath * (1.0 + effort) * squeezeAt(_world, depthUnder(level)));
 
   /// A step: the fins pushing along [swim] (its length, up to one, how
   /// hard), the jacket filled by [fill] or emptied by [dump], each 0 to 1,
@@ -392,14 +410,16 @@ final class Diver {
     double dump = 0.0,
   }) {
     final effort = math.min(swim.length, 1.0);
-    final p = pressureAt(depthUnder(level));
+    final p = squeezeAt(_world, depthUnder(level));
     // Breathing: litres at depth, each one p litres from the tank.
     _draw(restingBreath * (1.0 + effort) / 60.0 * p * dt);
     if (fill > 0.0) jacket += _draw(inflates * fill * p * dt);
     if (dump > 0.0) jacket = math.max(0.0, jacket - dumps * dump * p * dt);
     // Past full, the over-pressure valve lets the rest out.
     jacket = math.min(jacket, jacketMost * p);
-    final lift = 1025.0 * 9.81 * jacket / p / 1000.0;
+    // Archimedes: the sea's weight of the jacket's litres.
+    final lift =
+        reefSea.density * _world.gravityMagnitude * jacket / p / 1000.0;
     final push = effort > 0.0
         ? swim.normalized() * (thrust * effort)
         : Vector3.zero();
@@ -412,6 +432,20 @@ final class Diver {
     final drawn = math.min(litres, air);
     air -= drawn;
     return drawn;
+  }
+
+  /// The tank and the jacket; the body is the world's.
+  Map<String, Object?> save() => <String, Object?>{
+    'air': air,
+    'jacket': jacket,
+  };
+
+  /// Back to what [save] wrote.
+  void restore(Object? saved) {
+    if (saved case {'air': final num air, 'jacket': final num jacket}) {
+      this.air = air.toDouble();
+      this.jacket = jacket.toDouble();
+    }
   }
 
   /// Out of the water at [at] with a full tank and an empty jacket.

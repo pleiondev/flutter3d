@@ -7,28 +7,28 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_demo_dungeon/src/cutscene_overlay.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_game_ui/screens.dart' show CutsceneOverlay;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Level _sanctum() => Level.fromJson(
   jsonDecode(File('assets/levels/sanctum.json').readAsStringSync())
       as Map<String, Object?>,
 );
 
-/// The sanctum staged as the game stages it, stepped through a [GameLoop]
-/// the way the application steps it, with a tape recording every step.
+/// The sanctum staged as the game stages it, stepped through an
+/// [EngineLoop] with the shooter installed as the application installs it,
+/// with a tape recording every step.
 final class _Run {
   _Run() {
     level.addTo(world);
@@ -40,8 +40,10 @@ final class _Run {
       inventory: startingInventory(),
     );
     world.update();
-    loop = GameLoop(input: input, onStep: staged.sim.step)
-      ..recorders.add(recorder);
+    loop = EngineLoop(
+      input: input,
+      plugins: <Flutter3dPlugin>[ShooterPlugin()..simulation = staged.sim],
+    )..recorders.add(recorder);
   }
 
   final Level level = _sanctum();
@@ -49,7 +51,7 @@ final class _Run {
   final InputState input = InputState();
   final InputTapeRecorder recorder = InputTapeRecorder(seed: 1);
   late final Staged staged;
-  late final GameLoop loop;
+  late final EngineLoop loop;
 
   GameSimulation get sim => staged.sim;
 
@@ -86,11 +88,13 @@ void main() {
     // Watching: the loop at the clock's speed, a frame at a time.
     final watched = _Run()..walkIn();
     while (watched.sim.cutscene != null) {
-      watched.loop.advance(1 / 60);
+      watched.loop.frame(1 / 60);
     }
     // Skipping: the rest of it in one go, through the loop.
     final skipped = _Run()..walkIn();
     skipped.loop.runSteps(skipped.sim.cutscene!.player.remaining);
+    // Mutation: have `runSteps` skip the recorders — the skipped tape is
+    // short by the cutscene's steps.
     expect(skipped.recorder.tape.steps, watched.recorder.tape.steps);
     expect(
       StateDigest.of(skipped.sim.save().toJson()),
@@ -125,13 +129,9 @@ void main() {
     final cutscene = level.staged.sim.cutscene!;
     final at = Vector3.zero();
     final look = Vector3.zero();
-    final fov = cutscene.player.cameraAt(at, look)!;
+    final fovY = cutscene.player.cameraAt(at, look)!;
     final camera = CameraNode(
-      projection: PerspectiveProjection(
-        fovYRadians: fov * 3.141592653589793 / 180,
-        near: 0.05,
-        far: 200.0,
-      ),
+      projection: PerspectiveProjection(fovY: fovY, near: 0.05, far: 200.0),
     )..setPositionFrom(at);
     camera.lookAt(look);
     final scene = level.loaded.scene..add(camera);
@@ -145,13 +145,13 @@ void main() {
       height: height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: const RenderSettings(),
     );
-    final pixels = await it.device.readPixels(result.frame);
+    final pixels = await it.device.readback(result.frame);
     await expectMatchesGolden((
-      pixels: pixels!.buffer.asUint8List(),
+      pixels: pixels.buffer.asUint8List(),
       width: width,
       height: height,
       drawCalls: result.drawCalls,
@@ -214,16 +214,15 @@ void main() {
   });
 }
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }

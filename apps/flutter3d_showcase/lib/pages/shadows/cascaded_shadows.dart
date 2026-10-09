@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class CascadedShadowsDemo extends ShowcaseDemo {
   int cascades = 3;
@@ -28,9 +27,9 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region floor
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.72, 0.7, 0.66, 1.0),
+      baseColor: LinearColor.fromSrgb(0.72, 0.7, 0.66, 1.0),
       roughness: 0.85,
     );
     final MeshNode floor = MeshNode(
@@ -59,8 +58,11 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0, castsShadow: true)
-        ..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
+      LightNode(
+        name: 'sun',
+        intensity: 3.0 * Photometric.legacyUnit,
+        castsShadow: true,
+      )..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
     );
     // #endregion sun
     return scene;

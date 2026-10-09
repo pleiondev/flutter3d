@@ -5,6 +5,19 @@
 /// included), so a plain import is all moving them here needs.
 library;
 
+/// `FLUTTER3D_MODELER_MODE`: `viewer` compiles a build that only looks.
+///
+///     flutter build web --dart-define=FLUTTER3D_MODELER_MODE=viewer
+///
+/// What models.pleion.dev serves at `/app/` while its `MODELS_EDITOR` is off
+/// (`cloud/tool/build_viewer.sh` passes it): the model is drawn, orbited and
+/// shown in its materials, normals or wireframe, and a preview picture is
+/// still captured for the owner — but there are no tools, panels or keys
+/// that edit, no autosave and no "Save to cabinet". Anything else, `editor`
+/// or nothing, is the whole application.
+const bool kViewerOnly =
+    String.fromEnvironment('FLUTTER3D_MODELER_MODE') == 'viewer';
+
 /// The model this build opens, as an asset path. Empty means the cube.
 ///
 /// A define rather than a file dialogue, because opening a file is `ui-14` and

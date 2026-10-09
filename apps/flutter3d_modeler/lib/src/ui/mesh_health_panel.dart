@@ -116,7 +116,7 @@ class _Row extends StatelessWidget {
     final AppLocalizations l = AppLocalizations.of(context);
     // The same three levels the status line and the console paint in, for the
     // same reason: an error is the one row somebody has to notice.
-    final Color colour = switch (issue.severity) {
+    final Color color = switch (issue.severity) {
       IssueSeverity.error => theme.colorScheme.error,
       IssueSeverity.warning => theme.colorScheme.tertiary,
       IssueSeverity.note => theme.colorScheme.onSurfaceVariant,
@@ -141,7 +141,7 @@ class _Row extends StatelessWidget {
                       issue.message,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(color: colour),
+                      style: theme.textTheme.bodySmall?.copyWith(color: color),
                     ),
                   ),
                 ),

@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LatheShapeDemo extends ShowcaseDemo {
   final List<MeshNode> _vessels = <MeshNode>[];
@@ -43,8 +42,8 @@ final class LatheShapeDemo extends ShowcaseDemo {
       ('open sweep', math.pi * 1.5, 36),
     ];
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.48, 0.56, 0.72)
-      ..ambientIntensity = 0.14;
+      ..ambientColor = LinearColor(0.48, 0.56, 0.72)
+      ..ambientIntensity = 0.14 * Photometric.legacyUnit;
     for (var i = 0; i < variants.length; i++) {
       final (String name, double sweep, int segments) = variants[i];
       final MeshData data = LatheShape(
@@ -53,9 +52,14 @@ final class LatheShapeDemo extends ShowcaseDemo {
         sweepAngle: sweep,
         name: name,
       ).build();
-      final Material clay = Material(
+      final RenderMaterial clay = RenderMaterial(
         name: '$name clay',
-        baseColor: Vector4(0.78, 0.35 + i * 0.12, 0.2 + i * 0.16, 1.0),
+        baseColor: LinearColor.fromSrgb(
+          0.78,
+          0.35 + i * 0.12,
+          0.2 + i * 0.16,
+          1.0,
+        ),
         roughness: 0.48,
         doubleSided: sweep < math.pi * 2.0,
       );
@@ -72,13 +76,13 @@ final class LatheShapeDemo extends ShowcaseDemo {
     // #region light
     scene
       ..add(
-        LightNode(name: 'key', intensity: 3.2)
+        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.34)),
       )
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 8.0,
+          intensity: 8.0 * Photometric.legacyUnit,
           range: 10.0,
           name: 'rim',
         )..setPosition(2.5, 3.8, -2.5),

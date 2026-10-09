@@ -3,7 +3,7 @@
 /// start`'s own `extraTools`.
 ///
 /// **Imported only from `mcp_bootstrap_io.dart`.** This file reaches
-/// `package:flutter3d_model_mcp`, whose barrel export reaches `dart:io`
+/// `package:flutter3d_mcp/model.dart`, whose export reaches `dart:io`
 /// through `ModelHttpServer` — see `mcp_ui_actions.dart`'s own doc comment
 /// for why that keeps this file, and not the interface it builds tools
 /// from, out of anything the web build compiles.
@@ -12,8 +12,9 @@ library;
 import 'dart:typed_data';
 
 import 'package:dart_mcp/server.dart';
-import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
+import 'package:flutter3d_mcp/model.dart';
 
+import 'mcp_tool.dart';
 import 'mcp_ui_actions.dart';
 
 /// [body] wrapped the way every tool `ModelMcpServer` offers already is:
@@ -21,7 +22,7 @@ import 'mcp_ui_actions.dart';
 /// every `ui.*` tool acts on the live screen [actions] already closes over
 /// rather than on the document [session] carries.
 ModelPictureTool _ui(
-  Tool tool,
+  ToolSpec tool,
   UiAnswer Function(Map<String, Object?> arguments) body,
 ) => ModelPictureTool(tool, (
   ModelSession session,
@@ -37,7 +38,7 @@ ModelPictureTool _ui(
 /// hands it a live [UiActions].
 List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.setMode',
       description:
           'Switches the mode switcher — object, mesh, material, animation, '
@@ -55,7 +56,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.setMode(arguments['mode']! as String),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.setSubmode',
       description:
           'Changes the open mode\'s own second switcher — the mesh mode\'s '
@@ -72,7 +73,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.setSubmode(arguments['submode']! as String),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.setTool',
       description:
           'Lights the tool rail\'s id, the same as clicking it. Omit "id" '
@@ -89,7 +90,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.setTool(arguments['id'] as String?),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.standardView',
       description:
           'Points the camera at one of the app\'s own six standard views.',
@@ -106,7 +107,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.standardView(arguments['view']! as String),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.frameSubject',
       description:
           'Frames the current subject in the viewport, the same framing a '
@@ -116,7 +117,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (Map<String, Object?> _) => actions.frameSubject(),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.openDialog',
       description:
           'Opens one of this app\'s own dialogs — export, lathe, autorig, '
@@ -136,7 +137,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.openDialog(arguments['dialog']! as String),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'ui.say',
       description:
           'Puts a sentence on the status line, marked to survive a routine '
@@ -157,7 +158,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   // which answers "is the shape right" and cannot answer "did the export
   // screen open" or "is the modifier I added showing in the stack".
   ModelPictureTool(
-    Tool(
+    mcpTool(
       name: 'ui.screenshot',
       description:
           'The application window as a picture — panels, rail, dialogs, '
@@ -180,7 +181,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   // side has `undo` and `redo` rather than `history {direction}`: an agent
   // reading a tool list learns what it can do from the names.
   _ui(
-    Tool(
+    mcpTool(
       name: 'play.start',
       description:
           'Opens Play: the document walked in rather than looked at. '
@@ -203,7 +204,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         actions.playStart(arguments['template']! as String),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'play.reload',
       description:
           'Brings the running game to the document as it is now, keeping '
@@ -215,7 +216,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (Map<String, Object?> arguments) => actions.playReload(),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'play.stop',
       description:
           'Closes the running game and comes back to the editor. Refuses '
@@ -225,7 +226,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (Map<String, Object?> arguments) => actions.playStop(),
   ),
   _ui(
-    Tool(
+    mcpTool(
       name: 'play.console',
       description:
           'What the running game is: which template, and where the body is '
@@ -237,7 +238,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (Map<String, Object?> arguments) => actions.playConsole(),
   ),
   ModelPictureTool(
-    Tool(
+    mcpTool(
       name: 'play.screenshot',
       description:
           'The running game as a picture. The same capture ui.screenshot '
@@ -261,7 +262,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   // tools are five: a tool list is what an agent learns the application
   // from.
   ModelPictureTool(
-    Tool(
+    mcpTool(
       name: 'gallery.list',
       description:
           'What the gallery offers: one line per item, each starting with '
@@ -286,13 +287,13 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (ModelSession session, Map<String, Object?> arguments) async {
       final UiAnswer answer = await actions.galleryList(
         category: arguments['category'] as String?,
-        licence: arguments['licence'] as String?,
+        license: arguments['licence'] as String?,
       );
       return (did: answer.did, says: answer.says, png: null);
     },
   ),
   ModelPictureTool(
-    Tool(
+    mcpTool(
       name: 'gallery.insert',
       description:
           'Inserts a gallery item beside what is already open — one undo '
@@ -317,7 +318,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   ),
   // `ux-25`: the command palette's own list, and the same door it presses.
   _ui(
-    Tool(
+    mcpTool(
       name: 'run_command',
       description:
           'Runs one of the editor\'s own commands by id — the same list the '
@@ -351,7 +352,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   ),
   // `ux-26`: the same log the person's own console panel shows.
   _ui(
-    Tool(
+    mcpTool(
       name: 'get_console',
       description:
           'Everything the editor has said this session — what a person did, '

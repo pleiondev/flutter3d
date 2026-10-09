@@ -8,14 +8,13 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RenderTexturesDemo extends ShowcaseDemo {
   bool everyFrame = true;
   bool _retakeAsked = false;
 
   late final CameraNode _watcher;
-  late final RenderTexture _picture;
+  late final RenderView _picture;
   late final MeshNode _spinner;
   late final Renderer _renderer;
   double _age = 0.0;
@@ -34,10 +33,10 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     String name,
     Vector3 size,
     Vector3 at,
-    Vector4 colour,
+    Vector4 color,
   ) => MeshNode(
     DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-    Material(name: name, baseColor: colour, roughness: 0.7),
+    RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.7),
     name: name,
   )..setPositionFrom(at);
 
@@ -45,8 +44,8 @@ final class RenderTexturesDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _renderer = context.renderer;
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.55, 0.6, 0.7)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         _slab(
           context,
@@ -66,7 +65,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.0)
+        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.6, -1.0, -0.4)),
       );
     _spinner = _slab(
@@ -83,7 +82,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // of its own. The texture sets its aspect.
     _watcher = CameraNode(name: 'watcher')
       ..projection = const PerspectiveProjection(
-        fovYRadians: math.pi / 4,
+        fovY: math.pi / 4,
         near: 0.1,
         far: 50.0,
       )
@@ -93,12 +92,12 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // #endregion watcher
 
     // #region texture
-    _picture = RenderTexture.create(
+    _picture = RenderView.texture(
       context.device,
       camera: _watcher,
       width: 160,
       height: 120,
-      clearColor: Vector4(0.35, 0.45, 0.6, 1.0),
+      clearColorSrgb: Vector4(0.35, 0.45, 0.6, 1.0),
     );
     // #endregion texture
 
@@ -110,7 +109,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
         context.device,
         const PlaneShape(width: 1.6, depth: 1.2).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'screen',
         lighting: LightingModel.unlit,
         albedo: _picture.texture,
@@ -137,7 +136,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // The monitor is left out of its own picture, and the texture joins the
     // scene, which draws it before the frame's own meshes.
     _picture.excluded.addAll(<MeshNode>[screen, stand]);
-    scene.addRenderTexture(_picture);
+    scene.addTextureView(_picture);
     // #endregion add
     return scene;
   }
@@ -149,7 +148,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // #region refresh
     // Every frame, or once and then only when asked: a picture of a room
     // nobody changes does not need taking sixty times a second.
-    _picture.refreshEveryFrame = everyFrame;
+    _picture.options = _picture.options.copyWith(refreshEveryFrame: everyFrame);
     if (_retakeAsked) {
       _retakeAsked = false;
       _picture.invalidate();
@@ -158,7 +157,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
   }
 
   @override
-  void dispose() => _renderer.releaseTextureAfterFrame(_picture.texture);
+  void dispose() => _renderer.releaseTextureAfterFrame(_picture.texture!);
 
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
@@ -192,3 +191,6 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // #endregion check
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

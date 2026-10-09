@@ -6,7 +6,7 @@ import 'package:vector_math/vector_math.dart';
 /// name in [surfaces], and a picture in `assets/blocks/`.
 typedef BlockKind = ({
   String name,
-  Vector4 colour,
+  Vector4 color,
   String top,
   String side,
   String bottom,
@@ -27,7 +27,7 @@ typedef BlockKind = ({
 /// places and a beach is wetter in others: a share of the colour, nought for
 /// what people made and lay in rows.
 typedef Surface = ({
-  Vector4 colour,
+  Vector4 color,
   double roughness,
   double metallic,
   double bumps,
@@ -52,7 +52,7 @@ const int gold = Voxels.firstPlaced + 2;
 /// a chunk draws the two in one.
 final Map<String, Surface> surfaces = <String, Surface>{
   'stone': (
-    colour: Vector4(0.4, 0.39, 0.36, 1.0),
+    color: Vector4(0.4, 0.39, 0.36, 1.0),
     roughness: 0.9,
     metallic: 0.0,
     // The rock's own map is a cliff's, deep for a metre of it.
@@ -61,7 +61,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.2,
   ),
   'dirt': (
-    colour: Vector4(0.46, 0.38, 0.28, 1.0),
+    color: Vector4(0.46, 0.38, 0.28, 1.0),
     roughness: 1.0,
     metallic: 0.0,
     bumps: 1.0,
@@ -69,7 +69,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.2,
   ),
   'grass_top': (
-    colour: Vector4(0.38, 0.43, 0.19, 1.0),
+    color: Vector4(0.38, 0.43, 0.19, 1.0),
     roughness: 0.95,
     metallic: 0.0,
     bumps: 1.0,
@@ -77,7 +77,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.35,
   ),
   'grass_side': (
-    colour: Vector4(0.44, 0.38, 0.26, 1.0),
+    color: Vector4(0.44, 0.38, 0.26, 1.0),
     roughness: 1.0,
     metallic: 0.0,
     bumps: 1.0,
@@ -85,7 +85,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.2,
   ),
   'sand': (
-    colour: Vector4(0.7, 0.64, 0.51, 1.0),
+    color: Vector4(0.7, 0.64, 0.51, 1.0),
     roughness: 1.0,
     metallic: 0.0,
     bumps: 1.0,
@@ -93,7 +93,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.22,
   ),
   'brick': (
-    colour: Vector4(0.59, 0.46, 0.39, 1.0),
+    color: Vector4(0.59, 0.46, 0.39, 1.0),
     roughness: 0.85,
     metallic: 0.0,
     bumps: 1.0,
@@ -101,7 +101,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
     mottle: 0.0,
   ),
   'planks': (
-    colour: Vector4(0.41, 0.31, 0.23, 1.0),
+    color: Vector4(0.41, 0.31, 0.23, 1.0),
     roughness: 0.75,
     metallic: 0.0,
     bumps: 1.0,
@@ -111,7 +111,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
   // Not wholly metal: with no sky reflected in it, a pure metal is lit by
   // its highlight alone, and gold in shade went the brown of old bronze.
   'gold': (
-    colour: Vector4(0.91, 0.78, 0.46, 1.0),
+    color: Vector4(0.91, 0.78, 0.46, 1.0),
     roughness: 0.35,
     metallic: 0.6,
     bumps: 1.0,
@@ -123,7 +123,7 @@ final Map<String, Surface> surfaces = <String, Surface>{
 /// A block that shows [surface] on every face.
 BlockKind _plain(String name, String surface) => (
   name: name,
-  colour: surfaces[surface]!.colour,
+  color: surfaces[surface]!.color,
   top: surface,
   side: surface,
   bottom: surface,
@@ -138,7 +138,7 @@ final Map<int, BlockKind> blockKinds = <int, BlockKind>{
   Voxels.dirt: _plain('dirt', 'dirt'),
   Voxels.grass: (
     name: 'grass',
-    colour: surfaces['grass_top']!.colour,
+    color: surfaces['grass_top']!.color,
     top: 'grass_top',
     side: 'grass_side',
     bottom: 'dirt',

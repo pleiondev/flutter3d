@@ -8,26 +8,24 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/depths.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 Future<LevelReady> _open(String asset) async {

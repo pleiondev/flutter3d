@@ -13,7 +13,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FlameCameraBridgeDemo extends ShowcaseDemo {
   late final String _report;
@@ -87,12 +86,12 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
           ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
     _view = RenderView(
       camera: _lens,
-      clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
     );
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(_lens)
       ..add(
         MeshNode(
@@ -100,12 +99,15 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(40.0, 0.1, 40.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.3, 0.33, 0.32, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.3, 0.33, 0.32, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
     for (final (int i, (double, double) at) in _pillars.indexed) {
@@ -115,9 +117,9 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(0.6, 0.4 + 0.15 * (i % 4), 0.6)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'pillar $i',
-            baseColor: Vector4(
+            baseColor: LinearColor.fromSrgb(
               0.55 + 0.4 * math.sin(i * 0.9),
               0.5 + 0.3 * math.sin(i * 1.7 + 1.0),
               0.4 + 0.3 * math.sin(i * 2.3 + 2.0),

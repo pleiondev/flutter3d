@@ -4,10 +4,11 @@
 /// Quoted by `particle_modifiers.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ParticleModifiersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -47,7 +48,10 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // #region effect
     _debrisEffect = ParticleEffect(
       count: _count,
-      emitter: const ConeEmitter(speed: Range(1.5, 3.0), halfAngleDegrees: 30),
+      emitter: const ConeEmitter(
+        speed: Range(1.5, 3.0),
+        halfAngle: 30.0 * math.pi / 180.0,
+      ),
       lifetime: const Range(1.5, 2.5),
       size: const Range(0.06, 0.1),
       color: Vector4(0.9, 0.6, 0.3, 1.0),
@@ -61,13 +65,13 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
       Vector3.zero(),
       direction: Vector3(0.0, 1.0, 0.0),
     );
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles),
     );
     // #endregion burst
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

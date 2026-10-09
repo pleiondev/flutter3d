@@ -18,7 +18,7 @@ void main() {
       expect(sections, contains(PropertiesSection.transform));
       expect(sections, contains(PropertiesSection.modifiers));
       // mat-04a-n's own row: phase 1 gets a material panel before the
-      // phase-2 `Material` workspace exists, and object mode is where it
+      // phase-2 `RenderMaterial` workspace exists, and object mode is where it
       // lives until then.
       expect(sections, contains(PropertiesSection.materials));
       // Mutation: leave `lastOperation`/`selection`/`mesh` in every mode
@@ -101,7 +101,7 @@ void main() {
       // edited in Object mode, with no hint and no link.
       //
       // Mutation: fall through to the `_ => {}` default, which is what this
-      // did. Material mode shows the three cross-mode utility sections and
+      // did. RenderMaterial mode shows the three cross-mode utility sections and
       // nothing about materials at all.
       expect(sections, contains(PropertiesSection.materials));
       expect(sections, contains(PropertiesSection.objects));

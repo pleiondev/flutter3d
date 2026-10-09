@@ -15,7 +15,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/fake_graphics_backend.dart';
 
@@ -96,23 +95,22 @@ void main() {
       // and switching to it shows two world units whatever was being looked at
       // — a model framed at ten metres vanishes and one framed at a centimetre
       // fills the screen.
-      final shown =
-          2.0 * orbit.distance * math.tan(perspective.fovYRadians / 2);
+      final shown = 2.0 * orbit.distance * math.tan(perspective.fovY / 2);
       expect(ortho.height, closeTo(shown, 1e-6));
     });
 
     test('switching back does not lose the field of view', () {
       final camera = CameraNode();
-      final orbit = OrbitController(camera, distance: 4.0, framingFov: 0.6);
+      final orbit = OrbitController(camera, distance: 4.0, framingFovY: 0.6);
       useLens(camera, ViewLens.orthographic, orbit);
       useLens(camera, ViewLens.perspective, orbit);
 
       // Mutation: build the perspective lens with the constructor's default
-      // rather than `orbit.framingFov`, and a viewport set to a narrow lens
+      // rather than `orbit.framingFovY`, and a viewport set to a narrow lens
       // widens to forty-five degrees the first time somebody looks at it
       // orthographically and back.
       expect(
-        (camera.projection as PerspectiveProjection).fovYRadians,
+        (camera.projection as PerspectiveProjection).fovY,
         closeTo(0.6, 1e-9),
       );
     });
@@ -172,7 +170,7 @@ void main() {
       final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final MeshNode node = stage.subject as MeshNode;
-      final Material own = node.material;
+      final RenderMaterial own = node.material;
 
       const base = RenderSettings();
       final normals = settingsFor(ShadingMode.normals, base);

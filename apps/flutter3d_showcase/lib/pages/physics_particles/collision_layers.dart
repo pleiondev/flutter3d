@@ -7,7 +7,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Which bit means what is a game's own business; `Layers.all` is the only
 /// meaning this package ships. These two are named here, once, for this page.
@@ -88,12 +87,15 @@ final class CollisionLayersDemo extends ShowcaseDemo {
             context.device,
             SphereShape(segments: 20, rings: 10).build(),
           ),
-          Material(name: 'zone', baseColor: Vector4(0.3, 0.7, 0.9, 0.6)),
+          RenderMaterial(
+            name: 'zone',
+            baseColor: LinearColor.fromSrgb(0.3, 0.7, 0.9, 0.6),
+          ),
           name: 'zone',
         )..setPositionFrom(_zoneCentre),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
   }

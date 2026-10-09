@@ -21,11 +21,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/weapon_models.dart';
 import 'package:flutter3d_game_shooter/bridge.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 120;
@@ -45,8 +44,8 @@ Future<Uint8List> _drawn({required bool stepped}) async {
           device,
           CuboidShape(size: Vector3(0.12, 0.14, 0.42)).build(),
         ),
-        Material(
-          baseColor: Vector4(0.56, 0.57, 0.60, 1.0),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.56, 0.57, 0.60, 1.0),
           metallic: 1.0,
           roughness: 0.35,
           lighting: LightingModel.pbr,
@@ -68,11 +67,7 @@ Future<Uint8List> _drawn({required bool stepped}) async {
   // nothing.
   final world = Scene();
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.05,
-      far: 50.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.05, far: 50.0),
   );
   world.add(camera);
 
@@ -80,20 +75,20 @@ Future<Uint8List> _drawn({required bool stepped}) async {
     device: device,
     fallbackAlbedo: it.albedo,
     fallbackNormal: it.normal,
-  )..addNode(view.plugin);
+  )..renderSteps.addNode(view.plugin);
 
   final result = renderer.render(
     width: _width,
     height: _height,
     scene: world,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels brighter than [floor], within the given fraction of the frame.

@@ -32,3 +32,4 @@ colour picture is kept, embedded in the glb.
 |---|---|---|
 | `textures/sand.jpg` | Ground093C, colour, its contrast stretched | https://ambientcg.com/view?id=Ground093C |
 | `textures/reef_rock.png` | Rock053, colour with its displacement as alpha, 768 px | https://ambientcg.com/view?id=Rock053 |
+| `textures/reef_rock_normal.jpg` | Rock053, its normal map (OpenGL), 768 px | https://ambientcg.com/view?id=Rock053 |

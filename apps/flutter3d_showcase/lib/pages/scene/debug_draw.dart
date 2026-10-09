@@ -33,9 +33,9 @@ final class DebugDrawDemo extends ShowcaseDemo {
     ).build(layout: VertexLayout.skinned);
     final MeshNode body = MeshNode(
       DeviceMesh.upload(context.device, bodyData),
-      Material(
+      RenderMaterial(
         name: 'blue body',
-        baseColor: Vector4(0.12, 0.42, 0.78, 1.0),
+        baseColor: LinearColor.fromSrgb(0.12, 0.42, 0.78, 1.0),
         roughness: 0.48,
       ),
       name: 'inspected capsule',
@@ -64,14 +64,14 @@ final class DebugDrawDemo extends ShowcaseDemo {
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.38, 0.46, 0.62)
-      ..ambientIntensity = 0.14
+      ..ambientColor = LinearColor(0.38, 0.46, 0.62)
+      ..ambientIntensity = 0.14 * Photometric.legacyUnit
       ..add(hip)
       ..add(body)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 14.0,
+          intensity: 14.0 * Photometric.legacyUnit,
           range: 8.0,
           name: 'debugged light',
         )..setPosition(-2.2, 3.2, 2.0),
@@ -81,7 +81,7 @@ final class DebugDrawDemo extends ShowcaseDemo {
   }
 
   // #region options
-  DebugDrawOptions get _debug => DebugDrawOptions(
+  DebugDrawSettings get _debug => DebugDrawSettings(
     bounds: _bounds,
     normals: _normals,
     axes: _axes,

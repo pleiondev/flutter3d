@@ -28,7 +28,6 @@ import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 100;
@@ -80,10 +79,10 @@ _rig() {
   stage.orbit
     ..distance = 0.9
     ..apply();
-  final overlay = renderer.addContributor(
+  final overlay = renderer.renderSteps.addContributor(
     MeshOverlay(
-      vertexShader: renderer.debugLineVertexShader,
-      fragmentShader: renderer.debugLineFragmentShader,
+      vertexShader: renderer.shaders['DebugLineVertex']!,
+      fragmentShader: renderer.shaders['DebugLine']!,
     ),
   );
   return (device: it.device, renderer: renderer, stage: stage, o: overlay);
@@ -101,9 +100,9 @@ Future<Uint8List> _draw(
     views: stage.views(),
     settings: const RenderSettings(tonemap: false, exposure: 1.0),
   );
-  final pixels = await device.readPixels(result.frame);
+  final pixels = await device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Writes the move gizmo at the origin into [overlay], through geometry and

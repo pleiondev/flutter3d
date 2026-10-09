@@ -91,11 +91,11 @@ void main() {
     // the last, at the height they stand at.
     final rests = <Brush>[
       for (final brush in level.brushes)
-        if (brush.centre.x.abs() < 1.0 &&
-            brush.centre.z > planks.first.position.z &&
-            brush.centre.z < planks.last.position.z &&
-            brush.centre.y > -1.0 &&
-            brush.centre.y < 1.0)
+        if (brush.center.x.abs() < 1.0 &&
+            brush.center.z > planks.first.position.z &&
+            brush.center.z < planks.last.position.z &&
+            brush.center.y > -1.0 &&
+            brush.center.y < 1.0)
           brush,
     ];
     expect(
@@ -116,7 +116,7 @@ void main() {
     final still = <double>[
       pour.position.z - pour.vector('size')!.z / 2.0,
       pour.position.z + pour.vector('size')!.z / 2.0,
-      for (final brush in rests) brush.centre.z,
+      for (final brush in rests) brush.center.z,
     ];
     for (final plank in planks) {
       final away = still
@@ -149,9 +149,9 @@ void main() {
 
     final plates = <Brush>[
       for (final brush in level.brushes)
-        if ((brush.centre.x + 14.0).abs() < 1.0 &&
-            brush.centre.y > -1.0 &&
-            brush.centre.y < 1.0)
+        if ((brush.center.x + 14.0).abs() < 1.0 &&
+            brush.center.y > -1.0 &&
+            brush.center.y < 1.0)
           brush,
     ];
     expect(plates, hasLength(1), reason: 'the catwalk is not one plate');
@@ -160,7 +160,7 @@ void main() {
       greaterThanOrEqualTo(over),
       reason: 'the catwalk is ${plates.first.size.z} m over $over m of metal',
     );
-    expect(plates.first.centre.z, closeTo(along, 0.5));
+    expect(plates.first.center.z, closeTo(along, 0.5));
   });
 
   test('the anvils cross the tap hole in hops a runner can make', () {
@@ -178,23 +178,23 @@ void main() {
 
     final anvils = <Brush>[
       for (final brush in level.brushes)
-        if (brush.centre.x.abs() < 1.0 &&
-            brush.centre.z > near &&
-            brush.centre.z < far &&
-            brush.centre.y + brush.size.y / 2.0 > 0.0)
+        if (brush.center.x.abs() < 1.0 &&
+            brush.center.z > near &&
+            brush.center.z < far &&
+            brush.center.y + brush.size.y / 2.0 > 0.0)
           brush,
-    ]..sort((Brush a, Brush b) => a.centre.z.compareTo(b.centre.z));
+    ]..sort((Brush a, Brush b) => a.center.z.compareTo(b.center.z));
 
     expect(anvils.length, greaterThanOrEqualTo(3));
 
     var edge = near;
     for (final anvil in anvils) {
       expect(
-        anvil.centre.z - anvil.size.z / 2.0 - edge,
+        anvil.center.z - anvil.size.z / 2.0 - edge,
         lessThan(_gap),
-        reason: 'the hop onto the anvil at ${anvil.centre.z} is too far',
+        reason: 'the hop onto the anvil at ${anvil.center.z} is too far',
       );
-      edge = anvil.centre.z + anvil.size.z / 2.0;
+      edge = anvil.center.z + anvil.size.z / 2.0;
     }
     expect(far - edge, lessThan(_gap), reason: 'the far bank is out of reach');
   });
@@ -215,11 +215,11 @@ void main() {
     final steps = <double>[
       0.0,
       for (final brush in level.brushes)
-        if ((brush.centre.x - key.position.x).abs() < brush.size.x / 2.0 &&
-            brush.centre.z > 60.0 &&
-            brush.centre.z < 90.0 &&
-            brush.centre.y > 0.0)
-          brush.centre.y + brush.size.y / 2.0,
+        if ((brush.center.x - key.position.x).abs() < brush.size.x / 2.0 &&
+            brush.center.z > 60.0 &&
+            brush.center.z < 90.0 &&
+            brush.center.y > 0.0)
+          brush.center.y + brush.size.y / 2.0,
     ]..sort();
 
     expect(steps.length, greaterThan(3), reason: 'the stair is not there');
@@ -259,8 +259,8 @@ void main() {
     final deck = lift.position.y + lift.vector('size')!.y / 2.0 + travel.y;
     final gantry = <double>[
       for (final brush in level.brushes)
-        if (brush.material == 'wood' && brush.centre.y > 5.0)
-          brush.centre.y + brush.size.y / 2.0,
+        if (brush.material == 'wood' && brush.center.y > 5.0)
+          brush.center.y + brush.size.y / 2.0,
     ];
     expect(gantry, isNotEmpty, reason: 'the gantry is gone');
     expect(

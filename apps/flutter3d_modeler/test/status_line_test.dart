@@ -74,7 +74,7 @@ Future<void> show(
   ),
 );
 
-Color colourOf(WidgetTester tester, String startsWith) {
+Color colorOf(WidgetTester tester, String startsWith) {
   final text = tester.widget<Text>(
     find.byWidgetPredicate(
       (Widget w) => w is Text && (w.data ?? '').startsWith(startsWith),
@@ -116,10 +116,10 @@ void main() {
       WidgetTester tester,
     ) async {
       await show(tester, ExportReadiness.check(withQuads()));
-      final warm = colourOf(tester, 'exports with a warning');
+      final warm = colorOf(tester, 'exports with a warning');
 
       await show(tester, ExportReadiness.check(withNothing()));
-      final bad = colourOf(tester, 'will not export');
+      final bad = colorOf(tester, 'will not export');
 
       // Three levels, each meaning one thing. Mutation: give the warning and
       // the refusal the same colour and the bar goes back to two states, which
@@ -131,10 +131,10 @@ void main() {
       WidgetTester tester,
     ) async {
       await show(tester, ExportReadiness.check(const ModelProject()));
-      final quiet = colourOf(tester, 'ready to export');
+      final quiet = colorOf(tester, 'ready to export');
 
       await show(tester, ExportReadiness.check(withQuads()));
-      final warm = colourOf(tester, 'exports with a warning');
+      final warm = colorOf(tester, 'exports with a warning');
 
       // The old reasoning, kept: a bar that is orange whenever anything at all
       // is imperfect is a bar people stop reading. Quiet has to be quiet.
@@ -376,14 +376,14 @@ void main() {
         said: 'cannot delete: nothing is selected',
         saidIsRefusal: true,
       );
-      final Color refused = colourOf(tester, 'cannot delete');
+      final Color refused = colorOf(tester, 'cannot delete');
 
       await show(
         tester,
         ExportReadiness.check(const ModelProject()),
         said: 'saved',
       );
-      final Color plain = colourOf(tester, 'saved');
+      final Color plain = colorOf(tester, 'saved');
 
       // Mutation: paint both the same, which is what this did — a refusal
       // read exactly like "saved", in a line people stop reading after a

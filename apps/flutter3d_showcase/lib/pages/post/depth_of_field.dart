@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DepthOfFieldDemo extends ShowcaseDemo {
   double focusDistance = 4.0;
@@ -35,9 +34,9 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           post,
-          Material(
+          RenderMaterial(
             name: 'post $i',
-            baseColor: Vector4(0.85, 0.4 + i * 0.08, 0.2, 1.0),
+            baseColor: LinearColor.fromSrgb(0.85, 0.4 + i * 0.08, 0.2, 1.0),
           ),
           name: 'post $i',
         )..setPosition(0.0, 0.0, z),
@@ -45,7 +44,7 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
     }
     // #endregion row
     return scene..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
     );
   }

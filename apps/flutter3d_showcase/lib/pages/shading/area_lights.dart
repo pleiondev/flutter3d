@@ -9,7 +9,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AreaLightsDemo extends ShowcaseDemo {
   double width = 2.5;
@@ -18,8 +17,8 @@ final class AreaLightsDemo extends ShowcaseDemo {
 
   late final LightNode _window;
   late final MeshNode _pane;
-  late final Material _glass;
-  late final Material _floorMaterial;
+  late final RenderMaterial _glass;
+  late final RenderMaterial _floorMaterial;
 
   /// A plane is built lying down, facing +Y; a quarter turn about X stands
   /// it up facing +Z, into the room.
@@ -39,20 +38,25 @@ final class AreaLightsDemo extends ShowcaseDemo {
     // #region window
     // The panel faces the node's local -Z. Set in the back wall and aimed
     // at a point in front of it, it shines into the room.
-    _window = LightNode(name: 'window', type: LightType.area, intensity: 8.0)
-      ..width = width
-      ..height = height
-      ..setPosition(0.0, 0.3, -1.45);
+    _window =
+        LightNode(
+            name: 'window',
+            type: LightType.area,
+            intensity: 8.0 * Photometric.legacyUnit,
+          )
+          ..width = width
+          ..height = height
+          ..setPosition(0.0, 0.3, -1.45);
     _window.lookAt(Vector3(0.0, 0.3, 3.0));
     // #endregion window
 
     // #region pane
     // The light itself is not drawn. A glowing rectangle of the same size,
     // just behind it, is what a person sees as the window.
-    _glass = Material(
+    _glass = RenderMaterial(
       name: 'window glass',
-      baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-      emissive: Vector3(3.0, 3.0, 2.8),
+      baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      emissive: LinearColor(3.0, 3.0, 2.8),
     );
     _pane =
         MeshNode(
@@ -74,9 +78,9 @@ final class AreaLightsDemo extends ShowcaseDemo {
               context.device,
               const PlaneShape(width: 6, depth: 4).build(),
             ),
-            Material(
+            RenderMaterial(
               name: 'wall',
-              baseColor: Vector4(0.6, 0.58, 0.55, 1.0),
+              baseColor: LinearColor.fromSrgb(0.6, 0.58, 0.55, 1.0),
               roughness: 0.9,
               doubleSided: true,
             ),
@@ -88,9 +92,9 @@ final class AreaLightsDemo extends ShowcaseDemo {
 
     // #region floor
     // A floor of its own, so its roughness can go down to a polish.
-    _floorMaterial = Material(
+    _floorMaterial = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.45, 0.45, 0.47, 1.0),
+      baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.47, 1.0),
       roughness: floorRoughness,
     );
     final MeshNode floor = MeshNode(
@@ -121,7 +125,7 @@ final class AreaLightsDemo extends ShowcaseDemo {
     // window is dimmer per square metre. The pane dims by the same ratio,
     // measured from the 2.5 by 1.5 it starts at.
     final double dim = (2.5 * 1.5) / (width * height);
-    _glass.emissive.setValues(3.0 * dim, 3.0 * dim, 2.8 * dim);
+    _glass.emissive = LinearColor(3.0 * dim, 3.0 * dim, 2.8 * dim);
     _floorMaterial.roughness = floorRoughness;
     // #endregion live
   }

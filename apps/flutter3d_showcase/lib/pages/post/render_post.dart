@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RenderPostDemo extends ShowcaseDemo {
   double threshold = 0.6;
@@ -44,11 +43,11 @@ final class RenderPostDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(2.4, 0.5, 0.2)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'bar',
-            baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-            emissive: Vector3(1.0, 0.55, 0.2),
-            emissiveStrength: 6.0,
+            baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+            emissive: LinearColor(1.0, 0.55, 0.2),
+            emissiveStrength: 6.0 * Photometric.legacyNits,
           ),
           name: 'bar',
         ),
@@ -56,13 +55,13 @@ final class RenderPostDemo extends ShowcaseDemo {
       ..add(eye);
     _sourceView = RenderView(
       camera: eye,
-      clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
     );
     // #endregion source
 
     // #region screen
     _output = context.device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: context.device.defaultColorFormat,
@@ -73,7 +72,11 @@ final class RenderPostDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(3.2, 1.8, 0.02)).build(),
       ),
-      Material(name: 'screen', lighting: LightingModel.unlit, albedo: _output),
+      RenderMaterial(
+        name: 'screen',
+        lighting: LightingModel.unlit,
+        albedo: _output,
+      ),
       name: 'screen',
     );
     // #endregion screen

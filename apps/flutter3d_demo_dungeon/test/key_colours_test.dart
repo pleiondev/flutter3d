@@ -9,11 +9,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show ColorVision;
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/fixture_looks.dart';
 import 'package:flutter3d_demo_dungeon/src/hud.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show ColorRoles, GameConfig;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ColorRoles, GameSettingKeys, GameSettings;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -26,7 +27,7 @@ Map<String, Set<String>> _keysByLevel() => <String, Set<String>>{
         for (final entity in Level.fromJson(
           jsonDecode(file.readAsStringSync()) as Map<String, Object?>,
         ).ofType('key'))
-          if (entity.string('color') case final String colour) colour,
+          if (entity.string('color') case final String color) color,
       },
 };
 
@@ -56,13 +57,15 @@ void main() {
   });
 
   test('every key a level has is a colour the player can change', () {
-    final config = GameConfig();
     for (final key in _keysByLevel().values.expand((Set<String> s) => s)) {
       expect(dungeonColours.named('key.$key'), isNotNull, reason: key);
     }
-    config.setSetting('colour.key.brass', 4);
+    final config = const GameSettings().withValue(
+      GameSettingKeys.colorRole('key.brass'),
+      4,
+    );
     expect(
-      dungeonColours.colourOf('key.brass', config, fallback: Colors.white),
+      dungeonColours.colorOf('key.brass', config, fallback: Colors.white),
       ColorRoles.palette[3],
     );
   });
@@ -120,7 +123,7 @@ Hud _hud({Map<String, Color> keyColours = keyPipColours}) => Hud(
   message: '',
   messageOpacity: 0,
   keys: const <String>{'brass', 'iron'},
-  armour: 0,
+  armor: 0,
   pouches: const <AmmoType, int>{},
   powers: const <String, double>{},
   keyColours: keyColours,

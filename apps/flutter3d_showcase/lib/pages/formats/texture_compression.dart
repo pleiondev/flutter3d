@@ -19,7 +19,6 @@ import 'package:flutter3d_core/formats.dart'
         encodeEtc2Rgb8,
         writeKtx2;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TextureCompressionDemo extends ShowcaseDemo {
   late final Rgba8Image _source;
@@ -74,12 +73,12 @@ final class TextureCompressionDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, CuboidShape().build()),
-          Material(baseColor: Vector4(0.7, 0.7, 0.75, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.75, 1.0)),
           name: 'block',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

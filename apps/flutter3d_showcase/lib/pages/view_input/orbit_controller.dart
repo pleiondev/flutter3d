@@ -18,9 +18,9 @@ final class OrbitControllerDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _orbit = context.orbit;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.6, 0.66, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.66, 0.7, 1.0),
       roughness: 0.7,
     );
     final MeshNode box = MeshNode(
@@ -51,7 +51,7 @@ final class OrbitControllerDemo extends ShowcaseDemo {
     return Scene()
       ..add(box)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

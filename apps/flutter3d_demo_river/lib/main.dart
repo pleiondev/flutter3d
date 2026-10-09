@@ -25,7 +25,7 @@ import 'dart:async';
 
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
 
@@ -94,7 +94,7 @@ class _RiverScreenState extends State<RiverScreen> {
 
   @override
   void dispose() {
-    unawaited(_game.sound.close());
+    unawaited(_game.sound.dispose());
     // Its worlds and meshes go before the device they are drawn on.
     _water.close();
     // The world lives with the game, not the widget: it goes here.

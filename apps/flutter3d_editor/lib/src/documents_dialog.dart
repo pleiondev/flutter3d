@@ -4,14 +4,14 @@
 ///
 /// **Text, not a node graph.** A tree is a small JSON document that the
 /// level keeps as it is written, the same one an agent sends over
-/// `setBehaviour`; a box-and-wire editor would be a second way to write it
+/// `setBehavior`; a box-and-wire editor would be a second way to write it
 /// with its own ways to be wrong, and this is the editor where a person and
 /// an agent should be able to read each other's work.
 library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Sequence;
 
@@ -21,9 +21,9 @@ Future<bool> showBehaviours(BuildContext context, Editing editing) => _show(
   DocumentsDialog(
     title: 'Behaviours',
     keyPrefix: 'behaviour',
-    documents: () => editing.level.behaviours,
-    write: editing.setBehaviour,
-    remove: editing.removeBehaviour,
+    documents: () => editing.level.behaviors,
+    write: editing.setBehavior,
+    remove: editing.removeBehavior,
     fresh: '{\n  "kind": "wait",\n  "seconds": 1\n}',
   ),
 );

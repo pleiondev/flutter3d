@@ -20,9 +20,8 @@
 /// dropped corner.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// Moves [camera] to [step]'s own position and yaw, and shows or hides
 /// whichever of [nodes] the step names in its `visible`/`hidden` lists.
@@ -45,7 +44,7 @@ void applyLessonStepToCamera(
   void showEach(Object? raw, bool visible) {
     if (raw is! List) return;
     for (final name in raw) {
-      if (name is String) nodes[name]?.visible = visible;
+      if (name is String) nodes[name]?.isVisible = visible;
     }
   }
 

@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
 RaceReadout _readout({
-  String tyres = 'road',
+  String tireSet = 'road',
   bool refused = false,
   double damage = 0.0,
 }) => RaceReadout(
@@ -30,7 +30,7 @@ RaceReadout _readout({
   lapTime: 12.5,
   bestLap: null,
   record: null,
-  tyres: tyres,
+  tireSet: tireSet,
   tyresRefused: refused,
   damage: damage,
   wrongWay: false,
@@ -51,7 +51,7 @@ void main() {
   testWidgets('the screen says which tyres are on', (
     WidgetTester tester,
   ) async {
-    await _show(tester, _readout(tyres: 'slicks'));
+    await _show(tester, _readout(tireSet: 'slicks'));
 
     expect(find.text('SLICKS'), findsOneWidget);
   });
@@ -60,7 +60,7 @@ void main() {
     // **Said rather than ignored.** A key that does nothing and says nothing is
     // a key a player decides is broken, and the rule it is enforcing — stop
     // first — is one they cannot guess from silence.
-    await _show(tester, _readout(tyres: 'road', refused: true));
+    await _show(tester, _readout(tireSet: 'road', refused: true));
 
     expect(find.text('STOP FIRST'), findsOneWidget);
     expect(find.text('ROAD'), findsNothing);

@@ -1,9 +1,8 @@
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_demo_content/crypt.dart' show CryptTorch;
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// What this game's fixtures look like.
 ///
@@ -13,7 +12,7 @@ import 'package:vector_math/vector_math.dart';
 /// a plate, a shaft and a cup, a lamp is a globe on a stem, and a window is a
 /// pane. Move those into the bridge and the next game gets torches whether it
 /// wants them or not.
-final class DungeonFixtures implements FixtureAppearance {
+final class DungeonFixtures with FixtureAppearance {
   const DungeonFixtures();
 
   /// Builds the visible part of a torch, a lamp or a window.
@@ -82,7 +81,7 @@ final class DungeonFixtures implements FixtureAppearance {
           ),
           _bracket,
           name: 'cup',
-        )..setPosition(0.0, 0.08, -0.24);
+        )..setPositionFrom(CryptTorch.cup);
 
         holder
           ..add(
@@ -116,14 +115,15 @@ final class DungeonFixtures implements FixtureAppearance {
 
         // No mesh for the flame: it is particles, and they come out just clear
         // of the cup's rim.
-        return TorchFire(cup, rise: 0.07);
+        // Where the run's burner stands too — see `CryptTorch.flameOf`.
+        return TorchFire(cup, rise: CryptTorch.rise);
     }
   }
 
   /// Iron, for the parts that are not on fire.
-  static final Material _bracket = Material(
+  static final RenderMaterial _bracket = RenderMaterial(
     name: 'bracket',
-    baseColor: Vector4(0.16, 0.15, 0.14, 1.0),
+    baseColor: LinearColor.fromSrgb(0.16, 0.15, 0.14, 1.0),
     roughness: 0.6,
   );
 
@@ -137,18 +137,19 @@ final class DungeonFixtures implements FixtureAppearance {
     final mechanism = fixture.mechanism;
     if (mechanism is Pickup) {
       return LevelMaterial(
-        baseColor: keyColours[mechanism.detail] ?? Vector4(0.8, 0.8, 0.2, 1.0),
+        baseColor:
+            keyColours[mechanism.detail] ?? LinearColor.fromSrgb(0.8, 0.8, 0.2),
         roughness: 0.25,
         metallic: 0.6,
       );
     }
     if (mechanism is Button) {
       return LevelMaterial(
-        baseColor: Vector4(0.75, 0.22, 0.16, 1.0),
+        baseColor: LinearColor.fromSrgb(0.75, 0.22, 0.16),
         roughness: 0.4,
       );
     }
-    return LevelMaterial(baseColor: Vector4(0.45, 0.42, 0.38, 1.0));
+    return LevelMaterial(baseColor: LinearColor.fromSrgb(0.45, 0.42, 0.38));
   }
 
   /// A collected pickup is gone, and the node with it.
@@ -165,19 +166,19 @@ final class DungeonFixtures implements FixtureAppearance {
   /// Nothing in this game changes colour once it is placed. A collected pickup
   /// disappears rather than fading, and a door is the same door open or shut.
   @override
-  void refresh(Fixture fixture, Material material) {}
+  void refresh(Fixture fixture, RenderMaterial material) {}
 
   /// Nothing here shrinks either.
   @override
   double scaleOf(Fixture fixture) => 1.0;
 
   /// The colour a key is made in, by its name.
-  static final Map<String, Vector4> keyColours = <String, Vector4>{
-    'blue': Vector4(0.20, 0.42, 0.95, 1.0),
-    'red': Vector4(0.90, 0.18, 0.16, 1.0),
-    'yellow': Vector4(0.95, 0.82, 0.20, 1.0),
+  static final Map<String, LinearColor> keyColours = <String, LinearColor>{
+    'blue': LinearColor.fromSrgb(0.20, 0.42, 0.95),
+    'red': LinearColor.fromSrgb(0.90, 0.18, 0.16),
+    'yellow': LinearColor.fromSrgb(0.95, 0.82, 0.20),
     // The two the levels use, which fell to the default yellow both alike.
-    'brass': Vector4(0.79, 0.63, 0.25, 1.0),
-    'iron': Vector4(0.50, 0.55, 0.60, 1.0),
+    'brass': LinearColor.fromSrgb(0.79, 0.63, 0.25),
+    'iron': LinearColor.fromSrgb(0.50, 0.55, 0.60),
   };
 }

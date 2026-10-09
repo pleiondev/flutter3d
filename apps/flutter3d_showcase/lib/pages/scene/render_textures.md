@@ -19,7 +19,7 @@ draws into.
 `RenderTexture.create` makes a texture of the given size on the device and
 ties it to the camera. The picture is drawn with the frame's lights, shadows
 and sky, and no post-processing chain runs on it. Particles and splats are
-not in it either. `clearColor` shows where nothing was drawn.
+not in it either. `clearColorSrgb` shows where nothing was drawn.
 
 The texture holds sRGB bytes, the way a picture loaded from a file does. That
 means it goes into a material's albedo or emissive slot exactly as an image

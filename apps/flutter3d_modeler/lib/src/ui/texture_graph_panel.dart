@@ -33,11 +33,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
-// `EnumHint` hidden: this file switches on `MaterialHint.kind`, which is
-// `flutter3d_formats`' own `EnumHint` — `flutter3d_model_core`'s is
-// `ModelCommand.hints`' own, for a command argument, and the two are kept
-// apart the same way `command.dart` itself keeps them apart.
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'job_button.dart';

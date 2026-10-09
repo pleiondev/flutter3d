@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show AssetBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'palette.dart';
 
@@ -19,11 +18,11 @@ final class BlockSurfaces {
 
   /// Every surface in its flat colour: what a run with no pictures to hand
   /// — a test on the software device — draws.
-  factory BlockSurfaces.flat() => BlockSurfaces._(<String, Material>{
+  factory BlockSurfaces.flat() => BlockSurfaces._(<String, RenderMaterial>{
     for (final MapEntry(key: name, value: surface) in surfaces.entries)
-      name: Material(
+      name: RenderMaterial(
         name: name,
-        baseColor: surface.colour,
+        baseColor: _fromSrgb(surface.color),
         roughness: surface.roughness,
         metallic: surface.metallic,
       ),
@@ -59,14 +58,14 @@ final class BlockSurfaces {
       );
     }
 
-    final materials = <String, Material>{};
+    final materials = <String, RenderMaterial>{};
     for (final MapEntry(key: name, value: surface) in surfaces.entries) {
-      final colour = await picture(name);
-      materials[name] = colour == null
+      final color = await picture(name);
+      materials[name] = color == null
           ? flat.of(name)
-          : Material(
+          : RenderMaterial(
               name: name,
-              albedo: colour,
+              albedo: color,
               albedoSampler: sampler,
               normal: await picture('${name}_normal'),
               normalSampler: sampler,
@@ -78,11 +77,12 @@ final class BlockSurfaces {
     return BlockSurfaces._(materials);
   }
 
-  final Map<String, Material> _materials;
+  final Map<String, RenderMaterial> _materials;
 
   /// The material [surface] is drawn with: stone's, for a name the palette
   /// does not have.
-  Material of(String surface) => _materials[surface] ?? _materials['stone']!;
+  RenderMaterial of(String surface) =>
+      _materials[surface] ?? _materials['stone']!;
 }
 
 /// Which way a face looks: one of the six, as a unit step between blocks.
@@ -148,13 +148,13 @@ final class FaceMesh {
       facing.z.toDouble(),
     );
     final (right, down) = pictureAxes(facing, turns: turns);
-    final centre = Vector3(x, y, z) + n * 0.5;
+    final center = Vector3(x, y, z) + n * 0.5;
     final base = _vertices.length ~/ VertexLayout.standard.floatsPerVertex;
     // glTF's bitangent, `cross(normal, tangent) * w`, runs *up* the picture,
     // the way a normal map's green does; the sign makes it so.
     final handedness = n.cross(right).dot(down) < 0.0 ? 1.0 : -1.0;
     for (final (i, (u, v)) in _corners.indexed) {
-      final p = centre + right * (u - 0.5) + down * (v - 0.5);
+      final p = center + right * (u - 0.5) + down * (v - 0.5);
       final c = (tint?.call(p) ?? Vector3.all(1.0))..scale(shade[i]);
       _vertices.addAll(<double>[
         p.x, p.y, p.z, //
@@ -240,3 +240,6 @@ Map<String, MeshData> blockMeshes(BlockKind kind) {
       name: mesh.build(),
   };
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

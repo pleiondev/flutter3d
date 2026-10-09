@@ -12,7 +12,7 @@
 /// A region is a pair of comment lines:
 ///
 ///     // #region light  Point a sun at it
-///     final sun = LightNode(intensity: 3.0);
+///     final sun = LightNode(intensity: 3.0 * Photometric.legacyUnit);
 ///     // #endregion light
 ///
 /// Names are `[a-z0-9-]+`. Regions may nest and may not overlap. The marker

@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ColorGradingDemo extends ShowcaseDemo {
   double contrast = 1.15;
@@ -34,8 +33,8 @@ final class ColorGradingDemo extends ShowcaseDemo {
       temperature: temperature,
       // #endregion whole
       // #region ranges
-      lift: Vector3(0.0, 0.0, coolShadows),
-      gain: Vector3(1.0 + warmHighlights, 1.0 + warmHighlights * 0.4, 1.0),
+      lift: LinearColor(0.0, 0.0, coolShadows),
+      gain: LinearColor(1.0 + warmHighlights, 1.0 + warmHighlights * 0.4, 1.0),
       // #endregion ranges
       // #region lens
       vignette: vignette,

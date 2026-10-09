@@ -19,7 +19,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../material_editing.dart';
@@ -215,10 +215,10 @@ class MaterialPanel extends StatelessWidget {
           ),
           ColorField(
             value: <double>[
-              surface.baseColor.x,
-              surface.baseColor.y,
-              surface.baseColor.z,
-              surface.baseColor.w,
+              surface.baseColor.toSrgb().r,
+              surface.baseColor.toSrgb().g,
+              surface.baseColor.toSrgb().b,
+              surface.baseColor.a,
             ],
             channels: baseColorHint.channels,
             // `SurfaceMaterial.baseColor`'s own doc comment: "as authored,
@@ -277,9 +277,9 @@ class MaterialPanel extends StatelessWidget {
           ),
           ColorField(
             value: <double>[
-              surface.emissive.x,
-              surface.emissive.y,
-              surface.emissive.z,
+              surface.emissive.r,
+              surface.emissive.g,
+              surface.emissive.b,
             ],
             channels: emissiveHint.channels,
             // Stored the same way `baseColor` is — see that field's own
@@ -459,9 +459,9 @@ class _MaterialAdvancedSection extends StatelessWidget {
 /// comment), always drawn fully opaque: the dot names which paint a row is,
 /// it does not preview how see-through it renders.
 Color _dotColorOf(SurfaceMaterial surface) => Color.fromRGBO(
-  (surface.baseColor.x.clamp(0.0, 1.0) * 255).round(),
-  (surface.baseColor.y.clamp(0.0, 1.0) * 255).round(),
-  (surface.baseColor.z.clamp(0.0, 1.0) * 255).round(),
+  (surface.baseColor.toSrgb().r.clamp(0.0, 1.0) * 255).round(),
+  (surface.baseColor.toSrgb().g.clamp(0.0, 1.0) * 255).round(),
+  (surface.baseColor.toSrgb().b.clamp(0.0, 1.0) * 255).round(),
   1.0,
 );
 

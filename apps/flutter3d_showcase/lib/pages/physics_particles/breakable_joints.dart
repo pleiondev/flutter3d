@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BreakableJointsDemo extends ShowcaseDemo {
   NativeWorld? _world;
@@ -141,9 +140,9 @@ final class BreakableJointsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _start();
-    MeshNode box(String name, Vector3 size, Vector4 colour) => MeshNode(
+    MeshNode box(String name, Vector3 size, Vector4 color) => MeshNode(
       DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-      Material(name: name, baseColor: colour, roughness: 0.7),
+      RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.7),
       name: name,
     );
     _shelfNode = SceneNode(name: 'shelf')
@@ -155,10 +154,10 @@ final class BreakableJointsDemo extends ShowcaseDemo {
         ),
       );
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(
@@ -203,10 +202,10 @@ final class BreakableJointsDemo extends ShowcaseDemo {
   void _place() {
     final NativeWorld? world = _world;
     for (final (int i, MeshNode node) in _crateNodes.indexed) {
-      node.visible = world != null && i < _crates.length;
-      if (node.visible) {
+      node.isVisible = world != null && i < _crates.length;
+      if (node.isVisible) {
         node
-          ..setPositionFrom(world!.positionOf(_crates[i]))
+          ..setPositionFrom(world!.localPositionOf(_crates[i]))
           ..setRotation(world.orientationOf(_crates[i]));
       }
     }
@@ -215,10 +214,10 @@ final class BreakableJointsDemo extends ShowcaseDemo {
       return;
     }
     _shelfNode
-      ..setPositionFrom(world.positionOf(_shelf))
+      ..setPositionFrom(world.localPositionOf(_shelf))
       ..setRotation(world.orientationOf(_shelf));
     for (final (int i, NativeJoint bracket) in _brackets.indexed) {
-      _bracketNodes[i].visible = world.containsJoint(bracket);
+      _bracketNodes[i].isVisible = world.containsJoint(bracket);
     }
   }
   // #endregion show
@@ -297,7 +296,7 @@ final class BreakableJointsDemo extends ShowcaseDemo {
         broken.any((e) => e.body != _wall || e.other != _shelf)) {
       throw StateError('the breaks were told as $broken');
     }
-    final double shelfAt = world.positionOf(_shelf).y;
+    final double shelfAt = world.localPositionOf(_shelf).y;
     if (shelfAt > 0.1) {
       throw StateError('the shelf hangs at $shelfAt m with no brackets');
     }
@@ -305,3 +304,6 @@ final class BreakableJointsDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) throw StateError('nothing reached the frame');
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

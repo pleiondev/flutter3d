@@ -12,8 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_dungeon/src/high_contrast_rings.dart';
 import 'package:flutter3d_demo_dungeon/src/hud.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show ColorRoles, GameConfig, outlineColourOf;
+    show ColorRoles, GameSettings, outlineColorOf;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -53,11 +54,11 @@ Fixture _lying(Gift gift, {String? detail, Mechanism? instead}) {
 }
 
 void main() {
-  final config = GameConfig();
-  final rings = CryptRings(config);
+  const config = GameSettings();
+  final rings = CryptRings(() => config);
 
-  Vector3 roleColour(String name) => outlineColourOf(
-    dungeonColours.colourOf(name, config, fallback: Colors.white),
+  Vector3 roleColour(String name) => outlineColorOf(
+    dungeonColours.colorOf(name, config, fallback: Colors.white),
   );
 
   test('a living monster is ringed in the monsters\' colour', () {
@@ -93,14 +94,16 @@ void main() {
   test('a colour the player chose is the ring\'s', () {
     // The point of a role over a colour: the player who cannot tell the
     // monsters' ring from a key moves it in the settings, and the ring
-    // follows. Mutation: read the role's default rather than `colourOf`.
-    final chosen = GameConfig();
+    // follows. Mutation: read the role's default rather than `colorOf`.
     final role = dungeonColours.named('monster')!;
-    chosen.setSetting(role.setting, 3.0);
+    final chosen = const GameSettings().withValue(role.setting, 3);
     expect(
-      CryptRings(chosen).actor(_monster()),
-      outlineColourOf(ColorRoles.choices(role)[3]),
+      CryptRings(() => chosen).actor(_monster()),
+      outlineColorOf(ColorRoles.choices(role)[3]),
     );
-    expect(CryptRings(chosen).actor(_monster()), isNot(roleColour('monster')));
+    expect(
+      CryptRings(() => chosen).actor(_monster()),
+      isNot(roleColour('monster')),
+    );
   });
 }

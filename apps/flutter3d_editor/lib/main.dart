@@ -19,6 +19,16 @@
 /// Which screen to show, and what the strip along the bottom says, are in
 /// `src/editor_cubit.dart` — see its own doc comment for why that is a `Cubit`
 /// and this is not.
+///
+/// **The window is docked panels around the picture** (P11's shell): the
+/// outliner and the palette down the left, the inspector, the material and
+/// step panels down the right, the console and the render graph along the
+/// bottom — each side resizable, foldable and remembered per person (see
+/// `DockLayout` in `flutter3d_editor_widgets` and `src/layout_memory.dart`).
+/// It used to be a full-screen `Stack` of `Positioned` overlays over the
+/// level, every one of them hiding part of what was being edited. Every
+/// command any key, button or panel runs is also in the command palette,
+/// ⌘K.
 library;
 
 import 'dart:async';
@@ -29,17 +39,24 @@ import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart'
     show PointerScrollEvent, PointerSignalEvent;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show FrameClock, FrameInfo, SceneSurface;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_play/attach.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
+    show
+        DockArrangement,
+        DockLayout,
+        DockPanel,
+        PaletteCommand,
+        showCommandPalette;
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/cutscene_preview.dart';
@@ -49,13 +66,13 @@ import 'src/documents_dialog.dart';
 import 'src/editor_bar.dart';
 import 'src/editor_chooser.dart';
 import 'src/editor_cubit.dart';
-import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
-import 'src/editor_palette.dart';
+import 'src/editor_panels.dart';
+import 'src/editor_plugins.dart';
 import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
+import 'src/layout_memory.dart';
 import 'src/light_plan_dialog.dart';
-import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
 import 'src/play/attach_note.dart';
 import 'src/play/live_material.dart';
@@ -67,7 +84,6 @@ import 'src/run_info.dart';
 import 'src/run_info_screen.dart';
 import 'src/scene_dressing.dart';
 import 'src/shader_source.dart';
-import 'src/step_panel.dart';
 import 'src/timeline_attach_screen.dart';
 import 'src/timeline_client.dart';
 
@@ -100,14 +116,18 @@ const String kAuthor = 'apps/flutter3d_editor';
 void main() => runApp(const EditorApp());
 
 class EditorApp extends StatelessWidget {
-  const EditorApp({super.key});
+  const EditorApp({super.key, this.plugins});
+
+  /// The plugins to install in place of the ones `lib/plugins.g.dart`
+  /// discovered; null installs those. See `EditorPlugins`.
+  final List<Flutter3dPlugin>? plugins;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'flutter3d level editor',
     debugShowCheckedModeBanner: false,
     theme: editorTheme(),
-    home: const EditorScreen(),
+    home: EditorScreen(plugins: plugins),
   );
 }
 
@@ -126,7 +146,10 @@ abstract final class _Fly {
 }
 
 class EditorScreen extends StatefulWidget {
-  const EditorScreen({super.key});
+  const EditorScreen({super.key, this.plugins});
+
+  /// See [EditorApp.plugins].
+  final List<Flutter3dPlugin>? plugins;
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -139,6 +162,11 @@ class _EditorScreenState extends State<EditorScreen>
   /// out of it: the camera, the scene, and everything below that is read every
   /// frame rather than rebuilt on.
   final EditorCubit _cubit = EditorCubit();
+
+  /// The installed plugins and what they brought: the inspector's components,
+  /// the palette's entries and the commands ([EditorPlugins.pieces]), the
+  /// tools an agent is offered, and the decoders every model is read with.
+  late final EditorPlugins _plugins = EditorPlugins(plugins: widget.plugins);
 
   /// The documents this editor has had open, kept between launches.
   final RecentProjects _projects = RecentProjects();
@@ -185,13 +213,13 @@ class _EditorScreenState extends State<EditorScreen>
   final InputState _input = InputState();
   late final DesktopInput _keys = DesktopInput(
     state: _input,
-    bindings: _bindings(),
+    actions: ActionMap(actions: ActionSet.common, buttons: _bindings()),
   );
   final FocusNode _keyboard = FocusNode();
 
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColor: Vector4(0.06, 0.07, 0.09, 1.0),
+    clearColorSrgb: Vector4(0.06, 0.07, 0.09, 1.0),
   );
 
   /// Draws the selection box, the gizmos and their models. Opened once a
@@ -208,11 +236,26 @@ class _EditorScreenState extends State<EditorScreen>
   bool _stale = false;
   bool _rebuilding = false;
 
-  /// `edu-01`: whether the step panel is open.
-  bool _showSteps = false;
+  /// Where the docked panels are, as the person left them last time.
+  ///
+  /// The step panel (`edu-01`) and the material panel (`HR4`) used to be
+  /// two booleans that floated a panel over the level; they are tabs of the
+  /// right-hand side now, and their toolbar buttons show that tab.
+  final LayoutMemory _layoutMemory = LayoutMemory();
 
-  /// `HR4`: whether the material panel is open.
-  bool _showMaterials = false;
+  /// Where the panels are: the default until the saved layout has been read
+  /// in [initState], which redraws them where they were left.
+  DockArrangement _arrangement = const DockArrangement();
+
+  /// Writes [_arrangement] back a moment after the last change, so a drag of
+  /// a side's edge is one write rather than one per pointer move.
+  Timer? _layoutWrite;
+
+  /// The last frame the viewport drew, as the renderer answered it, for the
+  /// render-graph view. Sampled four times a second rather than kept every
+  /// frame: numbers that change sixty times a second cannot be read.
+  FrameResult? _frameShown;
+  final Stopwatch _frameSampled = Stopwatch()..start();
 
   /// `HR4`: what the material panel drags, on its way to the game [_run]
   /// has running, thirty times a second at most.
@@ -264,9 +307,18 @@ class _EditorScreenState extends State<EditorScreen>
   @override
   void initState() {
     super.initState();
+    _sayPlugins();
     _ticker = createTicker(_onTick)..start();
     _openRunChannel = OpenRunChannel(onPath: _openRunAt);
     unawaited(_open());
+    unawaited(_readLayout());
+  }
+
+  Future<void> _readLayout() async {
+    final saved = await _layoutMemory.read();
+    // A panel moved before the read landed is the person's, and wins.
+    if (!mounted || _layoutWrite != null) return;
+    setState(() => _arrangement = saved);
   }
 
   static Bindings _bindings() {
@@ -319,14 +371,14 @@ class _EditorScreenState extends State<EditorScreen>
           _renderer?.relinkShaders();
           _cubit.say('shaders: ${library.name} reloaded');
         },
-        onRefused: (ShaderBundleRefused refused) =>
+        onRefused: (ShaderBundleException refused) =>
             _cubit.say('shaders: $refused'),
       );
       if (!mounted) return;
       _renderer = Renderer.create(device: device, materials: shaders?.library);
       _shaders = shaders;
       shaders?.start();
-      _dressing = SceneDressing(device);
+      _dressing = SceneDressing(device, decoders: _plugins.decoders);
       final found = Documents.find(kLevelPath, from: tried, exists: _onDisk);
       if (found == null) {
         final templates = await _readTemplates();
@@ -339,7 +391,8 @@ class _EditorScreenState extends State<EditorScreen>
           );
         }
         if (!mounted) return;
-        _recent = _projects.read(exists: _onDisk);
+        _recent = await _projects.read(exists: _onDisk);
+        if (!mounted) return;
         _cubit.nothingFound(templates, path: kIsWeb ? null : kLevelPath);
         return;
       }
@@ -365,7 +418,7 @@ class _EditorScreenState extends State<EditorScreen>
     try {
       final text = await editorDisk.readText(found);
       final editing = Editing.parse(text, path: found);
-      _recent = _projects.remember(found, exists: _onDisk);
+      _recent = await _projects.remember(found, exists: _onDisk);
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
       // to another application.
@@ -456,8 +509,9 @@ class _EditorScreenState extends State<EditorScreen>
       _mirrors = loaded.reflectors.isNotEmpty;
       _lamp = LightNode(
         type: LightType.point,
-        color: Vector3(1.0, 0.98, 0.94),
-        intensity: ready.lampOn ? _kLampIntensity : 0.0,
+        color: LinearColor(1.0, 0.98, 0.94),
+        intensity:
+            (ready.lampOn ? _kLampIntensity : 0.0) * Photometric.legacyUnit,
         range: _kLampRange,
       )..setPosition(_fly.position.x, _fly.position.y, _fly.position.z);
       loaded.scene.add(_lamp!);
@@ -568,12 +622,12 @@ class _EditorScreenState extends State<EditorScreen>
   /// editor.
   static Future<Looks> _readLooks(String? root) async {
     if (root == null) return Looks.none;
-    final path = '$root/$kLooksFile';
+    final path = '$root/$looksFile';
     try {
       if (!editorDisk.exists(path)) return Looks.none;
       return Looks.parse(await editorDisk.readText(path));
     } catch (error) {
-      debugPrint('editor: could not read $kLooksFile ($error)');
+      debugPrint('editor: could not read $looksFile ($error)');
       return Looks.none;
     }
   }
@@ -744,7 +798,12 @@ class _EditorScreenState extends State<EditorScreen>
     if (_travelled >= _slop) return;
     final placing = _ready?.placing;
     if (placing == null) {
-      unawaited(_pick(event.localPosition, size));
+      // Command- or control-click adds to the selection, as it does in the
+      // outliner; read now, since the answer comes a frame later and the
+      // key may be up by then.
+      final keys = HardwareKeyboard.instance;
+      final add = keys.isMetaPressed || keys.isControlPressed;
+      unawaited(_pick(event.localPosition, size, add: add));
       return;
     }
     _put(placing, event.localPosition, size);
@@ -765,9 +824,7 @@ class _EditorScreenState extends State<EditorScreen>
       forward: _fly.forward,
       right: _fly.right,
       up: _fly.up,
-      fovY: projection is PerspectiveProjection
-          ? projection.fovYRadians
-          : math.pi / 4,
+      fovY: projection is PerspectiveProjection ? projection.fovY : math.pi / 4,
     );
   }
 
@@ -800,7 +857,12 @@ class _EditorScreenState extends State<EditorScreen>
           );
 
     editing.history.run(
-      Place(what.kind, what.what, _fly.position + along * distance),
+      Place(
+        what.kind,
+        what.what,
+        _fly.position + along * distance,
+        properties: what.properties,
+      ),
     );
     _placeMarker();
     _changed('placed ${editing.says}');
@@ -826,7 +888,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// from a pointer handler and an error nobody catches is an unhandled one in
   /// the zone — a red box for what is, to the person clicking, a click that
   /// found nothing.
-  Future<void> _pick(Offset at, Size size) async {
+  Future<void> _pick(Offset at, Size size, {bool add = false}) async {
     final renderer = _renderer;
     final editing = _editing;
     if (renderer == null || editing == null) return;
@@ -839,9 +901,18 @@ class _EditorScreenState extends State<EditorScreen>
     }
     if (!mounted || !identical(editing, _editing)) return;
     final found = _handleUnder(node, at, size, editing);
-    editing.selectHandle(found);
+    if (add && found != null) {
+      editing.toggle(found.kind, found.index);
+    } else {
+      editing.selectHandle(found);
+    }
     _placeMarker();
-    _cubit.say(found == null ? 'nothing there' : editing.says);
+    final count = editing.selection.length;
+    _cubit.say(switch ((found, count)) {
+      (null, _) => 'nothing there',
+      (_, > 1) => '$count selected · ${editing.says}',
+      _ => editing.says,
+    });
   }
 
   /// The piece of the document a drawn [node] stands for, or null.
@@ -877,13 +948,36 @@ class _EditorScreenState extends State<EditorScreen>
   // --- what the keys do ------------------------------------------------------
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    final pressed = HardwareKeyboard.instance;
+    final command = pressed.isMetaPressed || pressed.isControlPressed;
+    final key = event.logicalKey;
+
+    // **A key typed into a panel's text box is that box's.** The panels sit
+    // inside this listener, so a letter typed into the outliner's filter or
+    // an inspector field would otherwise also reach here — an R that raises
+    // the selected brush while somebody types "torch". Only the palette's
+    // and the save's shortcuts reach past a focused field, because those are
+    // never text.
+    final typing = FocusManager.instance.primaryFocus != _keyboard;
+    // By the key's place as well as its letter: under a Russian layout the
+    // key marked K types л, and ⌘K should still open the palette.
+    final physical = event.physicalKey;
+    if (event is KeyDownEvent &&
+        command &&
+        (key == LogicalKeyboardKey.keyK ||
+            physical == PhysicalKeyboardKey.keyK ||
+            (pressed.isShiftPressed &&
+                (key == LogicalKeyboardKey.keyP ||
+                    physical == PhysicalKeyboardKey.keyP)))) {
+      unawaited(_openCommandPalette());
+      return KeyEventResult.handled;
+    }
+    if (typing) return KeyEventResult.ignored;
+
     if (event is! KeyDownEvent) return _keys.handleKeyEvent(event);
     final editing = _editing;
     if (editing == null) return _keys.handleKeyEvent(event);
 
-    final pressed = HardwareKeyboard.instance;
-    final command = pressed.isMetaPressed || pressed.isControlPressed;
-    final key = event.logicalKey;
     // **Every key that changes the document goes through the history.** Not
     // ceremony: the history is what names a step, what keeps a whole gesture to
     // one entry in the stack, and what a tool server will drive this document
@@ -894,34 +988,11 @@ class _EditorScreenState extends State<EditorScreen>
     if (command && key == LogicalKeyboardKey.keyZ) {
       // Shift-command-Z goes the other way, which is what every editor on this
       // platform does and what this one could not do at all.
-      //
-      // **Named, now that a step knows what it is.** "undone" told somebody
-      // that a key had worked; "undone move by 0.25, 0, 0" tells them what it
-      // took back, which is the thing they were about to check by looking.
-      if (pressed.isShiftPressed) {
-        final what = history.redoSays;
-        history.redo();
-        _placeMarker();
-        _changed(switch ((what, history.canRedo)) {
-          (null, _) => 'nothing to redo',
-          (final it?, true) => 'redone $it',
-          (final it?, false) => 'redone $it — back to the front',
-        });
-      } else {
-        final what = history.undoSays;
-        history.undo();
-        _placeMarker();
-        _changed(switch ((what, history.canUndo)) {
-          (null, _) => 'nothing to undo',
-          (final it?, true) => 'undone $it',
-          (final it?, false) => 'undone $it — back to the start',
-        });
-      }
+      pressed.isShiftPressed ? _redo() : _undo();
       return KeyEventResult.handled;
     }
     if (command && key == LogicalKeyboardKey.keyD) {
-      history.run(const Duplicate());
-      _changed('duplicated as brush ${editing.selected}');
+      _duplicate();
       return KeyEventResult.handled;
     }
     if (command && key == LogicalKeyboardKey.keyS) {
@@ -937,44 +1008,25 @@ class _EditorScreenState extends State<EditorScreen>
     // views: albedo, normal, roughness and the rest, each the colour it is —
     // and back to the lit picture. Shift steps back.
     if (!command && key == LogicalKeyboardKey.keyV) {
-      final views = DebugView.values;
-      final at = views.indexOf(_debugView);
-      final step = pressed.isShiftPressed ? views.length - 1 : 1;
-      setState(() => _debugView = views[(at + step) % views.length]);
-      _cubit.say(
-        _debugView == DebugView.off
-            ? 'the lit picture'
-            : 'showing ${_debugView.name} — V for the next, shift-V back',
-      );
+      _stepDebugView(back: pressed.isShiftPressed);
       return KeyEventResult.handled;
     }
 
-    // Escape puts the palette down, and then gives up the selection. Two
-    // meanings for one key in the order somebody wants them: the thing you
-    // most want to undo is the one you did last.
     if (key == LogicalKeyboardKey.escape) {
-      if (_preview != null) {
-        _endPreview();
-      } else if (_ready?.placing != null) {
-        _cubit.setPlacing(null);
-      } else {
-        editing.select(null, null);
-        _placeMarker();
-        _cubit.say('nothing selected');
-      }
+      _escape();
       return KeyEventResult.handled;
     }
 
     final step = editing.grid;
     switch (key) {
       case LogicalKeyboardKey.arrowLeft:
-        history.run(MoveBy(Vector3(-step, 0.0, 0.0)));
+        history.run(MoveSelectionBy(Vector3(-step, 0.0, 0.0)));
       case LogicalKeyboardKey.arrowRight:
-        history.run(MoveBy(Vector3(step, 0.0, 0.0)));
+        history.run(MoveSelectionBy(Vector3(step, 0.0, 0.0)));
       case LogicalKeyboardKey.arrowUp:
-        history.run(MoveBy(Vector3(0.0, 0.0, -step)));
+        history.run(MoveSelectionBy(Vector3(0.0, 0.0, -step)));
       case LogicalKeyboardKey.arrowDown:
-        history.run(MoveBy(Vector3(0.0, 0.0, step)));
+        history.run(MoveSelectionBy(Vector3(0.0, 0.0, step)));
       // **R and F as well as the page keys**, because on the keyboard this is
       // being used on, Page Up is Fn and an arrow — a two-handed way to say
       // "up" while the other hand is on the mouse. The page keys stay: a
@@ -982,10 +1034,10 @@ class _EditorScreenState extends State<EditorScreen>
       // has learnt it is worse than having two.
       case LogicalKeyboardKey.pageUp:
       case LogicalKeyboardKey.keyR:
-        history.run(MoveBy(Vector3(0.0, step, 0.0)));
+        history.run(MoveSelectionBy(Vector3(0.0, step, 0.0)));
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.keyF:
-        history.run(MoveBy(Vector3(0.0, -step, 0.0)));
+        history.run(MoveSelectionBy(Vector3(0.0, -step, 0.0)));
       // **The same two keys, and what they mean depends on what is selected.**
       // A brush has a size; a light has a strength and no size at all. Giving
       // each its own pair would be two more keys to learn for one idea, which
@@ -1007,17 +1059,10 @@ class _EditorScreenState extends State<EditorScreen>
       case LogicalKeyboardKey.period:
         history.run(const Turn(math.pi / 8));
       case LogicalKeyboardKey.keyB:
-        final on = _cubit.toggleLamp();
-        // The node stays in the scene either way; a lamp at nought is a lamp
-        // off, and there is no add/remove pair to get out of step with _build.
-        _lamp?.intensity = on ? _kLampIntensity : 0.0;
+        _toggleLamp();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyL:
-        // Four metres in front, which is far enough to light a room and near
-        // enough to be the room somebody is standing in.
-        history.run(AddLight(_fly.position + _fly.ground * 4.0));
-        _placeMarker();
-        _changed('added ${editing.says}');
+        _addLight();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.digit1:
         _cubit.setAxis(EditorAxis.x);
@@ -1029,32 +1074,14 @@ class _EditorScreenState extends State<EditorScreen>
         _cubit.setAxis(EditorAxis.z);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyN:
-        // Six metres in front, which is far enough to be looked at and near
-        // enough to be flown to.
-        history.run(AddBrush(_fly.position + _fly.forward * 6.0));
-        _placeMarker();
-        _changed('added brush ${editing.selected}');
+        _addBrush();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.delete:
       case LogicalKeyboardKey.backspace:
-        history.run(const Delete());
-        _placeMarker();
-        _changed('deleted');
+        _delete();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyG:
-        // **Not a command, and not in the history.** How coarse the grid is is
-        // a setting of the editor rather than anything in the document: no
-        // brush moves when it changes, nothing is written when the file is
-        // saved, and an undo that put the grid back to a quarter of a metre
-        // would be an undo that appears to have done nothing at all.
-        editing.grid = switch (editing.grid) {
-          0.25 => 1.0,
-          1.0 => 0.0,
-          _ => 0.25,
-        };
-        _cubit.say(
-          editing.grid == 0.0 ? 'off the grid' : 'grid ${editing.grid}m',
-        );
+        _stepGrid();
         return KeyEventResult.handled;
       default:
         return _keys.handleKeyEvent(event);
@@ -1068,7 +1095,7 @@ class _EditorScreenState extends State<EditorScreen>
     _changed(
       at == null
           ? 'nothing selected — click something first'
-          : 'at ${_metres(at)}',
+          : 'at ${_meters(at)}',
     );
     return KeyEventResult.handled;
   }
@@ -1079,9 +1106,470 @@ class _EditorScreenState extends State<EditorScreen>
     EditorAxis.z => Vector3(0.0, 0.0, amount),
   };
 
-  static String _metres(Vector3 v) =>
+  static String _meters(Vector3 v) =>
       '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
+
+  // --- what the keys, the toolbar and the palette all do --------------------
+  //
+  // One method each, so a key, a button and a row of the command palette are
+  // three ways of reaching the same thing rather than three copies of it.
+
+  /// Takes back the last change, and says which.
+  ///
+  /// **Named, now that a step knows what it is.** "undone" told somebody
+  /// that a key had worked; "undone move by 0.25, 0, 0" tells them what it
+  /// took back, which is the thing they were about to check by looking.
+  void _undo() {
+    final history = _editing?.history;
+    if (history == null) return;
+    final what = history.undoSays;
+    history.undo();
+    _placeMarker();
+    _changed(switch ((what, history.canUndo)) {
+      (null, _) => 'nothing to undo',
+      (final it?, true) => 'undone $it',
+      (final it?, false) => 'undone $it — back to the start',
+    });
+  }
+
+  void _redo() {
+    final history = _editing?.history;
+    if (history == null) return;
+    final what = history.redoSays;
+    history.redo();
+    _placeMarker();
+    _changed(switch ((what, history.canRedo)) {
+      (null, _) => 'nothing to redo',
+      (final it?, true) => 'redone $it',
+      (final it?, false) => 'redone $it — back to the front',
+    });
+  }
+
+  /// The prefab commands, for the palette: made from the selection, then
+  /// what can be done to the selected instance.
+  ///
+  /// **Through the history like every other edit**, so each is one step of
+  /// undo with the command's own sentence as its name.
+  List<PaletteCommand> _prefabCommands(Editing editing) {
+    final instance = editing.instance;
+    final hasOverrides = instance?.overrides.isNotEmpty ?? false;
+    final entities = editing.selection.any(
+      (Picked it) => it.kind == Piece.entity,
+    );
+    void run(EditorCommand command) {
+      if (editing.history.run(command)) {
+        _placeMarker();
+        _changed('${command.says} — ${editing.says}');
+      } else {
+        _changed('could not ${command.says}');
+      }
+    }
+
+    return <PaletteCommand>[
+      PaletteCommand(
+        id: 'prefab.create',
+        title: 'Make a prefab of the selection',
+        enabled: entities,
+        run: () => run(CreatePrefab(_freshPrefabId(editing.level))),
+      ),
+      PaletteCommand(
+        id: 'prefab.place',
+        title: 'Place another of this prefab',
+        enabled: instance != null,
+        run: () {
+          if (instance == null) return;
+          run(
+            PlacePrefab(
+              instance.prefab,
+              instance.entity.position + Vector3(editing.grid * 8, 0.0, 0.0),
+              yaw: instance.entity.yaw,
+            ),
+          );
+        },
+      ),
+      PaletteCommand(
+        id: 'prefab.apply',
+        title: "Apply this instance's overrides to its prefab",
+        enabled: hasOverrides,
+        run: () => run(const ApplyOverrides()),
+      ),
+      PaletteCommand(
+        id: 'prefab.revert',
+        title: 'Revert this instance to its prefab',
+        enabled: hasOverrides,
+        run: () => run(const RevertOverrides()),
+      ),
+      PaletteCommand(
+        id: 'prefab.unpack',
+        title: 'Unpack this instance',
+        enabled: instance != null,
+        run: () => run(const UnpackPrefab()),
+      ),
+    ];
+  }
+
+  /// The first of `prefab 1`, `prefab 2`… the level does not have yet.
+  static String _freshPrefabId(Level level) => Iterable<String>.generate(
+    level.prefabs.length + 1,
+    (int i) => 'prefab ${i + 1}',
+  ).firstWhere((String id) => !level.prefabs.containsKey(id));
+
+  void _duplicate() {
+    final editing = _editing;
+    if (editing == null) return;
+    editing.history.run(const Duplicate());
+    _placeMarker();
+    _changed('duplicated as ${editing.says}');
+  }
+
+  void _delete() {
+    final editing = _editing;
+    if (editing == null) return;
+    final count = editing.selection.length;
+    editing.history.run(const Delete());
+    _placeMarker();
+    _changed(count > 1 ? 'deleted $count' : 'deleted');
+  }
+
+  /// Six metres in front, which is far enough to be looked at and near
+  /// enough to be flown to.
+  void _addBrush() {
+    final editing = _editing;
+    if (editing == null) return;
+    editing.history.run(AddBrush(_fly.position + _fly.forward * 6.0));
+    _placeMarker();
+    _changed('added brush ${editing.selected}');
+  }
+
+  /// Four metres in front, which is far enough to light a room and near
+  /// enough to be the room somebody is standing in.
+  void _addLight() {
+    final editing = _editing;
+    if (editing == null) return;
+    editing.history.run(AddLevelLight(_fly.position + _fly.ground * 4.0));
+    _placeMarker();
+    _changed('added ${editing.says}');
+  }
+
+  void _toggleLamp() {
+    final on = _cubit.toggleLamp();
+    // The node stays in the scene either way; a lamp at nought is a lamp
+    // off, and there is no add/remove pair to get out of step with _build.
+    _lamp?.intensity = on ? _kLampIntensity : 0.0;
+  }
+
+  /// **Not a command, and not in the history.** How coarse the grid is is
+  /// a setting of the editor rather than anything in the document: no
+  /// brush moves when it changes, nothing is written when the file is
+  /// saved, and an undo that put the grid back to a quarter of a metre
+  /// would be an undo that appears to have done nothing at all.
+  void _stepGrid() {
+    final editing = _editing;
+    if (editing == null) return;
+    editing.grid = switch (editing.grid) {
+      0.25 => 1.0,
+      1.0 => 0.0,
+      _ => 0.25,
+    };
+    _cubit.say(editing.grid == 0.0 ? 'off the grid' : 'grid ${editing.grid}m');
+  }
+
+  /// V steps the viewport through the materials' numbers — `P6`'s debug
+  /// views: albedo, normal, roughness and the rest, each the colour it is —
+  /// and back to the lit picture. Shift steps back.
+  void _stepDebugView({bool back = false}) {
+    final views = DebugView.values;
+    final at = views.indexOf(_debugView);
+    final step = back ? views.length - 1 : 1;
+    setState(() => _debugView = views[(at + step) % views.length]);
+    _cubit.say(
+      _debugView == DebugView.off
+          ? 'the lit picture'
+          : 'showing ${_debugView.name} — V for the next, shift-V back',
+    );
+  }
+
+  /// Escape puts the palette down, and then gives up the selection. Two
+  /// meanings for one key in the order somebody wants them: the thing you
+  /// most want to undo is the one you did last.
+  void _escape() {
+    if (_preview != null) {
+      _endPreview();
+    } else if (_ready?.placing != null) {
+      _cubit.setPlacing(null);
+    } else {
+      _editing?.select(null, null);
+      _placeMarker();
+      _cubit.say('nothing selected');
+    }
+  }
+
+  /// Selects what an outliner row names — or, with [add], adds it to the
+  /// selection or takes it out — and shows it in the viewport.
+  void _selectFromOutliner(Picked picked, {required bool add}) {
+    final editing = _editing;
+    if (editing == null) return;
+    if (add) {
+      editing.toggle(picked.kind, picked.index);
+    } else {
+      editing.select(picked.kind, picked.index);
+    }
+    _placeMarker();
+    final count = editing.selection.length;
+    _cubit.say(count > 1 ? '$count selected · ${editing.says}' : editing.says);
+  }
+
+  /// Flies the camera to [picked], selecting it.
+  void _flyTo(Picked picked) {
+    final editing = _editing;
+    final where = editing?.whereOf(picked);
+    if (editing == null || where == null) return;
+    if (!editing.isSelected(picked.kind, picked.index)) {
+      editing.select(picked.kind, picked.index);
+      _placeMarker();
+    }
+    _fly.frame(where);
+    _cubit.say('looking at ${editing.says}');
+  }
+
+  /// Keeps [frame] for the render-graph view, a few times a second.
+  void _keepFrame(FrameInfo frame) {
+    if (_frameShown != null && _frameSampled.elapsedMilliseconds < 250) return;
+    _frameShown = frame.result;
+    _frameSampled.reset();
+  }
+
+  /// Puts the panels as [next] says, and writes that down a moment later.
+  void _arrange(DockArrangement next) {
+    setState(() => _arrangement = next);
+    _layoutWrite?.cancel();
+    _layoutWrite = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_layoutMemory.write(_arrangement)),
+    );
+  }
+
+  /// Opens the panel called [id] on its tab.
+  void _showPanel(String id, EditorReady state) {
+    for (final panel in _panels(state)) {
+      if (panel.id == id) _arrange(_arrangement.shown(panel));
+    }
+  }
+
+  Future<void> _openCommandPalette() async {
+    final state = _ready;
+    if (state == null || !mounted) return;
+    await showCommandPalette(context, _commands(state));
+    // The palette took the focus; the keys go back to the level.
+    if (mounted) _keyboard.requestFocus();
+  }
+
+  /// Says in the console which plugins are installed, and why none are when
+  /// one refused to install.
+  void _sayPlugins() {
+    final refusal = _plugins.refusal;
+    if (refusal != null) {
+      _cubit.log.add('plugins: none installed — $refusal', error: true);
+      return;
+    }
+    for (final status in _plugins.statuses) {
+      _cubit.log.add('plugins: $status');
+    }
+  }
+
+  /// The plugins' commands that need no arguments, for the palette: each
+  /// name [EditorPieces] reads back from nothing but itself.
+  ///
+  /// **Through the history like the editor's own**, so a plugin's command is
+  /// undone with ⌘Z and said on the bar as any other. A command that needs
+  /// arguments reads as null here and is offered only to a tool that can
+  /// give them.
+  List<PaletteCommand> _pluginCommands(EditorReady state) {
+    final pieces = _plugins.pieces;
+    return <PaletteCommand>[
+      for (final name in pieces.commandNames)
+        if (!editorCommandNames.contains(name))
+          if (pieces.readCommand(<String, Object?>{'command': name})
+              case final DocumentCommand command)
+            PaletteCommand(
+              id: 'plugin.$name',
+              title: pieces.descriptionOf(name) ?? name,
+              run: () {
+                if (state.editing.history.run(command)) {
+                  _changed('$name — ${state.editing.says}');
+                }
+              },
+            ),
+    ];
+  }
+
+  /// Every command the editor has, for the palette.
+  ///
+  /// **Each one is a method a key or a button already calls**, listed with
+  /// that key, so the palette is a way of finding the editor's commands and
+  /// not a second set of them that could drift from the first.
+  List<PaletteCommand> _commands(EditorReady state) {
+    final editing = state.editing;
+    final history = editing.history;
+    final selected = editing.piece != null;
+    return <PaletteCommand>[
+      PaletteCommand(
+        id: 'save',
+        title: 'Save',
+        shortcut: '⌘S',
+        run: () => unawaited(_save()),
+      ),
+      PaletteCommand(
+        id: 'saveCopy',
+        title: 'Save a copy',
+        shortcut: '⇧⌘S',
+        run: () => unawaited(_save(copy: true)),
+      ),
+      PaletteCommand(
+        id: 'open',
+        title: 'Open a level',
+        shortcut: '⌘O',
+        run: () => unawaited(_chooseAndOpen()),
+      ),
+      PaletteCommand(
+        id: 'undo',
+        title: history.undoSays == null ? 'Undo' : 'Undo ${history.undoSays}',
+        shortcut: '⌘Z',
+        enabled: history.canUndo,
+        run: _undo,
+      ),
+      PaletteCommand(
+        id: 'redo',
+        title: history.redoSays == null ? 'Redo' : 'Redo ${history.redoSays}',
+        shortcut: '⇧⌘Z',
+        enabled: history.canRedo,
+        run: _redo,
+      ),
+      PaletteCommand(
+        id: 'duplicate',
+        title: 'Duplicate the selection',
+        shortcut: '⌘D',
+        enabled: selected,
+        run: _duplicate,
+      ),
+      PaletteCommand(
+        id: 'delete',
+        title: 'Delete the selection',
+        shortcut: '⌫',
+        enabled: selected,
+        run: _delete,
+      ),
+      PaletteCommand(
+        id: 'deselect',
+        title: 'Select nothing',
+        shortcut: 'Esc',
+        enabled: selected,
+        run: _escape,
+      ),
+      PaletteCommand(
+        id: 'flyTo',
+        title: 'Fly to the selection',
+        enabled: selected,
+        run: () {
+          if ((editing.kind, editing.selected) case (
+            final Piece kind,
+            final int index,
+          )) {
+            _flyTo((kind: kind, index: index));
+          }
+        },
+      ),
+      PaletteCommand(
+        id: 'addBrush',
+        title: 'Add a brush',
+        shortcut: 'N',
+        run: _addBrush,
+      ),
+      PaletteCommand(
+        id: 'addLight',
+        title: 'Add a light',
+        shortcut: 'L',
+        run: _addLight,
+      ),
+      PaletteCommand(
+        id: 'lamp',
+        title: state.lampOn
+            ? "Turn the editor's lamp off"
+            : "Turn the editor's lamp on",
+        shortcut: 'B',
+        run: _toggleLamp,
+      ),
+      PaletteCommand(
+        id: 'grid',
+        title: 'Change the grid',
+        shortcut: 'G',
+        run: _stepGrid,
+      ),
+      PaletteCommand(
+        id: 'debugView',
+        title: 'Show the next debug view',
+        shortcut: 'V',
+        run: _stepDebugView,
+      ),
+      for (final axis in EditorAxis.values)
+        PaletteCommand(
+          id: 'axis.${axis.name}',
+          title: 'Resize along ${axis.name}',
+          shortcut: '${axis.index + 1}',
+          run: () => _cubit.setAxis(axis),
+        ),
+      PaletteCommand(
+        id: 'fewerLights',
+        title: 'Fewer lights',
+        enabled: editing.level.lights.isNotEmpty,
+        run: () => unawaited(_fewerLights()),
+      ),
+      PaletteCommand(
+        id: 'behaviours',
+        title: 'Behaviours',
+        run: () => unawaited(_behaviors()),
+      ),
+      PaletteCommand(
+        id: 'cutscenes',
+        title: 'Cutscenes',
+        run: () => unawaited(_cutscenes()),
+      ),
+      ..._prefabCommands(editing),
+      PaletteCommand(
+        id: 'play',
+        title: kStartsGames ? 'Play the project' : 'Play an attached game',
+        run: () => unawaited(_play(state)),
+      ),
+      PaletteCommand(
+        id: 'attach',
+        title: 'Attach to a running game',
+        run: () => unawaited(_attachToRunningGame()),
+      ),
+      PaletteCommand(
+        id: 'playtest',
+        title: 'Open a playtest report',
+        run: () => unawaited(_openPlaytestReport()),
+      ),
+      PaletteCommand(
+        id: 'run',
+        title: 'Open a run (.f3drun)',
+        run: () => unawaited(_openRunFromPanel()),
+      ),
+      ..._pluginCommands(state),
+      for (final panel in _panels(state))
+        PaletteCommand(
+          id: 'show.${panel.id}',
+          title: 'Show the ${panel.title} panel',
+          run: () => _arrange(_arrangement.shown(panel)),
+        ),
+      PaletteCommand(
+        id: 'layout.reset',
+        title: 'Put the panels back where they started',
+        run: () => _arrange(const DockArrangement()),
+      ),
+    ];
+  }
 
   /// Asks which document to open, and opens it.
   ///
@@ -1106,7 +1594,7 @@ class _EditorScreenState extends State<EditorScreen>
     final editing = _editing;
     if (editing == null) return;
 
-    if (!copy && !editing.mayOverwrite) {
+    if (!copy && !editing.canOverwrite) {
       _cubit.say(
         'written by ${editing.generatedBy} — '
         'shift-save writes a copy instead',
@@ -1201,6 +1689,11 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    // A layout changed in the last moment before closing is still kept.
+    if (_layoutWrite?.isActive ?? false) {
+      unawaited(_layoutMemory.write(_arrangement));
+    }
+    _layoutWrite?.cancel();
     _liveMaterials.dispose();
     unawaited(_gameMaterials?.dispose());
     unawaited(_run?.dispose());
@@ -1301,7 +1794,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   /// The level's behaviour trees, written through the history.
-  Future<void> _behaviours() async {
+  Future<void> _behaviors() async {
     final editing = _editing;
     if (editing == null || !mounted) return;
     if (await showBehaviours(context, editing) && mounted) {
@@ -1387,11 +1880,26 @@ class _EditorScreenState extends State<EditorScreen>
     Navigator.of(context).maybePop();
   }
 
-  /// The document is open: the scene, and the three panels around it.
+  /// Every docked panel — see `src/editor_panels.dart`.
+  List<DockPanel> _panels(EditorReady state) => editorPanels(
+    state: state,
+    log: _cubit.log,
+    game: _run,
+    frame: _frameShown,
+    onSelect: _selectFromOutliner,
+    onFlyTo: _flyTo,
+    onChanged: (String what) => _changed('$what — ${state.editing.says}'),
+    onLive: _liveMaterials.push,
+    pieces: _plugins.pieces,
+  );
+
+  /// The document is open: the bar, the panels docked around the picture,
+  /// and the legend.
   Widget _editorScreen(EditorReady state) {
     final renderer = _renderer;
     final scene = _scene;
     if (renderer == null || scene == null) return const _Loading();
+    const light = Color(0xFFE6EAF0);
 
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
@@ -1399,260 +1907,195 @@ class _EditorScreenState extends State<EditorScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: _onKey,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final size = constraints.biggest;
-
-            return Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                // **Only the picture listens.** The panels used to sit inside
-                // this listener, so a click on a palette row was also a click
-                // into the level behind it — picking whatever happened to be
-                // under the panel, or placing a second one of whatever the row
-                // had just picked up. A scroll over the list flew the camera at
-                // the same time as scrolling.
-                Listener(
-                  onPointerDown: (PointerDownEvent event) =>
-                      _pointerDown(event, size),
-                  onPointerMove: (PointerMoveEvent event) =>
-                      _pointerMove(event, size),
-                  onPointerUp: (PointerUpEvent event) =>
-                      _pointerUp(event, size),
-                  onPointerSignal: _pointerSignal,
-                  child: SceneSurface(
-                    renderer: renderer,
-                    scene: scene,
-                    view: _view,
-                    settings: () => RenderSettings(
-                      // The engine has had an outline pass since before there
-                      // was anything to outline — its own doc says "typically
-                      // whatever picking last selected" — and this is the first
-                      // caller it has ever had.
-                      highlighted: <SceneNode>[?_dressing?.marker],
-                      // The level's own decals and mirrors, as the game
-                      // draws them: an author placing one sees it.
-                      decals: DecalSettings(enabled: _decals),
-                      debugView: DebugViewSettings(view: _debugView),
-                      planarReflections: PlanarReflectionSettings(
-                        enabled: _mirrors,
-                      ),
-                      // **No shadows, and not for speed.** With them on this
-                      // editor flickers: the picture alternates between the
-                      // scene and a nearly black one, on a camera nobody is
-                      // touching.
-                      //
-                      // Two separate faults were behind that, and only one of
-                      // them is fixed. The first was the finished frame being
-                      // drawn into while the compositor still had it — see
-                      // `Renderer`'s finished-frame textures, which now come
-                      // back when the backend says the GPU is done rather than
-                      // after a guessed number of frames. Switching shadows
-                      // back on after that fix brought the flicker straight
-                      // back, so the second one is real and is somewhere in the
-                      // shadow path.
-                      //
-                      // What is known about it, so the next person starts here
-                      // rather than where this started:
-                      //
-                      //  * It needs the hardware backend. The same scene
-                      //    rendered ten times through `CpuDevice`, shadows and
-                      //    all, is byte for byte the same picture.
-                      //  * It needs a still camera, which is why no game shows
-                      //    it: a frame that differs from its neighbour by a
-                      //    millimetre of camera hides anything.
-                      //  * The tile scheduler is not redrawing anything —
-                      //    instrumented, zero tiles scheduled per frame in the
-                      //    steady state — so whatever changes is not the atlas
-                      //    being refreshed with different content.
-                      //  * Both atlases are `devicePrivate` and stored, so it
-                      //    is not tile memory losing its contents.
-                      //
-                      // An editor loses nothing by it. What it is for is where
-                      // things *are*: a shadow under a crate says nothing a
-                      // wireframe does not, and the crypt's own torches light
-                      // the rooms either way.
-                      shadows: const ShadowSettings(enabled: false),
-                    ),
-                    onBeforeFrame: () {
-                      // The tick ends a preview that is over; a frame only
-                      // reads it, so nothing is said from inside a paint.
-                      if (_preview?.placeOn(_camera, _previewed) ?? false) {
-                        return;
-                      }
-                      _fly.placeOn(_camera);
-                      // The lamp travels with the eye rather than hanging where
-                      // the last rebuild happened to leave it.
-                      _lamp?.setPosition(
-                        _fly.position.x,
-                        _fly.position.y,
-                        _fly.position.z,
-                      );
-                    },
-                    presentFrame: presentEditorFrame,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            EditorBar(
+              state: state,
+              onFewerLights: () => unawaited(_fewerLights()),
+              onBehaviours: () => unawaited(_behaviors()),
+              onCutscenes: () => unawaited(_cutscenes()),
+              actions: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.search, color: light),
+                  tooltip: 'Commands (⌘K)',
+                  onPressed: () => unawaited(_openCommandPalette()),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: EditorBar(
-                    state: state,
-                    onFewerLights: () => unawaited(_fewerLights()),
-                    onBehaviours: () => unawaited(_behaviours()),
-                    onCutscenes: () => unawaited(_cutscenes()),
-                  ),
-                ),
-                // Below the bar and above the legend, so nothing it covers is
-                // anything the other two are saying.
-                Positioned(
-                  left: 0,
-                  top: 64,
-                  bottom: 64,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: EditorPalette(state: state),
-                  ),
-                ),
-                // The right-hand side, opposite the palette: what a level can
-                // be made of on the left, what the selected piece *is* on the
-                // right. Nothing when nothing is selected, so the picture is
-                // not narrowed by a panel with nothing in it.
-                Positioned(
-                  right: 0,
-                  top: 64,
-                  bottom: 64,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        // `edu-01`: a step panel selects; `EditorInspector`
-                        // below still edits whatever that selects, field by
-                        // field, the same as it does for any other entity.
-                        if (_showSteps)
-                          SizedBox(
-                            width: 260,
-                            child: StepPanel(
-                              editing: state.editing,
-                              onChanged: (String what) =>
-                                  _changed('$what — ${state.editing.says}'),
-                            ),
-                          ),
-                        // `HR4`: a value dragged here reaches a running game
-                        // at once; a value written is the level's, as any.
-                        if (_showMaterials)
-                          MaterialPanel(
-                            editing: state.editing,
-                            onChanged: (String what) =>
-                                _changed('$what — ${state.editing.says}'),
-                            onLive: _liveMaterials.push,
-                          ),
-                        EditorInspector(
-                          state: state,
-                          onChanged: (String what) =>
-                              _changed('$what — ${state.editing.says}'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: EditorLegend(state: state),
-                ),
-                // `HR5`: runs the project this level belongs to. Beside the
-                // material panel's button: at 92 it lay under the step
-                // panel's, which was drawn over it and took every press.
-                Positioned(
-                  top: 4,
-                  right: 212,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.play_circle_outline,
-                      color: Color(0xFFE6EAF0),
-                    ),
-                    tooltip: kStartsGames
-                        ? 'Play the project'
-                        : 'Play — in a browser, attach to a running game',
-                    onPressed: () => _play(state),
-                  ),
+                // `HR5`: runs the project this level belongs to.
+                IconButton(
+                  icon: const Icon(Icons.play_circle_outline, color: light),
+                  tooltip: kStartsGames
+                      ? 'Play the project'
+                      : 'Play — in a browser, attach to a running game',
+                  onPressed: () => unawaited(_play(state)),
                 ),
                 // `rp-02`, and `HR5` without a process: attaches to a game
                 // already running elsewhere, over the same VM service
                 // channel DevTools uses, and plays it in the same panel.
-                Positioned(
-                  top: 4,
-                  right: 12,
-                  child: IconButton(
-                    icon: const Icon(Icons.podcasts, color: Color(0xFFE6EAF0)),
-                    tooltip: 'Attach to a running game',
-                    onPressed: _attachToRunningGame,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.podcasts, color: light),
+                  tooltip: 'Attach to a running game',
+                  onPressed: _attachToRunningGame,
                 ),
                 // `ai-02`: a heatmap `ai-01` wrote to disk, read back and
                 // drawn over the level's own footprint.
-                Positioned(
-                  top: 4,
-                  right: 52,
-                  child: IconButton(
-                    icon: const Icon(Icons.grain, color: Color(0xFFE6EAF0)),
-                    tooltip: 'Open a playtest report',
-                    onPressed: _openPlaytestReport,
-                  ),
-                ),
-                // `edu-01`: the step panel — adds, reorders and deletes
-                // `edu_step`s and drops an `edu_annotation`/`edu_clip_plane`,
-                // all through the same commands the palette and the arrow
-                // keys already use.
-                Positioned(
-                  top: 4,
-                  right: 92,
-                  child: IconButton(
-                    icon: Icon(
-                      _showSteps ? Icons.view_list : Icons.view_list_outlined,
-                      color: const Color(0xFFE6EAF0),
-                    ),
-                    tooltip: 'Open the lesson step panel',
-                    onPressed: () => setState(() => _showSteps = !_showSteps),
-                  ),
-                ),
-                Positioned(
-                  top: 4,
-                  right: 172,
-                  child: IconButton(
-                    icon: Icon(
-                      _showMaterials ? Icons.palette : Icons.palette_outlined,
-                      color: const Color(0xFFE6EAF0),
-                    ),
-                    tooltip: 'Open the material panel',
-                    onPressed: () =>
-                        setState(() => _showMaterials = !_showMaterials),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.grain, color: light),
+                  tooltip: 'Open a playtest report',
+                  onPressed: _openPlaytestReport,
                 ),
                 // `rp-04`: the same screen file association and the open
                 // panel both land on.
-                Positioned(
-                  top: 4,
-                  right: 132,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.bug_report,
-                      color: Color(0xFFE6EAF0),
-                    ),
-                    tooltip: 'Open a run (.f3drun)',
-                    onPressed: _openRunFromPanel,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.bug_report, color: light),
+                  tooltip: 'Open a run (.f3drun)',
+                  onPressed: _openRunFromPanel,
+                ),
+                // `edu-01` and `HR4`: the step and material panels are tabs
+                // of the right-hand side; these show them.
+                IconButton(
+                  icon: const Icon(Icons.view_list_outlined, color: light),
+                  tooltip: 'Show the lesson step panel',
+                  onPressed: () => _showPanel('steps', state),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.palette_outlined, color: light),
+                  tooltip: 'Show the material panel',
+                  onPressed: () => _showPanel('materials', state),
                 ),
               ],
-            );
-          },
+            ),
+            Expanded(
+              child: DockLayout(
+                arrangement: _arrangement,
+                onChanged: _arrange,
+                panels: _panels(state),
+                center: _viewport(renderer, scene),
+              ),
+            ),
+            EditorLegend(state: state),
+          ],
         ),
       ),
     );
+  }
+
+  /// The picture, and the pointer that edits it.
+  Widget _viewport(Renderer renderer, Scene scene) => LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints constraints) {
+      // The picture's own size, not the window's: a click is turned into a
+      // ray through the viewport, which the docked panels now make smaller
+      // than the window and move away from its corner.
+      final size = constraints.biggest;
+      // **Only the picture listens.** The panels used to sit inside this
+      // listener, so a click on a palette row was also a click into the
+      // level behind it — picking whatever happened to be under the panel,
+      // or placing a second one of whatever the row had just picked up. A
+      // scroll over the list flew the camera at the same time as scrolling.
+      // Docked beside the picture, they are outside it altogether.
+      return Listener(
+        onPointerDown: (PointerDownEvent event) => _pointerDown(event, size),
+        onPointerMove: (PointerMoveEvent event) => _pointerMove(event, size),
+        onPointerUp: (PointerUpEvent event) => _pointerUp(event, size),
+        onPointerSignal: _pointerSignal,
+        child: SceneSurface(
+          renderer: renderer,
+          scene: scene,
+          view: _view,
+          settings: () => RenderSettings(
+            // The engine has had an outline pass since before there
+            // was anything to outline — its own doc says "typically
+            // whatever picking last selected" — and this is the first
+            // caller it has ever had.
+            //
+            // Beside the marker, whatever else is selected and has
+            // a node of its own to outline — a mark, a model; a
+            // brush is batched into its material's mesh and shows
+            // as selected in the outliner only.
+            highlighted: <SceneNode>[
+              ?_dressing?.marker,
+              ..._alsoSelectedNodes(),
+            ],
+            // The level's own decals and mirrors, as the game
+            // draws them: an author placing one sees it.
+            decals: DecalSettings(enabled: _decals),
+            debugView: DebugViewSettings(view: _debugView),
+            planarReflections: PlanarReflectionSettings(enabled: _mirrors),
+            // **No shadows, and not for speed.** With them on this
+            // editor flickers: the picture alternates between the
+            // scene and a nearly black one, on a camera nobody is
+            // touching.
+            //
+            // Two separate faults were behind that, and only one of
+            // them is fixed. The first was the finished frame being
+            // drawn into while the compositor still had it — see
+            // `Renderer`'s finished-frame textures, which now come
+            // back when the backend says the GPU is done rather than
+            // after a guessed number of frames. Switching shadows
+            // back on after that fix brought the flicker straight
+            // back, so the second one is real and is somewhere in the
+            // shadow path.
+            //
+            // What is known about it, so the next person starts here
+            // rather than where this started:
+            //
+            //  * It needs the hardware backend. The same scene
+            //    rendered ten times through `CpuDevice`, shadows and
+            //    all, is byte for byte the same picture.
+            //  * It needs a still camera, which is why no game shows
+            //    it: a frame that differs from its neighbour by a
+            //    millimetre of camera hides anything.
+            //  * The tile scheduler is not redrawing anything —
+            //    instrumented, zero tiles scheduled per frame in the
+            //    steady state — so whatever changes is not the atlas
+            //    being refreshed with different content.
+            //  * Both atlases are `devicePrivate` and stored, so it
+            //    is not tile memory losing its contents.
+            //
+            // An editor loses nothing by it. What it is for is where
+            // things *are*: a shadow under a crate says nothing a
+            // wireframe does not, and the crypt's own torches light
+            // the rooms either way.
+            shadows: const ShadowSettings(enabled: false),
+          ),
+          onBeforeFrame: () {
+            // The tick ends a preview that is over; a frame only
+            // reads it, so nothing is said from inside a paint.
+            if (_preview?.placeOn(_camera, _previewed) ?? false) {
+              return;
+            }
+            _fly.placeOn(_camera);
+            // The lamp travels with the eye rather than hanging where
+            // the last rebuild happened to leave it.
+            _lamp?.setPosition(
+              _fly.position.x,
+              _fly.position.y,
+              _fly.position.z,
+            );
+          },
+          presentFrame: presentEditorFrame,
+          // The editor sees what every frame was: the render-graph
+          // view's passes and counts.
+          onFrame: _keepFrame,
+        ),
+      );
+    },
+  );
+
+  /// The drawn nodes standing for what is selected beside the primary.
+  Iterable<SceneNode> _alsoSelectedNodes() {
+    final editing = _editing;
+    final dressing = _dressing;
+    if (editing == null || dressing == null || editing.selection.length < 2) {
+      return const <SceneNode>[];
+    }
+    final primary = (kind: editing.kind, index: editing.selected);
+    return <SceneNode>[
+      for (final MapEntry(key: node, value: handle) in dressing.owners.entries)
+        if (editing.isSelected(handle.kind, handle.index) &&
+            (kind: handle.kind, index: handle.index) != primary)
+          node,
+    ];
   }
 
   /// Opens `ai-02`'s own screen — the report itself is opened from inside

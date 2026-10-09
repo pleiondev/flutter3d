@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MeshParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -53,13 +52,13 @@ final class MeshParticlesDemo extends ShowcaseDemo {
     _particles.burst(_debrisEffect, Vector3.zero());
 
     // #region contributor
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       MeshParticleContributor(_particles, mesh: shard),
     );
     // #endregion contributor
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

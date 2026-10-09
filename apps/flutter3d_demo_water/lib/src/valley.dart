@@ -9,6 +9,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
 /// How many cells the valley has a side, and how wide each is, m.
 const int valleyCells = 128;
 const double valleyCell = 0.25;
@@ -17,15 +19,18 @@ const double valleyCell = 0.25;
 const double valleySize = valleyCells * valleyCell;
 
 /// Where the cliff's top edge runs across the valley, and where its foot
-/// is, along z.
+/// is, along z: sheer, its whole height within half a cell, so the stream
+/// goes over one lip as one sheet. Spread over a metre, four cells, each
+/// cell of the face was a lip of its own, and the falls came down a stair
+/// of short sheets each landing on the step below.
 const double cliffTop = 13.0;
-const double cliffFoot = 14.0;
+const double cliffFoot = cliffTop + 0.5 * valleyCell;
 
 /// The pond's middle, and its radius.
 const double pondX = 16.0, pondZ = 21.0, pondRadius = 7.0;
 
 /// The stream bed's line down the plateau: x at a given z.
-double streamX(double z) => 16.0 + 3.0 * math.sin(0.4 * z);
+double streamX(double z) => 16.0 + 3.0 * Portable.sin(0.4 * z);
 
 /// Where the spring wells up.
 double get springX => streamX(springZ);
@@ -54,7 +59,7 @@ double groundAt(double x, double z) {
     final bed = 0.5 * _bump(off, 1.4);
     floor = 5.0 + (cliffTop - z) * 0.2 - bed + 0.08 * off;
   } else if (z < cliffFoot) {
-    // The cliff, four and a half metres in a metre.
+    // The cliff, four and a half metres sheer.
     final off = (x - streamX(cliffTop)).abs();
     final plateau = 5.0 - 0.5 * _bump(off, 1.4) + 0.08 * off;
     floor = plateau + (0.5 - plateau) * _smoothstep(cliffTop, cliffFoot, z);
@@ -63,7 +68,7 @@ double groundAt(double x, double z) {
     final bowl =
         1.6 *
         _bump(
-          math.sqrt(math.pow(x - pondX, 2) + math.pow(z - pondZ, 2)),
+          math.sqrt((x - pondX) * (x - pondX) + (z - pondZ) * (z - pondZ)),
           pondRadius,
         );
     final out = z > 25.0

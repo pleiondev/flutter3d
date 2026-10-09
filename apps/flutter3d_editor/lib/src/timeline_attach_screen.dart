@@ -397,7 +397,7 @@ final class _TrackLanes extends StatelessWidget {
         child: Text('no entities in what the game holds'),
       );
     }
-    final colours = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).colorScheme;
     final span = (present - oldest).clamp(1, 1 << 30);
     return SizedBox(
       height: (lanes.length * _laneHeight).clamp(_laneHeight, 120.0),
@@ -427,10 +427,7 @@ final class _TrackLanes extends StatelessWidget {
                               left: x(cursor),
                               top: 0,
                               bottom: 0,
-                              child: Container(
-                                width: 1.0,
-                                color: colours.error,
-                              ),
+                              child: Container(width: 1.0, color: colors.error),
                             ),
                             for (final (i, step) in lane.steps.indexed)
                               Positioned(
@@ -449,7 +446,7 @@ final class _TrackLanes extends StatelessWidget {
                                     child: Container(
                                       width: 4.0,
                                       height: _laneHeight - 6.0,
-                                      color: colours.primary,
+                                      color: colors.primary,
                                     ),
                                   ),
                                 ),

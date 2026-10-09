@@ -48,8 +48,16 @@ dependencies:
   flutter3d_editor_widgets:
     path: ../../packages/flutter3d_editor_widgets
 
+  # The plugins this editor installs: `lib/plugins.g.dart` names them through
+  # the plugin API, and their MCP tools land in an `McpTools` the editor
+  # keeps beside its `EditorPieces` and its decoders. See `src/editor_plugins.dart`.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+  flutter3d_mcp:
+    path: ../../packages/flutter3d_mcp
+
   # Play: the project run with `flutter run --machine`, its devices, and a
-  # saved level sent to it. Shared with `flutter3d_editor_mcp`, so an agent's
+  # saved level sent to it. Shared with `flutter3d_mcp/editor.dart`, so an agent's
   # Play is this toolbar's. Its `attach.dart` is the Play a web build has: a
   # running game attached to by address, imported by `src/play/play_screen.dart`.
   flutter3d_editor_play:
@@ -68,7 +76,7 @@ dependencies:
   # The surface a frame reaches Flutter through, the screens no game owns, and
 
   # `rp-04`: `Demo.fromJson` — reading a `.f3drun` a player sent back, not
-  # just writing one from a live game (`flutter3d_editor_mcp`/`ai-00` write
+  # just writing one from a live game (`flutter3d_mcp/editor.dart`/`ai-00` write
   # them; nothing here read one until now).
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
@@ -158,6 +166,10 @@ dev_dependencies:
     path: ../../packages/flutter3d_game_racing
   flutter3d_game_strategy:
     path: ../../packages/flutter3d_game_strategy
+
+  # The shooter's sample roster the shooter template is checked against.
+  flutter3d_demo_content:
+    path: ../../packages/flutter3d_demo_content
 
 flutter:
   uses-material-design: true

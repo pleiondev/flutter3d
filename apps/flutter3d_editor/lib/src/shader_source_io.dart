@@ -22,7 +22,7 @@ Future<WatchedShaders?> openShaders(
   String path, {
   required List<String> from,
   required void Function(LoadedShaderLibrary library) onRefreshed,
-  required void Function(ShaderBundleRefused refused) onRefused,
+  required void Function(ShaderBundleException refused) onRefused,
 }) async {
   if (path.isEmpty) return null;
   final found = Documents.find(

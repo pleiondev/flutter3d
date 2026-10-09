@@ -10,9 +10,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_demo_racing/src/net_race_session.dart';
 import 'package:flutter3d_demo_racing/src/party_race_session.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -129,12 +132,49 @@ void main() {
     addTearDown(() => relay.process.kill());
     final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
 
-    // Another client made it for six.
-    final maker = await joinParty(base, 'BIGUN', size: 6);
+    // Another client made it for six, on the same simulation: a maker on
+    // none would be refused for its version, and this would pass for that.
+    final maker = await joinParty(
+      base,
+      'BIGUN',
+      size: 6,
+      terms: NetRaceSession.terms,
+      simulation: racingSimulationVersion,
+    );
     addTearDown(maker.socket.close);
     // Mutation: the size check dropped — a race staged for six cars.
     await expectLater(
       _open(base, code: 'BIGUN', size: 4, input: InputState()),
+      throwsA(
+        isA<StateError>().having(
+          (StateError e) => e.message,
+          'message',
+          contains('seats'),
+        ),
+      ),
+    );
+  });
+
+  test('a party asks with the racing simulation, so another build is turned '
+      'away', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+
+    final host = await _open(base, code: 'RULES', size: 3, input: InputState());
+    addTearDown(host.dispose);
+    // Mutation: open the party with no simulation version, as it once was.
+    // A build on the old rules made the party and this one was seated in it.
+    await expectLater(
+      joinParty(
+        base,
+        'RULES',
+        terms: NetRaceSession.terms,
+        simulation: SimulationVersion(
+          genre: racingSimulationVersion.genre,
+          genreVersion: racingSimulationVersion.genreVersion + 1,
+        ),
+      ),
       throwsA(isA<StateError>()),
     );
   });

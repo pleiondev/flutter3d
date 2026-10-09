@@ -17,14 +17,14 @@
 library;
 
 import 'package:flutter/widgets.dart' show SizedBox, WidgetBuilder;
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
+import 'package:flutter3d_game/testing.dart' show captureToolEvents;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show Pickup;
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -43,20 +43,19 @@ GraphicsDevice _device() => CpuDevice(
 );
 
 /// A storage that keeps everything in a map.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A cubit over the shipped documents, with a real device and no window.
@@ -270,10 +269,11 @@ void main() {
     /// What the game posts while the test runs, by kind and data.
     List<(String, Map<String, Object?>)> listen() {
       final posted = <(String, Map<String, Object?>)>[];
-      final before = postGameEvent;
-      postGameEvent = (String kind, Map<String, Object?> data) =>
-          posted.add((kind, data));
-      addTearDown(() => postGameEvent = before);
+      addTearDown(
+        captureToolEvents(
+          (String kind, Map<String, Object?> data) => posted.add((kind, data)),
+        ),
+      );
       return posted;
     }
 
@@ -316,7 +316,7 @@ void main() {
       await it.run.begin();
       final posted = listen();
 
-      it.run.run.replaceLevel(await it.run.run.open(_crypt));
+      it.run.run.replaceLevel(await it.run.run.loadLevel(_crypt));
 
       expect(posted, isEmpty);
     });

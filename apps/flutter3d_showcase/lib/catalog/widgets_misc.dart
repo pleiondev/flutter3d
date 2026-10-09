@@ -130,4 +130,86 @@ const List<Feature> widgetsMiscFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_net/CHANGELOG.md',
     packages: <String>['flutter3d_net', 'flutter3d_sim'],
   ),
+  Feature(
+    id: 'time-travel',
+    title: 'A time-travel debugger',
+    category: Category.widgetsMisc,
+    summary:
+        'Scrub a paused run to any step it holds and back, read each entity\'s history as lanes, and bisect two runs to the step and component where they part.',
+    since: '1.0.0-rc.1',
+    evidence: '`RunTimeline` scrubs without cutting.',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    packages: <String>['flutter3d_game', 'flutter3d_sim'],
+  ),
+  Feature(
+    id: 'saves',
+    title: 'Saves that survive an update',
+    category: Category.widgetsMisc,
+    summary:
+        'A save schema whose old versions migrate on load, an autosave at pauses and checkpoints, and a cloud copy settled by step and digest.',
+    since: '1.0.0-rc.1',
+    evidence:
+        'A save says what version of the game wrote it, and an old one is migrated.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim', 'flutter3d_game', 'flutter3d_app'],
+  ),
+  Feature(
+    id: 'parties',
+    title: 'Parties of more than two',
+    category: Category.widgetsMisc,
+    summary:
+        'Four machines rolling back over a late, lossy wire to one state, and a spectator who arrives late played the settled steps.',
+    since: '1.0.0-rc.1',
+    evidence: 'The relay holds parties.',
+    evidenceFile: 'packages/flutter3d_net/CHANGELOG.md',
+    keywords: <String>['RollbackSession', 'PeerWire.party'],
+    packages: <String>['flame_multiplayer'],
+    engineFiles: <String>['packages/flame_multiplayer/lib/src/party.dart'],
+  ),
+  Feature(
+    id: 'scene-widgets',
+    title: 'A scene written as widgets',
+    category: Category.widgetsMisc,
+    summary:
+        'Mesh3D, Light3D, Node3D and Material3D: the scene as a widget tree, each widget owning one node.',
+    since: '1.0.0-rc.1',
+    evidence: 'A scene written as widgets',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_app'],
+    engineFiles: <String>[
+      'packages/flutter3d_app/lib/src/declarative/scene_widgets.dart',
+      'packages/flutter3d_app/lib/src/declarative/scene_widgets_mount.dart',
+    ],
+  ),
+  Feature(
+    id: 'render-inspection',
+    title: 'Inspecting a running frame',
+    category: Category.widgetsMisc,
+    summary:
+        'The passes, the draws, a pixel and the node under a point, read from the frame the game drew.',
+    since: '1.0.0-rc.1',
+    evidence:
+        'A tool attached to a running game can read the game\'s own frame',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_app'],
+    engineFiles: <String>[
+      'packages/flutter3d_app/lib/src/diagnostics/render_inspection.dart',
+      'packages/flutter3d_app/lib/src/diagnostics/render_extensions.dart',
+    ],
+  ),
+  Feature(
+    id: 'hot-swap',
+    title: 'Changing a running game\'s assets',
+    category: Category.widgetsMisc,
+    summary:
+        'A texture, a model, a material field and a tunable changed under a running world, in the nodes it already has.',
+    since: '1.0.0-rc.1',
+    evidence: 'A hot reload shows the shaders it reloaded',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_app', 'flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_app/lib/src/hot_swap/hot_swap.dart',
+      'packages/flutter3d_sim/lib/src/input/tunables.dart',
+    ],
+  ),
 ];

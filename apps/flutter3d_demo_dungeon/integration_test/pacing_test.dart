@@ -102,8 +102,8 @@ void main() {
       'pacing': <String, Object?>{
         ...pacing.toJson(),
         'millis': <double>[
-          for (final ms in pacing.millis)
-            (ms * 1000.0).roundToDouble() / 1000.0,
+          for (final seconds in pacing.seconds)
+            (seconds * 1e6).roundToDouble() / 1000.0,
         ],
       },
       'about': <String, Object?>{

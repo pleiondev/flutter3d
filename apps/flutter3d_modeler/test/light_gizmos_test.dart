@@ -30,7 +30,6 @@ import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The line whose own start vertex sits at [origin] — the direction arrow for
 /// a light with no cone, or one candidate among several for a spot light
@@ -158,9 +157,9 @@ void main() {
           views: stage.views(),
           settings: settings,
         );
-        final pixels = await it.device.readPixels(result.frame);
+        final pixels = await it.device.readback(result.frame);
         expect(pixels, isNotNull);
-        return pixels!.buffer.asUint8List();
+        return pixels.buffer.asUint8List();
       }
 
       final without = await frameFor(noLights);

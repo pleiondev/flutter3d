@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RewindDemo extends ShowcaseDemo {
   late final String _report;
@@ -79,7 +78,7 @@ final class RewindDemo extends ShowcaseDemo {
       // One step: record the input, take a keyframe when one is due, run the
       // step.
       _buffer.recorder.tape.frames.add(InputFrame(stickX: 1.0));
-      if (_buffer.keyframeDue) {
+      if (_buffer.isKeyframeDue) {
         _buffer.keyframe(Snapshot(<String, Object?>{'x': _x}));
       }
       _x += 1.0;
@@ -111,7 +110,7 @@ final class RewindDemo extends ShowcaseDemo {
       0.4 + 0.15 * (0.5 + 0.5 * math.sin(_clock * 12.0)),
       0.0,
     );
-    _ghost.visible = then != null;
+    _ghost.isVisible = then != null;
     if (then != null) _ghost.setPosition(then * _scale, 0.4, 1.2);
     _held.set(_buffer.step / 160.0);
   }
@@ -146,7 +145,7 @@ final class RewindDemo extends ShowcaseDemo {
     // #region step
     for (var i = 0; i < 30; i++) {
       buffer.recorder.tape.frames.add(InputFrame(stickX: 1.0));
-      if (buffer.keyframeDue) {
+      if (buffer.isKeyframeDue) {
         buffer.keyframe(Snapshot(<String, Object?>{'x': x}));
       }
       timing.record(buffer.step, () => x += 1.0);
@@ -162,7 +161,8 @@ final class RewindDemo extends ShowcaseDemo {
     return 'now at step ${buffer.step}, x=$x\n'
         'one second back: step ${point.step}, '
         'x=${point.snapshot.data['x']}, replaying ${point.replayed} inputs\n'
-        'mean step cost: ${timing.meanMillis?.toStringAsFixed(3)} ms';
+        'mean step cost: '
+        '${timing.meanSeconds == null ? '-' : (timing.meanSeconds! * 1000.0).toStringAsFixed(3)} ms';
   }
 
   @override

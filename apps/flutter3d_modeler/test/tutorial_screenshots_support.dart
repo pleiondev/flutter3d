@@ -34,7 +34,7 @@ const Size screenshotWindow = Size(1440, 900);
 
 /// Answers every read with nothing and every write as if it landed, so a
 /// screenshot run touches no real autosave slot.
-final class NullBinaryStorage implements BinaryStorage {
+final class NullBinaryStorage extends BinaryStorage {
   @override
   Future<Uint8List?> read(String name) async => null;
 
@@ -47,7 +47,7 @@ final class NullBinaryStorage implements BinaryStorage {
 
 /// A settings document in memory, so a screenshot run neither reads a
 /// person's own preferences nor writes over them.
-final class MemorySettings implements Storage {
+final class MemorySettings extends Storage {
   /// **Seeded, not empty** — `ux-42`. An empty settings store is a first
   /// launch, and a first launch now opens Quick Setup: every picture below
   /// would otherwise be a picture of that dialog. Seeded with the Full
@@ -70,16 +70,15 @@ final class MemorySettings implements Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// Where the SDK keeps the fonts a real build draws with.

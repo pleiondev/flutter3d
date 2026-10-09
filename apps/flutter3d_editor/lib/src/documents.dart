@@ -50,9 +50,9 @@ abstract final class Documents {
   /// An absolute path is only ever itself: somebody who typed one has said
   /// where the file is, and searching would be second-guessing them.
   static List<String> candidates(String path, {required List<String> from}) {
-    if (_isAbsolute(path)) return <String>[_normalise(path)];
+    if (_isAbsolute(path)) return <String>[_normalize(path)];
     return <String>[
-      for (final directory in from) _normalise('$directory/$path'),
+      for (final directory in from) _normalize('$directory/$path'),
     ];
   }
 
@@ -72,7 +72,7 @@ abstract final class Documents {
     final roots = <String>[];
     void climb(String? path) {
       if (path == null) return;
-      var directory = _normalise(path);
+      var directory = _normalize(path);
       while (true) {
         if (!roots.contains(directory)) roots.add(directory);
         final parent = _parent(directory);
@@ -112,7 +112,7 @@ abstract final class Documents {
     String levelPath, {
     required bool Function(String) hasAssets,
   }) {
-    var directory = _parent(_normalise(levelPath));
+    var directory = _parent(_normalize(levelPath));
     while (directory != null) {
       if (hasAssets('$directory/assets')) return directory;
       final parent = _parent(directory);
@@ -154,7 +154,7 @@ abstract final class Documents {
 
   /// Resolves `.` and `..` without touching the disk, so a candidate that does
   /// not exist can still be printed as the path it means.
-  static String _normalise(String path) {
+  static String _normalize(String path) {
     final absolute = _isAbsolute(path);
     final parts = <String>[];
     for (final part in path.split('/')) {

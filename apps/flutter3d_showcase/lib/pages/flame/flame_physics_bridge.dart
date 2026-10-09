@@ -100,7 +100,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
 
     MeshNode cuboid(String name, Vector3 size, Vector4 color) => MeshNode(
       DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-      Material(name: name, baseColor: color),
+      RenderMaterial(name: name, baseColor: _fromSrgb(color)),
       name: name,
     );
     _pad = cuboid('landing pad', Vector3(6.0, 0.1, 6.0), _padIdle)
@@ -111,8 +111,8 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       Vector4(0.7, 0.5, 0.3, 1.0),
     );
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         cuboid('floor', Vector3(6.0, 1.0, 6.0), Vector4(0.36, 0.4, 0.38, 1.0))
           ..setPosition(0.0, -0.5, 0.0),
@@ -120,7 +120,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       ..add(_pad)
       ..add(crate)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -163,7 +163,9 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
           // The Flame side reacts to the collision it was handed.
           onTouch: (bool touching) {
             landing.paint.color = touching ? _touching : _idle;
-            _pad.material.baseColor.setFrom(touching ? _padTouching : _padIdle);
+            _pad.material.baseColor = _fromSrgb(
+              touching ? _padTouching : _padIdle,
+            );
           },
         )..add(
           RectangleComponent(
@@ -241,7 +243,10 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(0.6, 0.6, 0.6)).build(),
       ),
-      Material(name: 'bridged-crate', baseColor: Vector4(0.7, 0.5, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'bridged-crate',
+        baseColor: LinearColor.fromSrgb(0.7, 0.5, 0.3, 1.0),
+      ),
     );
     scene.add(node);
     final component = _TrackingRigidBodyComponent(
@@ -357,3 +362,6 @@ final class _Fall extends Component {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

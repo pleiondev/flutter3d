@@ -18,13 +18,14 @@ final class CapabilityReport {
   const CapabilityReport.all() : met = const <Need>{...Need.values};
 
   factory CapabilityReport.of(GraphicsDevice device) => CapabilityReport(<Need>{
-    if (device.supportsWireframe) Need.wireframe,
-    if (device.supportsCubeTextures) Need.cubeTextures,
-    if (device.supportsMipmaps) Need.mipmaps,
-    if (device.supportsRenderToMip) Need.renderToMip,
-    if (device.supportsStencil) Need.stencil,
-    if (device.supportsBlendColor) Need.blendColor,
-    if (device.supportsOffscreenMsaa) Need.offscreenMsaa,
+    if (device.features.has(DeviceFeature.wireframe)) Need.wireframe,
+    if (device.features.has(DeviceFeature.cubeTextures)) Need.cubeTextures,
+    if (device.features.has(DeviceFeature.manualMipmaps)) Need.mipmaps,
+    if (device.features.has(DeviceFeature.renderToMipLevel)) Need.renderToMip,
+    if (device.features.has(DeviceFeature.stencil)) Need.stencil,
+    if (device.features.has(DeviceFeature.blendConstant)) Need.blendColor,
+    if (device.features.has(DeviceFeature.offscreenMultisample))
+      Need.offscreenMsaa,
   });
 
   final Set<Need> met;

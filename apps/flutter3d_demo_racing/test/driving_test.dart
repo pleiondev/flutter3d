@@ -4,7 +4,7 @@
 ///
 /// **Everything a controller needs was already written and this game read none
 /// of it.** `VehicleInput` has held a throttle, a brake and a steering angle as
-/// `double` since the genre package existed, `PadRoutes.driving` was written for
+/// `double` since the genre package existed, the pad's driving bindings were written for
 /// a racing game that never asked for it, and the one place a player's intent
 /// became a number said `held ? 1.0 : 0.0` — so a trigger a third down and a
 /// stick a third over arrived as everything or nothing.
@@ -24,7 +24,7 @@ import 'package:pad_input/pad_input.dart'; // GamepadPlatform, from pad_input
 
 /// A gamepad that does whatever the test says.
 final class _FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..connected = true;
+  final PadSnapshot state = PadSnapshot()..isConnected = true;
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -63,6 +63,14 @@ Bindings _padTable() => Bindings(<InputSource, GameAction>{})
   steer: input.value(_right) - input.value(_left),
 );
 
+/// The pad's table with the stick's two halves bound to the steering, as the
+/// game's map has it.
+ActionMap _driving() => PadInput.addDrivingDefaultsTo(
+  ActionMap(actions: ActionSet.common, buttons: _padTable()),
+  steerLeft: _left,
+  steerRight: _right,
+);
+
 void main() {
   test('a trigger a third down is a third of the throttle', () {
     // The bug this replaces: `held ? 1.0 : 0.0`, which is a car with an on/off
@@ -70,12 +78,7 @@ void main() {
     final fake = _FakePad()..state.setAxis(PadAxis.triggerRight, 0.33);
     final input = InputState();
 
-    PadInput(
-      state: input,
-      pad: _bare(fake),
-      bindings: _padTable(),
-      routes: PadRoutes.driving(steerLeft: _left, steerRight: _right),
-    ).tick(1 / 60);
+    PadInput(state: input, pad: _bare(fake), actions: _driving()).tick(1 / 60);
 
     expect(_asDriven(input).throttle, closeTo(0.33, 1e-6));
   });
@@ -84,12 +87,7 @@ void main() {
     final fake = _FakePad()..state.setAxis(PadAxis.leftStickX, -0.5);
     final input = InputState();
 
-    PadInput(
-      state: input,
-      pad: _bare(fake),
-      bindings: _padTable(),
-      routes: PadRoutes.driving(steerLeft: _left, steerRight: _right),
-    ).tick(1 / 60);
+    PadInput(state: input, pad: _bare(fake), actions: _driving()).tick(1 / 60);
 
     // Negative is left, and left is a negative steering angle at the car.
     expect(_asDriven(input).steer, closeTo(-0.5, 1e-6));
@@ -109,16 +107,12 @@ void main() {
     // room — and, worse, a keyboard that cannot take the wheel back.
     final fake = _FakePad()..state.setAxis(PadAxis.leftStickX, 1.0);
     final input = InputState();
-    final pad = PadInput(
-      state: input,
-      pad: _bare(fake),
-      bindings: _padTable(),
-      routes: PadRoutes.driving(steerLeft: _left, steerRight: _right),
-    )..tick(1 / 60);
+    final pad = PadInput(state: input, pad: _bare(fake), actions: _driving())
+      ..tick(1 / 60);
     expect(_asDriven(input).steer, closeTo(1.0, 1e-6));
 
     fake.state
-      ..connected = false
+      ..isConnected = false
       ..setAxis(PadAxis.leftStickX, 0.0);
     pad.tick(1 / 60);
 
@@ -143,8 +137,8 @@ void main() {
     );
     expect(
       game,
-      contains('PadRoutes.driving('),
-      reason: 'the stick is not routed, so nothing steers from a pad',
+      contains('PadInput.addDrivingDefaultsTo('),
+      reason: 'the stick is not bound, so nothing steers from a pad',
     );
     expect(
       game,

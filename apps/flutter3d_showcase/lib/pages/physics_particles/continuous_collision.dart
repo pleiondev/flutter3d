@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One ball: the world it flies in, its body, the lane it flies along and
 /// what it is drawn as.
@@ -126,7 +125,7 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3.all(1.0)).build(),
     );
-    for (final (NativeWorld world, NativeBody ball, double z, Vector3 colour)
+    for (final (NativeWorld world, NativeBody ball, double z, Vector3 color)
         in <(NativeWorld, NativeBody, double, Vector3)>[
           (soft, softBall, -0.7, Vector3(0.35, 0.85, 0.45)),
           (hard, bulletBall, 0.0, Vector3(0.95, 0.7, 0.25)),
@@ -134,19 +133,19 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
         ]) {
       final mesh = MeshNode(
         sphere,
-        Material(
+        RenderMaterial(
           name: 'ball $z',
-          baseColor: Vector4(colour.x, colour.y, colour.z, 1.0),
-          emissive: colour * 0.4,
+          baseColor: LinearColor.fromSrgb(color.x, color.y, color.z, 1.0),
+          emissive: (color * 0.4).toLinearColor(),
         ),
         name: 'ball $z',
       );
       final trail = MeshNode(
         unit,
-        Material(
+        RenderMaterial(
           name: 'trail $z',
-          baseColor: Vector4(colour.x, colour.y, colour.z, 1.0),
-          emissive: colour * 0.8,
+          baseColor: LinearColor.fromSrgb(color.x, color.y, color.z, 1.0),
+          emissive: (color * 0.8).toLinearColor(),
         ),
         name: 'trail $z',
       );
@@ -181,10 +180,10 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _makeWorlds();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       )
       ..add(
@@ -193,7 +192,10 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(8.0, 0.1, 2.6)).build(),
           ),
-          Material(name: 'ground', baseColor: Vector4(0.3, 0.32, 0.35, 1.0)),
+          RenderMaterial(
+            name: 'ground',
+            baseColor: LinearColor.fromSrgb(0.3, 0.32, 0.35, 1.0),
+          ),
           name: 'ground',
         )..setPosition(-0.5, -0.05, 0.0),
       )
@@ -203,7 +205,10 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(2 * _wallHalf, 1.2, 2.4)).build(),
           ),
-          Material(name: 'wall', baseColor: Vector4(0.75, 0.78, 0.82, 1.0)),
+          RenderMaterial(
+            name: 'wall',
+            baseColor: LinearColor.fromSrgb(0.75, 0.78, 0.82, 1.0),
+          ),
           name: 'wall',
         )..setPosition(0.0, _height, 0.0),
       );
@@ -219,12 +224,12 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
   /// a ball too fast to see in a frame leaves its path behind.
   void _place() {
     for (final _Lane lane in _lanes) {
-      final Vector3 p = lane.world.positionOf(lane.ball);
+      final Vector3 p = lane.world.localPositionOf(lane.ball);
       lane.mesh.setPosition(p.x, p.y, p.z);
       final double end = p.x.clamp(_launchX, 3.0);
       final double length = end - _launchX;
       lane.trail
-        ..visible = length > 0.01
+        ..isVisible = length > 0.01
         ..setPosition(_launchX + 0.5 * length, p.y, lane.z)
         ..setScale(length, 0.012, 0.012);
     }
@@ -271,7 +276,7 @@ final class ContinuousCollisionDemo extends ShowcaseDemo {
       _hard!.step(_step);
     }
     return <double>[
-      for (final _Lane lane in _lanes) lane.world.positionOf(lane.ball).x,
+      for (final _Lane lane in _lanes) lane.world.localPositionOf(lane.ball).x,
     ];
   }
 

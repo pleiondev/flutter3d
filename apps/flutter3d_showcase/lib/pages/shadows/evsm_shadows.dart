@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class EvsmShadowsDemo extends ShowcaseDemo {
   int filterChoice = 2;
@@ -31,17 +30,21 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    MeshNode slab(String name, Vector3 size, Vector3 at, Material material) =>
-        MeshNode(
-          DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-          material,
-          name: name,
-        )..setPosition(at.x, at.y, at.z);
+    MeshNode slab(
+      String name,
+      Vector3 size,
+      Vector3 at,
+      RenderMaterial material,
+    ) => MeshNode(
+      DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
+      material,
+      name: name,
+    )..setPosition(at.x, at.y, at.z);
 
     // #region casters
-    final Material grey = Material(
+    final RenderMaterial grey = RenderMaterial(
       name: 'grey',
-      baseColor: Vector4(0.6, 0.6, 0.62, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.62, 1.0),
     );
     final Scene scene = Scene()
       ..add(
@@ -49,7 +52,10 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
           'floor',
           Vector3(14.0, 0.2, 14.0),
           Vector3(0.0, -0.1, 0.0),
-          Material(name: 'floor', baseColor: Vector4(0.5, 0.5, 0.52, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
+          ),
         ),
       )
       ..add(slab('box', Vector3(1.6, 0.2, 1.6), Vector3(0.0, 0.6, 0.0), grey))
@@ -59,8 +65,10 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
     // #endregion casters
 
     // #region sun
-    final LightNode sun = LightNode(name: 'sun', intensity: 1.5)
-      ..setLocalForward(Vector3(-0.85, -1.0, -0.2).normalized());
+    final LightNode sun = LightNode(
+      name: 'sun',
+      intensity: 1.5 * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.85, -1.0, -0.2).normalized());
     // #endregion sun
     return scene..add(sun);
   }

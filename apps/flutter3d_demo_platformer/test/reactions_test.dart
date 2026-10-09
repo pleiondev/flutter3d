@@ -19,11 +19,15 @@ import 'dart:io';
 import 'package:flutter3d_demo_platformer/src/effects.dart';
 import 'package:flutter3d_demo_platformer/src/reactions.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
+import 'package:flutter3d_game_kit/reactions.dart' show Felt, Jolt;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -34,6 +38,7 @@ final class _Run {
     // `stage` is what `main.dart` calls. A harness that assembles the level its
     // own way is a harness that agrees with any bug the game has.
     staged = stage(level, world, input: input, registry: kinds);
+    sim.publishTo(published.bus);
   }
 
   final EntityRegistry kinds = platformerRegistry();
@@ -43,6 +48,9 @@ final class _Run {
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
   PlatformerSimulation get sim => staged.sim;
+
+  /// What [sim] publishes, step by step.
+  final HeardEvents published = HeardEvents();
 
   final Level level = Level.fromJson(
     jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
@@ -68,7 +76,7 @@ final class _Run {
       }
       sim.step(_dt);
       input.endStep();
-      final reaction = reactions.listen(sim, runner, sim.events.drain());
+      final reaction = reactions.listen(sim, runner, published.take());
       shown.addAll(reaction.bursts);
       felt.addAll(reaction.jolts);
     }
@@ -145,16 +153,16 @@ void main() {
     // whose arms are one line each, and where sending two of the three verbs
     // to the same camera method would look right and read wrong.
     //
-    // `extraFov` is the only one of the three that is observable from outside,
+    // `extraFovY` is the only one of the three that is observable from outside,
     // so it is used as the discriminator in both directions.
     final widened = FollowCamera(world: CollisionWorld());
-    const Felt.widen(0.2).applyTo(widened);
-    expect(widened.extraFov, greaterThan(0.0), reason: 'a widen did nothing');
+    const Felt.widen(0.2).applyTo(widened.rig);
+    expect(widened.extraFovY, greaterThan(0.0), reason: 'a widen did nothing');
 
     final jolted = FollowCamera(world: CollisionWorld());
-    Felt.kick(Vector3(0.0, -1.0, 0.0)).applyTo(jolted);
-    expect(jolted.extraFov, 0.0, reason: 'a kick widened the view');
-    const Felt.shake(0.5, seconds: 0.4).applyTo(jolted);
-    expect(jolted.extraFov, 0.0, reason: 'a shake widened the view');
+    Felt.kick(Vector3(0.0, -1.0, 0.0)).applyTo(jolted.rig);
+    expect(jolted.extraFovY, 0.0, reason: 'a kick widened the view');
+    const Felt.shake(0.5, seconds: 0.4).applyTo(jolted.rig);
+    expect(jolted.extraFovY, 0.0, reason: 'a shake widened the view');
   });
 }

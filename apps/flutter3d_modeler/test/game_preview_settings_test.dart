@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/game_preview_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The same IEC 61966-2-1 curve `game_preview_settings.dart` applies,
 /// worked out independently here — `weight_gradient_test.dart`'s own
@@ -24,6 +23,9 @@ Vector3 _linearOf(int hex) => Vector3(
   _linearChannel(((hex >> 8) & 0xFF) / 255.0),
   _linearChannel((hex & 0xFF) / 255.0),
 );
+
+/// [color]'s red, green and blue, to compare with [_linearOf].
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
 
 void _expectClose(Vector3 actual, Vector3 expected, {double eps = 1e-6}) {
   expect(actual.x, closeTo(expected.x, eps));
@@ -38,8 +40,8 @@ void main() {
       final settings = GamePreviewSettings.forProfile(const ProjectProfile());
 
       expect(settings.sky.enabled, isTrue);
-      _expectClose(settings.sky.resolvedZenith, _linearOf(0x243440));
-      _expectClose(settings.sky.resolvedNadir, _linearOf(0x0F181D));
+      _expectClose(_rgb(settings.sky.resolvedZenith), _linearOf(0x243440));
+      _expectClose(_rgb(settings.sky.resolvedNadir), _linearOf(0x0F181D));
     });
 
     test('tonemap is always on, regardless of target', () {

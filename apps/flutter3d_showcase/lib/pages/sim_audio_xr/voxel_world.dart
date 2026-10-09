@@ -11,7 +11,6 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VoxelWorldDemo extends ShowcaseDemo {
   bool digging = true;
@@ -74,10 +73,10 @@ final class VoxelWorldDemo extends ShowcaseDemo {
     ];
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.55, 0.62, 0.75)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.55, 0.62, 0.75)
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.6)
+        LightNode(name: 'sun', intensity: 2.6 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.25)),
       );
     for (final ChunkKey chunk in _voxels.chunks) {
@@ -95,7 +94,7 @@ final class VoxelWorldDemo extends ShowcaseDemo {
     return y;
   }
 
-  static Vector4 _colourOf(int material) => switch (material) {
+  static Vector4 _colorOf(int material) => switch (material) {
     Voxels.stone => Vector4(0.5, 0.5, 0.52, 1.0),
     Voxels.dirt => Vector4(0.45, 0.32, 0.2, 1.0),
     Voxels.grass => Vector4(0.35, 0.62, 0.28, 1.0),
@@ -116,9 +115,9 @@ final class VoxelWorldDemo extends ShowcaseDemo {
       ).entries)
         MeshNode(
           DeviceMesh.upload(_device, data),
-          Material(
+          RenderMaterial(
             name: 'voxel $material',
-            baseColor: _colourOf(material),
+            baseColor: _fromSrgb(_colorOf(material)),
             roughness: 0.9,
           ),
           name: 'chunk ${chunk.x} ${chunk.z} material $material',
@@ -133,7 +132,7 @@ final class VoxelWorldDemo extends ShowcaseDemo {
   /// What an edit costs: the chunks whose faces it touched are meshed again,
   /// and the chunks it changed get new boxes.
   void _apply() {
-    final VoxelChanges changes = _voxels.takeChanges();
+    final VoxelChanges changes = _voxels.drainChanges();
     if (changes.isEmpty) return;
     changes.surfaces.forEach(_mesh);
     _collision.refresh(changes.chunks);
@@ -193,7 +192,7 @@ final class VoxelWorldDemo extends ShowcaseDemo {
       60.0,
       hit,
     );
-    if (!hit.hit) throw StateError('no ground under $x, $z');
+    if (!hit.didHit) throw StateError('no ground under $x, $z');
     return hit.point.y;
   }
 
@@ -253,3 +252,6 @@ final class VoxelWorldDemo extends ShowcaseDemo {
     // #endregion check
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

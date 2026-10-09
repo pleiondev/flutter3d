@@ -9,9 +9,10 @@ fluid.
 
 ## Step 1: Accumulate real time into fixed steps
 
-`FixedStep` takes however many seconds a frame actually took and hands back
-how many whole steps of simulated time fit into it. Leftover time waits for
-the next call, so nothing is lost to rounding over a long session.
+`EngineLoop` takes however many seconds a frame actually took and runs as
+many whole steps of simulated time as fit into it, calling the systems added
+to its phases once per step. Leftover time waits for the next frame, so
+nothing is lost to rounding over a long session.
 
 {{code clock}}
 
@@ -29,9 +30,9 @@ flag that someone forgets to set.
 
 ## Step 3: Run the steps a frame is owed
 
-Each call to `advance` can return more than one step, if the last frame ran
-long, or none at all, if the display outpaces the simulation. Every step this
-page runs moves a marker along a line and hands the new position to the
+Each call to `frame` can run more than one step, if the last frame ran long,
+or none at all, if the display outpaces the simulation. Every step this page
+runs moves a marker along a line and hands the new position to the
 interpolator.
 
 {{code advance}}

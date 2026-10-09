@@ -4,7 +4,7 @@
 ///     flutter test test/retopo_draw_test.dart
 library;
 
-import 'package:flutter3d_core/geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/retopo_draw.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -129,9 +129,9 @@ void main() {
       // Mutation: build it in the mesh's own space. A click on the cube
       // where it is drawn misses, and one on empty space ten units to the
       // left hits.
-      final down = Ray(vm.Vector3(10, 5, 0), vm.Vector3(0, -1, 0));
+      final down = LocalRay(vm.Vector3(10, 5, 0), vm.Vector3(0, -1, 0));
       expect(surface.raycast(down), isNotNull);
-      final atOrigin = Ray(vm.Vector3(0, 5, 0), vm.Vector3(0, -1, 0));
+      final atOrigin = LocalRay(vm.Vector3(0, 5, 0), vm.Vector3(0, -1, 0));
       expect(surface.raycast(atOrigin), isNull);
     });
 

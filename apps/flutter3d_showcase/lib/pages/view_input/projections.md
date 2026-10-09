@@ -16,7 +16,7 @@ projection yet: this is the geometry both lenses will draw the same way.
 ## Step 2: The default lens
 
 `PerspectiveProjection` is what a camera uses if you never ask for anything
-else. `fovYRadians` is the vertical field of view, in radians; a wider angle
+else. `fovY` is the vertical field of view, in radians; a wider angle
 sees more of the scene and makes things at the edges bend more.
 
 {{code perspective}}

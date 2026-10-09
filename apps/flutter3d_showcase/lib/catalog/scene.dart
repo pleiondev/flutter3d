@@ -215,7 +215,7 @@ const List<Feature> sceneFeatures = <Feature>[
     ],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'On WebGPU the cloud is sorted on the GPU, in two radix passes that write the draw\'s indices; every other device keeps the CPU sort, which gives the same picture to the byte.',
         evidence:
@@ -367,7 +367,7 @@ const List<Feature> sceneFeatures = <Feature>[
     summary:
         'A box that paints a colour onto whatever stands inside it, a stain '
         'on a floor or a sign on a wall, under the light already there.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Projected box decals.',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     keywords: <String>['DecalNode'],
@@ -384,7 +384,7 @@ const List<Feature> sceneFeatures = <Feature>[
     summary:
         'A second camera draws the room into a texture, and a monitor in the '
         'room shows it in the same frame.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'A public camera into a texture',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     keywords: <String>['RenderTexture'],
@@ -392,6 +392,29 @@ const List<Feature> sceneFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/render_texture.dart',
       'packages/flutter3d_core/lib/src/engine/render/renderer_frame_nodes.dart',
+    ],
+  ),
+  Feature(
+    id: 'draw-control',
+    title: 'Draw order, alpha to coverage and index windows',
+    category: Category.scene,
+    summary:
+        'Which of two meshes in one place is drawn first, a masked edge smoothed by coverage, and a draw of part of an index buffer.',
+    since: '1.0.0-rc.1',
+    evidence:
+        '**`MeshNode.drawOrder`** puts nodes that share a material in an order',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>[
+      'MeshNode.drawOrder',
+      'Material.alphaToCoverage',
+      'alphaToCoverageDeclined',
+      'indexWindow',
+    ],
+    packages: <String>['flutter3d_core', 'flutter3d_hardware'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_list.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_hardware/lib/src/command_encoder.dart',
     ],
   ),
 ];

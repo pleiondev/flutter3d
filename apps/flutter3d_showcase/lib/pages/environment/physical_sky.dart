@@ -8,7 +8,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PhysicalSkyDemo extends ShowcaseDemo {
   double sunHeight = 20.0;
@@ -40,9 +39,9 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.6, 0.57, 0.52, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.57, 0.52, 1.0),
       roughness: 0.9,
     );
     final DeviceMesh house = DeviceMesh.upload(
@@ -78,7 +77,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
       );
     }
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0);
+    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit);
     scene.add(_sun);
     // #endregion sun
     return scene;
@@ -91,7 +90,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
     // it: white at noon, orange low down, nothing once it has set.
     _sun
       ..setLocalForward(-_towardsSun)
-      ..color.setFrom(_air.sunlight(_towardsSun));
+      ..color = _air.sunlight(_towardsSun).toLinearColor();
     // #endregion sunlight
   }
 
@@ -110,7 +109,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
       fog: FogSettings(
         // The sky along the horizon ahead, so the far end of the street
         // melts into it at any hour.
-        color: sky.sample(Vector3(0.0, 0.02, -1.0)),
+        color: sky.sample(Vector3(0.0, 0.02, -1.0)).toLinearColor(),
         density: fogDensity,
         heightFalloff: heightFalloff,
       ),
@@ -153,7 +152,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
     final FramePass draw = frame.passes.firstWhere(
       (FramePass p) => p.name == 'scene',
     );
-    final int meshes = scene.meshes.where((MeshNode m) => m.visible).length;
+    final int meshes = scene.meshes.where((MeshNode m) => m.isVisible).length;
     if (draw.drawCalls != meshes + 1) {
       throw StateError(
         'expected $meshes mesh draws and one for the sky, '
@@ -162,7 +161,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
     }
     // Twenty degrees up, the sun has come through enough air to lose more
     // blue than red, and the light standing for it says so.
-    final Vector3 light = _sun.color;
+    final Vector3 light = _sun.color.toVector3();
     if (!(light.x > light.z && light.z > 0.0)) {
       throw StateError('a sun twenty degrees up should be warm: $light');
     }

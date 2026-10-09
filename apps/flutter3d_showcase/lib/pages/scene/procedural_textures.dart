@@ -5,11 +5,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ProceduralTexturesDemo extends ShowcaseDemo {
   final SolidColorTexture _solid = SolidColorTexture(
-    Vector4(0.12, 0.55, 0.92, 1.0),
+    LinearColor.fromSrgb(0.12, 0.55, 0.92),
   );
   static const CheckerboardTexture _checker = CheckerboardTexture(
     size: 64,
@@ -18,8 +17,8 @@ final class ProceduralTexturesDemo extends ShowcaseDemo {
     dark: 0x314A72,
   );
 
-  late final Material _solidMaterial;
-  late final Material _checkerMaterial;
+  late final RenderMaterial _solidMaterial;
+  late final RenderMaterial _checkerMaterial;
 
   @override
   void configureView(DemoContext context) {
@@ -42,25 +41,25 @@ final class ProceduralTexturesDemo extends ShowcaseDemo {
     // #endregion encode
 
     // #region upload
-    _solidMaterial = Material(
+    _solidMaterial = RenderMaterial(
       name: 'solid blue',
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
       albedo: _solid.upload(context.device),
       roughness: 0.42,
     );
-    _checkerMaterial = Material(
+    _checkerMaterial = RenderMaterial(
       name: 'checkerboard',
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
       albedo: _checker.upload(context.device),
-      albedoSampler: SamplerOptions.linearRepeat,
+      albedoSampler: SamplerDescriptor.linearRepeat,
       roughness: 0.58,
     );
     // #endregion upload
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.54, 0.72)
-      ..ambientIntensity = 0.14
+      ..ambientColor = LinearColor(0.45, 0.54, 0.72)
+      ..ambientIntensity = 0.14 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -87,7 +86,7 @@ final class ProceduralTexturesDemo extends ShowcaseDemo {
         )..setPosition(1.65, 1.05, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.3)
+        LightNode(name: 'key', intensity: 3.3 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.35)),
       );
     // #endregion scene

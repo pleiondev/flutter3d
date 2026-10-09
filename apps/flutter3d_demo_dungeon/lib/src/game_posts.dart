@@ -1,11 +1,11 @@
-import 'package:flutter3d_game/flutter3d_game.dart'; // postGameEvent, RunStatus
+import 'package:flutter3d_game/flutter3d_game.dart'; // postToolEvent, RunStatus
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show Pickup;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'run_cubit.dart';
 
 /// What the crawl tells whoever watches it from outside — the editor's Play
-/// panel, an agent polling `play_events` — through `postGameEvent`:
+/// panel, an agent polling `play_events` — through `postToolEvent`:
 ///
 /// | kind | when | data |
 /// |---|---|---|
@@ -40,27 +40,27 @@ final class GamePosts {
     switch (status) {
       case RunPlaying<LevelReady>(:final asset, outcome: RunOutcome.playing)
           when was is! RunPlaying<LevelReady>:
-        postGameEvent('level.loaded', <String, Object?>{'level': asset});
+        postToolEvent('level.loaded', <String, Object?>{'level': asset});
         if (_died) {
-          postGameEvent('player.respawned', <String, Object?>{'level': asset});
+          postToolEvent('player.respawned', <String, Object?>{'level': asset});
         }
         _died = false;
       case RunPlaying<LevelReady>(:final asset, outcome: RunOutcome.lost):
         _died = true;
-        postGameEvent('player.died', <String, Object?>{'level': asset});
+        postToolEvent('player.died', <String, Object?>{'level': asset});
       case RunPlaying<LevelReady>(
         :final asset,
         :final level,
         outcome: RunOutcome.won,
       ):
         final next = level.staged.sim.nextLevel;
-        postGameEvent('level.exited', <String, Object?>{
+        postToolEvent('level.exited', <String, Object?>{
           'level': asset,
           'next': next,
         });
         if (next == null) {
           final crawl = run.crawl;
-          postGameEvent('run.finished', <String, Object?>{
+          postToolEvent('run.finished', <String, Object?>{
             'levels': crawl.levels,
             'kills': crawl.kills,
             'seconds': crawl.seconds,
@@ -78,7 +78,7 @@ final class GamePosts {
   void stepped() {
     if (run.status case RunPlaying<LevelReady>(:final asset, :final level)) {
       for (final taken in level.staged.mechanisms.events.taken) {
-        postGameEvent('pickup.taken', <String, Object?>{
+        postToolEvent('pickup.taken', <String, Object?>{
           'level': asset,
           'pickup': taken.name,
           if (taken case Pickup(:final gift, :final amount, :final detail)) ...{

@@ -5,13 +5,12 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LightingModelsDemo extends ShowcaseDemo {
   double roughness = 0.4;
   double sunIntensity = 3.0;
 
-  late final List<Material> _materials;
+  late final List<RenderMaterial> _materials;
   late final LightNode _sun;
 
   @override
@@ -26,12 +25,12 @@ final class LightingModelsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region models
-    _materials = <Material>[
+    _materials = <RenderMaterial>[
       for (final LightingModel model in LightingModel.builtIn)
-        Material(
+        RenderMaterial(
           name: model.label,
           lighting: model,
-          baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+          baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
           roughness: roughness,
         ),
     ];
@@ -52,8 +51,10 @@ final class LightingModelsDemo extends ShowcaseDemo {
     // #endregion row
 
     // #region light
-    _sun = LightNode(name: 'sun', intensity: sunIntensity)
-      ..setLocalForward(Vector3(-0.4, -0.6, -0.7));
+    _sun = LightNode(
+      name: 'sun',
+      intensity: sunIntensity * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.4, -0.6, -0.7));
     scene.add(_sun);
     // #endregion light
     return scene;
@@ -62,10 +63,10 @@ final class LightingModelsDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    for (final Material material in _materials) {
+    for (final RenderMaterial material in _materials) {
       material.roughness = roughness;
     }
-    _sun.intensity = sunIntensity;
+    _sun.intensity = sunIntensity * Photometric.legacyUnit;
     // #endregion live
   }
 

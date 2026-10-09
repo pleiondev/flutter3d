@@ -1,189 +1,99 @@
-/// The level's water, molten metal, fire and floating wood, on the physics
-/// core and drawn with `flutter3d_effects`.
+/// The level's water, molten metal, fire and floating wood, drawn through
+/// `flutter3d_effects`' [Elements].
 ///
-/// **A world of its own beside the run, and the run never learns of it.**
-/// The simulation steps the runner through trigger volumes and does not
-/// care what they look like; this reads the level document, the hazards'
-/// boxes and where the runner and the barges are each frame, and builds a
-/// [NativeWorld] of its own out of them: shallow water filling each pit the
-/// level's [Dressing] names, springs on the ledges over them that pour in
-/// as falls, wood floating in it, coal and braziers burning. The runner
-/// wades through that water as a body following them, so the water parts,
-/// splashes and leaves a wake behind them, and the barges do the same. None
-/// of it is written back: a fire does no harm and a raft holds nobody up,
-/// so a replay, a ghost and a test step exactly as they always have.
+/// **The run owns them; this only draws them.** The water, the fires and
+/// the wood are a world of the physics core's that the run builds when it
+/// stages a level and steps in its own fixed step (`run_elements.dart`),
+/// so the water holds the runner up and back and the fires burn them, and
+/// a replay, a ghost and a test step it to the same bits as the game.
+/// What is here is everything that needs a device: the water's surface and
+/// falls, the flames and their light, the pits' walls and culverts, the
+/// braziers' iron and coal, the wood's looks, and the sound of it all.
+///
+/// **A copy of the run's world, not the world itself.** What draws the
+/// fires is bound to one world for the session, because the renderer keeps
+/// what it adds for good, and each level has a world of its own. So the
+/// drawing holds one world of its own, and each frame the run has stepped
+/// since the last, the run's world is copied into it whole by snapshot:
+/// handles and all, so what the run's world calls a pool or a raft, this
+/// one calls the same. Nothing is ever stepped here.
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show LevelLoader;
 import 'package:flutter3d_effects/flutter3d_effects.dart';
-import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'dressing.dart';
 import 'run.dart';
+import 'run_elements.dart';
 
-/// One pit's liquid: the grid it is stepped on, what draws it, and the
-/// drain that keeps its level where the level put it.
-final class _Pool {
-  _Pool({
-    required this.name,
-    required this.liquid,
-    required this.view,
-    required this.surface,
-    required this.bottom,
-    required this.inflow,
-    required this.springs,
-    required this.drain,
-    required this.molten,
-  });
-
-  final String name;
-  final NativeShallowLiquid liquid;
-  final LiquidView view;
-
-  /// The height its surface was filled to, m, and the pit's floor.
-  final double surface, bottom;
-
-  /// What its springs pour in, m³/s, and how many there are: its drain is
-  /// the source after them.
-  final double inflow;
-  final int springs;
-
-  /// Where it is drawn off as fast as it is poured in, when anything is.
-  final Vector2? drain;
-  final bool molten;
-
-  /// Whether ([x], [z]) lies over this pool's grid.
-  bool covers(double x, double z) {
-    final o = liquid.origin;
-    return x >= o.x &&
-        z >= o.z &&
-        x <= o.x + liquid.nx * liquid.cell &&
-        z <= o.z + liquid.nz * liquid.cell;
-  }
-}
-
-/// A piece of wood afloat and what draws it.
-final class _Afloat {
-  _Afloat(this.body, this.node, this.home, this.pool, this.phase);
-
-  final NativeBody body;
-  final SceneNode node;
-
-  /// Where it was put in, and goes back to when it leaves its pool.
-  final Vector3 home;
-  final _Pool pool;
-
-  /// Where in its wander the air that pushes it is.
-  final double phase;
-}
-
-/// Something burning: its body, what draws it, and the box and mass of
-/// wood it is made again of when it has burnt down.
-final class _Fuel {
-  _Fuel(this.body, this.node, this.centre, this.half, this.mass);
-
-  final NativeBody body;
-  final MeshNode node;
-  final Vector3 centre, half;
-  final double mass;
-}
-
-/// A body that goes where something of the run goes: the runner, a barge.
-final class _Follower {
-  _Follower(this.body, this.at);
-
-  final NativeBody body;
-
-  /// Where the thing it follows is now.
-  final Vector3 Function() at;
-}
-
-/// The effects of a level: built once for the session, and dressed again
-/// for every level the run opens.
+/// The effects of a level: built once for the session over [elements],
+/// and dressed again for every level the run opens.
 final class LevelElements {
   LevelElements({
-    required GraphicsDevice device,
-    required Renderer renderer,
-    required this.water,
-    required this.molten,
-    this.light = false,
-  }) : _device = device {
-    fire = FireView(
-      world: world,
-      device: device,
-      // A scene of its own until a level is up: [stage] carries the
-      // firelight into each level's scene in turn.
-      scene: Scene(),
-      renderer: renderer,
-      // A brazier's split logs and lumps of coal, a hand across: the
-      // tongues are sized from it and the fire puffs by it.
-      baseWidth: 0.35,
-      detail: light ? FireDetail.light : FireDetail.full,
-    );
-  }
+    required this.elements,
+    required this._device,
+    required this._liquidBundle,
+  });
 
-  /// Whether to draw less of the water and the fire, for a phone.
-  final bool light;
-
-  /// The looks of the water and of the metal.
-  final LiquidLook water, molten;
+  /// The water, the fire and the world they are drawn from: one for the
+  /// session, adopted, never stepped.
+  final Elements elements;
 
   final GraphicsDevice _device;
 
-  /// Everything here: the pools, the wood, the fires, the followers.
-  final NativeWorld world = NativeWorld();
+  /// The water's compiled material, `LiquidLook.asset`.
+  final ByteData _liquidBundle;
 
-  /// Every fire of [world], drawn. One for the session, because the
-  /// renderer keeps what it adds for good.
-  late final FireView fire;
+  NativeWorld get world => elements.world;
 
-  /// What the fires, the falls and the splashes sound like this frame. A
-  /// new one for each level, since it holds the pools it listens to.
-  late PhysicsHearing hearing = PhysicsHearing(world);
+  /// What the fires, the falls and the splashes sound like this frame.
+  PhysicsHearing get hearing => elements.hearing!;
 
-  final List<_Pool> _pools = <_Pool>[];
-  final List<_Afloat> _afloat = <_Afloat>[];
-  final List<_Fuel> _burning = <_Fuel>[];
-  final List<_Follower> _followers = <_Follower>[];
-  final List<NativeBody> _solid = <NativeBody>[];
+  /// The run's elements being drawn, and how many steps of theirs the copy
+  /// has.
+  RunElements? _run;
+  int _copied = -1;
+
+  final List<({LiquidView view, LiquidLook look})> _waters =
+      <({LiquidView view, LiquidLook look})>[];
+  final List<TrackedBody> _bodies = <TrackedBody>[];
 
   /// The hazards' own boxes, kept out of sight under what is drawn instead.
   final List<MeshNode> _hidden = <MeshNode>[];
 
-  /// The body wading where the runner wades, and the pool it was last over.
-  _Follower? _wader;
-  _Pool? _wadingIn;
-  double _clock = 0.0, _sinceFed = 0.0;
+  /// The level's fog, as the liquids mirror it, and its sun.
+  Vector3 _fog = Vector3.zero();
+  ({Vector3 along, Vector3 light})? _sun;
+  double _clock = 0.0;
 
-  /// No more cells than this to a pool at half a metre a cell; a bigger
-  /// pool is stepped a metre a cell.
-  static const int _mostCells = 6000;
-
-  /// How far past a pit's box its grid reaches, m, so the bank is in it.
-  static const double _margin = 1.0;
-
-  /// Collision layers: the level's stone, the followers, the wood. A
-  /// follower pushes the wood and goes through stone, so it never lags the
-  /// runner on a step the core would have it climb.
-  static const int _stone = 1, _following = 2, _wood = 4;
-
-  /// Dresses [level]: whatever the last level had is taken out, and its
-  /// pits filled, its fires lit, its wood floated.
+  /// Dresses [level]: whatever the last level had is taken out, and what
+  /// the run built for this one drawn.
   void stage(LevelReady level) {
     _clear();
+    final run = level.staged.elements;
     final document = level.loaded.level;
     final scene = level.scene;
-    final dressing = Dressing.of(document.name);
-    fire.light.removeFromParent();
-    scene.add(fire.light);
-    hearing = PhysicsHearing(world);
-    _tune(document);
+    elements.scene = scene;
+    _fog = document.fogColor;
+    for (final light in document.lights) {
+      if (light.type != LevelLightType.directional) continue;
+      _sun = (along: light.direction, light: light.color * light.intensity);
+      elements.sun(
+        along: light.direction,
+        light: light.color * light.intensity,
+      );
+      break;
+    }
+    if (run == null) return;
+    _run = run;
+    _copy(run);
 
     final brushes = <Brush>[
       for (final b in document.brushes)
@@ -196,263 +106,93 @@ final class LevelElements {
           level.loaded.materialTextures,
           name: 'stone',
         ),
-        perMetre: m.texelsPerMetre,
+        perMetre: m.texelsPerMeter,
       ),
       null => (
-        look: Material(
+        look: RenderMaterial(
           name: 'stone',
-          baseColor: Vector4(0.36, 0.36, 0.35, 1.0),
+          baseColor: LinearColor.fromSrgb(0.36, 0.36, 0.35, 1.0),
           roughness: 1.0,
         ),
         perMetre: 0.5,
       ),
     };
-    final dressed = <String>{};
-    for (final mechanism in level.staged.mechanisms.all) {
-      final (name, collider) = switch (mechanism) {
-        Hazard(:final name, :final collider) => (name, collider),
-        Water(:final name, :final collider) => (name, collider),
-        _ => (null, null),
-      };
-      final box = collider?.shape;
-      if (collider == null || box is! CollisionBox) continue;
-      final centre = collider.position;
-      final half = box.halfExtents;
-      final (surface, hot) = switch (mechanism) {
-        // Water the run swims in is drawn full to its top.
-        Water() => (centre.y + half.y - 0.05, false),
-        _ => switch ((dressing.water[name], dressing.molten[name])) {
-          (final double cold?, _) => (cold, false),
-          (_, final double metal?) => (metal, true),
-          _ => (null, false),
-        },
-      };
-      if (surface == null) continue;
-      _pools.add(
-        _pool(
-          name ?? 'water',
-          centre,
-          half,
-          surface: surface,
-          molten: hot,
-          pours: <Pour>[
-            for (final s in dressing.spills)
-              if (s.into == name) s,
-          ],
-          brushes: brushes,
-          scene: scene,
-        ),
+    for (final pool in run.pools) {
+      _water(pool, scene);
+      _line(pool.center, pool.half, brushes, stone.look, stone.perMetre, scene);
+      final (vx0, vz0) = (
+        pool.center.x - pool.half.x,
+        pool.center.z - pool.half.z,
       );
-      _line(centre, half, brushes, stone.look, stone.perMetre, scene);
-      if (name != null) dressed.add(name);
+      final (vx1, vz1) = (
+        pool.center.x + pool.half.x,
+        pool.center.z + pool.half.z,
+      );
+      for (final (k, s) in pool.pours.indexed) {
+        final lip = Vector2(s.x.clamp(vx0, vx1), s.z.clamp(vz0, vz1));
+        _mouth(lip, (vx0, vz0, vx1, vz1), s, pool.sills[k], scene);
+      }
     }
+    final dressed = <String>{for (final p in run.pools) p.name};
     _hidden.addAll(scene.meshes.where((m) => dressed.contains(m.name)));
-
-    _stoneAbout(brushes);
-    _float(dressing, level, scene);
-    _follow(level);
-    for (final (x, y, z) in dressing.braziers) {
-      _brazier(Vector3(x, y, z), scene);
-    }
-    for (final (x, y, z) in dressing.heaps) {
-      // A heap of coal lying on the floor of a molten pit.
-      _heap(Vector3(x, y, z), scene);
+    _float(run, level, scene);
+    for (final bed in run.beds) {
+      final MeshNode coals;
+      if (bed.brazier) {
+        coals = _brazier(bed.at, scene);
+      } else {
+        // A heap of coal lying on the floor of a molten pit.
+        coals = _coals(
+          bed.at,
+          radius: 0.5,
+          height: 0.5,
+          logs: false,
+          scene: scene,
+        );
+      }
+      _bodies.add(elements.track(bed.body));
+      elements.fireView.watch(
+        bed.body,
+        coals,
+        fresh: Vector4(0.07, 0.055, 0.045, 1.0),
+      );
     }
   }
 
-  /// The looks lit as [level] is: its sun, and its fog for the sky they
-  /// mirror.
-  void _tune(Level level) {
-    for (final light in level.lights) {
-      if (light.type != LevelLightType.directional) continue;
-      for (final look in <LiquidLook>[water, molten]) {
-        look.sun(along: light.direction, light: light.color * light.intensity);
-      }
-      break;
-    }
-    final fog = level.fogColor;
-    water
-      ..sky(zenith: fog * 2.0, horizon: fog * 4.0 + Vector3.all(0.05))
-      // Cistern water: green over stone, dark where it is deep, and clear
-      // enough to see a step or two down.
-      ..tint(
-        shallow: Vector3(0.16, 0.30, 0.27),
-        deep: Vector3(0.015, 0.06, 0.07),
-        clearness: 0.3,
-      );
-    molten
-      ..sky(zenith: fog, horizon: fog * 2.0)
-      ..tint(
-        shallow: Vector3(0.12, 0.035, 0.015),
-        deep: Vector3(0.04, 0.015, 0.008),
-        clearness: 1e-6,
-      )
-      ..glow = Vector3(1.3, 0.3, 0.04);
+  /// The run's world copied into the drawing's, when it has stepped.
+  void _copy(RunElements run) {
+    if (run.steps == _copied) return;
+    world.restore(run.world.snapshot());
+    _copied = run.steps;
   }
 
-  /// A pit's grid: the box's footprint and a margin of bank, reaching up
-  /// onto the ledges its [pours] well up on; the ground the level's
-  /// brushes stand at; filled to [surface].
-  _Pool _pool(
-    String name,
-    Vector3 centre,
-    Vector3 half, {
-    required double surface,
-    required bool molten,
-    required List<Pour> pours,
-    required List<Brush> brushes,
-    required Scene scene,
-  }) {
-    final (vx0, vz0) = (centre.x - half.x, centre.z - half.z);
-    final (vx1, vz1) = (centre.x + half.x, centre.z + half.z);
-    final x0 = pours.fold(vx0 - _margin, (m, s) => math.min(m, s.x - 2.0));
-    final z0 = pours.fold(vz0 - _margin, (m, s) => math.min(m, s.z - 2.0));
-    final x1 = pours.fold(vx1 + _margin, (m, s) => math.max(m, s.x + 2.0));
-    final z1 = pours.fold(vz1 + _margin, (m, s) => math.max(m, s.z + 2.0));
-    final fine = (x1 - x0) * (z1 - z0) / 0.25 <= _mostCells;
-    final cell = (fine ? 0.5 : 1.0) * (light ? 2.0 : 1.0);
-    final nx = ((x1 - x0) / cell).ceil(), nz = ((z1 - z0) / cell).ceil();
-    final bottom = centre.y - half.y;
-    // What stands up from the floor counts as ground; what hangs over the
-    // pit — a lintel, a shelf — does not, or the water would stop under it.
-    final reach = centre.y + half.y + 0.5;
-    final ground = <double>[
-      for (var j = 0; j < nz; j++)
-        for (var i = 0; i < nx; i++)
-          _groundAt(
-            x0 + (i + 0.5) * cell,
-            z0 + (j + 0.5) * cell,
-            brushes,
-            floor: bottom,
-            reach: reach,
-          ),
-    ];
-    // Each spill runs to the nearest point of the pit's edge down a culvert
-    // under the ledge, so it falls in one stream instead of spreading over
-    // the floor: the water in it runs under the stone the level draws, and
-    // is first seen pouring out of the culvert's mouth in the pit's wall.
-    for (final s in pours) {
-      final lip = Vector2(s.x.clamp(vx0, vx1), s.z.clamp(vz0, vz1));
-      final from = Vector2(s.x, s.z);
-      final top = _groundAt(s.x, s.z, brushes, floor: bottom, reach: reach);
-      for (var j = 0; j < nz; j++) {
-        for (var i = 0; i < nx; i++) {
-          final p = Vector2(x0 + (i + 0.5) * cell, z0 + (j + 0.5) * cell);
-          final k = i + j * nx;
-          if (ground[k] > surface &&
-              _toSegment(p, from, lip) < (s.width + cell) / 2) {
-            ground[k] = math.min(ground[k], top - s.culvert);
-          }
-        }
-      }
-      _mouth(lip, (vx0, vz0, vx1, vz1), s, top - s.culvert, scene);
-    }
-    final liquid = world.createShallowLiquid(
-      nx: nx,
-      nz: nz,
-      cell: cell,
-      origin: Vector3(x0, 0.0, z0),
-      ground: ground,
+  /// [pool]'s surface, falls and spray, drawn and heard.
+  void _water(RunPool pool, Scene scene) {
+    final liquid = pool.molten ? RunElements.metal : RunElements.water;
+    final look = LiquidLook.of(_liquidBundle)
+      ..optics = liquid.optics
+      ..wind = elements.wind.length;
+    final glow = liquid.glow;
+    if (glow != null) look.glow = glow;
+    final sun = _sun;
+    if (sun != null) look.sun(along: sun.along, light: sun.light);
+    // Metal mirrors the fog dimly, water brighter towards its horizon.
+    look.sky(
+      zenith: pool.molten ? _fog : _fog * 2.0,
+      horizon: pool.molten ? _fog * 2.0 : _fog * 4.0 + Vector3.all(0.05),
     );
-    // A pool poured into gets its culverts' bed. A stream reaching a lip
-    // metres over the water is driven over it by the whole of that drop in
-    // one cell, and on a smooth bed it leaves at ten metres a second, a jet
-    // across the pool rather than a fall down the wall; friction on the
-    // film in the culvert holds it to a stream's pace. Friction goes as the
-    // inverse of the depth to the four thirds, so the pool itself, a metre
-    // or more deep, hardly feels it.
-    world.setShallowBed(
-      liquid,
-      roughness: pours.fold(
-        molten ? 0.05 : 0.03,
-        (n, s) => math.max(n, s.roughness),
-      ),
-    );
-    if (molten) {
-      world.setShallowProperties(liquid, NativeLiquidProperties.moltenBasalt);
-    }
-    world.fillShallowLiquid(
-      liquid,
-      x0: vx0,
-      z0: vz0,
-      x1: vx1,
-      z1: vz1,
-      level: surface,
-    );
-    for (final (k, s) in pours.indexed) {
-      world.setShallowSource(
-        liquid,
-        k,
-        x: s.x,
-        z: s.z,
-        radius: 0.4,
-        rate: s.rate,
-      );
-    }
-    // Drawn off at the corner of the pit furthest from where it pours in,
-    // so what pours in crosses the pool as a current on its way out.
-    final Vector2? drain;
-    if (pours.isEmpty) {
-      drain = null;
-    } else {
-      final from = Vector2(pours.first.x, pours.first.z);
-      drain = <Vector2>[
-        Vector2(vx0 + 2.0, vz0 + 2.0),
-        Vector2(vx1 - 2.0, vz0 + 2.0),
-        Vector2(vx0 + 2.0, vz1 - 2.0),
-        Vector2(vx1 - 2.0, vz1 - 2.0),
-      ].reduce((a, b) => a.distanceTo(from) >= b.distanceTo(from) ? a : b);
-    }
     final view = LiquidView(
       world: world,
-      liquid: liquid,
-      ground: ground,
+      liquid: pool.liquid,
+      ground: pool.ground,
       device: _device,
       scene: scene,
-      look: (molten ? this.molten : water).material,
-      detail: light ? LiquidDetail.light : LiquidDetail.full,
+      look: look.material,
+      detail: elements.quality.liquid,
+      mist: pool.molten ? null : const MistSettings(),
     );
-    hearing.listen(
-      liquid,
-      density: molten ? NativeLiquidProperties.moltenBasalt.density : 1000.0,
-    );
-    return _Pool(
-      name: name,
-      liquid: liquid,
-      view: view,
-      surface: surface,
-      bottom: bottom,
-      inflow: pours.fold(0.0, (sum, s) => sum + s.rate),
-      springs: pours.length,
-      drain: drain,
-      molten: molten,
-    );
-  }
-
-  /// The ground at ([x], [z]): the top of the highest of [brushes] over it
-  /// that stands up from below [reach], or the pit's [floor].
-  static double _groundAt(
-    double x,
-    double z,
-    List<Brush> brushes, {
-    required double floor,
-    required double reach,
-  }) => brushes.fold(floor, (top, b) {
-    final h = b.size / 2.0;
-    final over =
-        (x - b.centre.x).abs() <= h.x &&
-        (z - b.centre.z).abs() <= h.z &&
-        b.centre.y - h.y < reach;
-    return over ? math.max(top, b.centre.y + h.y) : top;
-  });
-
-  /// How far [p] is from the segment from [a] to [b].
-  static double _toSegment(Vector2 p, Vector2 a, Vector2 b) {
-    final ab = b - a;
-    final t = ab.length2 == 0.0
-        ? 0.0
-        : ((p - a).dot(ab) / ab.length2).clamp(0.0, 1.0);
-    return (a + ab * t).distanceTo(p);
+    _waters.add((view: view, look: look));
+    elements.hearing?.listen(pool.liquid, density: pool.density);
   }
 
   /// The pit's walls where the level has none: its floors are slabs a metre
@@ -463,16 +203,16 @@ final class LevelElements {
   /// up to the underside of whatever stands over that side, facing into
   /// the pit, so it shares no face with a brush.
   void _line(
-    Vector3 centre,
+    Vector3 center,
     Vector3 half,
     List<Brush> brushes,
-    Material look,
+    RenderMaterial look,
     double perMetre,
     Scene scene,
   ) {
-    final (x0, x1) = (centre.x - half.x, centre.x + half.x);
-    final (z0, z1) = (centre.z - half.z, centre.z + half.z);
-    final floor = centre.y - half.y;
+    final (x0, x1) = (center.x - half.x, center.x + half.x);
+    final (z0, z1) = (center.z - half.z, center.z + half.z);
+    final floor = center.y - half.y;
     // Each side: along x or z, where it stands, its span, and which way is
     // into the pit.
     final sides = <(bool, double, double, double, double)>[
@@ -486,8 +226,8 @@ final class LevelElements {
       final over = brushes.where((b) {
         final h = b.size / 2.0;
         final (across, across0, across1) = alongX
-            ? (b.centre.z, b.centre.x - h.x, b.centre.x + h.x)
-            : (b.centre.x, b.centre.z - h.z, b.centre.z + h.z);
+            ? (b.center.z, b.center.x - h.x, b.center.x + h.x)
+            : (b.center.x, b.center.z - h.z, b.center.z + h.z);
         final depth = alongX ? h.z : h.x;
         // On the far side of the line from the pit, touching it.
         final beyond = inwards > 0
@@ -496,14 +236,14 @@ final class LevelElements {
         return beyond &&
             across1 > from &&
             across0 < to &&
-            b.centre.y - b.size.y / 2.0 > floor + touch;
+            b.center.y - b.size.y / 2.0 > floor + touch;
       });
       if (over.isEmpty) continue;
       // Never over the pit's own top, where the walkways are: what stands
       // higher than that beside a pit stands on something else.
       final top = over
-          .map((b) => b.centre.y - b.size.y / 2.0)
-          .fold(centre.y + half.y, math.min);
+          .map((b) => b.center.y - b.size.y / 2.0)
+          .fold(center.y + half.y, math.min);
       if (top <= floor + touch) continue;
       final mesh = DeviceMesh.upload(
         _device,
@@ -546,9 +286,9 @@ final class LevelElements {
     final height = math.min(0.42, pour.culvert - band - 0.02);
     if (height <= 0.05) return;
     final width = pour.width;
-    final dark = Material(
+    final dark = RenderMaterial(
       name: 'culvert',
-      baseColor: Vector4(0.012, 0.012, 0.012, 1.0),
+      baseColor: LinearColor.fromSrgb(0.012, 0.012, 0.012, 1.0),
       roughness: 1.0,
     );
     final iron = _ironLook;
@@ -627,203 +367,20 @@ final class LevelElements {
     return builder.build();
   }
 
-  /// The level's stone round the pools, as bodies the wood bumps into.
-  void _stoneAbout(List<Brush> brushes) {
-    for (final b in brushes) {
-      final h = b.size / 2.0;
-      final near = _pools.any((p) {
-        final o = p.liquid.origin;
-        final w = p.liquid.nx * p.liquid.cell, d = p.liquid.nz * p.liquid.cell;
-        return b.centre.x + h.x > o.x - 1.0 &&
-            b.centre.x - h.x < o.x + w + 1.0 &&
-            b.centre.z + h.z > o.z - 1.0 &&
-            b.centre.z - h.z < o.z + d + 1.0 &&
-            b.centre.y - h.y < p.surface + 1.0;
-      });
-      if (!near) continue;
-      final body = world.addBody(
-        position: b.centre,
-        type: NativeBodyType.fixed,
-        mass: 1000.0,
-      );
-      world
-        ..setShape(body, NativeShape.box(h))
-        ..setMaterial(body, NativeMaterial.stone())
-        ..setCollisionFilter(body, layer: _stone, mask: _wood);
-      _solid.add(body);
-    }
-  }
-
-  /// The wood the [dressing] floats, in the level's own wood where it has
-  /// some.
-  void _float(Dressing dressing, LevelReady level, Scene scene) {
-    if (dressing.afloat.isEmpty) return;
-    final wood = level.loaded.level.materials['wood'];
-    final look = wood == null
-        ? Material(
-            name: 'wood',
-            baseColor: Vector4(0.42, 0.30, 0.18, 1.0),
-            roughness: 0.85,
-          )
-        : LevelLoader.materialFrom(
-            wood,
-            level.loaded.materialTextures,
-            name: 'wood',
-          );
-    final log = _mesh(
-      'log',
-      () => const CylinderShape(
-        radiusTop: _logRadius * 0.92,
-        radiusBottom: _logRadius,
-        height: 2 * _logHalf,
-        segments: 12,
-      ).build(),
-    );
-    final plank = _mesh(
-      'plank',
-      () => CuboidShape(size: Vector3(0.8, 0.14, 2.2)).build(),
-    );
-    for (final (k, a) in dressing.afloat.indexed) {
-      final pool = _pools.where((p) => p.name == a.pool).firstOrNull;
-      if (pool == null) continue;
-      final home = Vector3(a.x, pool.surface + 0.3, a.z);
-      final NativeBody body;
-      final SceneNode node;
-      if (a.raft) {
-        body = world.addBody(
-          position: home,
-          // Pine at 450 kg/m³.
-          mass: 3 * 450.0 * math.pi * _logRadius * _logRadius * 2 * _logHalf,
-        );
-        world.setCompound(body, _raftShape);
-        node = SceneNode(name: 'raft');
-        for (final x in <double>[-0.31, 0.0, 0.31]) {
-          node.add(
-            MeshNode(log, look, name: 'log')
-              ..setPosition(x, 0, 0)
-              ..setRotation(
-                Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
-              ),
-          );
-        }
-      } else {
-        // Boards nailed across two battens: pine, and air under the boards.
-        body = world.addBody(position: home, mass: 400.0 * 0.8 * 0.14 * 2.2);
-        world.setShape(body, NativeShape.box(Vector3(0.4, 0.07, 1.1)));
-        node = MeshNode(plank, look, name: 'plank');
-      }
-      world
-        ..setMaterial(body, NativeMaterial.wood())
-        // Water damps a rocking board within a few rolls.
-        ..setDamping(body, linear: 0.1, angular: 3.0)
-        ..setCollisionFilter(
-          body,
-          layer: _wood,
-          mask: _stone | _following | _wood,
-        )
-        // Turned a little each, so no two lie square to the pit.
-        ..setOrientation(
-          body,
-          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), 0.7 * k + 0.3),
-        );
-      scene.add(node);
-      _afloat.add(_Afloat(body, node, home, pool, 1.9 * k));
-      if (!pool.molten) hearing.watch(body, pool.liquid);
-    }
-  }
-
-  /// A log's radius and half its length, m.
-  static const double _logRadius = 0.15, _logHalf = 0.8;
-
-  late final NativeCompound _raftShape = world.createCompound(
-    <NativeCompoundPart>[
-      // Logs as rounded bars along z: a cylinder on its side would roll.
-      for (final x in <double>[-0.31, 0.0, 0.31])
-        NativeCompoundPart(
-          NativeShape.box(
-            Vector3(_logRadius * 0.6, _logRadius * 0.6, _logHalf - 0.06),
-          ),
-          at: Vector3(x, 0, 0),
-          rounding: _logRadius * 0.4,
-        ),
-    ],
-  );
-
-  /// The meshes made once, by name, and kept for every level after.
-  final Map<String, DeviceMesh> _meshes = <String, DeviceMesh>{};
-  DeviceMesh _mesh(String name, MeshData Function() build) =>
-      _meshes.putIfAbsent(name, () => DeviceMesh.upload(_device, build()));
-
-  /// The runner, and every barge whose hull reaches down into a pool, as
-  /// bodies following them through the water.
-  void _follow(LevelReady level) {
-    if (_pools.isEmpty) return;
-    final runner = level.runner.body;
-    // What wades is the legs, not the box the run steps: that box is the
-    // runner's reach, and in shin-deep water all of a body that size
-    // pushed every drop out of the cells it stood in, leaving a dry patch
-    // of floor round the runner. The core takes a body as a ball of its
-    // volume: one of sixty litres, legs and hips about, with its middle a
-    // ball's radius over the feet, parts the water and leaves it standing
-    // round them.
-    Vector3 legs() =>
-        runner.position.clone()..y += _shin - runner.halfExtents.y;
-    _wader = _follower(legs(), Vector3(0.17, 0.3, 0.14), mass: 70.0, at: legs);
-    for (final mechanism in level.staged.mechanisms.all) {
-      if (mechanism is! Mover) continue;
-      final shape = mechanism.collider.shape;
-      if (shape is! CollisionBox) continue;
-      final at = mechanism.collider.position;
-      final half = shape.halfExtents;
-      final pool = _pools
-          .where(
-            (p) =>
-                !p.molten && p.covers(at.x, at.z) && at.y - half.y < p.surface,
-          )
-          .firstOrNull;
-      if (pool == null) continue;
-      final barge = _follower(
-        at,
-        half,
-        mass: 2000.0,
-        at: () => mechanism.collider.position,
-      );
-      hearing.watch(barge.body, pool.liquid);
-    }
-  }
-
-  /// The radius of the ball the core takes the wading legs as, m.
-  static const double _shin = 0.24;
-
-  _Follower _follower(
-    Vector3 from,
-    Vector3 half, {
-    required double mass,
-    required Vector3 Function() at,
-  }) {
-    final body = world.addBody(position: from.clone(), mass: mass);
-    world
-      ..setShape(body, NativeShape.box(half))
-      ..lockRotation(body)
-      ..setCollisionFilter(body, layer: _following, mask: _wood);
-    final follower = _Follower(body, at);
-    _followers.add(follower);
-    return follower;
-  }
-
   /// The iron of the braziers and the culverts' frames: wrought iron gone
   /// dark with heat and damp.
-  late final Material _ironLook = Material(
+  late final RenderMaterial _ironLook = RenderMaterial(
     name: 'iron',
-    baseColor: Vector4(0.09, 0.085, 0.08, 1.0),
+    baseColor: LinearColor.fromSrgb(0.09, 0.085, 0.08, 1.0),
     roughness: 0.6,
     metallic: 0.85,
   );
 
   /// An iron brazier standing [at] its feet, its bowl heaped with coal and
   /// two split logs, alight: a hammered bowl with a rolled rim on three
-  /// splayed legs, braced by a ring a third of the way up.
-  void _brazier(Vector3 at, Scene scene) {
+  /// splayed legs, braced by a ring a third of the way up. The coal in it is
+  /// returned, which the fire chars.
+  MeshNode _brazier(Vector3 at, Scene scene) {
     final iron = _ironLook;
     final bowl = _mesh(
       'bowl',
@@ -875,7 +432,7 @@ final class LevelElements {
       'foot',
       () => const SphereShape(radius: 0.045, segments: 8, rings: 4).build(),
     );
-    const bowlAt = 0.92;
+    const bowlAt = RunElements.bowlAt;
     scene
       ..add(
         MeshNode(bowl, iron, name: 'brazier bowl')
@@ -920,39 +477,13 @@ final class LevelElements {
     // narrower than the bowl: a flame is drawn from where the core says the
     // fire is, its tongues rooted a little under that, and from the coal
     // itself they hung down past the bowl between the legs.
-    final coals = _coals(
+    // The run's body that burns is `RunElements`'.
+    return _coals(
       Vector3(at.x, at.y + bowlAt + 0.19, at.z),
       radius: 0.36,
       height: 0.12,
       logs: true,
       scene: scene,
-    );
-    _burning.add(
-      _kindle(
-        Vector3(at.x, at.y + bowlAt + 0.36, at.z),
-        Vector3(0.22, 0.06, 0.22),
-        120.0,
-        coals,
-      ),
-    );
-  }
-
-  /// A heap of coal lying [at] on a floor, alight.
-  void _heap(Vector3 at, Scene scene) {
-    final coals = _coals(
-      at,
-      radius: 0.5,
-      height: 0.5,
-      logs: false,
-      scene: scene,
-    );
-    _burning.add(
-      _kindle(
-        Vector3(at.x, at.y + 0.3, at.z),
-        Vector3(0.42, 0.3, 0.42),
-        600.0,
-        coals,
-      ),
     );
   }
 
@@ -986,21 +517,21 @@ final class LevelElements {
         segments: 14,
       ).build(),
     );
-    final glowing = Material(
+    final glowing = RenderMaterial(
       name: 'coal',
-      baseColor: Vector4(0.07, 0.055, 0.045, 1.0),
+      baseColor: LinearColor.fromSrgb(0.07, 0.055, 0.045, 1.0),
       roughness: 0.85,
     );
-    final black = Material(
+    final black = RenderMaterial(
       name: 'coal',
-      baseColor: Vector4(0.035, 0.032, 0.03, 1.0),
+      baseColor: LinearColor.fromSrgb(0.035, 0.032, 0.03, 1.0),
       roughness: 0.55,
     );
     final heap = MeshNode(mound, glowing, name: 'coal')
       ..setPosition(at.x, at.y, at.z);
     // Lumps baked into two meshes, the black and the glowing, so a brazier
     // is a handful of draws rather than one a lump.
-    for (final (lit, look) in <(bool, Material)>[
+    for (final (lit, look) in <(bool, RenderMaterial)>[
       (false, black),
       (true, glowing),
     ]) {
@@ -1025,9 +556,9 @@ final class LevelElements {
           segments: 7,
         ).build(),
       );
-      final wood = Material(
+      final wood = RenderMaterial(
         name: 'charred wood',
-        baseColor: Vector4(0.06, 0.04, 0.03, 1.0),
+        baseColor: LinearColor.fromSrgb(0.06, 0.04, 0.03, 1.0),
         roughness: 0.95,
       );
       for (final (turn, rise) in <(double, double)>[(0.5, 0.0), (-1.0, 0.06)]) {
@@ -1072,7 +603,7 @@ final class LevelElements {
       final spin = Quaternion.axisAngle(axis, scatter.nextDouble() * math.pi);
       if ((k % 4 == 0) != glowing) continue;
       final scale = Vector3(size * 1.2, size * 0.75, size);
-      final centre = Vector3(
+      final center = Vector3(
         r * math.cos(turn),
         crown(r) - 0.3 * size,
         r * math.sin(turn),
@@ -1092,7 +623,7 @@ final class LevelElements {
           lump.vertices[o + 5] / scale.z,
         )..normalize();
         builder.addVertex(
-          position: spin.rotated(p)..add(centre),
+          position: spin.rotated(p)..add(center),
           normal: spin.rotated(n),
           texcoord: Vector2(lump.vertices[o + 6], lump.vertices[o + 7]),
         );
@@ -1108,232 +639,112 @@ final class LevelElements {
     return builder.build();
   }
 
-  /// A fixed body of [mass] kg of wood, [half] a box about [centre], hot
-  /// enough to burn, drawn by [node].
-  _Fuel _kindle(Vector3 centre, Vector3 half, double mass, MeshNode node) {
-    final body = world.addBody(
-      position: centre,
-      type: NativeBodyType.fixed,
-      mass: mass,
+  /// The wood the run floats, in the level's own wood where it has some.
+  void _float(RunElements run, LevelReady level, Scene scene) {
+    if (run.afloat.isEmpty) return;
+    final wood = level.loaded.level.materials['wood'];
+    final look = wood == null
+        ? RenderMaterial(
+            name: 'wood',
+            baseColor: LinearColor.fromSrgb(0.42, 0.30, 0.18, 1.0),
+            roughness: 0.85,
+          )
+        : LevelLoader.materialFrom(
+            wood,
+            level.loaded.materialTextures,
+            name: 'wood',
+          );
+    final log = _mesh(
+      'log',
+      () => const CylinderShape(
+        radiusTop: RunElements.logRadius * 0.92,
+        radiusBottom: RunElements.logRadius,
+        height: 2 * RunElements.logHalf,
+        segments: 12,
+      ).build(),
     );
-    world
-      ..setShape(body, NativeShape.box(half))
-      ..setMaterial(body, NativeMaterial.wood())
-      ..setTemperature(body, 900.0);
-    fire.watch(body, node, fresh: Vector4(0.07, 0.055, 0.045, 1.0));
-    return _Fuel(body, node, centre, half, mass);
+    final plank = _mesh(
+      'plank',
+      () => CuboidShape(size: Vector3(0.8, 0.14, 2.2)).build(),
+    );
+    for (final a in run.afloat) {
+      final SceneNode node;
+      if (a.raft) {
+        node = SceneNode(name: 'raft');
+        for (final x in <double>[-0.31, 0.0, 0.31]) {
+          node.add(
+            MeshNode(log, look, name: 'log')
+              ..setPosition(x, 0, 0)
+              ..setRotation(
+                Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+              ),
+          );
+        }
+      } else {
+        node = MeshNode(plank, look, name: 'plank');
+      }
+      scene.add(node);
+      _bodies.add(
+        elements.track(
+          a.body,
+          look: node,
+          chars: node is MeshNode ? node : null,
+        ),
+      );
+    }
   }
+
+  /// The meshes made once, by name, and kept for every level after.
+  final Map<String, DeviceMesh> _meshes = <String, DeviceMesh>{};
+  DeviceMesh _mesh(String name, MeshData Function() build) =>
+      _meshes.putIfAbsent(name, () => DeviceMesh.upload(_device, build()));
 
   /// Hides the hazards' boxes drawn in the pools' place. After the fixtures
   /// are placed, every frame: placing them shows them again.
   void hideDressed() {
     for (final node in _hidden) {
-      node.visible = false;
+      node.isVisible = false;
     }
   }
 
-  /// A frame: the followers moved to where the runner and the barges are
-  /// now, the world on by [dt] — nought while the run is held for a
-  /// photograph — and everything drawn as it then stands, seen from [eye].
+  /// A frame: the run's world copied in if it has stepped since, and
+  /// everything drawn as it then stands, seen from [eye], [dt] on — nought
+  /// while the run is held for a photograph. A splash is heard where
+  /// anything went into the water in the steps since.
   void update(double dt, {required Vector3 eye}) {
-    if (dt > 0.0) {
-      _clock += dt;
-      for (final f in _followers) {
-        _chase(f, dt);
-      }
-      _wade();
-      _drain();
-      _drift();
-      world.step(dt);
-      _steady();
-      _sinceFed += dt;
-      if (_sinceFed >= 1.0) {
-        _sinceFed = 0.0;
-        _feed();
-        _gather();
-      }
+    final run = _run;
+    // A level closed is let go before the next is opened, and frames are
+    // drawn between: they show the last copy, still.
+    if (run == null || run.isDisposed || dt <= 0.0) return;
+    _copy(run);
+    _clock += dt;
+    for (final w in _waters) {
+      w.look.update(seconds: _clock, eye: eye);
+      w.view.update(dt);
     }
-    for (final p in _afloat) {
-      final at = world.positionOf(p.body);
-      p.node
-        ..setPosition(at.x, at.y, at.z)
-        ..setRotation(world.orientationOf(p.body));
-    }
-    for (final pool in _pools) {
-      pool.view.update();
-    }
-    fire.update(dt);
-    hearing.update(dt);
-    water.update(seconds: _clock, eye: eye);
-    molten.update(seconds: _clock, eye: eye);
+    elements.update(dt, eye: eye, events: run.takeEvents());
   }
 
-  /// [f] sent to where what it follows is, as fast as that takes in one
-  /// step; put there outright when it has gone too far to chase — a
-  /// respawn, a level edit.
-  void _chase(_Follower f, double dt) {
-    final to = f.at();
-    final gap = to - world.positionOf(f.body);
-    if (gap.length > 3.0) {
-      world
-        ..setPosition(f.body, to)
-        ..setVelocity(f.body, Vector3.zero());
-      return;
-    }
-    world
-      ..wake(f.body)
-      ..setVelocity(f.body, gap / dt);
-  }
-
-  /// The splash heard is the pool the runner is over.
-  void _wade() {
-    final wader = _wader;
-    if (wader == null) return;
-    final at = world.positionOf(wader.body);
-    final pool = _pools
-        .where((p) => !p.molten && p.covers(at.x, at.z))
-        .firstOrNull;
-    if (pool == null || identical(pool, _wadingIn)) return;
-    _wadingIn = pool;
-    hearing.watch(wader.body, pool.liquid);
-  }
-
-  /// Every pool poured into is drawn off as fast, and a little faster
-  /// while it stands over the level it was filled to, so it neither
-  /// floods its banks nor runs dry.
-  void _drain() {
-    for (final pool in _pools) {
-      final drain = pool.drain;
-      if (drain == null) continue;
-      final here = world.sampleShallow(pool.liquid, drain.x, drain.y);
-      if (here == null) continue;
-      final over = here.surface - pool.surface;
-      final rate = (pool.inflow + 6.0 * over).clamp(0.0, 2.0 * pool.inflow);
-      world.setShallowSource(
-        pool.liquid,
-        pool.springs,
-        x: drain.x,
-        z: drain.y,
-        radius: 1.0,
-        rate: -rate,
-      );
-    }
-  }
-
-  /// A breath of air over the water, wandering, so wood left alone still
-  /// drifts; and each piece turned back towards lying flat.
-  ///
-  /// The core holds a floating body up by what it displaces about its
-  /// middle, which gives a board nothing that rights it once something has
-  /// tipped it: a plank nudged in the shallows ends up leaning on its end
-  /// against the bed and stays there. Wide wood on water lies flat, so it
-  /// is turned back towards flat as hard as it is tipped, either face up,
-  /// and [_steady] lets none lean further than [_mostTilt]. Kept awake for
-  /// it: a board come to rest would otherwise sleep however it lay.
-  void _drift() {
-    for (final p in _afloat) {
-      final t = _clock * 0.11 + p.phase;
-      final mass = world.massOf(p.body);
-      final push = mass * 0.06;
-      final (tilt, _) = _leanOf(p.body);
-      world
-        ..wake(p.body)
-        ..addForce(
-          p.body,
-          Vector3(math.cos(t) * push, 0.0, math.sin(t * 0.7) * push),
-        )
-        ..addTorque(p.body, tilt * (mass * 4.0));
-    }
-  }
-
-  /// Every floating piece leaning further than [_mostTilt] turned back to
-  /// it, and its rocking stopped.
-  void _steady() {
-    for (final p in _afloat) {
-      final (tilt, lean) = _leanOf(p.body);
-      if (lean <= _mostTilt || tilt.length2 < 1e-12) continue;
-      world
-        // The body's turn, then the turn back about the world's axis.
-        ..setOrientation(
-          p.body,
-          Quaternion.axisAngle(tilt.normalized(), lean - _mostTilt) *
-              world.orientationOf(p.body),
-        )
-        ..setAngularVelocity(
-          p.body,
-          Vector3(0.0, world.angularVelocityOf(p.body).y, 0.0),
-        );
-    }
-  }
-
-  /// The axis [body] would turn about to lie flat, as long as the sine of
-  /// its lean, and the lean, radians; face up or face down alike, a board
-  /// upside down being a board lying flat.
-  (Vector3, double) _leanOf(NativeBody body) {
-    final up = Vector3(0.0, 1.0, 0.0);
-    // Through the matrix: vector_math's `Quaternion.rotated` turns by the
-    // inverse.
-    final face = world.orientationOf(body).asRotationMatrix().transformed(up);
-    if (face.y < 0.0) face.negate();
-    return (face.cross(up), math.acos(face.y.clamp(-1.0, 1.0)));
-  }
-
-  /// The furthest a floating piece leans, radians: as far as a wave or a
-  /// shove rocks one, and short of standing on end.
-  static const double _mostTilt = 0.35;
-
-  /// Fuel put back on a fire burnt down, as somebody tending it would.
-  void _feed() {
-    for (final (k, f) in _burning.indexed) {
-      if (world.isBurning(f.body) && world.fuelOf(f.body) > 5.0) continue;
-      fire.forget(f.body);
-      world.removeBody(f.body);
-      _burning[k] = _kindle(f.centre, f.half, f.mass, f.node);
-    }
-  }
-
-  /// Wood that has left its pool — over a lip, onto a bank and off it —
-  /// put back where it was first floated.
-  void _gather() {
-    for (final p in _afloat) {
-      final at = world.positionOf(p.body);
-      final lost =
-          !p.pool.covers(at.x, at.z) ||
-          at.y < p.pool.bottom - 1.0 ||
-          at.y > p.pool.surface + 4.0;
-      if (!lost) continue;
-      world
-        ..setPosition(p.body, p.home)
-        ..setVelocity(p.body, Vector3.zero());
-    }
-  }
-
-  /// Everything the last level had, taken out of the world and the scene.
+  /// Everything the last level had, taken out of the drawing.
   void _clear() {
-    for (final pool in _pools) {
-      world.removeShallowLiquid(pool.liquid);
+    for (final w in _waters) {
+      w.view.dispose();
+      elements.hearing?.unlisten(w.view.liquid);
     }
-    _pools.clear();
-    for (final p in _afloat) {
-      world.removeBody(p.body);
+    _waters.clear();
+    for (final b in _bodies) {
+      elements.remove(b);
     }
-    _afloat.clear();
-    for (final f in _burning) {
-      fire.forget(f.body);
-      world.removeBody(f.body);
-    }
-    _burning.clear();
-    for (final f in _followers) {
-      world.removeBody(f.body);
-    }
-    _followers.clear();
-    _solid
-      ..forEach(world.removeBody)
-      ..clear();
+    _bodies.clear();
     _hidden.clear();
-    _wader = null;
-    _wadingIn = null;
+    _run = null;
+    _copied = -1;
   }
 
-  void dispose() => world.dispose();
+  /// The drawing let go, and the world it copied into with it.
+  void dispose() {
+    _clear();
+    elements.dispose();
+    world.dispose();
+  }
 }

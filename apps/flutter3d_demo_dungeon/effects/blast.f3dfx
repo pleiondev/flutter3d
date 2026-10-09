@@ -1,0 +1,57 @@
+{
+  "f3dfx": 1,
+  "effects": [
+    {
+      "name": "explosionCore",
+      "description": "The core of a rocket blast: fast, bright, brief.",
+      "count": 90,
+      "lifetime": [0.25, 0.6],
+      "size": [0.35, 0.9],
+      "color": [3.2, 1.5, 0.45, 1.0],
+      "emitter": {"shape": "sphere", "speed": [4.0, 16.0], "radius": [0.0, 0.4]},
+      "affectors": [
+        {"type": "drag", "perSecond": 6.0},
+        {"type": "gravity", "acceleration": -3.0},
+        {"type": "colorOverLife", "from": [3.2, 1.5, 0.45, 1.0], "to": [0.6, 0.15, 0.05, 1.0]},
+        {"type": "sizeOverLife", "from": 0.7, "to": 1.6},
+        {"type": "fade", "startsAt": 0.35}
+      ],
+      "on": [{"event": "elements.exploded"}]
+    },
+    {
+      "name": "explosionEmbers",
+      "description": "Debris thrown clear of the blast, slower to die than the core.",
+      "count": 40,
+      "lifetime": [0.5, 1.4],
+      "size": [0.05, 0.14],
+      "color": [2.6, 1.1, 0.3, 1.0],
+      "emitter": {"shape": "sphere", "speed": [6.0, 22.0]},
+      "affectors": [
+        {"type": "gravity", "scale": 1.12},
+        {"type": "drag", "perSecond": 1.2},
+        {"type": "fade", "startsAt": 0.5}
+      ],
+      "on": [{"event": "elements.exploded"}]
+    },
+    {
+      "name": "explosionSmoke",
+      "description": "What a blast leaves behind: a slow plume that keeps rising after the bright part is over.",
+      "rate": 34.0,
+      "lifetime": [0.9, 1.8],
+      "size": [0.22, 0.40],
+      "color": [0.20, 0.17, 0.15, 1.0],
+      "emitter": {"shape": "box", "halfExtents": [0.35, 0.10, 0.35], "speed": [0.5, 1.3], "along": [0.0, 1.0, 0.0]},
+      "affectors": [
+        {"type": "drag", "perSecond": 1.4},
+        {"type": "turbulence", "strength": 0.9, "scale": 1.2},
+        {"type": "sizeCurve", "keys": [
+          {"at": 0.0, "value": 0.5, "ease": "smooth"},
+          {"at": 0.45, "value": 1.7, "ease": "smooth"},
+          {"at": 1.0, "value": 2.1}
+        ]},
+        {"type": "fade", "startsAt": 0.25}
+      ],
+      "on": [{"event": "elements.exploded", "emit": "timed", "seconds": 0.85}]
+    }
+  ]
+}

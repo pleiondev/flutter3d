@@ -3,28 +3,26 @@
 /// through the renderer rather than only through the simulation.
 library;
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+import 'crypt_fog.dart';
 import 'run_cubit.dart';
 import 'staging.dart';
 
-final class _MemoryStorage implements Storage {
+final class _MemoryStorage extends Storage {
   final Map<String, String> _documents = <String, String>{};
   @override
-  String? read(String name) => _documents[name];
+  Future<String?> read(String name) async => _documents[name];
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     _documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => _documents.remove(name);
+  Future<void> remove(String name) async => _documents.remove(name);
 }
 
 /// A level loaded through the game's own run, a player's camera, and the
@@ -65,7 +63,7 @@ final class CryptReplay {
     }
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.2,
+        fovY: 1.2,
         near: 0.05,
         far: 200.0,
       ),
@@ -104,9 +102,11 @@ final class CryptReplay {
   /// The settings the game draws the crypt with: the level's fog and a
   /// metered exposure. [frameWorkBudget] is `RenderSettings.frameWorkBudget`.
   RenderSettings settings({int frameWorkBudget = 0}) => RenderSettings(
-    fog: FogSettings(
-      color: level.loaded.level.fogColor,
-      density: level.loaded.level.fogDensity,
+    fog: cryptFog(
+      level.loaded.level,
+      eye:
+          level.staged.player.eyeOffset +
+          level.staged.player.body.halfExtents.y,
     ),
     autoExposure: const AutoExposureSettings(enabled: true),
     frameWorkBudget: frameWorkBudget,
@@ -142,6 +142,6 @@ final class CryptReplay {
   /// a warm-up is handed, since a probe captures against the first view's
   /// clear colour.
   List<RenderView> views() => <RenderView>[
-    RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
   ];
 }

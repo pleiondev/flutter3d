@@ -9,6 +9,8 @@
 /// read.
 library;
 
+import 'app_config.dart';
+
 /// UX-only: which entry points this build offers, never a security boundary.
 ///
 /// **The server decides what a save is allowed to do, every time,
@@ -95,8 +97,10 @@ final class CabinetLink {
   bool get isViewOnly => mode == 'view';
 
   /// Whether "Save to cabinet" is worth offering: a cabinet entry to save
-  /// back to, and nothing saying this build is here only to be looked at.
-  bool get canSaveBack => isFromCabinet && !isViewOnly;
+  /// back to, nothing saying this build is here only to be looked at, and a
+  /// build that was not compiled as a viewer ([kViewerOnly]) — the server
+  /// that serves one answers a save-back with 410 anyway.
+  bool get canSaveBack => isFromCabinet && !isViewOnly && !kViewerOnly;
 
   /// Whether `tut-19`'s own preview capture is worth attempting once the
   /// viewport has framed the subject: a cabinet entry, opened to be looked

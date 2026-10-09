@@ -32,7 +32,7 @@ final class ReefSound {
 
   final AudioScene _scene;
   final PhysicsHearing _hearing;
-  SoundEmitter? _breath;
+  AudioEmitter? _breath;
   double _sinceBreath = 0.0;
 
   /// The frame heard from [listener], [dt] after the last; [breathing], 0
@@ -48,6 +48,9 @@ final class ReefSound {
         ..gain = s.loudness
         ..rate = s.rate;
     }
+    // Played once: the dive steps at its own rate now, and a frame that ran
+    // no step would otherwise hear the last step's splashes again.
+    _hearing.splashes.clear();
     // A breath every four seconds at rest, every two and a half finning
     // hard; out as bubbles for a second and a half of it.
     _sinceBreath += dt;

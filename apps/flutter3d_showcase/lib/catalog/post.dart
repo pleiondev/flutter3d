@@ -118,14 +118,14 @@ const List<Feature> postFeatures = <Feature>[
   ),
   Feature(
     id: 'disabled-passes',
-    title: 'Switching passes off',
+    title: 'Switching steps off',
     category: Category.post,
     summary:
-        'Leave a pass out of a frame by its name, and read back that the frame '
-        'did as it was told.',
+        'Leave steps out of a frame with `without`, and read back that the '
+        'frame did as it was told.',
     since: '0.7.0',
-    evidence: 'against the published `passOrder`',
-    keywords: <String>['disabledpasses'],
+    evidence: 'against each step\'s own passes',
+    keywords: <String>['without', 'renderstep', 'disabledpasses'],
     engineFiles: <String>[_settings],
   ),
   Feature(
@@ -231,7 +231,7 @@ const List<Feature> postFeatures = <Feature>[
     engineFiles: <String>[_settings],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'SMAA 1x joins FXAA as a method: three passes that rebuild the line behind each staircase, truer on long shallow edges.',
         evidence: 'SMAA 1x beside FXAA.',
@@ -382,7 +382,7 @@ const List<Feature> postFeatures = <Feature>[
     summary:
         'Texture flattened, colour drained and every edge drawn, with a ring '
         'in its role\'s colour around each thing a player has to find.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'A high-contrast look with outlines',
     evidenceFile: _coreChangelog,
     keywords: <String>['HighContrastSettings', 'outlineColor'],
@@ -390,6 +390,57 @@ const List<Feature> postFeatures = <Feature>[
       _settings,
       _frameNodes,
       'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',
+    ],
+  ),
+  Feature(
+    id: 'lens-effects',
+    title: 'Lens flare, distortion and .cube tables',
+    category: Category.post,
+    summary:
+        'A bright lamp throws ghosts and a halo across the frame, the frame bows or pinches, and a grade comes in as a .cube file.',
+    since: '1.0.0-rc.1',
+    evidence: 'The lens: distortion, flare, and tables from a grading tool.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>[
+      'LensFlareSettings',
+      'LookSettings.distortion',
+      'CubeLut',
+    ],
+    engineFiles: <String>[
+      _settings,
+      _frameNodes,
+      'packages/flutter3d_core/lib/src/formats/cube_lut.dart',
+    ],
+  ),
+  Feature(
+    id: 'debug-views',
+    title: 'Debug views and render stats',
+    category: Category.post,
+    summary:
+        'One material channel in place of the light, wiped across the frame, and what the frame says it cost.',
+    since: '1.0.0-rc.1',
+    evidence: 'A material channel in place of the light',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['DebugViewSettings', 'DebugView', 'targetBytes'],
+    engineFiles: <String>[
+      _settings,
+      'packages/flutter3d_core/lib/src/engine/render/frame_result.dart',
+    ],
+  ),
+  Feature(
+    id: 'colour-vision',
+    title: 'Colour vision',
+    category: Category.post,
+    summary:
+        'The picture as a player missing a cone sees it or corrected for them, colours with meanings a player can move, and a lint for cues told apart by hue alone.',
+    since: '1.0.0-rc.1',
+    evidence: 'Colour vision, as a colour table.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['ColorVision'],
+    packages: <String>['flutter3d', 'flutter3d_game'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/color_vision.dart',
+      'packages/flutter3d_game/lib/src/config/color_roles.dart',
     ],
   ),
 ];

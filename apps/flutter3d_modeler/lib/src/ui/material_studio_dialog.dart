@@ -15,13 +15,12 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
@@ -59,9 +58,9 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
         name: 'Studio',
         sky: SkySettings(
           enabled: true,
-          zenith: Vector3(0.20, 0.20, 0.22),
-          horizon: Vector3(0.55, 0.55, 0.56),
-          nadir: Vector3(0.08, 0.08, 0.08),
+          zenith: LinearColor(0.20, 0.20, 0.22),
+          horizon: LinearColor(0.55, 0.55, 0.56),
+          nadir: LinearColor(0.08, 0.08, 0.08),
           sunIntensity: 0.0,
           glowStrength: 0.0,
         ),
@@ -70,12 +69,12 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
         name: 'Daylight',
         sky: SkySettings(
           enabled: true,
-          zenith: Vector3(0.10, 0.28, 0.62),
-          horizon: Vector3(0.68, 0.78, 0.92),
-          nadir: Vector3(0.05, 0.06, 0.08),
+          zenith: LinearColor(0.10, 0.28, 0.62),
+          horizon: LinearColor(0.68, 0.78, 0.92),
+          nadir: LinearColor(0.05, 0.06, 0.08),
           directionToSun: Vector3(0.35, 0.75, 0.4),
-          sunColor: Vector3(1.0, 0.97, 0.9),
-          sunIntensity: 6.0,
+          sunColor: LinearColor(1.0, 0.97, 0.9),
+          sunIntensity: 6.0 * Photometric.legacyUnit,
           glowStrength: 0.4,
         ),
       ),
@@ -83,12 +82,12 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
         name: 'Sunset',
         sky: SkySettings(
           enabled: true,
-          zenith: Vector3(0.06, 0.08, 0.20),
-          horizon: Vector3(0.85, 0.45, 0.22),
-          nadir: Vector3(0.05, 0.04, 0.06),
+          zenith: LinearColor(0.06, 0.08, 0.20),
+          horizon: LinearColor(0.85, 0.45, 0.22),
+          nadir: LinearColor(0.05, 0.04, 0.06),
           directionToSun: Vector3(0.8, 0.1, 0.2),
-          sunColor: Vector3(1.0, 0.6, 0.3),
-          sunIntensity: 3.0,
+          sunColor: LinearColor(1.0, 0.6, 0.3),
+          sunIntensity: 3.0 * Photometric.legacyUnit,
           glowStrength: 0.9,
           glowExponent: 3.0,
         ),
@@ -118,11 +117,14 @@ final class MaterialStudioEnvironment {
   /// whatever was bound before — in that order, so the scene is never
   /// without one between two calls.
   void apply(SkySettings sky, {int size = 32}) {
-    final built = EnvironmentMap.fromSky(device, sky, size: size);
+    final built = EnvironmentMap.isSupportedOn(device) && sky.enabled
+        ? EnvironmentMap.fromSky(device, sky, size: size)
+        : null;
     final old = _handle;
     scene.environment = built?.texture;
     scene.environmentLevels = built?.levels ?? 0;
-    scene.ambientIntensity = built == null ? 0.06 : 1.0;
+    scene.ambientIntensity =
+        (built == null ? 0.06 : 1.0) * Photometric.legacyUnit;
     _handle = built?.texture;
     if (old != null) device.releaseTexture(old);
   }
@@ -146,10 +148,10 @@ MeshNode _buildGround(GraphicsDevice device) => MeshNode(
     device,
     const ParametricPlane(width: 8, depth: 8).toEditMesh().toMeshData(),
   ),
-  engine.Material(
+  engine.RenderMaterial(
     name: 'studio-floor',
     lighting: LightingModel.pbr,
-    baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+    baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
     roughness: 0.85,
   ),
   name: 'floor',
@@ -162,7 +164,7 @@ Future<MeshData?> _teapotMeshData() async {
   final cached = _cachedTeapot;
   if (cached != null) return cached;
   try {
-    final data = await rootBundle.load('$kSamplesAsset/teapot.obj');
+    final data = await rootBundle.load('$samplesAsset/teapot.obj');
     final bytes = data.buffer.asUint8List(
       data.offsetInBytes,
       data.lengthInBytes,
@@ -191,7 +193,7 @@ Future<MeshData?> _teapotMeshData() async {
 Future<void> showMaterialStudioDialog(
   BuildContext context, {
   required Renderer renderer,
-  required engine.Material material,
+  required engine.RenderMaterial material,
   MeshGeometry? selectedObjectMesh,
 }) => showDialog<void>(
   context: context,
@@ -210,7 +212,7 @@ class _MaterialStudioDialog extends StatefulWidget {
   });
 
   final Renderer renderer;
-  final engine.Material material;
+  final engine.RenderMaterial material;
   final MeshGeometry? selectedObjectMesh;
 
   @override

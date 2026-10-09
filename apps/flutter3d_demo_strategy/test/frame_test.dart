@@ -75,8 +75,8 @@ void main() {
     scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.96, 0.88),
-        intensity: 3.2,
+        color: LinearColor(1.0, 0.96, 0.88),
+        intensity: 3.2 * Photometric.legacyUnit,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
@@ -98,9 +98,9 @@ void main() {
         views: views,
         settings: const RenderSettings(),
       );
-      final pixels = await it.device.readPixels(result.frame);
+      final pixels = await it.device.readback(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
-      return pixels!.buffer.asUint8List();
+      return pixels.buffer.asUint8List();
     }
 
     // A few frames, because the first is the camera's cut and the ones after

@@ -76,7 +76,7 @@ typedef Trail = ({
 /// Paints [ground] into a [size]-texel square, on another isolate.
 ///
 /// The texture's U runs along X and V along Z, one repeat across the whole
-/// width of the map — draw it with `metresPerTexture` equal to the map's
+/// width of the map — draw it with `metersPerTexture` equal to the map's
 /// width. [waterLevel] is where the shore is drawn, or null for none.
 Future<Rgba8Image> paintGround({
   required Heightfield ground,
@@ -165,7 +165,7 @@ final class _Job {
     final pixels = Uint8List(size * size * 4);
     final double metresPerTexel = _width / size;
     // Where a texel's U of nought lands in the world: HeightfieldGeometry
-    // writes U as `x / metresPerTexture` from the world origin, not the
+    // writes U as `x / metersPerTexture` from the world origin, not the
     // map's, so a map that does not start at nought starts part-way across
     // the texture, and the painting has to start there too.
     final double shiftX = _fraction(originX / _width);
@@ -177,7 +177,7 @@ final class _Job {
     final _Tile earth = _Tile(swatches.earth, metresPerSwatch * 0.8);
     final _Tile rock = _Tile(swatches.rock, metresPerSwatch * 1.2);
     final _Tile sand = _Tile(swatches.sand, metresPerSwatch);
-    final colour = Float64List(3);
+    final color = Float64List(3);
     final mix = Float64List(3);
 
     for (var j = 0; j < size; j++) {
@@ -198,20 +198,20 @@ final class _Job {
         final double fine = valueNoise(x / 4.0 + 17.0, z / 4.0 - 9.0);
         final double patchy = broad * 0.7 + fine * 0.3;
 
-        grass.sample(x, z, colour);
+        grass.sample(x, z, color);
         meadow.sample(x + 3.1, z - 7.7, mix);
-        _blend(colour, mix, _smooth(0.42, 0.68, patchy));
+        _blend(color, mix, _smooth(0.42, 0.68, patchy));
 
         final double worn = _worn(x, z, fine);
         if (worn > 0.0) {
           earth.sample(x, z, mix);
-          _blend(colour, mix, worn);
+          _blend(color, mix, worn);
         }
 
         final double steep = _smooth(0.42, 0.72, slope + (fine - 0.5) * 0.18);
         if (steep > 0.0) {
           rock.sample(x, z, mix);
-          _blend(colour, mix, steep);
+          _blend(color, mix, steep);
         }
 
         final double? level = waterLevel;
@@ -224,15 +224,15 @@ final class _Job {
             mix[0] *= 0.8;
             mix[1] *= 0.78;
             mix[2] *= 0.74;
-            _blend(colour, mix, shore);
+            _blend(color, mix, shore);
           }
           // Under the surface the bed darkens and greens, so the water
           // reads as deep in the middle rather than as a sheet of glass.
           if (h < level) {
             final double deep = _smooth(0.0, 2.5, level - h);
-            colour[0] *= 1.0 - 0.55 * deep;
-            colour[1] *= 1.0 - 0.40 * deep;
-            colour[2] *= 1.0 - 0.30 * deep;
+            color[0] *= 1.0 - 0.55 * deep;
+            color[1] *= 1.0 - 0.40 * deep;
+            color[2] *= 1.0 - 0.30 * deep;
           }
         }
 
@@ -242,9 +242,9 @@ final class _Job {
         final double light = 0.84 + 0.16 * _smooth(-0.6, 0.6, -gx * 0.5 - gz);
 
         final int at = (j * size + i) * 4;
-        pixels[at] = _byte(colour[0] * light);
-        pixels[at + 1] = _byte(colour[1] * light);
-        pixels[at + 2] = _byte(colour[2] * light);
+        pixels[at] = _byte(color[0] * light);
+        pixels[at + 1] = _byte(color[1] * light);
+        pixels[at + 2] = _byte(color[2] * light);
         pixels[at + 3] = 255;
       }
     }
@@ -292,22 +292,22 @@ final class _Job {
   }
 }
 
-/// One swatch, tiled across the world at [metres] a repeat.
+/// One swatch, tiled across the world at [meters] a repeat.
 final class _Tile {
-  _Tile(Rgba8Image image, this.metres)
+  _Tile(Rgba8Image image, this.meters)
     : _pixels = image.pixels,
       _side = image.width;
 
   final Uint8List _pixels;
   final int _side;
-  final double metres;
+  final double meters;
 
   /// The swatch's colour at world `(x, z)`, as linear-ish 0..1 floats in
   /// [out]. Nearest texel: the painting is already about as fine as the
   /// swatch, so filtering here would only blur it twice.
   void sample(double x, double z, Float64List out) {
-    final int i = (_fraction(x / metres) * _side).floor() % _side;
-    final int j = (_fraction(z / metres) * _side).floor() % _side;
+    final int i = (_fraction(x / meters) * _side).floor() % _side;
+    final int j = (_fraction(z / meters) * _side).floor() % _side;
     final int at = (j * _side + i) * 4;
     out[0] = _pixels[at] / 255.0;
     out[1] = _pixels[at + 1] / 255.0;

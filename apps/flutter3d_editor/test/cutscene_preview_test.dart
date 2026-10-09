@@ -37,7 +37,7 @@ void main() {
     expect(preview.placeOn(camera, 0.0), isTrue);
     expect(camera.worldMatrix.getTranslation().x, closeTo(0.0, 1e-9));
     expect(
-      (camera.projection as PerspectiveProjection).fovYRadians,
+      (camera.projection as PerspectiveProjection).fovY,
       closeTo(45 * math.pi / 180, 1e-9),
     );
     // Halfway in time is halfway along: one speed between two keys.
@@ -49,7 +49,7 @@ void main() {
     expect(preview.placeOn(camera, 2.0), isFalse);
     expect(camera.worldMatrix.getTranslation().x, closeTo(10.0, 1e-9));
     expect(
-      (camera.projection as PerspectiveProjection).fovYRadians,
+      (camera.projection as PerspectiveProjection).fovY,
       closeTo(30 * math.pi / 180, 1e-9),
     );
   });

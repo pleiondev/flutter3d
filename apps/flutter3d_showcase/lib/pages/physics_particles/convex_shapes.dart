@@ -10,7 +10,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The bodies, in the order the scene draws them, and the hull's offset.
 typedef _Bodies = ({
@@ -223,15 +222,19 @@ final class ConvexShapesDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _bodies = _build();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     DeviceMesh upload(MeshData data) => DeviceMesh.upload(context.device, data);
-    Material paint(String name, double r, double g, double b) =>
-        Material(name: name, baseColor: Vector4(r, g, b, 1.0), roughness: 0.6);
+    RenderMaterial paint(String name, double r, double g, double b) =>
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+          roughness: 0.6,
+        );
 
     scene.add(
       MeshNode(
@@ -306,7 +309,7 @@ final class ConvexShapesDemo extends ShowcaseDemo {
     ];
     for (var i = 0; i < bodies.length; i++) {
       _nodes[i]
-        ..setPositionFrom(b.world.positionOf(bodies[i]))
+        ..setPositionFrom(b.world.localPositionOf(bodies[i]))
         ..setRotation(b.world.orientationOf(bodies[i]));
     }
   }
@@ -356,7 +359,7 @@ final class ConvexShapesDemo extends ShowcaseDemo {
 
     // The cylinder rolled off the ramp, at least a metre past its foot,
     // and lies on its side, its axis level and its centre a radius up.
-    final Vector3 cylinder = w.positionOf(b.cylinder);
+    final Vector3 cylinder = w.localPositionOf(b.cylinder);
     if (cylinder.x < -2.0) throw StateError('the cylinder stayed on the ramp');
     if (axisOf(b.cylinder).y.abs() > 0.02) {
       throw StateError('the cylinder is not on its side');
@@ -365,16 +368,16 @@ final class ConvexShapesDemo extends ShowcaseDemo {
     // The cone stands on its base, its centre of mass a quarter of its
     // height up.
     if (axisOf(b.cone).y < 0.999) throw StateError('the cone fell over');
-    rests('the cone', w.positionOf(b.cone).y, _coneHeight / 4);
+    rests('the cone', w.localPositionOf(b.cone).y, _coneHeight / 4);
     // The rock rests on a face: its lowest corner on the floor.
     final Matrix3 turn = w.orientationOf(b.rock).asRotationMatrix();
-    final Vector3 at = w.positionOf(b.rock);
+    final Vector3 at = w.localPositionOf(b.rock);
     final double lowest = _rockPoints
         .map((Vector3 p) => (at + turn.transformed(p - b.rockOffset)).y)
         .reduce(math.min);
     rests('the rock\'s lowest corner', lowest, 0.0);
     // The rounded box lies on a face, its half size plus the rounding up.
-    rests('the rounded box', w.positionOf(b.box).y, _boxHalf + _rounding);
+    rests('the rounded box', w.localPositionOf(b.box).y, _boxHalf + _rounding);
     for (final NativeBody body in <NativeBody>[b.cone, b.rock, b.box]) {
       if (!w.isAsleep(body)) throw StateError('a shape never came to rest');
     }

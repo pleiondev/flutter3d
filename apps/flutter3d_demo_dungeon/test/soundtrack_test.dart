@@ -20,14 +20,18 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_audio/testing.dart';
+import 'package:flutter3d_demo_content/repo_checks.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/sounds.dart';
 import 'package:flutter3d_demo_dungeon/src/soundtrack.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
+import 'package:flutter3d_game_kit/soundtrack.dart' show Sustained, Voice;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'heard_events.dart';
 
 /// This game's sound table, read out of its own source.
 ///
@@ -60,6 +64,8 @@ final class _Run {
       inventory: startingInventory(),
     );
     world.update();
+    // Heard from the first step: what the run publishes is taken each step.
+    HeardEvents.of(staged);
   }
 
   final Level level = _crypt();
@@ -87,7 +93,7 @@ final class _Run {
       final sounding = soundtrack.listen(
         staged.sim,
         staged.player,
-        staged.sim.events.drain(),
+        HeardEvents.of(staged).take(),
       );
       heard.addAll(sounding.once);
       loops.addAll(sounding.loops);
@@ -102,7 +108,7 @@ final class _Run {
     input.endStep();
     heard.addAll(
       soundtrack
-          .listen(staged.sim, staged.player, staged.sim.events.drain())
+          .listen(staged.sim, staged.player, HeardEvents.of(staged).take())
           .once,
     );
     input.beginStep();

@@ -3,18 +3,20 @@
 /// spills into them over a ledge, where wood floats on them and where fires
 /// burn.
 ///
-/// **A table of this game's own levels, and nothing in it reaches the
-/// simulation.** A hazard named here is still the same trigger volume it
-/// always was, hurting as it always did; the table only says what
-/// `LevelElements` puts in its place on the screen. A level the table does
-/// not name keeps the red boxes it has always had.
+/// **A table of this game's own levels, and since 0.9 it reaches the run.**
+/// A hazard named here is still the same trigger volume it always was,
+/// hurting as it always did; what the table adds is the water and the fire
+/// in it, which `RunElements` builds into the run — the water holds the
+/// runner up and back, a brazier burns them — and `LevelElements` draws. So
+/// a change here is a change to the run: the level's tapes are recorded
+/// again with it. A level the table does not name keeps the red boxes it
+/// has always had.
 library;
 
 /// Water welling up at ([x], [z]) on a ledge over the pit named [into], at
 /// [rate] m³/s, and running to the ledge's lip through a culvert [culvert]
 /// metres under the ledge's top and [width] metres wide, whose mouth it
-/// pours out of. [roughness] is the culvert's bed, Manning's: what holds the
-/// stream in it to a culvert's pace.
+/// pours out of.
 typedef Pour = ({
   String into,
   double x,
@@ -22,7 +24,6 @@ typedef Pour = ({
   double rate,
   double culvert,
   double width,
-  double roughness,
 });
 
 /// A piece of wood floating on the pit named [pool], put in at ([x], [z]);
@@ -84,10 +85,6 @@ final class Dressing {
         'the spill': -0.45,
       },
       spills: <Pour>[
-        // A culvert's mouth is no spout: what comes out of it at a walking
-        // pace peels off the wall and lands a metre out, which is what the
-        // rough bed holds it to. The pool under it is three and a half
-        // metres deep and hardly feels that roughness.
         (
           into: 'the spill',
           x: 12.0,
@@ -95,7 +92,6 @@ final class Dressing {
           rate: 0.08,
           culvert: 0.7,
           width: 1.5,
-          roughness: 2.5,
         ),
         (
           into: 'the shallows',
@@ -104,7 +100,6 @@ final class Dressing {
           rate: 0.08,
           culvert: 0.3,
           width: 1.5,
-          roughness: 0.14,
         ),
         (
           into: 'the race',
@@ -113,7 +108,6 @@ final class Dressing {
           rate: 0.08,
           culvert: 0.25,
           width: 1.5,
-          roughness: 0.14,
         ),
       ],
       afloat: <Afloat>[
@@ -149,7 +143,6 @@ final class Dressing {
           rate: 0.04,
           culvert: 0.3,
           width: 1.0,
-          roughness: 0.05,
         ),
         (
           into: 'the tap hole',
@@ -158,7 +151,6 @@ final class Dressing {
           rate: 0.04,
           culvert: 0.3,
           width: 1.0,
-          roughness: 0.05,
         ),
       ],
       heaps: <(double, double, double)>[
@@ -187,7 +179,6 @@ final class Dressing {
           rate: 0.2,
           culvert: 0.3,
           width: 1.0,
-          roughness: 0.14,
         ),
       ],
       afloat: <Afloat>[

@@ -7,7 +7,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class HighContrastDemo extends ShowcaseDemo {
   bool look = true;
@@ -38,24 +37,24 @@ final class HighContrastDemo extends ShowcaseDemo {
       dark: 0x5E6B48,
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.35
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             const PlaneShape(width: 12, depth: 12).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'tiles',
             albedo: tiles.upload(context.device),
-            albedoSampler: SamplerOptions.linearRepeat,
+            albedoSampler: SamplerDescriptor.linearRepeat,
             roughness: 0.9,
           ),
           name: 'floor',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     final DeviceMesh crate = DeviceMesh.upload(
@@ -71,7 +70,11 @@ final class HighContrastDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           crate,
-          Material(name: 'crate $i', baseColor: paint[i], roughness: 0.7),
+          RenderMaterial(
+            name: 'crate $i',
+            baseColor: _fromSrgb(paint[i]),
+            roughness: 0.7,
+          ),
           name: 'crate $i',
         )..setPosition(-3.0 + i * 1.2, 0.5, -2.5),
       );
@@ -92,14 +95,18 @@ final class HighContrastDemo extends ShowcaseDemo {
           ('pickup', Vector3(1.0, 0.85, 0.1), Vector3(-1.2, 0.5, 1.6)),
           ('exit', Vector3(0.2, 0.9, 0.4), Vector3(3.2, 0.5, -2.2)),
         ];
-    for (final (String role, Vector3 colour, Vector3 at) in things) {
+    for (final (String role, Vector3 color, Vector3 at) in things) {
       final MeshNode node = MeshNode(
         ball,
-        Material(name: role, baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
+        RenderMaterial(
+          name: role,
+          baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
+        ),
         name: role,
       )..setPositionFrom(at);
-      node.outlineColor = colour;
-      _marked.add((node, colour));
+      // The role colours are picked by eye, so they are sRGB.
+      node.outlineColor = LinearColor.fromSrgb(color.x, color.y, color.z);
+      _marked.add((node, color));
       scene.add(node);
     }
     // #endregion roles
@@ -109,8 +116,10 @@ final class HighContrastDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // A mark is per mesh; taking it off is setting it back to null.
-    for (final (MeshNode node, Vector3 colour) in _marked) {
-      node.outlineColor = roles ? colour : null;
+    for (final (MeshNode node, Vector3 color) in _marked) {
+      node.outlineColor = roles
+          ? LinearColor.fromSrgb(color.x, color.y, color.z)
+          : null;
     }
   }
 
@@ -182,3 +191,6 @@ final class HighContrastDemo extends ShowcaseDemo {
     // #endregion check
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

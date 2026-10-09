@@ -8,10 +8,11 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'diver.dart' show pressureAt;
+import 'diver.dart' show squeezeAt;
 import 'looks.dart';
 import 'terrain.dart';
 import 'wreck.dart' show wreckFloor;
@@ -30,6 +31,20 @@ final class Find {
   /// How long it has hung at the surface under its bag, s, waiting for the
   /// boat to come round for it.
   double surfaced = 0.0;
+
+  Map<String, Object?> save() => <String, Object?>{
+    'aboard': aboard,
+    'surfaced': surfaced,
+  };
+
+  /// Back to what [save] wrote; whether it is in the world and the scene
+  /// is the dive's to put right.
+  void restore(Object? saved) {
+    if (saved case {'aboard': final bool aboard, 'surfaced': final num up}) {
+      this.aboard = aboard;
+      surfaced = up.toDouble();
+    }
+  }
 }
 
 /// The finds, laid where they lie.
@@ -59,11 +74,11 @@ final class Finds {
       finds.add(Find(name, body, node));
     }
 
-    SceneNode turned(MeshData mesh, String name, Vector4 colour) =>
+    SceneNode turned(MeshData mesh, String name, Vector4 color) =>
         SceneNode(name: name)..add(
           MeshNode(
             DeviceMesh.upload(device, mesh),
-            floor.under(name, colour, roughness: 0.6),
+            floor.under(name, color, roughness: 0.6),
           ),
         );
 
@@ -202,23 +217,13 @@ final class Finds {
     var bestDistance = reach;
     for (final f in finds) {
       if (f.aboard) continue;
-      final d = (_world.positionOf(f.body) - at).length;
+      final d = (_world.localPositionOf(f.body) - at).length;
       if (d < bestDistance) {
         bestDistance = d;
         best = f;
       }
     }
     return best;
-  }
-
-  void update() {
-    for (final f in finds) {
-      if (f.aboard) continue;
-      final p = _world.positionOf(f.body);
-      f.look
-        ..setPosition(p.x, p.y, p.z)
-        ..setRotation(_world.orientationOf(f.body));
-    }
   }
 }
 
@@ -244,11 +249,39 @@ final class LiftBag {
   double _radius = _folded;
 
   bool get inUse => lifting != null;
-  Vector3? get position => _body == null ? null : _world.positionOf(_body!);
+  Vector3? get position =>
+      _body == null ? null : _world.localPositionOf(_body!);
+
+  /// The bag's body while it is tied, for the pose record.
+  NativeBody? get body => _body;
+
+  /// The bag, its rope and what it lifts — as an index into [finds] — by
+  /// their handles, with its air and how big it is.
+  Map<String, Object?> save(List<Find> finds) => <String, Object?>{
+    'body': _body?.raw,
+    'rope': _rope?.raw,
+    'lifting': lifting == null ? null : finds.indexOf(lifting!),
+    'air': air,
+    'radius': _radius,
+  };
+
+  /// Back to what [save] wrote, the world already restored under it.
+  void restore(Object? saved, List<Find> finds) {
+    if (saved is! Map) return;
+    final body = saved['body'], rope = saved['rope'], find = saved['lifting'];
+    _body = body is num ? NativeBody(body.toInt()) : null;
+    _rope = rope is num ? NativeJoint(rope.toInt()) : null;
+    lifting = find is num && find >= 0 && find < finds.length
+        ? finds[find.toInt()]
+        : null;
+    air = (saved['air'] as num?)?.toDouble() ?? 0.0;
+    _radius = (saved['radius'] as num?)?.toDouble() ?? _folded;
+    _node.isVisible = lifting != null;
+  }
 
   /// Tied to [find], its rope's length above it, folded and empty.
   void tie(Find find) {
-    final at = _world.positionOf(find.body) + Vector3(0, rope, 0);
+    final at = _world.localPositionOf(find.body) + Vector3(0, rope, 0);
     final body = _world.addBody(position: at, mass: 2.0);
     _world
       ..setShape(body, const NativeShape.sphere(_folded))
@@ -256,7 +289,7 @@ final class LiftBag {
     final joint = _world.createDistanceJoint(
       find.body,
       body,
-      anchorA: _world.positionOf(find.body),
+      anchorA: _world.localPositionOf(find.body),
       anchorB: at,
     );
     _world
@@ -267,7 +300,7 @@ final class LiftBag {
     lifting = find;
     air = 0.0;
     _radius = _folded;
-    _node.visible = true;
+    _node.isVisible = true;
   }
 
   /// [litres] of surface air blown in.
@@ -281,7 +314,7 @@ final class LiftBag {
     _body = null;
     lifting = null;
     air = 0.0;
-    _node.visible = false;
+    _node.isVisible = false;
   }
 
   /// The air in it at the depth it is under [level]: squeezed or swollen by
@@ -290,13 +323,13 @@ final class LiftBag {
   void update(double level) {
     final body = _body;
     if (body == null) return;
-    final p = _world.positionOf(body);
-    final pressure = pressureAt(level - p.y);
+    final p = _world.localPositionOf(body);
+    final pressure = squeezeAt(_world, level - p.y);
     air = math.min(air, most * pressure);
     final litres = air / pressure;
     final radius = math.max(
       _folded,
-      math.pow(3.0 * litres / 1000.0 / (4.0 * math.pi), 1.0 / 3.0).toDouble(),
+      Portable.pow(3.0 * litres / 1000.0 / (4.0 * math.pi), 1.0 / 3.0),
     );
     if ((radius - _radius).abs() > 0.004) {
       _radius = radius;

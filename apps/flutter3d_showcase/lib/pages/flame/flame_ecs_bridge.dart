@@ -8,11 +8,11 @@ import 'package:flame/components.dart' show Component;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region brain
 /// Walks straight towards +x, every step, for as long as it lives.
@@ -67,20 +67,23 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
     _flameX = flameX;
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(12.0, 0.1, 12.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.36, 0.4, 0.38, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -111,9 +114,14 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
           context.device,
           SphereShape(segments: 24, radius: 0.4).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'goblin $i',
-          baseColor: Vector4(_colors[i].r, _colors[i].g, _colors[i].b, 1.0),
+          baseColor: LinearColor.fromSrgb(
+            _colors[i].r,
+            _colors[i].g,
+            _colors[i].b,
+            1.0,
+          ),
         ),
         name: 'goblin $i',
       );
@@ -168,7 +176,10 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
     final scene = Scene();
     final node = MeshNode(
       DeviceMesh.upload(device, SphereShape(segments: 16).build()),
-      Material(name: 'bridged-goblin', baseColor: Vector4(0.5, 0.7, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'bridged-goblin',
+        baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.3, 1.0),
+      ),
     );
     scene.add(node);
     final actorComponent = ActorComponent(

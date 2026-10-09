@@ -31,7 +31,7 @@ const List<Feature> environmentFeatures = <Feature>[
     summary:
         'Sunlight scattered by the air, so the sky is blue at noon and red '
         'at dusk by itself, with a fog that lies on the ground.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'A physical sky, with stars, and fog that lies on the ground.',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     keywords: <String>['PhysicalSky'],
@@ -58,7 +58,7 @@ const List<Feature> environmentFeatures = <Feature>[
     ],
     changes: <Change>[
       Change(
-        version: '0.9.0',
+        version: '1.0.0-rc.1',
         note:
             'The fog thins with height by default, halving every fourteen metres, so the tops of the pillars are a little clearer than their feet.',
         evidence: 'fog lies on the ground unless told otherwise',
@@ -72,7 +72,7 @@ const List<Feature> environmentFeatures = <Feature>[
     summary:
         'A floor or a pool that shows the world in it, drawn again by a '
         'camera mirrored in its plane.',
-    since: '0.9.0',
+    since: '1.0.0-rc.1',
     evidence: 'Planar reflections',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     keywords: <String>['PlanarReflectorNode'],
@@ -197,7 +197,7 @@ const List<Feature> environmentFeatures = <Feature>[
     since: '0.4.2',
     evidence:
         '`MeshNode.lightmapped` picks a vertex stage that reads the '
-        'colour attribute as a place in `Material.lightmap`',
+        'colour attribute as a place in `RenderMaterial.lightmap`',
     keywords: <String>['lightmapped'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',

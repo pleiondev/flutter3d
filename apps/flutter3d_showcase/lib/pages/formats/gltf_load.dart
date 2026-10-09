@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class GltfLoadDemo extends ShowcaseDemo {
   late final GltfAsset _asset;
@@ -35,9 +34,9 @@ final class GltfLoadDemo extends ShowcaseDemo {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(baseColor: Vector4(0.8, 0.4, 0.3, 1.0)),
+        SurfaceMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.3, 1.0)),
         SurfaceMaterial(
-          baseColor: Vector4(0.3, 0.6, 0.8, 1.0),
+          baseColor: LinearColor.fromSrgb(0.3, 0.6, 0.8, 1.0),
           metallic: 0.8,
           roughness: 0.3,
         ),
@@ -76,9 +75,10 @@ final class GltfLoadDemo extends ShowcaseDemo {
         scene.add(
           MeshNode(
             DeviceMesh.upload(context.device, surface.mesh),
-            Material(
+            RenderMaterial(
               name: material?.name,
-              baseColor: material?.baseColor ?? Vector4(0.8, 0.8, 0.8, 1.0),
+              baseColor:
+                  material?.baseColor ?? LinearColor.fromSrgb(0.8, 0.8, 0.8),
               metallic: material?.metallic ?? 0.0,
               roughness: material?.roughness ?? 0.6,
             ),
@@ -90,7 +90,7 @@ final class GltfLoadDemo extends ShowcaseDemo {
     // #endregion upload
 
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
     return scene;

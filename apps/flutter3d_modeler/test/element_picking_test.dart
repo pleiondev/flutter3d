@@ -45,11 +45,7 @@ Offset screenOf(Vector3 world) {
 /// which is where a node with no rotation already looks.
 PickingView viewLookingAtTheCube({double near = 0.1}) => PickingView(
   camera: CameraNode(
-    projection: PerspectiveProjection(
-      fovYRadians: fovY,
-      near: near,
-      far: 100.0,
-    ),
+    projection: PerspectiveProjection(fovY: fovY, near: near, far: 100.0),
   )..setPosition(0.0, 0.0, eyeZ),
   size: viewport,
 );

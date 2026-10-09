@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RaycastDemo extends ShowcaseDemo {
   late final CameraNode _camera;
@@ -21,9 +20,9 @@ final class RaycastDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _camera = context.camera;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.7, 0.5, 0.4, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.5, 0.4, 1.0),
       roughness: 0.7,
     );
     final MeshNode ball = MeshNode(
@@ -37,7 +36,7 @@ final class RaycastDemo extends ShowcaseDemo {
     _scene = Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
     return _scene;

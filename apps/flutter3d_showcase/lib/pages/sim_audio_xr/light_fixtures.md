@@ -6,7 +6,7 @@ number and drives both from it.
 
 ## Step 1: Make a fixture
 
-`LightFixture` names the level light it drives and a `LightBehaviour`.
+`LightFixture` names the level light it drives and a `LightBehavior`.
 `FlameFlicker` is two unrelated sine waves plus a slow one, deliberately
 computed from the clock rather than from randomness, so the same moment
 looks the same after a reload.

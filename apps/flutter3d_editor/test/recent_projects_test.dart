@@ -24,20 +24,19 @@ bool Function(String) _disk(Set<String> files) => files.contains;
 bool _anywhere(String _) => true;
 
 /// Documents in a map, which is what [Storage] is an interface for.
-final class _Documents implements Storage {
+final class _Documents extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 void main() {
@@ -45,24 +44,27 @@ void main() {
   const mine = '/games/deep_mine/assets/levels/first.json';
   const attic = '/games/attic/assets/levels/first.json';
 
-  test('a first launch offers nothing, rather than failing to find a file', () {
-    final projects = RecentProjects(storage: _Documents());
+  test(
+    'a first launch offers nothing, rather than failing to find a file',
+    () async {
+      final projects = RecentProjects(storage: _Documents());
 
-    expect(projects.read(exists: _anywhere), isEmpty);
-  });
+      expect(await projects.read(exists: _anywhere), isEmpty);
+    },
+  );
 
-  test('the document opened last is the one offered first', () {
+  test('the document opened last is the one offered first', () async {
     // The whole point of the list: the project somebody was in when they shut
     // the editor is the one they want when they open it.
     final projects = RecentProjects(storage: _Documents());
 
-    projects.remember(crypt, exists: _anywhere);
-    projects.remember(mine, exists: _anywhere);
+    await projects.remember(crypt, exists: _anywhere);
+    await projects.remember(mine, exists: _anywhere);
 
-    expect(projects.read(exists: _anywhere), <String>[mine, crypt]);
+    expect(await projects.read(exists: _anywhere), <String>[mine, crypt]);
   });
 
-  test('and opening one again moves it instead of adding a second', () {
+  test('and opening one again moves it instead of adding a second', () async {
     // A list where the project worked in every day appears eight times is a
     // list with room for nothing else — and the eight it fills are eight the
     // oldest entries were pushed out of.
@@ -75,39 +77,42 @@ void main() {
     final storage = _Documents();
     final projects = RecentProjects(storage: storage);
 
-    projects.remember(crypt, exists: _anywhere);
-    projects.remember(mine, exists: _anywhere);
+    await projects.remember(crypt, exists: _anywhere);
+    await projects.remember(mine, exists: _anywhere);
 
-    expect(projects.remember(crypt, exists: _anywhere), <String>[crypt, mine]);
+    expect(await projects.remember(crypt, exists: _anywhere), <String>[
+      crypt,
+      mine,
+    ]);
     expect(jsonDecode(storage.documents['recent.json']!), <String, Object?>{
       'recent': <String>[crypt, mine],
     });
-    expect(projects.read(exists: _anywhere), <String>[crypt, mine]);
+    expect(await projects.read(exists: _anywhere), <String>[crypt, mine]);
   });
 
-  test('it keeps eight and forgets the ninth', () {
+  test('it keeps eight and forgets the ninth', () async {
     final projects = RecentProjects(storage: _Documents());
     for (var n = 0; n < 12; n++) {
-      projects.remember(
+      await projects.remember(
         '/games/g$n/assets/levels/first.json',
         exists: _anywhere,
       );
     }
 
-    final offered = projects.read(exists: _anywhere);
+    final offered = await projects.read(exists: _anywhere);
 
     expect(offered.length, RecentProjects.keep);
     expect(offered.first, '/games/g11/assets/levels/first.json');
     expect(offered, isNot(contains('/games/g3/assets/levels/first.json')));
   });
 
-  test('a project that is no longer on the disk is not offered', () {
+  test('a project that is no longer on the disk is not offered', () async {
     // Moved, renamed or deleted since: a row that fails when it is clicked is
     // worse than a row that is not there.
     final storage = _Documents();
     final projects = RecentProjects(storage: storage);
-    projects.remember(crypt, exists: _anywhere);
-    projects.remember(mine, exists: _anywhere);
+    await projects.remember(crypt, exists: _anywhere);
+    await projects.remember(mine, exists: _anywhere);
 
     final offered = RecentProjects(
       storage: storage,
@@ -116,13 +121,13 @@ void main() {
     expect(offered, <String>[crypt]);
   });
 
-  test('and the next thing written down does not carry it back', () {
+  test('and the next thing written down does not carry it back', () async {
     // The disk decides on every read, so a list saved after a project went
     // missing is a list without it — the forgetting is not a separate chore
     // somebody has to remember to run.
     final storage = _Documents();
-    RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
-    RecentProjects(storage: storage).remember(mine, exists: _anywhere);
+    await RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
+    await RecentProjects(storage: storage).remember(mine, exists: _anywhere);
 
     final written = RecentProjects(
       storage: storage,
@@ -132,25 +137,34 @@ void main() {
     expect(storage.documents['recent.json'], isNot(contains(crypt)));
   });
 
-  test('a document that will not parse is a first launch, not a crash', () {
+  test('a document that will not parse is a first launch, not a crash', () async {
     // Half a write on a platform where the rename did not apply, or a hand
     // edit that lost a brace. An empty list is right; refusing to start is not.
     final storage = _Documents()..documents['recent.json'] = '{"recent": [';
 
-    expect(RecentProjects(storage: storage).read(exists: _anywhere), isEmpty);
+    expect(
+      await RecentProjects(storage: storage).read(exists: _anywhere),
+      isEmpty,
+    );
   });
 
-  test('and neither is one that parses into something that is not a list', () {
-    final storage = _Documents()..documents['recent.json'] = '{"recent": 3}';
+  test(
+    'and neither is one that parses into something that is not a list',
+    () async {
+      final storage = _Documents()..documents['recent.json'] = '{"recent": 3}';
 
-    expect(RecentProjects(storage: storage).read(exists: _anywhere), isEmpty);
-  });
+      expect(
+        await RecentProjects(storage: storage).read(exists: _anywhere),
+        isEmpty,
+      );
+    },
+  );
 
-  test('what it writes is a document somebody could read', () {
+  test('what it writes is a document somebody could read', () async {
     // Indented and named, because this sits beside `settings.json` in a
     // directory people do open.
     final storage = _Documents();
-    RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
+    await RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
 
     final text = storage.documents['recent.json']!;
 
@@ -160,13 +174,13 @@ void main() {
     expect(text, contains('\n'), reason: 'it wrote one long line');
   });
 
-  test('and clearing it forgets every project', () {
+  test('and clearing it forgets every project', () async {
     final storage = _Documents();
-    final projects = RecentProjects(storage: storage)
-      ..remember(crypt, exists: _anywhere)
-      ..clear();
+    final projects = RecentProjects(storage: storage);
+    await projects.remember(crypt, exists: _anywhere);
+    await projects.clear();
 
-    expect(projects.read(exists: _anywhere), isEmpty);
+    expect(await projects.read(exists: _anywhere), isEmpty);
     expect(storage.documents, isEmpty);
   });
 }

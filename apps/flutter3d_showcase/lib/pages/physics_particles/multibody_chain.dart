@@ -12,7 +12,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MultibodyChainDemo extends ShowcaseDemo {
   NativeWorld? _world;
@@ -31,8 +30,8 @@ final class MultibodyChainDemo extends ShowcaseDemo {
 
   final List<MeshNode> _jointMeshes = <MeshNode>[];
   final List<MeshNode> _multibodyMeshes = <MeshNode>[];
-  final List<Material> _jointPaint = <Material>[];
-  final List<Material> _multibodyPaint = <Material>[];
+  final List<RenderMaterial> _jointPaint = <RenderMaterial>[];
+  final List<RenderMaterial> _multibodyPaint = <RenderMaterial>[];
 
   static const int _count = 12;
   static const double _half = 0.15;
@@ -146,7 +145,7 @@ final class MultibodyChainDemo extends ShowcaseDemo {
   double _gap(List<NativeBody> bodies, int k) {
     final NativeWorld world = _world!;
     Vector3 end(NativeBody body, double along) =>
-        world.positionOf(body) +
+        world.localPositionOf(body) +
         world
             .orientationOf(body)
             .asRotationMatrix()
@@ -171,10 +170,10 @@ final class MultibodyChainDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _restart();
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.5)),
       )
       ..add(
@@ -183,7 +182,10 @@ final class MultibodyChainDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(20.0, 0.2, 6.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.4, 0.42, 0.45, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.4, 0.42, 0.45, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.1, 0.0),
       );
@@ -203,23 +205,26 @@ final class MultibodyChainDemo extends ShowcaseDemo {
           double x,
           String side,
           List<MeshNode> meshes,
-          List<Material> paint,
+          List<RenderMaterial> paint,
         )
-        in <(double, String, List<MeshNode>, List<Material>)>[
+        in <(double, String, List<MeshNode>, List<RenderMaterial>)>[
           (_left, 'joints', _jointMeshes, _jointPaint),
           (_right, 'multibody', _multibodyMeshes, _multibodyPaint),
         ]) {
       scene.add(
         MeshNode(
           post,
-          Material(name: 'post', baseColor: Vector4(0.3, 0.3, 0.32, 1.0)),
+          RenderMaterial(
+            name: 'post',
+            baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.32, 1.0),
+          ),
           name: 'post $side',
         )..setPosition(x, _height / 2, -0.1),
       );
       for (var k = 0; k <= _count; k++) {
-        final material = Material(
+        final material = RenderMaterial(
           name: '$side link $k',
-          baseColor: Vector4(0.8, 0.8, 0.78, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.78, 1.0),
           roughness: 0.5,
         );
         final mesh = MeshNode(
@@ -242,16 +247,16 @@ final class MultibodyChainDemo extends ShowcaseDemo {
   void _place() {
     if (_world == null) return;
     for (final (List<NativeBody> bodies, List<MeshNode> meshes, paint)
-        in <(List<NativeBody>, List<MeshNode>, List<Material>)>[
+        in <(List<NativeBody>, List<MeshNode>, List<RenderMaterial>)>[
           (_joints, _jointMeshes, _jointPaint),
           (_multibody, _multibodyMeshes, _multibodyPaint),
         ]) {
       for (var k = 1; k < bodies.length; k++) {
         meshes[k - 1]
-          ..setPositionFrom(_world!.positionOf(bodies[k]))
+          ..setPositionFrom(_world!.localPositionOf(bodies[k]))
           ..setRotation(_world!.orientationOf(bodies[k]));
         final double open = math.min(_gap(bodies, k) / 0.03, 1.0);
-        paint[k - 1].baseColor.setValues(
+        paint[k - 1].baseColor = LinearColor.fromSrgb(
           0.8 + 0.15 * open,
           0.8 - 0.65 * open,
           0.78 - 0.65 * open,
@@ -327,7 +332,7 @@ final class MultibodyChainDemo extends ShowcaseDemo {
       throw StateError('the ordinary chain held to $joints m');
     }
     // And the multibody has swung: its weight is well below its post.
-    final double low = _world!.positionOf(_multibody.last).y;
+    final double low = _world!.localPositionOf(_multibody.last).y;
     if (low > _height - 2.0) {
       throw StateError('the multibody weight is still at $low');
     }

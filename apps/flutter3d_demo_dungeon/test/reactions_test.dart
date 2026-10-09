@@ -17,15 +17,19 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/effects.dart';
 import 'package:flutter3d_demo_dungeon/src/reactions.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
+import 'package:flutter3d_game_kit/reactions.dart' show Lingering;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -46,6 +50,8 @@ final class _Run {
       inventory: inventory ?? startingInventory(),
     );
     world.update();
+    // Heard from the first step: what the run publishes is taken each step.
+    HeardEvents.of(staged);
   }
 
   final Level level = _crypt();
@@ -72,7 +78,7 @@ final class _Run {
       for (final action in holding) {
         input.release(action);
       }
-      final events = staged.sim.events.drain();
+      final events = HeardEvents.of(staged).take();
       hits.addAll(events.whereType<ShotLanded>().map((ShotLanded e) => e.hit));
       final reaction = reactions.listen(staged.sim, staged.player, events);
       shown.addAll(reaction.bursts);
@@ -111,7 +117,7 @@ void main() {
     final run = _Run()..run(6, holding: <GameAction>{ShooterActions.fire});
 
     expect(
-      run.hits.any((ShotHit h) => h.struckSomething),
+      run.hits.any((ShotHit h) => h.didStrikeSomething),
       isTrue,
       reason: 'nothing in the crypt was hit, so this proves nothing',
     );

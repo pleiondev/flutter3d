@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LightChannelsDemo extends ShowcaseDemo {
   bool sameChannel = false;
@@ -34,26 +33,33 @@ final class LightChannelsDemo extends ShowcaseDemo {
     // never distance or anything the shader has to guess about.
     _redBall = MeshNode(
       sphere,
-      Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+      RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
       name: 'near ball',
     )..lightChannels = LightChannels.only(0);
     final MeshNode farBall =
         MeshNode(
             sphere,
-            Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+            RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
             name: 'far ball',
           )
           ..setPosition(2.4, 0.0, 0.0)
           ..lightChannels = LightChannels.only(1);
 
-    _redLight = LightNode(name: 'red', type: LightType.point, intensity: 6.0)
-      ..color.setValues(1.0, 0.25, 0.2)
-      ..channels = LightChannels.only(0)
-      ..setPosition(0.0, 1.6, 1.2);
+    _redLight =
+        LightNode(
+            name: 'red',
+            type: LightType.point,
+            intensity: 6.0 * Photometric.legacyUnit,
+          )
+          ..color = LinearColor(1.0, 0.25, 0.2)
+          ..channels = LightChannels.only(0)
+          ..setPosition(0.0, 1.6, 1.2);
     // #endregion channels
 
-    final LightNode fill = LightNode(name: 'fill', intensity: 1.2)
-      ..setLocalForward(Vector3(-0.3, -0.6, -0.6));
+    final LightNode fill = LightNode(
+      name: 'fill',
+      intensity: 1.2 * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.3, -0.6, -0.6));
 
     return Scene()
       ..add(_redBall)
@@ -85,7 +91,7 @@ final class LightChannelsDemo extends ShowcaseDemo {
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region check
-    if (!LightBuffer.reaches(_redLight, _redBall.lightChannels)) {
+    if (!_redLight.reaches(_redBall.lightChannels)) {
       throw StateError('the red light does not reach the ball it lights');
     }
     if (_redLight.channels == LightChannels.all) {

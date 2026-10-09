@@ -8,7 +8,7 @@ const GameAction _left = GameAction('steerLeft');
 const GameAction _right = GameAction('steerRight');
 const GameAction _handbrake = GameAction('handbrake');
 
-/// Reads this device's own driver into the small JSON shape [NetSession]
+/// Reads this device's own driver into the small JSON shape [RollbackSession]
 /// sends over the wire — the same four lines `main.dart`'s own private
 /// `_readDriver` turns into a [VehicleInput], aimed at a [Map] instead so
 /// it can travel.
@@ -28,7 +28,7 @@ void applyDriverFrame(Map<String, Object?> frame, VehicleInput out) => out
   ..steer = (frame['steer'] as num?)?.toDouble() ?? 0.0;
 
 /// `net-03`: a two-car [RacingSimulation] kept in step with a remote peer
-/// through a [NetSession] — [localCarIndex] is this device's own driver,
+/// through a [RollbackSession] — [localCarIndex] is this device's own driver,
 /// the other slot is the network's.
 ///
 /// **[localCarIndex] must be the same physical slot on both devices' idea
@@ -44,7 +44,7 @@ void applyDriverFrame(Map<String, Object?> frame, VehicleInput out) => out
 /// this class.
 ///
 /// **Not a new mechanism — `net-01`'s, aimed at a real genre.** Everything
-/// [NetSession] already does — input delay, prediction by the last frame,
+/// [RollbackSession] already does — input delay, prediction by the last frame,
 /// rollback on a guess that turned out wrong — is unchanged; this class is
 /// only the four functions a [RacingSimulation] needs to hand it, in the
 /// shape net-01 already asks for, plus the ghost that stands in for the
@@ -54,7 +54,7 @@ final class NetRace {
     required RacingSimulation sim,
     required this.localCarIndex,
     required this.localInput,
-    required NetTransport transport,
+    required PeerWire transport,
     int inputDelay = 3,
     int maxRollbackFrames = 20,
     void Function(int step, Snapshot after)? onSettled,
@@ -64,15 +64,21 @@ final class NetRace {
        ),
        // ignore: prefer_initializing_formals
        _sim = sim {
-    session = NetSession(
-      transport: transport,
+    session = RollbackSession<Snapshot>(
+      wire: transport,
+      localSlot: localCarIndex,
       captureLocalFrame: () => captureDriverFrame(localInput),
-      applyAndStep: _applyAndStep,
+      applyAndStep: (frames) => _applyAndStep(
+        frames[localCarIndex] ?? const <String, Object?>{},
+        frames[_remoteCarIndex] ?? const <String, Object?>{},
+      ),
       save: _sim.save,
       restore: _sim.restore,
       inputDelay: inputDelay,
       maxRollbackFrames: maxRollbackFrames,
-      onSettled: onSettled,
+      onSettled: onSettled == null
+          ? null
+          : (step, after, _) => onSettled(step, after),
     );
   }
 
@@ -88,7 +94,7 @@ final class NetRace {
   /// `main.dart`'s own `_readDriver` would have been called at.
   final InputState localInput;
 
-  late final NetSession session;
+  late final RollbackSession<Snapshot> session;
 
   /// Whether at least one frame from the far side has actually arrived.
   /// Before this, the remote car is the ghost described in the class doc,
