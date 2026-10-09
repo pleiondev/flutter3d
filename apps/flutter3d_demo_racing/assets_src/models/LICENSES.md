@@ -19,8 +19,9 @@ above comes from.
 stated. Three changes, all by `tool/prepare_models.py`:
 
 * the twenty-four maps of 1024×1024 are resized to 512×512, and the eight
-  already at 512 are left alone — this stack has no compressed texture formats,
-  so every map costs raw RGBA in device memory whatever its PNG weighed, and
+  already at 512 are left alone — this stack had no compressed texture formats
+  when the models were prepared, so every map cost raw RGBA in device memory
+  whatever its PNG weighed (the build hook now encodes them on native builds), and
   twenty-four of them at 1024 is ninety-six megabytes of it. The maps smaller
   than 512 are deliberately untouched: `sips -Z` *sets* the long edge rather
   than capping it, so running it over a 32-pixel map returns a 512-pixel one
