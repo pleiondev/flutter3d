@@ -1,0 +1,48 @@
+name: flutter3d_camera
+description: "Virtual cameras for flutter3d games: priorities and blends between them (cut, ease, a curve of your own), framing by targets with dead zones and damping, group shots, keeping clear of walls, and impulse shake seeded by the step. A director, and a plugin that places it in the frame phase `camera`."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - camera
+  - plugins
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Plain Dart over `flutter3d_sim`, which declares the same six.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **No `flutter3d_plugins:` marker.** `CameraPlugin` is built around the
+# game's own `CameraDirector` and its cameras, so there is nothing discovery
+# could construct on its own; a game hands it to its loop in code.
+
+dependencies:
+  # `CameraRig`, which carries out every framing, the world's rays, and the
+  # easing and angle arithmetic the presets share with the games.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The plugin, the loop's `camera` phase and the bus it hears impulses on.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

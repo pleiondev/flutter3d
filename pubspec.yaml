@@ -19,17 +19,17 @@ workspace:
   - packages/flutter3d
   - packages/flutter3d_core
   - packages/flutter3d_build
+  - packages/flutter3d_build_hooks
   - packages/flutter3d_mesh
   - packages/flutter3d_model_core
-  - packages/flutter3d_model_mcp
-  - packages/flutter3d_mcp_kit
   - packages/flutter3d_samples
+  - packages/flutter3d_demo_content
   - packages/flutter3d_app
   - packages/flutter3d_app/example
-  - packages/education/chemlab
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
+  - packages/flutter3d_elements
   - packages/flutter3d_effects
   - packages/flutter3d_hardware
   - packages/flutter3d_shaders
@@ -48,15 +48,26 @@ workspace:
   - packages/flame_flutter3d_audio
   - packages/flame_multiplayer
   - packages/flame_multiplayer_dashwire
+  - packages/flutter3d_foundation
+  - packages/flutter3d_matter
+  - packages/flutter3d_plugin_api
+  - packages/flutter3d_plugin_runtime
+  - packages/flutter3d_lints
   - packages/flutter3d_sim
-  - packages/flutter3d_lab
-  - packages/flutter3d_lti
+  - packages/flutter3d_camera
+  - packages/flutter3d_post
+  - packages/flutter3d_game_kit
+  - packages/flutter3d_game_physics
+  - packages/flutter3d_game_ui
+  - packages/flutter3d_mcp
+  - packages/flutter3d_education
+  - packages/flutter3d_education/example
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
   - packages/flutter3d_editor_core
+  - packages/flutter3d_level_scene
   - packages/flutter3d_editor_widgets
-  - packages/flutter3d_editor_mcp
   - packages/flutter3d_editor_play
   - packages/flutter3d_game_shooter
   - packages/flutter3d_game_strategy
@@ -98,3 +109,4 @@ workspace:
   - tool/tutorial
   - tool/godot_check
   - tool/release_dashboard
+  - tool/api

@@ -1,0 +1,85 @@
+name: flutter3d_game_ui
+description: "Every widget around a flutter3d game, one library each: HUD and maps, touch controls, settings, accessibility, title and credits screens, photo mode, sharing a run."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - accessibility
+  - input
+  - widget
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# What the six libraries declared, each on its own: every platform.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Six packages until 1.0.0-rc.1** (`flutter3d_addon_hud`, `_touch`,
+# `_access`, `_screens`, `_photo_mode` and `_capture`), one library each now:
+# `package:flutter3d_game_ui/<part>.dart`.
+#
+# **No `flutter3d_plugins:` marker.** These are widgets and values a game
+# puts in its tree; `SpokenEvents` is the one plugin, and it is nothing
+# without the game's own table of what to say, so a game hands it to its
+# loop in code.
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # `takePhoto` and the shelves a captured frame is written to.
+  flutter3d_app: ^1.0.0-rc.1
+
+  # `MeshNode`, `ColorVision`, `PerspectiveProjection`, `PhotoFilter`,
+  # `CameraNode`, and the renderer a reel is filmed through.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # What the widgets show and write: `GameSettings` and its controller,
+  # `ActionMap` and the bindings, `ColorRoles`, `Accommodations`, the
+  # consents and the save sync. The runtime is that package's; every widget
+  # over it is this one's.
+  flutter3d_game: ^1.0.0-rc.1
+
+  # `AudioBus`, the buses the volumes section has a slider for.
+  flutter3d_audio_core: ^1.0.0-rc.1
+
+  # `Portable.tan` and `atan`, so the screens' lens opens the same on every
+  # machine.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # `Flutter3dPlugin`, the manifest and the bus the spoken events hear.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # `PhotoCamera`, which photo mode flies.
+  flutter3d_camera: ^1.0.0-rc.1
+
+  # `InputState` and `GameAction`, and the `Automap` the automap draws.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # A renderer with no GPU under it, so a reel can be filmed in a test.
+  flutter3d_cpu: ^1.0.0-rc.1
+  # `@TestOn('vm')`: a reel's folder is a folder on disk.
+  test: ^1.25.0
+  # `PadButton`, which the settings panel's tests press to rebind an action
+  # to a pad.
+  pad_input: ^0.5.0

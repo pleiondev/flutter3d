@@ -1,0 +1,45 @@
+name: flutter3d_plugin_api
+description: "The interfaces a flutter3d plugin is written against: the manifest, the host and its registries, the loop's phases and the event bus. Plain Dart over flutter3d_foundation."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - plugins
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# **One dependency, the foundation, and that is the point of the package.** A
+# plugin depends on this and on nothing of the engine's, so the engine can
+# change underneath a plugin without the plugin changing. The foundation is
+# the values the contract's signatures name (a position, a colour, an
+# exception, a file's envelope), which this package held until 1.0.0-rc.1
+# and still re-exports. Whatever the engine implements behind these
+# interfaces lives in the engine's packages (`flutter3d_sim` holds the loop,
+# the bus and the simulation handle), and discovery, which reads pubspecs,
+# lives in `flutter3d_build` beside the build hook that runs it.
+dependencies:
+  flutter3d_foundation: ^1.0.0-rc.1
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package.** `flutter3d_sim` implements the loop and the bus
+# against it, and a server replays a run through `flutter3d_sim` with no
+# Flutter SDK in the container.

@@ -1,0 +1,87 @@
+name: flutter3d_game_kit
+description: "Gameplay parts for flutter3d games, one library each: reactions, a soundtrack, ghosts of past runs, seeded levels and the world past the simulated square."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - audio
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# What the libraries declared, each on its own: every platform.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Five packages until 1.0.0-rc.1** (`flutter3d_addon_reactions`,
+# `_soundtrack`, `_ghost`, `_seeded_levels` and `_world`), one library each
+# now: `package:flutter3d_game_kit/<part>.dart`.
+#
+# **No plugin marker.** None of the five was ever discovered:
+# `ReactionsPlugin` and `SoundtrackPlugin` are built around the game's own
+# table and cue sheet, and the rest are libraries a game calls where it
+# builds its scene or opens a level.
+#
+# **Nothing native.** The parts that need the physics core in C (the
+# ragdoll, the wrecks, the party's physics terms and the elements heard) are
+# `flutter3d_game_physics`, so a game that takes only these compiles no C
+# and downloads no wgpu-native (decision G of `tasks/1.0-arch-review.md`).
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The scene, a ghost's node and the model a ragdoll is drawn with.
+  flutter3d: ^1.0.0-rc.1
+
+  # `Storage`, where the ghost's best run is kept.
+  flutter3d_app: ^1.0.0-rc.1
+
+  # The mixer's types (`SoundDef`, `Heard`, `AudioScene`): what a reaction
+  # sounds like and what the soundtrack plays.
+  flutter3d_audio_core: ^1.0.0-rc.1
+
+  # The physical sky, the lights, and the meshes of the horizon.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # `Shown`, `ParticleEffect` and the system a reaction bursts into.
+  flutter3d_particles: ^1.0.0-rc.1
+
+  # `BusEvent` and the plugins a reaction table and a cue sheet are heard
+  # through.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # `CameraRig`, which a reaction kicks, shakes and widens.
+  flutter3d_camera: ^1.0.0-rc.1
+
+  # Tapes and demos, the level document and its generator.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The graphics vocabulary, named here directly.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+  # A device with no GPU under it, for the ghost's meshes and the elements.
+  flutter3d_cpu: ^1.0.0-rc.1

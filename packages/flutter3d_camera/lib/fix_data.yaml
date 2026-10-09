@@ -1,0 +1,28 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-RigTuning (RigTuning)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'RigTuning'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_camera/flutter3d_camera.dart']
+          class: 'RigSettings'
+  - title: 'flutter3d 1.0.0-rc.1: f1-camera-CameraRig (CameraRig)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CameraRig'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_camera/flutter3d_camera.dart']
+          class: 'CameraRig'

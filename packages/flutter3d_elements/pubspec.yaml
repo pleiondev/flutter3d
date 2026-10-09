@@ -1,0 +1,52 @@
+name: flutter3d_elements
+description: >-
+  Water, fire and bodies in a world of the physics core's, stepped with no
+  renderer: flames held to bodies, waters poured and fed, the game's objects
+  followed in, plugin elements over the world's fields, and their events.
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - physics
+  - simulation
+  - fire
+  - water
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its own libraries, over a
+# native core that runs natively and as WebAssembly, so every platform, the
+# browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **The simulation and nothing that draws it**: no `flutter3d_core`, no
+# hardware layer, no shaders, no particles. A server that replays a run, a
+# headless test and a game's fixed step hold this; `flutter3d_effects`
+# stands on it and draws.
+dependencies:
+  # `Portable` for a step's arithmetic, and `PlacedEvent`, which a charge's
+  # event is, so an effect goes off where it went off.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # The world the elements step: its bodies, waters, fires and events.
+  flutter3d_physics_native: ^1.0.0-rc.1
+  # The bus and the loop a plugin element is installed into: its step
+  # phase, its events, the registries of switches and event kinds, and the
+  # snapshot part the elements' own state travels in.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+resolution: workspace

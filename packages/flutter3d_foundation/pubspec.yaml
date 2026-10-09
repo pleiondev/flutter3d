@@ -1,0 +1,37 @@
+name: flutter3d_foundation
+description: "The types every flutter3d package shares: the exception roots, WorldPosition, LinearColor, the file envelope, Registration and portable maths. Plain Dart over vector_math."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **`vector_math` and nothing else, and that is the point of the package.**
+# Everything here is a value every other package speaks — a position, a
+# colour, an exception, a file's envelope — so it sits under all of them,
+# the plugin API included. The crossings between `WorldPosition` and
+# `LinearColor` and `vector_math`'s float32 vectors are here for the same
+# reason: every package that works in `vector_math` meets them.
+dependencies:
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

@@ -1,0 +1,47 @@
+name: flutter3d_build_hooks
+description: "What a package's build hook needs to compile its flutter3d materials into shader bundles, with no converters, servers or Flutter behind it."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-engine
+  - build-hook
+  - shaders
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# A build hook runs where a game is built, so the desktops, as
+# `flutter3d_build` declares. A game for any platform may still depend on a
+# package whose hook uses this; the hook never ships inside the game.
+platforms:
+  linux:
+  macos:
+  windows:
+
+# **Plain Dart, and light, on purpose** (decision G of
+# `tasks/1.0-arch-review.md`). `flutter3d_effects` compiles its water's
+# material in its build hook, and a hook's imports are resolved into every
+# game that depends on the package. Through `flutter3d_build` that was the
+# MCP servers, `dart_mcp` and the editor's core; through this package it is
+# the material language, the shader bundle and the engine's headers.
+
+dependencies:
+  # The material language: `parseMaterial` and the GLSL emitter.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # `ShaderBundle`, the container a material is written into.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  # `Flutter3dFormatException`, the family `MaterialBuildException` is of.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # `compile.dart`: the engine's headers a material includes, the WebGL2 and
+  # WebGPU translators, and the WGSL compile.
+  flutter3d_shaders: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
