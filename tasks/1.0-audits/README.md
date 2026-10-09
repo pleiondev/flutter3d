@@ -1,7 +1,8 @@
 # The audits behind the readiness review
 
-The full notes of the nineteen read-only audits that `1.0-readiness-review.md`
-condenses, as the agents handed them back on 2026-10-09. They describe the
+The full notes of the read-only audits that `1.0-readiness-review.md`
+and `1.0-product-review.md` condense, as the agents handed them back on
+2026-10-09. They describe the
 working tree of that day: paths and line numbers are as they were then,
 and nothing here is a decision. The decisions are in the review's §6 and
 the order of work in `1.0-rc1-plan.md`.
@@ -31,6 +32,17 @@ measured against what.
 | `17-reader-veteran.md` | The surface read by a senior engine programmer | §6, before decision 50 |
 | `18-flutter-scene.md` | Against flutter_scene 0.24.3 | §2.13 |
 | `19-post-processing-parity.md` | The post stack, effect by effect, against flutter_scene 0.24.3 | §2.13 |
+
+The five below fed `1.0-product-review.md`, the product review of the
+target state, the same evening.
+
+| File | What it covers | Product review section |
+|---|---|---|
+| `20-audiences.md` | The offer for games, twins and laboratories, and the conflicts between them | §2, §6 |
+| `21-adoption.md` | The first hour, the manual steps, the documentation plan, versions, migration, the editor | §3 |
+| `22-release-definition.md` | What the 1.0 label promises, the gates, the schedule, the freeze risk, platforms, legal | §4, §8.1 |
+| `23-twins-labs.md` | What a twin pilot and a school pilot need against the target state; the catalog | §2, §8.2 |
+| `24-ecosystem-ops.md` | Publishing, CI, community, the site, MCP, comparison claims, the launch | §5, §8.3 |
 
 The notes are in Russian, as the agents wrote them. Where a note names a
 scratchpad path, that scratchpad belonged to the session and is gone.
