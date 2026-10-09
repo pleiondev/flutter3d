@@ -45,7 +45,7 @@ final sun = scene.firstLightOfType(LightType.directional);
 
 ```dart
 final camera = CameraNode(
-  projection: const PerspectiveProjection(fovYRadians: 1.05, near: 0.1, far: 220.0),
+  projection: const PerspectiveProjection(fovY: 1.05, near: 0.1, far: 220.0),
   name: 'player',
 )
   ..setPositionFrom(eye)
@@ -79,7 +79,7 @@ Up to **eight** lights of any type, packed into `vec4[8]` uniform arrays with th
 scene.add(LightNode(
   type: LightType.spot,
   color: Vector3(1.0, 0.86, 0.7),
-  intensity: 12.0,
+  intensity: 69500.0,          // candela, for a camera exposed for daylight
   range: 14.0,                 // glTF's range window
   innerConeAngle: 0.25,
   outerConeAngle: 0.5,

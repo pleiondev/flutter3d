@@ -78,10 +78,10 @@ and the whole suite before you commit.
 
 ## Driving the modeller as an agent
 
-`packages/flutter3d_model_mcp` offers the whole editor over MCP:
+`packages/flutter3d_mcp` offers the whole editor over MCP:
 
 ```sh
-dart run flutter3d_model_mcp:model_mcp my-model.f3dproj
+dart run flutter3d_mcp:model_mcp my-model.f3dproj
 ```
 
 Ask for the `modelling_strategy` prompt first — it is the order to do things in.

@@ -12,7 +12,7 @@ Two packages that are extensions rather than parts of the engine. Nothing in `fl
 
 ```dart
 final particles = ParticleSystem(capacity: 2000);
-renderer.addContributor(ParticleContributor(particles));
+renderer.renderSteps.addContributor(ParticleContributor(particles));
 
 // once a frame
 particles.advance(dt);
@@ -28,7 +28,7 @@ That is the whole integration. `ParticleContributor` is a `PassContributor`, the
 abstract final class Effects {
   static final ParticleEffect dust = ParticleEffect(
     count: 12,
-    emitter: const ConeEmitter(speed: Range(0.6, 1.8), halfAngleDegrees: 55.0),
+    emitter: const ConeEmitter(speed: Range(0.6, 1.8), halfAngle: 0.96), // 55°, in radians
     lifetime: const Range(0.35, 0.7),
     size: const Range(0.08, 0.2),
     color: Vector4(0.8, 0.78, 0.7, 0.5),
@@ -44,7 +44,7 @@ abstract final class Effects {
 | Emitter | Shape |
 |---|---|
 | `SphereEmitter` | Outward from a shell, `speed` and `radius` ranges |
-| `ConeEmitter` | A cone about a direction, `halfAngleDegrees` |
+| `ConeEmitter` | A cone about a direction, `halfAngle` in radians |
 | `BoxEmitter` | From inside a box, optionally along an axis |
 | `DriftEmitter` | Slow and spread: smoke, motes |
 

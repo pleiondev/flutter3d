@@ -27,7 +27,7 @@ tube.place(rotation, position);
 world.advance(dt);
 ```
 
-Draw it with `liquidMeshes(tube)`, `jetMesh(jet)` and `particleMesh(...)` from `flutter3d_core`'s geometry. The chemistry bench is built this way; its [article](/education/chemlab/) shows what that looks like.
+Draw it with `liquidMeshes(tube)` from `flutter3d_effects`, and `jetMesh(jet)` and `particleMesh(...)` from `flutter3d_core`'s geometry. The chemistry bench is built this way; its [article](/education/chemlab/) shows what that looks like.
 
 ## Volume first
 

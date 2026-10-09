@@ -71,7 +71,7 @@ For physics there are two directions, and River Sortie and the arcade demo use o
 
 Two things don't line up there, and I chose not to paper over them. flutter3d reports a pair of colliders, while Flame wants a `PositionComponent`, so you say which component a collider belongs to with `resolveOther`. When it returns null (a level wall, say), the bridge calls nothing, because inventing a component would tell Flame it collided with something that doesn't exist for it. And Flame's callback has room for intersection points, not a normal or a depth, so the bridge passes one approximate point. The real normal and depth stay available on the flutter3d side.
 
-For cameras, `ChaseCamera` follows a bridged component in perspective and can shake, and `CameraSyncController` keeps an orthographic camera and Flame's `Viewfinder` framed the same, or lets Flame's own camera drive a perspective one when you give it an eye offset. Beyond those there are instanced components (a hundred shots in one draw call), particles on Flame's clock, Flame sprites and text standing in the 3D scene as billboards, taps on 3D objects under a perspective camera, a Tiled level stood up in 3D, and a separate package, `flame_flutter3d_audio`, for sound that comes from where things happen.
+For cameras, `FlameChaseCamera` follows a bridged component in perspective and can shake, and `CameraSyncController` keeps an orthographic camera and Flame's `Viewfinder` framed the same, or lets Flame's own camera drive a perspective one when you give it an eye offset. Beyond those there are instanced components (a hundred shots in one draw call), particles on Flame's clock, Flame sprites and text standing in the 3D scene as billboards, taps on 3D objects under a perspective camera, a Tiled level stood up in 3D, and a separate package, `flame_flutter3d_audio`, for sound that comes from where things happen.
 
 ## How River Sortie uses it
 
@@ -96,10 +96,10 @@ Start from any Flutter project and add:
 ```yaml
 dependencies:
   flame: ^1.38.2
-  flame_flutter3d: ^0.8.4
-  flutter3d: ^0.8.3
-  flutter3d_game: ^0.8.0   # Bindings, the key table
-  flutter3d_sim: ^0.8.1    # InputState and GameAction
+  flame_flutter3d: ^1.0.0-rc.1
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_game: ^1.0.0-rc.1   # ActionMap, the key table
+  flutter3d_sim: ^1.0.0-rc.1    # InputState and GameAction
 ```
 
 ### Step 2. Switch on Flutter GPU
@@ -141,9 +141,9 @@ class BuoyRun extends FlameGame
   );
   int collected = 0;
 
-  MeshNode _mesh(Shape shape, Vector4 colour) => MeshNode(
+  MeshNode _mesh(Shape shape, LinearColor color) => MeshNode(
     DeviceMesh.upload(device, shape.build()),
-    engine.Material(name: 'paint', baseColor: colour, roughness: 0.5),
+    RenderMaterial(name: 'paint', baseColor: color, roughness: 0.5),
   );
 ```
 
@@ -152,20 +152,23 @@ The world is built in `onOpen3d`, which runs once, after both the game has loade
 ```dart
   @override
   void onOpen3d() {
-    clearColor.setValues(0.55, 0.75, 0.95, 1); // the sky
+    clearColor = LinearColor.fromSrgb(0.55, 0.75, 0.95); // the sky
     scene
       ..add(
-        _mesh(PlaneShape(width: 400, depth: 400), Vector4(0.15, 0.35, 0.55, 1)),
+        _mesh(
+          PlaneShape(width: 400, depth: 400),
+          LinearColor.fromSrgb(0.15, 0.35, 0.55),
+        ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3)
+        LightNode(name: 'sun', intensity: 17000) // lux, a hazy sun
           ..setLocalForward(Vector3(-0.4, -1, -0.3)),
       );
 
     boat = Boat(
       node: _mesh(
         CuboidShape(size: Vector3(0.8, 0.4, 1.6)),
-        Vector4(0.9, 0.9, 0.85, 1),
+        LinearColor.fromSrgb(0.9, 0.9, 0.85),
       ),
       scene: scene,
     );
@@ -175,7 +178,10 @@ The world is built in `onOpen3d`, which runs once, after both the game has loade
     ]) {
       add(
         Buoy(
-          node: _mesh(SphereShape(radius: 0.4), Vector4(0.95, 0.35, 0.1, 1)),
+          node: _mesh(
+            SphereShape(radius: 0.4),
+            LinearColor.fromSrgb(0.95, 0.35, 0.1),
+          ),
           scene: scene,
           position: Vector2(x, y),
         ),
@@ -285,18 +291,24 @@ Removing the component removes its node from the scene too. Nothing in this step
 
 ### Step 7. Input and a fixed step
 
-The input bridge writes Flame's key events into an `InputState`, through a `Bindings` table that maps keys to actions:
+The input bridge writes Flame's key events into an `InputState`, through an `ActionMap` whose button table maps keys to actions:
 
 ```dart
   final InputState input = InputState();
   late final FlameInputBridge inputBridge = FlameInputBridge(
-    bindings: Bindings(<InputSource, GameAction>{
-      InputSource.key(LogicalKeyboardKey.arrowUp.keyId): GameAction.moveForward,
-      InputSource.key(LogicalKeyboardKey.arrowDown.keyId): GameAction.moveBack,
-      InputSource.key(LogicalKeyboardKey.arrowLeft.keyId): GameAction.moveLeft,
-      InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
-          GameAction.moveRight,
-    }),
+    actions: ActionMap(
+      actions: ActionSet.common,
+      buttons: Bindings(<InputSource, GameAction>{
+        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
+            GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
+            GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
+            GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
+            GameAction.moveRight,
+      }),
+    ),
     inputState: input,
   );
 
@@ -326,8 +338,8 @@ The last piece goes at the end of `onOpen3d`:
 
 ```dart
     add(
-      ChaseCameraComponent(
-        ChaseCamera(
+      FlameChaseCameraComponent(
+        FlameChaseCamera(
           camera: camera3d,
           target: boat,
           offset: Vector3(0, 6, 8),

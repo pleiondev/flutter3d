@@ -49,26 +49,27 @@ That outline is only the outside. Swept as it is, it ends in a bare edge, and fr
 
 ## Liquid that reads as liquid
 
-The liquid fills the inside of the glass up to its surface. Every frame something moves, its mesh is built again from the physics (`liquidMeshes` in `flutter3d_core`) and swapped in, and the old one is let go after the frames still drawing it.
+The liquid fills the inside of the glass up to its surface. Every frame something moves, its mesh is built again from the physics (`liquidMeshes` in `flutter3d_effects`) and swapped in, and the old one is let go after the frames still drawing it.
 
 The first version was a coloured solid with a flat lid, and that is exactly how it looked: painted plastic. Several changes fixed that, and the one that mattered most was not in the liquid at all.
 
 - **A meniscus.** Water wets glass and climbs the wall, so the surface rises at the wall and dips towards the middle. Its shape is not drawn: the physics solves the Young–Laplace equation for the tube's radius and water's contact angle, and in a tube this narrow the whole surface is curved. The curve catches a thin bright line where it meets the glass, which a flat cap never does.
-- **Light goes through all of it.** The material is the layered model with full transmission and water's index of refraction, 1.33. Its colour is the volume's, an attenuation colour over thirty centimetres, and the base colour is nearly white so the colour is not given twice.
+- **Light goes through all of it.** The material is the layered model with full transmission and water's index of refraction, 1.33. Its colour is the volume's, an attenuation colour over three centimetres, and the base colour is nearly white so the colour is not given twice.
 - **It is a lens.** A column of liquid is a convex body, and `MaterialExtensions.convexVolume` tells the engine so: the thickness is the depth through the middle, and the path a ray takes inside is that depth times how squarely the bent ray meets the surface. Both the colour and how far behind the liquid the scene is read from follow that path.
 - **A wet surface.** A clear coat with no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
 
 ```dart
-Material liquid(Vector3 colour, {required double depth}) => Material(
+Material liquid(Vector3 color, {required double depth}) => Material(
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(0.75 + 0.25 * colour.x, 0.75 + 0.25 * colour.y,
-      0.75 + 0.25 * colour.z, 1.0),
+  baseColor: Vector4(0.75 + 0.25 * color.x, 0.75 + 0.25 * color.y,
+      0.75 + 0.25 * color.z, 1.0),
   roughness: 0.02,
   alphaMode: MaterialAlphaMode.blend,
   depthWrite: true,
   extensions: MaterialExtensions(
     ior: 1.33, transmission: 1.0, thickness: depth, convexVolume: true,
-    attenuationColor: colour, attenuationDistance: 0.3,
+    attenuationColor: LinearColor.fromSrgb(color.x, color.y, color.z, 1.0),
+    attenuationDistance: 0.03,
     clearcoat: 1.0, clearcoatRoughness: 0.0,
   ),
 );
@@ -106,7 +107,7 @@ final settings = RenderSettings(
 
 The first coloured shadows on this bench were hard to see, and the engine was not the reason. Only the sun's share of the light is tinted, and the room was lit by a sky as bright as the sun, so a shadow lost a third of its light and kept most of its grey. The tabletop was dark grey too, and colour does not read on dark grey. The bench now has a light, warm top, a stronger sun and a dimmer sky, and the solutions let more light through, as real ones do: their transmission is 0.85, so a tube's shadow is mostly the colour of what is in it.
 
-That model looks at one surface at a time, so it knows how much light a tube takes and not where the rest goes, and where it goes is most of what a tube's shadow is: a bright line down the middle where the liquid focuses the sun, dark edges, and a little light thrown out past the sides. So the bench works the shadows out with geometric optics instead. Every vessel is a surface of revolution, so cut across at any height it is a set of circles round one centre: the outside of the glass, its inside four millimetres in, and the liquid's edge. A sunbeam crossing the cut is bent at each circle by Snell's law, partly reflected by Fresnel's, totally reflected where it meets a thinner medium too steeply, and dimmed in the liquid by Beer and Lambert over the length it actually travels there. The sun comes down at an angle to the tube, so in the cut each medium bends the ray as if it had Bravais's index, while the reflection is worked out at the angle the ray really meets the glass. Sixteen hundred beams per cut and sixty-four cuts per vessel, followed to the bench and counted where they land, give a picture of the light under it, recomputed in a few milliseconds whenever you pour.
+That model looks at one surface at a time, so it knows how much light a tube takes and not where the rest goes, and where it goes is most of what a tube's shadow is: a bright line down the middle where the liquid focuses the sun, dark edges, and a little light thrown out past the sides. So the bench works the shadows out with geometric optics instead. Every vessel is a surface of revolution, so cut across at any height it is a set of circles round one centre: the outside of the glass, its inside half a millimetre in, and the liquid's edge. A sunbeam crossing the cut is bent at each circle by Snell's law, partly reflected by Fresnel's, totally reflected where it meets a thinner medium too steeply, and dimmed in the liquid by Beer and Lambert over the length it actually travels there. The sun comes down at an angle to the tube, so in the cut each medium bends the ray as if it had Bravais's index, while the reflection is worked out at the angle the ray really meets the glass. Sixteen hundred beams per cut and sixty-four cuts per vessel, followed to the bench and counted where they land, give a picture of the light under it, recomputed in a few milliseconds whenever you pour.
 
 The picture goes back into the engine through the same atlas. It is painted on a card lying on the bench along the vessel's shadow, which casts into the shadow map and nothing else, and the engine lets a see-through caster's colour map scale what it lets through, past one where light was gathered. The glass and the liquid cast nothing of their own any more, and the card does not shade them or the labels, which stand over that light, not under it.
 
@@ -126,7 +127,7 @@ My first hand answered the flow it saw instead, and it was always late. A glass 
 
 What leaves the lip is a stream of parcels, each one step's flow, and its section anywhere is a parcel's volume over how far it travels in a step: the continuity equation, without being told. Its edges draw in under surface tension at the Taylor–Culick speed, so the sheet off the lip pulls into a thread within a couple of centimetres. A thread of water a millimetre across is unstable, and it breaks into drops after about forty diameters, close to five centimetres, which in a nine-centimetre tube is about where it does. Before it was life size the stream never broke; now the bottom of the pour is drops, as it is in a real one. Drops are particles (position-based fluids, with cohesion set so that pulling water apart costs 2σ per square metre), and they land in the clean tube and become its liquid. Where the stream meets glass it does not bounce, since water wets glass; it runs down as a rivulet. Poured slowly enough, it runs down the outside of the glass it came from, which is the teapot effect and the reason a chemist pours briskly.
 
-Everything that lands carries what was dissolved in it. Each solution is a dye at unit strength whose absorbance gives its colour over three centimetres, by Beer and Lambert; poured together, amounts add, and so do absorbances, so blue into orange comes out as dark as light through both would be, not as a paint mix of their colours. Nothing is lost on the way: what left one tube is in the other, in the air, or on the bench, to fifteen places.
+Everything that lands carries what was dissolved in it. Each solution is a dye at unit strength whose absorbance gives its colour over three centimetres, by Beer and Lambert; poured together, amounts add, and so do absorbances, so blue into orange comes out as dark as light through both would be, not as a paint mix of their colours. The sums are done in linear light, where Beer and Lambert hold: a picked colour is decoded from sRGB into the share of each channel that gets through before its logarithm is taken, and the mixture is encoded once at the end. It is colour mixing and nothing more. Nothing reacts: permanganate poured into acid only dilutes here. The colours are the solutions' own at their labels: hydrochloric acid is colourless and carries no dye, and permanganate is labelled 0.2 mmol/L, because at the 0.02 mol/L of a reagent bottle three centimetres of it are black. Nothing is lost on the way: what left one tube is in the other, in the air, or on the bench, to fifteen places.
 
 ## Refraction, caustics and reflections
 

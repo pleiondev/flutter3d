@@ -80,7 +80,7 @@ if (world.raycast(origin, direction, 30.0, ray, mask: CollisionLayers.world)) {
 world.overlap(shape, position, nearby, mask: CollisionLayers.monster);
 
 // Pushes a box out of whatever it ended up inside; `out` is the correction.
-world.depenetrate(centre, halfExtents, out);
+world.depenetrate(center, halfExtents, out);
 ```
 
 Sweeps are swept-AABB against the grid's ray walk, so a fast body does not tunnel. Everything here is allocation-free: hits are written into a caller-owned object, and the object is reused.
@@ -93,7 +93,7 @@ Kinematic. It sweeps and slides, and **nothing ever moves it**. That is what a f
 final body = CharacterController(
   world: world,
   position: startPosition + Vector3(0, 0.9, 0),
-  tuning: const MovementTuning(
+  tuning: const MovementSettings(
     walkSpeed: 5.0,
     sprintSpeed: 8.0,
     groundAcceleration: 60.0,

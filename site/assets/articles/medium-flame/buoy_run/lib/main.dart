@@ -3,11 +3,11 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 // Step 4: the widget. The game is made once, not in build().
@@ -31,19 +31,25 @@ class _BuoyRunScreenState extends State<BuoyRunScreen> {
 // Step 3: the game owns its 3D world.
 class BuoyRun extends FlameGame
     with HasFlutter3d, HasFixedStep, HasCollisionDetection, KeyboardEvents {
-  /// Where Flame's 2D world lies in the scene: flat on the water, Flame's y
-  /// running along the scene's z.
+  /// Flame's 2D world, laid flat on the water: Flame's y runs along the
+  /// scene's z.
   static final BridgePlane water = BridgePlane.ground();
 
   final InputState input = InputState();
   late final FlameInputBridge inputBridge = FlameInputBridge(
-    bindings: Bindings(<InputSource, GameAction>{
-      InputSource.key(LogicalKeyboardKey.arrowUp.keyId): GameAction.moveForward,
-      InputSource.key(LogicalKeyboardKey.arrowDown.keyId): GameAction.moveBack,
-      InputSource.key(LogicalKeyboardKey.arrowLeft.keyId): GameAction.moveLeft,
-      InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
-          GameAction.moveRight,
-    }),
+    actions: ActionMap(
+      actions: ActionSet.common,
+      buttons: Bindings(<InputSource, GameAction>{
+        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
+            GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
+            GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
+            GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
+            GameAction.moveRight,
+      }),
+    ),
     inputState: input,
   );
 
@@ -54,27 +60,30 @@ class BuoyRun extends FlameGame
   );
   int collected = 0;
 
-  MeshNode _mesh(Shape shape, Vector4 colour) => MeshNode(
+  MeshNode _mesh(Shape shape, LinearColor color) => MeshNode(
     DeviceMesh.upload(device, shape.build()),
-    engine.Material(name: 'paint', baseColor: colour, roughness: 0.5),
+    RenderMaterial(name: 'paint', baseColor: color, roughness: 0.5),
   );
 
   @override
   void onOpen3d() {
-    clearColor.setValues(0.55, 0.75, 0.95, 1); // the sky
+    clearColor = LinearColor.fromSrgb(0.55, 0.75, 0.95); // the sky
     scene
       ..add(
-        _mesh(PlaneShape(width: 400, depth: 400), Vector4(0.15, 0.35, 0.55, 1)),
+        _mesh(
+          PlaneShape(width: 400, depth: 400),
+          LinearColor.fromSrgb(0.15, 0.35, 0.55),
+        ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3)
+        LightNode(name: 'sun', intensity: 17000) // lux, a hazy sun
           ..setLocalForward(Vector3(-0.4, -1, -0.3)),
       );
 
     boat = Boat(
       node: _mesh(
         CuboidShape(size: Vector3(0.8, 0.4, 1.6)),
-        Vector4(0.9, 0.9, 0.85, 1),
+        LinearColor.fromSrgb(0.9, 0.9, 0.85),
       ),
       scene: scene,
     );
@@ -88,7 +97,10 @@ class BuoyRun extends FlameGame
     ]) {
       add(
         Buoy(
-          node: _mesh(SphereShape(radius: 0.4), Vector4(0.95, 0.35, 0.1, 1)),
+          node: _mesh(
+            SphereShape(radius: 0.4),
+            LinearColor.fromSrgb(0.95, 0.35, 0.1),
+          ),
           scene: scene,
           position: Vector2(x, y),
         ),
@@ -96,8 +108,8 @@ class BuoyRun extends FlameGame
     }
 
     add(
-      ChaseCameraComponent(
-        ChaseCamera(
+      FlameChaseCameraComponent(
+        FlameChaseCamera(
           camera: camera3d,
           target: boat,
           offset: Vector3(0, 6, 8),

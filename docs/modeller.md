@@ -44,7 +44,7 @@ List<int>` (not a single index — a list, into `project.materials`),
 `modifiers: List<ModifierSlot>`, `skeletonIndex: int?`, `shapeSet:
 ShapeSet` (morph targets plus their current preview weights),
 `shapeDrivers: List<ShapeDriver>` (morphs driven by a joint's own
-rotation, not a slider — see §11), `lods: List<LodSpec>` (most detailed
+rotation, not a slider — see §11), `lods: List<LodSettings>` (most detailed
 first), `simulationCache: SimulationCache?` (also not persisted to the
 file format, same honest gap as `lighting`).
 
@@ -277,7 +277,7 @@ GUI-only, absent from a headless session):
   | local), `scaleBy {by (>0), pivot?}`.
 - `setParent {id, to?}` — no `to` detaches to top level; the child keeps
   its **local** transform, not its world position.
-- `setOrigin {id, to?}` — `to` ∈ `boundsCentre` (default) |
+- `setOrigin {id, to?}` — `to` ∈ `boundsCenter` (default) |
   `boundsBottom` | `worldOrigin`; geometry and node shift oppositely so
   the visible position does not move.
 - `applyTransform {id}` — bakes the node's transform into the geometry,
@@ -289,7 +289,7 @@ GUI-only, absent from a headless session):
 `EditMesh` (`packages/flutter3d_mesh/lib/src/edit_mesh.dart:49`) is the
 half-edge topology structure — distinct from `MeshData`, the GPU-ready
 format with duplicated corners per normal. Six flat `Int32List`/
-`Float32List` arrays through `JournalledInts`/`JournalledFloats`, so every
+`Float32List` arrays through `JournaledInts`/`JournaledFloats`, so every
 edit is journalled and reversible: each half-edge knows its origin
 vertex, `next` (around the face), `twin` (across the edge), and face;
 each vertex knows one outgoing half-edge; each face knows one half-edge on
@@ -691,7 +691,7 @@ count mismatch. `setProfileLimits {maxJoints? (1-64), maxInfluences?
 - `cleanup` — welds duplicate vertices, removes zero-area faces, and
   outward-orients every closed shell, across the whole project, one undo
   step. Worth calling right after `import`.
-- `makeGameReady {profile}` — triangulates every mesh, recalculates
+- `prepareForGame {profile}` — triangulates every mesh, recalculates
   normals, and fits every image to the named budget (`desktop`/`mobile`/
   `web`), all in one step. The project's own profile is unchanged — this
   is a one-time fit to the named budget, not a setting change.

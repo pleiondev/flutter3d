@@ -6,9 +6,9 @@ dependencies:
   flutter:
     sdk: flutter
   flame: ^1.38.2
-  flame_flutter3d: ^0.8.4
-  flutter3d: ^0.8.3
-  flutter3d_game: ^0.8.0
-  flutter3d_sim: ^0.8.1
+  flame_flutter3d: ^1.0.0-rc.1
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
 flutter:
   uses-material-design: true

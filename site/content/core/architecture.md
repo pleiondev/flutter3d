@@ -32,7 +32,7 @@ flowchart TB
 An application names a backend in its pubspec and hands the device to `Renderer.create`. That is the one line that changes to move a game onto another API, and the reason the choice stays visible in the pubspec instead of being resolved by magic.
 
 ```dart
-final device = await GpuRenderBackend.create();   // flutter3d_impeller
+final device = await GpuRenderBackend.open();   // flutter3d_impeller
 final renderer = Renderer.create(device: device);
 ```
 
@@ -40,7 +40,7 @@ final renderer = Renderer.create(device: device);
 
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
-| **`flutter3d_impeller`** | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
+| **`flutter3d_impeller`** | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.open()` | The production one. Everything in these docs runs on it |
 | **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution. What an ordinary web build opens |
 | **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
 | **`flutter3d_webgpu`** | WebGPU, in a browser that hands out an adapter | `openWebGpu()` | Draws, and passes the whole conformance suite against a live device. Declines four capabilities by name. Asked for rather than defaulted to |
@@ -62,7 +62,7 @@ A browser build opens WebGL2 unless it says otherwise. That is a decision about 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the ninety-eight shader entry points your bundle has to answer to.</p>
+<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the 105 shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names
@@ -84,7 +84,7 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 }
 ```
 
-Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums a caller has to name (`formats.dart`, `vertex_layout_spec.dart`), opaque handles for the things a backend owns (`GeometryBuffer`, `ShaderHandle`, `TextureHandle`), sampling (`SamplerOptions`, `MipChain`), and a render target pool with the description that makes two targets interchangeable.
+Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums a caller has to name (`formats.dart`, `vertex_layout_spec.dart`), opaque handles for the things a backend owns (`GeometryBuffer`, `ShaderHandle`, `TextureHandle`), sampling (`SamplerDescriptor`, `MipChain`), and a render target pool with the description that makes two targets interchangeable.
 
 Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d`, and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui` and the rest of Flutter outright now: `GraphicsDevice.present`, its one Flutter member, is gone, and what a finished frame becomes is decided by a device registry in `flutter3d_hardware` that a backend registers its own presenter with, looked up by `presentFrame` in `flutter3d_app`.
 
@@ -196,11 +196,11 @@ Reading it as data rather than as a call sequence is what makes two things possi
 
 Two seams exist for adding to a frame without editing the renderer.
 
-**`PassContributor`** draws inside an existing pass. The particle system is one: `renderer.addContributor(ParticleContributor(particles))`, and as a result nothing in `flutter3d` names a particle.
+**`PassContributor`** draws inside an existing pass. The particle system is one: `renderer.renderSteps.addContributor(ParticleContributor(particles))`, and as a result nothing in `flutter3d` names a particle.
 
 ```dart
 final particles = ParticleSystem(capacity: 2000);
-renderer.addContributor(ParticleContributor(particles));
+renderer.renderSteps.addContributor(ParticleContributor(particles));
 ```
 
 **`EntityKind`** adds a noun to the level format. Both games' entire vocabularies are kinds, and the same registry validates a document and spawns it, so the two cannot disagree about what a level may contain.

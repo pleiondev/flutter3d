@@ -378,9 +378,12 @@ formats specified in their own repository, with an exporter from a modelling
 tool — the most underrated lever available, because content produced for a
 format decides an engine before anyone benchmarks it. A level editor in the
 browser. A certification badge for a backend somebody else writes against the
-conformance contract. And a 1.0: one version across every package, an API
-freeze two months ahead of it, and a written support policy, because that is
-what a team asks before taking a dependency.
+conformance contract. The 1.0 that used to close this list came sooner: the
+release prepared as 0.9.0 ships as 1.0.0, under strict semver, with the
+public API held to committed snapshots and a written support policy in
+[`SUPPORT.md`](SUPPORT.md), because that is what a team asks before taking a
+dependency. [`tasks/1.0-stability.md`](tasks/1.0-stability.md) has the
+decisions.
 
 Prefabs over the level documents: a model or a group placed by reference, from
 a file or from the account, without a second scene format. Hot reload of

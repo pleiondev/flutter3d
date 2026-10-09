@@ -172,7 +172,7 @@ fixture visuals) and `app` (backend choice, re-exports `session`, `pad_input`,
 Verified:
 
 - genre packages use no symbol from `game`'s Flutter half (`DesktopInput`,
-  `TouchControls`, `GameConfig`, `Accommodations`, `Issues`, `PadActions`,
+  `TouchControls`, `GameSettings`, `Accommodations`, `Issues`, `PadActions`,
   `Playing`); only three `hud.dart` files in them import Flutter;
 - `game` is imported by 147 files, almost all of them for the re-exported
   `sim`;

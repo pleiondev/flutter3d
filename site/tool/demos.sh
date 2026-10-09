@@ -36,7 +36,7 @@ games=(
   "strategy:apps/flutter3d_demo_strategy"
   "arcade:apps/flutter3d_demo_arcade"
   "river:apps/flutter3d_demo_river"
-  "chemlab:packages/education/chemlab"
+  "chemlab:packages/flutter3d_education/example"
 )
 
 wanted="${1:-}"

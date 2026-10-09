@@ -21,7 +21,7 @@ Nothing in the package imports the renderer. `bridge.dart` turns a track into me
 
 ```dart
 final track = TrackSpline(
-  centre: CatmullRom(points, closed: true),   // metres, measured
+  center: CatmullRom(points, closed: true),   // meters, measured
   widths: widthPerControlPoint,               // one per control point
   banks: bankPerControlPoint,                 // camber, in radians
   shoulder: 4.0,                              // how far the ground continues
@@ -69,16 +69,16 @@ track.startSlot(0, position, forward);   // where car nought starts
 final car = SphereVehicle(
   world: collision,
   ground: field,
-  position: position.clone()..y += 0.6,  // the sphere's centre floats above the road
+  position: position.clone()..y += 0.6,  // the sphere's center floats above the road
   headingYaw: math.atan2(forward.x, forward.z),
-  tuning: const VehicleTuning(maxSpeed: 62.0),
-  tyres: Tyres.slicks,
+  tuning: const VehicleSettings(maxSpeed: 62.0),
+  tireSet: TireSet.slicks,
 );
 
 car.step(dt, input);
 ```
 
-`VehicleTuning` is the table of engine, brakes, steering and gravity, all plain units. The grip is not in it: `Tyres` bundles the `TireModel` curve, the `GripTable` that says what each surface is worth to it, and `limit`, how many gravities there are to spend on a surface worth `1.0`. Three sets ship (`Tyres.road`, `Tyres.slicks`, `Tyres.rally`), a car given none starts on road tires, and `pitStop` swaps them at a standstill.
+`VehicleSettings` is the table of engine, brakes, steering and gravity, all plain units. The grip is not in it: `TireSet` bundles the `TireModel` curve, the `GripTable` that says what each surface is worth to it, and `limit`, how many gravities there are to spend on a surface worth `1.0`. Three sets ship (`TireSet.road`, `TireSet.slicks`, `TireSet.rally`), a car given none starts on road tires, and `pitStop` swaps them at a standstill.
 
 `VehicleController` is the interface the rest of the genre talks to, so a four-wheel model can replace this one without the simulation, the AI or the camera noticing:
 
@@ -166,7 +166,7 @@ The order is the platformer's with three insertions. The car list is a `List` an
 ## AI drivers
 
 ```dart
-final ai = AiDriver(track: track, tuning: const AiTuning(skill: 0.9));
+final ai = AiDriver(track: track, tuning: const AiSettings(skill: 0.9));
 
 ai.drive(car, simulation.inputs[i], others: cars, playerGap: gap);
 ```
@@ -200,13 +200,13 @@ Recorded at 30 Hz and interpolated with Catmull-Rom on playback, so the tape is 
 ## The chase camera
 
 ```dart
-final camera = ChaseCamera(world: collision, track: track, tuning: const ChaseTuning(
+final camera = ChaseCamera(world: collision, track: track, tuning: const ChaseSettings(
   distance: 7.5, height: 2.6, aimHeight: 1.0,
   lag: 9.0,
   headingBlend: 0.65,      // between where the car points and where it is going
   headingFrom: 6.0, headingTo: 26.0,
   lookAhead: 22.0, lookAheadWeight: 0.35,
-  baseFov: 1.05, fovPerSpeed: 0.0045, maxFov: 1.35,
+  baseFovY: 1.05, fovYPerSpeed: 0.0045, maxFov: 1.35,
   nearClearance: 0.4, minDistance: 2.0,
 ));
 camera.follow(car, dt);

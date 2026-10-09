@@ -78,10 +78,10 @@ export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```dart
 // A first-person camera reads the look delta inside the step, so the loop is
 // the right place to drain it — unlike the platformer, whose follow camera
-// reads it during the frame. Which *source* it drains is `Playing`'s answer,
-// not this file's.
+// reads it during the frame. Which *source* it drains is `Playing`'s answer
+// (`final _playing = Playing.ofPlatform()`, held by the game), not this file's.
 void _drainLook(Vector2 out) {
-  if (Playing.dragLook) {
+  if (_playing.dragLook) {
     _dragLook.drainInto(out);
   } else {
     _devices.drainLook(out);
@@ -90,7 +90,7 @@ void _drainLook(Vector2 out) {
 }
 ```
 
-There is no `kIsWeb` anywhere in this application. The drag layer above the frame is mounted `if (Playing.dragLook)`, the capture is asked for `if (Playing.capturesPointer)`, and the on-screen stick appears `if (Playing.touch)`. A desktop browser takes all three branches a desktop takes.
+There is no `kIsWeb` anywhere in this application. The drag layer above the frame is mounted `if (_playing.dragLook)`, the capture is asked for `if (_playing.capturesPointer)`, and the on-screen stick appears `if (_playing.touch)`. A desktop browser takes all three branches a desktop takes.
 
 Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_game_shooter` changed to make this run.
 

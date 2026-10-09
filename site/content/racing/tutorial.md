@@ -22,17 +22,17 @@ Twelve steps. The engine underneath is the one the [shooter](/shooter/tutorial/)
 dependencies:
   flutter: { sdk: flutter }
 
-  flutter3d_impeller: ^0.9.0
-  flutter3d:          ^0.9.0
-  flutter3d_game:     ^0.9.0
-  flutter3d_game_racing: ^0.9.0
-  flutter3d_app:      ^0.9.0
-  flutter3d_audio:    ^0.9.0
+  flutter3d_impeller: ^1.0.0-rc.1
+  flutter3d:          ^1.0.0-rc.1
+  flutter3d_game:     ^1.0.0-rc.1
+  flutter3d_game_racing: ^1.0.0-rc.1
+  flutter3d_app:      ^1.0.0-rc.1
+  flutter3d_audio:    ^1.0.0-rc.1
   vector_math: ^2.2.0
 ```
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.9.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.9.0 asks for <code>flutter3d</code> 0.9.0, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the Flutter version that goes with the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same set, the release candidate 1.0.0-rc.1, and the lines have to agree: <code>flutter3d_app</code> 1.0.0-rc.1 asks for <code>flutter3d</code> ^1.0.0-rc.1, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the Flutter version that goes with the pubspec.</p>
 </div>
 
 No `flutter3d_game_shooter` and no `flutter3d_game_platformer`. A genre is a package, and this one inherits nothing from either.
@@ -137,7 +137,7 @@ buildRoadMesh(track, settings: const RoadMeshSettings(
   sagitta: 0.04,        // four centimetres, well under a kerb
   minStep: 1.5,
   maxStep: 8.0,         // not about accuracy: about per-vertex lighting and fog
-  metresPerTile: 9.0,
+  metersPerTile: 9.0,
   barrierHeight: 1.1,
 ));
 ```
@@ -180,7 +180,7 @@ for (var i = 0; i < 4; i++) {
   // Told where it is on the lap, so the first `sample` has a hint and the
   // first progress read is not a global search from the wrong end.
   car.placeAt(car.position, car.headingYaw,
-      trackDistance: track.centre.wrap(track.grid.s));
+      trackDistance: track.center.wrap(track.grid.s));
   cars.add(car);
 }
 ```
@@ -190,7 +190,7 @@ for (var i = 0; i < 4; i++) {
 These are the numbers the game is. Change one and re-run the tests before changing a second.
 
 ```dart
-const tuning = VehicleTuning(
+const tuning = VehicleSettings(
   radius: 0.6,
   rideHeight: 0.35,
   maxSpeed: 62.0,        // about 220 km/h
@@ -210,10 +210,10 @@ const tuning = VehicleTuning(
 );
 ```
 
-The tire is where the feel lives, and it is one object: the curve, what each surface is worth to it, and how many gravities of grip there are to divide up. `Tyres` holds the three, so a game can offer a player a choice between sets without passing arguments that have to agree.
+The tire is where the feel lives, and it is one object: the curve, what each surface is worth to it, and how many gravities of grip there are to divide up. `TireSet` holds the three, so a game can offer a player a choice between sets without passing arguments that have to agree.
 
 ```dart
-final tyres = Tyres(
+final tireSet = TireSet(
   name: 'road',
   model: TireModel(peakSlipAngle: 0.14, peakSlipRatio: 0.12),
   grips: const GripTable(<String, double>{
@@ -235,11 +235,11 @@ final car = SphereVehicle(
   position: position.clone()..y += 0.6,
   headingYaw: math.atan2(forward.x, forward.z),
   tuning: tuning,
-  tyres: tyres,
+  tireSet: tireSet,
 );
 ```
 
-A car given neither runs on `VehicleTuning()`'s defaults and `Tyres.road`, which is what the shipped demo does. `Tyres.slicks` and `Tyres.rally` ship too, and `pitStop` swaps sets at a standstill.
+A car given neither runs on `VehicleSettings()`'s defaults and `TireSet.road`, which is what the shipped demo does. `TireSet.slicks` and `TireSet.rally` ship too, and `pitStop` swaps sets at a standstill.
 
 <div class="why">
 <p>A curve that rises to a peak and falls away past it is the whole reason a car can be driven over the limit and caught. A constant coefficient gives a car that grips until it does not, with nothing in between, and no amount of tuning elsewhere puts that back.</p>
@@ -281,7 +281,7 @@ void readDriver(RacingSimulation simulation) {
 For the rest it is an `AiDriver`, which cannot do anything the player cannot:
 
 ```dart
-final ai = AiDriver(track: track, tuning: const AiTuning(skill: 0.9));
+final ai = AiDriver(track: track, tuning: const AiSettings(skill: 0.9));
 
 void driveTheRest(RacingSimulation simulation, RaceState race) {
   final player = race.progress[0];
@@ -330,7 +330,7 @@ chase.follow(cars[0], dt);
 _camera
   ..setPositionFrom(chase.eye)
   ..lookAt(chase.target)
-  ..projection = _lens.copyWith(fovYRadians: chase.fov);
+  ..projection = _lens.copyWith(fovY: chase.fovY);
 ```
 
 <div class="why">

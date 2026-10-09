@@ -269,9 +269,13 @@ const NAV = [
       { file: 'reference/glossary.md', url: '/reference/glossary/', title: 'Glossary' },
       { file: 'reference/tuning.md', url: '/reference/tuning/', title: 'The knobs' },
       { file: 'reference/pitfalls.md', url: '/reference/pitfalls/', title: 'Pitfalls' },
+      { file: 'reference/migrating-to-1.0.md', url: '/reference/migrating-to-1.0/', title: 'Migrating from 0.8' },
       { file: 'reference/testing.md', url: '/reference/testing/', title: 'Testing' },
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
+      { file: 'reference/plugins.md', url: '/reference/plugins/', title: 'Plugin catalogue' },
       { file: 'reference/asset-pipeline.md', url: '/reference/asset-pipeline/', title: 'The asset pipeline' },
+      { file: 'reference/bringing-assets-in.md', url: '/reference/bringing-assets-in/', title: 'Bringing assets in' },
+      { file: 'reference/material-language.md', url: '/reference/material-language/', title: 'The material language' },
       { file: 'reference/comparison.md', url: '/reference/comparison/', title: 'vs. Flutter Scene' },
     ],
   },
@@ -529,6 +533,82 @@ const changelogPackages = [
   leads: changelogLeads(readFileSync(join(root, '..', 'packages', p.name, 'CHANGELOG.md'), 'utf8')),
 }));
 
+// The plugin catalogue, from the cache `tool/plugins.mjs` writes and the
+// repository commits. Read here and never fetched: a build makes no request,
+// so it is the same build with or without a network, and the page says when
+// the list was last read. Everything from pub.dev is escaped, since a
+// description is somebody else's text.
+const pluginCachePath = join(contentDir, 'reference', 'plugins.json');
+const escapeHtml = (text) =>
+  String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+const safeUrl = (url) => (/^https?:\/\//.test(String(url ?? '')) ? escapeHtml(url) : '');
+
+function pluginTable(entries) {
+  const rows = entries.map((p) => {
+    const demo = safeUrl(p.demo);
+    const cells = [
+      `<a href="${safeUrl(p.url)}"><code>${escapeHtml(p.name)}</code></a><br><span class="plugin-classes">${(p.plugins ?? []).map(escapeHtml).join(', ')}</span>`,
+      escapeHtml(p.version),
+      escapeHtml(p.api) || '—',
+      (p.backends ?? []).length ? (p.backends).map(escapeHtml).join(', ') : 'all',
+      escapeHtml(p.touches) || '—',
+      demo ? `<a href="${demo}">run</a>` : '—',
+      p.conformance === true
+        ? 'conformant@1.0'
+        : typeof p.conformance === 'string' && p.conformance
+          ? `conformant@${escapeHtml(p.conformance)}`
+          : '—',
+    ];
+    return `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
+  });
+  return [
+    '<table class="plugin-catalogue">',
+    '<thead><tr><th>Package</th><th>Version</th><th>Plugin API</th><th>Backends</th><th>Touches</th><th>Run</th><th>Conformance</th></tr></thead>',
+    `<tbody>${rows.join('')}</tbody>`,
+    '</table>',
+  ].join('\n');
+}
+
+function pluginCatalogueMarkdown() {
+  if (!existsSync(pluginCachePath)) {
+    throw new Error(
+      `${pluginCachePath} is missing: run \`npm run plugins -- --offline\` in site/ to write it from this repository`,
+    );
+  }
+  const cache = JSON.parse(readFileSync(pluginCachePath, 'utf8'));
+  // A cache from before the envelope is version 1; a newer one is refused
+  // with the reason, never half-read.
+  if (cache.format !== undefined && cache.format !== 'f3d.plugin-catalogue') {
+    throw new Error(`${pluginCachePath} is a "${cache.format}" document, not the plugin catalogue`);
+  }
+  if ((cache.version ?? 1) > 1) {
+    throw new Error(
+      `${pluginCachePath} is catalogue version ${cache.version}, newer than this build reads (1): update the site's tools`,
+    );
+  }
+  const ours = cache.ours ?? [];
+  const community = cache.community ?? [];
+  const when = cache.fetched ? cache.fetched.slice(0, 10) : null;
+  return [
+    '## Ours',
+    '',
+    `The genres, the elements and the addons this repository publishes, ${ours.length} packages, read from the tree the site was built beside. The conformance column is blank until each runs the plugin suite in its own tests.`,
+    '',
+    pluginTable(ours),
+    '',
+    '## From the community',
+    '',
+    community.length
+      ? `${community.length} package${community.length === 1 ? '' : 's'} under the \`flutter3d-plugin\` topic on pub.dev${when ? `, as read on ${when}` : ''}.\n\n${pluginTable(community)}`
+      : `Nothing on pub.dev carries the \`flutter3d-plugin\` topic yet${when ? ` (read on ${when})` : ''}. The first one to add it is listed here at the next build.`,
+    '',
+  ].join('\n');
+}
+
 let built = 0;
 // What each page said about itself, collected while it is being built rather
 // than by reading the tree a second time afterwards. The second read is where
@@ -539,7 +619,8 @@ flat.forEach((page, index) => {
   const { data, body: written } = frontMatter(source);
   const body = written
     .replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle))
-    .replace('{{changelog}}', () => changelogMarkdown(showcaseBundle, changelogPackages));
+    .replace('{{changelog}}', () => changelogMarkdown(showcaseBundle, changelogPackages))
+    .replace('{{plugin-catalogue}}', () => pluginCatalogueMarkdown());
   catalog.push({
     url: page.url,
     title: page.title,
