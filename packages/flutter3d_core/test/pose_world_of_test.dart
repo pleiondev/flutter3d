@@ -20,7 +20,7 @@ void main() {
     final doc = await GltfLoader().load(
       File('../flutter3d/test/fixtures/hero.glb').readAsBytesSync(),
     );
-    final pose = Pose.fromNodes(doc.nodes);
+    final pose = AnimationPose.fromNodes(doc.nodes);
     // Each joint turned a little its own way, so no chain is the identity.
     for (var i = 0; i < pose.nodeCount; i++) {
       final q = Quaternion.axisAngle(
@@ -45,7 +45,7 @@ void main() {
   });
 
   test('a hierarchy that loops is walked to an end, not for ever', () {
-    final pose = Pose(
+    final pose = AnimationPose(
       parents: const <int>[1, 0, 1],
       restTranslations: Float32List.fromList(<double>[
         1,

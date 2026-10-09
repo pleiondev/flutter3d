@@ -28,24 +28,19 @@ import '../flutter3d_conformance.dart';
 const int _size = 8;
 
 Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
-  if (!device.supportsCubeTextures) return;
+  if (!device.features.has(DeviceFeature.cubeTextures)) return;
 
   // Two levels where the device will draw into one below the base, one where
   // it will not: a device that answers false is entitled to, and what is
   // checked of it is the face alone.
-  final levels = device.supportsRenderToMip ? 2 : 1;
+  final levels = device.features.has(DeviceFeature.renderToMipLevel) ? 2 : 1;
   final cube = device.createCubeRenderTarget(
     size: _size,
     format: TextureFormat.r8g8b8a8UNormInt,
     mipLevels: levels,
   );
   require(
-    cube != null,
-    'the device says it supports cube textures and then made no cube a pass '
-    'could draw into',
-  );
-  require(
-    cube!.type == TextureType.textureCube,
+    cube.type == TextureType.textureCube,
     'the cube came back as ${cube.type.name}',
   );
 
@@ -54,7 +49,7 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
   // into face three's base, blue into face zero's base, and red into face
   // three's second level last — so a clear that covered every face, or every
   // level, leaves red where green was expected.
-  void clear(int face, int mipLevel, Vector4 colour) => device
+  void clear(int face, int mipLevel, Vector4 color) => device
       .beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -63,7 +58,7 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
               face: face,
               mipLevel: mipLevel,
               loadAction: LoadAction.clear,
-              clearValue: colour,
+              clearValue: color,
             ),
           ],
         ),
@@ -116,7 +111,10 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
 /// twice as wide it is well inside — one texel that is the clear colour in one
 /// case and the drawn colour in the other, with no tolerance to argue about.
 Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
-  if (!device.supportsCubeTextures || !device.supportsRenderToMip) return;
+  if (!device.features.has(DeviceFeature.cubeTextures) ||
+      !device.features.has(DeviceFeature.renderToMipLevel)) {
+    return;
+  }
 
   // Sixteen across at level one, so the two texels a centre tap reads sit nine
   // and eight pixels from the edge the wedge grows out of — far outside it
@@ -127,7 +125,6 @@ Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     mipLevels: 2,
   );
-  require(cube != null, 'the device makes no cube a pass can draw into');
 
   final vertex = device.shaders['DebugLineVertex'];
   final fragment = device.shaders['DebugLine'];
@@ -150,7 +147,7 @@ Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
     RenderPassDescriptor(
       colors: <ColorTarget>[
         ColorTarget(
-          texture: cube!,
+          texture: cube,
           face: 0,
           mipLevel: 1,
           loadAction: LoadAction.clear,
@@ -184,10 +181,10 @@ Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
   // That the read is not vacuous was checked the other way round: moving the
   // wedge's tip from x = −0.25 to x = 3 — a triangle that does cover the
   // centre — brings [255, 255, 255] back through the same tap and fails here.
-  final centre = await _readFace(device, cube, face: 0, lod: 1);
+  final center = await _readFace(device, cube, face: 0, lod: 1);
   require(
-    centre[0] < 64 && centre[1] < 64 && centre[2] < 64,
-    'the centre of face zero at level one came back $centre where the level '
+    center[0] < 64 && center[1] < 64 && center[2] < 64,
+    'the centre of face zero at level one came back $center where the level '
     'was cleared to black and a wedge reaching only a quarter of the way in '
     'was drawn. A pass that names a mip level starts with a viewport covering '
     'that level — a 64-pixel cube at level two is sixteen across — and this '
@@ -214,7 +211,7 @@ Future<List<int>> _readFace(
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -251,7 +248,7 @@ Future<List<int>> _readFace(
       cube,
       // Linear between levels, which is what lets the level be asked for at
       // all on a backend that folds the mip filter into minification.
-      sampler: const SamplerOptions(
+      sampler: const SamplerDescriptor(
         minFilter: MinMagFilter.linear,
         magFilter: MinMagFilter.linear,
         mipFilter: MipFilter.linear,
@@ -270,9 +267,8 @@ Future<List<int>> _readFace(
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
   return <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
 }

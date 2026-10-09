@@ -54,7 +54,10 @@ extension _GltfLightsAndCameras on GltfLoader {
     return ModelLight(
       type: type,
       name: name is String ? name : null,
-      color: _vec3(light['color']) ?? Vector3(1.0, 1.0, 1.0),
+      color: switch (_vec3(light['color'])) {
+        final Vector3 c => LinearColor(c.x, c.y, c.z),
+        null => LinearColor.white,
+      },
       intensity: _asDouble(light['intensity']) ?? 1.0,
       range: _asDouble(light['range']),
       innerConeAngle: _asDouble(spotMap?['innerConeAngle']) ?? 0.0,

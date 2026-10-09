@@ -27,7 +27,7 @@ final class _DrawOverride {
     this.fogged = false,
   });
 
-  final Material material;
+  final RenderMaterial material;
 
   /// Null is blending off, as it is on `setBlend`.
   final BlendState? blend;
@@ -59,6 +59,60 @@ void _writeUvTransform(Float32List out, int at, TextureTransform? transform) {
     ..[at + 6] = offset.y
     ..[at + 7] = 0.0;
 }
+
+/// How a node is drawn — see [_MeshEncode._opaqueRoute].
+///
+/// Constants rather than an enum, for the rule every published package
+/// keeps: these are compared, never switched over.
+final class _OpaqueRoute {
+  // A name each, which is also what keeps the three apart: const instances
+  // with nothing in them would be one instance.
+  const _OpaqueRoute._(this.name);
+
+  final String name;
+
+  /// One draw, as every node was drawn before `A1.2`.
+  static const draw = _OpaqueRoute._('draw');
+
+  /// The depth pre-draw, then the lit draw tested `equal`.
+  static const predraw = _OpaqueRoute._('predraw');
+
+  /// Not at all this frame: the smaller share of a fade that cannot be
+  /// pre-drawn.
+  static const skip = _OpaqueRoute._('skip');
+}
+
+/// Which of a node's draws [_MeshEncode._encodeNode] is encoding — `A1.2`,
+/// `A1.3`. Constants rather than an enum, as [_OpaqueRoute] is.
+final class _DrawPhase {
+  const _DrawPhase._(this.name);
+
+  final String name;
+
+  /// The node, decided here: one draw, or the two below.
+  static const whole = _DrawPhase._('whole');
+
+  /// Depth only, where the cut or the fade keeps the surface; no colour.
+  static const predraw = _DrawPhase._('predraw');
+
+  /// The lit draw after a pre-draw, tested `equal` against what it wrote,
+  /// through the lighting model's opaque variant where there is one.
+  static const afterPredraw = _DrawPhase._('afterPredraw');
+}
+
+/// [kernel] as the one number the lit stages read it from,
+/// `ambient_ground.w` (`lib/shadow.glsl` says why it rides there): nought
+/// for the 3×3 box, the light's radius above nought for the blocker search,
+/// and minus one less the bleed cut for the moments tap. A moments kernel in
+/// a frame with no moments ([hasMoments] false) is the box, the fallback a
+/// refused prefilter draws.
+double _shadowKernelSlot(ShadowKernel kernel, {required bool hasMoments}) =>
+    switch (kernel.name) {
+      'moments' when hasMoments =>
+        -1.0 - kernel.bleedReduction.clamp(0.0, 0.95),
+      'blockerSearch' when kernel.lightRadius > 0.0 => kernel.lightRadius,
+      _ => 0.0,
+    };
 
 extension _MeshEncode on Renderer {
   /// Binds the morph state for a draw through one of the mesh vertex stages.
@@ -118,7 +172,7 @@ extension _MeshEncode on Renderer {
         // Nearest and clamped: the coordinate names a texel centre exactly, and
         // a filtered read would blend a vertex with its neighbour — a model
         // that shimmers along its own index order.
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 
@@ -149,7 +203,7 @@ extension _MeshEncode on Renderer {
         stage,
         'morph_instance_weights',
         texture ?? fallbackAlbedo,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 
@@ -195,6 +249,9 @@ extension _MeshEncode on Renderer {
     // and writes no depth whatever the material says. See
     // `renderer_transparency_pass.dart`.
     _OrderIndependentBlend? orderIndependent,
+    // `A1.2`: which of the node's draws this is. A caller always says
+    // `whole`, and this decides whether that is one draw or two.
+    _DrawPhase phase = _DrawPhase.whole,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -208,6 +265,46 @@ extension _MeshEncode on Renderer {
       );
     }
     final material = override?.material ?? node.material;
+
+    // `A1.2`, `A1.3`: a cut or a fade is made by the depth pre-draw, and the
+    // lit draw follows it tested `equal` — two draws through this procedure,
+    // so the second binds everything the first did and nothing can differ.
+    if (phase == _DrawPhase.whole) {
+      final route = _opaqueRoute(
+        node,
+        material,
+        state: state,
+        overridden: override != null,
+        orderIndependent: orderIndependent != null,
+      );
+      if (route == _OpaqueRoute.skip) return;
+      if (route == _OpaqueRoute.predraw) {
+        for (final step in const <_DrawPhase>[
+          _DrawPhase.predraw,
+          _DrawPhase.afterPredraw,
+        ]) {
+          _encodeNode(
+            encoder: encoder,
+            node: node,
+            scene: scene,
+            settings: settings,
+            viewProjection: viewProjection,
+            shadows: shadows,
+            lights: lights,
+            shadowSlots: shadowSlots,
+            state: state,
+            override: override,
+            probes: probes,
+            mirrored: mirrored,
+            orderIndependent: orderIndependent,
+            phase: step,
+          );
+        }
+        return;
+      }
+    }
+    final predraw = phase == _DrawPhase.predraw;
+    final afterPredraw = phase == _DrawPhase.afterPredraw;
 
     final skeleton = node.skeleton;
     final skinned = skeleton != null;
@@ -232,22 +329,58 @@ extension _MeshEncode on Renderer {
     // for a term the flat colour never reads.
     final lightmapped =
         node.lightmapped && !skinned && !batched && override == null;
-    if (state.boundPipeline != material.lighting ||
+    // `A1.2`: the lighting model's opaque variant wherever nothing this draw
+    // does needs the cut — an opaque material, one whose edge is coverage,
+    // and the lit half of a pre-drawn one — and the model has one.
+    final opaqueStage =
+        !predraw &&
+        override == null &&
+        orderIndependent == null &&
+        node.tint.a >= 1.0 &&
+        (afterPredraw ||
+            material.alphaMode == MaterialAlphaMode.opaque ||
+            (material.alphaMode == MaterialAlphaMode.mask &&
+                material.alphaToCoverage &&
+                state.coverageAvailable)) &&
+        _opaqueStageFor(material.lighting) != null;
+    // The stage the pipeline is built with; see where `FrameInfo` is bound.
+    final activeVertexShader = batched
+        ? _instancedVertexShader
+        : _vertexShaderFor(
+            material.lighting,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          );
+    if (predraw) {
+      encoder.bindPipeline(
+        _predrawPipelines[activeVertexShader] ??= device.createPipeline(
+          activeVertexShader,
+          shaders['DepthPredraw']!,
+          layout: batched ? _kInstancedLayout : null,
+        ),
+      );
+      // The tracker describes the lit pipelines, and this replaced one.
+      state.invalidatePipeline();
+      state.pipelineSwitches++;
+    } else if (state.boundPipeline != material.lighting ||
         state.boundSkinned != skinned ||
         state.boundInstanced != batched ||
-        state.boundLightmapped != lightmapped) {
+        state.boundLightmapped != lightmapped ||
+        state.boundOpaque != opaqueStage) {
       encoder.bindPipeline(
         _pipelineFor(
           material.lighting,
           skinned: skinned,
           instanced: batched,
           lightmapped: lightmapped,
+          opaque: opaqueStage,
         ),
       );
       state.boundPipeline = material.lighting;
       state.boundSkinned = skinned;
       state.boundInstanced = batched;
       state.boundLightmapped = lightmapped;
+      state.boundOpaque = opaqueStage;
       state.pipelineSwitches++;
     }
 
@@ -257,7 +390,7 @@ extension _MeshEncode on Renderer {
     final normalMatrix = node.worldNormalMatrix;
 
     encoder.setWindingOrder(
-      node.worldIsMirrored != mirrored
+      node.isWorldMirrored != mirrored
           ? WindingOrder.clockwise
           : WindingOrder.counterClockwise,
     );
@@ -268,13 +401,28 @@ extension _MeshEncode on Renderer {
     encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
     final blend =
-        material.alphaMode == MaterialAlphaMode.blend || node.tint.w < 1.0;
-    if (orderIndependent == null) {
-      encoder.setBlend(
-        override != null
-            ? override.blend
-            : (blend ? BlendState.alphaBlend : null),
-      );
+        material.alphaMode == MaterialAlphaMode.blend || node.tint.a < 1.0;
+    if (predraw) {
+      // Depth only: the colour is the lit draw's to write.
+      encoder.setBlend(BlendState.keepDestination);
+    } else if (orderIndependent == null) {
+      // `RenderMaterial.blendMode` for a material that blends; a fade of an
+      // opaque one by its node's tint is over, as it always was.
+      final blendState = !blend
+          ? null
+          : material.isTransparent
+          ? _MaterialStages._blendFor(material)
+          : BlendState.alphaBlend;
+      encoder.setBlend(override != null ? override.blend : blendState);
+      // `RenderMaterial.effectsDepth`: the surface buffer written whole while the
+      // colour blends, where the device can blend the two apart. Put back
+      // after the draw.
+      if (override == null &&
+          blendState != null &&
+          material.effectsDepth &&
+          device.features.has(DeviceFeature.independentBlend)) {
+        encoder.setBlend(null, attachment: 1);
+      }
     } else {
       // Attachment zero first, then one: on WebGL2 the first call sets every
       // draw buffer, and only the second is for one buffer alone.
@@ -288,14 +436,29 @@ extension _MeshEncode on Renderer {
     // is not there. Never under weighted blended transparency: a layer that
     // wrote depth would hide the layers drawn after it and not those drawn
     // before, which is the order the targets exist to forget.
+    //
+    // `A1.2`: the pre-draw writes the depth the lit draw after it is tested
+    // `equal` against, and that draw then has nothing to write.
     encoder.setDepthWrite(
-      orderIndependent == null && (material.depthWrite ?? !blend),
+      enabled:
+          predraw ||
+          (!afterPredraw &&
+              orderIndependent == null &&
+              (material.depthWrite ?? !blend)),
     );
 
     // Only when it changes. A scene where nothing overrides the test never
     // emits this call, so the pass's own `less` stands and every frame the
     // golden sets were recorded from is byte-identical.
-    final depthCompare = material.depthCompare ?? CompareFunction.less;
+    // `RenderMaterial.depthLayer`: a layered surface passes at its own depth, so
+    // the later of two coplanar faces wins where no bias separates them.
+    final depthLayered = override == null && material.depthLayer != 0;
+    final depthCompare = afterPredraw
+        ? CompareFunction.equal
+        : (material.depthCompare ??
+              (depthLayered
+                  ? CompareFunction.lessEqual
+                  : CompareFunction.less));
     if (state.depthCompare != depthCompare) {
       encoder.setDepthCompare(depthCompare);
       state.depthCompare = depthCompare;
@@ -312,22 +475,17 @@ extension _MeshEncode on Renderer {
     if (instanced != null) {
       encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
     }
-    // **The stage the pipeline was built with, including one a material
-    // brought — `gfx-86n`.** This used to pick among the engine's own four
-    // and bind `FrameInfo` through `MeshVertex` even when the pipeline's vertex
-    // stage was somebody else's. The software backend binds a block by name
-    // for the whole pass and never noticed; a backend that resolves the slot
-    // through the handle it was given was writing into the engine's stage's
-    // layout and landing in the right place only because a stage that copies
-    // `FrameInfo` from `mesh.vert` puts it at the same index. A stage that
-    // declares a block of its own — the polyline's viewport — would not.
-    final activeVertexShader = batched
-        ? instancedVertexShader
-        : _vertexShaderFor(
-            material.lighting,
-            skinned: skinned,
-            lightmapped: lightmapped,
-          );
+    // **[activeVertexShader] is the stage the pipeline was built with,
+    // including one a material brought — `gfx-86n`.** This used to pick among
+    // the engine's own four and bind `FrameInfo` through `MeshVertex` even
+    // when the pipeline's vertex stage was somebody else's. The software
+    // backend binds a block by name for the whole pass and never noticed; a
+    // backend that resolves the slot through the handle it was given was
+    // writing into the engine's stage's layout and landing in the right place
+    // only because a stage that copies `FrameInfo` from `mesh.vert` puts it at
+    // the same index. A stage that declares a block of its own — the
+    // polyline's viewport — would not.
+    //
     // Typed, because `Matrix4.operator*` returns `dynamic`: without the
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
@@ -336,6 +494,24 @@ extension _MeshEncode on Renderer {
     _frameInfo.model.setAll(0, modelMatrix.storage);
     _frameInfo.normalMatrix.setAll(0, normalMatrix.storage);
     encoder.bindBlock(activeVertexShader, _frameInfo);
+    // Version 2's vertex block: the view-projection its `world` output is
+    // projected through. Its parameters are bound below with the rest.
+    if (!batched && !lightmapped) {
+      _bindMaterialVertex(
+        encoder,
+        activeVertexShader,
+        material,
+        viewProjection,
+        parameters: false,
+      );
+    }
+    // `RenderMaterial.depthLayer`, where the device has a depth bias: a layered
+    // surface pulled towards the eye by its layer, reset after its draws.
+    final layerBias =
+        depthLayered && device.features.has(DeviceFeature.depthBias)
+        ? _depthLayerBias(material.depthLayer)
+        : null;
+    if (layerBias != null) encoder.setDepthBias(layerBias);
 
     // Always for the engine's own mesh stages, even when nothing morphs: all
     // four declare the block and the sampler. See [_bindMorph].
@@ -343,7 +519,7 @@ extension _MeshEncode on Renderer {
     // **A material's own stage when it says it declares them**, which is
     // `LightingModel.vertexStageMorphs`. `PolylineVertex` declares neither,
     // and binding the morph texture to it is a thrown "Failed to bind
-    // texture" on Impeller at the first draw of every `Material.polyline`.
+    // texture" on Impeller at the first draw of every `RenderMaterial.polyline`.
     // 0.7.2 keyed this on whether the node morphed instead, which left a stage
     // written from `mesh.vert` without its block on every plain mesh. Asking
     // the node is the wrong question: a stage declares what it declares.
@@ -386,7 +562,55 @@ extension _MeshEncode on Renderer {
       );
     }
 
-    final fragmentShader = _fragmentShaderFor(material.lighting);
+    // `A1.2`: the pre-draw's fragment half — the cut, the fade, no colour —
+    // and then nothing more to bind; the lit half of the node follows as its
+    // own draw.
+    if (predraw) {
+      // Coverage off: the stage writes alpha nought, which turned into
+      // coverage would leave the pre-draw covering no sample and writing no
+      // depth, and the lit draw's `equal` would pass nowhere.
+      if (state.alphaToCoverage) {
+        encoder.setAlphaToCoverage(enabled: false);
+        state.alphaToCoverage = false;
+      }
+      _encodePredrawFragment(
+        encoder: encoder,
+        node: node,
+        material: material,
+        settings: settings,
+        state: state,
+      );
+      encoder.draw(instanceCount: instanced?.count ?? 1);
+      if (layerBias != null) encoder.setDepthBias(DepthBias.none);
+      state.drawCalls++;
+      state.journal?.add(
+        kind: 'predraw',
+        node: node,
+        mesh: node.name,
+        material: material.name,
+        lighting: 'DepthPredraw',
+        vertices: mesh.vertexCount,
+        indices: indexCount,
+        instances: instanced?.count ?? 1,
+        state: <String, Object?>{
+          'cull': cull ? 'back' : 'none',
+          'blend': 'keep',
+          'depthWrite': true,
+          'depthCompare': depthCompare.name,
+          'lodFade': node.lodFade,
+        },
+        uniforms: <String, Float32List>{
+          'mvp': Float32List.fromList(mvp.storage),
+          'mask': Float32List.fromList(_predrawInfo.mask),
+        },
+      );
+      return;
+    }
+
+    final fragmentShader = _fragmentShaderFor(
+      material.lighting,
+      opaque: opaqueStage,
+    );
 
     // Gated on model metadata, not reflection: a shader that only DECLARES
     // FragInfo still reports it with a non-zero size while the compiled
@@ -418,7 +642,7 @@ extension _MeshEncode on Renderer {
       declared: material.lighting.usesEnvironment,
     );
     final probe = readsEnvironment && !lightmapped
-        ? probes.nearest(node.worldBoundsCentre)
+        ? probes.nearest(node.worldBoundsCenter)
         : null;
     final environment =
         probe?.texture ?? scene.environment ?? _environmentFallback(device);
@@ -459,26 +683,32 @@ extension _MeshEncode on Renderer {
       _kFragInfoBlock,
       declared: material.lighting.usesFragInfo,
     )) {
-      final base = material.baseColor;
       if (node.isTinted) {
-        // The base colour is sRGB and the tint linear, as a vertex colour
-        // is: multiplied where light adds up, and handed back as sRGB for
-        // the shader to decode as it always does.
+        // The base colour and the tint are both linear: multiplied where
+        // light adds up, and handed over sRGB-encoded for the shader to
+        // decode as it always does.
+        final base = material.baseColor;
         final tint = node.tint;
-        _baseColorData[0] = linearToSrgb(srgbToLinear(base.x) * tint.x);
-        _baseColorData[1] = linearToSrgb(srgbToLinear(base.y) * tint.y);
-        _baseColorData[2] = linearToSrgb(srgbToLinear(base.z) * tint.z);
-        _baseColorData[3] = base.w * tint.w;
+        _baseColorData[0] = linearToSrgb(base.r * tint.r);
+        _baseColorData[1] = linearToSrgb(base.g * tint.g);
+        _baseColorData[2] = linearToSrgb(base.b * tint.b);
+        _baseColorData[3] = base.a * tint.a;
       } else {
-        _baseColorData[0] = base.x;
-        _baseColorData[1] = base.y;
-        _baseColorData[2] = base.z;
-        _baseColorData[3] = base.w;
+        final base = material.baseColorEncoded;
+        _baseColorData[0] = base.r;
+        _baseColorData[1] = base.g;
+        _baseColorData[2] = base.b;
+        _baseColorData[3] = base.a;
+      }
+      // `A1.3`: a see-through level part way through a cross-fade fades by
+      // its opacity — the size of its share, whichever end it takes.
+      if (blend && node.lodFade != 1.0) {
+        _baseColorData[3] *= node.lodFade.abs().clamp(0.0, 1.0);
       }
 
-      _emissiveData[0] = material.emissive.x;
-      _emissiveData[1] = material.emissive.y;
-      _emissiveData[2] = material.emissive.z;
+      _emissiveData[0] = material.emissive.r;
+      _emissiveData[1] = material.emissive.g;
+      _emissiveData[2] = material.emissive.b;
       // A normal map with only x and y has its z rebuilt in the shader: the
       // sampler hands blue as zero, which read as it stands is a normal
       // pointing into the surface. The flag rides in emissive's unused w.
@@ -494,7 +724,8 @@ extension _MeshEncode on Renderer {
       // brings its own: a captured room is read at the strength the frame drew
       // it, and the flat term a scene dims to six per cent is not consulted
       // while a probe is bound. See `ReflectionProbeNode.intensity`.
-      _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
+      _materialData[2] =
+          probe?.intensity ?? luxToEngine(scene.ambientIntensity);
       _materialData[3] = settings.specular;
 
       // `P7`: a masked material's edge as multisample coverage, where the
@@ -506,7 +737,7 @@ extension _MeshEncode on Renderer {
       final coverage = wantsCoverage && state.coverageAvailable;
       if (wantsCoverage && !coverage) state.coverageDeclined = true;
       if (coverage != state.alphaToCoverage) {
-        encoder.setAlphaToCoverage(coverage);
+        encoder.setAlphaToCoverage(enabled: coverage);
         state.alphaToCoverage = coverage;
       }
 
@@ -530,7 +761,7 @@ extension _MeshEncode on Renderer {
         MaterialAlphaMode.blend => -0.5,
         // Faded by its node's tint, an opaque material blends as a blended
         // one does.
-        _ when node.tint.w < 1.0 => -0.5,
+        _ when node.tint.a < 1.0 => -0.5,
         _ => -1.0,
       };
       // Zero without a normal map of its own. The fallback's 0.5 lands on
@@ -540,9 +771,9 @@ extension _MeshEncode on Renderer {
       // Scaling xy to nothing leaves exactly (0, 0, 1) on every backend.
       _material2Data[1] = material.normal == null ? 0.0 : material.normalScale;
       _material2Data[2] = material.occlusionStrength;
-      _material2Data[3] = material.emissiveStrength;
+      _material2Data[3] = nitsToEngine(material.emissiveStrength);
 
-      _frameParams[0] = settings.exposure;
+      _frameParams[0] = settings.cameraExposure;
       _frameParams[1] = drawLights.count.toDouble();
       // The caster's index in *this draw's* list, which the shader compares
       // its light loop against. A draw that re-gathered its lights — by
@@ -573,20 +804,17 @@ extension _MeshEncode on Renderer {
       // the slot that was reserved for a frame-wide parameter went to the
       // line above. Zero keeps the 3×3 kernel every recorded golden holds.
       //
-      // `S2`: the filter decides what rides here. Below zero is `evsm`, with
-      // the light-bleeding cut as how far under minus one — but only where
-      // the frame made the moments; a device that refused them draws the
-      // 3×3 kernel rather than nothing. `pcss` asked for with no radius
-      // takes the sun's.
+      // `S2`: the technique's kernel decides what rides here. Below zero is
+      // the moments tap, with the light-bleeding cut as how far under minus
+      // one — but only where the frame made the moments; a device that
+      // refused them draws the 3×3 kernel rather than nothing. Above zero is
+      // the blocker search, by the light's apparent radius.
       _ambientGround[3] = !settings.shadows.enabled
           ? 0.0
-          : shadows.directionalMoments != null
-          ? -1.0 - settings.shadows.evsmBleedReduction.clamp(0.0, 0.95)
-          : settings.shadows.directionalFilter != ShadowFilter.pcss
-          ? 0.0
-          : settings.shadows.directionalLightRadius > 0.0
-          ? settings.shadows.directionalLightRadius
-          : ShadowSettings.sunAngularRadius;
+          : _shadowKernelSlot(
+              settings.shadows.directionalTechnique.kernelFor(settings.shadows),
+              hasMoments: shadows.directionalMoments != null,
+            );
 
       // `ShadowSettings.translucentCasters`: whether this draw is shaded by
       // what the see-through casters let through, in the one spare
@@ -687,6 +915,9 @@ extension _MeshEncode on Renderer {
       _fragInfo.shadowMatrix.setAll(0, _shadowMatrix.storage);
       _fragInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
       _fragInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
+      // `A5.21`: the frame's debug views, or this subtree's own, and this
+      // draw's identity for the views that colour by it.
+      _writeDebugViewFor(node, material);
       encoder.bindBlock(fragmentShader, _fragInfo);
     }
 
@@ -710,9 +941,9 @@ extension _MeshEncode on Renderer {
       final fog = (override?.fogged ?? material.fogged)
           ? settings.fog
           : const FogSettings();
-      _fogData[0] = fog.resolvedColor.x;
-      _fogData[1] = fog.resolvedColor.y;
-      _fogData[2] = fog.resolvedColor.z;
+      _fogData[0] = fog.resolvedColor.r;
+      _fogData[1] = fog.resolvedColor.g;
+      _fogData[2] = fog.resolvedColor.b;
       _fogInfo.eye.setAll(0, _cameraData);
       // `P5`: the density at the eye, and the falloff in the eye's spare lane,
       // which is all `ApplyFog` needs to integrate a height fog along the ray.
@@ -729,18 +960,18 @@ extension _MeshEncode on Renderer {
     if (_keepsBlock(fragmentShader, _layerInfo.name, declared: layered)) {
       final layers = material.extensions;
       _layerInfo.specular
-        ..[0] = layers?.specularColor.x ?? 1.0
-        ..[1] = layers?.specularColor.y ?? 1.0
-        ..[2] = layers?.specularColor.z ?? 1.0
+        ..[0] = layers?.specularColor.r ?? 1.0
+        ..[1] = layers?.specularColor.g ?? 1.0
+        ..[2] = layers?.specularColor.b ?? 1.0
         ..[3] = layers?.specular ?? 1.0;
       _layerInfo.coat
         ..[0] = layers?.clearcoat ?? 0.0
         ..[1] = layers?.clearcoatRoughness ?? 0.0
         ..[2] = layers?.ior ?? 1.5;
       _layerInfo.sheen
-        ..[0] = layers?.sheenColor.x ?? 0.0
-        ..[1] = layers?.sheenColor.y ?? 0.0
-        ..[2] = layers?.sheenColor.z ?? 0.0
+        ..[0] = layers?.sheenColor.r ?? 0.0
+        ..[1] = layers?.sheenColor.g ?? 0.0
+        ..[2] = layers?.sheenColor.b ?? 0.0
         ..[3] = layers?.sheenRoughness ?? 0.0;
       final rotation = layers?.anisotropyRotation ?? 0.0;
       _layerInfo.anisotropy
@@ -750,15 +981,29 @@ extension _MeshEncode on Renderer {
       // An infinite attenuation distance, the default, is nought here: the
       // stage reads nought as a medium that takes nothing away.
       final distance = layers?.attenuationDistance ?? double.infinity;
+      // KHR_materials_volume measures the thickness in the mesh's own space,
+      // so a node scaled up is that much thicker: the geometric mean of the
+      // node's three axis scales, which is the scale itself for a uniform
+      // one. A material shared by nodes of different sizes is bound per draw
+      // here, so each refracts at its own.
+      final m = modelMatrix.storage;
+      final thicknessScale = math
+          .pow(
+            math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]) *
+                math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]) *
+                math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]),
+            1.0 / 3.0,
+          )
+          .toDouble();
       _layerInfo.transmission
         ..[0] = layers?.transmission ?? 0.0
-        ..[1] = layers?.thickness ?? 0.0
+        ..[1] = (layers?.thickness ?? 0.0) * thicknessScale
         ..[2] = distance.isFinite ? distance : 0.0
         ..[3] = layers?.dispersion ?? 0.0;
       _layerInfo.attenuation
-        ..[0] = layers?.attenuationColor.x ?? 1.0
-        ..[1] = layers?.attenuationColor.y ?? 1.0
-        ..[2] = layers?.attenuationColor.z ?? 1.0
+        ..[0] = layers?.attenuationColor.r ?? 1.0
+        ..[1] = layers?.attenuationColor.g ?? 1.0
+        ..[2] = layers?.attenuationColor.b ?? 1.0
         // `MaterialExtensions.convexVolume`, in the spare lane.
         ..[3] = (layers?.convexVolume ?? false) ? 1.0 : 0.0;
       _layerInfo.iridescence
@@ -954,11 +1199,26 @@ extension _MeshEncode on Renderer {
         fragmentShader,
         _kSceneColourTextureSlot,
         _sceneColourRead?.texture ?? fallbackBlack,
-        sampler: SamplerOptions.linearClamp,
+        sampler: SamplerDescriptor.linearClamp,
       );
+    }
+    // Version 2: the scene behind a translucent surface, for a stage that
+    // reads it — the surface buffer while the pass after the transparent
+    // half lends it, black (nothing behind) wherever else it is drawn.
+    if (material.lighting.usesSceneDepth) {
+      _bindSceneDepth(encoder, fragmentShader);
     }
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
+    if (layerBias != null) encoder.setDepthBias(DepthBias.none);
+    if (override == null &&
+        orderIndependent == null &&
+        blend &&
+        material.isTransparent &&
+        material.effectsDepth &&
+        device.features.has(DeviceFeature.independentBlend)) {
+      encoder.setBlend(_MaterialStages._blendFor(material), attachment: 1);
+    }
     state.drawCalls++;
     state.triangles += (indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
@@ -982,7 +1242,7 @@ extension _MeshEncode on Renderer {
         'depthWrite':
             orderIndependent == null && (material.depthWrite ?? !blend),
         'depthCompare': depthCompare.name,
-        'winding': node.worldIsMirrored != mirrored ? 'cw' : 'ccw',
+        'winding': node.isWorldMirrored != mirrored ? 'cw' : 'ccw',
         'skinned': skinned,
         'instanced': batched,
         'lightmapped': lightmapped,
@@ -992,9 +1252,23 @@ extension _MeshEncode on Renderer {
       uniforms: <String, Float32List>{
         'mvp': Float32List.fromList(mvp.storage),
         'model': Float32List.fromList(modelMatrix.storage),
-        'tint': Float32List.fromList(node.tint.storage),
-        'baseColor': Float32List.fromList(material.baseColor.storage),
-        'emissive': Float32List.fromList(material.emissive.storage),
+        'tint': Float32List.fromList(<double>[
+          node.tint.r,
+          node.tint.g,
+          node.tint.b,
+          node.tint.a,
+        ]),
+        'baseColor': Float32List.fromList(<double>[
+          material.baseColorEncoded.r,
+          material.baseColorEncoded.g,
+          material.baseColorEncoded.b,
+          material.baseColorEncoded.a,
+        ]),
+        'emissive': Float32List.fromList(<double>[
+          material.emissive.r,
+          material.emissive.g,
+          material.emissive.b,
+        ]),
         'metallicRoughness': Float32List.fromList(<double>[
           material.metallic,
           material.roughness,
@@ -1002,6 +1276,105 @@ extension _MeshEncode on Renderer {
         ...material.parameters,
       },
     );
+  }
+
+  /// How [node] is drawn through [material] — `A1.2`, `A1.3`.
+  ///
+  /// **Through the depth pre-draw** when it is cut — a mask without
+  /// coverage, or hashed — or part way through a cross-fade, wherever the
+  /// pre-draw can make the same cut the lit stage would: the lighting model
+  /// has an opaque variant (the engine's six), the bundle has the pre-draw,
+  /// the material writes depth and tests it the ordinary way, and its base
+  /// colour is read where the pre-draw reads it. The layered model reads it
+  /// through a texture transform where the material has one, and a cut made
+  /// at the untransformed coordinate would be the wrong shape.
+  ///
+  /// **Skipped** where a fade cannot be pre-drawn: of the two levels, the one
+  /// with the larger share is drawn whole and the other not at all, which is
+  /// the switch every release before 1.0 made, moved to the middle of the
+  /// band. Two whole levels at once would fight for every pixel.
+  ///
+  /// **Drawn once** otherwise: opaque, transparent — whose fade is opacity —
+  /// coverage, an override, a layer of weighted blended transparency.
+  _OpaqueRoute _opaqueRoute(
+    MeshNode node,
+    RenderMaterial material, {
+    required FramePassState state,
+    required bool overridden,
+    required bool orderIndependent,
+  }) {
+    if (overridden || orderIndependent) return _OpaqueRoute.draw;
+    if (material.alphaMode == MaterialAlphaMode.blend || node.tint.a < 1.0) {
+      return _OpaqueRoute.draw;
+    }
+    final coverage =
+        material.alphaMode == MaterialAlphaMode.mask &&
+        material.alphaToCoverage &&
+        state.coverageAvailable;
+    final cut =
+        !coverage &&
+        (material.alphaMode == MaterialAlphaMode.mask ||
+            material.alphaMode == MaterialAlphaMode.hashed);
+    final fade = node.lodFade;
+    if (!cut && fade == 1.0) return _OpaqueRoute.draw;
+    final compare = material.depthCompare;
+    final possible =
+        _opaqueStageFor(material.lighting) != null &&
+        shaders['DepthPredraw'] != null &&
+        (material.depthWrite ?? true) &&
+        (compare == null ||
+            compare == CompareFunction.less ||
+            compare == CompareFunction.lessEqual) &&
+        !(cut &&
+            identical(material.lighting, LightingModel.pbrLayered) &&
+            material.textureTransforms.containsKey(MaterialMap.baseColor));
+    if (possible) return _OpaqueRoute.predraw;
+    if (fade == 1.0) return _OpaqueRoute.draw;
+    // The finer level's share is positive and the coarser's negative, and
+    // the two add to one: exactly one of them is the larger.
+    final larger = fade > 0.0 ? fade > 0.5 : -fade >= 0.5;
+    return larger ? _OpaqueRoute.draw : _OpaqueRoute.skip;
+  }
+
+  /// Binds the pre-draw's fragment half for [node] — `depth_predraw.frag`:
+  /// the cut the lit stage would make, with the same map, sampler and bias,
+  /// and the node's share of a cross-fade.
+  void _encodePredrawFragment({
+    required PassEncoder encoder,
+    required MeshNode node,
+    required RenderMaterial material,
+    required RenderSettings settings,
+    required FramePassState state,
+  }) {
+    final stage = shaders['DepthPredraw']!;
+    final coverage =
+        material.alphaMode == MaterialAlphaMode.mask &&
+        material.alphaToCoverage &&
+        state.coverageAvailable;
+    _predrawInfo.mask
+      // The cutoff in the encoding `FragInfo.material2.x` carries: the mask's
+      // own, minus two for hashed, minus one for no cut — and none under
+      // coverage, whose edge the lit draw spreads over the samples.
+      ..[0] = switch (material.alphaMode) {
+        MaterialAlphaMode.mask when !coverage => material.alphaCutoff,
+        MaterialAlphaMode.hashed => -2.0,
+        _ => -1.0,
+      }
+      ..[1] = material.baseColor.a * node.tint.a
+      ..[2] = node.lodFade
+      // `MaterialLodBias`: what the scene pass set for the lit draws.
+      ..[3] = _targetOrigin[1];
+    encoder
+      ..bindBlock(stage, _predrawInfo)
+      ..bindTexture(
+        stage,
+        _kAlbedoTextureSlot,
+        material.albedo ?? fallbackAlbedo,
+        sampler: _anisotropic(
+          material.albedoSampler,
+          _anisotropyLevel(settings.anisotropy),
+        ),
+      );
   }
 
   /// The index buffer that draws the clusters of [node]'s split mesh the
@@ -1015,7 +1388,7 @@ extension _MeshEncode on Renderer {
   ({GeometryBuffer buffer, int count})? _clusterIndicesFor(
     MeshNode node,
     DrawableGeometry mesh,
-    Material material,
+    RenderMaterial material,
     RenderSettings settings,
   ) {
     final view = _clusterView;
@@ -1108,7 +1481,7 @@ extension _MeshEncode on Renderer {
         'irradiance_texture',
         atlas ?? fallbackAlbedo,
         // Nearest: the shader filters inside each tile itself.
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 

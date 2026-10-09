@@ -1,4 +1,816 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: the graphics vocabulary, the foundation and the plugin API are
+  not re-exported.** `package:flutter3d_core/flutter3d_core.dart` handed on
+  the hardware's types (all of `flutter3d_hardware` in 0.8), `LinearColor`,
+  `WorldPosition` and the vector crossings, `OriginShifted`, `RenderAnchor`,
+  `RenderStepRegistry` and `Registration`, and `geometry.dart` and
+  `formats.dart` handed on `LinearColor`. A file that names them imports the
+  package that declares them and depends on it; `dart fix` adds the import and
+  `migrate` the dependency. `flutter3d` still names what an application spells
+  of all three.
+
+- **`DecoderRegistry` is declared here**, the slot `ModelDecoders` fills;
+  it was a marker in `flutter3d_plugin_api`. The `vector_math` crossings
+  are `flutter3d_foundation`'s.
+- **Breaking: `liquidMeshes`, `LiquidLayerMesh`, `jetMesh` and
+  `particleMesh` moved to `flutter3d_effects`**, and the core no longer
+  depends on `flutter3d_physics`: a liquid in a vessel and a jet are the
+  physics', and the meshes that draw them are a view of it. Import
+  `flutter3d_effects`. New in 1.0, so no 0.8 code calls them.
+
+- **The physical sky is as bright as it is.** Its scattered light and its
+  ground were carried on the renderer's illuminance scale where the phase
+  functions make luminance, and came out π times too dark, about 1.65 stops.
+  `PhysicalSky.radiance`, the sky pass on every backend and the software
+  rasteriser now draw nits; `PhysicalSky.illuminanceLux`, the meter
+  `PhysicalCamera.forSky` reads, gives what it gave. A default sky under
+  the reference camera is now far past white at noon, as a real one is at
+  f/4 and a sixtieth: meter it. Every golden with a physical sky moves.
+- **Ozone in the physical sky.** `PhysicalSky.ozone`, a multiple of the
+  Earth's, 1 by default: Bruneton's 0.650, 1.881 and 0.085 per million
+  metres at the peak of a layer 25 km up and 15 km either side. It absorbs
+  orange at dusk and keeps the zenith blue, and moves noon by a few per
+  cent.
+- **The sun's disc is its radius.** `SkySettings.sunAngularRadius`
+  defaults to 0.2666° (0.00465 rad), `ShadowSettings.sunAngularRadius`, the
+  same constant the soft shadows use; 0.53° was the diameter.
+- **A spot's falloff is squared**, as `KHR_lights_punctual`'s is: the ramp
+  between the cone's two cosines times itself, on the surfaces, the
+  volumetric fog, the software rasteriser and the probes' gather. A spot's
+  edge is softer and its pool a little smaller.
+- **A volume's thickness scales with its node**: the geometric mean of the
+  node's axis scales, applied where the material is bound for the draw, as
+  glTF's `KHR_materials_volume` says a transform applies.
+- **Docs**: `Photometric.legacyNits` is drawn at 1.6 by the reference camera,
+  whose white is 1152 nits; an overcast day is 1 000 to 10 000 lux; the
+  auto exposure's default limits are EV100 7.6 to 12.6, and its 0.18 target
+  is about 0.8 of a stop above a K = 12.5 meter; `PointerTargets` passes a
+  light's lux or candela through.
+- **Breaking: debug and vertex colours are `LinearColor`s.** `DebugDraw`'s
+  lines and gizmos, `DebugColors` (now `static final`), `MeshOverlay`'s
+  `edge`, `point`, `ribbon` and `wash`, `OverlayBatch.vertex`,
+  `MeshBuilder.addVertex(color:)`, `MeshData.withColor`,
+  `buildPolyline(colors:, color:)`, `CellGrid.mesh(color:)` and
+  `neutralColor` take or hold a linear colour. `DebugDraw` encodes each
+  line for the display, so a colour it wrote as sRGB numbers is
+  `LinearColor.fromSrgb` of them; `MeshOverlay.asDrawn` is gone, its
+  conversion being `LinearColor.fromSrgb`; vertex colours keep their
+  numbers. `linearFromSrgb` is gone too: `LinearColor.fromSrgb`.
+- **Breaking: `SolidColorTexture` takes a `LinearColor`.** It stores the
+  colour sRGB-encoded, as a base-colour texture's texels are;
+  `SolidColorTexture.texel(r, g, b, a:)` writes data (a normal map's) as
+  it is, `texel` replaces `color`, and `white` and `flatNormal` are
+  constants.
+- **Breaking: a grade's `lift`, `gamma` and `gain` are `LinearColor`s**, on
+  `LookSettings` and (`lift`, `gain`) `PhotoFilter`, one value per channel,
+  so the settings and every `PhotoFilter` can be `const`. The numbers are
+  the same.
+- **Scene space has a name.** `docs/CONTRACTS.md` defines world space
+  (`WorldPosition`), scene space (float32, relative to `Scene.origin`) and
+  local space, and the renderer's extension API says which it takes:
+  `PassContributor.boundsFor`, `RenderServices.encodeScene`,
+  `ContributorFrame.viewProjection`, `ContributorLights.bind` and
+  `DebugDraw` are in scene space. `DebugDraw.addWorldLine` draws between two
+  `WorldPosition`s, measured from `DebugDraw.origin`, which the renderer
+  sets to the drawn scene's origin each frame.
+- **The directional shadow is drawn through `ShadowTechnique`.** An open
+  base class the renderer asks three things of each frame: how many
+  cascades (`cascadesFor`), what turns the map into moments
+  (`prefilterFor`, a `ShadowPrefilter` naming a full-screen stage in
+  `Renderer.shaders` and its blur radius), and which lookup the lit draws
+  make (`kernelFor`: `ShadowKernel.box3x3`, `.blockerSearch(lightRadius:)`
+  or `.moments(bleedReduction:)`). The built-in filters are instances,
+  `ShadowFilter.pcf.technique` is `ShadowTechnique.pcf`, and they read the
+  settings as the renderer always did, so no picture changes.
+  `ShadowFilter.custom(name, base:, technique:)` draws with a technique of
+  one's own; without one it is drawn as its base, as before. What a
+  technique cannot change is the lookup itself, which is compiled into the
+  lit stages: a lookup of one's own is a lit stage of one's own, and
+  `ShadowTechnique`'s documentation says how.
+- **The transparent half can be switched off by name.**
+  `RenderStep.transparent` and `RenderStep.sceneColorCopy` are steps like
+  the others, switched by `RenderSettings.stepsOff` (they have no setting of
+  their own, since the split follows content): `without({transparent})`
+  draws the frame in one pass as before the split, and `sceneColorCopy` off
+  keeps the split with the glass reading the environment. The hidden
+  `RendererInternals.debugSuppressedPasses` hook is gone, and the tests that
+  used it switch the steps instead. Since both are in `RenderStep.values`,
+  `RenderSettings.only` now switches them off too unless they are kept.
+- **Breaking: `.f3d` writes codes, never an enum's `.index`.** The alpha
+  mode, the wrap modes and a track's path and interpolation go through
+  explicit tables (`f3d_wire.dart`), whose codes are the ordinals the format
+  froze at, so no file changes; reordering an enum can no longer change what
+  a file means, and a structure rule keeps `.index` and `values[` out of the
+  format's code.
+- **Breaking: re-exporting a `.f3d` keeps its bundle.** `F3dModelWriter`
+  writes through `F3dWriter.carrying`, so a document read from a `.f3d`
+  is written back with its programs, prefabs, files and every section of a
+  kind the engine does not write (`F3dDocument.extraSections`, flags
+  included). `F3dDocument.section` answers an `F3dExtraSection` instead of
+  a record, with the same `bytes`, `count` and `flags`; `F3dWriter` checks
+  that an extra section is not one of the engine's kinds, which
+  `F3dExtraSection`'s constructor no longer does. A `v1/bundle.f3d` fixture
+  joins the `v2` one.
+- **Breaking: `ModelDecoder`, `ModelWriter`, `CheckedModelWriter` and
+  `ModelDocument` are `abstract base class`es** (decision 5): a decoder or
+  a writer of your own `extends` it and is `final` or `base`, and a member
+  added in a minor arrives with a default. `ModelFormat` is a class with
+  constant values instead of an enum, so a `switch` over it needs a
+  default.
+- **Breaking: `AnimationPointer.parse` throws an
+  `AnimationPointerFormatException`** for a pointer this engine does not
+  animate; `AnimationPointer.tryParse` answers null as `parse` did. A
+  `.f3d` pointer track the reader skips is said in `F3dDocument.warnings`,
+  no longer dropped in silence.
+- **`.fmat` keeps what it does not read.** `MaterialDocument.unknown` holds
+  the top-level keys of a later build's material, and `writeFmat` writes
+  them back, so opening and saving a material no longer loses them.
+- **`coreFormats` names the shader bundle and the trace** (`hardwareFormats`)
+  beside the model formats and the frame capture. The material language's
+  format id is `f3d.materialLanguage` (`f3d.material` is an alias), and
+  `FormatSpec.binary` is `enveloped`.
+
+- **Breaking: `EnvironmentMap.fromSky`, `fromPanorama` and `fromEncoded`
+  throw where they answered null.** A device without cubes throws
+  `UnsupportedCapability` (ask the new `EnvironmentMap.isSupportedOn`), a sky
+  that is off or pixels of the wrong size an `ArgumentError`, and bytes
+  neither reader takes the new `PanoramaFormatException`.
+- **Breaking: `RenderSettings.needsSurfaceBuffer` is gone**, deprecated in
+  1.0.0 and removed while breaks are allowed: ask the compiled frame,
+  `CompiledFrameGraph.isConsumed(FrameResourceIds.surfaceBuffer)`.
+- **The core reads the shaders' tables through
+  `flutter3d_shaders/internal.dart`** rather than its `src/`.
+- **Breaking: every colour the renderer takes is a `LinearColor`.**
+  `RenderMaterial.baseColor` and `emissive`, `SurfaceMaterial.baseColor`
+  and `emissive`, `MaterialExtensions.specularColor`, `sheenColor` and
+  `attenuationColor`, `ModelLight.color`, `MeshNode.tint` and
+  `outlineColor`, `DecalNode.color` and `emissive`,
+  `PlanarReflectorNode.tint`, `LineStripNode.color`, the instance colour of
+  `InstancedMeshNode.addInstance`, `acquire` and `setColor`
+  (`InstanceHandle.setColor` too), `SkyGradient`'s stops and `SkyColor`,
+  `gather`'s `sky`, and the colours of `FogSettings`,
+  `LightShaftSettings`, `VolumetricFogSettings`, `XraySettings` and
+  `HighContrastSettings` were `Vector3`/`Vector4`, some of them holding
+  sRGB. They are linear now and assigned whole; the renderer encodes where a
+  shader wants the encoded value, so `LinearColor.fromSrgb` of the old
+  numbers draws the old picture. Files keep what they stored: each reader
+  and writer converts. `formats.dart` exports `LinearColor`.
+- **Breaking: emissive is nits, ambient and the sky's sun disc are lux.**
+  `RenderMaterial.emissiveStrength` defaults to `Photometric.legacyNits`
+  (1 843.2, what one stood for); `Scene.ambientIntensity` to
+  `0.06 * Photometric.legacyUnit`, `Atmosphere.ambientIntensity` to
+  `0.3 * Photometric.legacyUnit`; `SkySettings.sunIntensity` is lux. A
+  file's emissive strength stays a plain multiple and is converted where the
+  material is made. `Photometric.toEngine`, `PhysicalCamera.nitsPerUnit` and
+  `luxPerUnit` are gone: the renderer's own scale is internal, and
+  `Photometric.legacyNits` beside `legacyUnit` carries a pre-1.0 number
+  over.
+- **Breaking: a view's past is its own, so views drawn by separate
+  `render` calls keep their velocity and their temporal resolve.**
+  `FrameHistory.of(node)` is `of(node, view)` and `moved(node)` is
+  `moved(node, view)`: each view keeps the matrix it was last drawn with
+  and its own copy of the nodes (the views of one call share the first's),
+  and `viewProjection(view)` answers from that view's last frame rather
+  than only from the renderer's. A view's state, history textures
+  included, goes back to the device after `Renderer.viewIdleFrames` calls
+  that did not draw it, so views made afresh every frame for several
+  cameras no longer pile up; a view made afresh carries on the state of
+  the latest view of the same camera, which then starts afresh if it is
+  drawn again.
+- **A floating origin is no motion to the renderer.** A `Scene.shiftOrigin`
+  between frames moves what the history recorded by the same shift as the
+  nodes, so the velocity is nought and the resolve does not smear; the
+  occlusion reading is dropped as a cut drops it; and the scene moves its
+  `irradianceField`'s origin with its nodes.
+- **Breaking: one way to add a bundle of materials.**
+  `Renderer.addMaterials` and `removeMaterials` are gone;
+  `renderer.renderSteps.addMaterials(library)` adds it and returns the
+  `Registration` whose `cancel` takes it out. `dart fix` carries the add.
+- **`LightType` and `ShadowFilter` are open sets.** `LightType.custom(name,
+  base:)` and `ShadowFilter.custom(name, base:)` name a kind or a filter of
+  one's own, drawn as its `base` (itself for the built-in ones), which the
+  engine reads wherever it decides how to draw. 1.0 has no interface for a
+  shadow technique of one's own; a later minor may add one. `LightType.index`
+  is a getter.
+- **Breaking: `LightNode.maxLights`, `LightNode.maxExtraLights` and
+  `Renderer.shadowedLights` are static getters**, with the same values (8,
+  24, 6), so a later minor can change them without a number compiled into
+  callers; only a `const` expression that read one stops compiling.
+- **`Renderer.create(replacing:)`**: a renderer made after a device loss
+  takes over the old one's `renderSteps`, so the plugins installed again
+  extend it.
+- **Breaking: a pass is switched off by its step, and only by its step.**
+  `RenderSettings.disabledPasses`, a set of node names, and
+  `RenderSettings.undisablePasses`, the three names it refused, are gone;
+  `RenderSettings.pixelAlteringPasses` is `pixelAlteringSteps`, a set of
+  `RenderStep`. `settings.without({RenderStep.bloom})` switches the step off
+  through its own setting and `FrameResult.skipped` reports
+  `PassSkip.switchedOff`, where the name reported `PassSkip.disabled`; a
+  plugin's pass is switched off by the step it was added with.
+  `forMeasurement` goes through `without`, so the effects' own settings read
+  off in what it returns; the frame is the one it drew. The transparent half
+  and the scene's colour copy are content, not steps, and can no longer be
+  left out of a frame that holds glass.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `DebugDrawOptions` is `DebugDrawSettings`, `RenderTargetSpec` is
+  `RenderTargetDescriptor`, `RenderViewOptions` is `RenderViewSettings`,
+  `SamplerOptions` is `SamplerDescriptor`, `VertexLayoutSpec` is
+  `VertexLayoutDescriptor`. Every settings class is `final` with a `const`
+  constructor and a `copyWith` over every field; a nullable field is reset
+  with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kCaptureTextureFormats` is
+  `captureTextureFormats`, `kDefaultVertexCacheSize` is
+  `defaultVertexCacheSize`, `kF3dHeaderBytes` is `f3dHeaderBytes`,
+  `kF3dMagic` is `f3dMagic`, `kF3dSectionEntryBytes` is
+  `f3dSectionEntryBytes`, `kF3dSectionEntryBytesV2` is
+  `f3dSectionEntryBytesV2`, `kF3dVendorKindStart` is `f3dVendorKindStart`,
+  `kF3dVersion` is `f3dVersion`, `kF3dWideMagic` is `f3dWideMagic`,
+  `kFmatVersion` is `fmatVersion`, `kImpostorGrid` is `impostorGrid`,
+  `kIrradianceReach` is `irradianceReach`, `kKtx2HeaderBytes` is
+  `ktx2HeaderBytes`, `kKtx2HeaderOffset` is `ktx2HeaderOffset`,
+  `kKtx2Identifier` is `ktx2Identifier`, `kKtx2IndexBytes` is
+  `ktx2IndexBytes`, `kKtx2IndexOffset` is `ktx2IndexOffset`,
+  `kKtx2LevelIndexEntryBytes` is `ktx2LevelIndexEntryBytes`,
+  `kKtx2LevelIndexOffset` is `ktx2LevelIndexOffset`,
+  `kMaterialAmbientInputs` is `materialAmbientInputs`,
+  `kMaterialCompositeInputs` is `materialCompositeInputs`,
+  `kMaterialComputeInputs` is `materialComputeInputs`,
+  `kMaterialDepthCompares` is `materialDepthCompares`,
+  `kMaterialDepthCompareWire` is `materialDepthCompareWire`,
+  `kMaterialDepthLayerLimit` is `materialDepthLayerLimit`,
+  `kMaterialFullscreenInputs` is `materialFullscreenInputs`,
+  `kMaterialInputs` is `materialInputs`, `kMaterialLanguageVersion` is
+  `materialLanguageVersion`, `kMaterialLightInputs` is
+  `materialLightInputs`, `kMaterialLitInput` is `materialLitInput`,
+  `kMaterialNothingBehind` is `materialNothingBehind`,
+  `kMaterialSceneInputs` is `materialSceneInputs`,
+  `kMaterialTextureBindings` is `materialTextureBindings`,
+  `kMaterialVertexInputs` is `materialVertexInputs`,
+  `kMaterialVertexOutputs` is `materialVertexOutputs`, `kMaxPayload` is
+  `maxPayload`, `kNeutralColor` is `neutralColor`, `kNeutralJoints` is
+  `neutralJoints`, `kNeutralTangent` is `neutralTangent`, `kNeutralWeights`
+  is `neutralWeights`, `kNoHit` is `noHit`, `kPayloadBits` is
+  `payloadBits`, `kPayloadMask` is `payloadMask`, `kRadixThreshold` is
+  `radixThreshold`, `kRootMotionExtra` is `rootMotionExtra`,
+  `kShadowedLights` is `shadowedLights`, `kSortKeyBits` is `sortKeyBits`,
+  `kSplatFloatsPerVertex` is `splatFloatsPerVertex`, `kSplatGpuSortLimit`
+  is `splatGpuSortLimit`, `kSplatKeyMax` is `splatKeyMax`,
+  `kSplatLeanLimit` is `splatLeanLimit`, `kSplatLowPass` is `splatLowPass`,
+  `kSplatOctreeExtension` is `splatOctreeExtension`,
+  `kSplatOctreeHeaderBytes` is `splatOctreeHeaderBytes`,
+  `kSplatOctreeNodeBytes` is `splatOctreeNodeBytes`, `kSplatOctreeVersion`
+  is `splatOctreeVersion`, `kSplatPageBytesPerSplat` is
+  `splatPageBytesPerSplat`, `kSplatReach` is `splatReach`, `kSplatShC0` is
+  `splatShC0`, `kSplatSortStages` is `splatSortStages`,
+  `kSplatVerticesPerSplat` is `splatVerticesPerSplat`, `kSpzLatestVersion`
+  is `spzLatestVersion`, `kUniversalBlockKey` is `universalBlockKey`,
+  `kUniversalBlockRgb` is `universalBlockRgb`, `kUniversalBlockRgba` is
+  `universalBlockRgba`. The values are the same; `dart fix` carries the
+  renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `EffectiveAntiAliasing.none` is `isNone`; `FrameGraphNode.supported` is
+  `isSupported`; `GltfWriter.usedGeometryQuantization` is
+  `didQuantizeGeometry`; `GltfWriter.usedVertexCacheReordering` is
+  `didReorderVertexCache`; `InstanceHandle.live` is `isLive`;
+  `MaterialFileState.translucent` is `isTranslucent`; `MaterialProgram.lit`
+  is `isLit`; `SceneNode.ownBoundsAreCullable` is `hasCullableOwnBounds`;
+  `MeshNode.worldIsMirrored` is `isWorldMirrored`; `ParameterWrite.written`
+  is `wasWritten`; `SceneNode.subtreeAlwaysDrawn` is `isSubtreeAlwaysDrawn`;
+  `SceneNode.visible` is `isVisible`; `SceneNode.visibleInHierarchy` is
+  `isVisibleInHierarchy`; `SettingsSlot.serializable` is `isSerializable`;
+  `SplatContributor.drewGpuOrder` is `didDrawGpuOrder`;
+  `SplatLens.orthographic` is `isOrthographic`. `dart fix` carries the
+  renames.
+- **Breaking: units in names (docs/CONTRACTS.md).** A field of view is
+  `fovY`, in radians: `PerspectiveProjection.fovYRadians`,
+  `OffAxisProjection.symmetric(fovYRadians:)` and
+  `OrbitController.frameBounds(fovYRadians:)` take `fovY`, and
+  `OrbitController.framingFov` is `framingFovY`.
+  `SkySettings.sunAngularRadiusDegrees` and `sunSoftnessDegrees` are
+  `sunAngularRadius` and `sunSoftness`, in radians: multiply a number in
+  degrees by π/180.
+- **Breaking: one verb per job.** `Renderer.takeMemoryReport` is
+  `memoryReport`. `dart fix` carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `bulbAtOneMetre` is `bulbAtOneMeter`, `centre` is `center`,
+  `centres` is `centers`, `colour` is `color`, `colourGrade` is
+  `colorGrade`, `colours` is `colors`, `colourSpace` is `colorSpace`,
+  `drawsColour` is `drawsColor`, `hdrColour` is `hdrColor`,
+  `metresPerSecond` is `metersPerSecond`, `normalise` is `normalize`,
+  `quantise` is `quantize`, `sceneColour` is `sceneColor`, `setColour` is
+  `setColor`, `SkyColour` is `SkyColor`, `specialiseMaterial` is
+  `specializeMaterial`, `splatColour` is `splatColor`, `SplatColourSpace`
+  is `SplatColorSpace`, `sunColour` is `sunColor`, `worldBoundsCentre` is
+  `worldBoundsCenter`. Only the Dart names changed: a file keeps the keys
+  it was written with, and `dart fix` carries the renames.
+- **Breaking: a view is an object.** `RenderView` keeps what a frame
+  remembers for the next one — the temporal resolve's history, the
+  reprojection's last view-projection, the noisy effects' histories — per
+  view, not per renderer and not per camera, so two views of one camera
+  (a stereo pair, an editor's viewports) no longer blend each other's past.
+  A view made afresh every frame for the same camera carries the last one's
+  history on. Its growing settings are `RenderViewSettings` (a visibility
+  hook, a label, its own `RenderSettings`); `dispose` gives back what each
+  renderer kept for it. `RenderTexture` folded in: `RenderView.texture`
+  makes a view that draws into a texture of its own, `Scene.addTextureView`
+  draws it. `FrameHistory.viewProjection` takes the view.
+- **Breaking: one way into the frame.** A pass is a `RenderNode` added with
+  `renderer.renderSteps.addNode` — at its own `defaultAnchor`, at any engine
+  anchor, or at an anchor a plugin added with `addAnchor`
+  (`RenderAnchor.after`). Draws inside the engine's passes are a
+  `PassContributor` added with `renderSteps.addContributor`. `Renderer`'s
+  `addNode`, `nodes`, `addContributor` and `contributors`, `FramePhase` and
+  `RenderNodeRegistry` went, and `FullscreenEffect` is one more node. Every
+  node and contributor is handed a `FrameContext`: the view, its projection
+  and inverse, the jitter, the time, the frame index and the scene's origin.
+  `NodeFrame` is `RenderFrame`; a frame's resources carry buffers as well as
+  textures (`FrameResources.provideBuffer`).
+- **Breaking: `Material` is `RenderMaterial`, `Ray` is `LocalRay`, `Pose`
+  is `AnimationPose`.** None of them collides with Flutter, vector_math or
+  another package of ours any more, and the `hide` clauses go. `dart fix`
+  renames all three.
+- **Positions in the world, in doubles.** `SceneNode.worldPosition` and
+  `setWorldPosition` speak `WorldPosition`; a node's own transform stays
+  float32, relative to `Scene.origin`, which `shiftOrigin` and
+  `rebaseAround` move while keeping everything where it is in the world,
+  telling `onOriginShift` handlers (`OriginShifted`). `WorldRay` is a ray
+  with a double-precision origin, and `Raycaster.setFromWorld`, `worldRayIn`
+  and `HitResult.position` cross over.
+- **Breaking: light is photometric.** `LightNode.intensity` is lux for a
+  directional light and candela for the others; `LightNode.lumens` rates a
+  lamp off its box; `PhysicalSky.sunIlluminance` and
+  `Atmosphere.sunIntensity` are lux. The renderer divides by
+  `Photometric.legacyUnit` (about 5 790.6, the physical camera's lux per
+  pre-1.0 unit) on the way to the shaders, and every default is its
+  pre-1.0 value in the new unit, so a picture does not change; a pre-1.0
+  literal is multiplied by it. `Photometric.fromLux`, `fromCandela`,
+  `toLux`, `toCandela` and `referenceIlluminance` went with the old unit.
+- **Breaking: colour is `LinearColor`.** `LightNode.color`,
+  `Scene.ambientColor` and `Atmosphere`'s colours are `LinearColor`s, and
+  `Atmosphere` is `const`.
+- **Breaking: sets that grow are open.** `LightType`, `OutputTransform`,
+  `TransparencyMode` and `OcclusionMode` are classes with constants: a
+  `switch` over one needs a `_ =>` case. Each has `values`, `name` (its wire
+  name), `index` and `byName`.
+- **Breaking: internals are not API.** `RenderList`, `DrawItem`,
+  `FramePassState`, `ContributorRegistry`, `LightBuffer`, `ShaderLightType`,
+  the renderer's 38 stage fields and its `debug*` hooks, `Scene`'s
+  `register*` calls, `SceneNode.changeEpoch`, `noteChange` and
+  `ancestorWalks`, and `parity_scene.dart` are not exported. `LightNode`
+  carries the light limits (`maxLights`, `maxExtraLights`, `reaches`) and
+  `Scene.overflowingLights` the overflow.
+- **Breaking: no global settings.** `maxDecodedTextureDimension` went: pass
+  `maxDimension` to `uploadEncodedImage`. `RendererSteps.lightingModels`
+  lists the lighting models this renderer draws.
+- **Things that hold GPU memory are disposed.** `DeviceMesh.dispose` gives
+  its buffers back; `RenderView.dispose` its texture and histories.
+  `MaterialDecoder` (in `flutter3d`) and `DeviceClassMemory` are `abstract
+  base class`es.
+
+- **Breaking: every reader in this package throws its own format exception.**
+  The glTF/GLB reader, `.fmat`, `.cube` LUTs, meshopt buffers, the FBX
+  decoder, material bundles and animation graphs threw `dart:core`'s bare
+  `FormatException`, which a caller could not tell from a `jsonDecode` in its
+  own code. They throw `GltfFormatException`, `FmatFormatException`,
+  `CubeLutFormatException`, `MeshoptFormatException`, `FbxFormatException`,
+  `MaterialBundleException` and `AnimationGraphFormatException`, each a leaf of
+  `Flutter3dFormatException`. An `on FormatException` around one of these
+  readers no longer catches; catch the leaf, or the family
+  (`core-format-exceptions`).
+- **Breaking: the pure image decoders throw instead of answering null.**
+  `decodePng`, `decodeJpeg` and `decodeImagePure` return a non-null image and
+  throw an `ImageFormatException` that says what was wrong (not the format, a
+  feature the decoder does not read, a truncated file). A null used to mean
+  all of those and "nothing there" too. `isPng` asks the first question
+  without decoding (`core-decodePng`, `core-decodeJpeg`,
+  `core-decodeImagePure`). `AnimationPointer.parse` and `DeviceClass.parse`
+  keep their null, documented as "absent": they are lookups, not reads.
+- **Breaking: a frame capture is written in the format envelope and refuses
+  what it cannot read.** `FrameCapture.toJson` writes `{"format":
+  "f3d.frameCapture", "version": 2, "requires": [], "generator": …}`, and a
+  version-1 file (`"format": "flutter3d.frameCapture"`) still reads.
+  `FrameCapture.fromJson` and `FrameCapture.parse` return a capture or throw a
+  `FrameCaptureFormatException` with the reason, a newer version included,
+  where they answered null. `FrameCapture` is a `FormatDocument`: keys it
+  does not read come back on the way out, `notes` reads back, and its
+  constructor is no longer `const` (`core-FrameCapture-parse`).
+- **The formats a file names by word say it through explicit tables.** A
+  capture's texture format goes through `captureTextureFormats`, a
+  `.f3dmat` `depthCompare` through `materialDepthCompareWire`, and the
+  `.fmat` and glTF writers and the animation graph JSON spell their words out
+  rather than writing a Dart value's `name`. A rename of a value in a later
+  release cannot change what a file says.
+- **`.f3d` version 2: room to grow.** Each directory entry gains a flags word,
+  whose bit 0 (`F3dSectionFlags.mustUnderstand`) makes a reader that does not
+  know the section refuse the file; a table's stride is its section's
+  `length ~/ count`, so a later writer may lengthen a record at its tail;
+  kinds from `f3dVendorKindStart` (`0x80000000`) up are a tool's own, written
+  with `F3dWriter(extraSections:)` and read back with `F3dDocument.section`;
+  and `f3dWideMagic` reserves a u64-offset variant for files past 4 GiB. The
+  writer still writes version 1 when no extra section asks for more, so a
+  converted asset keeps its bytes, and every version-1 file reads as before.
+- **A `.f3d` carries a whole asset.** Seven optional sections join the
+  format, none must-understand and with no version bump: lights and cameras
+  with the nodes that carry them (`ModelDocument.lights`, `cameras`,
+  `ModelNode.lightIndex`/`cameraIndex`, intensities in lux and candela), each
+  material's lighting model (`SurfaceMaterial.lightingModel`, so a material
+  drawn by a program names it), material language programs by name
+  (`F3dDocument.programs`), level and prefab documents in the format
+  envelope (`F3dDocument.prefabs`) and files carried whole
+  (`F3dDocument.files`). `F3dWriter` takes `programs:`, `prefabs:` and
+  `files:`, and no longer warns that lights, cameras and lighting models were
+  dropped. An older reader skips the sections and opens a poorer asset, never
+  a different one.
+- **The formats register.** `f3dFormat`, `fmatFormat`, `f3dmatFormat`,
+  `f3dsplatFormat` and `FrameCapture.format` describe each format to a
+  `FormatRegistry` (id, suffixes, magic, version, fixtures), and `coreFormats`
+  lists them.
+- **Breaking: the sky's colours are `LinearColor`s.** `SkySettings.zenith`,
+  `horizon`, `nadir`, `sunColor` and `tint`, their `resolved*` getters and
+  `copyWith` take and give `LinearColor` instead of `Vector3`, the colour
+  type every other setting uses. The numbers mean what they meant (linear,
+  scene-referred), so `Vector3(0.1, 0.2, 0.5)` becomes
+  `LinearColor(0.1, 0.2, 0.5)`, or `vector.toLinearColor()`.
+  `directionToSun` stays a `Vector3`, and `sample` still answers the
+  radiance as one.
+- **Breaking: the clear colour says it is sRGB.** `RenderView.clearColor`
+  is `RenderView.clearColorSrgb`, in the constructor, in
+  `RenderView.texture` and as the field, and so is `capturePhoto`'s
+  `clearColor`: it is the one colour the engine takes sRGB-encoded, and a
+  colour that is not linear says so in its name. `dart fix` renames the
+  field and the parameters. `Atmosphere.applyTo` takes `clearColorSrgb:`
+  too and now encodes its linear sky into it, where it wrote the linear
+  numbers into the sRGB slot as they were; a clear colour set from an
+  atmosphere is lighter than before, and the colour the sky was meant to
+  be.
+- **A `.fmat` is written in the envelope.** `writeFmat` starts with
+  `{"format": "f3d.fmat", "version": 1, …}` and keeps `"fmat": 1` after it,
+  because a material travels inside a `.f3d` bundle that a 0.8 reader still
+  opens and that reader wants the key. The envelope is additive, so the
+  version stays 1; `readFmat` reads both shapes, refuses a newer version or
+  another format's document through `fmatFormat`, and `isFmat` recognises a
+  head that names `f3d.fmat`.
+- **Breaking:** `MaterialSyntaxError` is `MaterialSyntaxException`, with the
+  same constructor and members, extending `Flutter3dFormatException`. `*Error`
+  is for programmer mistakes; a material file with a typo is something a
+  correct program reads. `dart fix` renames it (`core-MaterialSyntaxError`).
+- **Breaking:** `DracoException`, `F3dFormatException`, `HdrFormatException`,
+  `Ktx2FormatException`, `SplatOctreeException`, `SplatPlyException`,
+  `SplatSpzException` extend `Flutter3dFormatException` instead of
+  implementing `Exception` directly. The names and members are unchanged and
+  every `on` clause that caught them still does; every exception the engine
+  throws now hangs from `Flutter3dException` in `flutter3d_plugin_api`, in one
+  of four families: format, capability, plugin and resource. A caller who
+  reports anything the engine refused catches the root; one who acts on a kind
+  catches its family. The migration table marks them as nothing to do.
+- **The material language is whole: version 2.** `materialLanguageVersion`
+  is 2, and a file says `f3dmat 2` to use what it adds. Version 1 files read
+  as they always did. The new blocks are `state` (blend, cutoff, depth write,
+  test and compare, alpha to coverage, double-sidedness, `depthLayer`,
+  `effectsDepth`, and the `environment` and `directional` switches),
+  `vertex` (with `out position`, `out world` and `out normal`), `ambient` and
+  `composite`. A translucent surface can read `sceneDepth`, `viewDepth` and
+  `scenePosition`, and there are two new kinds of source, `fullscreen` and
+  `compute`. The vertex block's stages, `emitMaterialVertex`, also draw the
+  depth pre-draw and the shadows (`LightingModel.vertexStageInDepthPasses`),
+  so moved geometry casts the shadow it draws. The evaluator gained
+  `composeMaterialLit`, `evaluateMaterialVertex` and the two hook
+  evaluators, and `BundledMaterials.material(name)` makes a `Material` with
+  the file's state on it. A fixture is in `test/fixtures/v2/`.
+- **`Material.depthLayer`, `Material.blendMode` and `Material.effectsDepth`.**
+  Of two coplanar surfaces, the higher layer wins. That is done with a small
+  depth bias where the device has one, turned round under reversed-Z, and with
+  a stable order and `lessEqual` where it has none. `MaterialBlendMode` adds
+  `additive` and `premultiplied` beside `alpha`. A translucent surface with
+  `effectsDepth` writes its normal and depth into the surface buffer the
+  effects read, where blends are independent. `LightingModel.usesSceneDepth`
+  sends a surface that reads the scene behind it into the pass soft
+  particles are drawn in. `FullscreenEffect.readsSurface` binds the surface
+  buffer to a full-screen stage.
+- **Breaking:** `MaterialStatement` has a new case, `MaterialOutput`, so an
+  exhaustive `switch` over it needs one more arm (see the migration entry
+  `core-MaterialOutput`).
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `Renderer.releaseTransientTargets` returns the bytes it freed.**
+  It used to return nothing; a call that ignores the answer is unchanged.
+  `Renderer.memoryReport` lists what the renderer holds on the device by
+  category (`MemoryReport`, `MemoryEntry`, `MemoryCategory`): textures,
+  buffers, render targets with the transient pool, meshes, and shaders with
+  their pipelines, each object once.
+
+- **Nine more debug views, a registry of them, and a view per subtree.**
+  `DebugView` gains the geometry views `tangent`, `uvChecker`,
+  `faceOrientation` and `vertexColor`, the identity views `objectIdentity`
+  and `materialIdentity`, and the checks `albedoRange`, `metalBinary` and
+  `missingTangents`; each has a `kind` and a `description`, and
+  `DebugView.byName` finds one from what a tool wrote down.
+  `SceneNode.debugView` gives a branch its own view, or keeps it lit with
+  `DebugView.off`.
+
+- **The debug wipe compares two channels, and overlays follow it.**
+  `DebugViewSettings.left` is the channel left of the split (the light by
+  default), and `overlays` (`DebugWipeSide`) keeps the debug lines and every
+  `PassContributor.isOverlay` contributor, the editor's wireframe among them,
+  on one side.
+
+- **A frame capture goes to JSON and comes back.** `FrameCapture.toJson`
+  writes every pass, every draw with its uniforms decoded
+  (`DrawRecord.decodedUniforms`) and a PNG thumbnail of every image
+  (`CaptureThumbnail`), the whole images and float targets on request;
+  `FrameCapture.fromJson`, `FrameCapture.parse` and `DrawRecord.fromJson`
+  read it back.
+
+- **Breaking: `RenderSettings.clusteredLights` is on by default** (`A6.28`).
+  A fragment is lit by the lights of its own cell of the view rather than
+  by the thirty-two ranked against its whole draw, so a lamp by a long
+  floor stops flickering in and out as the ranking changes. A scene inside
+  the eight light slots never reaches the cells and draws the same frame;
+  a scene with more draws a different one. `clusteredLights: false` is the
+  old per-draw ranking. No golden in the suite moves: the two scenes with
+  more than eight lights, `many-lights` and `fog-torches`, already asked
+  for the cells.
+
+- **Breaking: the physical camera is the default exposure model**
+  (`B6.22`). `PhysicalCamera` states the exposure as an aperture, a shutter
+  and an ISO, with `ev100`, and `RenderSettings.camera` and
+  `RenderSettings.physicalCamera` (on) put it into the frame:
+  `cameraExposure` is `exposure × camera.exposureScale`. The default camera
+  — f/4, 1/60 s, ISO 100, EV100 ≈ 9.907 — is the reference, so its scale is
+  exactly one and no picture changes until a camera is set; one stop slower
+  is twice the light. The numbers: one unit of scene luminance is 1843.2
+  cd/m² (`PhysicalCamera.nitsPerUnit`, the default exposure of 1.6 at the
+  reference camera under the saturation model, `1.2 × 2^EV100`), one unit
+  of illuminance is π times that, about 5790.6 lux (`luxPerUnit`), and the
+  physical sky's sun of twenty units is about 116 000 lux.
+  `PhysicalSky.illuminance` and `illuminanceLux` say what falls on the
+  ground, and `PhysicalCamera.forSky`, `metered` and `atEv100` set a camera
+  from it as an incident meter would (`EV100 = log2(E / 2.5)`). Auto
+  exposure still decides the exposure while it is on; `FrameResult.ev100`
+  reads what any frame used. `physicalCamera: false` is the multiplier
+  alone, whatever the camera says.
+
+- **Frame pacing** (`A1.4`–`A1.7`). `Renderer.pacing`, a `FramePacing`,
+  sets the frames in flight — three by default, as before, one to three —
+  and, when the GPU is behind by all of them, `render` hands back the
+  previous frame with `FrameResult.held` instead of queueing another, so
+  the UI thread answers input; `Renderer.heldFrames` counts these, and
+  `holdWhenBehind: false` draws regardless. A pipeline build of
+  `stallThreshold` (8 ms) or more is a `PipelineStall` naming the
+  material's shader and the `PipelineGeometry`, on
+  `FrameResult.pipelineStalls`, `Renderer.pipelineStalls`, the new
+  `RenderListener.stalled` and the bus as `FramePipelineStall`
+  (`render.pipelineStall`); `RenderListener.held` and `FrameHeld`
+  (`render.held`) report held frames. `Renderer.warmUpInSlices` does what
+  `warmUp` does a step at a time, yielding to the event loop after each
+  slice of `slice` (8 ms) and reporting progress, so a loading screen
+  still answers.
+
+- **An addon owns its settings: typed slots in `RenderSettings`.** A
+  `SettingsSlot<T>` is a stable id, the defaults and an optional JSON codec;
+  `settings.extension(slot)` reads it and `settings.withExtension(slot, v)`
+  writes it, and a third-party addon adds its own settings type this way
+  without anything in the kernel changing. The values live in the new
+  `RenderSettings.extensions`, a `SettingsExtensions` that `copyWith` keeps,
+  that compares by value, and that writes and reads JSON by id, keeping an
+  id this build has no slot for as it was read. The built-in settings are
+  slots too (`SettingsSlot.bloom`, `SettingsSlot.fog` and fifteen more),
+  read and written through their fields: `BloomSettings`, `FogSettings` and
+  the rest stay defined here, because the kernel's passes read them as
+  fields and a field typed by an addon's class would make the kernel depend
+  on its addon. `RenderStepAddon` takes the `settings` its steps read, and
+  `RendererSteps.addSettings`, `settings` and `settingsNamed` list them on
+  the renderer while the addon is on. Nothing breaks: every field and every
+  import is where it was.
+
+- **Lighting models are an open registry.** `LightingModels` answers a
+  material's shader name with the built-in models and every model a plugin
+  registered (`register`, `named`, `all`, `registered`), counted, so two
+  engines installing one addon share the entry. `LightingModelAddon` is the
+  plugin that registers models and hands the renderer their stages
+  (`RendererSteps.addLightingModel`, `RendererSteps.addMaterials`,
+  `RendererSteps.device`), a bundle compiled from a `.f3dmat` with `light`
+  and composite hooks or one prebuilt per backend. `.fmat` reads a
+  registered model's name and writes it back by name. The built-in ids are
+  unchanged, and `LightingModel.toon` stays in `LightingModel.builtIn` as a
+  stable alias of `flutter3d_addon_style`'s `toonLighting`: its stages are
+  still in every engine bundle, so a document naming `Toon` draws with or
+  without the addon.
+
+- **The view's depth runs the other way round, and its near plane is
+  fitted to what is drawn — `A2.8`, `A2.9`.** Where the device stores a
+  float in `[0, 1]` (`DeviceFeature.reversedDepth`: Metal through
+  Impeller, WebGPU, WebGL2 with `EXT_clip_control`, the software
+  rasteriser), the scene, the transparent layers and the glass are drawn
+  near at one and far at nought, cleared to nought and tested `greater`,
+  which keeps depth precise from the lens to the horizon. Every pass that
+  draws into that depth is opened through one encoder that turns the tests
+  it is given, so a material's `depthCompare`, the x-ray's `greater` and a
+  contributor written for the ordinary convention all mean what they meant.
+  Each frame the near plane is also moved out to just in front of the
+  nearest box the view draws; a contributor that cannot say where it draws
+  keeps the camera's plane for the view, and `PassContributor.boundsFor` is
+  where it can say. `ContributorFrame.reversedDepth` tells a stage that
+  writes a depth of its own which way round it is. Projections, picking,
+  `CameraNode.viewProjection` and the post passes keep the camera's own
+  planes, and effects read depth from the surface buffer in metres, which
+  neither convention touches. `RenderSettings.reversedDepth`, on by default,
+  is the switch back to the old picture. The sky now takes its depth from
+  its vertices, nought reversed and tested `lessEqual`. Every golden set
+  moves by depth precision; see `0.9-release.md`.
+
+- **A perspective camera may have no far plane — `A2.10`.**
+  `PerspectiveProjection.infinite`, or `far: double.infinity`, builds the
+  limit of the matrix as the far plane recedes; `OffAxisProjection` takes
+  one too. Nothing in front of the near plane is cut away however far it
+  is. `withDepthPlanes` rebuilds a perspective matrix's depth row for any
+  pair of planes, reversed or not, and `toReversedDepth` turns any matrix
+  round. Where the renderer needs a number for the far plane — the light
+  clusters' last slice, the depth pyramid's scale, a ray unprojected
+  through a pixel, a mirror's oblique plane — it stands 65504 m in, the
+  largest depth the surface buffer's half float holds.
+
+- **A box a hand tall keeps its shadow in a near cascade.** The sun's
+  shadow map now keeps its depth the other way round too, and in 32-bit
+  floats where the device renders, filters and blends them. A half float's
+  steps were coarsest where the ground lies, at the far end of a cascade,
+  so every surface needed a bias of one stored step of a cascade hundreds of
+  metres deep along the light: 0.18 m in the near cascades, which a low box
+  cast nothing past. Turned round, that floor is taken at each fragment's
+  own depth, where the steps are finest, and 32-bit floats have none. The
+  lit models, the fog, the light shafts and the moments filter read the
+  storage mode from a lane each; `test/depth_precision_test.dart` holds a
+  10 cm box to its shadow. Off with `RenderSettings.reversedDepth`.
+
+- **Opaque draws go through a stage with no `discard` — `A1.2`.** A stage
+  that may discard a fragment turns off early depth and a tiler's
+  hidden-surface removal for its whole draw, whatever its uniforms let it
+  reach. The six lit models now come with an opaque variant, used for
+  every opaque draw; a masked or hashed one is cut by a depth pre-draw
+  first and then shaded through the variant, tested `equal`.
+  `FramePassState.boundOpaque` tracks which variant is bound.
+
+- **Levels of detail cross-fade instead of popping — `A1.3`.**
+  `LodGroup.crossFade`, a tenth of each threshold by default, is a band
+  past a coarser level's threshold where both levels are drawn: an opaque
+  pair splits the pixels through one pattern in the pre-draw, and a
+  transparent pair splits the opacity, by `MeshNode.lodFade`. The band
+  follows the measure, not the clock, so a still camera shows a still
+  picture and a replay draws the same frame. `crossFade: 0` is the hard
+  switch; `activeLevel` keeps its hysteresis either way.
+
+- **The renderer speaks on the bus.** `RenderListener.toBus` makes the
+  listener that publishes each frame's news onto an event bus as
+  `FramePassSkipped`, `FrameOverTime` and `FrameDrawn`, in the order
+  `notify` calls them. `Renderer.listener` stays the field it is set on,
+  and a listener written with callbacks works as before.
+
+- **Decoders and asset sources register through the plugin host.**
+  `ModelDecoders` fills the plugin API's `DecoderRegistry` slot: a plugin
+  adds a `ModelDecoder` and a source for a path scheme (`pak:`), both
+  withdrawn when it is switched off and ordered by install order, the
+  application's first. The request still carries its decoders to the
+  isolate that decodes: `withDecoders` puts a request's own first and the
+  registered after them, so a per-request list reads what it read.
+  `AssetSources` is the table behind it: a path with a known scheme goes to
+  that scheme's source, any other path to the fallback the caller names.
+  `AssetSource` was already open; this opens how a path becomes one.
+
+- **Every format reads its past.** `.f3d` and `.f3dsplat` read every version
+  up to the one this build writes, instead of only that one, and refuse a
+  newer file with a sentence telling you to update flutter3d. Each format has
+  a fixture minted at version 1 under `test/fixtures/v1/` that its tests read,
+  and a structure rule counts those fixtures against the version constants.
+
+- **`.f3dmat` has a version.** A material may open with the line `f3dmat 1`.
+  Without it, a file is version 1, which covers every material written
+  before. `materialLanguageVersion` is the newest version this build reads.
+  A newer file is a `MaterialSyntaxError` on line 1 naming the version to
+  update to. `MaterialProgram.languageVersion` says which version a source
+  was written in, and a variant keeps it.
+
+- **Breaking: `AnimationTarget`, `MorphSink`, `FrameTextureSource`,
+  `ContributorLights`, `RenderServices`, `OcclusionTest`,
+  `AnimationPointerSink` and `MeshGeometry` can no longer be implemented
+  outside their own library: each is an `abstract base mixin class` now, so a
+  game or a test mixes it in (`with`) and its class is `final` or `base`. A
+  member added to one in a 1.x release arrives with a body, which an
+  `implements` could not have taken without breaking somebody.
+  `DrawableGeometry` is an `abstract base class` with `MeshGeometry` mixed in,
+  and is extended. `ModelDecoder`, `ModelWriter`, `CheckedModelWriter` and
+  `DeviceClassMemory` stay implementable, and say so.
+
+- **Breaking: the graphics vocabulary is not re-exported.** 0.8 handed on
+  the whole of `flutter3d_hardware`; a caller that spells its types depends
+  on it, or on `flutter3d`, which names what an application spells.
+
+- **Any set of rendering steps can be switched off at once.**
+  `RenderSettings.without(Set<RenderStep>)` takes out any combination of
+  thirty steps: the shadows, caustics, reflection probes, irradiance
+  updates, render textures, planar and screen-space reflections, decals,
+  distance fog, hi-Z occlusion, ambient occlusion, contact shadows,
+  volumetric fog, light shafts, depth of field, motion blur, temporal
+  anti-aliasing, auto and local exposure, bloom, lens flare, the tone
+  curve, the grade, the lens's distortion, vignette and grain, the spatial
+  upscale, edge smoothing, sharpening, high contrast and viewport shading.
+  `only(...)` keeps a set and switches off the rest. Each step is switched
+  off through the setting that already gated it, so the frame is the one a
+  caller would get by hand. Three steps had no switch and now have one:
+  `reflectionProbes`, `renderTextures` and `irradianceUpdates`. With any of
+  these off, the capture keeps its last picture. A step that another step
+  needs takes that step with it: bloom takes the lens flare, and the
+  shadows take the caustics. `FrameResult.skipped` names every step that
+  was switched off with the new `PassSkip.switchedOff`, including the steps
+  that have no pass of their own. Every pair of steps, and a seeded sample
+  of larger sets, is drawn on the software device and checked against a
+  model of which pass each setting gates
+  (`flutter3d_cpu/test/render_steps_test.dart`).
+
+- **Every engine pass has an anchor before it and after it, and a plugin's
+  pass goes there.** `Renderer.renderSteps` is a `RendererSteps`, the
+  plugin API's `RenderStepRegistry` filled in, and
+  `addNode(node, at: RenderAnchor.beforeTonemap)` puts a pass after the
+  shadows, before the transparent half, before tone mapping, or at any of
+  fifty places in the frame. Nodes at one anchor take `after`/`before`
+  constraints and otherwise run in registration order, the application's
+  first and then each plugin's in install order. The plugin host reaches
+  it through `EngineLoop(registries: [renderer.renderSteps])`, and a
+  plugin asks for `host.registry<RendererSteps>()`. Everything it adds is
+  withdrawn when it is switched off. `FramePhase.overlay` and `present` are
+  two of the anchors now (`FramePhase.anchor`), and a node registered in
+  either runs exactly where it ran before.
+
+- **`RenderStep` is open.** `const RenderStep('soft glow', needs: {...})`
+  defines a step, and `RendererSteps.addStep` makes it one of the
+  renderer's. It works like the thirty built in: `without` and `only`
+  switch it (pass `renderer.renderSteps.added` as `also`), a step it needs
+  takes it down, and `FrameResult.skipped` reports it and its passes as
+  switched off. With no setting of its own, a step is switched by being in
+  `RenderSettings.stepsOff`; a step that has one gives `switchOff` and
+  `isOn`. The built-in steps keep their names.
+
+- **The engine's own passes are scheduled through the same anchors.** Each
+  group of passes stands between its two anchors and goes through the
+  schedule a plugin's node goes through. The registration order is
+  unchanged pass for pass: 244 frames (the default settings and every step
+  on, each step switched off alone and kept alone, with and without
+  application nodes in both phases) are held to the order recorded before
+  the change (`flutter3d_cpu/test/render_anchors_test.dart`).
+
+- **An addon can be the switch of a step the kernel draws.**
+  `RendererSteps.provide(step)` takes a step as a plugin's own. While the
+  plugin is on, nothing changes. When it is switched off, the step is
+  withdrawn: every frame of that renderer is drawn without it, and
+  `FrameResult.skipped` says it was switched off. `RenderStepAddon` is a
+  plugin that provides a list of steps, and the six post-processing
+  families in `packages/addons/` are built on it. A step nobody provides is
+  drawn as its settings say, so a renderer with no addon installed draws
+  the frame it always drew.
+
+- **A history pass with nothing to blend no longer runs.** If its effect
+  was off, the occlusion's or the contact shadow's history pass, which
+  reads and rewrites the same resource, had its read bound to its own
+  write. It counted as fed and blended the history of an effect nobody
+  drew. The read now stays unproduced, so the pass starves as its
+  documentation always said it would. The picture does not change,
+  because the composite and the volumetric fog apply neither term while
+  its effect is off. The frame does one full-screen pass less.
+
+- **`Renderer.listener` reports each frame after it is drawn.** A
+  `RenderListener` gets `drawn` with every `FrameResult`, `skipped` with
+  each entry of `FrameResult.skipped`, and `overTime` when the frame's CPU
+  time exceeds `frameBudget`. It is for drawing only: it runs after the
+  frame and must not change the simulation, so replays hold.
+  `FrameResult.skipped` now also lists the requests a frame declined
+  (wireframe, alpha to coverage, multisampling and point shadow rows)
+  under `FrameResult.declinedNames` with the new `PassSkip.declined`.
+
+- **A metre-high caster keeps its shadow in the last cascade.** The depth
+  bias was `ShadowSettings.bias` of each cascade's depth range, and the last
+  cascade's range is the whole level: in a valley 880 m square that was
+  2.24 m along the light, so a boat or a car a metre off the ground lost its
+  shadow past the second split, about twenty-three metres out, until the
+  near cascades reached it. No cascade's bias now exceeds the nearest
+  cascade's in metres; the floor of one stored half-float step still holds.
+  And a cascade's depth is fitted to the casters' extent along the light
+  rather than to the sphere round them, which takes that floor in the
+  valley from 0.73 m to 0.42 m, and the near cascades' from 0.31 m to
+  0.18 m; the tiles keep the sphere's width. Of the true shadow of a box
+  1.2 m tall, 31 m from the camera, the frame drew 58 of 211 pixels before
+  and 175 after, with no lit floor darkened beyond the edge's own texels
+  (`flutter3d/test/far_cascade_shadow_test.dart`). One cascade keeps the
+  bias in metres it had. Shadow goldens move by the bias.
 
 - **A sorted splat cloud is ordered on the GPU where the device computes —
   `H11`.** `SplatGpuSort` takes the keys `SplatSorter.quantise` makes and
@@ -6,7 +818,7 @@
   its last pass writes the draw's index buffer, so the order never comes
   back to the CPU and the quads are built in the cloud's own order.
   `SplatContributor` uses it when the device has compute and the
-  `SplatSort` stages and the cloud has at most `kSplatGpuSortLimit`
+  `SplatSort` stages and the cloud has at most `splatGpuSortLimit`
   splats; `gpuSort = false` turns it off, and every other device keeps the
   CPU sort, which is the reference: the GPU's order is the CPU's to the
   splat, ties in index order, and the picture is the same to the byte.
@@ -480,7 +1292,18 @@
   eight bits that `flutter3d_model_core`'s `panoramaPixels` used to keep to
   itself, so both read a `.hdr` the same way.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+- **On the web the browser decodes textures, and a cap scales them at
+  decode.** `uploadEncodedImage` hands the encoded bytes to a device that is
+  an `EncodedImageUpload` first, so on WebGL2 and WebGPU the pixels never pass
+  through Dart and the chain is built on the GPU; the `decodeImage` it is
+  given is the fallback, and `platformDecode: false` skips the device. Its
+  new `maxDimension`, else the `maxDecodedTextureDimension` setting, caps the
+  longer side, and the device's largest texture is always the ceiling
+  (`textureDecodeCap`). A `SizedImageDecoder` is asked for the capped size;
+  any other decoder's answer is scaled down after it by `fitRgba8Image`. A
+  KTX2 file with a chain starts at its first level that fits.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.3+1
 

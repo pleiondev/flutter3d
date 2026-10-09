@@ -4,15 +4,17 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 
 /// A library of Dart stages, by the names the engine asks for.
-final class CpuShaderLibrary implements ShaderLibrary {
+final class CpuShaderLibrary with ShaderLibrary {
   CpuShaderLibrary(Map<String, CpuStage> stages)
     : stages = Map<String, CpuStage>.unmodifiable(stages);
 
@@ -32,11 +34,12 @@ final class CpuShaderLibrary implements ShaderLibrary {
       // The table is the GLSL stage's, and the Dart stage standing in for it
       // is held to the same bindings, so a draw binds the same slots here as
       // on the GPU.
-      () => ShaderHandle(
+      () => wrapShader(
         backend: stage,
         name: name,
         kept: stageBindings[name],
         layouts: uniformBlocks[name],
+        release: (ShaderHandle h) => forgetShader(_handles, h),
       ),
     );
   }
@@ -56,7 +59,7 @@ final class CpuShaderLibrary implements ShaderLibrary {
 /// than accepted and answered with nothing. An application that wants its
 /// own look here in anything but the language writes it in Dart and hands it
 /// to `CpuDevice.shaders`; see `test/custom_material_test.dart`.
-final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
+final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   CpuLoadedShaderLibrary._(this._own, this._bundle, this._compiler);
 
   /// Builds the library, or refuses the bundle by name.
@@ -97,11 +100,11 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
         compiled[name] = previous;
         continue;
       }
-      final CpuFragmentShader stage;
+      final CpuStage stage;
       try {
         stage = compiler(name, source);
       } on Object catch (error) {
-        throw ShaderBundleRefused(
+        throw ShaderBundleException(
           name: bundle.name,
           reason: 'its material "$name" does not compile here: $error',
         );
@@ -109,7 +112,7 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
       compiled[name] = _MaterialStage(source, stage);
     }
     if (missing.isNotEmpty) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'the software rasteriser runs Dart stages only and has none for '
@@ -122,13 +125,11 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
     return compiled;
   }
 
-  static Map<String, String> _sources(ShaderBundle bundle) {
-    try {
-      return decodeMaterialSection(bundle);
-    } on FormatException catch (error) {
-      throw ShaderBundleRefused(name: bundle.name, reason: error.message);
-    }
-  }
+  /// The material sources [bundle] carries. A payload that is not one is
+  /// already a [ShaderBundleException] naming the bundle, thrown by
+  /// [decodeMaterialSection] itself, so it passes through as it is.
+  static Map<String, String> _sources(ShaderBundle bundle) =>
+      decodeMaterialSection(bundle);
 
   final ShaderLibrary _own;
   ShaderBundle _bundle;
@@ -160,8 +161,18 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
         ? _own[name]
         : _materialHandles.putIfAbsent(
             name,
-            () =>
-                ShaderHandle(backend: CpuStage.fragment(material), name: name),
+            () => wrapShader(
+              // A compiled stage that is a vertex stage too — a material's
+              // `vertex` block, version 2 — is handed out as one.
+              backend: material.inner.vertex != null
+                  ? CpuStage.vertex(_MaterialVertexStage(material))
+                  : CpuStage.fragment(material),
+              name: name,
+              release: (ShaderHandle h) {
+                forgetShader(_materialHandles, h);
+                _handedOut.remove(h.name);
+              },
+            ),
           );
     if (handle != null) _handedOut.add(name);
     return handle;
@@ -177,7 +188,7 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
         .where((String n) => !bundle.names.contains(n))
         .toList();
     if (dropped.isNotEmpty) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
@@ -207,20 +218,65 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
 /// `flutter3d_core` and this package does not depend on it;
 /// `flutter3d_testing`'s `materialLanguageCompiler` is one that does. Throws
 /// to refuse a source, and the throw becomes the bundle's refusal.
-typedef CpuMaterialCompiler =
-    CpuFragmentShader Function(String stage, String source);
+///
+/// **A vertex stage too — 1.0, the language's `vertex` block.** A compiled
+/// `CpuStage.vertex` is handed out as a vertex stage (a material's `vertex`
+/// block), and a `CpuStage.fragment` as a fragment stage.
+typedef CpuMaterialCompiler = CpuStage Function(String stage, String source);
 
 /// A compiled material stage a reload can point at new code under the handle
 /// already handed out.
-final class _MaterialStage implements CpuFragmentShader {
+final class _MaterialStage extends CpuFragmentShader {
   _MaterialStage(this.source, this.inner);
 
   String source;
-  CpuFragmentShader inner;
+
+  /// What the compiler made: a fragment stage, or a vertex stage for a
+  /// material's `vertex` block.
+  CpuStage inner;
 
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) =>
-      inner.run(v, bindings, c);
+      switch (inner.fragment) {
+        final CpuFragmentShader fragment => fragment.run(v, bindings, c),
+        null => throw StateError('this material stage is a vertex stage'),
+      };
+}
+
+/// A compiled material's vertex stage, through the same reloadable holder:
+/// a reload that points [_MaterialStage.inner] at new code moves the vertex
+/// stage already handed out.
+final class _MaterialVertexStage extends CpuVertexShaderByIndex {
+  _MaterialVertexStage(this._material);
+
+  final _MaterialStage _material;
+
+  CpuVertexShader get _inner => _material.inner.vertex!;
+
+  @override
+  int get varyingCount => _inner.varyingCount;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List varyings) =>
+      _inner.run(a, bindings, varyings);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    int instanceIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List varyings,
+  ) => switch (_inner) {
+    final CpuVertexShaderByIndex byIndex => byIndex.runAt(
+      vertexIndex,
+      instanceIndex,
+      a,
+      bindings,
+      varyings,
+    ),
+    final plain => plain.run(a, bindings, varyings),
+  };
 }
 
 /// A vertex and a fragment stage, paired.
@@ -231,5 +287,5 @@ final class CpuPipeline {
 
   /// Where the vertex stage's inputs come from, or null to read one
   /// interleaved buffer in shader order — see `CpuEncoder._drawOnce`.
-  final VertexLayoutSpec? layout;
+  final VertexLayoutDescriptor? layout;
 }

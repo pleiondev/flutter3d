@@ -23,19 +23,20 @@ final class DrawItem {
   MeshNode? node;
 
   /// Distance from the camera along its forward axis, used by every depth sort.
+  /// In metres.
   double viewDepth = 0.0;
 
   MeshNode get requireNode => node!;
 
-  Material get material => node!.material;
+  RenderMaterial get material => node!.material;
 }
 
 /// Visible draws for one view, split into opaque and transparent halves.
 ///
-/// The split mirrors PlayCanvas sub-layers: the two halves need different sort
+/// The two halves need different sort
 /// orders, so separating them is simpler than one list with a mixed comparator.
 final class RenderList {
-  /// Material ids for the state sort term. Owned here because this is the only
+  /// RenderMaterial ids for the state sort term. Owned here because this is the only
   /// place they are used.
   final MaterialSortIds materialIds = MaterialSortIds();
 
@@ -121,7 +122,7 @@ final class RenderList {
   final Aabb3 _bvhScratch = Aabb3();
   Float32List _bvhSpheres = Float32List(0);
 
-  /// [SceneNode.changeEpoch] and the mesh count as of the last pack, so a frame
+  /// [sceneChangeEpoch] and the mesh count as of the last pack, so a frame
   /// where nothing was touched skips it. -1 is "never packed".
   int _bvhEpoch = -1;
   int _bvhCount = -1;
@@ -176,7 +177,7 @@ final class RenderList {
 
     final meshes = scene.meshes;
     final viewRow = viewMatrix.storage;
-    final centre = Vector3.zero();
+    final center = Vector3.zero();
 
     /// The per-mesh work, identical whichever way the candidates arrived.
     ///
@@ -187,17 +188,17 @@ final class RenderList {
     /// hope.
     void consider(MeshNode node) {
       considered++;
-      if (!node.visibleInHierarchy) return;
+      if (!node.isVisibleInHierarchy) return;
       // A proxy occluder casts and is never seen. Filtered here rather than in
       // the shadow pass because this is the pass it is absent from: the shadow
       // passes walk the scene's registry themselves and want it.
-      if (!node.shadowCasting.drawsColour) return;
+      if (!node.shadowCasting.drawsColor) return;
       if ((node.layerMask & view.layerMask) == 0) return;
       if (node.mesh.indexCount == 0) return;
 
       // The centre is still wanted for the depth sort below, and reading it
       // is what refreshes the bounds the cull then tests.
-      centre.setFrom(node.worldBoundsCentre);
+      center.setFrom(node.worldBoundsCenter);
 
       if (node.frustumCulled) {
         // **The box, not the sphere around it — `gfx-61n`.**
@@ -222,9 +223,9 @@ final class RenderList {
       // centre, negated because the camera looks down -Z. Computing it inline
       // avoids transforming a whole vector.
       final eyeZ =
-          viewRow[2] * centre.x +
-          viewRow[6] * centre.y +
-          viewRow[10] * centre.z +
+          viewRow[2] * center.x +
+          viewRow[6] * center.y +
+          viewRow[10] * center.z +
           viewRow[14];
 
       _claim()
@@ -235,7 +236,7 @@ final class RenderList {
       // More draws than the packed payload can address would alias one entry onto
       // another's slot. Six figures of draws is far past anything this renderer
       // can submit, so an assert is the right level of defence.
-      assert(index <= kMaxPayload, 'Too many draws to pack into a sort key.');
+      assert(index <= maxPayload, 'Too many draws to pack into a sort key.');
 
       if (node.drawsTransparent) {
         transparent.add(index);
@@ -256,7 +257,7 @@ final class RenderList {
       // `changeEpoch` answers the same question in one comparison. It
       // over-reports — a node set to the position it already had advances
       // it — which costs a frame of repacking and can never miss a move.
-      final epoch = SceneNode.changeEpoch;
+      final epoch = sceneChangeEpoch;
       if (epoch != _bvhEpoch || meshes.length != _bvhCount) {
         _bvhSpheres = ensureSphereCapacity(_bvhSpheres, meshes.length);
         bvh.refresh(
@@ -302,13 +303,13 @@ final class RenderList {
       ..add(scene.root);
     while (_walk.isNotEmpty) {
       final node = _walk.removeLast();
-      if (!node.visible) continue;
+      if (!node.isVisible) continue;
 
       final children = node.childrenView;
       if (children.isNotEmpty) {
         final box = node.subtreeBounds;
         if (box == null) continue;
-        if (!node.subtreeAlwaysDrawn &&
+        if (!node.isSubtreeAlwaysDrawn &&
             (!frustum.intersectsWithAabb3(box) ||
                 (occlusion != null && !occlusion.mayBeVisible(box)))) {
           continue;
@@ -419,7 +420,7 @@ final class RenderList {
   // shift there, it is a wrong number — and `|` above 32 bits is wrong the same
   // way. The fields do not overlap by construction, so addition is exactly
   // or-ing, and the products are exact on both platforms because the whole key
-  // is kSortKeyBits wide and that fits a double.
+  // is sortKeyBits wide and that fits a double.
   //
   // Written as constants because `1 << 35` is itself the bug being avoided.
   static const int _b14 = 16384;

@@ -52,7 +52,7 @@ void main() {
       expect(
         () => resolveIncludes('#include <a.glsl>', sources, from: 'top.frag'),
         throwsA(
-          isA<GlslTranslateError>().having(
+          isA<GlslTranslateException>().having(
             (e) => e.message,
             'message',
             contains('cycle'),
@@ -69,7 +69,7 @@ void main() {
           from: 'a.frag',
         ),
         throwsA(
-          isA<GlslTranslateError>().having(
+          isA<GlslTranslateException>().having(
             (e) => e.message,
             'message',
             allOf(contains('a.frag'), contains('gone')),

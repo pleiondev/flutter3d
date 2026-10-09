@@ -50,7 +50,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A floor, six boxes and a shadow-casting sun bright enough to bloom — real
 /// work for shadows, ambient occlusion and bloom alike, not a scene chosen to
@@ -59,9 +58,9 @@ import 'package:vector_math/vector_math.dart';
   final scene = Scene();
   MeshNode block(Vector3 size, Vector3 at, {required String name}) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.7, 0.7, 0.75, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.75, 1.0),
       lighting: LightingModel.pbr,
       roughness: 0.6,
     ),
@@ -81,7 +80,7 @@ import 'package:vector_math/vector_math.dart';
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 1.2,
+      intensity: 1.2 * Photometric.legacyUnit,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.3, -0.9, 0.2)),

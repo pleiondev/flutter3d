@@ -55,7 +55,7 @@ final class _TestNode extends FrameGraphNode {
 
 TextureHandle _hdr(FakeBackend device, {int width = 32, int height = 32}) =>
     device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: width,
         height: height,
         format: device.hdrColorFormat,
@@ -70,42 +70,34 @@ void main() {
     // `renderPost` exercises — checked directly here, with no renderer or
     // device in the room, the same way `frame_graph_test.dart` checks every
     // other rule this file's own machinery relies on.
-    const colour = ResourceId('hdr_colour');
+    const color = ResourceId('hdr_colour');
     const bloom = ResourceId('bloom');
 
     test('a node that only reads the external resource binds version zero', () {
       final graph = FrameGraph()
-        ..addExternal(colour)
+        ..addExternal(color)
         ..addNode(
-          const _TestNode(
-            'bloom',
-            reads: <ResourceId>[colour],
-            writes: [bloom],
-          ),
+          const _TestNode('bloom', reads: <ResourceId>[color], writes: [bloom]),
         );
       final compiled = graph.compile(outputs: <ResourceId>[bloom]);
 
-      expect(compiled.readVersionOf(0, colour), 0);
+      expect(compiled.readVersionOf(0, color), 0);
       expect(compiled.writeVersionOf(0, bloom), 1);
     });
 
     test('a node that expects version one of a resource nothing produced is '
         'refused at compile, not at runtime', () {
-      // Mutation: register `colour` as a normal node's write instead of
+      // Mutation: register `color` as a normal node's write instead of
       // `addExternal`, or drop the `addExternal` call in `renderPost`
       // itself — either turns this from "refused before a pass runs" into
       // "silently reads whatever version zero happens to hold", which is
       // exactly the failure the graph's own compile-time check exists to
       // catch instead of a blank frame at runtime.
       final graph = FrameGraph()
-        // No `addExternal(colour)` here: nothing hands the graph a version
+        // No `addExternal(color)` here: nothing hands the graph a version
         // zero of it at all, so a reader has nothing to bind to.
         ..addNode(
-          const _TestNode(
-            'bloom',
-            reads: <ResourceId>[colour],
-            writes: [bloom],
-          ),
+          const _TestNode('bloom', reads: <ResourceId>[color], writes: [bloom]),
         );
 
       expect(
@@ -217,7 +209,7 @@ void main() {
       final it = _engine();
       final hdr = _hdr(it.device);
       final target = it.device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: hdr.width,
           height: hdr.height,
           format: it.device.defaultColorFormat,
@@ -349,7 +341,7 @@ void main() {
       final it = _engine();
       final hdr = _hdr(it.device);
       final target = it.device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: hdr.width,
           height: hdr.height,
           format: it.device.defaultColorFormat,

@@ -34,12 +34,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 WebGlDevice _makeDevice({int width = 8, int height = 8}) {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: width,
     height: height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -63,7 +62,7 @@ Future<List<int>> _sampleAt(
   }
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -128,8 +127,7 @@ Future<List<int>> _sampleAt(
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  if (read == null) fail('the target could not be read back');
+  final read = await device.readback(target);
   final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
   return <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
@@ -159,7 +157,7 @@ void main() {
 
   Future<void> checkTwoBlocks(TextureFormat format, Uint8List encoded) async {
     final device = _makeDevice();
-    if (!device.supportsTextureFormat(format)) {
+    if (!device.textureFormatSupport(format).sampled) {
       markTestSkipped('${format.name} not reported as supported here');
       device.dispose();
       return;
@@ -172,7 +170,7 @@ void main() {
     );
     expect(texture, isNotNull);
 
-    final left = await _sampleAt(device, texture!, 0.25, 0.5);
+    final left = await _sampleAt(device, texture, 0.25, 0.5);
     final right = await _sampleAt(device, texture, 0.75, 0.5);
     for (final (channel, l, r, wantL, wantR) in <(String, int, int, int, int)>[
       ('red', left[0], right[0], source.red(0, 0), source.red(4, 0)),

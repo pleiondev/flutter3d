@@ -9,7 +9,7 @@ import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
@@ -108,7 +108,10 @@ void main() {
         'asset': {'version': '2.0'},
       });
       ByteData.sublistView(bytes).setUint32(4, 1, Endian.little);
-      expect(() => GlbContainer.parse(bytes), throwsFormatException);
+      expect(
+        () => GlbContainer.parse(bytes),
+        throwsA(isA<GltfFormatException>()),
+      );
     });
 
     test('rejects a chunk that overruns the file', () {
@@ -117,12 +120,18 @@ void main() {
       });
       // Claim a JSON chunk far larger than the file.
       ByteData.sublistView(bytes).setUint32(12, 0xFFFF, Endian.little);
-      expect(() => GlbContainer.parse(bytes), throwsFormatException);
+      expect(
+        () => GlbContainer.parse(bytes),
+        throwsA(isA<GltfFormatException>()),
+      );
     });
 
     test('a truncated header is an error, not a crash', () {
       final bytes = Uint8List.fromList(<int>[0x67, 0x6C, 0x54, 0x46, 0, 0]);
-      expect(() => GlbContainer.parse(bytes), throwsFormatException);
+      expect(
+        () => GlbContainer.parse(bytes),
+        throwsA(isA<GltfFormatException>()),
+      );
     });
   });
 
@@ -141,7 +150,7 @@ void main() {
     test('rejects a URI with no comma', () {
       expect(
         () => decodeDataUri('data:application/octet-stream'),
-        throwsFormatException,
+        throwsA(isA<GltfFormatException>()),
       );
     });
   });
@@ -268,7 +277,7 @@ void main() {
         },
         buffers: <Uint8List>[Uint8List(12)],
       );
-      expect(() => reader.readAsFloats(0), throwsFormatException);
+      expect(() => reader.readAsFloats(0), throwsA(isA<GltfFormatException>()));
     });
   });
 
@@ -374,7 +383,7 @@ void main() {
         await expectLater(
           GltfLoader().load(readSample('cube/Cube.gltf')),
           throwsA(
-            isA<FormatException>().having(
+            isA<GltfFormatException>().having(
               (e) => e.message,
               'message',
               contains('no URI resolver'),
@@ -716,7 +725,7 @@ void main() {
 
       final material = asset.materials.single;
       expect(material.name, 'Glass');
-      expect(material.baseColor.w, closeTo(0.4, 1e-6));
+      expect(material.baseColor.a, closeTo(0.4, 1e-6));
       expect(material.metallic, closeTo(0.25, 1e-6));
       expect(material.alphaMode, SurfaceAlphaMode.blend);
       expect(material.doubleSided, isTrue);
@@ -751,10 +760,10 @@ void main() {
         final tint = asset.materials.single.baseColor;
         // 1.055 · 0.5^(1/2.4) − 0.055, the value a paint program shows for a
         // linear half.
-        expect(tint.x, closeTo(0.7354, 1e-4));
-        expect(tint.y, 0.0);
-        expect(tint.z, closeTo(1.0, 1e-6));
-        expect(tint.w, 0.5, reason: 'alpha is not a colour');
+        expect(tint.r, closeTo(0.7354, 1e-4));
+        expect(tint.g, 0.0);
+        expect(tint.b, closeTo(1.0, 1e-6));
+        expect(tint.a, 0.5, reason: 'alpha is not a colour');
 
         final written = GlbContainer.parse(GltfWriter(asset).writeGlb()).json;
         final factor =
@@ -812,7 +821,7 @@ void main() {
           }),
         ),
         throwsA(
-          isA<FormatException>().having(
+          isA<GltfFormatException>().having(
             (e) => e.message,
             'message',
             contains('KHR_materials_diffuse_transmission'),

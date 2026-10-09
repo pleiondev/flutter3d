@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -100,8 +101,8 @@ void _expectCarPaint(MaterialExtensions? layers) {
   expect(layers, isNotNull);
   expect(layers!.ior, closeTo(1.8, 1e-6));
   expect(layers.specular, closeTo(0.5, 1e-6));
-  expect(layers.specularColor.y, closeTo(0.5, 1e-6));
-  expect(layers.specularColor.z, closeTo(0.25, 1e-6));
+  expect(layers.specularColor.g, closeTo(0.5, 1e-6));
+  expect(layers.specularColor.b, closeTo(0.25, 1e-6));
   expect(layers.clearcoat, 1.0);
   expect(layers.clearcoatRoughness, closeTo(0.125, 1e-6));
   expect(layers.clearcoatTexture?.imageIndex, 0);
@@ -175,7 +176,7 @@ void main() {
       );
       void check(MaterialExtensions? layers) {
         expect(layers, isNotNull);
-        expect(layers!.sheenColor.y, closeTo(0.4, 1e-6));
+        expect(layers!.sheenColor.g, closeTo(0.4, 1e-6));
         expect(layers.sheenColorTexture?.imageIndex, 0);
         expect(layers.sheenRoughness, 0.5);
         expect(layers.anisotropyStrength, 0.75);
@@ -228,7 +229,7 @@ void main() {
         expect(layers!.transmission, closeTo(0.9, 1e-6));
         expect(layers.thickness, 0.25);
         expect(layers.attenuationDistance, 2.0);
-        expect(layers.attenuationColor.z, 0.25);
+        expect(layers.attenuationColor.b, 0.25);
         expect(layers.dispersion, 0.5);
         expect(layers.iridescence, 1.0);
         expect(layers.iridescenceIor, closeTo(1.6, 1e-6));
@@ -280,7 +281,7 @@ void main() {
     final layers = MaterialExtensions(
       ior: 1.8,
       specular: 0.5,
-      specularColor: Vector3(1.0, 0.5, 0.25),
+      specularColor: const LinearColor(1.0, 0.5, 0.25),
       clearcoat: 1.0,
       clearcoatTexture: TextureBinding(
         imageIndex: 0,
@@ -325,7 +326,7 @@ void main() {
         extensions: MaterialExtensions(
           ior: 1.8,
           specular: 0.5,
-          specularColor: Vector3(1.0, 0.5, 0.25),
+          specularColor: const LinearColor(1.0, 0.5, 0.25),
           clearcoat: 1.0,
           clearcoatTexture: const TextureBinding(imageIndex: 0),
           clearcoatRoughness: 0.125,

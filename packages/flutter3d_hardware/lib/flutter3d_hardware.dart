@@ -31,24 +31,39 @@
 /// file appears in the new backend, and that is all.
 library;
 
+/// What a device can do: features, limits, per-format support, and the
+/// refusal every gated call throws.
+export 'src/capabilities.dart';
+
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
-export 'src/compute.dart';
+export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
 
 /// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
 /// frame from one — both as a backend registers into, not a list this
 /// package or an assembly layer has to already know every entry of.
+export 'src/device_exceptions.dart';
 export 'src/device_registry.dart';
+
+/// An encoded image decoded and uploaded by the device itself, and the
+/// size arithmetic of a decode cap.
+export 'src/encoded_image.dart';
+
+/// Facts about each format that hold on every device.
+export 'src/format_info.dart';
 
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
 
 /// Opaque handles for the things a backend owns.
-export 'src/geometry_buffer.dart';
+export 'src/geometry_buffer.dart' hide wrapGeometry;
 export 'src/gpu_timings.dart';
 
 /// The device: textures, buffers, pipelines, passes.
 export 'src/graphics_device.dart';
+
+/// The files this package writes, for a `FormatRegistry`.
+export 'src/hardware_formats.dart';
 
 /// How a texture is sampled.
 export 'src/mip_chain.dart';
@@ -62,12 +77,18 @@ export 'src/readback.dart';
 /// Reuse of render targets, and the description that makes two of them
 /// interchangeable.
 export 'src/render_target_pool.dart';
+
+/// Texture shapes and usages, general buffers, query sets, copy locations.
+export 'src/resources.dart' hide wrapQuerySet, wrapRenderBundle;
 export 'src/sampler.dart';
-export 'src/shader.dart';
+export 'src/shader.dart' hide forgetShader, wrapPipeline, wrapShader;
 
 /// A bundle that arrives as bytes: the container every backend reads its own
 /// section of, and the refusal a device answers with when it cannot.
 export 'src/shader_bundle.dart';
-export 'src/texture.dart';
+export 'src/texture.dart' hide wrapTexture;
+
+/// Copies between buffers and textures.
+export 'src/transfer.dart';
 export 'src/uniform_block.dart';
 export 'src/vertex_layout_spec.dart';

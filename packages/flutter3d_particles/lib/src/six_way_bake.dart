@@ -64,6 +64,8 @@ SixWaySheet bakeSixWay({
   int frames = 16,
   int columns = 4,
   int cell = 64,
+
+  /// Light taken out per unit of density per unit of length.
   double extinction = 6.0,
 }) {
   if (frames < 1 || columns < 1 || cell < 1) {

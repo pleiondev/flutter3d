@@ -137,7 +137,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     shadows: false,
     bloom: false,
     ground: false,
-    debug: DebugDrawOptions(
+    debug: DebugDrawSettings(
       bounds: true,
       axes: true,
       lightGizmos: true,
@@ -565,7 +565,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // Until the allocator existed the rows went to the first four point lights in
   // scene order, so a level with five torches had one that could not cast a
   // shadow anywhere, ever. The scene was six casters against four rows then.
-  // Raising `Renderer.kShadowedLights` to six gave every one of them a row and
+  // Raising `Renderer.shadowedLights` to six gave every one of them a row and
   // left the ranking nothing to decide — a full atlas rather than a contended
   // one, passing whether the allocator ranked anything or not — so the count
   // went to eight and the contention came back.
@@ -620,7 +620,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     source: 'Teapot',
     ground: false,
     bloom: false,
-    sky: SkySettings(enabled: true, sunIntensity: 6.0),
+    sky: SkySettings(enabled: true, sunIntensity: 6.0 * Photometric.legacyUnit),
   ),
 
   // A look the engine never shipped, drawn through a bundle loaded from

@@ -10,7 +10,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -25,7 +24,10 @@ const int _size = 64;
     ..add(
       MeshNode(
           floor,
-          Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+          ),
         )
         ..setPosition(0.0, -1.0, 0.0)
         // Receives but does not cast: a floor that cast would cover every
@@ -34,23 +36,24 @@ const int _size = 64;
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
   for (var i = 0; i < 6; i++) {
     scene.add(
-      MeshNode(block, Material(name: 'block $i'))
+      MeshNode(block, RenderMaterial(name: 'block $i'))
         ..setPosition(-5.0 + i * 2.0, 0.0, -2.0),
     );
   }
   // The corner of the casters' bounds, which the last cascade is fitted to,
   // and a block well inside them that the camera's cascades never reach.
   scene.add(
-    MeshNode(block, Material(name: 'corner'))..setPosition(15.0, 0.0, -15.0),
+    MeshNode(block, RenderMaterial(name: 'corner'))
+      ..setPosition(15.0, 0.0, -15.0),
   );
   final far = scene.add(
-    MeshNode(block, Material(name: 'far'), name: 'far')
+    MeshNode(block, RenderMaterial(name: 'far'), name: 'far')
       ..setPosition(10.0, 0.0, -12.0),
   );
   final camera = scene.add(CameraNode());
@@ -130,7 +133,7 @@ void main() {
     built.far.translate(0.0, 0.0, 1.0);
     final moved = cascadeDraws(frame());
     expect(moved, greaterThan(0));
-    // Mutation: put `SceneNode.changeEpoch` back in the key. Every tile.
+    // Mutation: put `sceneChangeEpoch` back in the key. Every tile.
     expect(moved, lessThan(first));
   });
 
@@ -141,9 +144,9 @@ void main() {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     Future<List<int>> pixels(FrameResult result) async {
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -193,9 +196,9 @@ void main() {
         views: <RenderView>[RenderView(camera: camera)],
         settings: _settings,
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 

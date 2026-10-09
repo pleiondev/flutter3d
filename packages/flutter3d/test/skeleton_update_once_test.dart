@@ -53,7 +53,10 @@ const int _size = 64;
   ).build(layout: VertexLayout.skinned);
   for (var i = 0; i < materials; i++) {
     scene.add(
-      MeshNode(DeviceMesh.upload(device, geometry), Material(name: 'part $i'))
+      MeshNode(
+          DeviceMesh.upload(device, geometry),
+          RenderMaterial(name: 'part $i'),
+        )
         ..skeleton = skeleton
         ..skinReach = 1.5,
     );
@@ -61,7 +64,7 @@ const int _size = 64;
 
   scene
     ..add(
-      LightNode(intensity: 5.0, castsShadow: true)
+      LightNode(intensity: 5.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(3.0, 5.0, 2.0)
         ..lookAt(Vector3.zero()),
     )

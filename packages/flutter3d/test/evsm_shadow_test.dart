@@ -20,7 +20,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 120;
@@ -35,7 +34,10 @@ Scene _floorAndBox(GraphicsDevice device, {double gap = 0.6}) {
         device,
         CuboidShape(size: Vector3(14.0, 0.2, 14.0)).build(),
       ),
-      Material(name: 'floor', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+      RenderMaterial(
+        name: 'floor',
+        baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+      ),
       name: 'floor',
     )..setPosition(0.0, -0.1, 0.0),
   );
@@ -45,12 +47,16 @@ Scene _floorAndBox(GraphicsDevice device, {double gap = 0.6}) {
         device,
         CuboidShape(size: Vector3(1.6, 0.2, 1.6)).build(),
       ),
-      Material(name: 'box', baseColor: Vector4(0.7, 0.7, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'box',
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
+      ),
       name: 'box',
     )..setPosition(0.0, gap, 0.0),
   );
 
-  final sun = LightNode(name: 'sun', intensity: 3.0)..castsShadow = true;
+  final sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+    ..castsShadow = true;
   sun.lookAt(Vector3(-0.85, -1.0, -0.2));
   scene.add(sun);
   return scene;
@@ -83,7 +89,7 @@ Future<(Uint8List, FrameResult)> _draw(ShadowSettings shadows) async {
     views: <RenderView>[RenderView(camera: _camera())],
     settings: _settings(shadows),
   );
-  final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(frame.frame)).buffer.asUint8List();
   return (pixels, frame);
 }
 
@@ -202,7 +208,11 @@ void main() {
   test('a device that cannot filter the moments refuses them by name', () {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
-    expect(device.supportsFloat32Filtering, isFalse);
+    expect(
+      device.features.has(DeviceFeature.float32Filterable) &&
+          device.features.has(DeviceFeature.float32Renderable),
+      isFalse,
+    );
     final frame = renderer.render(
       width: _width,
       height: _height,

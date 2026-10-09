@@ -70,7 +70,7 @@ void main(List<String> args) {
           from: entry.file,
         ),
     };
-  } on GlslTranslateError catch (error) {
+  } on GlslTranslateException catch (error) {
     _fail(error.message);
   }
 
@@ -87,7 +87,7 @@ void main(List<String> args) {
           fragment: entry.fragment,
         ),
     ]);
-  } on WgslPrepareError catch (error) {
+  } on WgslPrepareException catch (error) {
     _fail(error.message);
   }
 
@@ -108,15 +108,15 @@ void main(List<String> args) {
         name: name,
         fragment: entry.fragment,
       );
-    } on WgslPrepareError catch (error) {
+    } on WgslPrepareException catch (error) {
       _fail('$name: ${error.message}');
-    } on WgslCompileError catch (error) {
+    } on WgslCompileException catch (error) {
       _fail('$name: ${error.message}');
     }
 
     try {
       checkStd140Offsets(name, prepared, compiled.offsets);
-    } on WgslSectionError catch (error) {
+    } on WgslSectionException catch (error) {
       _fail(error.message);
     }
 
@@ -140,7 +140,12 @@ void main(List<String> args) {
     ..writeln()
     ..writeln('/// Every shader the engine asks for, in WGSL, beside the')
     ..writeln('/// reflection a `GPUShaderModule` cannot be asked for.')
-    ..writeln('final WebGpuSectionStages engineShaders = (')
+    ..writeln('///')
+    ..writeln(
+      '/// Public, and promised with the rest: `WebGpuDevice.open` takes the',
+    )
+    ..writeln('/// stages it compiles, and uses these when it is given none.')
+    ..writeln('final WebGpuSectionStages webGpuEngineShaders = (')
     ..writeln('  vertex: <String, WebGpuStage>{');
   vertex.forEach((name, stage) => _writeStage(out, name, stage));
   out

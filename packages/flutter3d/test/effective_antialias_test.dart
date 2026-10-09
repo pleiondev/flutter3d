@@ -17,7 +17,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 FrameResult _frame(
   RenderSettings settings, {
@@ -29,7 +28,7 @@ FrameResult _frame(
   final renderer = Renderer.create(device: device);
   final scene = Scene()
     ..add(
-      LightNode(intensity: 4.0)
+      LightNode(intensity: 4.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -49,7 +48,7 @@ void main() {
 
     expect(aa.msaaSamples, greaterThan(1));
     expect(aa.msaaDeclined, isNull);
-    expect(aa.none, isFalse);
+    expect(aa.isNone, isFalse);
   });
 
   test('occlusion switched on takes the multisampling with it', () {
@@ -77,18 +76,18 @@ void main() {
     ).antiAliasing;
 
     expect(aa.fxaa, isTrue);
-    expect(aa.none, isFalse);
+    expect(aa.isNone, isFalse);
   });
 
-  test('and is not reported when it is switched off by name', () {
-    // Through `disabledPasses` rather than through its own setting, because
-    // the readback has to describe the frame rather than the settings — those
-    // are two different things and telling them apart is the point.
+  test('and is not reported when its steps are switched off', () {
+    // Through `without` on settings that asked for it, because the readback
+    // has to describe the frame that was drawn rather than the settings the
+    // caller started from. The pass does the edge smoothing and the
+    // sharpening both, and runs while either is on.
     final aa = _frame(
       const RenderSettings(
         antiAlias: AntiAliasSettings(enabled: true),
-        disabledPasses: <String>{'antialias'},
-      ),
+      ).without(<RenderStep>{RenderStep.edgeSmoothing, RenderStep.sharpening}),
     ).antiAliasing;
 
     expect(aa.fxaa, isFalse);
@@ -112,7 +111,7 @@ void main() {
       offscreenMsaa: false,
     ).antiAliasing;
 
-    expect(aa.none, isTrue);
+    expect(aa.isNone, isTrue);
     expect(
       aa.toString(),
       contains('msaa declined'),

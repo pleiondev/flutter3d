@@ -17,26 +17,76 @@ final class Audible {
 
   final int key;
   final Vector3 at;
+
+  /// How loud, a fraction from nought to one.
   final double loudness;
+
+  /// How fast its sound plays, a multiplier on the recording's own speed.
   final double rate;
+}
+
+/// How loud a kind of thing the physics does is heard, set by the game:
+/// what power — W for a fire or a fall, J for a splash — is silent, what is
+/// as loud as the game plays anything, and what plays at the recording's
+/// own speed.
+///
+/// Loudness follows the logarithm of the power, as hearing does: a source
+/// ten times stronger is a step louder, not ten times louder. A bigger
+/// source sounds lower: its speed falls by [pitch] in the exponent with
+/// each tenfold past [reference], within [slowest] and [fastest].
+final class HearingScale {
+  const HearingScale({
+    required this.quiet,
+    required this.loud,
+    required this.reference,
+    this.pitch = 0.06,
+    this.slowest = 0.7,
+    this.fastest = 1.4,
+  });
+
+  /// The power that is silent, and the power at full loudness.
+  final double quiet, loud;
+
+  /// The power that plays at the recording's own speed.
+  final double reference;
+
+  /// How a sound's speed goes with its power: (power / reference)^−pitch,
+  /// within [slowest] and [fastest].
+  final double pitch, slowest, fastest;
+
+  /// [power] heard, nought to one.
+  double loudness(double power) => power <= quiet
+      ? 0.0
+      : (math.log(power / quiet) / math.log(loud / quiet)).clamp(0.0, 1.0);
+
+  /// How fast a source of [power] plays.
+  double rate(double power) =>
+      math
+              .pow(math.max(power, 1e-9) / reference, -pitch)
+              .clamp(slowest, fastest)
+          as double;
 }
 
 /// The physics, heard. No sound is made here — this package has no audio —
 /// only what a game's mixer is to play: a looping crackle for every fire, as
 /// loud as its watts; a looping roar for falling water, as loud as the power
-/// the water gives up as it falls; and a splash, once, where a watched body
-/// goes into a liquid, as loud as the energy it goes in with.
-///
-/// Loudness follows the logarithm of the power, as hearing does: a fire ten
-/// times hotter is a step louder, not ten times louder.
+/// the water gives up as it falls; and a splash, once, where a body goes
+/// into a liquid, as loud as the energy it goes in with. Each is heard on
+/// the game's own [HearingScale].
 final class PhysicsHearing {
-  PhysicsHearing(this._world);
+  PhysicsHearing(
+    this._world, {
+    required this.fireScale,
+    required this.fallScale,
+    required this.splashScale,
+  });
+
+  /// How fires, falls of water and splashes are heard.
+  final HearingScale fireScale, fallScale, splashScale;
 
   final NativeWorld _world;
   final List<(NativeShallowLiquid, double)> _liquids =
       <(NativeShallowLiquid, double)>[];
-  final Map<NativeBody, (NativeShallowLiquid, bool)> _watched =
-      <NativeBody, (NativeShallowLiquid, bool)>{};
 
   /// The fires burning now, one each.
   final List<Audible> fires = <Audible>[];
@@ -48,42 +98,17 @@ final class PhysicsHearing {
   /// The splashes since the last [update], each to be played once.
   final List<Audible> splashes = <Audible>[];
 
-  /// How wide a square of falling water is heard as one, m.
+  /// How wide a square of falling water is heard as one, in metres.
   static const double fallCell = 6.0;
 
-  /// Falling water of [liquid], [density] kg/m³, heard.
-  void listen(NativeShallowLiquid liquid, {double density = 1000.0}) =>
-      _liquids.add((liquid, density));
+  /// Falling water of [liquid], [density] kg/m³, heard: the liquid's, from
+  /// its preset — [NativeLiquidProperties.water]'s when none is given.
+  void listen(NativeShallowLiquid liquid, {double? density}) =>
+      _liquids.add((liquid, density ?? NativeLiquidProperties.water.density));
 
-  /// [body] splashes when it goes into [liquid].
-  void watch(NativeBody body, NativeShallowLiquid liquid) =>
-      _watched.putIfAbsent(body, () => (liquid, false));
-
-  /// [body] no longer watched, for a game taking it out of the world.
-  void forget(NativeBody body) => _watched.remove(body);
-
-  /// A fire of [watts] heard: silent at half a kilowatt — a candle, a
-  /// smouldering ember — and at its loudest at half a megawatt, a house.
-  static double fireLoudness(double watts) => _scale(watts, 500.0, 5e5);
-
-  /// Falling water giving up [watts] heard: silent at fifty, a trickle off a
-  /// step, loudest at a hundred kilowatts, a river over a cliff.
-  static double fallLoudness(double watts) => _scale(watts, 50.0, 1e5);
-
-  /// A splash of [joules] heard: silent at twenty, a stone dropped from a
-  /// hand, loudest at twenty kilojoules, a log off a waterfall.
-  static double splashLoudness(double joules) => _scale(joules, 20.0, 2e4);
-
-  /// A bigger source sounds lower: its speed falls a little with each
-  /// tenfold of [power] past [reference].
-  static double rateFor(double power, double reference) =>
-      math.pow(math.max(power, 1e-9) / reference, -0.06).clamp(0.7, 1.4)
-          as double;
-
-  static double _scale(double value, double quiet, double loud) =>
-      value <= quiet
-      ? 0.0
-      : (math.log(value / quiet) / math.log(loud / quiet)).clamp(0.0, 1.0);
+  /// Falling water of [liquid] no longer heard, for a water taken out.
+  void unlisten(NativeShallowLiquid liquid) =>
+      _liquids.removeWhere((l) => l.$1.id == liquid.id);
 
   /// How often the fires and the falls are heard again, s: a fire's roar
   /// changes over seconds, and reading every drop in flight each frame
@@ -91,15 +116,16 @@ final class PhysicsHearing {
   static const double every = 0.1;
   double _since = every;
 
-  /// Everything heard this frame, [dt] seconds after the last.
-  void update(double dt) {
+  /// Everything heard this frame, [dt] seconds after the last, and the
+  /// splashes of the bodies the step's [events] say came into a liquid.
+  void update(double dt, {List<NativeEvent> events = const <NativeEvent>[]}) {
     _since += dt;
     if (_since >= every) {
       _since = 0.0;
       _hearFires();
       _hearFalls();
     }
-    _hearSplashes();
+    _hearSplashes(events);
   }
 
   void _hearFires() {
@@ -109,7 +135,7 @@ final class PhysicsHearing {
     for (var i = 0; i < read.bodies.length; i++) {
       final o = i * nativeFireFloats;
       final watts = read.fires[o + 3].toDouble();
-      final loudness = fireLoudness(watts);
+      final loudness = fireScale.loudness(watts);
       if (loudness <= 0.0) continue;
       // A compound burns part by part; each part its own crackle.
       final body = read.bodies[i];
@@ -119,7 +145,7 @@ final class PhysicsHearing {
           body.raw * 64 + part,
           Vector3(read.fires[o], read.fires[o + 1], read.fires[o + 2]),
           loudness,
-          rateFor(watts, 2e4),
+          fireScale.rate(watts),
         ),
       );
     }
@@ -127,6 +153,8 @@ final class PhysicsHearing {
 
   void _hearFalls() {
     falls.clear();
+    // The world's pull: what the water's weight is, and so what it gives up.
+    final g = _world.gravityMagnitude;
     // The power falling water gives up is its weight times how fast it
     // falls: m g |v_y|, summed over a square, heard from where it is
     // weighted most.
@@ -140,7 +168,7 @@ final class PhysicsHearing {
       ) {
         final down = -spray[o + 4];
         if (down <= 0.0) continue;
-        final watts = density * spray[o + 6] * 9.81 * down;
+        final watts = density * spray[o + 6] * g * down;
         final x = spray[o], y = spray[o + 1], z = spray[o + 2];
         final key = (x / fallCell).floor() * 100003 + (z / fallCell).floor();
         final (sum, at) = cells[key] ?? (0.0, Vector3.zero());
@@ -148,31 +176,31 @@ final class PhysicsHearing {
       }
     }
     for (final MapEntry(:key, value: (watts, at)) in cells.entries) {
-      final loudness = fallLoudness(watts);
+      final loudness = fallScale.loudness(watts);
       if (loudness <= 0.0) continue;
-      falls.add(Audible(key, at / watts, loudness, rateFor(watts, 5e3)));
+      falls.add(Audible(key, at / watts, loudness, fallScale.rate(watts)));
     }
   }
 
-  void _hearSplashes() {
+  /// A body come into a liquid splashes as loud as the energy it came
+  /// down with, ½mv², v its speed downwards.
+  void _hearSplashes(List<NativeEvent> events) {
     splashes.clear();
-    for (final MapEntry(key: body, value: (liquid, wasIn))
-        in _watched.entries.toList()) {
-      final p = _world.positionOf(body);
-      final here = _world.sampleShallow(liquid, p.x, p.z);
-      final isIn = here != null && here.depth > 0.0 && p.y < here.surface;
-      _watched[body] = (liquid, isIn);
-      if (!isIn || wasIn) continue;
-      final down = -_world.velocityOf(body).y;
-      final joules = 0.5 * _world.massOf(body) * down * down;
-      final loudness = down > 0.0 ? splashLoudness(joules) : 0.0;
+    for (final e in events) {
+      if (e.kind != NativeEventKind.wetted || !_world.contains(e.body)) {
+        continue;
+      }
+      final down = -_world.velocityOf(e.body).y;
+      if (down <= 0.0) continue;
+      final joules = 0.5 * _world.massOf(e.body) * down * down;
+      final loudness = splashScale.loudness(joules);
       if (loudness <= 0.0) continue;
       splashes.add(
         Audible(
-          body.raw,
-          Vector3(p.x, here.surface, p.z),
+          e.body.raw,
+          _world.localPositionOf(e.body),
           loudness,
-          rateFor(joules, 2e3),
+          splashScale.rate(joules),
         ),
       );
     }

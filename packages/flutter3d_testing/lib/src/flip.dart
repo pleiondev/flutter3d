@@ -41,7 +41,8 @@ final class FlipResult {
   final int width;
   final int height;
 
-  /// The mean error — the one number the reference tool prints.
+  /// The mean error — the one number the reference tool prints. From 0 to 1,
+  /// as each pixel's is.
   late final double mean =
       errors.fold(0.0, (double sum, double e) => sum + e) / errors.length;
 }

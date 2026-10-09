@@ -147,9 +147,7 @@ void main() {
 
     test('keeps every family inside WebGPU\'s sixteen locations', () {
       expect(
-        locations.values.every(
-          (location) => location < kMaxInterStageVariables,
-        ),
+        locations.values.every((location) => location < maxInterStageVariables),
         isTrue,
       );
       // Five families and a widest of twelve, the sky's. One flat numbering
@@ -161,7 +159,7 @@ void main() {
     test('gives every stage its own bind group', () {
       for (final entry in shaders.stages.entries) {
         final prepared = prepare(entry.key);
-        final group = entry.value.fragment ? kFragmentGroup : kVertexGroup;
+        final group = entry.value.fragment ? fragmentGroup : vertexGroup;
         for (final block in prepared.blocks) {
           expect(block.group, group, reason: entry.key);
         }
@@ -217,7 +215,7 @@ void main() {
       expect(
         () => compileStage(combined, name: 'combined', fragment: true),
         throwsA(
-          isA<WgslCompileError>().having(
+          isA<WgslCompileException>().having(
             (error) => error.message,
             'message',
             contains('invalid id'),
@@ -241,7 +239,7 @@ void main() {
         ..writeAsStringSync(source);
       final spirv = '${directory.path}/flip.spv';
       expect(
-        Process.runSync(kGlslang, <String>[
+        Process.runSync(glslangExecutable, <String>[
           '-V',
           '--auto-map-locations',
           glsl.path,
@@ -254,7 +252,11 @@ void main() {
       String translate(List<String> flags) {
         final out = '${directory.path}/flip${flags.length}.wgsl';
         expect(
-          Process.runSync(kNaga, <String>[...flags, spirv, out]).exitCode,
+          Process.runSync(nagaExecutable, <String>[
+            ...flags,
+            spirv,
+            out,
+          ]).exitCode,
           0,
         );
         return File(out).readAsStringSync();

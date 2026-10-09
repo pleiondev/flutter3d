@@ -105,7 +105,7 @@ const Map<String, double> _budgets = <String, double>{
   'material-instance-data': 0.3,
   'widget-scene': 0.01,
   // 0.595% measured, on the discs' rims and nowhere else: coverage here,
-  // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
+  // the hard cutoff on Impeller — `RenderMaterial.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.7,
   // 0.117% measured, on the spheres' and the floor's edges, which WebGL2
   // does not multisample as Impeller does; the highlights, the fog and the

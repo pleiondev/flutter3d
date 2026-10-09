@@ -12,9 +12,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
@@ -86,7 +86,7 @@ void main() {
         clips: asset.animations,
         targets: List<AnimationTarget?>.of(built.created),
       );
-      final pose = Pose.fromNodes(asset.nodes);
+      final pose = AnimationPose.fromNodes(asset.nodes);
 
       for (final t in <double>[
         0.0,
@@ -126,7 +126,7 @@ void main() {
         children: const <int>[],
       );
       final withExtra = <ModelNode>[...asset.nodes, untouched];
-      final withExtraPose = Pose.fromNodes(withExtra);
+      final withExtraPose = AnimationPose.fromNodes(withExtra);
       withExtraPose.sampleClip(clip, clip.duration * 0.5);
 
       final world = withExtraPose.worldMatrices();
@@ -164,7 +164,7 @@ void main() {
       );
       expect(meshNodeIndex, greaterThanOrEqualTo(0));
 
-      final pose = Pose.fromNodes(asset.nodes);
+      final pose = AnimationPose.fromNodes(asset.nodes);
 
       for (final t in <double>[
         0.0,
@@ -200,7 +200,7 @@ void main() {
   });
 
   group('Pose on its own, without a sample file', () {
-    Pose chainPose() => Pose(
+    AnimationPose chainPose() => AnimationPose(
       parents: <int>[-1, 0, 1],
       restTranslations: Float32List.fromList(<double>[
         0, 0, 0, // root
@@ -248,7 +248,7 @@ void main() {
       // array (index 1) — legal for a `parents` array even though no
       // ordinary glTF `nodes` list would produce it this way, and exactly
       // what `worldMatrices`'s own memoized walk exists to handle.
-      final pose = Pose(
+      final pose = AnimationPose(
         parents: <int>[1, -1],
         restTranslations: Float32List.fromList(<double>[0, 1, 0, 0, 2, 0]),
         restRotations: Float32List.fromList(<double>[
@@ -265,7 +265,7 @@ void main() {
     });
 
     test('a cyclic parents array terminates instead of recursing forever', () {
-      final pose = Pose(
+      final pose = AnimationPose(
         parents: <int>[1, 0],
         restTranslations: Float32List.fromList(<double>[1, 0, 0, 0, 1, 0]),
         restRotations: Float32List.fromList(<double>[

@@ -1,0 +1,687 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: hardware-LayeredShaderLibrary (LayeredShaderLibrary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      class: 'LayeredShaderLibrary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'LayeredShaderLibrary'
+  - title: 'flutter3d 1.0.0-rc.1: hardware-StencilFace (StencilFace)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      enum: 'StencilFace'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'StencilFace'
+  - title: 'flutter3d 1.0.0-rc.1: hardware-TextureBlockLayout (TextureBlockLayout)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      class: 'TextureBlockLayout'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'TextureBlockLayout'
+  - title: 'flutter3d 1.0.0-rc.1: hardware-ShaderBundleRefused'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart', 'package:flutter3d_hardware/shader_bundle.dart']
+      class: 'ShaderBundleRefused'
+    changes:
+      - kind: 'rename'
+        newName: 'ShaderBundleException'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-hardware-TraceBlobWriter-take'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_hardware/trace.dart']
+      method: 'take'
+      inClass: 'TraceBlobWriter'
+    changes:
+      - kind: 'rename'
+        newName: 'drain'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-hardware-FakeBackend-disposed'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_hardware/testing.dart']
+      field: 'disposed'
+      inClass: 'FakeBackend'
+    changes:
+      - kind: 'rename'
+        newName: 'isDisposed'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-hardware-RenderTargetSpec'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      class: 'RenderTargetSpec'
+    changes:
+      - kind: 'rename'
+        newName: 'RenderTargetDescriptor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-hardware-SamplerOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      class: 'SamplerOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'SamplerDescriptor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-hardware-VertexLayoutSpec'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      class: 'VertexLayoutSpec'
+    changes:
+      - kind: 'rename'
+        newName: 'VertexLayoutDescriptor'
+  - title: 'flutter3d 1.0.0-rc.1: f2-hardware-GraphicsDevice-readPixels'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      method: 'readPixels'
+      inClass: 'GraphicsDevice'
+    changes:
+      - kind: 'rename'
+        newName: 'readback'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (BackendOpener)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      typedef: 'BackendOpener'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          typedef: 'BackendOpener'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (BlendFactor)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'BlendFactor'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'BlendFactor'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (BlendOperation)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'BlendOperation'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'BlendOperation'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (BlendState)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'BlendState'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'BlendState'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (BufferLayout)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'BufferLayout'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'BufferLayout'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ColorTarget)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ColorTarget'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ColorTarget'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (CommandEncoder)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'CommandEncoder'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'CommandEncoder'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (CompareFunction)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'CompareFunction'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'CompareFunction'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ComputeEncoder)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ComputeEncoder'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ComputeEncoder'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ComputePipelineHandle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ComputePipelineHandle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ComputePipelineHandle'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (CullMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'CullMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'CullMode'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (DepthRange)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'DepthRange'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'DepthRange'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (DepthTarget)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'DepthTarget'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'DepthTarget'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (FramebufferOrigin)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'FramebufferOrigin'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'FramebufferOrigin'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (GeometryBuffer)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'GeometryBuffer'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'GeometryBuffer'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (GeometryUsage)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'GeometryUsage'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'GeometryUsage'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (GpuFrameTimings)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'GpuFrameTimings'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'GpuFrameTimings'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (GpuPassTiming)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'GpuPassTiming'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'GpuPassTiming'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (GraphicsDevice)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'GraphicsDevice'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'GraphicsDevice'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (IndexType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'IndexType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'IndexType'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (InputAttribute)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'InputAttribute'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'InputAttribute'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (LayeredShaderLibrary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'LayeredShaderLibrary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'LayeredShaderLibrary'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (LoadAction)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'LoadAction'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'LoadAction'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (LoadedShaderLibrary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'LoadedShaderLibrary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'LoadedShaderLibrary'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (MinMagFilter)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'MinMagFilter'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'MinMagFilter'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (MipChain)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'MipChain'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'MipChain'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (MipFilter)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'MipFilter'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'MipFilter'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (PassEncoder)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'PassEncoder'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'PassEncoder'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (PassState)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'PassState'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'PassState'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (PipelineHandle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'PipelineHandle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'PipelineHandle'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (PolygonMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'PolygonMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'PolygonMode'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (PrimitiveType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'PrimitiveType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'PrimitiveType'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (RenderPassDescriptor)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'RenderPassDescriptor'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'RenderPassDescriptor'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (RenderTargetPool)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'RenderTargetPool'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'RenderTargetPool'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (SamplerAddressMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'SamplerAddressMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'SamplerAddressMode'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ScreenRect)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ScreenRect'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ScreenRect'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ShaderBundle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ShaderBundle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ShaderBundle'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ShaderBundleStage)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ShaderBundleStage'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ShaderBundleStage'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ShaderHandle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ShaderHandle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ShaderHandle'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (ShaderLibrary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'ShaderLibrary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ShaderLibrary'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StageBindings)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      typedef: 'StageBindings'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          typedef: 'StageBindings'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StencilFace)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'StencilFace'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'StencilFace'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StencilOperation)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'StencilOperation'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'StencilOperation'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StencilState)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'StencilState'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'StencilState'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StorageBuffer)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'StorageBuffer'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'StorageBuffer'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StorageMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'StorageMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'StorageMode'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StoreAction)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'StoreAction'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'StoreAction'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (TextureAllocator)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'TextureAllocator'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'TextureAllocator'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (TextureBlockLayout)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'TextureBlockLayout'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'TextureBlockLayout'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (TextureFormat)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'TextureFormat'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'TextureFormat'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (TextureHandle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'TextureHandle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'TextureHandle'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (TextureType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'TextureType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'TextureType'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (UniformBlock)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      class: 'UniformBlock'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'UniformBlock'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (UniformMemberLayout)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      typedef: 'UniformMemberLayout'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          typedef: 'UniformMemberLayout'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (VertexFormat)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'VertexFormat'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'VertexFormat'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (VertexStepMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'VertexStepMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'VertexStepMode'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (WindingOrder)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'WindingOrder'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          enum: 'WindingOrder'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (readbackFormats)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      variable: 'readbackFormats'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          variable: 'readbackFormats'
+  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (readbackRegionOf)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      function: 'readbackRegionOf'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          function: 'readbackRegionOf'

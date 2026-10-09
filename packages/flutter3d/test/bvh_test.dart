@@ -7,11 +7,11 @@ import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A cube on the CPU, so none of this needs a device.
 MeshNode cube({String? name}) =>
-    MeshNode(CpuMesh(CuboidShape().build()), Material(), name: name);
+    MeshNode(CpuMesh(CuboidShape().build()), RenderMaterial(), name: name);
 
 /// A grid of cubes, deterministic so a failure reproduces.
 Scene gridScene(int count, {double spacing = 3.0}) {
@@ -36,7 +36,7 @@ Scene gridScene(int count, {double spacing = 3.0}) {
 Set<String> boxVisible(Scene scene, Frustum frustum) {
   final visible = <String>{};
   for (final node in scene.meshes) {
-    if (!node.visibleInHierarchy) continue;
+    if (!node.isVisibleInHierarchy) continue;
     if (frustum.intersectsWithAabb3(node.worldBounds)) visible.add(node.name!);
   }
   return visible;
@@ -47,8 +47,8 @@ Set<String> linearVisible(Scene scene, Frustum frustum) {
   final sphere = Sphere.centerRadius(Vector3.zero(), 1.0);
   final visible = <String>{};
   for (final node in scene.meshes) {
-    if (!node.visibleInHierarchy) continue;
-    sphere.center.setFrom(node.worldBoundsCentre);
+    if (!node.isVisibleInHierarchy) continue;
+    sphere.center.setFrom(node.worldBoundsCenter);
     sphere.radius = node.worldBoundsRadius;
     if (frustum.intersectsWithSphere(sphere)) visible.add(node.name!);
   }
@@ -71,8 +71,8 @@ Set<String> bvhVisible(SceneBvh bvh, Scene scene, Frustum frustum) {
   refreshFromScene(bvh, scene);
   bvh.queryFrustum(frustum, (index) {
     final node = scene.meshes[index];
-    if (!node.visibleInHierarchy) return;
-    sphere.center.setFrom(node.worldBoundsCentre);
+    if (!node.isVisibleInHierarchy) return;
+    sphere.center.setFrom(node.worldBoundsCenter);
     sphere.radius = node.worldBoundsRadius;
     if (frustum.intersectsWithSphere(sphere)) visible.add(node.name!);
   });
@@ -232,7 +232,7 @@ void main() {
       refreshFromScene(bvh, scene);
 
       var visited = 0;
-      final ray = Ray(Vector3(0.0, 0.0, 400.0), Vector3(0.0, 0.0, -1.0));
+      final ray = LocalRay(Vector3(0.0, 0.0, 400.0), Vector3(0.0, 0.0, -1.0));
       bvh.queryRay(ray, (_) => visited++);
 
       expect(visited, greaterThan(0));

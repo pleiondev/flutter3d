@@ -11,7 +11,7 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
-import 'cpu_shaders_color.dart' show decodeOctahedral, pixelRay, toLinear;
+import 'cpu_shaders_color.dart' show decodeSurfaceNormal, pixelRay, toLinear;
 
 /// `kMaxDecals` in `decal.frag`.
 const int _maxDecals = 16;
@@ -21,7 +21,7 @@ const double _albedoFloor = 0.08;
 
 /// `decal.frag`: the factor a decal multiplies the scene by, or the term it
 /// adds, by `params.w`.
-final class DecalShader implements CpuFragmentShader {
+final class DecalShader extends CpuFragmentShader {
   const DecalShader();
 
   @override
@@ -60,7 +60,7 @@ final class DecalShader implements CpuFragmentShader {
 
     final depth = surface.w;
     final at = worldAt(u, w, depth);
-    final normal = decodeOctahedral(surface.x, surface.y);
+    final normal = decodeSurfaceNormal(surface.x, surface.y);
 
     // `WorldStep`: toward the neighbour nearer in depth.
     Vector3 worldStep(double du, double dv) {
@@ -130,7 +130,7 @@ final class DecalShader implements CpuFragmentShader {
         dv: math.max(alongXv.abs(), alongYv.abs()),
       );
       final tint = b.vec4('DecalInfo', 'color', Vector4.zero(), at: i);
-      final colour = Vector3(
+      final color = Vector3(
         toLinear(picture.x) * tint.x,
         toLinear(picture.y) * tint.y,
         toLinear(picture.z) * tint.z,
@@ -138,12 +138,12 @@ final class DecalShader implements CpuFragmentShader {
       final alpha = (picture.w * tint.w * byAngle * byDepth).clamp(0.0, 1.0);
       final glow = b.vec4('DecalInfo', 'emissive', Vector4.zero(), at: i);
 
-      _mixInto(painted, colour, alpha);
+      _mixInto(painted, color, alpha);
       kept *= 1.0 - alpha;
-      _mixInto(laid, colour, alpha);
+      _mixInto(laid, color, alpha);
       _mixInto(
         emitted,
-        Vector3(colour.x * glow.x, colour.y * glow.y, colour.z * glow.z),
+        Vector3(color.x * glow.x, color.y * glow.y, color.z * glow.z),
         alpha,
       );
     }
@@ -172,12 +172,12 @@ final class DecalShader implements CpuFragmentShader {
     );
   }
 
-  /// `mix(into, colour, alpha)`, in place.
-  static void _mixInto(Vector3 into, Vector3 colour, double alpha) {
+  /// `mix(into, color, alpha)`, in place.
+  static void _mixInto(Vector3 into, Vector3 color, double alpha) {
     into
-      ..x += (colour.x - into.x) * alpha
-      ..y += (colour.y - into.y) * alpha
-      ..z += (colour.z - into.z) * alpha;
+      ..x += (color.x - into.x) * alpha
+      ..y += (color.y - into.y) * alpha
+      ..z += (color.z - into.z) * alpha;
   }
 
   /// `SampleSlot`: the picture in [slot], or white for none.

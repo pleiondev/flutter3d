@@ -25,7 +25,7 @@ AnimationTrack _track(AnimationPointer pointer, List<double> values) =>
       pointer: pointer,
     );
 
-final class _Node implements AnimationTarget {
+final class _Node with AnimationTarget {
   final Vector3 position = Vector3.zero();
 
   @override
@@ -42,7 +42,7 @@ void main() {
   final roughness = AnimationPointer.of(AnimationPointerProperty.roughness, 0);
 
   test('a roughness track moves the material, sampled where it is', () {
-    final material = Material(roughness: 0.5);
+    final material = RenderMaterial(roughness: 0.5);
     final player = AnimationPlayer(
       clips: <AnimationClip>[
         AnimationClip(
@@ -52,7 +52,7 @@ void main() {
         ),
       ],
       targets: const <AnimationTarget?>[],
-      pointers: PointerTargets(materials: <int, Material>{0: material}),
+      pointers: PointerTargets(materials: <int, RenderMaterial>{0: material}),
     )..play(0);
 
     expect(material.roughness, 0.0);
@@ -61,8 +61,8 @@ void main() {
   });
 
   test('a crossfade blends a pointer track with its own and no other', () {
-    final material = Material();
-    final other = Material();
+    final material = RenderMaterial();
+    final other = RenderMaterial();
     final node = _Node();
     final player = AnimationPlayer(
       clips: <AnimationClip>[
@@ -94,7 +94,7 @@ void main() {
       ],
       targets: <AnimationTarget?>[node],
       pointers: PointerTargets(
-        materials: <int, Material>{0: material, 1: other},
+        materials: <int, RenderMaterial>{0: material, 1: other},
       ),
     )..play(0);
     expect(material.roughness, closeTo(0.2, 1e-6));
@@ -108,15 +108,15 @@ void main() {
   });
 
   test('base colour arrives linear and is kept as the authored tint', () {
-    final material = Material();
-    PointerTargets(materials: <int, Material>{2: material}).setPointer(
+    final material = RenderMaterial();
+    PointerTargets(materials: <int, RenderMaterial>{2: material}).setPointer(
       AnimationPointer.of(AnimationPointerProperty.baseColor, 2),
       <double>[0.2140, 0.0, 1.0, 0.5],
     );
-    expect(material.baseColor.x, closeTo(0.5, 1e-3));
-    expect(material.baseColor.y, 0.0);
-    expect(material.baseColor.z, closeTo(1.0, 1e-6));
-    expect(material.baseColor.w, 0.5);
+    expect(material.baseColor.toSrgb().r, closeTo(0.5, 1e-3));
+    expect(material.baseColor.toSrgb().g, 0.0);
+    expect(material.baseColor.toSrgb().b, closeTo(1.0, 1e-6));
+    expect(material.baseColor.a, 0.5);
   });
 
   test('a light track reaches the light bound to its index', () {
@@ -124,7 +124,7 @@ void main() {
     final targets = PointerTargets(lights: <int, LightNode>{1: light})
       ..setPointer(
         AnimationPointer.of(AnimationPointerProperty.lightIntensity, 1),
-        <double>[Photometric.referenceIlluminance * 3.0],
+        <double>[3.0],
       )
       ..setPointer(
         AnimationPointer.of(AnimationPointerProperty.lightColor, 1),

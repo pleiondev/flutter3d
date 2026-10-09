@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
+import 'cpu_shaders_evsm.dart' show shadowStored;
 import 'cpu_shaders_lighting.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_point.dart';
@@ -28,7 +29,7 @@ double _henyeyGreenstein(double cosine, double g) {
 }
 
 /// `volumetric_fog.frag`: in-scatter in rgb, transmittance in alpha.
-final class VolumetricFogShader implements CpuFragmentShader {
+final class VolumetricFogShader extends CpuFragmentShader {
   const VolumetricFogShader();
 
   @override
@@ -98,7 +99,10 @@ final class VolumetricFogShader implements CpuFragmentShader {
           if (which < cascadeCount - 1) continue;
           candidate.z = 1.0;
         }
-        final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
+        final stored = shadowStored(
+          shadow.sample((tileX + which) / cascadeCount, tileY).x,
+          bias.w,
+        );
         return candidate.z - bias[which] > stored ? 0.0 : 1.0;
       }
       return 1.0;
@@ -245,7 +249,7 @@ Vector3 _clusterLight(
         : four.w;
 
     final position = _listTexel(b, 0.0, row);
-    final colour = _listTexel(b, 1.0, row);
+    final color = _listTexel(b, 1.0, row);
     final direction = _listTexel(b, 2.0, row);
     final cone = _listTexel(b, 3.0, row);
     final type = position.w;
@@ -258,12 +262,13 @@ Vector3 _clusterLight(
     if (type > 1.5) {
       final aim = Vector3(direction.x, direction.y, direction.z)..normalize();
       final cosAngle = aim.dot(-l);
-      falloff *= ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
+      final ramp = ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
+      falloff *= ramp * ramp;
     }
     final visibility = falloff > 0.0 ? _localLitAt(b, world, cone) : 1.0;
     total.addScaled(
-      Vector3(colour.x, colour.y, colour.z),
-      colour.w * falloff * visibility * _henyeyGreenstein(along.dot(l), g),
+      Vector3(color.x, color.y, color.z),
+      color.w * falloff * visibility * _henyeyGreenstein(along.dot(l), g),
     );
   }
   return total;
@@ -271,7 +276,7 @@ Vector3 _clusterLight(
 
 /// `volumetric_fog_upsample.frag`: the four nearest fog texels, weighed by
 /// their bilinear share and by how near their depth is to the pixel's.
-final class VolumetricFogUpsampleShader implements CpuFragmentShader {
+final class VolumetricFogUpsampleShader extends CpuFragmentShader {
   const VolumetricFogUpsampleShader();
 
   @override

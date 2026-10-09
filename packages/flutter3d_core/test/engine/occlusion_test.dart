@@ -10,6 +10,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -145,14 +146,14 @@ void main() {
 
     test('a back face hides nothing unless culling is off', () {
       final vp = _camera().viewProjection(_aspect);
-      final centre = (
+      final center = (
         OcclusionBuffer().width ~/ 2,
         OcclusionBuffer().height ~/ 2,
       );
 
       final culled = OcclusionBuffer()..begin(vp);
       culled.draw(_quad(4, 2, reversed: true), Matrix4.identity());
-      expect(culled.depthAt(centre.$1, centre.$2), double.infinity);
+      expect(culled.depthAt(center.$1, center.$2), double.infinity);
 
       final both = OcclusionBuffer()..begin(vp);
       both.draw(
@@ -160,14 +161,14 @@ void main() {
         Matrix4.identity(),
         cullBackFaces: false,
       );
-      expect(both.depthAt(centre.$1, centre.$2), lessThan(1.0));
+      expect(both.depthAt(center.$1, center.$2), lessThan(1.0));
 
       // A mirroring transform turns the front quad over on screen, and the
       // scene pass flips its winding for it: it is still a front face.
       // Mutation: ignore `mirrored` in `_raster` and this one goes empty.
       final mirrored = OcclusionBuffer()..begin(vp);
       mirrored.draw(_quad(4, 2), Matrix4.diagonal3Values(-1.0, 1.0, 1.0));
-      expect(mirrored.depthAt(centre.$1, centre.$2), lessThan(1.0));
+      expect(mirrored.depthAt(center.$1, center.$2), lessThan(1.0));
     });
 
     test(
@@ -239,18 +240,18 @@ void main() {
       final scene = Scene();
       final wall = MeshNode(
         CpuMesh(CuboidShape(size: Vector3(8, 4, 0.2)).build()),
-        Material(),
+        RenderMaterial(),
         name: 'wall',
       )..occluder = true;
       scene.add(wall);
       final cube = CpuMesh(CuboidShape().build());
       for (var i = 0; i < 6; i++) {
         scene
-            .add(MeshNode(cube, Material(), name: 'behind $i'))
+            .add(MeshNode(cube, RenderMaterial(), name: 'behind $i'))
             .setPosition(-2.5 + i, 0.0, -4.0);
       }
       scene
-          .add(MeshNode(cube, Material(), name: 'front'))
+          .add(MeshNode(cube, RenderMaterial(), name: 'front'))
           .setPosition(0.0, 0.0, 3.0);
       final camera = scene.add(_camera());
       return (scene: scene, camera: camera);

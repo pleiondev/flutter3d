@@ -129,6 +129,7 @@ final class IrradianceField {
 
   /// How much of a probe's old value survives each GPU update, nought to
   /// one — `L4`. Higher is steadier and slower to follow a changed room.
+  /// A 0..1 fraction.
   double hysteresis = 0.9;
 
   /// Whether each probe stands somewhere worth reading.
@@ -231,14 +232,14 @@ final class IrradianceField {
         origin.z + spacing.z * z,
       );
 
-  /// Writes [colour] as the irradiance probe [probe] receives from [direction].
-  void writeIrradiance(int probe, Vector3 direction, Vector3 colour) {
+  /// Writes [color] as the irradiance probe [probe] receives from [direction].
+  void writeIrradiance(int probe, Vector3 direction, Vector3 color) {
     _version++;
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
-    irradiance[at] = colour.x;
-    irradiance[at + 1] = colour.y;
-    irradiance[at + 2] = colour.z;
+    irradiance[at] = color.x;
+    irradiance[at + 1] = color.y;
+    irradiance[at + 2] = color.z;
   }
 
   /// Writes the two moments probe [probe] sees along [direction].
@@ -264,13 +265,13 @@ final class IrradianceField {
   /// floor-facing surface from the ceiling and from nothing else, and a wall to
   /// one side tints nothing at all — which is exactly the effect the row exists
   /// to produce.
-  void writeIrradianceTexel(int probe, int tx, int ty, Vector3 colour) {
+  void writeIrradianceTexel(int probe, int tx, int ty, Vector3 color) {
     _version++;
     final stride = _stride(tile);
     final at = ((probe * stride + ty + 1) * stride + tx + 1) * 3;
-    irradiance[at] = colour.x;
-    irradiance[at + 1] = colour.y;
-    irradiance[at + 2] = colour.z;
+    irradiance[at] = color.x;
+    irradiance[at + 1] = color.y;
+    irradiance[at + 2] = color.z;
   }
 
   /// Writes one texel of the depth tile directly. See [writeIrradianceTexel].
@@ -436,7 +437,7 @@ final class IrradianceField {
     final unit = normal.normalized();
     final toProbe = Vector3.zero();
     final at = Vector3.zero();
-    final colour = Vector3.zero();
+    final color = Vector3.zero();
     var total = 0.0;
 
     for (var corner = 0; corner < 8; corner++) {
@@ -470,8 +471,8 @@ final class IrradianceField {
         // between them, so it contributes its trilinear weight and nothing
         // else modifies it — asking the visibility test about a direction that
         // does not exist is the version of this that throws.
-        readIrradiance(probe, unit, colour);
-        result.addScaled(colour, weight);
+        readIrradiance(probe, unit, color);
+        result.addScaled(color, weight);
         total += weight;
         continue;
       }
@@ -497,8 +498,8 @@ final class IrradianceField {
       );
       weight *= floored < 0.2 ? floored * floored * floored * 25.0 : floored;
 
-      readIrradiance(probe, unit, colour);
-      result.addScaled(colour, weight);
+      readIrradiance(probe, unit, color);
+      result.addScaled(color, weight);
       total += weight;
     }
 

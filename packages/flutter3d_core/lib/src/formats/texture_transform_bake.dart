@@ -10,7 +10,7 @@
 /// applied to the coordinates give the same picture, and they are applied here.
 /// A material whose textures disagree is the case that does need the uniform,
 /// and [sharedTextureTransform] says so by returning null; the layered model
-/// has one — `C8`, `Material.textureTransforms` — and so does a material whose
+/// has one — `C8`, `RenderMaterial.textureTransforms` — and so does a material whose
 /// offset a clip moves, since coordinates fixed at upload cannot follow it.
 ///
 /// **Not in the decoder**, which is the first place anybody would put it. A

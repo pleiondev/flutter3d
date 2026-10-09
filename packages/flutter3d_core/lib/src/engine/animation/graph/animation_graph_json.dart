@@ -1,4 +1,5 @@
 import '../../../formats/animation/animation_clip.dart';
+import '../../../formats/format_exceptions.dart';
 import '../../../formats/model_document.dart';
 import '../animation_target.dart';
 import 'animation_parameters.dart';
@@ -12,7 +13,7 @@ import 'animation_state_machine.dart';
 /// definition edited by hand or by a tool says what it means. Defaults are
 /// left out on the way out and filled in on the way in.
 ///
-/// **Read loudly.** [decode] throws a [FormatException] naming where in
+/// **Read loudly.** [decode] throws an [AnimationGraphFormatException] naming where in
 /// the JSON the shape is wrong — `states[2].blend.points[0].at is "fast",
 /// not a number` — rather than reading a typo as a default. What is the
 /// right shape but a wrong machine (a clip the model lacks, a state no
@@ -41,7 +42,7 @@ abstract final class AnimationGraphJson {
         ],
       };
 
-  /// The machine [json] describes; a [FormatException] for a wrong shape.
+  /// The machine [json] describes; an [AnimationGraphFormatException] for a wrong shape.
   static AnimationStateMachine decode(Object? json) {
     final at = _At('');
     final map = at.map(json);
@@ -96,8 +97,8 @@ abstract final class AnimationGraphJson {
   static AnimationStateMachine _decodeNamed(String name, Object? json) {
     try {
       return decode(json);
-    } on FormatException catch (error) {
-      throw FormatException('graph "$name": ${error.message}');
+    } on AnimationGraphFormatException catch (error) {
+      throw AnimationGraphFormatException('graph "$name": ${error.message}');
     }
   }
 
@@ -119,7 +120,8 @@ abstract final class AnimationGraphJson {
             ],
           },
         if (s.speed != 1.0) 'speed': s.speed,
-        if (s.wrap != AnimationWrap.loop) 'wrap': s.wrap.name,
+        if (s.wrap != AnimationWrap.loop)
+          'wrap': _wraps.entries.firstWhere((e) => e.value == s.wrap).key,
         if (s.markers.isNotEmpty)
           'markers': <Object?>[
             for (final m in s.markers)
@@ -156,6 +158,15 @@ abstract final class AnimationGraphJson {
           'trigger': true,
         },
       };
+
+  /// The words a graph names a state's wrap by. Spelled out rather than
+  /// `AnimationWrap.values` by `name`, so a rename of a value does not
+  /// change what a model's `extras` say.
+  static const Map<String, AnimationWrap> _wraps = <String, AnimationWrap>{
+    'once': AnimationWrap.once,
+    'loop': AnimationWrap.loop,
+    'pingPong': AnimationWrap.pingPong,
+  };
 
   static const List<AnimationParameterType> _types = <AnimationParameterType>[
     AnimationParameterType.float,
@@ -199,12 +210,7 @@ abstract final class AnimationGraphJson {
       clip: at.key('clip').stringOr(map['clip'], '') ?? '',
       blend: blend == null ? null : _decodeBlend(at.key('blend'), blend),
       speed: at.key('speed').numberOr(map['speed'], 1.0),
-      wrap: at.key('wrap').oneOf(
-        map['wrap'] ?? AnimationWrap.loop.name,
-        <String, AnimationWrap>{
-          for (final w in AnimationWrap.values) w.name: w,
-        },
-      ),
+      wrap: at.key('wrap').oneOf(map['wrap'] ?? 'loop', _wraps),
       markers: <AnimationMarker>[
         for (final (i, m)
             in at
@@ -272,7 +278,9 @@ abstract final class AnimationGraphJson {
     if (map.containsKey('compare')) {
       final value = map['value'];
       if (value is! num) {
-        throw FormatException('${at.key('value')} is $value, not a number');
+        throw AnimationGraphFormatException(
+          '${at.key('value')} is $value, not a number',
+        );
       }
       return CompareCondition(
         parameter,
@@ -285,12 +293,14 @@ abstract final class AnimationGraphJson {
     if (map.containsKey('is')) {
       final value = map['is'];
       if (value is! bool) {
-        throw FormatException('${at.key('is')} is $value, not true or false');
+        throw AnimationGraphFormatException(
+          '${at.key('is')} is $value, not true or false',
+        );
       }
       return BoolCondition(parameter, value: value);
     }
     if (map['trigger'] == true) return TriggerCondition(parameter);
-    throw FormatException(
+    throw AnimationGraphFormatException(
       '$at says none of "compare", "is" or "trigger": true',
     );
   }
@@ -306,10 +316,11 @@ final class _At {
 
   _At index(int i) => _At('$path[$i]');
 
-  Never _wrong(Object? value, String wanted) => throw FormatException(
-    '${path.isEmpty ? 'the graph' : path} is '
-    '${value is String ? '"$value"' : value}, not $wanted',
-  );
+  Never _wrong(Object? value, String wanted) =>
+      throw AnimationGraphFormatException(
+        '${path.isEmpty ? 'the graph' : path} is '
+        '${value is String ? '"$value"' : value}, not $wanted',
+      );
 
   Map<String, Object?> map(Object? value) =>
       value is Map<String, Object?> ? value : _wrong(value, 'an object');

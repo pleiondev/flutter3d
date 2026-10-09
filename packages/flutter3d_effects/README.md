@@ -60,6 +60,17 @@ hook runs, so nothing is run by hand after a checkout; the bundle is tied to
 the Flutter SDK and is not committed. `dart test`, which runs no hook, wants
 `dart run tool/build_materials.dart` first.
 
+An **`Elements`** draws and sounds a whole `ElementsSimulation` of
+`flutter3d_elements`, which steps the water, the fire and the bodies with
+nothing of this package's under it. The looks kept on the bodies
+(`lookOf`), and each water's view and look (`viewOf`, `waterLookOf`), are
+held here, so the simulation names no scene node and a server steps it
+without a renderer. `ElementsViewPlugin` draws it once a frame in a loop.
+
+**`liquidMeshes`** draws a liquid in a vessel of `flutter3d_physics`, one
+mesh a layer, its top the liquid's own waves and meniscus; `jetMesh` and
+`particleMesh` draw what pours out.
+
 `LiquidDetail.light` and `FireDetail.light` draw less for a phone.
 
 ---

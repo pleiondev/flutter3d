@@ -19,7 +19,7 @@ const int _hips = 1, _ankleL = 4, _footL = 5, _ankleR = 8, _footR = 9;
 
 /// Root, hips a metre up, two legs of two half-metre bones with the knees a
 /// little forward, and a foot bone on the root under each ankle.
-Pose _rig() => Pose(
+AnimationPose _rig() => AnimationPose(
   parents: const <int>[-1, 0, 1, 2, 3, 0, 1, 6, 7, 0],
   restTranslations: Float32List.fromList(<double>[
     0, 0, 0, //
@@ -51,7 +51,7 @@ FootPlantGoal _plant({double l = 0.0, double r = 0.0, double weight = 1.0}) =>
       weight: weight,
     );
 
-Vector3 _at(Pose pose, int joint) =>
+Vector3 _at(AnimationPose pose, int joint) =>
     pose.worldMatrices()[joint].getTranslation();
 
 void main() {

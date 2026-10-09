@@ -46,7 +46,7 @@ AnimationClip _clip(String name, double x, {double length = 1.0, double? yaw}) {
   );
 }
 
-Pose _onePose() => Pose(
+AnimationPose _onePose() => AnimationPose(
   parents: const <int>[-1],
   restTranslations: Float32List(3),
   restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),
@@ -85,7 +85,7 @@ AnimationGraph _graph(List<AnimationTransition> transitions) => AnimationGraph(
 );
 
 /// The yaw [pose]'s node 0 holds, in radians.
-double _yaw(Pose pose) =>
+double _yaw(AnimationPose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
@@ -93,7 +93,7 @@ void main() {
     /// A graph with everything a step changes: a blend, a fade into a
     /// stand, a layer fading in, a look, root motion and markers.
     AnimationGraph busy() {
-      AnimationClip walking(String name, double metres, double length) =>
+      AnimationClip walking(String name, double meters, double length) =>
           AnimationClip(
             name: name,
             tracks: <AnimationTrack>[
@@ -102,7 +102,7 @@ void main() {
                 path: AnimationPath.translation,
                 interpolation: AnimationInterpolation.linear,
                 times: Float32List.fromList(<double>[0.0, length]),
-                values: Float32List.fromList(<double>[0, 0, 0, 0, 0.3, metres]),
+                values: Float32List.fromList(<double>[0, 0, 0, 0, 0.3, meters]),
                 componentCount: 3,
               ),
             ],
@@ -337,7 +337,7 @@ void main() {
             ],
           ),
         ],
-        pose: Pose(
+        pose: AnimationPose(
           parents: const <int>[-1, 0],
           restTranslations: Float32List.fromList(<double>[0, 0, 0, 20, 0, 90]),
           restRotations: Float32List.fromList(<double>[
@@ -366,9 +366,9 @@ void main() {
       );
     });
 
-    /// A one-node clip whose root walks [metres] along z over [length]
+    /// A one-node clip whose root walks [meters] along z over [length]
     /// seconds, at a height of 0.2.
-    AnimationClip walking(String name, double metres, double length) =>
+    AnimationClip walking(String name, double meters, double length) =>
         AnimationClip(
           name: name,
           tracks: <AnimationTrack>[
@@ -377,7 +377,7 @@ void main() {
               path: AnimationPath.translation,
               interpolation: AnimationInterpolation.linear,
               times: Float32List.fromList(<double>[0.0, length]),
-              values: Float32List.fromList(<double>[0, 0.2, 0, 0, 0.2, metres]),
+              values: Float32List.fromList(<double>[0, 0.2, 0, 0, 0.2, meters]),
               componentCount: 3,
             ),
           ],
@@ -527,7 +527,7 @@ void main() {
   group('goals', () {
     /// A chain straight up from the origin, a node every metre: [count]
     /// nodes, each the last one's child.
-    Pose chain(int count) => Pose(
+    AnimationPose chain(int count) => AnimationPose(
       parents: <int>[for (var i = 0; i < count; i++) i - 1],
       restTranslations: Float32List.fromList(<double>[
         for (var i = 0; i < count; i++) ...<double>[0, i == 0 ? 0 : 1, 0],
@@ -540,7 +540,7 @@ void main() {
       ]),
     );
 
-    AnimationGraph still(Pose pose) => AnimationGraph(
+    AnimationGraph still(AnimationPose pose) => AnimationGraph(
       machine: AnimationStateMachine(
         parameters: AnimationParameterSchema(const <AnimationParameter>[]),
         entry: 'still',
@@ -554,7 +554,7 @@ void main() {
     );
 
     /// Which way node [joint] faces, as what faced +Z at rest.
-    Vector3 facing(Pose pose, int joint) {
+    Vector3 facing(AnimationPose pose, int joint) {
       final q = Quaternion.identity();
       pose.worldMatrices()[joint].decompose(Vector3.zero(), q, Vector3.zero());
       return q.asRotationMatrix().transform(Vector3(0, 0, 1));
@@ -583,7 +583,7 @@ void main() {
         // to +Z: the look must undo the frame to know where the face is.
         final turned = chain(2);
         final q = Quaternion.axisAngle(Vector3(0, 1, 0), 2.0);
-        final pose = Pose(
+        final pose = AnimationPose(
           parents: turned.parents,
           restTranslations: Float32List.fromList(<double>[0, 0, 0, 0, 1, 0]),
           restRotations: Float32List.fromList(<double>[
@@ -809,7 +809,7 @@ void main() {
 
   group('a layer', () {
     /// Two nodes, the second the first's child, both at rest unturned.
-    Pose twoPose() => Pose(
+    AnimationPose twoPose() => AnimationPose(
       parents: const <int>[-1, 0],
       restTranslations: Float32List(6),
       restRotations: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1]),
@@ -851,18 +851,21 @@ void main() {
       );
     }
 
-    AnimationGraph playing(AnimationClip clip, [Pose? pose]) => AnimationGraph(
-      machine: AnimationStateMachine(
-        parameters: AnimationParameterSchema(const <AnimationParameter>[]),
-        entry: 'one',
-        states: <AnimationState>[AnimationState(name: 'one', clip: clip.name!)],
-        transitions: const <AnimationTransition>[],
-      ),
-      clips: <AnimationClip>[clip],
-      pose: pose ?? twoPose(),
-    );
+    AnimationGraph playing(AnimationClip clip, [AnimationPose? pose]) =>
+        AnimationGraph(
+          machine: AnimationStateMachine(
+            parameters: AnimationParameterSchema(const <AnimationParameter>[]),
+            entry: 'one',
+            states: <AnimationState>[
+              AnimationState(name: 'one', clip: clip.name!),
+            ],
+            transitions: const <AnimationTransition>[],
+          ),
+          clips: <AnimationClip>[clip],
+          pose: pose ?? twoPose(),
+        );
 
-    double yawOf(Pose pose, int node) =>
+    double yawOf(AnimationPose pose, int node) =>
         2.0 *
         math.atan2(pose.rotations[node * 4 + 1], pose.rotations[node * 4 + 3]);
 
@@ -1105,7 +1108,7 @@ void main() {
         ),
       ]);
 
-      expect(graph.parameters.setFloat('speed', 0.4).written, isTrue);
+      expect(graph.parameters.setFloat('speed', 0.4).wasWritten, isTrue);
       for (var i = 0; i < 10; i++) {
         graph.evaluate(_dt);
       }
@@ -1376,13 +1379,16 @@ void main() {
     test('a write of the wrong type is refused, naming the right call', () {
       final graph = _graph(const <AnimationTransition>[]);
       final refused = graph.parameters.setBool('speed', true);
-      expect(refused.written, isFalse);
+      expect(refused.wasWritten, isFalse);
       expect(refused.refusal, contains('setFloat'));
       expect(
         graph.parameters.setFloat('sped', 1.0).refusal,
         contains('`speed`'),
       );
-      expect(graph.parameters.setFloat('speed', double.nan).written, isFalse);
+      expect(
+        graph.parameters.setFloat('speed', double.nan).wasWritten,
+        isFalse,
+      );
       expect(graph.parameters.values, <double>[0.0, 1.0, 0.0, 0.0]);
     });
 
@@ -1421,7 +1427,7 @@ void main() {
   });
 }
 
-final class _Node implements AnimationTarget {
+final class _Node with AnimationTarget {
   double x = 0.0;
   List<double> rotation = const <double>[0, 0, 0, 1];
 

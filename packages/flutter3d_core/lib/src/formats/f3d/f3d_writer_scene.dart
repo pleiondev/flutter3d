@@ -243,9 +243,9 @@ extension _F3dWriteScene on F3dWriter {
           ..setUint32(8, impostor.albedoImage, Endian.little)
           ..setUint32(12, impostor.normalDepthImage, Endian.little)
           ..setUint32(16, impostor.grid, Endian.little)
-          ..setFloat32(20, impostor.centre.x, Endian.little)
-          ..setFloat32(24, impostor.centre.y, Endian.little)
-          ..setFloat32(28, impostor.centre.z, Endian.little)
+          ..setFloat32(20, impostor.center.x, Endian.little)
+          ..setFloat32(24, impostor.center.y, Endian.little)
+          ..setFloat32(28, impostor.center.z, Endian.little)
           ..setFloat32(32, impostor.radius, Endian.little);
         records.add(record.buffer.asUint8List());
         count++;

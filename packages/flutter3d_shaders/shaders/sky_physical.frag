@@ -1,8 +1,13 @@
 #version 460 core
 
 // The sky as air: sunlight scattered once by molecules (Rayleigh) and by haze
-// (Mie) along the view ray, the sun's disc seen through what the air leaves of
-// it, stars at night, and the ground below the horizon.
+// (Mie) along the view ray, dimmed by those two and by ozone, which absorbs
+// without scattering; the sun's disc seen through what the air leaves of it,
+// stars at night, and the ground below the horizon.
+//
+// The output is luminance. `v_sun.w` is the sunlight's lux on the renderer's
+// luminance scale, and a coefficient per kilometre times lengths in kilometres
+// times a phase function per steradian leaves candela per square metre.
 //
 // **Marched per pixel rather than read from a precomputed table.** A table is
 // what a sky this size usually becomes, and it is two render passes into
@@ -45,6 +50,24 @@ const int kViewSteps = 16;
 const int kLightSteps = 8;
 const float kPi = 3.14159265;
 
+// Ozone's absorption at the peak of its layer, per km, at the Earth's amount
+// (Bruneton 2017, for 680, 550 and 440 nm); `v_stars.w` scales it. The layer
+// peaks 25 km up and thins linearly to nothing 15 km either side.
+const vec3 kOzone = vec3(0.650e-3, 1.881e-3, 0.085e-3);
+const float kOzonePeak = 25.0;
+const float kOzoneHalfWidth = 15.0;
+
+/// The ozone at [h] km above the ground, as a share of its peak.
+float OzoneDensity(float h) {
+  return max(0.0, 1.0 - abs(h - kOzonePeak) / kOzoneHalfWidth);
+}
+
+/// The air at [h] km: x molecules and y haze relative to the ground, z ozone
+/// relative to its peak.
+vec3 AirAt(float h) {
+  return vec3(exp(-h / vec2(v_rayleigh.w, v_mie.z)), OzoneDensity(h));
+}
+
 /// How far a ray from radius [r], at cosine [mu] to the local up, runs before
 /// it leaves a sphere of [radius]; negative when it misses.
 ///
@@ -67,23 +90,23 @@ float Meet(float r, float mu, float radius) {
 }
 
 /// The air between [p] and space towards [s]: x molecules, y haze, each as a
-/// length of air at ground density.
-vec2 SunwardAir(vec3 p, vec3 s) {
+/// length of air at ground density, and z ozone as a length at its peak.
+vec3 SunwardAir(vec3 p, vec3 s) {
   float r = length(p);
   float span = Leave(r, dot(p, s) / r, v_planet.y);
   float stride = span / float(kLightSteps);
-  vec2 air = vec2(0.0);
+  vec3 air = vec3(0.0);
   for (int j = 0; j < kLightSteps; j++) {
     vec3 q = p + s * ((float(j) + 0.5) * stride);
-    float h = length(q) - v_planet.x;
-    air += exp(-h / vec2(v_rayleigh.w, v_mie.z)) * stride;
+    air += AirAt(length(q) - v_planet.x) * stride;
   }
   return air;
 }
 
 /// What a length of air lets through, per channel.
-vec3 Through(vec2 air) {
-  return exp(-(v_rayleigh.rgb * air.x + vec3(v_mie.y * air.y)));
+vec3 Through(vec3 air) {
+  return exp(-(v_rayleigh.rgb * air.x + vec3(v_mie.y * air.y) +
+               kOzone * (v_stars.w * air.z)));
 }
 
 /// A hash of three small whole numbers into [0, 1), with no sine in it.
@@ -136,7 +159,7 @@ void main() {
   bool grounded = ground > 0.0;
   float span = grounded ? ground : Leave(v_planet.z, d.y, v_planet.y);
 
-  vec2 seenAir = vec2(0.0);
+  vec3 seenAir = vec3(0.0);
   vec3 molecules = vec3(0.0);
   vec3 haze = vec3(0.0);
   for (int i = 0; i < kViewSteps; i++) {
@@ -146,7 +169,7 @@ void main() {
     float stride = span * (a1 * a1 - a0 * a0);
     vec3 p = eye + d * t;
     float r = length(p);
-    vec2 air = exp(-(r - v_planet.x) / vec2(v_rayleigh.w, v_mie.z)) * stride;
+    vec3 air = AirAt(r - v_planet.x) * stride;
     seenAir += air;
     // In the planet's shadow: this sample is lit by nothing.
     if (Meet(r, dot(p, s) / r, v_planet.x) > 0.0) continue;
@@ -165,6 +188,7 @@ void main() {
   float miePhase = 3.0 / (8.0 * kPi) * ((1.0 - gg) * (1.0 + mu * mu)) /
                    ((2.0 + gg) * pow(1.0 + gg - 2.0 * g * mu, 1.5));
 
+  // Luminance: see the note at the top on `v_sun.w`.
   vec3 colour = v_sun.w * (molecules * v_rayleigh.rgb * rayleighPhase +
                            haze * (v_mie.x * miePhase));
   vec3 seen = Through(seenAir);

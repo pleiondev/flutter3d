@@ -14,12 +14,12 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
-import 'cpu_shaders_color.dart' show decodeOctahedral;
+import 'cpu_shaders_color.dart' show decodeSurfaceNormal;
 
 /// `post/outline_mask.frag`: a marked node, drawn through the velocity vertex
 /// stages — `v_depth` is varying eight — in its outline colour, and nothing
 /// behind what the opaque scene drew there.
-final class OutlineMaskShader implements CpuFragmentShader {
+final class OutlineMaskShader extends CpuFragmentShader {
   const OutlineMaskShader();
 
   static const String _block = 'OutlineMaskInfo';
@@ -34,21 +34,21 @@ final class OutlineMaskShader implements CpuFragmentShader {
       final stored = surface.sample(c.coord.x * target.x, y * target.y).w;
       if (stored > 0.0 && v[8] > stored * (1.0 + target.w) + 1e-3) return null;
     }
-    final colour = b.vec4(_block, 'color', Vector4.zero());
-    return Vector4(colour.x, colour.y, colour.z, 1.0);
+    final color = b.vec4(_block, 'color', Vector4.zero());
+    return Vector4(color.x, color.y, color.z, 1.0);
   }
 }
 
 /// `post/high_contrast.frag`: flatten, tone, outline, roles.
-final class HighContrastShader implements CpuFragmentShader {
+final class HighContrastShader extends CpuFragmentShader {
   const HighContrastShader();
 
   static const String _block = 'HighContrastInfo';
 
-  /// `DepthBend`: how far [centre] bends off the line through its two
+  /// `DepthBend`: how far [center] bends off the line through its two
   /// neighbours, as a share of itself; a silhouette when either is empty.
-  static double _bend(double a, double centre, double b) =>
-      a <= 0.0 || b <= 0.0 ? 1e6 : (a + b - 2.0 * centre).abs() / centre;
+  static double _bend(double a, double center, double b) =>
+      a <= 0.0 || b <= 0.0 ? 1e6 : (a + b - 2.0 * center).abs() / center;
 
   /// The eight directions the ring looks in, cardinal first, as the GLSL
   /// lists them.
@@ -83,11 +83,11 @@ final class HighContrastShader implements CpuFragmentShader {
     final surface = surfaceTexture?.sample(u, w) ?? Vector4.zero();
     final depth = surface.w;
     final normal = depth > 0.0
-        ? decodeOctahedral(surface.x, surface.y)
+        ? decodeSurfaceNormal(surface.x, surface.y)
         : Vector3(0.0, 0.0, 1.0);
     final bend = math.max(edges.x, 1e-4);
     final turn = math.max(edges.y, 1e-4);
-    var colour = Vector3(scene.x, scene.y, scene.z);
+    var color = Vector3(scene.x, scene.y, scene.z);
 
     // Flatten: the mean of the taps on this pixel's surface.
     final flatten = look.x.clamp(0.0, 1.0);
@@ -104,7 +104,7 @@ final class HighContrastShader implements CpuFragmentShader {
           final same =
               tap.w > 0.0 &&
               (tap.w - depth).abs() <= bend * depth * ring &&
-              1.0 - decodeOctahedral(tap.x, tap.y).dot(normal) < turn;
+              1.0 - decodeSurfaceNormal(tap.x, tap.y).dot(normal) < turn;
           if (same) {
             final texel = sceneTexture.sample(tu, tv);
             sum.add(Vector3(texel.x, texel.y, texel.z));
@@ -114,17 +114,17 @@ final class HighContrastShader implements CpuFragmentShader {
       }
       if (count > 0) {
         final mean = sum / count.toDouble();
-        colour = colour + (mean - colour) * flatten;
+        color = color + (mean - color) * flatten;
       }
     }
 
     // Tone: toward the luma, then apart about mid grey.
-    final luma = colour.x * 0.2126 + colour.y * 0.7152 + colour.z * 0.0722;
+    final luma = color.x * 0.2126 + color.y * 0.7152 + color.z * 0.0722;
     final keep = look.z.clamp(0.0, 1.0);
     final gain = math.max(look.y, 0.0);
     double toned(double channel) =>
         ((luma + (channel - luma) * keep - 0.5) * gain + 0.5).clamp(0.0, 1.0);
-    colour = Vector3(toned(colour.x), toned(colour.y), toned(colour.z));
+    color = Vector3(toned(color.x), toned(color.y), toned(color.z));
 
     // Outline, wherever the geometry steps or turns.
     final reach = edges.z;
@@ -145,10 +145,10 @@ final class HighContrastShader implements CpuFragmentShader {
       );
       final turned = <Vector4>[left, right, up, down]
           .where((tap) => tap.w > 0.0)
-          .map((tap) => 1.0 - decodeOctahedral(tap.x, tap.y).dot(normal))
+          .map((tap) => 1.0 - decodeSurfaceNormal(tap.x, tap.y).dot(normal))
           .fold(0.0, math.max);
       if (bent >= bend || turned >= turn) {
-        colour = Vector3(line.x, line.y, line.z);
+        color = Vector3(line.x, line.y, line.z);
       }
     }
 
@@ -158,7 +158,7 @@ final class HighContrastShader implements CpuFragmentShader {
       final own = maskTexture.sample(u, w);
       if (own.w > 0.5) {
         final fill = look.w.clamp(0.0, 1.0);
-        colour = colour + (Vector3(own.x, own.y, own.z) - colour) * fill;
+        color = color + (Vector3(own.x, own.y, own.z) - color) * fill;
       } else if (ringWidth > 0.0) {
         Vector4? found;
         for (var i = 1; i <= 4 && found == null; i++) {
@@ -171,10 +171,10 @@ final class HighContrastShader implements CpuFragmentShader {
             if (found == null && tap.w > 0.5) found = tap;
           }
         }
-        if (found != null) colour = Vector3(found.x, found.y, found.z);
+        if (found != null) color = Vector3(found.x, found.y, found.z);
       }
     }
 
-    return Vector4(colour.x, colour.y, colour.z, scene.w);
+    return Vector4(color.x, color.y, color.z, scene.w);
   }
 }

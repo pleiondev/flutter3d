@@ -15,13 +15,15 @@
 /// as a track that plays and changes nothing.
 library;
 
+import '../format_exceptions.dart';
+
 /// The kind of object a pointer lands on.
 enum AnimationPointerTarget { material, light }
 
 /// The property a pointer drives, with the number of floats in one value.
 enum AnimationPointerProperty {
   /// glTF's `baseColorFactor`: linear RGBA, as the file keeps it. The sink
-  /// converts to the authored tint `Material.baseColor` holds.
+  /// converts to the authored tint `RenderMaterial.baseColor` holds.
   baseColor(AnimationPointerTarget.material, 4),
 
   /// `KHR_materials_emissive_strength`'s multiplier.
@@ -55,12 +57,29 @@ final class AnimationPointer {
   });
 
   /// Resolves [pointer] — a JSON pointer as `KHR_animation_pointer` writes
-  /// it — or returns null when it names nothing this engine animates.
+  /// it. Throws an [AnimationPointerFormatException] naming the pointer when
+  /// it names nothing this engine animates.
+  ///
+  /// For a caller that has a pointer it expects to resolve: code that builds
+  /// a track by hand, a tool reading a path a person typed. A loader, which
+  /// meets pointers a later build or another tool wrote, asks [tryParse].
+  static AnimationPointer parse(String pointer) =>
+      tryParse(pointer) ??
+      (throw AnimationPointerFormatException(
+        '"$pointer" names no property this engine animates',
+      ));
+
+  /// Resolves [pointer], or returns null when it names nothing this engine
+  /// animates.
+  ///
+  /// **Null is "not here", and the caller says so**: a file may animate a
+  /// property this build has no target for, and both loaders skip such a
+  /// track with a warning in the document rather than refusing the model.
   ///
   /// Matches the whole path, not a suffix: `/materials/0/extensions/
   /// KHR_materials_emissive_strength/emissiveStrength` is a strength, and a
   /// path that merely ends in `emissiveStrength` somewhere else is not.
-  static AnimationPointer? parse(String pointer) {
+  static AnimationPointer? tryParse(String pointer) {
     final parts = pointer.split('/');
     // A JSON pointer starts with `/`, so the first part is always empty.
     if (parts.length < 4 || parts.first.isNotEmpty) return null;
@@ -182,7 +201,11 @@ final class AnimationPointer {
 /// reason `MorphSink` gives: `AnimationTarget` is a published interface of
 /// three transform setters, and a material's roughness is not a transform.
 /// A model instance implements it over the materials and lights it owns.
-abstract interface class AnimationPointerSink {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class AnimationPointerSink {
   /// Writes [values] — [AnimationPointerProperty.componentCount] floats — to
   /// [pointer]'s property. A pointer to an object the sink does not have is
   /// ignored: a clip may outlive the material it was authored against.

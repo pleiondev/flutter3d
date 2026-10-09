@@ -85,13 +85,25 @@ final class FuzzDraw {
 
   int get triangleCount => triangles.length ~/ 3;
 
-  FuzzDraw copyWith({List<FuzzVertex>? triangles, int? exponent}) => FuzzDraw(
-    viewport: viewport,
-    scissor: scissor,
-    blend: blend,
-    depthWrite: depthWrite,
-    depthCompare: depthCompare,
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  FuzzDraw copyWith({
+    ScreenRect? viewport,
+    List<FuzzVertex>? triangles,
+    ScreenRect? scissor,
+    BlendState? blend,
+    bool? depthWrite,
+    CompareFunction? depthCompare,
+    int? exponent,
+    bool clearScissor = false,
+    bool clearBlend = false,
+  }) => FuzzDraw(
+    viewport: viewport ?? this.viewport,
     triangles: triangles ?? this.triangles,
+    scissor: clearScissor ? null : (scissor ?? this.scissor),
+    blend: clearBlend ? null : (blend ?? this.blend),
+    depthWrite: depthWrite ?? this.depthWrite,
+    depthCompare: depthCompare ?? this.depthCompare,
     exponent: exponent ?? this.exponent,
   );
 }
@@ -126,7 +138,7 @@ final class FuzzProgram {
     final events = <TraceEvent>[
       TraceCreateTexture(
         id: 0,
-        spec: RenderTargetSpec(
+        spec: RenderTargetDescriptor(
           width: width,
           height: height,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -135,7 +147,7 @@ final class FuzzProgram {
       if (depth)
         TraceCreateTexture(
           id: 1,
-          spec: RenderTargetSpec(
+          spec: RenderTargetDescriptor(
             width: width,
             height: height,
             format: depthFormat,

@@ -7,6 +7,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -38,7 +40,7 @@ Float32List _render(
     height: _sheet.height,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(bytes),
-  )!;
+  );
 
   final particles = ParticleSystem(capacity: 8);
   for (final x in <double>[-0.4, 0.0, 0.4]) {
@@ -64,7 +66,7 @@ Float32List _render(
   lights.forEach(scene.add);
 
   final renderer = Renderer.create(device: device)
-    ..addContributor(
+    ..renderSteps.addContributor(
       ParticleContributor(
         particles,
         sixWay: SixWayMaterial(
@@ -79,7 +81,7 @@ Float32List _render(
     height: _size,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -90,9 +92,12 @@ Float32List _render(
   return device.readHdrPixels(result.frame);
 }
 
-LightNode _point(Vector3 at, Vector3 colour, {double intensity = 12.0}) =>
-    LightNode(type: LightType.point, intensity: intensity)
-      ..color.setFrom(colour)
+LightNode _point(Vector3 at, Vector3 color, {double intensity = 12.0}) =>
+    LightNode(
+        type: LightType.point,
+        intensity: intensity * Photometric.legacyUnit,
+      )
+      ..color = color.toLinearColor()
       ..setPosition(at.x, at.y, at.z);
 
 /// Red and blue summed over a band of columns, [from] inclusive to [to].

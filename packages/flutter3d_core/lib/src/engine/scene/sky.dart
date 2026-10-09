@@ -1,6 +1,6 @@
 /// A sky: a gradient overhead instead of one flat colour behind everything.
 ///
-/// What this replaces is `RenderView.clearColor`, which is a single colour and
+/// What this replaces is `RenderView.clearColorSrgb`, which is a single colour and
 /// therefore the same colour whichever way the camera turns. That is fine for a
 /// dungeon and wrong for anywhere outdoors, where the difference between
 /// looking towards the sun and away from it is most of what tells a player
@@ -11,7 +11,7 @@
 /// vertex attribute, which `VertexLayout.standard` already carries,
 /// `lib/surface.glsl` already multiplies into albedo, and `unlit.frag` already
 /// emits as light. Everything it needs from the renderer was added for it and
-/// is ordinary: [Material.drawBucket] to be drawn first, [Material.depthWrite]
+/// is ordinary: [RenderMaterial.drawBucket] to be drawn first, [RenderMaterial.depthWrite]
 /// to leave the depth buffer alone, and `MeshNode.castsShadow` /
 /// `frustumCulled` to stay out of the two places a mesh the size of the world
 /// would otherwise hurt.
@@ -38,7 +38,7 @@
 /// ```
 ///
 /// **Colours here are linear.** This is the one way the sky differs from the
-/// clear colour it replaces: `RenderView.clearColor` is authored in sRGB and
+/// clear colour it replaces: `RenderView.clearColorSrgb` is authored in sRGB and
 /// decoded by the renderer, while a vertex colour is linear by the glTF spec
 /// and used as it is. The same numbers give a lighter sky. Halving each channel
 /// is a good first guess; measuring is better.
@@ -72,6 +72,7 @@ final class SkyDome extends Shape {
     this.name = 'sky',
   });
 
+  /// In metres.
   final double radius;
   final int rings;
   final int segments;
@@ -101,7 +102,7 @@ final class SkyDome extends Shape {
   }
 }
 
-/// Writes [colour] into every vertex of [mesh], by the direction it sits in.
+/// Writes [color] into every vertex of [mesh], by the direction it sits in.
 ///
 /// In place, on the CPU mesh, before it is uploaded: the sky is baked once and
 /// costs nothing per frame. Changing the hour means painting again and
@@ -110,7 +111,7 @@ final class SkyDome extends Shape {
 /// Throws if the mesh has no colour attribute, because the alternative is a sky
 /// that silently comes out white — `MeshBuilder` fills an unset colour with
 /// opaque white, precisely so that a mesh nobody painted still draws.
-void paintSky(MeshData mesh, SkyColour colour) {
+void paintSky(MeshData mesh, SkyColor color) {
   final offset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
   if (offset < 0) {
     throw ArgumentError(
@@ -143,11 +144,11 @@ void paintSky(MeshData mesh, SkyColour colour) {
       direction.setValues(0.0, 0.0, 1.0);
     }
 
-    final rgba = colour(look);
-    mesh.vertices[base + offset] = rgba.x;
-    mesh.vertices[base + offset + 1] = rgba.y;
-    mesh.vertices[base + offset + 2] = rgba.z;
-    mesh.vertices[base + offset + 3] = rgba.w;
+    final rgba = color(look);
+    mesh.vertices[base + offset] = rgba.r;
+    mesh.vertices[base + offset + 1] = rgba.g;
+    mesh.vertices[base + offset + 2] = rgba.b;
+    mesh.vertices[base + offset + 3] = rgba.a;
   }
 }
 
@@ -168,14 +169,14 @@ void paintSky(MeshData mesh, SkyColour colour) {
 /// * `frustumCulled = false` — its bounds move with the camera every frame and
 ///   describe a ball around it, which is not a useful thing to cull against.
 ///
-/// [Material.depthCompare] is deliberately **not** set. The sky goes first, so
+/// [RenderMaterial.depthCompare] is deliberately **not** set. The sky goes first, so
 /// the depth buffer it is tested against is the cleared one and `less` passes
 /// on its own; asking for `always` would be a state change emitted every frame
 /// to buy nothing.
 MeshNode skyNode(MeshGeometry mesh, {String name = 'sky'}) =>
     MeshNode(
         mesh,
-        Material(
+        RenderMaterial(
           name: name,
           lighting: LightingModel.unlit,
           drawBucket: -1,

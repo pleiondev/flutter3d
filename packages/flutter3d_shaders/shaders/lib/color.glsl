@@ -10,6 +10,14 @@
 #ifndef COLOR_GLSL_
 #define COLOR_GLSL_
 
+// **highp unless a stretch says otherwise** — `A1.1`. A material stage
+// defines `F3D_MEDIUMP`, and the few functions whose numbers are colours,
+// unit vectors and factors in [0, 1] are wrapped in a mediump stretch that
+// ends by coming back here. Every declaration — the varyings, the outputs,
+// every uniform block, every global — stays in highp, because a vertex stage
+// declares the same blocks at highp and GLSL ES refuses to link a block whose
+// members' precision differs between stages. `shaders/PRECISION.md` is the
+// contract: what may be mediump, what must not, and why.
 precision highp float;
 
 const float kPi = 3.14159265359;
@@ -67,7 +75,12 @@ vec3 g_albedo = vec3(0.0);
 /// and without a free channel there is nowhere to put roughness — which is the
 /// difference between a reflection that knows stone from a mirror and one that
 /// does not. The error is well under a degree, far below anything a reflection
-/// off rough stone would show.
+/// off rough stone would show — at mediump too, which keeps the eleven bits
+/// the half-float surface buffer it is written into keeps anyway.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec2 EncodeOctahedral(vec3 n) {
   n /= abs(n.x) + abs(n.y) + abs(n.z);
   vec2 e = n.xy;
@@ -77,6 +90,8 @@ vec2 EncodeOctahedral(vec3 n) {
   }
   return e * 0.5 + 0.5;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Where a debug pass leaves the picture it wants shown instead of the normal.
 ///
@@ -206,12 +221,21 @@ float ViewDepth() { return 0.0; }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
 /// in linear space; skipping this is what makes naive renderers look muddy.
+///
+/// Mediump in a material stage: what it is handed is an authored colour, a
+/// texel or a tint, and what it returns is a reflectance, not light.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec3 SrgbToLinear(vec3 srgb) {
   return mix(
       srgb / 12.92,
       pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
       step(vec3(0.04045), srgb));
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Linear to sRGB. The render target is a plain UNorm format rather than an
 /// sRGB one, so the encode has to happen here.

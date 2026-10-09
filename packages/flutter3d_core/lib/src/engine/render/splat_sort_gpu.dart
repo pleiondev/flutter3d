@@ -2,7 +2,7 @@
 /// consumer.
 ///
 /// **The same sort as `splat_sort.dart`, moved, not a second one.** The keys
-/// are `SplatSorter.quantise`'s, made on the CPU; what moves is the ordering
+/// are `SplatSorter.quantize`'s, made on the CPU; what moves is the ordering
 /// of them: two stable eight-bit radix passes, low byte then high, each a
 /// count per tile, a scan of the counts and a scatter. A stable sort of the
 /// same keys has one answer, so the order that comes out is the CPU's to the
@@ -27,7 +27,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The compute stages the GPU sort dispatches, in the order it does.
-const List<String> kSplatSortStages = <String>[
+const List<String> splatSortStages = <String>[
   'SplatSortCount',
   'SplatSortScan',
   'SplatSortScatter',
@@ -39,7 +39,7 @@ const List<String> kSplatSortStages = <String>[
 /// under the 128 MiB a WebGPU device binds as storage unless asked for more.
 /// It also keeps every count the stages are handed exact in the 32-bit floats
 /// their uniform block carries.
-const int kSplatGpuSortLimit = 1 << 22;
+const int splatGpuSortLimit = 1 << 22;
 
 /// Keys a tile, and invocations a workgroup, in all three stages.
 const int _tile = 256;
@@ -76,8 +76,8 @@ final class SplatGpuSort {
 
   /// Whether [device] can run this: compute, and all three stages.
   static bool availableOn(GraphicsDevice device) =>
-      device.supportsCompute &&
-      kSplatSortStages.every((name) => device.shaders[name] != null);
+      device.features.has(DeviceFeature.compute) &&
+      splatSortStages.every((name) => device.shaders[name] != null);
 
   List<ComputePipelineHandle>? _pipelines;
 
@@ -110,15 +110,15 @@ final class SplatGpuSort {
   /// [frameIndex] is the frame being encoded: an index buffer a draw of this
   /// frame has bound is never the one written.
   void sort(Uint32List keys, int count, {required int frameIndex}) {
-    if (count == 0 || count > kSplatGpuSortLimit) {
+    if (count == 0 || count > splatGpuSortLimit) {
       throw ArgumentError.value(
         count,
         'count',
-        'the GPU sort takes 1 to $kSplatGpuSortLimit splats',
+        'the GPU sort takes 1 to $splatGpuSortLimit splats',
       );
     }
     final pipelines = _pipelines ??= <ComputePipelineHandle>[
-      for (final name in kSplatSortStages)
+      for (final name in splatSortStages)
         device.createComputePipeline(device.shaders[name]!),
     ];
     final tiles = (count + _tile - 1) ~/ _tile;

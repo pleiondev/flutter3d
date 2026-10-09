@@ -13,10 +13,9 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
-  const base = PerspectiveProjection(fovYRadians: 1.2);
+  const base = PerspectiveProjection(fovY: 1.2);
   const aspect = 480 / 360;
 
   group('a 2x2 grid', () {
@@ -25,11 +24,11 @@ void main() {
       // sits on every tile's own shared corner — the point every one of the
       // four tiles has to agree is at its own far edge.
       const depth = -2.0;
-      final centre = base.projectToNdc(Vector3(0, 0, depth), aspect: aspect);
+      final center = base.projectToNdc(Vector3(0, 0, depth), aspect: aspect);
       // The whole frame's own centre is (0, 0) in its own NDC, by
       // construction of a projection with no off-axis skew.
-      expect(centre.x, closeTo(0.0, 1e-9));
-      expect(centre.y, closeTo(0.0, 1e-9));
+      expect(center.x, closeTo(0.0, 1e-9));
+      expect(center.y, closeTo(0.0, 1e-9));
 
       for (final (tileX, tileY, wantX, wantY) in <(int, int, double, double)>[
         (0, 0, 1.0, -1.0), // bottom-right corner of the top-left tile
@@ -91,11 +90,7 @@ void main() {
 
   group('delegation to base', () {
     test('near, far and field of view all come from base', () {
-      const wide = PerspectiveProjection(
-        fovYRadians: 1.5,
-        near: 0.2,
-        far: 500.0,
-      );
+      const wide = PerspectiveProjection(fovY: 1.5, near: 0.2, far: 500.0);
       final tile = TiledProjection(
         wide,
         tileX: 0,

@@ -20,7 +20,7 @@ const int _size = 8;
 
 /// Six faces, each a flat colour, so a direction's answer names its face.
 List<ByteData> _colouredFaces([int side = _size]) {
-  const colours = <List<int>>[
+  const colors = <List<int>>[
     <int>[255, 0, 0], // +X
     <int>[0, 255, 0], // −X
     <int>[0, 0, 255], // +Y
@@ -29,13 +29,13 @@ List<ByteData> _colouredFaces([int side = _size]) {
     <int>[0, 255, 255], // −Z
   ];
   return <ByteData>[
-    for (final colour in colours)
+    for (final color in colors)
       () {
         final face = ByteData(side * side * 4);
         for (var i = 0; i < side * side; i++) {
-          face.setUint8(i * 4, colour[0]);
-          face.setUint8(i * 4 + 1, colour[1]);
-          face.setUint8(i * 4 + 2, colour[2]);
+          face.setUint8(i * 4, color[0]);
+          face.setUint8(i * 4 + 1, color[1]);
+          face.setUint8(i * 4 + 2, color[2]);
           face.setUint8(i * 4 + 3, 255);
         }
         return face;
@@ -143,12 +143,12 @@ void main() {
       )!;
 
       double spreadOf(List<ByteData> level, int side) {
-        final centre = _texel(level, 0, side, side ~/ 2, side ~/ 2);
+        final center = _texel(level, 0, side, side ~/ 2, side ~/ 2);
         // The six faces average to (170, 170, 170) — each channel is full on
         // four of the six.
-        return (centre[0] - 170).abs().toDouble() +
-            (centre[1] - 170).abs() +
-            (centre[2] - 170).abs();
+        return (center[0] - 170).abs().toDouble() +
+            (center[1] - 170).abs() +
+            (center[2] - 170).abs();
       }
 
       final sharp = spreadOf(chain[0], 8);
@@ -334,7 +334,7 @@ void main() {
         size: 4,
         levels: 2,
       );
-      expect(fromHdr?.levels, 2);
+      expect(fromHdr.levels, 2);
       expect(decoded, isEmpty);
 
       final fromPng = await EnvironmentMap.fromEncoded(
@@ -348,13 +348,15 @@ void main() {
       expect(decoded, <int>[4]);
     });
 
-    test('is null for bytes neither reader takes', () async {
-      final none = await EnvironmentMap.fromEncoded(
-        device,
-        Uint8List.fromList(<int>[1, 2, 3]),
-        decodeImage: (Uint8List bytes) async => null,
+    test('refuses bytes neither reader takes', () async {
+      await expectLater(
+        EnvironmentMap.fromEncoded(
+          device,
+          Uint8List.fromList(<int>[1, 2, 3]),
+          decodeImage: (Uint8List bytes) async => null,
+        ),
+        throwsA(isA<PanoramaFormatException>()),
       );
-      expect(none, isNull);
     });
 
     test('clamps a Radiance value above one to white', () {

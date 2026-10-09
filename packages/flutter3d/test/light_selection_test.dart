@@ -23,6 +23,8 @@
 library;
 
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -37,8 +39,8 @@ LightNode _lamp(
 }) => scene.add(
   LightNode(
     type: LightType.point,
-    color: Vector3(1.0, 1.0, 1.0),
-    intensity: intensity,
+    color: LinearColor(1.0, 1.0, 1.0),
+    intensity: intensity * Photometric.legacyUnit,
     range: range,
     name: name,
   )..setPosition(x, y, 0.0),
@@ -198,7 +200,11 @@ void main() {
       // lamps at attenuation 1e4 evict it and the object loses its key light.
       final scene = Scene();
       final sun = scene.add(
-        LightNode(type: LightType.directional, intensity: 1.0, name: 'sun'),
+        LightNode(
+          type: LightType.directional,
+          intensity: 1.0 * Photometric.legacyUnit,
+          name: 'sun',
+        ),
       );
       sun.setLocalForward(Vector3(0.0, -1.0, 0.0));
       for (var i = 0; i < 8; i++) {
@@ -272,15 +278,15 @@ void main() {
       expect(buffer.candidates, hasLength(200));
 
       buffer.gatherNear(Vector3(50.0, 0.0, 0.0), 1.0);
-      expect(buffer.count, LightBuffer.maxLights);
-      expect(buffer.packed, hasLength(LightBuffer.maxLights));
+      expect(buffer.count, LightNode.maxLights);
+      expect(buffer.packed, hasLength(LightNode.maxLights));
       expect(buffer.overflow, 192);
-      expect(buffer.positions, hasLength(LightBuffer.maxLights * 4));
+      expect(buffer.positions, hasLength(LightNode.maxLights * 4));
 
       // And the frame-wide route survives the same scene, since it is what the
       // shadow atlas is still assigned against.
       buffer.gather(scene.lights);
-      expect(buffer.count, LightBuffer.maxLights);
+      expect(buffer.count, LightNode.maxLights);
       expect(buffer.overflow, 192);
     });
 
@@ -288,7 +294,7 @@ void main() {
       final scene = Scene();
       for (var i = 0; i < 12; i++) {
         _lamp(scene, x: i.toDouble(), name: 'lamp$i')
-          ..visible = i.isEven
+          ..isVisible = i.isEven
           ..intensity = i == 0 ? 0.0 : 1.0;
       }
 

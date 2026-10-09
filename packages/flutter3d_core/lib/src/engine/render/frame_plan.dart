@@ -25,7 +25,7 @@ import 'frame_graph.dart';
 /// is given, but it cannot check the ones it never receives.
 abstract final class FrameResourceIds {
   /// The scene's HDR colour, before any post.
-  static const ResourceId hdrColour = ResourceId('hdr_colour');
+  static const ResourceId hdrColor = ResourceId('hdr_colour');
 
   /// World normal and depth, the second attachment of the scene pass.
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer');
@@ -102,7 +102,7 @@ abstract final class FrameResourceIds {
   /// halvings, side by side in one texture — `M3`, for the transmissive draws
   /// to read. Produced only on a frame that holds one; see
   /// `SceneColourChain`.
-  static const ResourceId sceneColour = ResourceId('scene_colour');
+  static const ResourceId sceneColor = ResourceId('scene_colour');
 
   /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
   /// something asked to pick from.

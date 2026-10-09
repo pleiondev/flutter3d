@@ -145,7 +145,7 @@ void main(List<String> args) {
         sources,
         from: file,
       );
-    } on GlslTranslateError catch (error) {
+    } on GlslTranslateException catch (error) {
       _fail('$name: ${error.message}');
     }
     entries[name] = (
@@ -161,7 +161,7 @@ void main(List<String> args) {
   final Map<String, int> locations;
   try {
     locations = bundleVaryingLocations(engine, entries.values);
-  } on WgslPrepareError catch (error) {
+  } on WgslPrepareException catch (error) {
     _fail(error.message);
   }
 
@@ -183,11 +183,11 @@ void main(List<String> args) {
         fragment: entry.fragment,
       );
       checkStd140Offsets(name, prepared, compiled.offsets);
-    } on WgslPrepareError catch (error) {
+    } on WgslPrepareException catch (error) {
       _fail('$name: ${error.message}');
-    } on WgslCompileError catch (error) {
+    } on WgslCompileException catch (error) {
       _fail('$name: ${error.message}');
-    } on WgslSectionError catch (error) {
+    } on WgslSectionException catch (error) {
       _fail(error.message);
     }
     (entry.fragment ? fragment : vertex)[name] = (
@@ -201,7 +201,7 @@ void main(List<String> args) {
   out.writeAsStringSync(document);
   stdout.writeln(
     'wrote ${options.out}: ${vertex.length} vertex, ${fragment.length} '
-    'fragment, section version $kSectionVersion, ${document.length} bytes',
+    'fragment, section version $sectionVersion, ${document.length} bytes',
   );
 }
 
@@ -220,7 +220,7 @@ String _shaderPackage(String from) {
 /// process each rather than a manifest walk — and so the message names the
 /// program rather than the stage that happened to be compiled first.
 String? _missingProgram() {
-  for (final program in <String>[kGlslang, kNaga]) {
+  for (final program in <String>[glslangExecutable, nagaExecutable]) {
     try {
       Process.runSync(program, <String>['--version']);
     } on ProcessException {

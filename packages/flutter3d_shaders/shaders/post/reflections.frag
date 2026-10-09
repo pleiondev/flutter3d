@@ -274,8 +274,8 @@ void main() {
         hitColor = textureLod(scene_texture, hitUv, 0.0).rgb;
         // Fade at the edges of the frame, and with the length of the ray: a
         // hit at the far end of the march weighs nothing, so the reflection
-        // thins out instead of stopping where the march does (three.js's
-        // `(1 - d / max)^2`).
+        // thins out instead of stopping where the march does (a quadratic
+        // falloff, `(1 - d / max)^2`).
         vec2 edge = abs(hitUv * 2.0 - 1.0);
         float border = 1.0 - max(edge.x, edge.y);
         float along = clamp(1.0 - travelled / reach, 0.0, 1.0);

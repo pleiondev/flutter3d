@@ -1,9 +1,11 @@
 /// The value types a trace carries, to JSON and back, and the blob the bytes
 /// live in.
 ///
-/// Enums go by name rather than by index: a trace written before a value was
-/// added to an enum still reads, and one that names a value this build does
-/// not have fails by name instead of meaning something else.
+/// Enums go by a word rather than by index: a trace written before a value
+/// was added to an enum still reads, and one that names a value this build
+/// does not have fails by name instead of meaning something else. The words
+/// are the tables in `trace_wire_names.dart`, not the Dart names, so a
+/// rename in the API does not change a file.
 library;
 
 import 'dart:typed_data';
@@ -16,6 +18,7 @@ import '../render_pass_descriptor.dart';
 import '../render_target_pool.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
+import 'trace_wire_names.dart';
 
 /// Collects the byte payloads of a trace into one buffer, handing back where
 /// each landed.
@@ -33,7 +36,7 @@ final class TraceBlobWriter {
     return <int>[offset, data.lengthInBytes];
   }
 
-  Uint8List take() => _bytes.takeBytes();
+  Uint8List drain() => _bytes.takeBytes();
 }
 
 /// Reads payloads back out of a trace's blob.
@@ -51,9 +54,6 @@ final class TraceBlobReader {
     );
   }
 }
-
-T byName<T extends Enum>(List<T> values, Object? name) =>
-    values.byName(name! as String);
 
 Map<String, Object?> asMap(Object? value) =>
     (value! as Map<Object?, Object?>).cast<String, Object?>();
@@ -92,37 +92,31 @@ Vector4 vector4FromJson(Object? json) {
 }
 
 Map<String, Object?> blendToJson(BlendState b) => <String, Object?>{
-  'colorOperation': b.colorOperation.name,
-  'sourceColorFactor': b.sourceColorFactor.name,
-  'destinationColorFactor': b.destinationColorFactor.name,
-  'alphaOperation': b.alphaOperation.name,
-  'sourceAlphaFactor': b.sourceAlphaFactor.name,
-  'destinationAlphaFactor': b.destinationAlphaFactor.name,
+  'colorOperation': blendOperationWire.write(b.colorOperation),
+  'sourceColorFactor': blendFactorWire.write(b.sourceColorFactor),
+  'destinationColorFactor': blendFactorWire.write(b.destinationColorFactor),
+  'alphaOperation': blendOperationWire.write(b.alphaOperation),
+  'sourceAlphaFactor': blendFactorWire.write(b.sourceAlphaFactor),
+  'destinationAlphaFactor': blendFactorWire.write(b.destinationAlphaFactor),
 };
 
 BlendState blendFromJson(Object? json) {
   final m = asMap(json);
   return BlendState(
-    colorOperation: byName(BlendOperation.values, m['colorOperation']),
-    sourceColorFactor: byName(BlendFactor.values, m['sourceColorFactor']),
-    destinationColorFactor: byName(
-      BlendFactor.values,
-      m['destinationColorFactor'],
-    ),
-    alphaOperation: byName(BlendOperation.values, m['alphaOperation']),
-    sourceAlphaFactor: byName(BlendFactor.values, m['sourceAlphaFactor']),
-    destinationAlphaFactor: byName(
-      BlendFactor.values,
-      m['destinationAlphaFactor'],
-    ),
+    colorOperation: blendOperationWire.read(m['colorOperation']),
+    sourceColorFactor: blendFactorWire.read(m['sourceColorFactor']),
+    destinationColorFactor: blendFactorWire.read(m['destinationColorFactor']),
+    alphaOperation: blendOperationWire.read(m['alphaOperation']),
+    sourceAlphaFactor: blendFactorWire.read(m['sourceAlphaFactor']),
+    destinationAlphaFactor: blendFactorWire.read(m['destinationAlphaFactor']),
   );
 }
 
 Map<String, Object?> stencilToJson(StencilState s) => <String, Object?>{
-  'compare': s.compare.name,
-  'failOp': s.failOp.name,
-  'depthFailOp': s.depthFailOp.name,
-  'passOp': s.passOp.name,
+  'compare': compareFunctionWire.write(s.compare),
+  'failOp': stencilOperationWire.write(s.failOp),
+  'depthFailOp': stencilOperationWire.write(s.depthFailOp),
+  'passOp': stencilOperationWire.write(s.passOp),
   'readMask': s.readMask,
   'writeMask': s.writeMask,
 };
@@ -130,89 +124,107 @@ Map<String, Object?> stencilToJson(StencilState s) => <String, Object?>{
 StencilState stencilFromJson(Object? json) {
   final m = asMap(json);
   return StencilState(
-    compare: byName(CompareFunction.values, m['compare']),
-    failOp: byName(StencilOperation.values, m['failOp']),
-    depthFailOp: byName(StencilOperation.values, m['depthFailOp']),
-    passOp: byName(StencilOperation.values, m['passOp']),
+    compare: compareFunctionWire.read(m['compare']),
+    failOp: stencilOperationWire.read(m['failOp']),
+    depthFailOp: stencilOperationWire.read(m['depthFailOp']),
+    passOp: stencilOperationWire.read(m['passOp']),
     readMask: asInt(m['readMask']),
     writeMask: asInt(m['writeMask']),
   );
 }
 
-Map<String, Object?> samplerToJson(SamplerOptions s) => <String, Object?>{
-  'minFilter': s.minFilter.name,
-  'magFilter': s.magFilter.name,
-  'mipFilter': s.mipFilter.name,
-  'widthAddressMode': s.widthAddressMode.name,
-  'heightAddressMode': s.heightAddressMode.name,
+Map<String, Object?> samplerToJson(SamplerDescriptor s) => <String, Object?>{
+  'minFilter': minMagFilterWire.write(s.minFilter),
+  'magFilter': minMagFilterWire.write(s.magFilter),
+  'mipFilter': mipFilterWire.write(s.mipFilter),
+  'widthAddressMode': samplerAddressModeWire.write(s.widthAddressMode),
+  'heightAddressMode': samplerAddressModeWire.write(s.heightAddressMode),
   'anisotropy': s.anisotropy,
+  // Since 1.0, written only when set, so a trace of a pre-1.0 sampler is
+  // byte-for-byte what it was and an old reader still reads it.
+  if (s.depthAddressMode != SamplerAddressMode.clampToEdge)
+    'depthAddressMode': samplerAddressModeWire.write(s.depthAddressMode),
+  if (s.compare case final compare?)
+    'compare': compareFunctionWire.write(compare),
+  if (s.lodMinClamp != 0) 'lodMinClamp': s.lodMinClamp,
+  if (s.lodMaxClamp != 32) 'lodMaxClamp': s.lodMaxClamp,
+  if (s.borderColor case final border?)
+    'borderColor': samplerBorderColorWire.write(border),
 };
 
-SamplerOptions samplerFromJson(Object? json) {
+SamplerDescriptor samplerFromJson(Object? json) {
   final m = asMap(json);
-  return SamplerOptions(
-    minFilter: byName(MinMagFilter.values, m['minFilter']),
-    magFilter: byName(MinMagFilter.values, m['magFilter']),
-    mipFilter: byName(MipFilter.values, m['mipFilter']),
-    widthAddressMode: byName(SamplerAddressMode.values, m['widthAddressMode']),
-    heightAddressMode: byName(
-      SamplerAddressMode.values,
-      m['heightAddressMode'],
-    ),
+  return SamplerDescriptor(
+    minFilter: minMagFilterWire.read(m['minFilter']),
+    magFilter: minMagFilterWire.read(m['magFilter']),
+    mipFilter: mipFilterWire.read(m['mipFilter']),
+    widthAddressMode: samplerAddressModeWire.read(m['widthAddressMode']),
+    heightAddressMode: samplerAddressModeWire.read(m['heightAddressMode']),
     anisotropy: asInt(m['anisotropy']),
+    depthAddressMode: m['depthAddressMode'] == null
+        ? SamplerAddressMode.clampToEdge
+        : samplerAddressModeWire.read(m['depthAddressMode']),
+    compare: m['compare'] == null
+        ? null
+        : compareFunctionWire.read(m['compare']),
+    lodMinClamp: (m['lodMinClamp'] as num?)?.toDouble() ?? 0,
+    lodMaxClamp: (m['lodMaxClamp'] as num?)?.toDouble() ?? 32,
+    borderColor: m['borderColor'] == null
+        ? null
+        : samplerBorderColorWire.read(m['borderColor']),
   );
 }
 
-Map<String, Object?> specToJson(RenderTargetSpec s) => <String, Object?>{
+Map<String, Object?> specToJson(RenderTargetDescriptor s) => <String, Object?>{
   'width': s.width,
   'height': s.height,
-  'format': s.format.name,
+  'format': textureFormatWire.write(s.format),
   'sampleCount': s.sampleCount,
-  'storageMode': s.storageMode.name,
+  'storageMode': storageModeWire.write(s.storageMode),
 };
 
-RenderTargetSpec specFromJson(Object? json) {
+RenderTargetDescriptor specFromJson(Object? json) {
   final m = asMap(json);
-  return RenderTargetSpec(
+  return RenderTargetDescriptor(
     width: asInt(m['width']),
     height: asInt(m['height']),
-    format: byName(TextureFormat.values, m['format']),
+    format: textureFormatWire.read(m['format']),
     sampleCount: asInt(m['sampleCount']),
-    storageMode: byName(StorageMode.values, m['storageMode']),
+    storageMode: storageModeWire.read(m['storageMode']),
   );
 }
 
-List<Object?> layoutToJson(VertexLayoutSpec layout) => <Object?>[
+List<Object?> layoutToJson(VertexLayoutDescriptor layout) => <Object?>[
   for (final buffer in layout.buffers)
     <String, Object?>{
       'stride': buffer.strideInBytes,
-      'stepMode': buffer.stepMode.name,
+      'stepMode': vertexStepModeWire.write(buffer.stepMode),
       'attributes': <Object?>[
         for (final a in buffer.attributes)
           <String, Object?>{
             'name': a.name,
-            'format': a.format.name,
+            'format': vertexFormatWire.write(a.format),
             'offset': a.offsetInBytes,
           },
       ],
     },
 ];
 
-VertexLayoutSpec layoutFromJson(Object? json) =>
-    VertexLayoutSpec(<BufferLayout>[
+VertexLayoutDescriptor layoutFromJson(Object? json) =>
+    VertexLayoutDescriptor(<BufferLayout>[
       for (final b in (json! as List<Object?>).map(asMap))
         BufferLayout(
           strideInBytes: asInt(b['stride']),
-          stepMode: byName(VertexStepMode.values, b['stepMode']),
+          stepMode: vertexStepModeWire.read(b['stepMode']),
           attributes: <InputAttribute>[
             for (final a in (b['attributes']! as List<Object?>).map(asMap))
               InputAttribute(
                 name: a['name']! as String,
-                format: byName(VertexFormat.values, a['format']),
+                format: vertexFormatWire.read(a['format']),
                 offsetInBytes: asInt(a['offset']),
               ),
           ],
         ),
     ]);
 
-GeometryUsage usageFromJson(Object? json) => byName(GeometryUsage.values, json);
+GeometryUsage usageFromJson(Object? json) => geometryUsageWire.read(json);

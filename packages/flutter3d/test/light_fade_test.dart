@@ -40,9 +40,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 48;
@@ -55,8 +56,11 @@ const int _height = 48;
 /// camera moves — which is the situation this row is about.
 List<LightNode> _corridor() => <LightNode>[
   for (var i = 0; i < 40; i++)
-    LightNode(type: LightType.point, intensity: 4.0, range: 6.0)
-      ..setPosition(i.toDouble() - 19.5, 1.6, 0.0),
+    LightNode(
+      type: LightType.point,
+      intensity: 4.0 * Photometric.legacyUnit,
+      range: 6.0,
+    )..setPosition(i.toDouble() - 19.5, 1.6, 0.0),
 ];
 
 /// Eighty lamps a metre apart, each reaching far enough that more of them than
@@ -70,8 +74,11 @@ List<LightNode> _corridor() => <LightNode>[
 /// end of the list rather than the end of the slots.
 List<LightNode> _longCorridor() => <LightNode>[
   for (var i = 0; i < 80; i++)
-    LightNode(type: LightType.point, intensity: 4.0, range: 25.0)
-      ..setPosition(i.toDouble() - 39.5, 1.6, 0.0),
+    LightNode(
+      type: LightType.point,
+      intensity: 4.0 * Photometric.legacyUnit,
+      range: 25.0,
+    )..setPosition(i.toDouble() - 39.5, 1.6, 0.0),
 ];
 
 /// A plank walking down a corridor, seen from above, with two far lamps
@@ -111,7 +118,10 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
         device,
         CuboidShape(size: Vector3(8.0, 0.2, 2.0)).build(),
       ),
-      Material(name: 'plank', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+      RenderMaterial(
+        name: 'plank',
+        baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+      ),
       name: 'plank',
     )..setPosition(at, 0.0, 0.0),
   );
@@ -132,14 +142,20 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
   // them is turned away — which is the hand-over this file is about.
   for (var i = 0; i < 31; i++) {
     scene.add(
-      LightNode(type: LightType.point, intensity: 0.08, range: 20.0)
-        ..setPosition(at + (i - 15) * 0.2, 2.0, 0.0),
+      LightNode(
+        type: LightType.point,
+        intensity: 0.08 * Photometric.legacyUnit,
+        range: 20.0,
+      )..setPosition(at + (i - 15) * 0.2, 2.0, 0.0),
     );
   }
   for (final x in <double>[-10.0, 10.0]) {
     scene.add(
-      LightNode(type: LightType.point, intensity: 150.0, range: 40.0)
-        ..setPosition(x, 2.0, 0.0),
+      LightNode(
+        type: LightType.point,
+        intensity: 150.0 * Photometric.legacyUnit,
+        range: 40.0,
+      )..setPosition(x, 2.0, 0.0),
     );
   }
 
@@ -152,7 +168,7 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
         camera: CameraNode()
           ..setPosition(at, 9.0, 0.01)
           ..lookAt(Vector3(at, 0.0, 0.0)),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Bloom off for the reason `light_channels_test` gives: its glow spreads a
@@ -167,7 +183,7 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
       shadows: const ShadowSettings(enabled: false),
     ),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// How far apart two frames are, as a fraction of full brightness.
@@ -214,8 +230,11 @@ void main() {
       // measure against and every lamp packs its own intensity.
       final few = <LightNode>[
         for (var i = 0; i < 4; i++)
-          LightNode(type: LightType.point, intensity: 4.0, range: 6.0)
-            ..setPosition(i.toDouble(), 1.6, 0.0),
+          LightNode(
+            type: LightType.point,
+            intensity: 4.0 * Photometric.legacyUnit,
+            range: 6.0,
+          )..setPosition(i.toDouble(), 1.6, 0.0),
       ];
       final table = LightBuffer()..gather(few);
       final buffer = LightBuffer()
@@ -293,8 +312,10 @@ void main() {
       // catches is a fade applied before the infinity check, which would dim
       // the sun in any scene that also carries a crowd of lamps.
       final lights = <LightNode>[
-        LightNode(type: LightType.directional, intensity: 2.0)
-          ..lookAt(Vector3(0.0, -1.0, 0.0)),
+        LightNode(
+          type: LightType.directional,
+          intensity: 2.0 * Photometric.legacyUnit,
+        )..lookAt(Vector3(0.0, -1.0, 0.0)),
         ..._corridor(),
       ];
       final table = LightBuffer()..gather(lights);
@@ -320,12 +341,15 @@ void main() {
         const int torches = 40;
         final ring = <LightNode>[
           for (var i = 0; i < torches; i++)
-            LightNode(type: LightType.point, intensity: 2.5, range: 3.5)
-              ..setPosition(
-                math.cos(i / torches * 2 * math.pi) * 6.0,
-                0.6,
-                math.sin(i / torches * 2 * math.pi) * 6.0,
-              ),
+            LightNode(
+              type: LightType.point,
+              intensity: 2.5 * Photometric.legacyUnit,
+              range: 3.5,
+            )..setPosition(
+              math.cos(i / torches * 2 * math.pi) * 6.0,
+              0.6,
+              math.sin(i / torches * 2 * math.pi) * 6.0,
+            ),
         ];
         final table = LightBuffer()..gather(ring);
         expect(
@@ -339,7 +363,7 @@ void main() {
         final buffer = LightBuffer()
           ..gatherNearFrom(table, Vector3.zero(), 14.0, fadeBand: 0.5);
 
-        expect(buffer.count, LightBuffer.maxLights);
+        expect(buffer.count, LightNode.maxLights);
         for (var i = 0; i < buffer.count; i++) {
           expect(
             buffer.colors[i * 4 + 3],
@@ -349,7 +373,7 @@ void main() {
                 'genuinely stronger light',
           );
         }
-        expect(buffer.extraCount, LightBuffer.maxExtraLights);
+        expect(buffer.extraCount, LightNode.maxExtraLights);
         for (var i = 0; i < buffer.extraCount; i++) {
           expect(
             buffer.extraScales[i],

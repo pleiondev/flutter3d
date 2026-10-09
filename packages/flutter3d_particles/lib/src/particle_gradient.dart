@@ -7,7 +7,8 @@ import 'particle.dart';
 final class GradientKey {
   const GradientKey(this.at, this.color, {this.ease = KeyEase.linear});
 
-  /// Where in the particle's life this key sits, in `[0, 1]`.
+  /// Where in the particle's life this key sits, in `[0, 1]`: a fraction of
+  /// its life.
   final double at;
 
   /// Linear RGB with alpha as brightness, matching [Particle.color].

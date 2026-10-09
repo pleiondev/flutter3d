@@ -16,15 +16,14 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -229,11 +228,11 @@ Scene _room(GraphicsDevice device) {
       scene.add(
         MeshNode(
           tile,
-          engine.Material(
+          engine.RenderMaterial(
             name: 'tile',
             baseColor: light
-                ? Vector4(0.42, 0.44, 0.50, 1.0)
-                : Vector4(0.24, 0.26, 0.32, 1.0),
+                ? LinearColor.fromSrgb(0.42, 0.44, 0.50, 1.0)
+                : LinearColor.fromSrgb(0.24, 0.26, 0.32, 1.0),
             lighting: LightingModel.unlit,
           ),
           name: 'tile.$x.$z',
@@ -242,7 +241,7 @@ Scene _room(GraphicsDevice device) {
     }
   }
 
-  const colours = <(double, double, double)>[
+  const colors = <(double, double, double)>[
     (0.92, 0.35, 0.28),
     (0.35, 0.78, 0.45),
     (0.36, 0.55, 0.95),
@@ -250,13 +249,13 @@ Scene _room(GraphicsDevice device) {
   ];
   for (var i = 0; i < 4; i++) {
     final angle = i * math.pi / 2.0;
-    final colour = colours[i % colours.length];
+    final color = colors[i % colors.length];
     scene.add(
       MeshNode(
         pillar,
-        engine.Material(
+        engine.RenderMaterial(
           name: 'pillar',
-          baseColor: Vector4(colour.$1, colour.$2, colour.$3, 1.0),
+          baseColor: LinearColor.fromSrgb(color.$1, color.$2, color.$3, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'pillar.$i',
@@ -270,9 +269,9 @@ Scene _room(GraphicsDevice device) {
     scene.add(
       MeshNode(
         crate,
-        engine.Material(
+        engine.RenderMaterial(
           name: 'crate',
-          baseColor: Vector4(0.85, 0.85, 0.88, 1.0),
+          baseColor: LinearColor.fromSrgb(0.85, 0.85, 0.88, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'crate.$i',

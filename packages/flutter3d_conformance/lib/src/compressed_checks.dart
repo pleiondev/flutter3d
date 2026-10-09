@@ -93,7 +93,7 @@ Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
     // Not a failure: the interface says to ask, and a backend that answers
     // false is entitled to. A backend with neither family — the software
     // rasteriser — runs nothing here, and that is the honest outcome.
-    if (!device.supportsTextureFormat(format)) continue;
+    if (!device.textureFormatSupport(format).sampled) continue;
 
     final texture = device.createTextureFromPixels(
       width: 4,
@@ -101,17 +101,12 @@ Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
       format: format,
       pixels: ByteData.sublistView(block),
     );
-    require(
-      texture != null,
-      '${format.name} is reported as sampled, but a one-block texture in it '
-      'could not be created',
-    );
 
-    final centre = await _sampleCentre(device, texture!);
+    final center = await _sampleCentre(device, texture);
     for (final (channel, got, want) in <(String, int, int)>[
-      ('red', centre[0], _r),
-      ('green', centre[1], _g),
-      ('blue', centre[2], _b),
+      ('red', center[0], _r),
+      ('green', center[1], _g),
+      ('blue', center[2], _b),
     ]) {
       require(
         (got - want).abs() <= 8,
@@ -141,7 +136,7 @@ Future<List<int>> _sampleCentre(
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -182,9 +177,8 @@ Future<List<int>> _sampleCentre(
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
   return <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
 }

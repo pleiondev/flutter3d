@@ -39,6 +39,15 @@
 /// corner: a strip pipeline settles its restart value when it is built, so the
 /// index width of a strip draw belongs here and the index width of a list draw
 /// does not.
+///
+/// **1.0 added three more, for the same reason as the first three.** The
+/// contract's `setDepthBias`, `setColorWriteMask` and `setDepthClamp` are
+/// per-draw setters, and WebGPU bakes `depthBias`, a target's `writeMask` and
+/// `unclippedDepth` into the pipeline. A shadow caster drawn with a bias and
+/// the same mesh drawn without one are two pipelines; a key without the bias
+/// hands the second the first and the acne comes back. Dual-source factors
+/// and min/max operations need no field of their own: they are values of the
+/// [BlendState]s already in [blends].
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -46,7 +55,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// [layout] as a string two layouts can be compared by.
 ///
 /// **A string rather than structural equality on the layout objects**, because
-/// `VertexLayoutSpec`, `BufferLayout` and `InputAttribute` are plain values
+/// `VertexLayoutDescriptor`, `BufferLayout` and `InputAttribute` are plain values
 /// with no `==` — they were written to describe a pipeline once, not to be
 /// hashed once a draw. Deriving equality by hand over three nested lists is the
 /// sort of thing that is right until somebody adds a field to one of them; a
@@ -54,7 +63,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// because a field left out of the rendering is a field left out of the text.
 ///
 /// Rendered once per pipeline, at `createPipeline`, and never on the draw path.
-String webgpuVertexLayoutFingerprint(VertexLayoutSpec layout) =>
+String webgpuVertexLayoutFingerprint(VertexLayoutDescriptor layout) =>
     layout.buffers.map(_bufferFingerprint).join('|');
 
 String _bufferFingerprint(BufferLayout buffer) {
@@ -108,8 +117,58 @@ final class WebGpuPipelineSignature {
     this.alphaToCoverage = false,
     this.vertexModule,
     this.fragmentModule,
+    this.depthBias = DepthBias.none,
+    List<ColorWriteMask> writeMasks = const <ColorWriteMask>[],
+    this.unclippedDepth = false,
   }) : blends = List<BlendState?>.unmodifiable(blends),
-       colorFormats = List<String>.unmodifiable(colorFormats);
+       colorFormats = List<String>.unmodifiable(colorFormats),
+       writeMasks = List<ColorWriteMask>.unmodifiable(writeMasks);
+
+  /// `depthBias`, `depthBiasSlopeScale` and `depthBiasClamp` —
+  /// `PassEncoder.setDepthBias`.
+  final DepthBias depthBias;
+
+  /// One write mask per colour attachment — `PassEncoder.setColorWriteMask`.
+  /// Shorter than [colorFormats] where nothing set the later ones, which
+  /// reads as [ColorWriteMask.all].
+  final List<ColorWriteMask> writeMasks;
+
+  /// `unclippedDepth` — `PassEncoder.setDepthClamp`.
+  final bool unclippedDepth;
+
+  /// This signature with another stage pair and vertex layout in it, and
+  /// every field of the draw's state as it was: the same state, asked of a
+  /// different pipeline. What `createPipelineAsync` warms a new pair with.
+  WebGpuPipelineSignature withStages({
+    required String pipeline,
+    required Object? vertexModule,
+    required Object? fragmentModule,
+    required String vertexLayout,
+  }) => WebGpuPipelineSignature(
+    pipeline: pipeline,
+    vertexModule: vertexModule,
+    fragmentModule: fragmentModule,
+    vertexLayout: vertexLayout,
+    topology: topology,
+    stripIndexFormat: stripIndexFormat,
+    cullMode: cullMode,
+    frontFace: frontFace,
+    depthCompare: depthCompare,
+    depthWrite: depthWrite,
+    stencil: stencil,
+    blends: blends,
+    colorFormats: colorFormats,
+    depthFormat: depthFormat,
+    sampleCount: sampleCount,
+    alphaToCoverage: alphaToCoverage,
+    depthBias: depthBias,
+    writeMasks: writeMasks,
+    unclippedDepth: unclippedDepth,
+  );
+
+  /// The write mask of attachment [index], all channels where none was set.
+  ColorWriteMask writeMaskOf(int index) =>
+      index < writeMasks.length ? writeMasks[index] : ColorWriteMask.all;
 
   /// The stage pair, by the name `PipelineHandle` carries.
   ///
@@ -182,8 +241,17 @@ final class WebGpuPipelineSignature {
       other.depthFormat == depthFormat &&
       other.sampleCount == sampleCount &&
       other.alphaToCoverage == alphaToCoverage &&
+      other.depthBias == depthBias &&
+      other.unclippedDepth == unclippedDepth &&
+      _sameMasks(other) &&
       _same<BlendState?>(other.blends, blends) &&
       _same<String>(other.colorFormats, colorFormats);
+
+  /// Compared as [writeMaskOf] reads them over the attachments, so a list
+  /// that stops early and one that spells the trailing `all` out are one key.
+  bool _sameMasks(WebGpuPipelineSignature other) => Iterable<int>.generate(
+    colorFormats.length,
+  ).every((int i) => other.writeMaskOf(i) == writeMaskOf(i));
 
   static bool _same<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
@@ -211,6 +279,13 @@ final class WebGpuPipelineSignature {
     depthFormat,
     sampleCount,
     alphaToCoverage,
+    depthBias,
+    unclippedDepth,
+    // The masks as `writeMaskOf` reads them over the attachments, so the two
+    // spellings `_sameMasks` calls one key hash alike.
+    Object.hashAll(<int>[
+      for (var i = 0; i < colorFormats.length; i++) writeMaskOf(i).bits,
+    ]),
   );
 
   @override
@@ -222,7 +297,10 @@ final class WebGpuPipelineSignature {
       'blend: ${blends.map((BlendState? b) => b == null ? 'off' : 'on').join('+')}, '
       'targets: ${colorFormats.join('+')}'
       '${depthFormat == null ? '' : '/$depthFormat'}, x$sampleCount'
-      '${alphaToCoverage ? ', alpha to coverage' : ''})';
+      '${alphaToCoverage ? ', alpha to coverage' : ''}'
+      '${depthBias == DepthBias.none ? '' : ', $depthBias'}'
+      '${unclippedDepth ? ', unclipped depth' : ''}'
+      '${writeMasks.every((ColorWriteMask m) => m == ColorWriteMask.all) ? '' : ', masks: ${writeMasks.join('+')}'})';
 }
 
 /// The pipelines this device has built, by the signature that produced each.
@@ -248,6 +326,16 @@ final class WebGpuPipelineCache<T extends Object> {
   /// for.
   T get(WebGpuPipelineSignature signature, T Function() build) =>
       _built[signature] ??= build();
+
+  /// Whether a pipeline for [signature] is built.
+  bool contains(WebGpuPipelineSignature signature) =>
+      _built.containsKey(signature);
+
+  /// Keeps [pipeline] for [signature] unless one is already there — how a
+  /// pipeline built asynchronously arrives, after a draw may have built the
+  /// same one in the meantime, which then stands. Answers the one kept.
+  T offer(WebGpuPipelineSignature signature, T pipeline) =>
+      _built.putIfAbsent(signature, () => pipeline);
 
   /// Forgets everything. Called from `dispose`, where the device that owns the
   /// pipelines is going: a `GPURenderPipeline` has no `destroy` of its own and

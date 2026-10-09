@@ -23,7 +23,8 @@ final class VoxelHit {
   /// minus one, or all nought when the ray started inside the block.
   final int normalX, normalY, normalZ;
 
-  /// How far along the (normalised) ray the face is.
+  /// How far along the (normalised) ray the face is, in metres (a voxel is a
+  /// metre).
   final double distance;
 
   /// The voxel in front of the face — where a block placed against this one

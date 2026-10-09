@@ -1,7 +1,7 @@
 /// The stub list and the engine's list, pinned to each other.
 ///
 /// `builtinCpuShaders` names every unimplemented stage individually rather than
-/// filling gaps from `kRequiredShaders`, so that adding a shader to the engine
+/// filling gaps from `requiredShaders`, so that adding a shader to the engine
 /// is a failure here instead of a stub appearing by itself. That only works if
 /// something checks — otherwise it is a comment describing an intention.
 ///
@@ -14,13 +14,14 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('every name the engine asks for is answered', () {
     final mine = builtinCpuShaders().keys.toSet();
-    final missing = kRequiredShaders
+    final missing = requiredShaders
         .map((s) => s.name)
         .where((n) => !mine.contains(n));
     expect(
@@ -36,8 +37,8 @@ void main() {
     // The compute stages too — `H6`: this backend computes, so it answers to
     // them.
     final wanted = <String>{
-      ...kRequiredShaders.map((s) => s.name),
-      ...kComputeShaders,
+      ...requiredShaders.map((s) => s.name),
+      ...computeShaders,
     };
     final extra = builtinCpuShaders().keys.where((n) => !wanted.contains(n));
     expect(
@@ -96,8 +97,8 @@ void main() {
     // The compute stages too — `H6`: this backend computes, so it answers to
     // them.
     final wanted = <String>{
-      ...kRequiredShaders.map((s) => s.name),
-      ...kComputeShaders,
+      ...requiredShaders.map((s) => s.name),
+      ...computeShaders,
     };
     expect(
       unimplemented.difference(wanted),

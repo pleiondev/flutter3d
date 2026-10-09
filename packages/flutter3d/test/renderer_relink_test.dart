@@ -29,7 +29,7 @@ import 'package:vector_math/vector_math.dart';
 const RenderSettings _everything = RenderSettings(
   sky: SkySettings(enabled: true),
   bloom: BloomSettings(intensity: 1.0),
-  debug: DebugDrawOptions(bounds: true, lightGizmos: true),
+  debug: DebugDrawSettings(bounds: true, lightGizmos: true),
 );
 
 ({Scene scene, CameraNode camera, MeshNode box}) _scene(FakeBackend device) {
@@ -41,14 +41,14 @@ const RenderSettings _everything = RenderSettings(
         device,
         const PlaneShape(width: 10.0, depth: 10.0).build(),
       ),
-      Material(name: 'floor'),
+      RenderMaterial(name: 'floor'),
       name: 'floor',
     )..setPosition(0.0, -1.5, 0.0),
   );
 
   final box = MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(2.0)).build()),
-    Material(name: 'box'),
+    RenderMaterial(name: 'box'),
     name: 'box',
   );
   scene.add(box);
@@ -63,7 +63,7 @@ const RenderSettings _everything = RenderSettings(
             size: Vector3.all(1.0),
           ).build(layout: VertexLayout.skinned),
         ),
-        Material(name: 'skinned'),
+        RenderMaterial(name: 'skinned'),
         name: 'skinned',
       )
       ..skinReach = 1.0
@@ -78,7 +78,7 @@ const RenderSettings _everything = RenderSettings(
   scene.add(
     InstancedMeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.5)).build()),
-        Material(name: 'crowd'),
+        RenderMaterial(name: 'crowd'),
         capacity: 2,
         name: 'crowd',
       )
@@ -94,7 +94,7 @@ const RenderSettings _everything = RenderSettings(
   );
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 12.0
+      ..intensity = 12.0 * Photometric.legacyUnit
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),
@@ -120,7 +120,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,

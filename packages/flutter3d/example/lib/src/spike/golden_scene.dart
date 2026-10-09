@@ -80,7 +80,7 @@ final class GoldenScene {
     this.shadows = true,
     this.bloom = true,
     this.ground = true,
-    this.debug = const DebugDrawOptions(),
+    this.debug = const DebugDrawSettings(),
     this.width = 480,
     this.height = 360,
     this.particles = false,
@@ -174,7 +174,7 @@ final class GoldenScene {
   /// three. See `GoldenExtras.exampleShaderBundle`.
   final String? shaderBundle;
 
-  /// Values for the model's `Material.parameters`, by member — `P8`: what a
+  /// Values for the model's `RenderMaterial.parameters`, by member — `P8`: what a
   /// [lighting] whose stage declares `MaterialParams` is drawn with. Set off
   /// the stage's defaults, so the picture shows the value reached the GPU
   /// rather than the default the source was compiled with.
@@ -325,7 +325,7 @@ final class GoldenScene {
   final bool shadows;
   final bool bloom;
   final bool ground;
-  final DebugDrawOptions debug;
+  final DebugDrawSettings debug;
 
   /// Render size, fixed so the result does not depend on the window.
   ///

@@ -16,6 +16,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -39,7 +41,7 @@ enum _Stage { disc, sprite, sixWay, mesh }
         height: height,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(bytes),
-      )!;
+      );
 
   final effect = ParticleEffect(
     count: 1,
@@ -80,13 +82,14 @@ enum _Stage { disc, sprite, sixWay, mesh }
                   ambient: Vector3(1.0, 1.0, 1.0),
                 ),
         );
-  final renderer = Renderer.create(device: device)..addContributor(contributor);
+  final renderer = Renderer.create(device: device)
+    ..renderSteps.addContributor(contributor);
   final result = renderer.render(
     width: _width,
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -95,8 +98,8 @@ enum _Stage { disc, sprite, sixWay, mesh }
     ),
   );
   final frame = device.readHdrPixels(result.frame);
-  double brightest(int centre) => <double>[
-    for (var x = centre - 4; x < centre + 4; x++)
+  double brightest(int center) => <double>[
+    for (var x = center - 4; x < center + 4; x++)
       for (var y = _height ~/ 2 - 2; y < _height ~/ 2 + 2; y++)
         frame[(y * _width + x) * 4],
   ].reduce(math.max);
@@ -111,7 +114,7 @@ void main() {
       // than 5, and a fifth of a metre's density leaves it a quarter darker.
       final it = _pair(
         stage,
-        fog: FogSettings(color: Vector3.zero(), density: 0.2),
+        fog: FogSettings(color: LinearColor.black, density: 0.2),
       );
       expect(it.onAxis, greaterThan(0.02), reason: 'no particle on the axis');
       expect(it.offAxis, closeTo(it.onAxis, it.onAxis * 0.02));

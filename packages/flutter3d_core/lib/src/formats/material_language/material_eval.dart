@@ -27,7 +27,7 @@ import 'material_ast.dart';
 
 /// What a fragment of the surface being shaded is, for [evaluateMaterial].
 ///
-/// The caller fills [inputs] with every name in [kMaterialInputs] — a backend
+/// The caller fills [inputs] with every name in [materialInputs] — a backend
 /// that left one out would throw at the one fragment that read it, so
 /// [checkMaterialSurface] exists to ask that question once rather than per
 /// draw.
@@ -42,7 +42,7 @@ final class MaterialSurfaceValues {
   final Map<String, List<double>> inputs;
 
   /// The draw's value of each `uniform` the program declares — `P8`, what
-  /// `Material.parameters` bound as `MaterialParams`. One it lacks reads its
+  /// `RenderMaterial.parameters` bound as `MaterialParams`. One it lacks reads its
   /// default, as the engine's own block reads nothing bound as nought.
   final Map<String, List<double>> uniforms;
 
@@ -54,7 +54,7 @@ final class MaterialSurfaceValues {
 /// The colour [program] returns for one fragment: rgb the light the surface
 /// emits, a its opacity.
 ///
-/// [program] must already be through [specialiseMaterial] — a parameter has no
+/// [program] must already be through [specializeMaterial] — a parameter has no
 /// value until a variant gives it one, and a backend picking a default here
 /// would be a backend disagreeing with the compiled shader.
 List<double> evaluateMaterial(
@@ -66,17 +66,118 @@ List<double> evaluateMaterial(
 /// `P8`: three numbers, which the caller multiplies by the light's radiance,
 /// `n·l` and shadow, as `AccumulateLights` does with `ShadeLight`.
 ///
-/// [surface]'s inputs carry [kMaterialLightInputs] for the light as well as
+/// [surface]'s inputs carry [materialLightInputs] for the light as well as
 /// the surface's own. Throws a [StateError] for a program with no block.
 List<double> evaluateMaterialLight(
   MaterialProgram program,
   MaterialSurfaceValues surface,
 ) => _run(
   program.name,
-  program.light ??
-      (throw StateError('"${program.name}" has no light block.')),
+  program.light ?? (throw StateError('"${program.name}" has no light block.')),
   surface,
 );
+
+/// What [program]'s `ambient` block gives — version 2: three numbers, the
+/// light the surface takes from its surroundings, which the caller treats
+/// as `ShadeAmbient` is treated. [surface]'s inputs carry
+/// [materialAmbientInputs] as well. Throws a [StateError] for a program
+/// with no block.
+List<double> evaluateMaterialAmbient(
+  MaterialProgram program,
+  MaterialSurfaceValues surface,
+) => _run(
+  program.name,
+  program.ambient ??
+      (throw StateError('"${program.name}" has no ambient block.')),
+  surface,
+);
+
+/// What [program]'s `composite` block gives — version 2: `lit`. [surface]'s
+/// inputs carry [materialCompositeInputs] as well. Throws a [StateError]
+/// for a program with no block.
+List<double> evaluateMaterialComposite(
+  MaterialProgram program,
+  MaterialSurfaceValues surface,
+) => _run(
+  program.name,
+  program.composite ??
+      (throw StateError('"${program.name}" has no composite block.')),
+  surface,
+);
+
+/// `lit` for one fragment of a lit [program], as the emitted `main` adds it
+/// up — version 2's hooks and switches included, so a backend that
+/// evaluates has one answer to call rather than a second transcription.
+///
+/// [surface] carries the surface's inputs; [direct] is the lights gathered
+/// through the `light` block, already without the directional ones when
+/// the state block switched them off — the one part only the caller's loop
+/// can know — and [lightmap] the level's baked light at the fragment.
+List<double> composeMaterialLit(
+  MaterialProgram program,
+  MaterialSurfaceValues surface, {
+  required List<double> direct,
+  required List<double> lightmap,
+}) {
+  List<double> input(String name) =>
+      surface.inputs[name] ??
+      (throw StateError('This backend does not know the input "$name".'));
+  final albedo = input('albedo');
+  final occlusion = input('occlusion');
+  final emissive = input('emissive');
+  MaterialSurfaceValues adding(Map<String, List<double>> more) =>
+      MaterialSurfaceValues(
+        inputs: <String, List<double>>{...surface.inputs, ...more},
+        uniforms: surface.uniforms,
+        sample: surface.sample,
+      );
+
+  final indirect = !program.state.environment
+      ? const <double>[0, 0, 0]
+      : program.ambient != null
+      ? evaluateMaterialAmbient(
+          program,
+          adding(<String, List<double>>{'lightmap': lightmap}),
+        )
+      : applyBinary('*', albedo, applyBinary('+', input('ambient'), lightmap));
+  if (program.composite != null) {
+    return evaluateMaterialComposite(
+      program,
+      adding(<String, List<double>>{'direct': direct, 'indirect': indirect}),
+    );
+  }
+  return applyBinary(
+    '+',
+    applyBinary('*', applyBinary('+', direct, indirect), occlusion),
+    emissive,
+  );
+}
+
+/// What [program]'s `vertex` block writes for one vertex — version 2: each
+/// output it names, by name. [vertex] carries [materialVertexInputs]; an
+/// output the block does not write is absent, and the caller keeps its own.
+/// Throws a [StateError] for a program with no block.
+Map<String, List<double>> evaluateMaterialVertex(
+  MaterialProgram program,
+  MaterialSurfaceValues vertex,
+) {
+  final body =
+      program.vertex ??
+      (throw StateError('"${program.name}" has no vertex block.'));
+  final scope = <String, List<double>>{};
+  final written = <String, List<double>>{};
+  for (final statement in body) {
+    switch (statement) {
+      case MaterialLet(:final name, :final value):
+        scope[name] = _evaluate(value, vertex, scope);
+      case MaterialOutput(:final output, :final value):
+        written[output.name] = _evaluate(value, vertex, scope);
+      case MaterialReturn():
+        throw StateError('"${program.name}"\'s vertex block returns.');
+    }
+  }
+  return written;
+}
 
 List<double> _run(
   String name,
@@ -90,6 +191,10 @@ List<double> _run(
         scope[name] = _evaluate(value, surface, scope);
       case MaterialReturn(:final value):
         return _evaluate(value, surface, scope);
+      case MaterialOutput():
+        // Only a vertex block writes outputs, and it is run by
+        // [evaluateMaterialVertex].
+        throw StateError('"$name" writes an output outside a vertex block.');
     }
   }
   // The parser refuses a body whose last statement is not a return, so this is
@@ -98,12 +203,12 @@ List<double> _run(
 }
 
 /// Throws [ArgumentError] unless [inputs] answers every name in
-/// [kMaterialInputs], with the right number of components.
+/// [materialInputs], with the right number of components.
 ///
 /// A backend calls this once, where it can be seen, rather than discovering a
 /// missing input at whichever fragment first reads it.
 void checkMaterialSurface(Map<String, List<double>> inputs) {
-  for (final input in kMaterialInputs) {
+  for (final input in materialInputs) {
     final value = inputs[input.name];
     if (value == null) {
       throw ArgumentError('The surface has no "${input.name}".');

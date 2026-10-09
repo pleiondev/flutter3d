@@ -1,3 +1,5 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_node.dart';
@@ -28,13 +30,12 @@ final class PlanarReflectorNode extends SceneNode {
     Iterable<MeshNode> surfaces = const <MeshNode>[],
     this.reflectance = 1.0,
     this.strength = 1.0,
-    Vector3? tint,
+    this.tint = LinearColor.white,
     this.resolution = 0.5,
     this.clipOffset = 0.01,
     this.reflectedLayers = ~0,
     super.name,
   }) : surfaces = <MeshNode>{...surfaces},
-       tint = tint ?? Vector3(1.0, 1.0, 1.0),
        assert(reflectance >= 0.0 && reflectance <= 1.0, 'F0 is a fraction'),
        assert(strength >= 0.0, 'a reflection cannot take light away'),
        assert(
@@ -54,15 +55,17 @@ final class PlanarReflectorNode extends SceneNode {
   /// for a mirror, which then reflects everything at every angle, and about
   /// 0.02 for water, which reflects little looking down and nearly all at a
   /// grazing angle.
+  /// A 0..1 fraction.
   double reflectance;
 
   /// What the Fresnel term is multiplied by before the reflection is laid
   /// on; one lays it on as the angle says.
+  /// A unitless multiplier.
   double strength;
 
   /// Linear light the reflection is multiplied by: a tinted glass, a dark
-  /// pool.
-  final Vector3 tint;
+  /// pool. Alpha is not read.
+  LinearColor tint;
 
   /// The reflection's size as a fraction of its view's, each way. Half by
   /// default, which is a quarter of the pixels; a still mirror that fills the

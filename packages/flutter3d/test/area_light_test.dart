@@ -25,10 +25,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -43,7 +46,7 @@ const int _height = 72;
 double _integrateRectangle(
   Vector3 at,
   Vector3 n, {
-  required Vector3 centre,
+  required Vector3 center,
   required Vector3 halfWidth,
   required Vector3 halfHeight,
   int steps = 400,
@@ -59,7 +62,7 @@ double _integrateRectangle(
     final u = (i + 0.5) / steps * 2.0 - 1.0;
     for (var j = 0; j < steps; j++) {
       final v = (j + 0.5) / steps * 2.0 - 1.0;
-      final point = centre + halfWidth * u + halfHeight * v;
+      final point = center + halfWidth * u + halfHeight * v;
       final toPoint = point - at;
       final distance2 = toPoint.length2;
       if (distance2 < 1e-12) continue;
@@ -77,11 +80,11 @@ double _integrateRectangle(
 
 List<Vector3> _cornersFrom(
   Vector3 at, {
-  required Vector3 centre,
+  required Vector3 center,
   required Vector3 halfWidth,
   required Vector3 halfHeight,
 }) {
-  final toCentre = centre - at;
+  final toCentre = center - at;
   return <Vector3>[
     toCentre - halfWidth - halfHeight,
     toCentre + halfWidth - halfHeight,
@@ -126,9 +129,9 @@ List<Vector3> _cornersFrom(
         device,
         CuboidShape(size: Vector3(12.0, 0.4, 12.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'floor',
-        baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
         metallic: 0.0,
         roughness: roughness,
       ),
@@ -139,7 +142,11 @@ List<Vector3> _cornersFrom(
   // Facing down is the node's local −Z pointing at the floor, so the node is
   // pitched a quarter turn; the roll then spins the panel in its own plane.
   scene.add(
-    LightNode(type: LightType.area, intensity: 12.0, name: 'window')
+    LightNode(
+        type: LightType.area,
+        intensity: 12.0 * Photometric.legacyUnit,
+        name: 'window',
+      )
       ..width = panelWidth
       ..height = panelHeight
       ..setPosition(0.0, 2.0, 0.0)
@@ -161,9 +168,9 @@ Future<Uint8List> _draw(({Scene scene, CameraNode camera}) room) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 void main() {
@@ -172,36 +179,36 @@ void main() {
       // Five arrangements rather than one, because the four terms of the sum
       // cancel differently as the panel moves off the axis, and a sign error in
       // one edge survives a test that only ever looks straight up at it.
-      final cases = <({String name, Vector3 at, Vector3 n, Vector3 centre})>[
+      final cases = <({String name, Vector3 at, Vector3 n, Vector3 center})>[
         (
           name: 'straight below the middle',
           at: Vector3.zero(),
           n: Vector3(0.0, 1.0, 0.0),
-          centre: Vector3(0.0, 2.0, 0.0),
+          center: Vector3(0.0, 2.0, 0.0),
         ),
         (
           name: 'off to one side',
           at: Vector3.zero(),
           n: Vector3(0.0, 1.0, 0.0),
-          centre: Vector3(1.5, 2.0, 0.0),
+          center: Vector3(1.5, 2.0, 0.0),
         ),
         (
           name: 'off the other axis',
           at: Vector3.zero(),
           n: Vector3(0.0, 1.0, 0.0),
-          centre: Vector3(0.0, 2.0, -1.2),
+          center: Vector3(0.0, 2.0, -1.2),
         ),
         (
           name: 'a long way off, where the panel is nearly a point',
           at: Vector3.zero(),
           n: Vector3(0.0, 1.0, 0.0),
-          centre: Vector3(0.0, 9.0, 0.0),
+          center: Vector3(0.0, 9.0, 0.0),
         ),
         (
           name: 'close enough to fill much of the sky',
           at: Vector3.zero(),
           n: Vector3(0.0, 1.0, 0.0),
-          centre: Vector3(0.0, 0.6, 0.0),
+          center: Vector3(0.0, 0.6, 0.0),
         ),
       ];
 
@@ -212,14 +219,14 @@ void main() {
         final reference = _integrateRectangle(
           it.at,
           it.n,
-          centre: it.centre,
+          center: it.center,
           halfWidth: halfWidth,
           halfHeight: halfHeight,
         );
         final closed = rectangleFormFactor(
           _cornersFrom(
             it.at,
-            centre: it.centre,
+            center: it.center,
             halfWidth: halfWidth,
             halfHeight: halfHeight,
           ),
@@ -249,7 +256,7 @@ void main() {
       final above = rectangleFormFactor(
         _cornersFrom(
           Vector3(0.0, 3.0, 0.0),
-          centre: Vector3(0.0, 2.0, 0.0),
+          center: Vector3(0.0, 2.0, 0.0),
           halfWidth: halfWidth,
           halfHeight: halfHeight,
         ),
@@ -264,7 +271,7 @@ void main() {
       final zero = rectangleFormFactor(
         _cornersFrom(
           Vector3.zero(),
-          centre: Vector3(0.0, 2.0, 0.0),
+          center: Vector3(0.0, 2.0, 0.0),
           halfWidth: Vector3.zero(),
           halfHeight: Vector3.zero(),
         ),
@@ -309,7 +316,7 @@ void main() {
               rectangleFormFactor(
                 _cornersFrom(
                   at,
-                  centre: Vector3.zero(),
+                  center: Vector3.zero(),
                   halfWidth: halfWidth,
                   halfHeight: halfHeight,
                 ),
@@ -322,8 +329,7 @@ void main() {
 
       expect(flux / intensity, closeTo(math.pi, 0.01 * math.pi));
       expect(
-        Photometric.toLumens(intensity, type: LightType.area) /
-            Photometric.toCandela(intensity),
+        Photometric.toLumens(intensity, type: LightType.area) / intensity,
         closeTo(flux / intensity, 0.01 * math.pi),
         reason: 'the rating and what the shader sends out disagree',
       );

@@ -1,4 +1,6 @@
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureHandle;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'scene.dart';
@@ -26,17 +28,15 @@ import 'scene_node.dart';
 final class DecalNode extends SceneNode {
   DecalNode({
     this.texture,
-    Vector4? color,
-    Vector3? emissive,
+    this.color = LinearColor.white,
+    this.emissive = LinearColor.black,
     Vector4? region,
     this.order = 0,
     this.angleLimit = 1.3,
     this.angleFade = 0.2,
     this.depthFade = 0.1,
     super.name,
-  }) : color = color ?? Vector4(1.0, 1.0, 1.0, 1.0),
-       emissive = emissive ?? Vector3.zero(),
-       region = region ?? Vector4(0.0, 0.0, 1.0, 1.0),
+  }) : region = region ?? Vector4(0.0, 0.0, 1.0, 1.0),
        assert(angleLimit >= 0.0, 'an angle limit is an angle'),
        assert(angleFade >= 0.0, 'a fade is a width'),
        assert(depthFade >= 0.0 && depthFade <= 1.0, 'a share of the box');
@@ -48,13 +48,13 @@ final class DecalNode extends SceneNode {
   /// much of the picture one pixel covers, as a material's would be.
   TextureHandle? texture;
 
-  /// The tint, sRGB like `Material.baseColor`, and in [Vector4.w] the opacity
-  /// the picture's own alpha is multiplied by.
-  Vector4 color;
+  /// The tint, linear like `RenderMaterial.baseColor`, and in its alpha the
+  /// opacity the picture's own alpha is multiplied by.
+  LinearColor color;
 
   /// Light the painted colour gives off, as a multiple of it. Zero, the
   /// default, emits nothing; a glowing sign wants a few.
-  Vector3 emissive;
+  LinearColor emissive;
 
   /// The part of [texture] this decal shows: x and y where it starts in
   /// texture coordinates, z and w how far it reaches. The whole picture by

@@ -1,5 +1,4 @@
-import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show CollisionBox, CollisionWorld, Collider;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'voxel_boxes.dart';

@@ -22,7 +22,11 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
+
+export 'parity_grid.dart';
 
 /// Which of the engine's features a comparison scene exercises.
 ///
@@ -111,7 +115,7 @@ enum ParityScene {
   /// The same room with eight torches for six rows: two of them keep lighting
   /// and cast nothing.
   ///
-  /// It was built when `Renderer.kShadowedLights` was four: four rows, six
+  /// It was built when `Renderer.shadowedLights` was four: four rows, six
   /// lights, and which four got them decided per frame, so the fixture asked
   /// whether the two backends agree about *which* row each light reads on a
   /// frame where the answer has just changed. Raising the constant to six gave
@@ -156,7 +160,7 @@ enum ParityScene {
       which == ParityScene.torchesRunningOut) {
     return _buildTorchNearWall(
       device,
-      // Two more than `Renderer.kShadowedLights`, so two of them are denied.
+      // Two more than `Renderer.shadowedLights`, so two of them are denied.
       torches: which == ParityScene.torchesRunningOut ? 8 : 1,
     );
   }
@@ -170,9 +174,9 @@ enum ParityScene {
   scene.root.add(
     MeshNode(
       big,
-      Material(
+      RenderMaterial(
         name: 'big',
-        baseColor: Vector4(0.85, 0.25, 0.15, 1.0),
+        baseColor: LinearColor.fromSrgb(0.85, 0.25, 0.15, 1.0),
         // Physical only where the fixture is about what a surface reflects:
         // Lambert has no response to an environment at all, so an IBL scene
         // shaded that way would compare two flat colours and pass whatever the
@@ -197,9 +201,9 @@ enum ParityScene {
   scene.root.add(
     MeshNode(
         small,
-        Material(
+        RenderMaterial(
           name: 'small',
-          baseColor: Vector4(0.2, 0.5, 0.9, 1.0),
+          baseColor: LinearColor.fromSrgb(0.2, 0.5, 0.9, 1.0),
           lighting: which == ParityScene.imageBasedLighting
               ? LightingModel.pbr
               : LightingModel.lambert,
@@ -239,9 +243,9 @@ enum ParityScene {
           device,
           const PlaneShape(width: 8.0, depth: 8.0).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'floor',
-          baseColor: Vector4(0.55, 0.55, 0.6, 1.0),
+          baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.6, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'floor',
@@ -263,7 +267,7 @@ enum ParityScene {
       // Above and to the right, so the lit side of both spheres is up.
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 3.5
+          ..intensity = 3.5 * Photometric.legacyUnit
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -274,7 +278,7 @@ enum ParityScene {
       // and a comparison that cannot see it cannot disagree about it.
       scene.root.add(
         LightNode(name: 'sun', type: LightType.directional)
-          ..intensity = 4.0
+          ..intensity = 4.0 * Photometric.legacyUnit
           ..castsShadow = true
           ..setPosition(2.5, 3.0, 1.5)
           ..lookAt(Vector3.zero()),
@@ -285,7 +289,7 @@ enum ParityScene {
     case ParityScene.pointShadowStaticMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
-          ..intensity = 12.0
+          ..intensity = 12.0 * Photometric.legacyUnit
           ..range = 12.0
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
@@ -295,7 +299,7 @@ enum ParityScene {
     case ParityScene.look:
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 3.5
+          ..intensity = 3.5 * Photometric.legacyUnit
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -304,12 +308,12 @@ enum ParityScene {
       // **No direct light at all.** Everything in this picture came out of the
       // cube, so a backend that binds no environment draws two silhouettes and
       // the number says so, rather than being carried by a key light.
-      final environment = EnvironmentMap.fromSky(device, _paritySky);
-      if (environment != null) {
+      if (EnvironmentMap.isSupportedOn(device)) {
+        final environment = EnvironmentMap.fromSky(device, _paritySky);
         scene.environment = environment.texture;
         scene.environmentLevels = environment.levels;
       }
-      scene.ambientIntensity = 1.0;
+      scene.ambientIntensity = Photometric.legacyUnit;
   }
 
   final camera = CameraNode(name: 'eye')
@@ -361,9 +365,9 @@ const List<(double, double, double)> _torchStandoffs =
   required int torches,
 }) {
   final scene = Scene(name: 'parity');
-  final stone = Material(
+  final stone = RenderMaterial(
     name: 'stone',
-    baseColor: Vector4(0.72, 0.70, 0.66, 1.0),
+    baseColor: LinearColor.fromSrgb(0.72, 0.70, 0.66, 1.0),
     lighting: LightingModel.lambert,
     roughness: 0.9,
   );
@@ -416,7 +420,7 @@ const List<(double, double, double)> _torchStandoffs =
         : _torchStandoffs[(i - 1) % _torchStandoffs.length];
     scene.root.add(
       LightNode(name: 'torch$i', type: LightType.point)
-        ..intensity = i == 0 ? 8.0 : 4.0
+        ..intensity = (i == 0 ? 8.0 : 4.0) * Photometric.legacyUnit
         ..range = 13.0
         ..castsShadow = true
         ..setPosition(at.$1, at.$2, at.$3),
@@ -499,5 +503,5 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
 const SkySettings _paritySky = SkySettings(
   enabled: true,
   glowStrength: 0.35,
-  sunIntensity: 2.0,
+  sunIntensity: 2.0 * Photometric.legacyUnit,
 );

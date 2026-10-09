@@ -97,7 +97,7 @@ LUT_1D_SIZE 3
     test('a table with no size', () {
       expect(
         () => CubeLut.parse('0 0 0\n1 1 1\n'),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<CubeLutFormatException>()),
       );
     });
 
@@ -105,7 +105,7 @@ LUT_1D_SIZE 3
       expect(
         () => CubeLut.parse('LUT_3D_SIZE 2\n0 0 0\n1 1 1\n'),
         throwsA(
-          isA<FormatException>().having(
+          isA<CubeLutFormatException>().having(
             (e) => e.message,
             'message',
             contains('expected 8 entries'),
@@ -118,7 +118,7 @@ LUT_1D_SIZE 3
       expect(
         () => CubeLut.parse('LUT_1D_SIZE 2\n0 0 0\n1 one 1\n'),
         throwsA(
-          isA<FormatException>().having(
+          isA<CubeLutFormatException>().having(
             (e) => e.message,
             'message',
             contains('line 3'),
@@ -132,7 +132,7 @@ LUT_1D_SIZE 3
         () => CubeLut.parse(
           'LUT_1D_SIZE 2\nDOMAIN_MIN 1 1 1\nDOMAIN_MAX 1 1 1\n0 0 0\n1 1 1\n',
         ),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<CubeLutFormatException>()),
       );
     });
   });

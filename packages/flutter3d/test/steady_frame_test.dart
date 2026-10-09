@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -46,7 +45,10 @@ _room() {
       device,
       CuboidShape(size: Vector3(40.0, 1.0, 40.0)).build(),
     ),
-    Material(name: 'floor', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+    RenderMaterial(
+      name: 'floor',
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+    ),
     name: 'floor',
   )..setPosition(0.0, -1.0, 0.0);
   scene.add(floor);
@@ -58,18 +60,20 @@ _room() {
       device,
       CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
     ),
-    Material(
+    RenderMaterial(
       name: 'lamp',
-      baseColor: Vector4(1.0, 0.85, 0.5, 1.0),
-      emissive: Vector3(2.0, 1.6, 0.8),
+      baseColor: LinearColor.fromSrgb(1.0, 0.85, 0.5, 1.0),
+      emissive: LinearColor(2.0, 1.6, 0.8),
     ),
     name: 'lamp',
   )..setPosition(0.0, 1.0, -6.0);
   scene.add(box);
 
   scene.add(
-    LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 4.0)
-      ..lookAt(Vector3(-0.4, -1.0, -0.3)),
+    LightNode(
+      color: LinearColor(1.0, 1.0, 1.0),
+      intensity: 4.0 * Photometric.legacyUnit,
+    )..lookAt(Vector3(-0.4, -1.0, -0.3)),
   );
 
   // A lamp that casts, which is what a crypt is lit by and what the editor
@@ -77,19 +81,15 @@ _room() {
   scene.add(
     LightNode(
       type: LightType.point,
-      color: Vector3(1.0, 0.8, 0.5),
-      intensity: 8.0,
+      color: LinearColor(1.0, 0.8, 0.5),
+      intensity: 8.0 * Photometric.legacyUnit,
       range: 24.0,
       castsShadow: true,
     )..setPosition(2.0, 3.0, -3.0),
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.05,
-      near: 0.1,
-      far: 200.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.05, near: 0.1, far: 200.0),
   )..setPosition(0.0, 1.5, 6.0);
   camera.lookAt(Vector3(0.0, 1.0, -6.0));
   scene.add(camera);
@@ -119,12 +119,15 @@ Future<Uint8List> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 void main() {
@@ -166,7 +169,7 @@ void main() {
   test('and so are six with the debug overlay on', () async {
     final it = _room();
     const settings = RenderSettings(
-      debug: DebugDrawOptions(bounds: true, lightGizmos: true, axes: true),
+      debug: DebugDrawSettings(bounds: true, lightGizmos: true, axes: true),
     );
 
     final first = await _draw(it, settings);

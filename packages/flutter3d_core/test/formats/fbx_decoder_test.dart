@@ -89,8 +89,8 @@ void main() {
           source.resolveUri,
         ),
         throwsA(
-          isA<FormatException>().having(
-            (FormatException e) => e.message,
+          isA<FbxFormatException>().having(
+            (FbxFormatException e) => e.message,
             'message',
             contains('fmt-24'),
           ),

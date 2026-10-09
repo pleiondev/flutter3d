@@ -21,6 +21,9 @@
 /// declares the Flutter SDK.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
+
 /// A source file the translator can read.
 ///
 /// A map rather than the filesystem, because the translator runs both from a
@@ -30,13 +33,14 @@ typedef GlslSources = Map<String, String>;
 /// Raised when translation cannot continue. Carries the file it happened in,
 /// because an error naming only a line number is an error in nineteen hundred
 /// lines of identical-looking GLSL.
-final class GlslTranslateError implements Exception {
-  const GlslTranslateError(this.message);
+final class GlslTranslateException extends Flutter3dFormatException {
+  const GlslTranslateException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'GlslTranslateError: $message';
+  String toString() => 'GlslTranslateException: $message';
 }
 
 /// Resolves `#include <path>` against [sources].
@@ -67,14 +71,16 @@ String resolveIncludes(
     }
     final target = match.group(1)!;
     if (path.contains(target)) {
-      throw GlslTranslateError(
+      throw GlslTranslateException(
         'include cycle: ${<String>[...path, target].join(' -> ')}',
       );
     }
     if (!included.add(target)) continue;
     final body = sources[target];
     if (body == null) {
-      throw GlslTranslateError('$from includes "$target", which is not here');
+      throw GlslTranslateException(
+        '$from includes "$target", which is not here',
+      );
     }
     // The included text is translated by the same rules, so a header's own
     // includes and its version line are handled once rather than per includer.

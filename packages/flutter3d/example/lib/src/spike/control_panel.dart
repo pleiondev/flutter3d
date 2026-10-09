@@ -73,8 +73,8 @@ class ControlPanel extends StatelessWidget {
   final ValueChanged<bool> onSpinning;
   final bool culling;
   final ValueChanged<bool> onCulling;
-  final DebugDrawOptions debug;
-  final ValueChanged<DebugDrawOptions> onDebug;
+  final DebugDrawSettings debug;
+  final ValueChanged<DebugDrawSettings> onDebug;
 
   /// The scene's lights, so each can be switched on and off.
   final List<LightNode> lights;
@@ -249,12 +249,12 @@ class ControlPanel extends StatelessWidget {
                     '${light.name ?? light.type.name} '
                     '(${light.type.name})',
                   ),
-                  selected: light.visible,
+                  selected: light.isVisible,
                   // Switching a light off only shortens the shader's loop; the
                   // pipeline is untouched, which the "pipeline sw" counter below
                   // keeps honest.
                   onSelected: (v) {
-                    light.visible = v;
+                    light.isVisible = v;
                     onLightsChanged();
                   },
                 ),

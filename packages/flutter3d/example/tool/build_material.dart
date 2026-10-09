@@ -8,7 +8,7 @@
 // hook, and its golden runner wants the bundle at a fixed asset path.
 import 'dart:io';
 
-import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_shaders/compile.dart';
 
 void main() {

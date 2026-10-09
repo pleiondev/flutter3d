@@ -18,7 +18,7 @@ import 'cpu_shaders_layout.dart';
 const double _kNear = 1e-4;
 
 /// The polyline vertex stage — `polyline.vert`.
-final class PolylineVertexShader implements CpuVertexShaderByIndex {
+final class PolylineVertexShader extends CpuVertexShaderByIndex {
   const PolylineVertexShader();
 
   @override

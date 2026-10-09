@@ -15,7 +15,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Demo _demo({int steps = 10}) {
   final checkpoints = DigestTrace(every: 5);
@@ -35,11 +34,7 @@ Demo _demo({int steps = 10}) {
 FrameSubject _emptyScene(FrameRequest request) {
   final scene = Scene();
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.05,
-      far: 200.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.05, far: 200.0),
   )..setPositionFrom(Vector3(0.0, 0.0, 5.0));
   camera.lookAt(Vector3.zero());
   scene.add(camera);

@@ -1,0 +1,44 @@
+// The rim material in version 2 of the material language: everything the
+// version adds, in one file, and never rewritten once a release has read it.
+//
+// The rim of version 1, lit now through a light block, its ambient and its
+// sum its own; a vertex block that breathes the surface out along its
+// normal; a state block that blends it additively one depth layer above
+// what it lies on; and a soft edge where it meets the scene behind it.
+f3dmat 2
+material RimGlow {
+  param float rimPower = 3.0;
+  uniform vec3 rimColor = vec3(0.2, 0.5, 1.0);
+  uniform float breath = 0.0;
+
+  state {
+    blend additive;
+    depthWrite off;
+    depthLayer 1;
+    doubleSided on;
+    directional off;
+  }
+
+  vertex {
+    out world = world + normal * (0.02 * breath);
+  }
+
+  light {
+    return albedo;
+  }
+
+  ambient {
+    return albedo * (ambient + lightmap) * 0.5;
+  }
+
+  composite {
+    return (direct + indirect) * occlusion + emissive;
+  }
+
+  fragment {
+    let facing = clamp(nDotV, 0.0, 1.0);
+    let rim = pow(1.0 - facing, rimPower);
+    let soft = clamp((sceneDepth - viewDepth) * 4.0, 0.0, 1.0);
+    return vec4(lit * (0.25 + 0.75 * facing) + rimColor * rim, soft);
+  }
+}

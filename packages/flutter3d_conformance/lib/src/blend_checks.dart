@@ -66,12 +66,12 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
     destinationAlphaFactor: BlendFactor.zero,
   );
 
-  if (!device.supportsBlendColor) {
+  if (!device.features.has(DeviceFeature.blendConstant)) {
     _refusesTheConstant(device, equation, constant);
     return;
   }
 
-  final drawn = await _centreOf(
+  final drawn = await _centerOf(
     device,
     vertex: vertex!,
     fragment: fragment!,
@@ -88,7 +88,7 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
     'one; black means setBlendColor never reached the blend at all.',
   );
 
-  final inherited = await _centreOf(
+  final inherited = await _centerOf(
     device,
     vertex: vertex,
     fragment: fragment,
@@ -108,7 +108,7 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
 
 /// Draws one full-frame white triangle through [equation], having set
 /// [constant] first when it is not null, and reads the centre pixel back.
-Future<List<int>> _centreOf(
+Future<List<int>> _centerOf(
   GraphicsDevice device, {
   required ShaderHandle vertex,
   required ShaderHandle fragment,
@@ -116,7 +116,7 @@ Future<List<int>> _centreOf(
   required Vector4? constant,
 }) async {
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: _size,
       height: _size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -163,10 +163,9 @@ Future<List<int>> _centreOf(
     ..draw();
   pass.submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the target could not be read back');
+  final pixels = await device.readback(target);
   final at = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
-  return pixels!.buffer.asUint8List().sublist(at, at + 3);
+  return pixels.buffer.asUint8List().sublist(at, at + 3);
 }
 
 /// The other half of the rule: a backend with no constant refuses, from both
@@ -184,7 +183,7 @@ void _refusesTheConstant(
       colors: <ColorTarget>[
         ColorTarget(
           texture: device.createTexture(
-            const RenderTargetSpec(
+            const RenderTargetDescriptor(
               width: _size,
               height: _size,
               format: TextureFormat.r8g8b8a8UNormInt,
@@ -199,6 +198,8 @@ void _refusesTheConstant(
     var refusedSetter = false;
     try {
       pass.setBlendColor(constant);
+    } on UnsupportedCapability {
+      refusedSetter = true;
     } on UnsupportedError {
       refusedSetter = true;
     }
@@ -207,12 +208,14 @@ void _refusesTheConstant(
       'supportsBlendColor is false and setBlendColor was accepted anyway. A '
       'backend that cannot set the constant has to say so — accepting the call '
       'and dropping it leaves the caller believing a value it will never see, '
-      'which is the silence GraphicsDevice.supportsBlendColor exists to break.',
+      'which is the silence DeviceFeature.blendConstant exists to break.',
     );
 
     var refusedState = false;
     try {
       pass.setBlend(equation);
+    } on UnsupportedCapability {
+      refusedState = true;
     } on UnsupportedError {
       refusedState = true;
     }

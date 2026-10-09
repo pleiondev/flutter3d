@@ -30,8 +30,8 @@ import 'animation_target.dart';
 /// `test/pose_test.dart` holds them to it on `RiggedSimple.glb` and
 /// `BoxAnimated.glb`, sampled through the ordinary scene-graph pipeline and
 /// through this one, at several times across the clip.
-final class Pose {
-  Pose({
+final class AnimationPose {
+  AnimationPose({
     required List<int> parents,
     required Float32List restTranslations,
     required Float32List restRotations,
@@ -48,7 +48,7 @@ final class Pose {
         restScales.length != n * 3 ||
         restRotations.length != n * 4) {
       throw ArgumentError(
-        'Pose has $n nodes but ${restTranslations.length ~/ 3} translations, '
+        'AnimationPose has $n nodes but ${restTranslations.length ~/ 3} translations, '
         '${restRotations.length ~/ 4} rotations and '
         '${restScales.length ~/ 3} scales.',
       );
@@ -85,7 +85,7 @@ final class Pose {
   /// ordinarily walked top-down. Rest TRS is read straight off
   /// [ModelNode.translation]/[ModelNode.rotation]/[ModelNode.scale], which is
   /// the pose the file loads into before any clip has touched it.
-  factory Pose.fromNodes(List<ModelNode> nodes) {
+  factory AnimationPose.fromNodes(List<ModelNode> nodes) {
     final parents = List<int>.filled(nodes.length, -1);
     for (var i = 0; i < nodes.length; i++) {
       for (final child in nodes[i].children) {
@@ -110,7 +110,7 @@ final class Pose {
       s[i * 3 + 2] = node.scale.z;
     }
 
-    return Pose(
+    return AnimationPose(
       parents: parents,
       restTranslations: t,
       restRotations: r,
@@ -126,7 +126,7 @@ final class Pose {
   }
 
   /// This pose made [other]'s, joint for joint: the same hierarchy.
-  void setFrom(Pose other) {
+  void setFrom(AnimationPose other) {
     translations.setAll(0, other.translations);
     rotations.setAll(0, other.rotations);
     scales.setAll(0, other.scales);
@@ -137,7 +137,7 @@ final class Pose {
   /// What a crossfade needs: somewhere to sample the clip being left while
   /// this pose holds the one being entered. The rest arrays are shared, not
   /// copied — nothing writes to them after construction.
-  Pose restCopy() => Pose(
+  AnimationPose restCopy() => AnimationPose(
     parents: parents,
     restTranslations: _restTranslations,
     restRotations: _restRotations,
@@ -152,7 +152,7 @@ final class Pose {
   /// `AnimationPlayer`'s own `_blendInto`, with the same argument order, so a
   /// graph fading between two clips and a player fading between the same two
   /// agree joint for joint.
-  void blendFrom(Pose from, double weight) {
+  void blendFrom(AnimationPose from, double weight) {
     if (from.nodeCount != nodeCount) {
       throw ArgumentError(
         'Cannot blend a pose of ${from.nodeCount} nodes into one of '
@@ -414,7 +414,7 @@ final class Pose {
 
   /// Writes this pose's current local TRS onto [targets], index-aligned
   /// with [parents] — `anim-14`'s own row, the bridge back from a solver
-  /// that works on [Pose] alone (inverse kinematics, a mocap importer) onto
+  /// that works on [AnimationPose] alone (inverse kinematics, a mocap importer) onto
   /// whatever a renderer actually reads.
   ///
   /// A null entry in [targets] — the ordinary case for a node this caller
@@ -444,5 +444,5 @@ final class Pose {
   }
 
   @override
-  String toString() => 'Pose($nodeCount nodes)';
+  String toString() => 'AnimationPose($nodeCount nodes)';
 }

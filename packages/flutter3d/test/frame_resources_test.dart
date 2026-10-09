@@ -18,10 +18,11 @@ library;
 
 import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
 import 'package:flutter3d_core/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const ResourceId colour = ResourceId('colour');
+const ResourceId color = ResourceId('colour');
 const ResourceId atlas = ResourceId('atlas');
 const ResourceId bloom = ResourceId('bloom');
 const ResourceId frame = ResourceId('frame');
@@ -60,14 +61,14 @@ final class _Pass extends FrameGraphNode {
 /// The releases are a *list* and not a set, deliberately: half of what is
 /// tested here is that a texture goes back exactly once, and a set would
 /// swallow the second one — which is the bug.
-final class _CountingSource implements FrameTextureSource {
+final class _CountingSource with FrameTextureSource {
   final List<TextureHandle> acquired = <TextureHandle>[];
   final List<TextureHandle> released = <TextureHandle>[];
 
   int _serial = 0;
 
   @override
-  TextureHandle acquire(RenderTargetSpec spec) {
+  TextureHandle acquire(RenderTargetDescriptor spec) {
     final texture = fakeTexture(
       'acquired ${_serial++}',
       width: spec.width,
@@ -93,11 +94,11 @@ final class _CountingSource implements FrameTextureSource {
 /// This is the whole trick. The pool's job is bookkeeping; the only line in it
 /// that ever needed a device was `createTexture`, and with that injected the
 /// real pool runs in a unit test unchanged.
-final class _FakeAllocator implements TextureAllocator {
+final class _FakeAllocator with TextureAllocator {
   int created = 0;
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) => fakeTexture(
+  TextureHandle createTexture(TextureDescriptor spec) => fakeTexture(
     'created ${created++}',
     width: spec.width,
     height: spec.height,
@@ -123,7 +124,7 @@ TextureHandle fakeTexture(
   TextureFormat format = TextureFormat.r16g16b16a16Float,
   int sampleCount = 1,
   StorageMode storageMode = StorageMode.devicePrivate,
-}) => TextureHandle(
+}) => wrapTexture(
   backend: label,
   width: width,
   height: height,
@@ -161,7 +162,7 @@ FrameResources resourcesFor(
 }
 
 const ResourceDesc colourDesc = ResourceDesc(
-  id: colour,
+  id: color,
   format: TextureFormat.r16g16b16a16Float,
 );
 const ResourceDesc bloomDesc = ResourceDesc(
@@ -180,12 +181,12 @@ void main() {
       // every test run here and fail on the hardware the mode exists for.
       final graph = compile(
         <FrameGraphNode>[
-          const _Pass('writer', writes: <ResourceId>[colour]),
+          const _Pass('writer', writes: <ResourceId>[color]),
           // The reader must produce something the frame asks for, or the
           // graph culls it and there is no reader left to protect.
           const _Pass(
             'reader',
-            reads: <ResourceId>[colour],
+            reads: <ResourceId>[color],
             writes: <ResourceId>[bloom],
           ),
         ],
@@ -201,7 +202,7 @@ void main() {
       expect(
         () => resources.declare(
           const ResourceDesc(
-            id: colour,
+            id: color,
             format: TextureFormat.r16g16b16a16Float,
             storageMode: StorageMode.deviceTransient,
           ),
@@ -221,9 +222,9 @@ void main() {
       // nothing else ever looks at. Refusing this would make the check useless.
       final graph = compile(
         <FrameGraphNode>[
-          const _Pass('writer', writes: <ResourceId>[colour]),
+          const _Pass('writer', writes: <ResourceId>[color]),
         ],
-        outputs: <ResourceId>[colour],
+        outputs: <ResourceId>[color],
       );
       final resources = FrameResources(
         source: _CountingSource(),
@@ -235,7 +236,7 @@ void main() {
       expect(
         () => resources.declare(
           const ResourceDesc(
-            id: colour,
+            id: color,
             format: TextureFormat.r16g16b16a16Float,
             storageMode: StorageMode.deviceTransient,
           ),
@@ -336,17 +337,17 @@ void main() {
     // next two acquirers of that shape are handed the same texture and draw
     // over each other.
 
-    const scene = _Pass('scene', writes: <ResourceId>[colour]);
+    const scene = _Pass('scene', writes: <ResourceId>[color]);
     const overlay = _Pass(
       'overlay',
-      reads: <ResourceId>[colour],
-      writes: <ResourceId>[colour],
+      reads: <ResourceId>[color],
+      writes: <ResourceId>[color],
     );
 
     test('an in-place write draws into the texture it was handed', () {
       final graph = compile(
         const <FrameGraphNode>[scene, overlay],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final source = _CountingSource();
       final resources = resourcesFor(
@@ -356,13 +357,13 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(colour);
+      final drawn = resources.texture(color);
       resources.endNode(0);
 
       resources.beginNode(1);
       // Not a second allocation. If this were one, the overlay would be drawing
       // onto a blank texture and the scene would vanish behind it.
-      expect(resources.texture(colour), same(drawn));
+      expect(resources.texture(color), same(drawn));
       expect(source.acquired, hasLength(1));
     });
 
@@ -371,7 +372,7 @@ void main() {
       // broken copy of this class to find that the two tests above do not need
       // it: the overlay is handed the right texture by its own *read* binding
       // whether or not the write version was ever bound. It is the pass after
-      // it that binds to `colour@2` — and with nothing behind that version the
+      // it that binds to `color@2` — and with nothing behind that version the
       // frame does not fail, it allocates a second, blank texture and composites
       // that. Everything the frame drew is gone and nothing reports an error.
       final graph = compile(
@@ -380,7 +381,7 @@ void main() {
           overlay,
           _Pass(
             'composite',
-            reads: <ResourceId>[colour],
+            reads: <ResourceId>[color],
             writes: <ResourceId>[frame],
           ),
         ],
@@ -394,21 +395,21 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(colour);
+      final drawn = resources.texture(color);
       resources.endNode(0);
       resources.beginNode(1);
-      resources.texture(colour);
+      resources.texture(color);
       resources.endNode(1);
 
       resources.beginNode(2);
-      expect(resources.texture(colour), same(drawn));
+      expect(resources.texture(color), same(drawn));
       expect(source.acquired, hasLength(1));
     });
 
     test('two versions standing on one texture go back once', () {
       final graph = compile(
         const <FrameGraphNode>[scene, overlay],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final source = _CountingSource();
       final resources = resourcesFor(
@@ -418,16 +419,16 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(colour);
+      final drawn = resources.texture(color);
       resources.endNode(0);
       // Nothing yet: the overlay still reads this version.
       expect(source.released, isEmpty);
 
       resources.beginNode(1);
-      resources.texture(colour);
+      resources.texture(color);
       resources.endNode(1);
 
-      // Both `colour@1` and `colour@2` retire here, and they are one texture.
+      // Both `color@1` and `color@2` retire here, and they are one texture.
       expect(source.releaseCountOf(drawn), 1);
     });
 
@@ -439,7 +440,7 @@ void main() {
       final pool = RenderTargetPool(_FakeAllocator());
       final graph = compile(
         const <FrameGraphNode>[scene, overlay],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final resources = resourcesFor(
         graph,
@@ -448,10 +449,10 @@ void main() {
       );
 
       resources.beginNode(0);
-      resources.texture(colour);
+      resources.texture(color);
       resources.endNode(0);
       resources.beginNode(1);
-      resources.texture(colour);
+      resources.texture(color);
       resources.endNode(1);
 
       expect(pool.lentCount, 0);
@@ -466,7 +467,7 @@ void main() {
       // its own and must not.
       final graph = compile(
         const <FrameGraphNode>[scene, overlay],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final source = _CountingSource();
       final resources = resourcesFor(
@@ -476,14 +477,14 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(colour);
+      final drawn = resources.texture(color);
       resources.endNode(0);
 
       final own = fakeTexture("the reflection pass's own target");
       resources.beginNode(1);
-      resources.provide(colour, own);
+      resources.provide(color, own);
       expect(
-        resources.tryTexture(colour),
+        resources.tryTexture(color),
         same(drawn),
         reason: 'a read still sees what it reads, not what it provided',
       );
@@ -506,10 +507,10 @@ void main() {
     test('a resource this frame drew is drawn', () {
       final graph = compile(
         const <FrameGraphNode>[
-          _Pass('scene', writes: <ResourceId>[colour]),
+          _Pass('scene', writes: <ResourceId>[color]),
           _Pass(
             'composite',
-            reads: <ResourceId>[colour],
+            reads: <ResourceId>[color],
             writes: <ResourceId>[frame],
           ),
         ],
@@ -522,11 +523,11 @@ void main() {
       );
 
       resources.beginNode(0);
-      resources.texture(colour);
+      resources.texture(color);
       resources.endNode(0);
 
       resources.beginNode(1);
-      expect(resources.originOf(colour), ResourceOrigin.drawn);
+      expect(resources.originOf(color), ResourceOrigin.drawn);
     });
 
     test('a resource a node maintains is kept', () {
@@ -588,14 +589,14 @@ void main() {
     // the pass returns — the defect that was fixed once in this class and lived
     // on in `_renderBloom` for months afterwards.
 
-    const scene = _Pass('scene', writes: <ResourceId>[colour]);
+    const scene = _Pass('scene', writes: <ResourceId>[color]);
     const composite = _Pass(
       'composite',
-      reads: <ResourceId>[colour],
+      reads: <ResourceId>[color],
       writes: <ResourceId>[frame],
     );
 
-    RenderTargetSpec spec(int divisor) => RenderTargetSpec(
+    RenderTargetDescriptor spec(int divisor) => RenderTargetDescriptor(
       width: 640 ~/ divisor,
       height: 480 ~/ divisor,
       format: TextureFormat.r16g16b16a16Float,
@@ -653,7 +654,7 @@ void main() {
 
       resources.beginNode(0);
       resources.transient(spec(2));
-      expect(resources.tryTexture(colour), isNull);
+      expect(resources.tryTexture(color), isNull);
     });
   });
 
@@ -663,15 +664,15 @@ void main() {
     // fails tends to fail again next frame. `releaseAll` was written for this
     // and, until recently, had no caller at all.
 
-    const scene = _Pass('scene', writes: <ResourceId>[colour]);
+    const scene = _Pass('scene', writes: <ResourceId>[color]);
     const bloomPass = _Pass(
       'bloom',
-      reads: <ResourceId>[colour],
+      reads: <ResourceId>[color],
       writes: <ResourceId>[bloom],
     );
     const composite = _Pass(
       'composite',
-      reads: <ResourceId>[colour, bloom],
+      reads: <ResourceId>[color, bloom],
       writes: <ResourceId>[frame],
     );
 
@@ -688,13 +689,13 @@ void main() {
       );
 
       resources.beginNode(0);
-      final lit = resources.texture(colour);
+      final lit = resources.texture(color);
       resources.endNode(0);
 
       resources.beginNode(1);
       final glow = resources.texture(bloom);
       final scratch = resources.transient(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 160,
           height: 120,
           format: TextureFormat.r16g16b16a16Float,
@@ -723,7 +724,7 @@ void main() {
 
       final own = fakeTexture("the renderer's own HDR target");
       resources.beginNode(0);
-      resources.provide(colour, own);
+      resources.provide(color, own);
       resources.releaseAll();
 
       expect(source.releaseCountOf(own), 0);
@@ -742,22 +743,22 @@ void main() {
             scene,
             _Pass(
               'overlay',
-              reads: <ResourceId>[colour],
-              writes: <ResourceId>[colour],
+              reads: <ResourceId>[color],
+              writes: <ResourceId>[color],
             ),
           ],
-          outputs: const <ResourceId>[colour],
+          outputs: const <ResourceId>[color],
         );
         final source = _CountingSource();
         final resources = resourcesFor(graph, source);
 
         final own = fakeTexture("the renderer's own HDR target");
         resources.beginNode(0);
-        resources.provide(colour, own);
+        resources.provide(color, own);
         resources.endNode(0);
 
         resources.beginNode(1);
-        expect(resources.texture(colour), same(own));
+        expect(resources.texture(color), same(own));
         resources.releaseAll();
 
         expect(source.releaseCountOf(own), 0);
@@ -773,11 +774,11 @@ void main() {
           scene,
           _Pass(
             'overlay',
-            reads: <ResourceId>[colour],
-            writes: <ResourceId>[colour],
+            reads: <ResourceId>[color],
+            writes: <ResourceId>[color],
           ),
         ],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final source = _CountingSource();
       final resources = resourcesFor(
@@ -787,10 +788,10 @@ void main() {
       );
 
       resources.beginNode(0);
-      final lit = resources.texture(colour);
+      final lit = resources.texture(color);
       resources.endNode(0);
       resources.beginNode(1);
-      resources.texture(colour);
+      resources.texture(color);
       resources.releaseAll();
 
       expect(source.releaseCountOf(lit), 1);
@@ -807,10 +808,10 @@ void main() {
           _Pass(
             'scene',
             reads: <ResourceId>[atlas],
-            writes: <ResourceId>[colour],
+            writes: <ResourceId>[color],
           ),
         ],
-        outputs: const <ResourceId>[colour],
+        outputs: const <ResourceId>[color],
       );
       final source = _CountingSource();
       final resources = resourcesFor(
@@ -821,7 +822,7 @@ void main() {
 
       resources.beginNode(0);
       final scratch = resources.transient(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 1024,
           height: 1024,
           format: TextureFormat.r16g16b16a16Float,
@@ -845,10 +846,10 @@ void main() {
       // sampler, which on this backend is a native crash with no Dart frame.
       final graph = compile(
         const <FrameGraphNode>[
-          _Pass('scene', writes: <ResourceId>[colour]),
+          _Pass('scene', writes: <ResourceId>[color]),
           _Pass(
             'composite',
-            reads: <ResourceId>[colour],
+            reads: <ResourceId>[color],
             writes: <ResourceId>[frame],
           ),
         ],
@@ -858,7 +859,7 @@ void main() {
 
       resources.beginNode(0);
       expect(
-        () => resources.texture(colour),
+        () => resources.texture(color),
         throwsA(
           isA<FrameGraphError>().having(
             (e) => e.message,
@@ -881,7 +882,7 @@ void main() {
       // "not from inside a node" rather than "never".
       final graph = compile(
         const <FrameGraphNode>[
-          _Pass('scene', writes: <ResourceId>[colour]),
+          _Pass('scene', writes: <ResourceId>[color]),
           // Writes something the frame asks for, so the graph keeps it. A node
           // writing nothing is culled, and a culled node's index belongs to
           // whoever took its place — which is how the first draft of this test
@@ -889,7 +890,7 @@ void main() {
           _Pass('nosy', writes: <ResourceId>[bloom]),
           _Pass(
             'composite',
-            reads: <ResourceId>[colour],
+            reads: <ResourceId>[color],
             writes: <ResourceId>[frame],
           ),
         ],
@@ -902,7 +903,7 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(colour);
+      final drawn = resources.texture(color);
       resources.endNode(0);
 
       // Reading from outside any node is refused too, and used not to be.
@@ -913,7 +914,7 @@ void main() {
       // round. `drawn` is what the node saw; nothing outside can ask for it.
       expect(drawn, isNotNull);
       expect(
-        () => resources.tryTexture(colour),
+        () => resources.tryTexture(color),
         throwsA(
           isA<FrameGraphError>().having(
             (e) => e.message,
@@ -925,7 +926,7 @@ void main() {
 
       resources.beginNode(1);
       expect(
-        () => resources.tryTexture(colour),
+        () => resources.tryTexture(color),
         throwsA(
           isA<FrameGraphError>().having(
             (e) => e.message,

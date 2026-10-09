@@ -9,7 +9,7 @@ and the game uploads it. A server holding a sandbox's state runs the same
 code the player did.
 
 ```dart
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 
 final blocks = VoxelWorld(
@@ -24,7 +24,7 @@ final navigation = VoxelNavigation(blocks);
 
 // Dig one out, then hand every consumer what changed.
 blocks.edit(10, 6, 10, Voxels.empty);
-final changes = blocks.takeChanges();
+final changes = blocks.drainChanges();
 collision.refresh(changes.chunks);
 navigation.follow(changes);
 for (final chunk in changes.surfaces) {

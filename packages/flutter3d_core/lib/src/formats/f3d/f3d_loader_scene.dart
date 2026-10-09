@@ -63,7 +63,7 @@ extension _F3dScene on F3dDocument {
     final names = <String>[
       for (var v = 0; v < table.count; v++)
         () {
-          final o = table.offset + v * F3dRecord.variant;
+          final o = _at(F3dSection.variants, v, F3dRecord.variant);
           int word(int at) => _view.getUint32(o + at, Endian.little);
           final pairs = _int32s(word(8), word(12) * 2);
           for (var p = 0; p < pairs.length; p += 2) {
@@ -123,14 +123,14 @@ extension _F3dScene on F3dDocument {
     double? errorOf(int record) {
       if (record >= errors.count) return null;
       final error = _view.getFloat32(
-        errors.offset + record * F3dRecord.lodError,
+        _at(F3dSection.lodErrors, record, F3dRecord.lodError),
         Endian.little,
       );
       return error < 0.0 ? null : error;
     }
 
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.lod;
+      final o = _at(F3dSection.lods, i, F3dRecord.lod);
       final nodeIndex = _view.getUint32(o, Endian.little);
       final maxScreenFraction = _view.getFloat32(o + 4, Endian.little);
       final surfaceIndices = _int32s(
@@ -151,7 +151,7 @@ extension _F3dScene on F3dDocument {
     // surface levels whatever order the sections sit in.
     final impostors = _table(F3dSection.impostors, F3dRecord.impostor);
     for (var i = 0; i < impostors.count; i++) {
-      final o = impostors.offset + i * F3dRecord.impostor;
+      final o = _at(F3dSection.impostors, i, F3dRecord.impostor);
       double f32(int at) => _view.getFloat32(o + at, Endian.little);
       int u32(int at) => _view.getUint32(o + at, Endian.little);
       (grouped[u32(0)] ??= <ModelLod>[]).add(
@@ -161,7 +161,7 @@ extension _F3dScene on F3dDocument {
             albedoImage: u32(8),
             normalDepthImage: u32(12),
             grid: u32(16),
-            centre: Vector3(f32(20), f32(24), f32(28)),
+            center: Vector3(f32(20), f32(24), f32(28)),
             radius: f32(32),
           ),
         ),
@@ -219,6 +219,8 @@ extension _F3dScene on F3dDocument {
               _view.getUint32(o + 12, Endian.little),
             ).toList(),
             lods: _lods[i],
+            lightIndex: _attachments[i]?.$1,
+            cameraIndex: _attachments[i]?.$2,
             extras: _extrasOf(F3dExtrasOwner.node, i),
           );
         }(),
@@ -230,7 +232,7 @@ extension _F3dScene on F3dDocument {
     final table = _table(F3dSection.roots, 4);
     return <int>[
       for (var i = 0; i < table.count; i++)
-        _view.getInt32(table.offset + i * 4, Endian.little),
+        _view.getInt32(_at(F3dSection.roots, i, 4), Endian.little),
     ];
   }
 }

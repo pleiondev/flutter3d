@@ -28,12 +28,12 @@ final Float32List _line = Float32List.fromList(<double>[
 ]);
 
 /// One colour per endpoint, both white, so a drawn line is unmistakable.
-final Float32List _colours = Float32List.fromList(<double>[
+final Float32List _colors = Float32List.fromList(<double>[
   1, 1, 1, 1, //
   1, 1, 1, 1,
 ]);
 
-const VertexLayoutSpec _layout = VertexLayoutSpec(<BufferLayout>[
+const VertexLayoutDescriptor _layout = VertexLayoutDescriptor(<BufferLayout>[
   BufferLayout(
     strideInBytes: 12,
     attributes: <InputAttribute>[
@@ -58,7 +58,7 @@ TextureHandle _mipped(CpuDevice device) {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: bytes,
     mipLevels: MipChain.build(bytes, 4, 4),
-  )!;
+  );
 }
 
 /// Draws the line, optionally with a mipped texture bound, and reports the
@@ -69,8 +69,8 @@ Float32List _draw({required bool withChain}) {
     height: _size,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final colour = device.createTexture(
-    const RenderTargetSpec(
+  final color = device.createTexture(
+    const RenderTargetDescriptor(
       width: _size,
       height: _size,
       format: TextureFormat.r16g16b16a16Float,
@@ -83,7 +83,7 @@ Float32List _draw({required bool withChain}) {
     RenderPassDescriptor(
       colors: <ColorTarget>[
         ColorTarget(
-          texture: colour,
+          texture: color,
           loadAction: LoadAction.clear,
           clearValue: Vector4.zero(),
         ),
@@ -105,11 +105,11 @@ Float32List _draw({required bool withChain}) {
   }
   pass
     ..bindVertexData(ByteData.sublistView(_line), 2)
-    ..bindVertexData(ByteData.sublistView(_colours), 2, slot: 1)
+    ..bindVertexData(ByteData.sublistView(_colors), 2, slot: 1)
     ..draw()
     ..submit();
 
-  return (colour.backend as CpuTexture).pixels;
+  return (color.backend as CpuTexture).pixels;
 }
 
 void main() {

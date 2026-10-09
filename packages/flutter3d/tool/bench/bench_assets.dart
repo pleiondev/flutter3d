@@ -9,8 +9,8 @@ import 'bench_util.dart';
 
 /// Decoding cost for OBJ, glTF/GLB and the engine's own `.f3d` container.
 Future<void> benchAssetDecoding() async {
-  final teapotBytes = File('$kSamplesPath/teapot.obj').readAsBytesSync();
-  final glbBytes = File('$kSamplesPath/BoxTextured.glb').readAsBytesSync();
+  final teapotBytes = File('$samplesPath/teapot.obj').readAsBytesSync();
+  final glbBytes = File('$samplesPath/BoxTextured.glb').readAsBytesSync();
 
   print('--- asset decoding -----------------------------------------------');
 

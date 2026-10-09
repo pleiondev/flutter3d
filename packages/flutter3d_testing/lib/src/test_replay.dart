@@ -25,10 +25,11 @@ final class ReplayStart {
 
   /// The input the tape is played into, a step at a time.
   ///
-  /// **The game has to read this one.** A simulation built with an
-  /// [InputState] of its own steps against nobody's hands, stands still for
-  /// the whole tape, and diverges at the first checkpoint for a reason that
-  /// is about the test and not the game.
+  /// **The subject's loop is built on this one** (`EngineLoop(input:
+  /// start.input)`). A loop built on an [InputState] of its own steps against
+  /// nobody's hands, stands still for the whole tape, and diverges at the
+  /// first checkpoint for a reason that is about the test and not the game —
+  /// so the replay refuses one before it steps.
   final InputState input;
 
   /// Where the level's meshes and textures go: the software device every
@@ -36,31 +37,54 @@ final class ReplayStart {
   final GraphicsDevice device;
 }
 
-/// One run of a game, as a replay test drives it.
+/// One run of a game, as a replay test drives it: the engine's loop it is
+/// stepped in, the genre whose run the tape recorded, and the picture.
 ///
-/// **An interface the game implements in its test, not one this package
+/// **Through the loop, the one path every snapshot takes.** The replay puts
+/// the tape's start back with `loop.rewindTo(0, state: …)`, plays the tape
+/// through `loop.playback` one `loop.runSteps(1)` at a time, and reads each
+/// checkpoint out of `loop.capture()`. So the run is stepped by the same
+/// phases and systems the game steps it by — the genre's step and whatever
+/// the game hangs beside it — and nothing the replay does is a second copy of
+/// the game's step written for the test.
+///
+/// **A tape is the genre's run, written down.** Its start and its checkpoints
+/// are the run's own snapshot (what the genre's `save` writes), which is what
+/// keeps every tape recorded since 0.6 replaying: the start goes into the loop
+/// as [genre]'s part alone (`GenrePlugin.loopStateOf`), the parts the tape
+/// does not hold left as the freshly staged level has them, and a checkpoint
+/// is the digest of [genre]'s part (`GenrePlugin.runStateOf`).
+///
+/// **A base class the game extends in its test, not one this package
 /// implements for every genre.** A platformer, a racer and a strategy game
-/// step, save and draw in their own ways, and the four calls below are the
-/// whole of what a replay needs from any of them.
-abstract interface class ReplaySubject {
+/// stage and draw in their own ways; the subject builds the loop the game
+/// builds, with the genre installed and its run set. Per-step work the test
+/// needs beside the game's — a camera that follows — is the subject's own
+/// system or `EngineLoop.onStepEnd` observer on that loop.
+///
+/// **Extended outside this package, and stays extendable through 1.x.** A
+/// member added in a minor release arrives with a body, so a subject written
+/// against 1.0 keeps compiling.
+abstract base class ReplaySubject {
+  /// A subject; the run it replays into is the subclass's.
+  ReplaySubject();
+
   /// The `levelHash` of the level the run was built from — [Level.digestHex],
   /// or [contentDigestHex] of a genre's own document — or null when the game
-  /// cannot say.
+  /// cannot say, which is the default.
   ///
   /// Asked so that a level edited since the tape was recorded fails as that,
   /// rather than as a divergence at the first checkpoint, which reads as a
   /// bug in the simulation and sends whoever reads it looking there.
-  String? get levelHash;
+  String? get levelHash => null;
 
-  /// Puts the run in the state the tape starts from.
-  void restore(Snapshot start);
+  /// The loop the run is stepped in, built on [ReplayStart.input], with
+  /// [genre] installed and its `simulation` set to the run.
+  EngineLoop get loop;
 
-  /// Advances the run one fixed step of [dt] seconds, reading the input it
-  /// was handed in [ReplayStart.input].
-  void step(double dt);
-
-  /// The whole state, the same snapshot the tape's checkpoints were taken of.
-  Snapshot save();
+  /// The genre whose run the tape recorded: its part of the loop's snapshots
+  /// is what the tape's start restores and its checkpoints digest.
+  GenrePlugin<Object> get genre;
 
   /// The scene and camera to draw at [step], once the run has reached it.
   ///
@@ -90,8 +114,8 @@ typedef ReplayStarter = FutureOr<ReplaySubject> Function(ReplayStart start);
 /// display and no driver to keep two promises:
 ///
 /// * **[digestAt] says the simulation still does what it did.** At each step
-///   named, the digest of [ReplaySubject.save] must equal the one the tape
-///   recorded there. Null, the default, means every checkpoint the tape holds;
+///   named, the digest of the genre's run, read out of the loop's capture,
+///   must equal the one the tape recorded there. Null, the default, means every checkpoint the tape holds;
 ///   an empty list means none.
 /// * **[goldensAt] says the picture at those steps still looks the same.**
 ///   Each is compared against `goldenDirectory/<tape>-<step>.png`, recorded on
@@ -110,8 +134,12 @@ void testReplay(
   String goldenDirectory = 'test/goldens',
   int width = 320,
   int height = 180,
+
+  /// The fixed step the tape is played at, in seconds.
   double dt = 1.0 / 60.0,
   RenderSettings settings = const RenderSettings(),
+
+  /// As [expectMatchesGolden]'s: a percentage of pixels allowed to differ.
   double tolerance = 0.0,
   bool? recordMissing,
   String? description,
@@ -192,8 +220,12 @@ Future<void> expectReplayMatches(
   String goldenName = 'replay',
   int width = 320,
   int height = 180,
+
+  /// The fixed step the tape is played at, in seconds.
   double dt = 1.0 / 60.0,
   RenderSettings settings = const RenderSettings(),
+
+  /// As [expectMatchesGolden]'s: a percentage of pixels allowed to differ.
   double tolerance = 0.0,
   bool? recordMissing,
   String label = 'the tape',
@@ -241,6 +273,22 @@ Future<void> expectReplayMatches(
   final run = await start(
     ReplayStart(demo: demo, input: input, device: kit.device),
   );
+  final loop = run.loop;
+  final genre = run.genre;
+  if (!identical(loop.input, input)) {
+    fail(
+      'the loop the replay of $label steps reads an InputState of its own, '
+      'so the tape would be played into nobody\'s hands. Build it on '
+      'ReplayStart.input: EngineLoop(input: start.input).',
+    );
+  }
+  if (!loop.snapshots.parts.contains(genre.manifest.id)) {
+    fail(
+      'the genre ${genre.manifest.id} is not installed in the loop the replay '
+      'of $label steps, so the tape\'s start has nowhere to go. Install it: '
+      'EngineLoop(plugins: [genre]), and set its simulation to the run.',
+    );
+  }
 
   final levelHash = run.levelHash;
   if (levelHash != null && levelHash != demo.levelHash) {
@@ -253,48 +301,59 @@ Future<void> expectReplayMatches(
     );
   }
 
-  run.restore(demo.start);
+  // The tape's start is the genre's run: restored as the loop's part, the
+  // rest of the loop left as the staged level has it.
+  loop.rewindTo(0, state: genre.loopStateOf(demo.start));
   final playback = InputTapePlayback(demo.tape);
+  final previous = loop.playback;
+  loop.playback = playback;
   final last = <int>{...digests, ...goldens}.reduce((a, b) => a > b ? a : b);
   int? agreed;
-  for (var step = 1; step <= last; step++) {
-    playback.applyTo(input);
-    run.step(dt);
-    // Before `endStep`, because that is where the recorder took it: the
-    // checkpoint is the state the step left, with the step's input still on.
-    if (digests.contains(step)) {
-      final found = StateDigest.of(run.save().toJson());
-      final expected = recorded[step]!;
-      if (found != expected) {
-        fail(
-          '$label diverged at step $step: the tape recorded ${_hex(expected)} '
-          'and this build reached ${_hex(found)}. '
-          '${agreed == null ? 'No earlier checkpoint was checked' : 'Step $agreed still agreed'}, '
-          'so the change is in the steps between. If it is meant, record the '
-          'tape again.',
+  try {
+    for (var step = 1; step <= last; step++) {
+      loop.runSteps(1);
+      if (digests.contains(step)) {
+        final state = genre.runStateOf(loop.capture());
+        if (state == null) {
+          fail(
+            'the loop holds no part for ${genre.manifest.id} at step $step of '
+            '$label, so there is nothing to compare with the tape',
+          );
+        }
+        final found = StateDigest.of(state.toJson());
+        final expected = recorded[step]!;
+        if (found != expected) {
+          fail(
+            '$label diverged at step $step: the tape recorded '
+            '${_hex(expected)} and this build reached ${_hex(found)}. '
+            '${agreed == null ? 'No earlier checkpoint was checked' : 'Step $agreed still agreed'}, '
+            'so the change is in the steps between. If it is meant, record '
+            'the tape again.',
+          );
+        }
+        agreed = step;
+      }
+
+      if (goldens.contains(step)) {
+        final frame = await drawOnce(
+          device: kit.device,
+          renderer: renderer,
+          subject: await run.frame(step),
+          width: width,
+          height: height,
+          settings: settings,
+        );
+        await expectMatchesGolden(
+          frame,
+          '$goldenDirectory/$goldenName-$step.png',
+          tolerance: tolerance,
+          recordMissing: recordMissing,
+          reason: 'step $step of $label',
         );
       }
-      agreed = step;
     }
-    input.endStep();
-
-    if (goldens.contains(step)) {
-      final frame = await drawOnce(
-        device: kit.device,
-        renderer: renderer,
-        subject: await run.frame(step),
-        width: width,
-        height: height,
-        settings: settings,
-      );
-      await expectMatchesGolden(
-        frame,
-        '$goldenDirectory/$goldenName-$step.png',
-        tolerance: tolerance,
-        recordMissing: recordMissing,
-        reason: 'step $step of $label',
-      );
-    }
+  } finally {
+    loop.playback = previous;
   }
 }
 

@@ -12,7 +12,7 @@ Future<void> checkShaderNames(GraphicsDevice device) async {
   // Named individually rather than counted: "seventeen of twenty-three" sends
   // somebody to diff two lists by hand.
   final missing = <String>[];
-  for (final shader in kRequiredShaders) {
+  for (final shader in requiredShaders) {
     if (device.shaders[shader.name] == null) missing.add(shader.name);
   }
   require(
@@ -239,7 +239,7 @@ Future<void> checkLinking(GraphicsDevice device) async {
     try {
       device.createPipeline(vertex!, fragment!);
     } catch (error) {
-      throw ConformanceFailure(
+      throw ConformanceFailureException(
         '$vertexName + $fragmentName does not link: '
         '$error',
       );

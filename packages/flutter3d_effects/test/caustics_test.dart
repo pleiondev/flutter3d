@@ -13,7 +13,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
 void main() {
-  final program = specialiseMaterial(
+  final program = specializeMaterial(
     parseMaterial(File('assets_src/seabed.f3dmat').readAsStringSync()),
     const MaterialVariant('default'),
   );

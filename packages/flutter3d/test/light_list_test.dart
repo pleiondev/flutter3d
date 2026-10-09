@@ -28,7 +28,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 48;
 
@@ -57,9 +56,9 @@ Future<({List<int> pixels, FrameResult frame})> _draw({
           device,
           CuboidShape(size: Vector3(8, 0.2, 8)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'floor',
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           lighting: LightingModel.lambert,
         ),
       )..setPosition(0.0, -1.0, 0.0),
@@ -70,18 +69,20 @@ Future<({List<int> pixels, FrameResult frame})> _draw({
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 6.0,
+        intensity: 6.0 * Photometric.legacyUnit,
         range: 12.0,
         // Every lamp a different hue, so a frame that lost some of them is a
         // frame of a different colour rather than one of a different
         // brightness — which a tone map could have hidden.
-        color: tinted
-            ? Vector3(
-                0.5 + 0.5 * math.cos(angle),
-                0.5 + 0.5 * math.cos(angle + 2.1),
-                0.5 + 0.5 * math.cos(angle + 4.2),
-              )
-            : Vector3(1.0, 1.0, 1.0),
+        color:
+            (tinted
+                    ? Vector3(
+                        0.5 + 0.5 * math.cos(angle),
+                        0.5 + 0.5 * math.cos(angle + 2.1),
+                        0.5 + 0.5 * math.cos(angle + 4.2),
+                      )
+                    : Vector3(1.0, 1.0, 1.0))
+                .toLinearColor(),
       )..setPosition(math.cos(angle) * 2.5, 1.2, math.sin(angle) * 2.5),
     );
   }
@@ -99,15 +100,15 @@ Future<({List<int> pixels, FrameResult frame})> _draw({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(),
   );
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     frame: frame,
   );
@@ -150,7 +151,7 @@ void main() {
 
   test('and the ones past the list are still turned away', () async {
     // The tail is bounded, and the bound is a promise rather than a surprise:
-    // `LightBuffer.maxExtraLights` and `kExtraLights` in `lib/surface.glsl` are
+    // `LightNode.maxExtraLights` and `kExtraLights` in `lib/surface.glsl` are
     // one number written twice, and a scene past it reports what it dropped
     // instead of quietly drawing the difference.
     final many = await _draw(lamps: 48);

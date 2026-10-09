@@ -10,7 +10,9 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 

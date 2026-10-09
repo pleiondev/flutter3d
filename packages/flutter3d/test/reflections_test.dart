@@ -34,7 +34,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -50,7 +49,7 @@ const int _height = 72;
 /// bright whatever the lights do, or a hit and a miss differ by a few levels of
 /// grey and no threshold tells them apart.
 ({Scene scene, CameraNode camera}) _mirrorRoom() {
-  final scene = Scene()..ambientIntensity = 0.15;
+  final scene = Scene()..ambientIntensity = 0.15 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -63,9 +62,9 @@ const int _height = 72;
         device,
         CuboidShape(size: Vector3(12.0, 0.4, 12.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'floor',
-        baseColor: Vector4(0.05, 0.05, 0.06, 1.0),
+        baseColor: LinearColor.fromSrgb(0.05, 0.05, 0.06, 1.0),
         lighting: LightingModel.lambert,
         roughness: 0.05,
       ),
@@ -79,10 +78,10 @@ const int _height = 72;
         device,
         CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'beacon',
-        baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-        emissive: Vector3(1.0, 0.35, 0.1),
+        baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        emissive: LinearColor(1.0, 0.35, 0.1),
         lighting: LightingModel.lambert,
         roughness: 0.9,
       ),
@@ -133,9 +132,9 @@ Future<Uint8List> _draw(RenderSettings settings) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(frame.frame);
+  final pixels = await it.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels the march claimed a hit on.

@@ -15,6 +15,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,16 +33,16 @@ final class _SceneProbe extends RenderNode {
   String get name => 'scene probe';
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
-    final scene = frame.resources.texture(FrameResourceIds.hdrColour);
+  void execute(RenderFrame frame) {
+    final scene = frame.resources.texture(FrameResourceIds.hdrColor);
     last = _device.readHdrPixels(scene);
-    frame.resources.provide(FrameResourceIds.hdrColour, scene);
+    frame.resources.provide(FrameResourceIds.hdrColor, scene);
   }
 }
 
@@ -64,7 +65,7 @@ _Stage _stage({Vector3? from}) {
     ..lookAt(Vector3.zero());
   final scene = Scene()..add(camera);
   final probe = _SceneProbe(device);
-  final renderer = Renderer.create(device: device)..addNode(probe);
+  final renderer = Renderer.create(device: device)..renderSteps.addNode(probe);
   return (
     device: device,
     renderer: renderer,
@@ -74,23 +75,26 @@ _Stage _stage({Vector3? from}) {
   );
 }
 
-Material _unlit(double r, double g, double b) =>
-    Material(lighting: LightingModel.unlit, baseColor: Vector4(r, g, b, 1.0));
+RenderMaterial _unlit(double r, double g, double b) => RenderMaterial(
+  lighting: LightingModel.unlit,
+  baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+);
 
-MeshNode _cube(_Stage it, Material material, Vector3 at, {double size = 1}) =>
-    it.scene.add(
-      MeshNode(
-        DeviceMesh.upload(
-          it.device,
-          CuboidShape(size: Vector3.all(size)).build(),
-        ),
-        material,
-      )..setPositionFrom(at),
-    );
+MeshNode _cube(
+  _Stage it,
+  RenderMaterial material,
+  Vector3 at, {
+  double size = 1,
+}) => it.scene.add(
+  MeshNode(
+    DeviceMesh.upload(it.device, CuboidShape(size: Vector3.all(size)).build()),
+    material,
+  )..setPositionFrom(at),
+);
 
 /// A black floor eight metres square at y = 0, which shows nothing of its
 /// own: under a reflector of F0 one, every pixel of it is the reflection.
-MeshNode _floor(_Stage it, {Material? material}) => it.scene.add(
+MeshNode _floor(_Stage it, {RenderMaterial? material}) => it.scene.add(
   MeshNode(
     DeviceMesh.upload(
       it.device,
@@ -163,7 +167,7 @@ void main() {
         _cube(it, _unlit(1.0, 0.1, 0.1), Vector3(0.0, 1.0, 0.0));
         final without = _scene(it);
         it.scene.add(
-          PlanarReflectorNode(surfaces: <MeshNode>[floor])..visible = false,
+          PlanarReflectorNode(surfaces: <MeshNode>[floor])..isVisible = false,
         );
         final result = _render(it);
         // Mutation: asking whether the scene holds a reflector rather than
@@ -306,23 +310,23 @@ void main() {
       // An unlit cube emits its base colour as linear light, so a picture
       // encoded right hands the sRGB it was painted with back, unchanged.
       _cube(it, _unlit(0.9, 0.3, 0.1), Vector3.zero(), size: 1.0);
-      final texture = RenderTexture.create(
+      final texture = RenderView.texture(
         it.device,
         camera: it.camera,
         width: _size,
         height: _size,
-        clearColor: Vector4(0.2, 0.4, 0.6, 1.0),
+        clearColorSrgb: Vector4(0.2, 0.4, 0.6, 1.0),
       );
-      it.scene.addRenderTexture(texture);
+      it.scene.addTextureView(texture);
       _render(it);
-      final picture = it.device.readHdrPixels(texture.texture);
+      final picture = it.device.readHdrPixels(texture.texture!);
       expect(texture.isDrawn, isTrue);
-      final centre = (_size ~/ 2 * _size + _size ~/ 2) * 4;
+      final center = (_size ~/ 2 * _size + _size ~/ 2) * 4;
       // Mutation: leaving the light linear turns 0.3 into 0.07 and 0.1 into
       // 0.01; an exposure applied twice, or a tone curve, moves all three.
-      expect(picture[centre], closeTo(0.9, 1e-3));
-      expect(picture[centre + 1], closeTo(0.3, 1e-3));
-      expect(picture[centre + 2], closeTo(0.1, 1e-3));
+      expect(picture[center], closeTo(0.9, 1e-3));
+      expect(picture[center + 1], closeTo(0.3, 1e-3));
+      expect(picture[center + 2], closeTo(0.1, 1e-3));
       // And where nothing was drawn, the clear colour as it was given.
       expect(picture[0], closeTo(0.2, 1e-3));
       expect(picture[1], closeTo(0.4, 1e-3));
@@ -337,17 +341,17 @@ void main() {
         ..lookAt(Vector3(20.0, 0.0, 0.0));
       it.scene.add(watcher);
       _cube(it, _unlit(1.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0), size: 3.0);
-      final texture = RenderTexture.create(
+      final texture = RenderView.texture(
         it.device,
         camera: watcher,
         width: 16,
         height: 16,
       );
-      it.scene.addRenderTexture(texture);
+      it.scene.addTextureView(texture);
       // A screen filling the view, showing it unlit.
       _cube(
         it,
-        Material(lighting: LightingModel.unlit, albedo: texture.texture),
+        RenderMaterial(lighting: LightingModel.unlit, albedo: texture.texture),
         Vector3.zero(),
         size: 2.0,
       );
@@ -362,14 +366,14 @@ void main() {
     test('one that does not refresh is drawn once, and again on asking', () {
       final it = _stage();
       _cube(it, _unlit(0.5, 0.5, 0.5), Vector3.zero());
-      final texture = RenderTexture.create(
+      final texture = RenderView.texture(
         it.device,
         camera: it.camera,
         width: 8,
         height: 8,
-        refreshEveryFrame: false,
+        options: RenderViewSettings(refreshEveryFrame: false),
       );
-      it.scene.addRenderTexture(texture);
+      it.scene.addTextureView(texture);
       int drawn() => _render(
         it,
       ).passes.firstWhere((p) => p.name == 'render textures').drawCalls;

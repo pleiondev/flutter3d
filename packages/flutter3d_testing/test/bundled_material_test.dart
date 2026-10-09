@@ -20,12 +20,12 @@ import 'package:vector_math/vector_math.dart';
 
 const int _size = 32;
 
-/// A material that paints its surface one flat [colour].
-String _flat(String name, String colour) =>
+/// A material that paints its surface one flat [color].
+String _flat(String name, String color) =>
     '''
 material $name {
   fragment {
-    return vec4($colour, 1.0);
+    return vec4($color, 1.0);
   }
 }
 ''';
@@ -53,7 +53,7 @@ CpuDevice _device({CpuMaterialCompiler? compiler}) => CpuDevice(
 
 /// The middle pixel of a frame of one cube drawn with [lighting], through a
 /// renderer whose materials are [library].
-Future<Vector3> _centre(
+Future<Vector3> _center(
   CpuDevice device,
   LoadedShaderLibrary? library,
   LightingModel lighting, {
@@ -66,7 +66,7 @@ Future<Vector3> _centre(
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        Material(lighting: lighting)..parameters.addAll(parameters),
+        RenderMaterial(lighting: lighting)..parameters.addAll(parameters),
       ),
     );
   final drawing =
@@ -82,7 +82,7 @@ Future<Vector3> _centre(
       look: LookSettings(dither: 0.0),
     ),
   );
-  final pixels = (await device.readPixels(result.frame))!;
+  final pixels = await device.readback(result.frame);
   final at = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
   return Vector3(
     pixels.getUint8(at) / 255.0,
@@ -120,9 +120,9 @@ void main() {
       final library = await device.loadShaders(bytes);
       final lighting = BundledMaterials.read(bytes)['Red'];
 
-      final centre = await _centre(device, library, lighting);
-      expect(centre.x, closeTo(1.0, 0.01));
-      expect(centre.y, closeTo(0.0, 0.01));
+      final center = await _center(device, library, lighting);
+      expect(center.x, closeTo(1.0, 0.01));
+      expect(center.y, closeTo(0.0, 0.01));
     },
   );
 
@@ -132,8 +132,8 @@ void main() {
         _bundle(<String, String>{'Red': _flat('Red', 'vec3(1.0, 0.0, 0.0)')}),
       ),
       throwsA(
-        isA<ShaderBundleRefused>().having(
-          (ShaderBundleRefused r) => r.reason,
+        isA<ShaderBundleException>().having(
+          (ShaderBundleException r) => r.reason,
           'reason',
           contains('materialCompiler'),
         ),
@@ -154,12 +154,12 @@ void main() {
     )['Paint'];
     final handle = library['Paint'];
 
-    expect((await _centre(device, library, lighting)).x, closeTo(1.0, 0.01));
+    expect((await _center(device, library, lighting)).x, closeTo(1.0, 0.01));
     library.refresh(
       _bundle(<String, String>{'Paint': _flat('Paint', 'vec3(0.0, 0.0, 1.0)')}),
     );
     expect(identical(library['Paint'], handle), isTrue);
-    final after = await _centre(device, library, lighting);
+    final after = await _center(device, library, lighting);
     expect(after.x, closeTo(0.0, 0.01));
     expect(after.z, closeTo(1.0, 0.01));
   });
@@ -173,12 +173,12 @@ void main() {
       () => library.refresh(
         _bundle(<String, String>{'Paint': 'material Paint { fragment { } '}),
       ),
-      throwsA(isA<ShaderBundleRefused>()),
+      throwsA(isA<ShaderBundleException>()),
     );
     final lighting = BundledMaterials.read(
       _bundle(<String, String>{'Paint': _flat('Paint', 'vec3(1.0, 0.0, 0.0)')}),
     )['Paint'];
-    expect((await _centre(device, library, lighting)).x, closeTo(1.0, 0.01));
+    expect((await _center(device, library, lighting)).x, closeTo(1.0, 0.01));
   });
 
   test('a lighting model is the program\'s own answer about its maps', () {
@@ -208,7 +208,7 @@ material Mapped {
   });
 
   test('a uniform takes the value set on the material', () async {
-    // `P8`: the value a game sets in `Material.parameters`, bound as
+    // `P8`: the value a game sets in `RenderMaterial.parameters`, bound as
     // `MaterialParams`, reaches the software stage as it reaches the GPU's.
     const source = '''
 material Tinted {
@@ -227,7 +227,7 @@ material Tinted {
 
     final defaults = materials.parameters('Tinted');
     expect(defaults['tint'], <double>[1.0, 0.0, 0.0]);
-    final centre = await _centre(
+    final center = await _center(
       device,
       library,
       lighting,
@@ -235,15 +235,15 @@ material Tinted {
         'tint': Float32List.fromList(<double>[0.0, 1.0, 0.0]),
       },
     );
-    expect(centre.x, closeTo(0.0, 0.01));
-    expect(centre.y, closeTo(1.0, 0.01));
+    expect(center.x, closeTo(0.0, 0.01));
+    expect(center.y, closeTo(1.0, 0.01));
   });
 
   group('more than one bundle — P8', () {
     test('two bundles added to one renderer both draw', () async {
       // Each `.f3dmat` the hook compiles is a bundle of its own.
       //
-      // Mutation: make `Renderer.addMaterials` keep only the latest library
+      // Mutation: make `RendererSteps.addMaterials` keep only the latest library
       // — the first bundle's material is a missing stage.
       final device = _device(compiler: materialLanguageCompiler);
       final red = _bundle(<String, String>{
@@ -252,17 +252,18 @@ material Tinted {
       final blue = _bundle(<String, String>{
         'Blue': _flat('Blue', 'vec3(0.0, 0.0, 1.0)'),
       });
-      final renderer = Renderer.create(device: device)
+      final renderer = Renderer.create(device: device);
+      renderer.renderSteps
         ..addMaterials(await device.loadShaders(red))
         ..addMaterials(await device.loadShaders(blue));
 
-      final first = await _centre(
+      final first = await _center(
         device,
         null,
         BundledMaterials.read(red)['Red'],
         renderer: renderer,
       );
-      final second = await _centre(
+      final second = await _center(
         device,
         null,
         BundledMaterials.read(blue)['Blue'],
@@ -296,13 +297,15 @@ material Tinted {
       final renderer = Renderer.create(device: device, materials: red);
 
       Future<Vector3> paint() =>
-          _centre(device, null, lighting, renderer: renderer);
+          _center(device, null, lighting, renderer: renderer);
       expect((await paint()).x, closeTo(1.0, 0.01));
-      renderer.addMaterials(green);
+      final added = renderer.renderSteps.addMaterials(green);
       expect((await paint()).y, closeTo(1.0, 0.01));
-      expect(renderer.removeMaterials(green), isTrue);
+      added.cancel();
       expect((await paint()).x, closeTo(1.0, 0.01));
-      expect(renderer.removeMaterials(green), isFalse);
+      // Cancelling twice takes nothing else out.
+      added.cancel();
+      expect((await paint()).x, closeTo(1.0, 0.01));
     });
   });
 
@@ -325,7 +328,7 @@ material Painted {
     final batch =
         InstancedMeshNode(
             DeviceMesh.upload(device, CuboidShape().build()),
-            Material(lighting: BundledMaterials.read(bytes)['Painted']),
+            RenderMaterial(lighting: BundledMaterials.read(bytes)['Painted']),
             capacity: 2,
           )
           ..addInstance(
@@ -353,7 +356,7 @@ material Painted {
         look: LookSettings(dither: 0.0),
       ),
     );
-    final pixels = (await device.readPixels(result.frame))!;
+    final pixels = await device.readback(result.frame);
     List<int> at(int x) {
       final i = ((_size ~/ 2) * _size + x) * 4;
       return <int>[pixels.getUint8(i), pixels.getUint8(i + 1)];

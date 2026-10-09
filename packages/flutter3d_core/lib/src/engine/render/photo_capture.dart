@@ -21,6 +21,8 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../../formats/srgb.dart';
@@ -61,14 +63,33 @@ final class PhotoFilter {
   /// What a menu calls it; also how a game saves which one was last picked.
   final String name;
 
+  /// A unitless exponent about mid grey; multiplies the game's own.
   final double contrast;
+
+  /// A unitless multiplier on chroma; multiplies the game's own.
   final double saturation;
+
+  /// Unitless, −1 to 1 as [LookSettings.temperature]; added to the game's own.
   final double temperature;
+
+  /// Unitless, −1 to 1 as [LookSettings.tint]; added to the game's own.
   final double tint;
+
+  /// How far the corners are pulled down, a 0..1 fraction; the larger of it and
+  /// the game's own is drawn.
   final double vignette;
+
+  /// Amplitude of per-pixel noise as a fraction of the encoded range; the
+  /// larger of it and the game's own is drawn.
   final double grain;
-  final vm.Vector3? lift;
-  final vm.Vector3? gain;
+
+  /// Where black is lifted to, per channel, as [LookSettings.lift]; replaces
+  /// the game's own when given.
+  final LinearColor? lift;
+
+  /// What is multiplied, per channel, as [LookSettings.gain]; multiplies the
+  /// game's own.
+  final LinearColor? gain;
 
   static const PhotoFilter none = PhotoFilter(name: 'none');
   static const PhotoFilter vivid = PhotoFilter(
@@ -93,12 +114,12 @@ final class PhotoFilter {
   );
 
   /// Mono with a brown gain — the print rather than the negative.
-  static final PhotoFilter sepia = PhotoFilter(
+  static const PhotoFilter sepia = PhotoFilter(
     name: 'sepia',
     saturation: 0.0,
     contrast: 0.95,
-    gain: vm.Vector3(1.08, 0.96, 0.78),
-    lift: vm.Vector3(0.03, 0.02, 0.0),
+    gain: LinearColor(1.08, 0.96, 0.78),
+    lift: LinearColor(0.03, 0.02, 0.0),
     vignette: 0.25,
   );
   static const PhotoFilter noir = PhotoFilter(
@@ -108,11 +129,11 @@ final class PhotoFilter {
     vignette: 0.55,
     grain: 0.04,
   );
-  static final PhotoFilter faded = PhotoFilter(
+  static const PhotoFilter faded = PhotoFilter(
     name: 'faded',
     contrast: 0.85,
     saturation: 0.75,
-    lift: vm.Vector3.all(0.06),
+    lift: LinearColor(0.06, 0.06, 0.06),
   );
 
   /// The order a menu shows them in.
@@ -142,7 +163,7 @@ final class PhotoFilter {
     grain: math.max(look.grain, grain),
     lift: lift ?? look.lift,
     gain: switch ((look.gain, gain)) {
-      (final a?, final b?) => vm.Vector3(a.x * b.x, a.y * b.y, a.z * b.z),
+      (final a?, final b?) => LinearColor(a.r * b.r, a.g * b.g, a.b * b.b),
       (final a, final b) => b ?? a,
     },
   );
@@ -179,8 +200,14 @@ final class PhotoFinish {
 
   final int width;
   final int height;
+
+  /// How far the corners are pulled down, a 0..1 fraction.
   final double vignette;
+
+  /// A 0..1 fraction: one keeps the falloff circular, nought follows the frame.
   final double roundness;
+
+  /// Amplitude of per-pixel noise as a fraction of the encoded range.
   final double grain;
 
   bool get isNeutral => vignette == 0.0 && grain == 0.0;
@@ -291,7 +318,13 @@ const String _noExtended =
     if (settings.outputTransform != OutputTransform.sdr) _noExtended,
   ];
   final tile = settings.copyWith(
-    exposure: exposure,
+    // Held at what is on screen only when it moves by itself; a fixed
+    // exposure is the settings' own, whether or not a frame was drawn
+    // before the photo.
+    exposure: settings.autoExposure.enabled ? exposure : settings.exposure,
+    // The metered exposure is already the whole of it: the camera, which
+    // the meter stood in for, must not be applied on top.
+    physicalCamera: !settings.autoExposure.enabled && settings.physicalCamera,
     autoExposure: const AutoExposureSettings(),
     antiAlias: settings.antiAlias.copyWith(temporal: const TemporalSettings()),
     motionBlur: settings.motionBlur.copyWith(enabled: false),
@@ -338,7 +371,7 @@ Future<PhotoCaptureReport> capturePhoto({
   required FutureOr<void> Function(Uint8List rgba, int top, int rows) onRows,
   RenderSettings settings = const RenderSettings(),
   PhotoFilter filter = PhotoFilter.none,
-  vm.Vector4? clearColor,
+  vm.Vector4? clearColorSrgb,
   int layerMask = ~0,
   int tileWidth = 1024,
   int tileHeight = 1024,
@@ -385,20 +418,17 @@ Future<PhotoCaptureReport> capturePhoto({
           views: <RenderView>[
             RenderView(
               camera: camera,
-              clearColor: clearColor,
+              clearColorSrgb: clearColorSrgb,
               layerMask: layerMask,
               cut: true,
             ),
           ],
           settings: chosen.tile,
         );
-        final pixels = await renderer.device.readPixels(result.frame);
-        if (pixels == null) {
-          throw StateError(
-            'Tile $tileX,$tileY of the photo could not be read back from the '
-            'device it was drawn on; nothing was written past row $top.',
-          );
-        }
+        // A tile the device cannot hand back throws its
+        // `DeviceResourceException` here, and nothing past row [top] has
+        // been written.
+        final pixels = await renderer.device.readback(result.frame);
         final tile = pixels.buffer.asUint8List(
           pixels.offsetInBytes,
           pixels.lengthInBytes,

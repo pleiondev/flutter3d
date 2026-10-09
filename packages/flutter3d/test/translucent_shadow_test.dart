@@ -18,14 +18,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
 /// A floor and a card over it, lit at forty-five degrees so the shadow lands
 /// clear of the card's footprint, seen from above.
 Future<List<int>> _frame({
-  required Material? card,
+  required RenderMaterial? card,
   required bool translucent,
   bool casting = true,
   TextureHandle Function(CpuDevice device)? map,
@@ -45,11 +44,14 @@ Future<List<int>> _frame({
           device,
           CuboidShape(size: Vector3(6, 0.1, 6)).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+        ),
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(
-      LightNode(intensity: sun, castsShadow: true)
+      LightNode(intensity: sun * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -84,7 +86,7 @@ Future<List<int>> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -92,26 +94,28 @@ Future<List<int>> _frame({
       look: const LookSettings(dither: 0),
     ),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
-Material _opaque() =>
-    Material(name: 'wall', baseColor: Vector4(0.8, 0.8, 0.8, 1.0));
+RenderMaterial _opaque() => RenderMaterial(
+  name: 'wall',
+  baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+);
 
-Material _glass() => Material(
+RenderMaterial _glass() => RenderMaterial(
   name: 'glass',
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(0.95, 0.97, 1.0, 0.12),
+  baseColor: LinearColor.fromSrgb(0.95, 0.97, 1.0, 0.12),
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,
   extensions: MaterialExtensions(transmission: 0.95, ior: 1.5),
 );
 
-Material _blueLiquid() => Material(
+RenderMaterial _blueLiquid() => RenderMaterial(
   name: 'liquid',
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(0.15, 0.3, 0.95, 0.8),
+  baseColor: LinearColor.fromSrgb(0.15, 0.3, 0.95, 0.8),
   alphaMode: MaterialAlphaMode.blend,
   extensions: MaterialExtensions(transmission: 0.6, ior: 1.33),
 );
@@ -206,7 +210,7 @@ void main() {
         height: 2,
         pixels: ByteData.sublistView(pixels),
         format: TextureFormat.r8g8b8a8UNormInt,
-      )!;
+      );
     }
 
     // A dimmer sun than the other tests, so the lit floor sits where the
@@ -222,10 +226,10 @@ void main() {
     final region = _shadowed(solid, lit);
     final painted = await _frame(
       sun: 0.3,
-      card: Material(
+      card: RenderMaterial(
         name: 'lens picture',
         lighting: LightingModel.pbrLayered,
-        baseColor: Vector4(2.0, 2.0, 2.0, 1.0),
+        baseColor: LinearColor.fromSrgb(2.0, 2.0, 2.0, 1.0),
         extensions: MaterialExtensions(transmission: 1.0, ior: 1.0),
       ),
       translucent: true,
@@ -248,7 +252,7 @@ void main() {
     // Mutation: count every reflected ray as lost again, and the darkest
     // pixel falls to under two thirds of the lit floor.
     const size = 128;
-    Future<List<int>> draw(Material? material) async {
+    Future<List<int>> draw(RenderMaterial? material) async {
       final device = CpuDevice(
         width: size,
         height: size,
@@ -261,7 +265,10 @@ void main() {
               device,
               CuboidShape(size: Vector3(6, 0.1, 6)).build(),
             ),
-            Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+            RenderMaterial(
+              name: 'floor',
+              baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+            ),
           )..setPosition(0.0, -1.0, 0.0),
         )
         ..add(
@@ -298,19 +305,17 @@ void main() {
           look: LookSettings(dither: 0),
         ),
       );
-      final bytes = await device.readPixels(frame.frame);
-      return <int>[
-        for (var i = 0; i < size * size * 4; i++) bytes!.getUint8(i),
-      ];
+      final bytes = await device.readback(frame.frame);
+      return <int>[for (var i = 0; i < size * size * 4; i++) bytes.getUint8(i)];
     }
 
     final lit = await draw(null);
     final solid = await draw(_opaque()..doubleSided = true);
     final glass = await draw(
-      Material(
+      RenderMaterial(
         name: 'glass',
         lighting: LightingModel.pbrLayered,
-        baseColor: Vector4(0.97, 0.99, 1.0, 0.22),
+        baseColor: LinearColor.fromSrgb(0.97, 0.99, 1.0, 0.22),
         alphaMode: MaterialAlphaMode.blend,
         doubleSided: true,
         extensions: MaterialExtensions(transmission: 1.0, ior: 1.5),

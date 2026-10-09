@@ -45,7 +45,6 @@ void main(List<String> args) {
 }
 
 Uint8List _rgba(File file) {
-  final decoded = decodePng(file.readAsBytesSync());
-  if (decoded == null) throw StateError('not a PNG this reader knows: $file');
-  return decoded.rgba;
+  // Throws on a file that is not a PNG this reader knows.
+  return decodePng(file.readAsBytesSync()).rgba;
 }

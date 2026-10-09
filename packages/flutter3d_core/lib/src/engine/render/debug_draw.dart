@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
 /// Which debug overlays to build for a frame.
@@ -8,8 +10,8 @@ import 'package:vector_math/vector_math.dart';
 /// A value rather than a set of flags on the renderer: the overlays are a
 /// property of what the user asked to see, and the renderer should not grow a
 /// field per toggle.
-final class DebugDrawOptions {
-  const DebugDrawOptions({
+final class DebugDrawSettings {
+  const DebugDrawSettings({
     this.bounds = false,
     this.normals = false,
     this.lightGizmos = false,
@@ -47,7 +49,7 @@ final class DebugDrawOptions {
   bool get anyEnabled =>
       bounds || normals || lightGizmos || axes || cameraFrustums || skeletons;
 
-  DebugDrawOptions copyWith({
+  DebugDrawSettings copyWith({
     bool? bounds,
     bool? normals,
     bool? lightGizmos,
@@ -55,7 +57,7 @@ final class DebugDrawOptions {
     bool? cameraFrustums,
     bool? skeletons,
     double? normalLength,
-  }) => DebugDrawOptions(
+  }) => DebugDrawSettings(
     bounds: bounds ?? this.bounds,
     normals: normals ?? this.normals,
     lightGizmos: lightGizmos ?? this.lightGizmos,
@@ -69,26 +71,28 @@ final class DebugDrawOptions {
 /// Colours used by the built-in overlays, so a screenshot is readable without a
 /// legend.
 ///
-/// **Getters, not `static final`, and this is a rule rather than a style.** A
-/// `Vector4` is mutable, so a `static final` one is a global variable wearing a
-/// constant's clothes: the first caller to write `DebugColors.bounds.scale(2)`
-/// changes the colour for every overlay in the process, for the rest of its
-/// life, in a field nothing declares as changeable. None of them is mutated
-/// today, which is exactly why today is the cheap day to make it impossible.
+/// Linear [LinearColor]s, as every colour in the engine is: they were picked
+/// as the display values below, and [DebugDraw] encodes them back to exactly
+/// those on the way to the screen. Immutable, so a `static final` is a
+/// constant; a `Vector4` here had to be a getter, because a caller scaling
+/// one changed it for every overlay in the process.
 abstract final class DebugColors {
-  static Vector4 get bounds => Vector4(0.25, 0.85, 1.0, 1.0);
-  static Vector4 get normal => Vector4(1.0, 0.45, 0.15, 1.0);
-  static Vector4 get light => Vector4(1.0, 0.92, 0.35, 1.0);
-  static Vector4 get frustum => Vector4(0.65, 0.45, 1.0, 1.0);
-  static Vector4 get selection => Vector4(0.35, 1.0, 0.45, 1.0);
-  static Vector4 get axisX => Vector4(1.0, 0.25, 0.25, 1.0);
-  static Vector4 get axisY => Vector4(0.25, 1.0, 0.35, 1.0);
-  static Vector4 get axisZ => Vector4(0.3, 0.5, 1.0, 1.0);
+  static final LinearColor bounds = LinearColor.fromSrgb(0.25, 0.85, 1.0);
+  static final LinearColor normal = LinearColor.fromSrgb(1.0, 0.45, 0.15);
+  static final LinearColor light = LinearColor.fromSrgb(1.0, 0.92, 0.35);
+  static final LinearColor frustum = LinearColor.fromSrgb(0.65, 0.45, 1.0);
+  static final LinearColor selection = LinearColor.fromSrgb(0.35, 1.0, 0.45);
+  static final LinearColor axisX = LinearColor.fromSrgb(1.0, 0.25, 0.25);
+  static final LinearColor axisY = LinearColor.fromSrgb(0.25, 1.0, 0.35);
+  static final LinearColor axisZ = LinearColor.fromSrgb(0.3, 0.5, 1.0);
 
   /// `#FF458E` — a joint the skeleton overlay draws to say something is
   /// wrong with it (`anim-13`'s own `rigIssues`, once a caller has one).
-  static Vector4 get jointProblem =>
-      Vector4(1.0, 0x45 / 255.0, 0x8E / 255.0, 1.0);
+  static final LinearColor jointProblem = LinearColor.fromSrgb(
+    1.0,
+    0x45 / 255.0,
+    0x8E / 255.0,
+  );
 }
 
 /// Accumulates debug line segments into one reusable interleaved buffer.
@@ -102,6 +106,21 @@ abstract final class DebugColors {
 /// The buffer is grown by doubling and never released, so a steady overlay
 /// allocates nothing after the first few frames. This class knows nothing about
 /// the graphics backend, which keeps it testable without a device.
+///
+/// ## Where a line is
+///
+/// **In scene space**: float32 offsets from the drawn scene's [origin]
+/// (`Scene.origin`), the space every node's transform is in and the GPU
+/// draws in — see "Space" in `docs/CONTRACTS.md`. A point read off a node
+/// (`worldMatrix`, `localBounds` through it) is already there. A place in the
+/// world, a `WorldPosition` in doubles, goes in through [addWorldLine], which
+/// subtracts [origin] in doubles first, as `Scene.toScene` does.
+///
+/// ## Its colour
+///
+/// A [LinearColor], linear as every colour in the engine is. The overlay is
+/// drawn after the frame is encoded for the display, so each line's colour
+/// is encoded here, once, and reaches the screen as the sRGB value it names.
 final class DebugDraw {
   DebugDraw({int reserveLines = 256})
     : _data = Float32List(math.max(1, reserveLines) * floatsPerLine);
@@ -119,6 +138,16 @@ final class DebugDraw {
 
   Float32List _data;
   int _floats = 0;
+
+  /// Where scene space starts in the world: the drawn scene's `Scene.origin`,
+  /// which [buildForScene](DebugDrawGizmos.buildForScene) sets each frame
+  /// before a game's own lines are added. [addWorldLine] measures from it.
+  WorldPosition origin = WorldPosition.origin;
+
+  /// The last colour encoded, and its display values, so a run of lines in
+  /// one colour (a box, a sphere, every normal of a mesh) encodes it once.
+  LinearColor? _encodedFrom;
+  double _er = 0, _eg = 0, _eb = 0, _ea = 1;
 
   int get vertexCount => _floats ~/ floatsPerVertex;
 
@@ -191,8 +220,23 @@ final class DebugDraw {
     }
   }
 
-  void addLine(Vector3 a, Vector3 b, Vector4 color) =>
+  /// A line from [a] to [b], both in scene space, in [color].
+  void addLine(Vector3 a, Vector3 b, LinearColor color) =>
       addLineXyz(a.x, a.y, a.z, b.x, b.y, b.z, color);
+
+  /// A line between two places in the world, in [color]: each is taken
+  /// relative to [origin] in doubles and only then narrowed to scene space,
+  /// so a line ten kilometres out is drawn where it is. For a game drawing
+  /// what it holds as `WorldPosition`s — a route its AI planned, a ray a gun
+  /// cast — from `Renderer.debugLines`.
+  void addWorldLine(WorldPosition a, WorldPosition b, LinearColor color) {
+    final from = a.relativeTo(origin);
+    final to = b.relativeTo(origin);
+    addLineXyz(from.x, from.y, from.z, to.x, to.y, to.z, color);
+  }
+
+  /// [addLine] from six scene-space coordinates, for a caller that has no
+  /// `Vector3` to hand.
 
   void addLineXyz(
     double ax,
@@ -201,25 +245,33 @@ final class DebugDraw {
     double bx,
     double by,
     double bz,
-    Vector4 color,
+    LinearColor color,
   ) {
     if (_floats + floatsPerLine > _data.length) _grow();
+    if (!identical(color, _encodedFrom) && color != _encodedFrom) {
+      final (:r, :g, :b, :a) = color.toSrgb();
+      _er = r;
+      _eg = g;
+      _eb = b;
+      _ea = a;
+      _encodedFrom = color;
+    }
     final d = _data;
     var o = _floats;
     d[o++] = ax;
     d[o++] = ay;
     d[o++] = az;
-    d[o++] = color.x;
-    d[o++] = color.y;
-    d[o++] = color.z;
-    d[o++] = color.w;
+    d[o++] = _er;
+    d[o++] = _eg;
+    d[o++] = _eb;
+    d[o++] = _ea;
     d[o++] = bx;
     d[o++] = by;
     d[o++] = bz;
-    d[o++] = color.x;
-    d[o++] = color.y;
-    d[o++] = color.z;
-    d[o++] = color.w;
+    d[o++] = _er;
+    d[o++] = _eg;
+    d[o++] = _eb;
+    d[o++] = _ea;
     _floats = o;
   }
 

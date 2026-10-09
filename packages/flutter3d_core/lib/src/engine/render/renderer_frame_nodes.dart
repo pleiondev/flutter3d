@@ -19,13 +19,13 @@ part of 'renderer.dart';
 /// The deferring is the point — see [FrameTextureSource]. Handing a texture
 /// straight back while the GPU is still reading it is a defect that shows up
 /// as an intermittent wrong picture and never as an error.
-final class _DeferredTextureSource implements FrameTextureSource {
+final class _DeferredTextureSource with FrameTextureSource {
   const _DeferredTextureSource(this._renderer);
 
   final Renderer _renderer;
 
   @override
-  TextureHandle acquire(RenderTargetSpec spec) =>
+  TextureHandle acquire(RenderTargetDescriptor spec) =>
       _renderer.targetPool.acquire(spec);
 
   @override
@@ -107,7 +107,7 @@ final class _CubeShadowStaticNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     _renderer._ensureCubeAtlas(settings);
 
     // Every occupied row, not just the one that changed hands — a pass clears
@@ -221,7 +221,7 @@ final class _CubeShadowNode extends RenderNode {
   List<ResourceId> get keeps => const <ResourceId>[FrameResourceIds.cubeShadow];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     _renderer._ensureCubeAtlas(settings);
 
     // Only the faces where what moves has actually changed. Most frames most
@@ -325,13 +325,14 @@ final class _ShadowMapNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.shadowMap];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final drew = _renderer._renderShadowMap(
       resources: frame.resources,
       scene: scene,
       settings: settings,
       casterIndex: casterIndex,
       camera: camera,
+      reversed: _renderer._reversedFor(frame.settings),
     );
     if (!drew) return;
     frame.resources.provide(
@@ -351,8 +352,12 @@ final class _ShadowMapNode extends RenderNode {
 /// the combined depth rather than drawn by the casters, and the light shafts
 /// and the debug views keep reading the depth they always read.
 ///
+/// Active when the frame's [ShadowTechnique] names a [ShadowPrefilter] whose
+/// stage `Renderer.shaders` has: [ShadowFilter.evsm]'s is the bundle's
+/// `EvsmFilter`, and a technique of one's own may name another.
+///
 /// **Refused, not faked, on a device that cannot filter a 32-bit float
-/// target**: [supported] is false there, `FrameResult.skipped` names this
+/// target**: [isSupported] is false there, `FrameResult.skipped` names this
 /// pass with `PassSkip.unsupported`, nothing provides the moments, and the
 /// lit draws fall back to the 3×3 kernel.
 final class _ShadowMomentsNode extends RenderNode {
@@ -361,26 +366,37 @@ final class _ShadowMomentsNode extends RenderNode {
   final Renderer _renderer;
   final ShadowSettings settings;
 
-  /// The bundle's filter stage, or null for a bundle built before it.
-  ShaderHandle? get _filter => _renderer.shaders['EvsmFilter'];
+  /// What the frame's technique turns the map into moments with, or null —
+  /// null too when its lookup does not read them, so the moments are never
+  /// bound to a lookup that would read them as depth.
+  ShadowPrefilter? get _prefilter {
+    final technique = settings.directionalTechnique;
+    return technique.kernelFor(settings).readsMoments
+        ? technique.prefilterFor(settings)
+        : null;
+  }
+
+  /// The prefilter's stage, or null for none or for a bundle without it.
+  ShaderHandle? get _filter => switch (_prefilter) {
+    null => null,
+    final prefilter => _renderer.shaders[prefilter.stage],
+  };
 
   @override
   String get name => 'shadow moments';
 
   @override
   bool get isActive =>
-      settings.enabled &&
-      settings.strength > 0.0 &&
-      settings.directionalFilter == ShadowFilter.evsm &&
-      _filter != null;
+      settings.enabled && settings.strength > 0.0 && _filter != null;
 
-  /// Asked only of a frame that wants the filter, so a device that cannot
-  /// filter the moments is reported as refusing them to the caller who
-  /// asked, and not to every frame that never did.
+  /// Asked only of a frame that wants moments, so a device that cannot
+  /// filter them is reported as refusing them to the caller who asked, and
+  /// not to every frame that never did.
   @override
-  bool get supported =>
-      settings.directionalFilter != ShadowFilter.evsm ||
-      _renderer.device.supportsFloat32Filtering;
+  bool get isSupported =>
+      _prefilter == null ||
+      (_renderer.device.features.has(DeviceFeature.float32Filterable) &&
+          _renderer.device.features.has(DeviceFeature.float32Renderable));
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.shadowMap];
@@ -391,7 +407,7 @@ final class _ShadowMomentsNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     // Only a map this frame drew, for the reason `SceneShadows.from` gives:
     // its matrices are this frame's, and so must be what they project into.
     final resources = frame.resources;
@@ -400,11 +416,12 @@ final class _ShadowMomentsNode extends RenderNode {
       return;
     }
     final depth = resources.tryTexture(FrameResourceIds.shadowMap);
+    final prefilter = _prefilter;
     final filter = _filter;
-    if (depth == null || filter == null) return;
+    if (depth == null || prefilter == null || filter == null) return;
     resources.provide(
       FrameResourceIds.shadowMoments,
-      _renderer._renderShadowMoments(depth, settings, filter),
+      _renderer._renderShadowMoments(depth, prefilter, filter),
     );
   }
 }
@@ -428,6 +445,9 @@ final class _ShadowMomentsNode extends RenderNode {
 /// reads nothing for this probe and reflects what it reflected before. A
 /// probe with a base level only would be a mirror at every roughness, which
 /// is a picture nobody asked for.
+///
+/// Inactive too while `RenderSettings.reflectionProbes` is off, with the same
+/// result: the last capture stands.
 final class _ReflectionProbeNode extends RenderNode {
   _ReflectionProbeNode(
     this._renderer, {
@@ -436,11 +456,15 @@ final class _ReflectionProbeNode extends RenderNode {
     required this.index,
     required this.shadowCaster,
     required this.clearColor,
+    required this.enabled,
   });
 
   final Renderer _renderer;
   final Scene scene;
   final ReflectionProbeNode probe;
+
+  /// `RenderSettings.reflectionProbes`.
+  final bool enabled;
 
   /// Which probe of the scene's this is, which names the resource.
   final int index;
@@ -460,7 +484,8 @@ final class _ReflectionProbeNode extends RenderNode {
 
   @override
   bool get isActive =>
-      probe.visibleInHierarchy &&
+      enabled &&
+      probe.isVisibleInHierarchy &&
       ReflectionProbeNode.supportedOn(_renderer.device);
 
   @override
@@ -479,7 +504,7 @@ final class _ReflectionProbeNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final state = _renderer._probeStateFor(probe);
 
     // Which faces this frame would draw. All six the first time, because a
@@ -558,17 +583,22 @@ final class _RenderTextureNode extends RenderNode {
     this._renderer, {
     required this.scene,
     required this.shadowCaster,
+    required this.enabled,
   });
 
   final Renderer _renderer;
   final Scene scene;
   final int shadowCaster;
 
+  /// `RenderSettings.renderTextures`: off, every texture keeps its last
+  /// picture.
+  final bool enabled;
+
   @override
   String get name => 'render textures';
 
   @override
-  bool get isActive => scene.renderTextures.isNotEmpty;
+  bool get isActive => enabled && scene.textureViews.isNotEmpty;
 
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
@@ -584,10 +614,10 @@ final class _RenderTextureNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
-    for (final texture in scene.renderTextures) {
-      if (!texture.isDue) continue;
+    for (final texture in scene.textureViews) {
+      if (texture.isDisposed || !texture.isDue || !texture.isVisible) continue;
       developer.Timeline.startSync('Renderer.renderTexture');
       _renderer._drawRenderTexture(
         resources: frame.resources,
@@ -640,7 +670,7 @@ final class _PlanarReflectionNode extends RenderNode {
       settings.planarReflections.enabled &&
       scene.reflectors.any(
         (reflector) =>
-            reflector.visibleInHierarchy && reflector.surfaces.isNotEmpty,
+            reflector.isVisibleInHierarchy && reflector.surfaces.isNotEmpty,
       );
 
   @override
@@ -657,10 +687,10 @@ final class _PlanarReflectionNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
     for (final reflector in scene.reflectors) {
-      if (!reflector.visibleInHierarchy || reflector.surfaces.isEmpty) {
+      if (!reflector.isVisibleInHierarchy || reflector.surfaces.isEmpty) {
         continue;
       }
       developer.Timeline.startSync('Renderer.planarReflection');
@@ -705,7 +735,7 @@ final class _PlanarReflectionNode extends RenderNode {
 /// Unlike [_ReflectionsNode], which is single-view by construction, this draws
 /// **every** ordered view in one pass. A viewport per view, one command buffer,
 /// one submit — which is why the views are held here rather than derived from
-/// [NodeFrame], and why the node cannot be split per view without splitting the
+/// [RenderFrame], and why the node cannot be split per view without splitting the
 /// pass with it.
 ///
 /// **It brings two nodes with it — `M3`.** On a frame that holds a
@@ -731,18 +761,30 @@ final class _SceneNode extends RenderNode {
     // A contributor that reads the scene's depth splits the frame too, and
     // for the same reason: what it reads is an attachment of this pass. It
     // needs no copy of the colour, so that node stays as the glass has it.
-    final readsDepth = contributors.any((c) => c.readsSceneDepth);
+    // A surface whose material reads the scene behind it splits it alike —
+    // `LightingModel.usesSceneDepth`, the material language's `sceneDepth`.
+    final readsDepth =
+        contributors.any((c) => c.readsSceneDepth) ||
+        _MaterialStages._holdsSceneReaders(scene, ordered);
     // `P3`: decals split it for the glass's sake rather than their own. They
     // read the buffers after the pass, which an unsplit frame would allow
     // too, but glass drawn in the same pass would already be in the picture
     // and the decal behind it would be painted over the glass.
     decals = _DecalNode(_renderer, scene, ordered, settings);
-    copy = _SceneColourCopyNode(_renderer, active: transmits);
+    // `RenderStep.transparent` and `RenderStep.sceneColorCopy`: the split
+    // follows content, and these two steps are how a caller draws the frame
+    // unsplit anyway.
+    copy = _SceneColourCopyNode(
+      _renderer,
+      active: transmits && RenderStep.sceneColorCopy.isOn(settings),
+    );
     transparent = _TransparentNode(
       _renderer,
       scene: scene,
       contributors: contributors,
-      active: transmits || readsDepth || decals.isActive,
+      active:
+          (transmits || readsDepth || decals.isActive) &&
+          RenderStep.transparent.isOn(settings),
       readsDepth: readsDepth,
       samples: optionalReads,
     );
@@ -809,7 +851,7 @@ final class _SceneNode extends RenderNode {
   /// run. See `RenderNode.supported` and `PassSkip.unsupported`.
   @override
   List<ResourceId> get writes => <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
     // `L5`: always named, as the surface buffer is, and provided only where
     // the device attached it — a reader that can do without takes it as an
@@ -847,7 +889,7 @@ final class _SceneNode extends RenderNode {
       ]);
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final resources = frame.resources;
 
     // Asked of the frame that is running, not of a description of one, and not
@@ -870,11 +912,11 @@ final class _SceneNode extends RenderNode {
     // keeps the attachments consecutive.
     final albedoIsRead =
         resources.graph.isConsumed(FrameResourceIds.albedoBuffer) &&
-        _renderer.device.maxColorAttachments > 2;
+        _renderer.device.limits.maxColorAttachments > 2;
     final surfaceIsRead =
         (resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) ||
             albedoIsRead) &&
-        _renderer.device.maxColorAttachments > 1;
+        _renderer.device.limits.maxColorAttachments > 1;
 
     // Every map this pass samples, taken from the frame rather than from the
     // renderer, and every one of them is declared above. The directional map is
@@ -892,7 +934,7 @@ final class _SceneNode extends RenderNode {
     // targets rather than into anything the pool lent it, so the version it
     // produces stands on a texture nobody may hand back.
     final hdr = _renderer._hdrColor!;
-    resources.provide(FrameResourceIds.hdrColour, hdr);
+    resources.provide(FrameResourceIds.hdrColor, hdr);
     if (surfaceIsRead) {
       // Only when it was attached. Binding the texture behind the name when
       // nothing filled it would offer a reader last frame's picture, which is
@@ -964,29 +1006,29 @@ final class _DecalNode extends RenderNode {
   String get name => 'decals';
 
   @override
-  bool get supported => _renderer.device.maxColorAttachments > 2;
+  bool get isSupported => _renderer.device.limits.maxColorAttachments > 2;
 
   /// Asked of the scene when the graph is built, so a frame whose decals are
   /// all hidden is a frame that neither splits nor gives up multisampling.
   @override
   bool get isActive =>
       _settings.decals.enabled &&
-      _scene.decals.any((decal) => decal.visibleInHierarchy);
+      _scene.decals.any((decal) => decal.isVisibleInHierarchy);
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
     FrameResourceIds.albedoBuffer,
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final resources = frame.resources;
-    final scene = resources.texture(FrameResourceIds.hdrColour);
+    final scene = resources.texture(FrameResourceIds.hdrColor);
     final surface = resources.tryTexture(FrameResourceIds.surfaceBuffer);
     final albedo = resources.tryTexture(FrameResourceIds.albedoBuffer);
     // Hard reads, culled on a device that cannot attach them; a frame that
@@ -1001,7 +1043,7 @@ final class _DecalNode extends RenderNode {
         passState: frame.state,
       );
     }
-    resources.provide(FrameResourceIds.hdrColour, scene);
+    resources.provide(FrameResourceIds.hdrColor, scene);
   }
 }
 
@@ -1023,19 +1065,19 @@ final class _SceneColourCopyNode extends RenderNode {
   bool get isActive => active;
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[
-    FrameResourceIds.sceneColour,
+    FrameResourceIds.sceneColor,
   ];
 
   @override
-  void execute(NodeFrame frame) {
-    final source = frame.resources.texture(FrameResourceIds.hdrColour);
+  void execute(RenderFrame frame) {
+    final source = frame.resources.texture(FrameResourceIds.hdrColor);
     _renderer._encodeSceneColourCopy(
       source: source,
-      target: frame.resources.texture(FrameResourceIds.sceneColour),
+      target: frame.resources.texture(FrameResourceIds.sceneColor),
       chain: SceneColourChain(source.width, source.height),
     );
   }
@@ -1089,28 +1131,28 @@ final class _TransparentNode extends RenderNode {
   bool get isActive => active;
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   /// The copy, optional: switched off, the glass reads the environment.
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
-    FrameResourceIds.sceneColour,
+    FrameResourceIds.sceneColor,
     if (readsDepth) FrameResourceIds.surfaceBuffer,
     ...samples,
   ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
     FrameResourceIds.albedoBuffer,
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final resources = frame.resources;
     final hdr = _renderer._hdrColor!;
-    resources.provide(FrameResourceIds.hdrColour, hdr);
+    resources.provide(FrameResourceIds.hdrColor, hdr);
     final split = this.split;
     if (split == null) return;
     if (split.surfaceIsRead) {
@@ -1130,7 +1172,7 @@ final class _TransparentNode extends RenderNode {
       height: frame.height,
       passState: frame.state,
       contributors: contributors,
-      sceneColour: resources.tryTexture(FrameResourceIds.sceneColour),
+      sceneColor: resources.tryTexture(FrameResourceIds.sceneColor),
     );
   }
 }
@@ -1143,7 +1185,7 @@ final class _TransparentNode extends RenderNode {
 /// once here rather than five times, so a sixth reader joins by mixing this in
 /// and cannot join by forgetting.
 ///
-/// The refusal is [FrameGraphNode.supported] rather than
+/// The refusal is [FrameGraphNode.isSupported] rather than
 /// [FrameGraphNode.isActive], because a caller who switched occlusion on and
 /// got nothing deserves to be told that their device cannot, rather than to go
 /// looking through settings they already set correctly.
@@ -1153,7 +1195,7 @@ base mixin _NeedsSurfaceBuffer on RenderNode {
   Renderer get owner;
 
   @override
-  bool get supported => owner.device.maxColorAttachments > 1;
+  bool get isSupported => owner.device.limits.maxColorAttachments > 1;
 }
 
 /// Screen-space reflections, as a graph node.
@@ -1173,7 +1215,7 @@ base mixin _NeedsSurfaceBuffer on RenderNode {
 /// node inside `if (s.reflections.enabled)`, which is the branch the
 /// registration block beside it argues against twice: a name has to be known
 /// for a read of it to compile, and leaving the node out when the setting is
-/// off moves the branch rather than deleting it. Nothing read `hdrColour`
+/// off moves the branch rather than deleting it. Nothing read `hdrColor`
 /// *conditionally* on reflections, so the inconsistency never produced a
 /// wrong frame — it produced a node that could not be addressed. A caller
 /// asking why reflections did not run got no answer, because with the
@@ -1199,17 +1241,17 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final lit = _renderer._encodeReflections(
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       sceneGraph: _scene,
       settings: frame.settings,
       view: _view,
@@ -1221,7 +1263,7 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
     // both — so the version it wrote has to be told which texture it is. The
     // one it read keeps its own, and every reader registered after this point
     // is already bound to the new one.
-    frame.resources.provide(FrameResourceIds.hdrColour, lit);
+    frame.resources.provide(FrameResourceIds.hdrColor, lit);
   }
 }
 
@@ -1260,7 +1302,7 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get reads => _indirect
       ? const <ResourceId>[
           FrameResourceIds.surfaceBuffer,
-          FrameResourceIds.hdrColour,
+          FrameResourceIds.hdrColor,
         ]
       : const <ResourceId>[FrameResourceIds.surfaceBuffer];
 
@@ -1277,7 +1319,7 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     // The buffer is a hard read, so this should not happen — but a node that
     // drew occlusion from a texture it did not get would produce plausible
@@ -1290,7 +1332,7 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       options: _settings.ambientOcclusion,
       view: _view,
       scene: _indirect
-          ? frame.resources.tryTexture(FrameResourceIds.hdrColour)
+          ? frame.resources.tryTexture(FrameResourceIds.hdrColor)
           : null,
       albedo: _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssao
           ? null
@@ -1347,7 +1389,7 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     final toLight = _toLight;
     // Both are hard conditions of the node running at all, so neither should
@@ -1376,6 +1418,7 @@ final class _IrradianceUpdateNode extends RenderNode {
     required this.scene,
     required this.shadowCaster,
     required this.clearColor,
+    required this.enabled,
   });
 
   final Renderer _renderer;
@@ -1383,13 +1426,18 @@ final class _IrradianceUpdateNode extends RenderNode {
   final int shadowCaster;
   final vm.Vector4 clearColor;
 
+  /// `RenderSettings.irradianceUpdates`. Off, the atlas keeps what earlier
+  /// frames gathered, and the scene reads it as it would any frame this
+  /// node's schedule left out.
+  final bool enabled;
+
   @override
   String get name => 'irradiance update';
 
   @override
   bool get isActive {
     final field = scene.irradianceField;
-    return field != null && _renderer._updatesIrradianceOnGpu(field);
+    return enabled && field != null && _renderer._updatesIrradianceOnGpu(field);
   }
 
   @override
@@ -1408,7 +1456,7 @@ final class _IrradianceUpdateNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final field = scene.irradianceField!;
     developer.Timeline.startSync('Renderer.irradianceUpdate');
     _renderer._updateIrradiance(
@@ -1459,7 +1507,7 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     if (surface == null) return;
     _renderer._encodeCameraVelocity(
@@ -1503,7 +1551,7 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final velocity = frame.resources.texture(FrameResourceIds.velocity);
     // The same texture carries on as the next version: this pass draws over
     // it rather than into a new one.
@@ -1558,7 +1606,7 @@ final class _ReactiveNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final velocity = frame.resources.texture(FrameResourceIds.velocity);
     frame.resources.provide(FrameResourceIds.velocity, velocity);
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
@@ -1569,7 +1617,9 @@ final class _ReactiveNode extends RenderNode with _NeedsSurfaceBuffer {
       scene: _scene,
       view: _view,
       settings: _settings,
-      contributors: _renderer.contributors.active.toList(growable: false),
+      contributors: _renderer.renderSteps._store.contributors.active.toList(
+        growable: false,
+      ),
       width: frame.width,
       height: frame.height,
     );
@@ -1603,7 +1653,7 @@ final class _AccumulateNode extends RenderNode {
   @override
   bool get isActive =>
       _settings.antiAlias.temporal.enabled &&
-      _renderer.device.maxColorAttachments > 1;
+      _renderer.device.limits.maxColorAttachments > 1;
 
   @override
   List<ResourceId> get reads => <ResourceId>[
@@ -1615,7 +1665,7 @@ final class _AccumulateNode extends RenderNode {
   List<ResourceId> get writes => <ResourceId>[_resource];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final blended = _renderer._encodeAccumulate(
       resource: _resource,
       current: frame.resources.texture(_resource),
@@ -1651,13 +1701,13 @@ final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.velocity,
     FrameResourceIds.surfaceBuffer,
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get keeps => const <ResourceId>[
@@ -1665,9 +1715,9 @@ final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final resolved = _renderer._encodeTemporalResolve(
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       velocity: frame.resources.texture(FrameResourceIds.velocity),
       surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
       view: _view,
@@ -1676,7 +1726,7 @@ final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
       outputHeight: frame.height,
     );
     frame.resources
-      ..provide(FrameResourceIds.hdrColour, resolved)
+      ..provide(FrameResourceIds.hdrColor, resolved)
       ..provide(FrameResourceIds.temporalHistory, resolved);
   }
 }
@@ -1720,7 +1770,7 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
   ];
 
@@ -1739,14 +1789,14 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     if (surface == null) return;
     final fogged = _renderer._encodeVolumetricFog(
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       surface: surface,
       shadow: frame.resources.tryTexture(FrameResourceIds.shadowMap),
       pointShadow: frame.resources.tryTexture(FrameResourceIds.cubeShadow),
@@ -1765,7 +1815,7 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
       radiance: _radiance,
     );
     // A different texture from the one it read, handed on as the shafts do.
-    frame.resources.provide(FrameResourceIds.hdrColour, fogged);
+    frame.resources.provide(FrameResourceIds.hdrColor, fogged);
   }
 }
 
@@ -1814,7 +1864,7 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
   ];
 
@@ -1824,10 +1874,10 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     final shadow = frame.resources.tryTexture(FrameResourceIds.shadowMap);
     final toLight = _toLight;
@@ -1837,7 +1887,7 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
     final lit = _renderer._encodeLightShafts(
       toLight: toLight,
       radiance: radiance,
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       surface: surface,
       shadow: shadow,
       settings: _settings.lightShafts,
@@ -1849,7 +1899,7 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
     // A different texture from the one it read — a pass cannot sample and
     // write one — so the version it produced is told which texture it is, the
     // hand-off `_ReflectionsNode` makes for the same reason.
-    frame.resources.provide(FrameResourceIds.hdrColour, lit);
+    frame.resources.provide(FrameResourceIds.hdrColor, lit);
   }
 }
 
@@ -1890,22 +1940,22 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.surfaceBuffer,
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     // A hard read, so this should not happen — but a lens with no depth would
     // focus on whatever the alpha channel last held, and a plausible blur out
     // of stale pixels is the kind of wrong that survives review.
     if (surface == null) return;
     final focused = _renderer._encodeDepthOfField(
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       surface: surface,
       settings: _settings.depthOfField,
       view: _view,
@@ -1915,7 +1965,7 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
     );
     // A different texture from the one it read — a pass cannot sample and
     // write one — so the version it produced is told which texture it is.
-    frame.resources.provide(FrameResourceIds.hdrColour, focused);
+    frame.resources.provide(FrameResourceIds.hdrColor, focused);
   }
 }
 
@@ -1960,29 +2010,29 @@ final class _MotionBlurNode extends RenderNode with _NeedsSurfaceBuffer {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
     FrameResourceIds.velocity,
     FrameResourceIds.surfaceBuffer,
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     // A hard read, so this should not happen — and the velocity next to it
     // was reconstructed from this buffer, so without it there is no motion
     // worth trusting either.
     if (surface == null) return;
     final blurred = _renderer._encodeMotionBlur(
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       velocity: frame.resources.texture(FrameResourceIds.velocity),
       surface: surface,
       settings: _settings.motionBlur,
       resources: frame.resources,
     );
-    frame.resources.provide(FrameResourceIds.hdrColour, blurred);
+    frame.resources.provide(FrameResourceIds.hdrColor, blurred);
   }
 }
 
@@ -2017,7 +2067,7 @@ final class _ViewportShadeNode extends RenderNode {
   String get name => 'viewport shading';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   bool get isActive =>
@@ -2036,7 +2086,7 @@ final class _ViewportShadeNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final shaded = _renderer._encodeViewportShade(
       scene: frame.resources.texture(FrameResourceIds.frame),
       surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
@@ -2093,7 +2143,7 @@ final class _OutlineMaskNode extends RenderNode with _NeedsSurfaceBuffer {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final drawn = _renderer._encodeOutlineMask(
       target: frame.resources.texture(FrameResourceIds.outlineMask),
       surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
@@ -2132,7 +2182,7 @@ final class _HighContrastNode extends RenderNode {
   String get name => 'high contrast';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   bool get isActive => _settings.highContrast.enabled;
@@ -2150,7 +2200,7 @@ final class _HighContrastNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final contrasted = _renderer._encodeHighContrast(
       scene: frame.resources.texture(FrameResourceIds.frame),
       surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
@@ -2203,7 +2253,7 @@ final class _SsaoBlurNode extends RenderNode with _NeedsSurfaceBuffer {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     if (surface == null) return;
     _renderer._encodeSsaoBlur(
@@ -2265,7 +2315,7 @@ final class _ContactShadowResolveNode extends RenderNode
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     if (surface == null) return;
     _renderer._encodeContactShadowResolve(
@@ -2299,16 +2349,16 @@ final class _BloomNode extends RenderNode {
   bool get isActive => _settings.enabled && _settings.intensity > 0.0;
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.bloom];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     _renderer._renderBloom(
       resources: frame.resources,
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       top: frame.resources.texture(FrameResourceIds.bloom),
       settings: _settings,
     );
@@ -2343,11 +2393,11 @@ final class _LensFlareNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.bloom];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     developer.Timeline.startSync('Renderer.lensFlare');
     final glow = frame.resources.texture(FrameResourceIds.bloom);
     final target = frame.resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: glow.width,
         height: glow.height,
         format: glow.format,
@@ -2381,7 +2431,7 @@ final class _LensFlareNode extends RenderNode {
 ///
 /// It holds the frame's scene and views the way [_ReflectionsNode] holds its
 /// view. The overlay batch after the tone map needs both, it draws into the
-/// same open pass — a second pass would reload the attachment — and [NodeFrame]
+/// same open pass — a second pass would reload the attachment — and [RenderFrame]
 /// carries neither.
 final class _CompositeNode extends RenderNode {
   _CompositeNode(this._renderer, this._scene, this._views, this._settings);
@@ -2398,7 +2448,7 @@ final class _CompositeNode extends RenderNode {
   String get name => 'composite';
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
@@ -2451,7 +2501,7 @@ final class _CompositeNode extends RenderNode {
       _settings.showSurfaceBuffer || _settings.showPointShadowDebug;
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     developer.Timeline.startSync('Renderer.composite');
     // **Where the picture lands depends on whether anything runs after it.**
     // Ordinarily this is the renderer's own finished-frame texture — the one
@@ -2471,7 +2521,7 @@ final class _CompositeNode extends RenderNode {
         _renderer._upscales(_settings);
     final target = smoothing
         ? frame.resources.transient(
-            RenderTargetSpec(
+            RenderTargetDescriptor(
               width: frame.width,
               height: frame.height,
               format: _renderer._frameFormat,
@@ -2483,7 +2533,7 @@ final class _CompositeNode extends RenderNode {
     frame.resources.provide(FrameResourceIds.frame, target);
     final composited = _renderer._encodeComposite(
       target: target,
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
       // Optional in the same way the glow is: with the node culled nobody
       // produced it, and the graph answering null is a fact it derived rather
@@ -2543,6 +2593,7 @@ final class _FxaaNode extends RenderNode {
   final AntiAliasSettings _settings;
 
   /// The sharpening a spatial upscale asks for — `R5` — nought otherwise.
+  /// A 0..1 fraction.
   final double upscaleSharpen;
 
   @override
@@ -2563,7 +2614,7 @@ final class _FxaaNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     developer.Timeline.startSync('Renderer.antialias');
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _renderer._ldrColor!;
@@ -2580,7 +2631,7 @@ final class _FxaaNode extends RenderNode {
           upscaleSharpen > 0.0;
       final smoothed = sharpens
           ? frame.resources.transient(
-              RenderTargetSpec(
+              RenderTargetDescriptor(
                 width: source.width,
                 height: source.height,
                 format: _renderer._frameFormat,
@@ -2634,7 +2685,7 @@ final class _LocalExposureNode extends RenderNode {
       _renderer.shaders['LocalExposureBlur'] != null;
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[
@@ -2642,11 +2693,11 @@ final class _LocalExposureNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     developer.Timeline.startSync('Renderer.localExposure');
     _renderer._encodeLocalExposure(
       target: frame.resources.texture(FrameResourceIds.localExposure),
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
       options: _settings.localExposure,
       resources: frame.resources,
       // The frame's exposure rather than each view's: the weights are one
@@ -2685,12 +2736,12 @@ final class _EasuNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     developer.Timeline.startSync('Renderer.spatialUpscale');
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _next.isActive
         ? frame.resources.transient(
-            RenderTargetSpec(
+            RenderTargetDescriptor(
               width: frame.width,
               height: frame.height,
               format: _renderer._frameFormat,
@@ -2743,17 +2794,17 @@ final class _LuminanceNode extends RenderNode {
   bool get isActive => _settings.enabled;
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.luminance];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final target = frame.resources.texture(FrameResourceIds.luminance);
     _renderer._encodeLuminance(
       target: target,
-      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      scene: frame.resources.texture(FrameResourceIds.hdrColor),
     );
     _renderer._meterExposure(target, _settings, views: _views);
     frame.state.drawCalls++;
@@ -2807,13 +2858,13 @@ final class _DepthPyramidNode extends RenderNode {
   ];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final target = frame.resources.texture(FrameResourceIds.depthPyramid);
     final camera = _view.camera;
     _renderer._encodeDepthPyramid(
       target: target,
       surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
-      far: camera.projection.far,
+      far: _DepthConvention._finiteFar(camera.projection),
     );
     final rect = Renderer._viewportPixels(
       _view.viewportFraction,
@@ -2860,7 +2911,7 @@ final class _ObjectIdNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.objectIds];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final drawn = _renderer._encodeObjectIds(
       resources: frame.resources,
       target: frame.resources.texture(FrameResourceIds.objectIds),

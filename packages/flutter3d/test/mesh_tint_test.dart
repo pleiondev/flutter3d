@@ -8,7 +8,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 24;
 
@@ -23,8 +22,8 @@ Future<({Uint8List rgba, int draws})> _frame(
     it.device,
     CuboidShape(size: Vector3.all(1.0)).build(),
   );
-  final material = Material(
-    baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+  final material = RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
     lighting: LightingModel.unlit,
   );
   final camera = CameraNode()
@@ -35,7 +34,7 @@ Future<({Uint8List rgba, int draws})> _frame(
     scene.add(
       MeshNode(mesh, material)
         ..setPosition((i - (tints.length - 1) / 2.0) * 0.02, 0.0, 0.0)
-        ..tint.setFrom(tints[i]),
+        ..tint = tints[i].toLinearColor(),
     );
   }
   final result =
@@ -48,7 +47,10 @@ Future<({Uint8List rgba, int draws})> _frame(
         height: _size,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 1.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 1.0, 1.0),
+          ),
         ],
         settings: RenderSettings(
           tonemap: false,
@@ -56,8 +58,8 @@ Future<({Uint8List rgba, int draws})> _frame(
           batchIdenticalDraws: batch,
         ),
       );
-  final pixels = await it.device.readPixels(result.frame);
-  return (rgba: pixels!.buffer.asUint8List(), draws: result.drawCalls);
+  final pixels = await it.device.readback(result.frame);
+  return (rgba: pixels.buffer.asUint8List(), draws: result.drawCalls);
 }
 
 ({int r, int g, int b}) _middle(Uint8List rgba) {

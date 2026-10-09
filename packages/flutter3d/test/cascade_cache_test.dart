@@ -30,7 +30,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -46,7 +45,7 @@ const int _size = 64;
   final block = DeviceMesh.upload(device, CuboidShape().build());
 
   final mode = casting ? ShadowCastingMode.on : ShadowCastingMode.off;
-  final mover = MeshNode(block, Material(name: 'mover'), name: 'mover')
+  final mover = MeshNode(block, RenderMaterial(name: 'mover'), name: 'mover')
     ..setPosition(0.0, 0.7, 0.0)
     ..shadowCasting = mode;
 
@@ -54,17 +53,20 @@ const int _size = 64;
     ..add(
       MeshNode(
         floor,
-        Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+        ),
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(mover)
     ..add(
-      MeshNode(block, Material(name: 'still'), name: 'still')
+      MeshNode(block, RenderMaterial(name: 'still'), name: 'still')
         ..setPosition(3.0, 0.7, 1.0)
         ..shadowCasting = mode,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
@@ -130,15 +132,18 @@ void main() {
         height: _size,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(
           shadows: ShadowSettings(enabled: true, cascades: 3),
         ),
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -169,7 +174,7 @@ void main() {
   });
 
   test('a moved caster redraws the cascades it is in', () async {
-    // The other half. `SceneNode.changeEpoch` is what carries it, so this also
+    // The other half. `sceneChangeEpoch` is what carries it, so this also
     // catches a key that forgot to ask.
     final device = CpuDevice(
       width: _size,

@@ -57,7 +57,7 @@ void main() {
     final renderer = Renderer.create(device: device)
       // Mutation: drop `node:` — the cloud draws at the origin at full size,
       // and the columns are no longer where the node puts them.
-      ..addContributor(SplatContributor(splat.cloud, node: node));
+      ..renderSteps.addContributor(SplatContributor(splat.cloud, node: node));
     final result = renderer.render(
       width: _width,
       height: _height,
@@ -90,9 +90,9 @@ void main() {
     // Every splat, where the node puts it, in its column's colour.
     for (var i = 0; i < splat.cloud.count; i++) {
       final local = Vector3(
-        splat.cloud.centres[i * 3],
-        splat.cloud.centres[i * 3 + 1],
-        splat.cloud.centres[i * 3 + 2],
+        splat.cloud.centers[i * 3],
+        splat.cloud.centers[i * 3 + 1],
+        splat.cloud.centers[i * 3 + 2],
       );
       final (x, y) = pixelOf(splat.transform.transformed3(local));
       final rgb = at(x, y);

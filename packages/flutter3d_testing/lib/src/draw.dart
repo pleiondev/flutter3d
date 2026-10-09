@@ -1,5 +1,4 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'render_frame.dart';
 
@@ -17,7 +16,7 @@ Future<RenderedFrame> drawOnce({
   required int width,
   required int height,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColor,
+  Vector4? clearColorSrgb,
 }) async {
   final result = renderer.render(
     width: width,
@@ -26,19 +25,13 @@ Future<RenderedFrame> drawOnce({
     views: <RenderView>[
       RenderView(
         camera: subject.camera,
-        clearColor: clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: clearColorSrgb ?? Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,
   );
 
-  final pixels = await device.readPixels(result.frame);
-  if (pixels == null) {
-    throw StateError(
-      'the frame could not be read back from the software device, which has '
-      'nothing to be busy with and no driver to blame',
-    );
-  }
+  final pixels = await device.readback(result.frame);
   return (
     pixels: pixels.buffer.asUint8List(),
     width: width,

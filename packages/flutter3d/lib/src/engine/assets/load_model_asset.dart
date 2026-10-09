@@ -42,16 +42,6 @@ String generatedMaterialPathFor(String sourcePath) {
   return 'flutter3d_generated/$withoutExtension.f3dshaders';
 }
 
-/// The device class every [loadModelAsset] reads as when its caller names
-/// none — `N7`. Null, the default, reads the single `.f3d` a build without
-/// classes writes.
-///
-/// **Set once, on the loading screen**, from a `DeviceClassPicker`: a class
-/// decides which files a level loads, and loaders several calls away from the
-/// application (a level's actors, `loadModelByPath`) read it here rather than
-/// each being handed it.
-DeviceClass? assetDeviceClass;
-
 /// Every [sourcePath] this isolate has already warned about — so a control
 /// that calls [loadModelAsset] once per frame (a hot-reload preview, a level
 /// that streams models in) prints the missing-hook warning once for the
@@ -89,24 +79,38 @@ final Set<String> _warnedMissingGenerated = <String>{};
 /// declaring throwaway fixtures in this package's own `pubspec.yaml`,
 /// which would ship them to every application that depends on it.
 ///
-/// [deviceClass] (default: [assetDeviceClass]) reads that class's own file
+/// [deviceClass] reads that class's own file
 /// first — `chair.phone.f3d` — and the single `chair.f3d` when the build
 /// wrote none for it, so a class picked before a project's manifest names any
 /// costs one missed read and nothing else.
+///
+/// [decoders] — the engine's [ModelDecoders], or `Decoders` — is what the
+/// installed plugins added, as [loadModelByPath] takes it: a path with a
+/// scheme one of them registered is read through that source and nothing
+/// else, and every request made here carries the registered decoders after
+/// its own, so a source in a format a plugin reads (a debug build's fallback
+/// to `assets_src/`) decodes. Null reads exactly as before.
 Future<ModelDocument> loadModelAsset(
   String sourcePath, {
   bool debugMode = kDebugMode,
   DeviceClass? deviceClass,
   AssetSource Function(String path) generatedSource = BundleAssetSource.new,
   AssetSource Function(String path) fallbackSource = FileAssetSource.new,
+  ModelDecoders? decoders,
 }) async {
+  ModelLoadRequest request(AssetSource source) =>
+      decoders?.withDecoders(ModelLoadRequest(source: source)) ??
+      ModelLoadRequest(source: source);
+  if (decoders != null && decoders.sources.handles(sourcePath)) {
+    return decodeModelInIsolate(
+      request(decoders.sourceFor(sourcePath, fallback: generatedSource)),
+    );
+  }
   final generatedPath = generatedAssetPathFor(sourcePath);
-  if (deviceClass ?? assetDeviceClass case final DeviceClass reading) {
+  if (deviceClass case final DeviceClass reading) {
     try {
       return await decodeModelInIsolate(
-        ModelLoadRequest(
-          source: generatedSource(deviceClassPath(generatedPath, reading)),
-        ),
+        request(generatedSource(deviceClassPath(generatedPath, reading))),
       );
     } on FlutterError {
       // No file for this class: the single one below.
@@ -116,14 +120,24 @@ Future<ModelDocument> loadModelAsset(
     }
   }
   try {
-    return await decodeModelInIsolate(
-      ModelLoadRequest(source: generatedSource(generatedPath)),
-    );
+    return await decodeModelInIsolate(request(generatedSource(generatedPath)));
   } on FlutterError {
-    return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
+    return _fallback(
+      sourcePath,
+      generatedPath,
+      debugMode,
+      fallbackSource,
+      request,
+    );
   } catch (error) {
     if (!isMissingFile(error)) rethrow;
-    return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
+    return _fallback(
+      sourcePath,
+      generatedPath,
+      debugMode,
+      fallbackSource,
+      request,
+    );
   }
 }
 
@@ -142,18 +156,47 @@ Future<ModelDocument> loadModelAsset(
 ///
 /// [bundleSource] is what reads the bundle in both cases; a test stands a
 /// file in for it, for the reason [loadModelAsset]'s own factories give.
+///
+/// [decoders] — the engine's [ModelDecoders], or `Decoders` — is what a
+/// plugin added: a path with a scheme one of them registered
+/// (`pak:models/crate.glb`) is read through that source, and the decoders
+/// they registered travel with the request. Null reads exactly as before.
 Future<ModelDocument> loadModelByPath(
   String path, {
   AssetSource Function(String path) bundleSource = BundleAssetSource.new,
-}) => path.startsWith(_sourceDirPrefix)
-    ? loadModelAsset(path, generatedSource: bundleSource)
-    : decodeModelInIsolate(ModelLoadRequest(source: bundleSource(path)));
+  ModelDecoders? decoders,
+  DeviceClass? deviceClass,
+}) {
+  if (decoders != null && decoders.sources.handles(path)) {
+    return decodeModelInIsolate(
+      decoders.withDecoders(
+        ModelLoadRequest(
+          source: decoders.sourceFor(path, fallback: bundleSource),
+        ),
+      ),
+    );
+  }
+  return path.startsWith(_sourceDirPrefix)
+      ? loadModelAsset(
+          path,
+          generatedSource: bundleSource,
+          decoders: decoders,
+          deviceClass: deviceClass,
+        )
+      : decodeModelInIsolate(
+          decoders?.withDecoders(
+                ModelLoadRequest(source: bundleSource(path)),
+              ) ??
+              ModelLoadRequest(source: bundleSource(path)),
+        );
+}
 
 Future<ModelDocument> _fallback(
   String sourcePath,
   String generatedPath,
   bool debugMode,
   AssetSource Function(String path) fallbackSource,
+  ModelLoadRequest Function(AssetSource source) request,
 ) async {
   if (!debugMode || kIsWeb) {
     throw StateError(
@@ -169,7 +212,5 @@ Future<ModelDocument> _fallback(
       'build once to stop seeing this.',
     );
   }
-  return decodeModelInIsolate(
-    ModelLoadRequest(source: fallbackSource(sourcePath)),
-  );
+  return decodeModelInIsolate(request(fallbackSource(sourcePath)));
 }

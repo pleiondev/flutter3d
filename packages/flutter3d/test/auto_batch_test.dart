@@ -30,7 +30,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -38,7 +37,7 @@ const int _size = 64;
 Scene _field(
   CpuDevice device, {
   required int count,
-  Material? material,
+  RenderMaterial? material,
   bool sameMaterial = true,
   bool turned = false,
 }) {
@@ -46,7 +45,7 @@ Scene _field(
     device,
     CuboidShape(size: Vector3.all(0.6)).build(),
   );
-  final shared = material ?? Material(name: 'shared');
+  final shared = material ?? RenderMaterial(name: 'shared');
   final scene = Scene();
   // A square grid rather than a long row, and the camera far enough back to
   // hold all of it: the first draft laid a hundred cubes out fifty wide, the
@@ -57,7 +56,7 @@ Scene _field(
     scene.add(
       MeshNode(
           mesh,
-          sameMaterial ? shared : Material(name: 'own $i'),
+          sameMaterial ? shared : RenderMaterial(name: 'own $i'),
           name: 'cube $i',
         )
         ..setPosition(
@@ -75,7 +74,7 @@ Scene _field(
   }
   return scene
     ..add(
-      LightNode(intensity: 4.0)
+      LightNode(intensity: 4.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 4.0, 6.0)
         ..lookAt(Vector3.zero()),
     )
@@ -99,15 +98,15 @@ Future<({List<int> pixels, FrameResult frame})> _draw(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(batchIdenticalDraws: batched),
   );
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     frame: frame,
   );

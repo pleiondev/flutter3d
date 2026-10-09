@@ -8,6 +8,7 @@
 #define SHADOW_GLSL_
 
 #include <lib/evsm.glsl>
+#include <lib/shadow_storage.glsl>
 #include <lib/surface.glsl>
 
 /// Linear depth from the light's point of view, in the red channel — or,
@@ -181,6 +182,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float bias = cascade == 0
       ? frag_info.shadow_bias.x
       : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
+  // `A2.8`: how the map keeps its depth, and with half floats turned round
+  // the bias's floor at this fragment's own depth rather than at the
+  // coarsest step the map has — see `lib/shadow_storage.glsl`.
+  float storage = frag_info.shadow_params.y;
+  if (storage > 0.5 && storage < 1.5) {
+    bias = max(bias, ShadowStoredStep(projected.z));
+  }
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
@@ -255,10 +263,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // steps.
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
-        float occluder = textureLod(
-            shadow_texture,
-            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
-            0.0).r;
+        float occluder = ShadowStored(
+            textureLod(
+                shadow_texture,
+                clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+                0.0).r,
+            storage);
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -305,10 +315,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       vec2 disc = VogelDisc(i, 16, turn);
       float tapBias =
           bias + max(length(disc) * searchRadius - 1.5, 0.0) * receiverSlope;
-      float occluder = textureLod(
-          shadow_texture,
-          clamp(uv + disc * texel * searchRadius, tileLo, tileHi),
-          0.0).r;
+      float occluder = ShadowStored(
+          textureLod(
+              shadow_texture,
+              clamp(uv + disc * texel * searchRadius, tileLo, tileHi),
+              0.0).r,
+          storage);
       if (projected.z - tapBias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -326,10 +338,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       vec2 disc = VogelDisc(i, 16, turn + 1.0);
       float tapBias =
           bias + max(length(disc) * radius - 1.5, 0.0) * receiverSlope;
-      float occluder = textureLod(
-          shadow_texture,
-          clamp(uv + disc * texel * radius, tileLo, tileHi),
-          0.0).r;
+      float occluder = ShadowStored(
+          textureLod(
+              shadow_texture,
+              clamp(uv + disc * texel * radius, tileLo, tileHi),
+              0.0).r,
+          storage);
       lit += projected.z - tapBias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 16.0;

@@ -82,7 +82,12 @@ void main(List<String> args) {
     ..writeln("import 'src/webgl_shaders.dart';")
     ..writeln()
     ..writeln('/// Every shader the engine asks for, in GLSL ES 3.00.')
-    ..writeln('final ShaderSources engineShaders = ShaderSources(')
+    ..writeln('///')
+    ..writeln(
+      '/// Public, and promised with the rest: `WebGlDevice.open` takes the',
+    )
+    ..writeln('/// sources it compiles, and uses these when it is given none.')
+    ..writeln('final ShaderSources webGlEngineShaders = ShaderSources(')
     ..writeln('  <String, String>{');
   vertex.forEach((name, src) => out.writeln("    '$name': r'''$src''',"));
   out

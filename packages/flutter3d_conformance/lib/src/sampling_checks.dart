@@ -1,6 +1,6 @@
 /// A sampler asking for more than the device has is clamped, not refused.
 ///
-/// `SamplerOptions.anisotropy` is documented as "ask for sixteen anywhere":
+/// `SamplerDescriptor.anisotropy` is documented as "ask for sixteen anywhere":
 /// flutter_gpu clamps to `maxSamplerAnisotropy` inside its bind, WebGL2 raises
 /// `INVALID_VALUE` for a parameter above the extension's ceiling and the
 /// backend has to clamp it first, and the software rasteriser answers one and
@@ -71,10 +71,9 @@ Future<void> checkAnisotropicSamplerAccepted(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: pixels,
   );
-  require(texture != null, 'a two-texel texture could not be uploaded');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -117,29 +116,28 @@ Future<void> checkAnisotropicSamplerAccepted(GraphicsDevice device) async {
       ..bindTexture(
         fragment,
         'particle_texture',
-        texture!,
-        sampler: SamplerOptions.trilinearRepeat.withAnisotropy(taps),
+        texture,
+        sampler: SamplerDescriptor.trilinearRepeat.withAnisotropy(taps),
       )
       ..bindVertexData(ByteData.sublistView(triangle), 3)
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw();
     pass.submit();
 
-    final read = await device.readPixels(target);
-    require(read != null, 'the target could not be read back at $taps taps');
-    return read!.buffer.asUint8List()[((size ~/ 2) * size + size ~/ 2) * 4];
+    final read = await device.readback(target);
+    return read.buffer.asUint8List()[((size ~/ 2) * size + size ~/ 2) * 4];
   }
 
   // Above the ceiling by construction, whatever the ceiling is. A device
   // answering one gets two, a desktop answering sixteen gets thirty-two.
-  final beyond = device.maxAnisotropy * 2;
+  final beyond = device.limits.maxSamplerAnisotropy * 2;
   for (final taps in <int>[16, beyond]) {
     final red = await centreThrough(taps);
     require(
       red > 128,
       'a trilinear sampler asking for $taps-way anisotropy did not draw: the '
       'centre came back r=$red where the white texel was expected. The device '
-      'answers maxAnisotropy ${device.maxAnisotropy}; a request above that is '
+      'answers maxAnisotropy ${device.limits.maxSamplerAnisotropy}; a request above that is '
       'clamped by the backend, never refused. See ARCHITECTURE.md §7.2.',
     );
   }

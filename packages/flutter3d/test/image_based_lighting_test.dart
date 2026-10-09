@@ -18,7 +18,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 48;
@@ -54,9 +53,9 @@ _ball() {
         device,
         SphereShape(radius: 1.4, segments: 24, rings: 16).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'metal',
-        baseColor: Vector4(0.9, 0.9, 0.92, 1.0),
+        baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.92, 1.0),
         metallic: 1.0,
         roughness: 0.25,
         lighting: LightingModel.pbr,
@@ -66,11 +65,7 @@ _ball() {
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 60.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
@@ -91,13 +86,16 @@ Future<Uint8List> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Red at the middle of the frame, which is the middle of the sphere.
@@ -128,7 +126,7 @@ void _light(CpuDevice device, Scene scene, {int levels = 4}) {
     // Turned up from the default so the indirect term is the thing being
     // measured rather than a rounding of it. This scales both the flat ambient
     // and the environment, which is the point of them sharing the knob.
-    ..ambientIntensity = 1.0;
+    ..ambientIntensity = 1.0 * Photometric.legacyUnit;
 }
 
 void main() {
@@ -136,7 +134,7 @@ void main() {
     // The state of the world before this feature, kept as a test so the claim
     // is measured rather than remembered.
     final it = _ball();
-    it.scene.ambientIntensity = 1.0;
+    it.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
 
     expect(
       _onTheBall(await _draw(it)),
@@ -183,11 +181,11 @@ void main() {
     // nothing. Mutation: bind the fallback cube *and* report a level count —
     // every existing reference image moves and this fails first.
     final it = _ball();
-    it.scene.ambientIntensity = 1.0;
+    it.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
     final before = await _draw(it);
 
     final again = _ball();
-    again.scene.ambientIntensity = 1.0;
+    again.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
     expect(await _draw(again), equals(before));
   });
 }

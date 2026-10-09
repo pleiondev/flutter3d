@@ -160,11 +160,7 @@ final class GoldenRunner {
         finish(1);
       }
 
-      final actual = await device.readPixels(target);
-      if (actual == null) {
-        printLine('GOLDEN ${scene.name}: the frame read back as nothing.');
-        finish(1);
-      }
+      final actual = await device.readback(target);
 
       // Before the frame is recorded or compared, because a frame the device
       // refused part of is not a picture of the scene whatever it matches. The

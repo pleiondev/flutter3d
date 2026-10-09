@@ -2,16 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_core/geometry.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 void main() {
-  Ray down(double x, double y, double z) =>
-      Ray(Vector3(x, y, z), Vector3(0.0, 0.0, -1.0));
+  LocalRay down(double x, double y, double z) =>
+      LocalRay(Vector3(x, y, z), Vector3(0.0, 0.0, -1.0));
 
   group('ray', () {
     test('direction is left alone until asked, then normalized in place', () {
       final direction = Vector3(0.0, 0.0, -4.0);
-      final ray = Ray(Vector3.zero(), direction);
+      final ray = LocalRay(Vector3.zero(), direction);
       expect(ray.direction.length, 4.0);
 
       final returned = ray.normalizeDirection();
@@ -31,7 +31,7 @@ void main() {
       // length, so a surface 4 world units away is still reported at t = 4.
       final ray = down(0.0, 0.0, 10.0);
       final inverse = Matrix4.diagonal3(Vector3(0.5, 0.5, 0.5));
-      final local = ray.transformInto(inverse, Ray.zero());
+      final local = ray.transformInto(inverse, LocalRay.zero());
 
       expect(local.origin, Vector3(0.0, 0.0, 5.0));
       expect(local.direction, Vector3(0.0, 0.0, -0.5));
@@ -51,11 +51,11 @@ void main() {
     });
 
     test('a ray aimed past the box misses', () {
-      expect(rayAabb(down(3.0, 0.0, 5.0), box), kNoHit);
+      expect(rayAabb(down(3.0, 0.0, 5.0), box), noHit);
     });
 
     test('a ray pointing away from the box misses', () {
-      expect(rayAabb(Ray(Vector3(0, 0, 5), Vector3(0, 0, 1)), box), kNoHit);
+      expect(rayAabb(LocalRay(Vector3(0, 0, 5), Vector3(0, 0, 1)), box), noHit);
     });
 
     test('an origin inside the box is a hit at zero', () {
@@ -65,12 +65,15 @@ void main() {
     test('a ray parallel to a slab and outside it misses', () {
       // Travelling along X at y = 5: never enters the box, and the y slab test
       // is the only thing that can reject it.
-      expect(rayAabb(Ray(Vector3(-5, 5, 0), Vector3(1, 0, 0)), box), kNoHit);
+      expect(
+        rayAabb(LocalRay(Vector3(-5, 5, 0), Vector3(1, 0, 0)), box),
+        noHit,
+      );
     });
 
     test('a ray parallel to a slab and inside it hits', () {
       expect(
-        rayAabb(Ray(Vector3(-5, 0, 0), Vector3(1, 0, 0)), box),
+        rayAabb(LocalRay(Vector3(-5, 0, 0), Vector3(1, 0, 0)), box),
         closeTo(4.0, 1e-12),
       );
     });
@@ -89,13 +92,17 @@ void main() {
     });
 
     test('a miss returns the sentinel', () {
-      expect(raySphere(down(2.0, 0.0, 5.0), Vector3.zero(), 1.0), kNoHit);
+      expect(raySphere(down(2.0, 0.0, 5.0), Vector3.zero(), 1.0), noHit);
     });
 
     test('a sphere behind the ray misses', () {
       expect(
-        raySphere(Ray(Vector3(0, 0, 5), Vector3(0, 0, 1)), Vector3.zero(), 1.0),
-        kNoHit,
+        raySphere(
+          LocalRay(Vector3(0, 0, 5), Vector3(0, 0, 1)),
+          Vector3.zero(),
+          1.0,
+        ),
+        noHit,
       );
     });
 
@@ -104,11 +111,11 @@ void main() {
     });
 
     test('a zero radius is never hit', () {
-      expect(raySphere(down(0.0, 0.0, 5.0), Vector3.zero(), 0.0), kNoHit);
+      expect(raySphere(down(0.0, 0.0, 5.0), Vector3.zero(), 0.0), noHit);
     });
 
     test('a non-unit direction scales t accordingly', () {
-      final ray = Ray(Vector3(0, 0, 5), Vector3(0, 0, -2));
+      final ray = LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -2));
       expect(raySphere(ray, Vector3.zero(), 1.0), closeTo(2.0, 1e-12));
     });
   });
@@ -121,7 +128,7 @@ void main() {
     test('a hit reports the distance and the barycentric coordinates', () {
       final uv = Vector2.zero();
       // Aimed at (0.25, 0.25), which is inside the triangle.
-      final ray = Ray(Vector3(0.25, 0.25, 2.0), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0.25, 0.25, 2.0), Vector3(0, 0, -1));
       final t = rayTriangle(ray, a, b, c, outUv: uv);
 
       expect(t, closeTo(2.0, 1e-12));
@@ -132,41 +139,41 @@ void main() {
     test(
       'a point outside the triangle misses even though the plane is hit',
       () {
-        final ray = Ray(Vector3(0.9, 0.9, 2.0), Vector3(0, 0, -1));
-        expect(rayTriangle(ray, a, b, c), kNoHit);
+        final ray = LocalRay(Vector3(0.9, 0.9, 2.0), Vector3(0, 0, -1));
+        expect(rayTriangle(ray, a, b, c), noHit);
       },
     );
 
     test('a triangle behind the origin misses', () {
-      final ray = Ray(Vector3(0.25, 0.25, -2.0), Vector3(0, 0, -1));
-      expect(rayTriangle(ray, a, b, c), kNoHit);
+      final ray = LocalRay(Vector3(0.25, 0.25, -2.0), Vector3(0, 0, -1));
+      expect(rayTriangle(ray, a, b, c), noHit);
     });
 
     test('a ray parallel to the plane misses', () {
-      final ray = Ray(Vector3(0.25, 0.25, 0.0), Vector3(1, 0, 0));
-      expect(rayTriangle(ray, a, b, c), kNoHit);
+      final ray = LocalRay(Vector3(0.25, 0.25, 0.0), Vector3(1, 0, 0));
+      expect(rayTriangle(ray, a, b, c), noHit);
     });
 
     test('a degenerate triangle is a miss, not a division by zero', () {
-      final ray = Ray(Vector3(0.25, 0.0, 2.0), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0.25, 0.0, 2.0), Vector3(0, 0, -1));
       // All three vertices collinear: zero area, no surface to hit.
       final t = rayTriangle(ray, a, b, Vector3(2.0, 0.0, 0.0), outUv: null);
-      expect(t, kNoHit);
+      expect(t, noHit);
       expect(t.isNaN, isFalse);
     });
 
     test('back faces hit by default and miss when culled', () {
       // From behind: the winding reads clockwise, so the determinant flips.
-      final ray = Ray(Vector3(0.25, 0.25, -2.0), Vector3(0, 0, 1));
+      final ray = LocalRay(Vector3(0.25, 0.25, -2.0), Vector3(0, 0, 1));
       expect(rayTriangle(ray, a, b, c), closeTo(2.0, 1e-12));
-      expect(rayTriangle(ray, a, b, c, cullBackFace: true), kNoHit);
+      expect(rayTriangle(ray, a, b, c, cullBackFace: true), noHit);
     });
 
     test('the barycentric coordinates interpolate the vertices back', () {
       final uv = Vector2.zero();
-      final ray = Ray(Vector3(0.2, 0.5, 2.0), Vector3(0, 0, -1));
+      final ray = LocalRay(Vector3(0.2, 0.5, 2.0), Vector3(0, 0, -1));
       final t = rayTriangle(ray, a, b, c, outUv: uv);
-      expect(t, isNot(kNoHit));
+      expect(t, isNot(noHit));
 
       final w = 1.0 - uv.x - uv.y;
       // vector_math stores components as float32, so the reconstruction is only
@@ -185,7 +192,7 @@ void main() {
       // Straight down the rotated triangle's own normal, from one unit away.
       final normal = (rb - ra).cross(rc - ra)..normalize();
       final origin = ra + normal;
-      final ray = Ray(origin, -normal);
+      final ray = LocalRay(origin, -normal);
       expect(rayTriangle(ray, ra, rb, rc), closeTo(1.0, 1e-9));
     });
   });

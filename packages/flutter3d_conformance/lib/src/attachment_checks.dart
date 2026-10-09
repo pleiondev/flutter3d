@@ -41,7 +41,7 @@ import '../flutter3d_conformance.dart';
 /// the refusal should go unchecked.
 Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   const size = 4;
-  final limit = device.maxColorAttachments;
+  final limit = device.limits.maxColorAttachments;
   require(
     limit >= 1,
     'answers $limit to maxColorAttachments, and a device that cannot open a '
@@ -49,7 +49,7 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   );
 
   TextureHandle target() => device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: device.defaultColorFormat,
@@ -124,16 +124,11 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
     ..draw();
   pass.submit();
 
-  final a = await device.readPixels(first);
-  final b = await device.readPixels(second);
-  require(
-    a != null && b != null,
-    'could not read back the two attachments, so nothing here can be said '
-    'about what they hold',
-  );
+  final a = await device.readback(first);
+  final b = await device.readback(second);
 
-  final red = a!.getUint8(0);
-  final blue = b!.getUint8(2);
+  final red = a.getUint8(0);
+  final blue = b.getUint8(2);
   final otherRed = b.getUint8(0);
   require(
     !(a.getUint8(0) == b.getUint8(0) && a.getUint8(2) == b.getUint8(2)),

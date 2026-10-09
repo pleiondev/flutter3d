@@ -16,11 +16,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
@@ -54,13 +53,13 @@ const List<List<int>> _faceColours = <List<int>>[
 /// A cube whose faces are the six colours above, [size] square.
 TextureHandle _cube(CpuDevice device, {int size = 4}) {
   final faces = <ByteData>[
-    for (final colour in _faceColours)
+    for (final color in _faceColours)
       ByteData.sublistView(
         Uint8List.fromList(<int>[
           for (var i = 0; i < size * size; i++) ...<int>[
-            colour[0],
-            colour[1],
-            colour[2],
+            color[0],
+            color[1],
+            color[2],
             255,
           ],
         ]),
@@ -72,7 +71,7 @@ TextureHandle _cube(CpuDevice device, {int size = 4}) {
     faces: faces,
   );
   expect(handle, isNotNull, reason: 'the device refused a six-face cube');
-  return handle!;
+  return handle;
 }
 
 /// Draws an empty scene with the cube as its sky, looking along [towards].
@@ -80,14 +79,14 @@ Future<Uint8List> _look(
   ({CpuDevice device, Renderer renderer}) it,
   TextureHandle cube,
   Vector3 towards, {
-  Vector3? tint,
+  LinearColor? tint,
 }) async {
   final scene = Scene();
   final camera = CameraNode(
     projection: const PerspectiveProjection(
       // Narrow, so the whole frame is well inside one face and the edges never
       // come into shot. What is being read is which face, not how it filters.
-      fovYRadians: 0.35,
+      fovY: 0.35,
       near: 0.3,
       far: 100.0,
     ),
@@ -99,7 +98,7 @@ Future<Uint8List> _look(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       sky: SkySettings(enabled: true, cubemap: cube, tint: tint),
@@ -108,14 +107,14 @@ Future<Uint8List> _look(
       exposure: 1.0,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// The colour at the centre of the frame, which is the direction the camera
 /// points.
-List<int> _centre(Uint8List rgba) {
+List<int> _center(Uint8List rgba) {
   final i = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
   return <int>[rgba[i], rgba[i + 1], rgba[i + 2]];
 }
@@ -146,7 +145,7 @@ void main() {
 
     expect(cube.type, TextureType.textureCube);
     expect(cube.sliceCount, 6);
-    expect(device.supportsCubeTextures, isTrue);
+    expect(device.features.has(DeviceFeature.cubeTextures), isTrue);
   });
 
   test('a cube built from the wrong number of faces is refused', () {
@@ -194,7 +193,7 @@ void main() {
 
     for (final (name, direction, expected) in looks) {
       final frame = await _look(it, cube, direction);
-      final rgb = _centre(frame);
+      final rgb = _center(frame);
       expect(
         _whichFace(rgb),
         expected,
@@ -267,7 +266,7 @@ void main() {
       size: size,
       format: TextureFormat.r8g8b8a8UNormInt,
       faces: faces,
-    )!;
+    );
 
     // Well inside a face, and deliberately **far off its diagonal**: each of
     // these lands at about 0.8 along one axis of the face and 0.1 along the
@@ -285,7 +284,7 @@ void main() {
 
     for (final direction in looks) {
       final frame = await _look(it, cube, direction);
-      final drawn = _centre(frame);
+      final drawn = _center(frame);
       final wanted = encode(direction);
       for (var c = 0; c < 3; c++) {
         expect(
@@ -308,11 +307,11 @@ void main() {
       it,
       cube,
       Vector3(1.0, 0.0, 0.0),
-      tint: Vector3(0.25, 0.25, 0.25),
+      tint: const LinearColor(0.25, 0.25, 0.25),
     );
 
-    expect(_centre(plain)[0], greaterThan(200));
-    expect(_centre(dimmed)[0], lessThan(_centre(plain)[0] - 40));
+    expect(_center(plain)[0], greaterThan(200));
+    expect(_center(dimmed)[0], lessThan(_center(plain)[0] - 40));
   });
 
   test('a cube sky is not a surface either', () async {
@@ -330,7 +329,7 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: RenderSettings(
         sky: SkySettings(enabled: true, cubemap: cube),
@@ -340,8 +339,8 @@ void main() {
         tonemap: false,
       ),
     );
-    final pixels = await it.device.readPixels(result.frame);
-    final bytes = pixels!.buffer.asUint8List();
+    final pixels = await it.device.readback(result.frame);
+    final bytes = pixels.buffer.asUint8List();
 
     var total = 0;
     for (var i = 0; i < bytes.length; i += 4) {
@@ -360,7 +359,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(<int>[255, 0, 0, 255])),
-    )!;
+    );
 
     final scene = Scene();
     final camera = CameraNode()..lookAt(Vector3(0.0, 0.0, 1.0));

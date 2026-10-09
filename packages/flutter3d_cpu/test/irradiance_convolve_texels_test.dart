@@ -14,7 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
 import 'package:flutter3d_cpu/src/cpu_shader_stage.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_irradiance.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
@@ -64,10 +64,10 @@ Vector4 _convolve(int x, int y, CpuTexture radiance, CpuTexture surface) {
     <String, BoundTexture>{
       'field_texture': BoundTexture(
         CpuTexture(6, 12, TextureFormat.r32g32b32a32Float),
-        SamplerOptions.nearestClamp,
+        SamplerDescriptor.nearestClamp,
       ),
-      'radiance_texture': BoundTexture(radiance, SamplerOptions.linearClamp),
-      'surface_texture': BoundTexture(surface, SamplerOptions.nearestClamp),
+      'radiance_texture': BoundTexture(radiance, SamplerDescriptor.linearClamp),
+      'surface_texture': BoundTexture(surface, SamplerDescriptor.nearestClamp),
     },
   );
   return const IrradianceConvolveShader().run(

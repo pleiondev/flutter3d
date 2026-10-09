@@ -16,10 +16,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 32;
 const int _height = 32;
@@ -70,7 +70,7 @@ const LightingModel _flatModel = LightingModel(
   usesMaterialParameters: false,
 );
 
-Future<List<int>> _centre(
+Future<List<int>> _center(
   WebGlDevice device,
   Renderer renderer,
   Scene scene,
@@ -81,11 +81,11 @@ Future<List<int>> _centre(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: const RenderSettings(tonemap: false),
   );
-  final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(result.frame)).buffer.asUint8List();
   final at = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
   return <int>[pixels[at], pixels[at + 1], pixels[at + 2]];
 }
@@ -94,12 +94,11 @@ void main() {
   late WebGlDevice device;
 
   setUp(() {
-    final made = WebGlDevice.create(
+    final made = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (made == null) fail('no WebGL2 context in this browser');
     device = made;
   });
 
@@ -119,21 +118,17 @@ void main() {
           device,
           CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
         ),
-        Material(name: 'wall', lighting: _flatModel),
+        RenderMaterial(name: 'wall', lighting: _flatModel),
       )..setPosition(0.0, 0.0, -8.0),
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 60.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -1.0));
     scene.add(camera);
 
     final renderer = Renderer.create(device: device, materials: loaded);
-    final magenta = await _centre(device, renderer, scene, camera);
+    final magenta = await _center(device, renderer, scene, camera);
     expect(magenta[0], greaterThan(200));
     expect(magenta[1], lessThan(60));
     expect(magenta[2], greaterThan(200));
@@ -151,12 +146,12 @@ void main() {
     // deleted. Mutation: delete it in `forgetPrograms` and this frame binds
     // a deleted program — INVALID_VALUE, no draw, the clear colour.
     expect(
-      await _centre(device, renderer, scene, camera),
+      await _center(device, renderer, scene, camera),
       magenta,
       reason: 'a pipeline linked before the refresh draws the code it had',
     );
     renderer.relinkShaders();
-    final green = await _centre(device, renderer, scene, camera);
+    final green = await _center(device, renderer, scene, camera);
     expect(green[1], greaterThan(200));
     expect(green[0], lessThan(60));
     expect(green[2], lessThan(60));
@@ -170,7 +165,7 @@ void main() {
         }, name: 'broken'),
       ),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'broken')
             .having((r) => r.reason, 'reason', contains('did not compile')),
       ),
@@ -178,7 +173,7 @@ void main() {
     expect(loaded.name, 'v2');
     renderer.relinkShaders();
     expect(
-      await _centre(device, renderer, scene, camera),
+      await _center(device, renderer, scene, camera),
       green,
       reason: 'a refused reload leaves the picture as it was',
     );
@@ -189,7 +184,7 @@ void main() {
         _bundle(<String, String>{'Other': _flat('1.0, 0.0, 0.0')}),
       ),
       throwsA(
-        isA<ShaderBundleRefused>().having(
+        isA<ShaderBundleException>().having(
           (r) => r.reason,
           'reason',
           contains('"Flat"'),
@@ -204,15 +199,15 @@ void main() {
       name: 'engine',
       sdk: '',
       stages: <ShaderBundleStage>[
-        for (final n in engineShaders.vertex.keys)
+        for (final n in webGlEngineShaders.vertex.keys)
           ShaderBundleStage(n, fragment: false),
-        for (final n in engineShaders.fragment.keys)
+        for (final n in webGlEngineShaders.fragment.keys)
           ShaderBundleStage(n, fragment: true),
       ],
       sections: <String, ByteData>{
         ShaderBundle.webglSection: encodeWebGlSection(
-          vertex: engineShaders.vertex,
-          fragment: engineShaders.fragment,
+          vertex: webGlEngineShaders.vertex,
+          fragment: webGlEngineShaders.fragment,
         ),
       },
     ).encode();
@@ -254,7 +249,7 @@ void main() {
         ).encode(),
       ),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'impeller-only')
             .having((r) => r.reason, 'reason', contains('webgl')),
       ),
@@ -273,10 +268,10 @@ void main() {
     expect(device.debugTrackedResourceCount, 0);
     // `tearDown` would dispose twice, which the device refuses; make a fresh
     // one for it to tear down.
-    device = WebGlDevice.create(
+    device = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
-    )!;
+      sources: webGlEngineShaders,
+    );
   });
 }

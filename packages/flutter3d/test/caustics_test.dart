@@ -15,7 +15,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 96;
 
@@ -33,11 +32,14 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
           device,
           CuboidShape(size: Vector3(4, 0.1, 4)).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+        ),
       )..setPosition(0.0, -0.05, 0.0),
     )
     ..add(
-      LightNode(intensity: 0.4, castsShadow: true)
+      LightNode(intensity: 0.4 * Photometric.legacyUnit, castsShadow: true)
         ..setLocalForward(Vector3(0.0, -1.0, 0.02)),
     )
     ..add(
@@ -52,10 +54,10 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
             device,
             const SphereShape(radius: 0.3, segments: 48, rings: 24).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'glass ball',
             lighting: LightingModel.pbrLayered,
-            baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
             extensions: MaterialExtensions(
               transmission: 1.0,
               ior: 1.5,
@@ -75,7 +77,7 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -88,8 +90,8 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
       look: const LookSettings(dither: 0),
     ),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 /// The brightest and darkest red within [radius] pixels of the middle.

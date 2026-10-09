@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_model.dart';
@@ -82,7 +84,7 @@ final class TextureBinding {
   /// texture of the material names the same transform, which is what an
   /// atlas export writes: see `texture_transform_bake.dart`. A material whose
   /// textures disagree, or whose offset a clip moves, is read through a
-  /// matrix per map at the sampler instead — `C8`, `Material.textureTransforms`.
+  /// matrix per map at the sampler instead — `C8`, `RenderMaterial.textureTransforms`.
   /// The document keeps the coordinates the file had beside the numbers it
   /// named, so a round trip gives the file back.
   final TextureTransform? transform;
@@ -196,7 +198,7 @@ final class EncodedImage {
 final class SurfaceMaterial {
   SurfaceMaterial({
     this.name,
-    Vector4? baseColor,
+    this.baseColor = LinearColor.white,
     this.metallic = 0.0,
     this.roughness = 0.5,
     this.baseColorTexture,
@@ -206,7 +208,7 @@ final class SurfaceMaterial {
     this.occlusionTexture,
     this.occlusionStrength = 1.0,
     this.emissiveTexture,
-    Vector3? emissive,
+    this.emissive = LinearColor.black,
     this.emissiveStrength = 1.0,
     this.alphaMode = SurfaceAlphaMode.opaque,
     this.alphaCutoff = 0.5,
@@ -215,28 +217,44 @@ final class SurfaceMaterial {
     this.lightingModel,
     this.extensions,
     this.extras,
-  }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
-       emissive = emissive ?? Vector3.zero();
+  });
 
   final String? name;
 
-  /// RGBA tint as authored, i.e. non-linear for the colour channels.
-  final Vector4 baseColor;
+  /// RGBA tint, linear with straight alpha, as every colour the engine
+  /// holds. A format that stores it otherwise (OBJ's `Kd`, the `.f3d`
+  /// material table) converts at its reader and writer.
+  final LinearColor baseColor;
 
+  /// A 0..1 fraction.
   final double metallic;
+
+  /// Perceptual roughness, a 0..1 fraction.
   final double roughness;
 
   final TextureBinding? baseColorTexture;
   final TextureBinding? metallicRoughnessTexture;
   final TextureBinding? normalTexture;
+
+  /// A unitless multiplier on the normal map's X and Y.
   final double normalScale;
   final TextureBinding? occlusionTexture;
+
+  /// A 0..1 fraction of the occlusion texture applied.
   final double occlusionStrength;
   final TextureBinding? emissiveTexture;
-  final Vector3 emissive;
+
+  /// Linear; alpha is not read.
+  final LinearColor emissive;
+
+  /// A unitless multiplier on [emissive], as glTF's
+  /// `KHR_materials_emissive_strength`; it becomes nits where the render
+  /// material is made.
   final double emissiveStrength;
 
   final SurfaceAlphaMode alphaMode;
+
+  /// A 0..1 fraction: in the mask mode, alpha below it is cut away.
   final double alphaCutoff;
   final bool doubleSided;
 

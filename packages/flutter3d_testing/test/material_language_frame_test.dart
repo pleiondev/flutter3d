@@ -23,7 +23,6 @@ import 'package:flutter3d_app/flutter3d_app.dart' show MaterialProgramStage;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -73,7 +72,7 @@ Future<Uint8List> _render(
       for (final material in loaded.materials)
         SurfaceMaterial(
           name: material.name,
-          baseColor: Vector4(0.8, 0.4, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.2, 1.0),
           lightingModel: model,
         ),
     ],
@@ -95,7 +94,7 @@ Future<Uint8List> _render(
     // catch it, so the shadow is drawn through the stage under test too.
     scene
       ..add(
-        LightNode(intensity: 2.0, castsShadow: true)
+        LightNode(intensity: 2.0 * Photometric.legacyUnit, castsShadow: true)
           ..setLocalForward(Vector3(0.5, -1.0, 0.6).normalized()),
       )
       ..add(
@@ -104,7 +103,10 @@ Future<Uint8List> _render(
             device,
             CuboidShape(size: Vector3(4.0, 0.1, 4.0)).build(),
           ),
-          Material(baseColor: Vector4(0.8, 0.4, 0.2, 1.0), lighting: model),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.2, 1.0),
+            lighting: model,
+          ),
         )..setPosition(0.0, -0.55, 0.0),
       );
   }
@@ -129,25 +131,21 @@ Future<Uint8List> _render(
         camera: sun
             // Aimed, so the box and the shadow it throws on the slab are
             // both in the frame.
-            ? (CameraNode(
-                  projection: const PerspectiveProjection(fovYRadians: 0.9),
-                )
+            ? (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
                 ..setPosition(2.4, 2.0, 3.2)
                 ..lookAt(Vector3(0.0, -0.3, 0.0)))
-            : (CameraNode(
-                projection: const PerspectiveProjection(fovYRadians: 0.9),
-              )..setPosition(1.6, 1.2, 2.4)),
-        clearColor: Vector4(0, 0, 0, 1),
+            : (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
+                ..setPosition(1.6, 1.2, 2.4)),
+        clearColorSrgb: Vector4(0, 0, 0, 1),
       ),
     ],
   );
-  final pixels = await device.readPixels(result.frame);
-  if (pixels == null) throw StateError('the frame did not read back');
+  final pixels = await device.readback(result.frame);
   return pixels.buffer.asUint8List();
 }
 
 MaterialProgram _program(String source, MaterialVariant variant) =>
-    specialiseMaterial(parseMaterial(source), variant);
+    specializeMaterial(parseMaterial(source), variant);
 
 int _differing(Uint8List a, Uint8List b) {
   var count = 0;

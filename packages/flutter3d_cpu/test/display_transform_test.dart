@@ -8,8 +8,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _size = 16;
 
@@ -18,7 +19,7 @@ double _encode(double x) => x <= 0.0031308
     : 1.055 * math.pow(x, 1.0 / 2.4).toDouble() - 0.055;
 
 /// The centre of a frame filled by an unlit card whose light is [linear].
-double _centre(RenderSettings settings, {double linear = 0.18}) {
+double _center(RenderSettings settings, {double linear = 0.18}) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -30,9 +31,9 @@ double _centre(RenderSettings settings, {double linear = 0.18}) {
   final card =
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(authored, authored, authored, 1.0),
+            baseColor: LinearColor.fromSrgb(authored, authored, authored, 1.0),
           ),
         )
         ..setPosition(0.0, 0.0, -1.0)
@@ -61,7 +62,7 @@ void main() {
   test('ACES 2.0 puts mid grey at a tenth of the display', () {
     // Mutation: return `tonemapBy` for curve 6 in the composite's mirror.
     // Neutral leaves 0.18 near 0.18, well above a tenth.
-    final grey = _centre(_base().copyWith(tonemapCurve: TonemapCurve.aces2));
+    final grey = _center(_base().copyWith(tonemapCurve: TonemapCurve.aces2));
     expect(grey, closeTo(_encode(0.1), 0.02));
   });
 
@@ -75,9 +76,9 @@ void main() {
       tonemapCurve: TonemapCurve.aces2,
       exposure: linear / 0.18,
     );
-    final bright = _centre(at(32.0));
-    final brighter = _centre(at(80.0));
-    final roof = _centre(at(160.0));
+    final bright = _center(at(32.0));
+    final brighter = _center(at(80.0));
+    final roof = _center(at(160.0));
     expect(roof, greaterThan(0.995), reason: 'past the roof is white');
     expect(
       brighter - bright,
@@ -102,10 +103,10 @@ void main() {
       height: 2,
       format: TextureFormat.r32g32b32a32Float,
       pixels: half,
-    )!;
+    );
     // The table belongs to another device; the software rasteriser samples
     // any `CpuTexture`, which is what makes this cheap to set up.
-    final value = _centre(
+    final value = _center(
       _base().copyWith(
         look: LookSettings(
           dither: 0.0,
@@ -118,7 +119,7 @@ void main() {
   });
 
   test('with the tone map off, neither is read', () {
-    final grey = _centre(
+    final grey = _center(
       _base().copyWith(tonemap: false, tonemapCurve: TonemapCurve.aces2),
     );
     expect(grey, closeTo(_encode(0.18), 0.02));

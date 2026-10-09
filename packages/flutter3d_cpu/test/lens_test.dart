@@ -8,19 +8,20 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
 
-/// A card of [colour] at ([x], [y]) on black, through [settings].
+/// A card of [color] at ([x], [y]) on black, through [settings].
 Float32List _render(
   RenderSettings settings, {
   double x = 0.0,
   double y = 0.0,
   double size = 0.6,
-  double colour = 1.0,
+  double color = 1.0,
 }) {
   final device = CpuDevice(
     width: _width,
@@ -30,9 +31,9 @@ Float32List _render(
   final card =
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(colour, colour, colour, 1.0),
+            baseColor: LinearColor.fromSrgb(color, color, color, 1.0),
           ),
         )
         ..setPosition(x, y, -3.0)
@@ -45,7 +46,7 @@ Float32List _render(
       ..add(card)
       ..add(camera),
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: settings,
   );
@@ -115,7 +116,7 @@ void main() {
           ),
         );
     Float32List light(RenderSettings settings) =>
-        _render(settings, x: -0.9, y: 0.45, size: 0.15, colour: 6.0);
+        _render(settings, x: -0.9, y: 0.45, size: 0.15, color: 6.0);
 
     /// What [after] adds over [before] in the quarter of the frame from
     /// column [x0] and row [y0].
@@ -158,7 +159,7 @@ void main() {
           ),
         ),
         size: 0.15,
-        colour: 0.2,
+        color: 0.2,
       );
       expect(dim(flare: true), dim(flare: false));
     });

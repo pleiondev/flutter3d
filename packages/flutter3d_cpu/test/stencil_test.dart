@@ -18,11 +18,11 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const int _size = 4;
-const int _centre = (_size ~/ 2) * _size + _size ~/ 2;
+const int _center = (_size ~/ 2) * _size + _size ~/ 2;
 
 /// A stage that discards everything, for the one rule about the stencil
 /// that no built-in stage can demonstrate.
-final class _DiscardEverything implements CpuFragmentShader {
+final class _DiscardEverything extends CpuFragmentShader {
   const _DiscardEverything();
 
   @override
@@ -39,10 +39,10 @@ final class _Fixture {
           'DiscardEverything': const CpuStage.fragment(_DiscardEverything()),
         }),
       ) {
-    colour =
-        over?.colour ??
+    color =
+        over?.color ??
         device.createTexture(
-          const RenderTargetSpec(
+          const RenderTargetDescriptor(
             width: _size,
             height: _size,
             format: TextureFormat.r16g16b16a16Float,
@@ -51,7 +51,7 @@ final class _Fixture {
     depth =
         over?.depth ??
         device.createTexture(
-          const RenderTargetSpec(
+          const RenderTargetDescriptor(
             width: _size,
             height: _size,
             format: TextureFormat.d32FloatS8UInt,
@@ -61,7 +61,7 @@ final class _Fixture {
       RenderPassDescriptor(
         colors: <ColorTarget>[
           ColorTarget(
-            texture: colour,
+            texture: color,
             loadAction: LoadAction.clear,
             clearValue: Vector4.zero(),
           ),
@@ -81,11 +81,11 @@ final class _Fixture {
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none)
       ..setDepthCompare(CompareFunction.lessEqual)
-      ..setDepthWrite(true);
+      ..setDepthWrite(enabled: true);
   }
 
   final CpuDevice device;
-  late final TextureHandle colour;
+  late final TextureHandle color;
   late final TextureHandle depth;
   late final CommandEncoder pass;
   late final ShaderHandle vertex;
@@ -117,9 +117,9 @@ final class _Fixture {
       ..draw();
   }
 
-  int get stencilAtCentre => (depth.backend as CpuTexture).stencil![_centre];
+  int get stencilAtCentre => (depth.backend as CpuTexture).stencil![_center];
 
-  double get redAtCentre => (colour.backend as CpuTexture).pixels[_centre * 4];
+  double get redAtCentre => (color.backend as CpuTexture).pixels[_center * 4];
 }
 
 void main() {
@@ -335,7 +335,7 @@ void main() {
     second.pass.submit();
     expect(second.stencilAtCentre, 4);
     expect(
-      (second.colour.backend as CpuTexture).pixels[_centre * 4 + 1],
+      (second.color.backend as CpuTexture).pixels[_center * 4 + 1],
       1.0,
       reason: 'equal against the loaded four let the green through',
     );
@@ -353,8 +353,8 @@ void main() {
       height: _size,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    final colour = device.createTexture(
-      const RenderTargetSpec(
+    final color = device.createTexture(
+      const RenderTargetDescriptor(
         width: _size,
         height: _size,
         format: TextureFormat.r16g16b16a16Float,
@@ -363,7 +363,7 @@ void main() {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: colour, clearValue: Vector4.zero()),
+          ColorTarget(texture: color, clearValue: Vector4.zero()),
         ],
       ),
     );
@@ -390,6 +390,6 @@ void main() {
       )
       ..draw()
       ..submit();
-    expect((colour.backend as CpuTexture).pixels[_centre * 4], 1.0);
+    expect((color.backend as CpuTexture).pixels[_center * 4], 1.0);
   });
 }

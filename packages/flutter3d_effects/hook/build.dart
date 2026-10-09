@@ -3,7 +3,7 @@
 // checkout runs with no step between `flutter pub get` and `flutter run`.
 import 'dart:io';
 
-import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:hooks/hooks.dart';
 
 import 'material_bundles.dart';

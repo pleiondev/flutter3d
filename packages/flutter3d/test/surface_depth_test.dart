@@ -27,7 +27,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_color.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -143,9 +144,9 @@ void main() {
     }
 
     /// What the channel used to hold, in the engine's `[0, 1]` convention.
-    double windowDepth(double metres) {
+    double windowDepth(double meters) {
       const near = 0.1, far = 500.0;
-      return far / (far - near) * (1.0 - near / metres);
+      return far / (far - near) * (1.0 - near / meters);
     }
 
     expect(

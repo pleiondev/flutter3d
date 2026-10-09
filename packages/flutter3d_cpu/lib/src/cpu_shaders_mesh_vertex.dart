@@ -25,7 +25,7 @@ import 'cpu_shaders_morph.dart';
 final MorphScratch _morphScratch = MorphScratch();
 
 /// The mesh vertex stage — `mesh.vert`.
-final class MeshVertexShader implements CpuVertexShaderByIndex {
+final class MeshVertexShader extends CpuVertexShaderByIndex {
   const MeshVertexShader();
 
   @override
@@ -130,7 +130,7 @@ final class MeshVertexShader implements CpuVertexShaderByIndex {
 /// and the tint held at white — which is exactly what the GLSL does, and
 /// reusing the plain stage keeps the two from drifting on the arithmetic
 /// they share.
-final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex {
+final class MeshLightmappedVertexShader extends CpuVertexShaderByIndex {
   const MeshLightmappedVertexShader();
 
   static const MeshVertexShader _plain = MeshVertexShader();
@@ -175,13 +175,13 @@ final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex {
 /// sixteen — three rows of the transform and the colour — in the order
 /// `cpu_vertex_fetch.dart` says: every attribute of slot 0, then every
 /// attribute of slot 1.
-final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
+final class MeshInstancedVertexShader extends CpuVertexShaderByIndex {
   const MeshInstancedVertexShader();
 
   static const int _row0 = 16;
   static const int _row1 = 20;
   static const int _row2 = 24;
-  static const int _colour = 28;
+  static const int _color = 28;
   static const int _data = 32;
 
   @override
@@ -268,7 +268,7 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
     out[kVUv] = a[kTexcoord];
     out[kVUv + 1] = a[kTexcoord + 1];
     for (var i = 0; i < 4; i++) {
-      out[kVColour + i] = a[kColour + i] * a[_colour + i];
+      out[kVColour + i] = a[kColour + i] * a[_color + i];
     }
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
@@ -299,7 +299,7 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
   }
 }
 
-final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
+final class MeshSkinnedVertexShader extends CpuVertexShaderByIndex {
   const MeshSkinnedVertexShader();
 
   /// The palette size, `kMaxJoints` in the skinned shaders.

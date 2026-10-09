@@ -71,17 +71,21 @@
 /// what the reference should be needs a reference set to compare against.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
+
 /// Raised when a stage cannot be prepared.
 ///
 /// Carries the file, because a message naming only a construct is a message
 /// about one of nineteen hundred lines of identical-looking GLSL.
-final class WgslPrepareError implements Exception {
-  const WgslPrepareError(this.message);
+final class WgslPrepareException extends Flutter3dFormatException {
+  const WgslPrepareException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'WgslPrepareError: $message';
+  String toString() => 'WgslPrepareException: $message';
 }
 
 /// One vertex input the scan found.
@@ -156,16 +160,16 @@ final class PreparedStage {
 /// stage a group of its own makes a stage's reflection complete on its own,
 /// which is what lets the packer emit it without knowing who it will be paired
 /// with.
-const int kVertexGroup = 0;
+const int vertexGroup = 0;
 
-/// See [kVertexGroup].
-const int kFragmentGroup = 1;
+/// See [vertexGroup].
+const int fragmentGroup = 1;
 
 /// `WebGpuTextureDimension.twoDimensional`, by name.
-const String kTwoDimensional = 'twoDimensional';
+const String twoDimensional = 'twoDimensional';
 
 /// `WebGpuTextureDimension.cube`, by name.
-const String kCubeDimension = 'cube';
+const String cubeDimension = 'cube';
 
 /// Every varying [resolved] declares, for [assignVaryingLocations] to number.
 ///
@@ -241,11 +245,11 @@ Map<String, int> assignVaryingLocations(Iterable<Set<String>> stages) {
 
   final locations = <String, int>{};
   for (final group in members.values) {
-    if (group.length > kMaxInterStageVariables) {
-      throw WgslPrepareError(
+    if (group.length > maxInterStageVariables) {
+      throw WgslPrepareException(
         'the varyings ${group.join(', ')} have to share a numbering and there '
         'are ${group.length} of them, which is more than the '
-        '$kMaxInterStageVariables locations WebGPU has',
+        '$maxInterStageVariables locations WebGPU has',
       );
     }
     for (final (index, name) in group.indexed) {
@@ -260,7 +264,7 @@ Map<String, int> assignVaryingLocations(Iterable<Set<String>> stages) {
 /// `maxInterStageShaderVariables`, whose floor in the specification is sixteen,
 /// and a `@location` must be below it. Named here because it is the reason
 /// [assignVaryingLocations] groups rather than sorts.
-const int kMaxInterStageVariables = 16;
+const int maxInterStageVariables = 16;
 
 /// Prepares one stage of the manifest.
 ///
@@ -308,7 +312,7 @@ PreparedStage prepareStage(
   final scan = _Scan(from: from, fragment: fragment);
   scan.run(lines);
 
-  final group = fragment ? kFragmentGroup : kVertexGroup;
+  final group = fragment ? fragmentGroup : vertexGroup;
   var binding = 0;
 
   final blocks = <PreparedBlock>[];
@@ -331,7 +335,7 @@ PreparedStage prepareStage(
 
   for (final found in scan.varyings) {
     if (!varyingLocations.containsKey(found.name)) {
-      throw WgslPrepareError(
+      throw WgslPrepareException(
         '$from declares the varying "${found.name}", which was not in the '
         'manifest-wide numbering',
       );
@@ -372,7 +376,7 @@ PreparedStage prepareStage(
   }
   for (final found in scan.samplers) {
     final sampler = byName[found.name]!;
-    final cube = found.dimension == kCubeDimension;
+    final cube = found.dimension == cubeDimension;
     final texture = cube ? 'textureCube' : 'texture2D';
     final combined = cube ? 'samplerCube' : 'sampler2D';
     edited[found.line] =
@@ -444,7 +448,9 @@ Iterable<(String, int)> _numberInOrder(
     yield (variable.name, next);
   }
   if (taken.length != found.length) {
-    throw WgslPrepareError('$from declares two of something at one location');
+    throw WgslPrepareException(
+      '$from declares two of something at one location',
+    );
   }
 }
 
@@ -471,7 +477,7 @@ String _vertexFormat(
   'uvec2' => 'uint32x2',
   'uvec3' => 'uint32x3',
   'uvec4' => 'uint32x4',
-  _ => throw WgslPrepareError(
+  _ => throw WgslPrepareException(
     '$from declares the attribute "$name" as "$type", which is not a vertex '
     'format the contract has',
   ),
@@ -531,7 +537,7 @@ PreparedBlock _layOutBlock(
     'mat2' => (align: 16, size: 32),
     'mat3' => (align: 16, size: 48),
     'mat4' => (align: 16, size: 64),
-    _ => throw WgslPrepareError(
+    _ => throw WgslPrepareException(
       '$from declares the uniform "$name" as "$type", which this packer has no '
       'std140 rule for',
     ),
@@ -662,8 +668,8 @@ final class _Scan {
             line: i,
             name: sampler.group(2)!,
             dimension: sampler.group(1) == 'samplerCube'
-                ? kCubeDimension
-                : kTwoDimensional,
+                ? cubeDimension
+                : twoDimensional,
           ),
         );
         continue;
@@ -685,7 +691,7 @@ final class _Scan {
       if (variable != null) _collect(i, variable);
     }
     if (conditions.isNotEmpty) {
-      throw WgslPrepareError('$from has a conditional nobody closed');
+      throw WgslPrepareException('$from has a conditional nobody closed');
     }
   }
 
@@ -732,7 +738,9 @@ final class _Scan {
         ),
       );
     }
-    throw WgslPrepareError('$from opens a uniform block and never closes it');
+    throw WgslPrepareException(
+      '$from opens a uniform block and never closes it',
+    );
   }
 
   /// True when [line] was a preprocessor directive and has been accounted for.
@@ -748,12 +756,16 @@ final class _Scan {
         conditions.add(defined.contains(rest));
       case 'else':
         if (conditions.isEmpty) {
-          throw WgslPrepareError('$from has an #else outside a conditional');
+          throw WgslPrepareException(
+            '$from has an #else outside a conditional',
+          );
         }
         conditions[conditions.length - 1] = !conditions.last;
       case 'endif':
         if (conditions.isEmpty) {
-          throw WgslPrepareError('$from has an #endif outside a conditional');
+          throw WgslPrepareException(
+            '$from has an #endif outside a conditional',
+          );
         }
         conditions.removeLast();
       case 'define':
@@ -774,7 +786,7 @@ final class _Scan {
         // will use it in anger. Refusing is the honest answer: the day a shader
         // needs one, this stops rather than quietly deciding which branch was
         // meant.
-        throw WgslPrepareError(
+        throw WgslPrepareException(
           '$from uses "#$keyword", which this scan does not evaluate',
         );
     }
@@ -796,7 +808,7 @@ final class _Scan {
         final literal = int.tryParse(text);
         final value = literal ?? constants[text];
         if (value == null) {
-          throw WgslPrepareError(
+          throw WgslPrepareException(
             '$from sizes an array by "$expression", and "$text" is not a '
             'constant this scan saw',
           );

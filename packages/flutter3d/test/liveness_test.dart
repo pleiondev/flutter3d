@@ -15,11 +15,16 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_hardware/trace.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Every bind of a lighting model's fragment stage the renderer asked for,
@@ -82,7 +87,7 @@ void main() {
       ..add(
         MeshNode(
           DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-          Material(name: 'liar', lighting: liar),
+          RenderMaterial(name: 'liar', lighting: liar),
         ),
       )
       ..add(
@@ -111,7 +116,7 @@ void main() {
     expect(unlit.kept, isNotNull);
     expect(unlit.mayBindBlock('PointShadow'), isFalse);
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.r8g8b8a8UNormInt,

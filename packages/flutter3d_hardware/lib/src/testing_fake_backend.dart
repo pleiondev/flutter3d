@@ -2,18 +2,21 @@
 /// every name with.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'backend_handles.dart';
 import 'testing_fake_pass.dart';
+import 'testing_recorded.dart';
 
 /// A bundle that has every stage anybody asks for, except the ones it is told
 /// to withhold.
 ///
 /// Withholding matters: `ParticleContributor` draws nothing when its stages are
 /// missing, and that path had never been exercised.
-final class FakeShaderLibrary implements ShaderLibrary {
+final class FakeShaderLibrary with ShaderLibrary {
   FakeShaderLibrary({this.missing = const <String>{}, this.stageBindings});
 
   final Set<String> missing;
@@ -28,10 +31,11 @@ final class FakeShaderLibrary implements ShaderLibrary {
       ? null
       : _handles.putIfAbsent(
           name,
-          () => ShaderHandle(
+          () => wrapShader(
             backend: name,
             name: name,
             kept: stageBindings?[name],
+            release: (ShaderHandle h) => forgetShader(_handles, h),
           ),
         );
 }
@@ -43,7 +47,7 @@ final class FakeShaderLibrary implements ShaderLibrary {
 /// handle already handed out is the same handle after [refresh] — because the
 /// renderer holds its vertex stages for its lifetime and a test of the reload
 /// path needs a device that behaves the way the three real ones do.
-final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
+final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   FakeLoadedShaderLibrary(ShaderBundle bundle) : _bundle = bundle;
 
   ShaderBundle _bundle;
@@ -63,7 +67,11 @@ final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
   ShaderHandle? operator [](String name) => _bundle.names.contains(name)
       ? _handles.putIfAbsent(
           name,
-          () => ShaderHandle(backend: name, name: name),
+          () => wrapShader(
+            backend: name,
+            name: name,
+            release: (ShaderHandle h) => forgetShader(_handles, h),
+          ),
         )
       : null;
 
@@ -76,7 +84,7 @@ final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
         .where((String n) => !bundle.names.contains(n))
         .toList();
     if (dropped.isNotEmpty) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
@@ -90,71 +98,343 @@ final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
 }
 
 /// A device that records rather than draws.
-final class FakeBackend implements GraphicsDevice {
+///
+/// **Its capabilities are a [DeviceFeatures] set like every backend's**, built
+/// from the constructor's flags. The 0.9 surface is off unless a test
+/// names it in `extraFeatures`; a feature named there is *recorded* — each
+/// call becomes a [RecordedCall] in the pass or in [calls] — and a feature
+/// not named is refused with [UnsupportedCapability], exactly as a real
+/// backend without it refuses. Compute is never available: a fake runs no
+/// stage, and `extraFeatures` may not name it.
+final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
   // here yet — see the end of `GraphicsDevice`. Each answer is the one that
   // makes a caller take its fallback.
 
   @override
-  bool get supportsGpuTimestamps => false;
-
-  @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
-
-  @override
-  bool get supportsCompute => false;
 
   @override
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
     bool bindableAsIndices = false,
-  }) => throw UnsupportedError(_noCompute);
+  }) => throw _noCompute();
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
-      throw UnsupportedError(_noCompute);
+      throw _noCompute();
 
   @override
-  ComputeEncoder beginComputePass({String? label}) =>
-      throw UnsupportedError(_noCompute);
+  ComputeEncoder beginComputePass({
+    String? label,
+    PassTimestampWrites? timestampWrites,
+  }) => throw _noCompute();
 
+  /// Zeros of the buffer's length: a fake keeps no bytes. Refused for a
+  /// buffer that was not made host-readable, as every backend refuses it.
   @override
-  Future<ByteData> readBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
+  Future<ByteData> readBuffer(StorageBuffer buffer) async {
+    features.require(DeviceFeature.buffers, backend: _name);
+    if (!buffer.hostReadable) {
+      throw ArgumentError.value(buffer, 'buffer', 'is not hostReadable');
+    }
+    return ByteData(buffer.lengthInBytes);
+  }
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
+      calls.add(RecordedCall('releaseStorageBuffer', buffer));
 
-  static const String _noCompute =
-      'FakeBackend runs no compute: supportsCompute is false. Ask before '
-      'creating a storage buffer, a compute pipeline or a compute pass.';
+  static UnsupportedCapability _noCompute() => UnsupportedCapability(
+    DeviceFeature.compute,
+    backend: _name,
+    reason: 'a fake runs no compute stage',
+  );
 
   @override
-  bool get supportsFloat32Filtering => false;
+  Future<MappedBuffer> mapBuffer(
+    StorageBuffer buffer,
+    MapMode mode, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) async {
+    features.require(DeviceFeature.mappedBuffers, backend: _name);
+    final size = sizeInBytes ?? buffer.lengthInBytes - offsetInBytes;
+    calls.add(
+      RecordedCall('mapBuffer', (
+        mode: mode,
+        offsetInBytes: offsetInBytes,
+        sizeInBytes: size,
+      )),
+    );
+    return FakeMapping(ByteData(size));
+  }
 
   @override
-  bool get supportsIndependentBlend => false;
+  ByteData readBufferSync(
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    features.require(DeviceFeature.synchronousReadback, backend: _name);
+    return ByteData(sizeInBytes ?? buffer.lengthInBytes - offsetInBytes);
+  }
+
+  @override
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) {
+    features.require(DeviceFeature.renderBundles, backend: _name);
+    return FakePass.bundle(descriptor, features: features);
+  }
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
 
+  /// [maxAnisotropy] and [maxColorAttachments] become [limits]; the flags and
+  /// [extraFeatures] become [features]. See the class doc for what a feature
+  /// named in [extraFeatures] does on a fake.
   FakeBackend({
     Set<String> missingShaders = const <String>{},
-    this.supportsWireframe = true,
-    this.supportsAlphaToCoverage = true,
-    this.supportsStencil = true,
-    this.supportsRenderToMip = true,
+    bool supportsWireframe = true,
+    bool supportsAlphaToCoverage = true,
+    bool supportsStencil = true,
+    bool supportsRenderToMip = true,
     this.unsupportedFormats = const <TextureFormat>{},
-    this.maxAnisotropy = 16,
-    this.maxColorAttachments = 2,
+    int maxAnisotropy = 16,
+    int maxColorAttachments = 2,
     this.stageBindings,
     this.framebufferOrigin = FramebufferOrigin.topLeft,
-  }) : shaders = FakeShaderLibrary(
+    Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[],
+  }) : assert(
+         !extraFeatures.contains(DeviceFeature.compute),
+         'a fake runs no compute stage, so it cannot report compute',
+       ),
+       shaders = FakeShaderLibrary(
          missing: missingShaders,
          stageBindings: stageBindings,
-       );
+       ),
+       limits = DeviceLimits(
+         maxSamplerAnisotropy: maxAnisotropy,
+         maxColorAttachments: maxColorAttachments,
+         maxComputeWorkgroupStorageSize: 0,
+         maxComputeInvocationsPerWorkgroup: 0,
+         maxComputeWorkgroupSizeX: 0,
+         maxComputeWorkgroupSizeY: 0,
+         maxComputeWorkgroupSizeZ: 0,
+         maxComputeWorkgroupsPerDimension: 0,
+       ),
+       _features = DeviceFeatures(<DeviceFeature>{
+         DeviceFeature.offscreenMultisample,
+         // Recorded, not evaluated: this device blends nothing, so the honest
+         // answer is the one that lets a caller under test set the constant
+         // and be recorded doing it.
+         DeviceFeature.blendConstant,
+         // True, because a fake has nothing to be incapable with. The real
+         // answer is a device property, and the backends disagree.
+         DeviceFeature.manualMipmaps,
+         DeviceFeature.cubeTextures,
+         // Settable for the same reason as wireframe: the interesting case
+         // is the backend that says no — flutter_gpu on OpenGL ES — and the
+         // renderer is supposed to build a probe without a chain there.
+         if (supportsRenderToMip) DeviceFeature.renderToMipLevel,
+         // Settable, because the interesting case is the backend that says
+         // no — OpenGL ES has no `glPolygonMode`, and the engine is supposed
+         // to decline its own wireframe setting rather than let the request
+         // reach a backend that would refuse it mid-frame.
+         if (supportsWireframe) DeviceFeature.wireframe,
+         // Settable: two of the four real backends say no, and the engine is
+         // meant to draw the hard alpha test there and report it.
+         if (supportsAlphaToCoverage) DeviceFeature.alphaToCoverage,
+         // Settable: the case worth a test is the device that says no, where
+         // the x-ray stage has to draw nothing rather than configure a test
+         // against an attachment with no stencil in it.
+         if (supportsStencil) DeviceFeature.stencil,
+         ...extraFeatures,
+       });
+
+  /// What this fake reports. Mutable only through [supportsOffscreenMsaa]'s
+  /// setter, the one capability tests flip after construction.
+  DeviceFeatures _features;
+
+  @override
+  DeviceFeatures get features => _features;
+
+  /// Sixteen taps and two attachments unless the constructor said otherwise
+  /// — `gfx-50n`. **Two is a parameter because the device it stands in for
+  /// cannot be asked**: Impeller on OpenGL ES aborts rather than refusing, so
+  /// there is no way to run the no-MRT path on the hardware that has it.
+  /// This fake answers what a pass was *opened* with; `CpuDevice`, which
+  /// takes the same number, answers what came out the other end as pixels.
+  @override
+  final DeviceLimits limits;
+
+  @override
+  TextureFormatSupport textureFormatSupport(TextureFormat format) =>
+      unsupportedFormats.contains(format)
+      ? TextureFormatSupport.none
+      : const TextureFormatSupport(
+          sampled: true,
+          filterable: true,
+          renderable: true,
+          blendable: true,
+          multisample: true,
+          resolve: true,
+          depthStencil: true,
+        );
+
+  /// The backend name a refusal from this fake carries.
+  static const String _name = 'FakeBackend';
+
+  /// Every device-level 0.9 call, in order, for a test that wants to know a
+  /// buffer was written or a copy recorded. Pass-level calls go into the
+  /// pass's own `commands`.
+  final List<RecordedCall> calls = <RecordedCall>[];
+
+  /// True, and settable so a test can be the device that answers no —
+  /// `gfx-20n`.
+  ///
+  /// The reason it is worth setting: a frame that stops multisampling because
+  /// the device cannot and a frame that stops because something reads the
+  /// surface buffer look identical from outside, and
+  /// `FrameResult.antiAliasing` exists to tell them apart. A fake that could
+  /// only say yes leaves half of that untested.
+  set supportsOffscreenMsaa(bool supported) => _features = supported
+      ? _features.union(const <DeviceFeature>[
+          DeviceFeature.offscreenMultisample,
+        ])
+      : _features.without(const <DeviceFeature>[
+          DeviceFeature.offscreenMultisample,
+        ]);
+
+  @override
+  TextureHandle createTexture(TextureDescriptor descriptor) {
+    if (descriptor is RenderTargetDescriptor) return _createTarget(descriptor);
+    features.require(DeviceFeature.textureWrites, backend: _name);
+    final shape = switch (descriptor.dimension) {
+      TextureDimension.d2Array => DeviceFeature.textureArrays,
+      TextureDimension.d3 => DeviceFeature.texture3D,
+      TextureDimension.cube => DeviceFeature.cubeTextures,
+      TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
+      TextureDimension.d1 || TextureDimension.d2 => null,
+    };
+    if (shape != null) features.require(shape, backend: _name);
+    if (descriptor.usage.contains(TextureUsage.storage)) {
+      features.require(DeviceFeature.storageTextures, backend: _name);
+    }
+    calls.add(RecordedCall('createTexture', descriptor));
+    return wrapTexture(
+      owner: this,
+      backend: 'fake ${_serial++}',
+      width: descriptor.width,
+      height: descriptor.height,
+      format: descriptor.format,
+      sampleCount: descriptor.sampleCount,
+      storageMode: descriptor.storageMode,
+      type: descriptor.dimension == TextureDimension.cube
+          ? TextureType.textureCube
+          : TextureType.texture2D,
+      dimension: descriptor.dimension,
+      depthOrArrayLayers: descriptor.depthOrArrayLayers,
+      mipLevelCount: descriptor.mipLevelCount,
+      usage: descriptor.usage,
+    );
+  }
+
+  @override
+  void writeTexture(
+    TextureHandle target,
+    ByteData data, {
+    TextureRegion? region,
+    int mipLevel = 0,
+    int? bytesPerRow,
+  }) {
+    features.require(DeviceFeature.textureWrites, backend: _name);
+    calls.add(
+      RecordedCall('writeTexture', (
+        target: target,
+        bytes: data.lengthInBytes,
+        region: region,
+        mipLevel: mipLevel,
+      )),
+    );
+  }
+
+  @override
+  StorageBuffer createBuffer(
+    BufferDescriptor descriptor, {
+    ByteData? contents,
+  }) {
+    features.require(DeviceFeature.buffers, backend: _name);
+    if (descriptor.usage.contains(BufferUsage.storage)) {
+      features.require(DeviceFeature.renderStageStorage, backend: _name);
+    }
+    calls.add(RecordedCall('createBuffer', descriptor));
+    final serial = _serial++;
+    GeometryBuffer? view(BufferUsage usage) => descriptor.usage.contains(usage)
+        ? wrapGeometry(
+            backend: 'fake buffer $serial',
+            offsetInBytes: 0,
+            lengthInBytes: descriptor.lengthInBytes,
+          )
+        : null;
+    return wrapStorageBuffer(
+      owner: this,
+      backend: 'fake buffer $serial',
+      lengthInBytes: descriptor.lengthInBytes,
+      hostReadable: descriptor.usage.contains(BufferUsage.hostReadable),
+      asIndices: view(BufferUsage.index),
+      asVertices: view(BufferUsage.vertex),
+      usage: descriptor.usage,
+    );
+  }
+
+  @override
+  void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) {
+    features.require(DeviceFeature.buffers, backend: _name);
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'writeBuffer: $offsetInBytes + ${bytes.lengthInBytes} does not fit '
+        'inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    calls.add(
+      RecordedCall('writeBuffer', (
+        offsetInBytes: offsetInBytes,
+        lengthInBytes: bytes.lengthInBytes,
+      )),
+    );
+  }
+
+  @override
+  QuerySet createQuerySet(QueryType type, int count) {
+    features.require(type.feature, backend: _name);
+    calls.add(RecordedCall('createQuerySet', (type: type, count: count)));
+    return wrapQuerySet(
+      owner: this,
+      backend: 'fake queries ${_serial++}',
+      type: type,
+      count: count,
+    );
+  }
+
+  /// Zeros: nothing was drawn, so nothing passed and no time went by.
+  @override
+  Future<List<int>> readQueryResults(
+    QuerySet querySet, {
+    int first = 0,
+    int? count,
+  }) async => List<int>.filled(count ?? querySet.count - first, 0);
+
+  @override
+  void releaseQuerySet(QuerySet querySet) =>
+      calls.add(RecordedCall('releaseQuerySet', querySet));
+
+  @override
+  TransferEncoder beginTransferPass({String? label}) =>
+      FakeTransfer(features, calls);
 
   /// What each stage declares, by name, or null to accept every bind.
   ///
@@ -169,40 +449,12 @@ final class FakeBackend implements GraphicsDevice {
   /// [stageBindings].
   final List<String> bindingViolations = <String>[];
 
-  /// Settable for the same reason [supportsWireframe] is: the case worth a
-  /// test is the device that says no, where the x-ray stage has to draw
-  /// nothing rather than configure a test against an attachment with no
-  /// stencil in it.
-  @override
-  final bool supportsStencil;
-
   @override
   final FakeShaderLibrary shaders;
 
   /// The formats this fake says it cannot sample, so a test can be the
   /// device that has no BC7 and see what a loader does about it.
   final Set<TextureFormat> unsupportedFormats;
-
-  @override
-  bool supportsTextureFormat(TextureFormat format) =>
-      !unsupportedFormats.contains(format);
-
-  /// Sixteen, which is what most hardware answers, and settable so a test
-  /// can be the device that answers one and see what a caller clamps to.
-  @override
-  final int maxAnisotropy;
-
-  /// Two, and settable so a test can be the device that answers one —
-  /// `gfx-50n`.
-  ///
-  /// **The reason this is a parameter is that the device it stands in for
-  /// cannot be asked.** Impeller on OpenGL ES aborts rather than refusing, so
-  /// there is no way to run the no-MRT path on the hardware that has it and
-  /// see what the engine does. This fake answers what a pass was *opened*
-  /// with; `CpuDevice`, which takes the same number, answers what came out
-  /// the other end as pixels.
-  @override
-  final int maxColorAttachments;
 
   /// Every library [loadShaders] has handed out, in order, so a test can
   /// reach the one an application holds and count its refreshes.
@@ -219,34 +471,6 @@ final class FakeBackend implements GraphicsDevice {
     return library;
   }
 
-  /// Settable, because the interesting case is the backend that says no —
-  /// OpenGL ES has no `glPolygonMode`, and the engine is supposed to decline
-  /// its own wireframe setting rather than let the request reach a backend
-  /// that would refuse it mid-frame.
-  @override
-  final bool supportsWireframe;
-
-  /// Settable for the reason [supportsWireframe] is: two of the four real
-  /// backends say no, and the engine is meant to draw the hard alpha test
-  /// there and report it.
-  @override
-  final bool supportsAlphaToCoverage;
-
-  /// True, because a fake has nothing to be incapable with. The real answer is
-  /// a device property, and the two backends that have one disagree.
-  @override
-  bool get supportsMipmaps => true;
-
-  @override
-  bool get supportsCubeTextures => true;
-
-  /// Settable for the same reason [supportsWireframe] is: the interesting
-  /// case is the backend that says no — flutter_gpu on OpenGL ES — and the
-  /// renderer is supposed to build a probe without a chain there rather than
-  /// name a level the device will refuse.
-  @override
-  final bool supportsRenderToMip;
-
   /// Every cube a pass may draw into, with the level count it was asked for,
   /// so a test can see that a probe allocated what it meant to.
   final List<({int size, TextureFormat format, int mipLevels})>
@@ -254,7 +478,7 @@ final class FakeBackend implements GraphicsDevice {
       <({int size, TextureFormat format, int mipLevels})>[];
 
   @override
-  TextureHandle? createCubeRenderTarget({
+  TextureHandle createCubeRenderTarget({
     required int size,
     required TextureFormat format,
     int mipLevels = 1,
@@ -264,7 +488,8 @@ final class FakeBackend implements GraphicsDevice {
       format: format,
       mipLevels: mipLevels,
     ));
-    return TextureHandle(
+    return wrapTexture(
+      owner: this,
       backend: 'fake cube ${_serial++}',
       width: size,
       height: size,
@@ -274,7 +499,7 @@ final class FakeBackend implements GraphicsDevice {
   }
 
   @override
-  TextureHandle? createCubeTextureFromPixels({
+  TextureHandle createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
@@ -282,14 +507,18 @@ final class FakeBackend implements GraphicsDevice {
     // of a call, not the contents of a texture.
     List<List<ByteData>>? mipLevels,
   }) => faces.length == 6
-      ? TextureHandle(
+      ? wrapTexture(
+          owner: this,
           backend: const Object(),
           width: size,
           height: size,
           format: format,
           type: TextureType.textureCube,
         )
-      : null;
+      : throw refuseResource(
+          'createCubeTextureFromPixels',
+          'a cube has six faces and ${faces.length} were given',
+        );
 
   /// The engine's own convention by default, so a fake never exercises the
   /// remap. The backends that need the other one are covered by running
@@ -310,7 +539,8 @@ final class FakeBackend implements GraphicsDevice {
   /// Every pass ever opened, in the order it was opened.
   final List<FakePass> passes = <FakePass>[];
 
-  final List<RenderTargetSpec> createdTextures = <RenderTargetSpec>[];
+  final List<RenderTargetDescriptor> createdTextures =
+      <RenderTargetDescriptor>[];
 
   int frames = 0;
   int _serial = 0;
@@ -321,27 +551,10 @@ final class FakeBackend implements GraphicsDevice {
   @override
   TextureFormat get defaultDepthStencilFormat => TextureFormat.d24UnormS8Uint;
 
-  /// True, and settable so a test can be the device that answers no —
-  /// `gfx-20n`.
-  ///
-  /// The reason it is worth setting: a frame that stops multisampling because
-  /// the device cannot and a frame that stops because something reads the
-  /// surface buffer look identical from outside, and
-  /// `FrameResult.antiAliasing` exists to tell them apart. A fake that could
-  /// only say yes leaves half of that untested.
-  @override
-  bool supportsOffscreenMsaa = true;
-
-  @override
-  // Recorded, not evaluated: this device blends nothing, so the honest answer
-  // is the one that lets a caller under test set the constant and be recorded
-  // doing it.
-  bool get supportsBlendColor => true;
-
-  @override
-  TextureHandle createTexture(RenderTargetSpec spec) {
+  TextureHandle _createTarget(RenderTargetDescriptor spec) {
     createdTextures.add(spec);
-    return TextureHandle(
+    return wrapTexture(
+      owner: this,
       backend: 'fake ${_serial++}',
       width: spec.width,
       height: spec.height,
@@ -379,7 +592,8 @@ final class FakeBackend implements GraphicsDevice {
   }
 
   /// Pixel uploads, in order, so a test can assert what reached the device.
-  final List<RenderTargetSpec> uploadedTextures = <RenderTargetSpec>[];
+  final List<RenderTargetDescriptor> uploadedTextures =
+      <RenderTargetDescriptor>[];
 
   /// The bytes of each of those, for a test that cares what colour it was.
   final List<ByteData> uploadedPixels = <ByteData>[];
@@ -389,14 +603,14 @@ final class FakeBackend implements GraphicsDevice {
   final List<List<ByteData>?> uploadedMipLevels = <List<ByteData>?>[];
 
   @override
-  TextureHandle? createTextureFromPixels({
+  TextureHandle createTextureFromPixels({
     required int width,
     required int height,
     required TextureFormat format,
     required ByteData pixels,
     List<ByteData>? mipLevels,
   }) {
-    final spec = RenderTargetSpec(
+    final spec = RenderTargetDescriptor(
       width: width,
       height: height,
       format: format,
@@ -468,11 +682,11 @@ final class FakeBackend implements GraphicsDevice {
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
   }) {
     final name = '${vertex.name}+${fragment.name}';
     linkedPipelines.add(name);
-    return PipelineHandle(backend: name, name: name);
+    return wrapPipeline(owner: this, backend: name, name: name);
   }
 
   /// Recorded with its usage, because a backend exists that cannot change its
@@ -482,13 +696,17 @@ final class FakeBackend implements GraphicsDevice {
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     uploads.add(usage);
-    return _geometry(bytes);
+    return _geometry(bytes, release: releaseGeometry);
   }
 
-  GeometryBuffer _geometry(ByteData bytes) => GeometryBuffer(
+  GeometryBuffer _geometry(
+    ByteData bytes, {
+    void Function(GeometryBuffer)? release,
+  }) => wrapGeometry(
     backend: 'uploaded ${_serial++}',
     offsetInBytes: 0,
     lengthInBytes: bytes.lengthInBytes,
+    release: release,
   );
 
   /// Every call [overwriteGeometry] has recorded, in order — a test asks this
@@ -520,12 +738,6 @@ final class FakeBackend implements GraphicsDevice {
   @override
   void beginFrame() => frames++;
 
-  /// Null, which is a legitimate answer rather than a refusal: it is what a
-  /// real device says about a texture whose pixels cannot be read.
-  @override
-  Future<ByteData?> readPixels(TextureHandle texture) =>
-      Future<ByteData?>.value();
-
   /// Every readback asked for, in order: which texture and which region.
   ///
   /// Recorded because the thing worth testing about a readback off a device is
@@ -542,10 +754,14 @@ final class FakeBackend implements GraphicsDevice {
   ByteData Function(TextureHandle texture, ScreenRect region)? answerReadback;
 
   /// Refuses what the contract refuses, records the rest, and answers zeros
-  /// unless [answerReadback] says otherwise.
+  /// unless [answerReadback] says otherwise. A whole texture outside
+  /// [readbackFormats] is "converted" to zeros of its size, and recorded as a
+  /// readback of all of it.
   @override
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
-    final resolved = readbackRegionOf(texture, region);
+    final resolved = readbackConverts(texture, region: region)
+        ? ScreenRect.of(texture)
+        : readbackRegionOf(texture, region);
     readbacks.add((texture: texture, region: resolved));
     final answer = answerReadback;
     return Future<ByteData>.value(
@@ -561,14 +777,17 @@ final class FakeBackend implements GraphicsDevice {
     // fake that accepted more would let a test record a pass no backend could
     // open — and a test that passes on a device nobody has is worse than no
     // test.
-    descriptor.checkAttachmentLimit(
-      maxColorAttachments,
-      backend: 'this fake device',
-    );
+    descriptor
+      ..checkAttachmentLimit(
+        limits.maxColorAttachments,
+        backend: 'this fake device',
+      )
+      ..checkFeatures(features, backend: _name);
     final pass = FakePass(
       descriptor,
       stageBindings: stageBindings,
       violations: bindingViolations,
+      features: features,
     );
     passes.add(pass);
     return pass;
@@ -576,10 +795,32 @@ final class FakeBackend implements GraphicsDevice {
 
   /// Whether [dispose] has been called, for a test that wants to assert a
   /// device was actually torn down rather than merely dropped.
-  bool disposed = false;
+  bool get isDisposed => _isDisposed;
+  bool _isDisposed = false;
 
   @override
-  void dispose() => disposed = true;
+  void dispose() {
+    _isDisposed = true;
+    unawaited(_lost.close());
+  }
+
+  /// Loses the device as a backend would, for a test of whoever listens to
+  /// [lost]: [isLost] becomes true unless [loss] is the `restored` event that
+  /// ends a recoverable loss, and [loss] goes out on [lost].
+  void lose(DeviceLoss loss) {
+    _isLost = !loss.restored;
+    _lost.add(loss);
+  }
+
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+  bool _isLost = false;
+
+  @override
+  Stream<DeviceLoss> get lost => _lost.stream;
+
+  @override
+  bool get isLost => _isLost;
 
   /// What was handed back one at a time, in the order it was handed back.
   ///

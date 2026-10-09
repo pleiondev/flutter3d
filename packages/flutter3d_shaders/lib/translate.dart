@@ -12,6 +12,7 @@
 /// needed the SDK; only the packages they lived in did.
 library;
 
+export 'src/bundle_section_exception.dart';
 export 'src/glsl_to_wgsl.dart';
 export 'src/glsl_translate.dart';
 export 'src/webgl_bundle_section.dart';

@@ -10,7 +10,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// [count] cuboids in a row, shadows and bloom off so nothing but the
 /// meshes themselves and the frame's own composite contribute a draw.
@@ -31,7 +30,7 @@ Future<RenderedFrame> _scene(int count) => renderFrame(
             device,
             CuboidShape(size: Vector3(1, 1, 1)).build(),
           ),
-          Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
           name: 'box$i',
         )..setPosition(i.toDouble(), 0.0, 0.0),
       );
@@ -76,7 +75,9 @@ void main() {
           device,
           CuboidShape(size: Vector3(1, 1, 1)).build(),
         );
-        final material = Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0));
+        final material = RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+        );
         scene.add(
           MeshNode(mesh, material, name: 'a')..setPosition(-1.0, 0.0, 0.0),
         );

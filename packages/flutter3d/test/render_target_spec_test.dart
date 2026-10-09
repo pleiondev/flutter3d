@@ -2,7 +2,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const base = RenderTargetSpec(
+  const base = RenderTargetDescriptor(
     width: 1920,
     height: 1080,
     format: TextureFormat.r16g16b16a16Float,
@@ -10,7 +10,7 @@ void main() {
 
   group('what makes two targets interchangeable', () {
     test('the same description is the same key', () {
-      const other = RenderTargetSpec(
+      const other = RenderTargetDescriptor(
         width: 1920,
         height: 1080,
         format: TextureFormat.r16g16b16a16Float,
@@ -18,12 +18,12 @@ void main() {
       expect(other, base);
       expect(other.hashCode, base.hashCode);
       // The pool is a map lookup, so equality is the whole mechanism.
-      expect(<RenderTargetSpec, int>{base: 1}[other], 1);
+      expect(<RenderTargetDescriptor, int>{base: 1}[other], 1);
     });
 
     test('every field participates', () {
       expect(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 1920,
           height: 1081,
           format: TextureFormat.r16g16b16a16Float,
@@ -31,7 +31,7 @@ void main() {
         isNot(base),
       );
       expect(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 1920,
           height: 1080,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -39,7 +39,7 @@ void main() {
         isNot(base),
       );
       expect(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 1920,
           height: 1080,
           format: TextureFormat.r16g16b16a16Float,
@@ -48,7 +48,7 @@ void main() {
         isNot(base),
       );
       expect(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 1920,
           height: 1080,
           format: TextureFormat.r16g16b16a16Float,
@@ -83,7 +83,7 @@ void main() {
     });
 
     test('an odd size rounds down rather than up', () {
-      const odd = RenderTargetSpec(
+      const odd = RenderTargetDescriptor(
         width: 1601,
         height: 541,
         format: TextureFormat.r16g16b16a16Float,

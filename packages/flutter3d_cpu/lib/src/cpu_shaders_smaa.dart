@@ -32,7 +32,7 @@ double _luma(Vector4 c) => 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
 double _step(double edge, double x) => x < edge ? 0.0 : 1.0;
 
 /// `smaa_edges.frag`.
-final class SmaaEdgesShader implements CpuFragmentShader {
+final class SmaaEdgesShader extends CpuFragmentShader {
   const SmaaEdgesShader();
 
   @override
@@ -70,7 +70,7 @@ final class SmaaEdgesShader implements CpuFragmentShader {
 }
 
 /// `smaa_weights.frag`.
-final class SmaaWeightsShader implements CpuFragmentShader {
+final class SmaaWeightsShader extends CpuFragmentShader {
   const SmaaWeightsShader();
 
   @override
@@ -168,7 +168,7 @@ final class SmaaWeightsShader implements CpuFragmentShader {
 }
 
 /// `smaa_blend.frag`.
-final class SmaaBlendShader implements CpuFragmentShader {
+final class SmaaBlendShader extends CpuFragmentShader {
   const SmaaBlendShader();
 
   @override

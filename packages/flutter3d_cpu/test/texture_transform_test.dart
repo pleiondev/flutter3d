@@ -14,8 +14,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector2, Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 
 const int _size = 32;
 
@@ -33,7 +35,7 @@ TextureHandle _quadrants(CpuDevice device) => device.createTextureFromPixels(
       ...<int>[230, 230, 230, 255],
     ]),
   ),
-)!;
+);
 
 /// A normal map whose four texels lean four different ways, so a frame that
 /// fails to turn with the map lights each quadrant from the wrong side.
@@ -50,12 +52,12 @@ TextureHandle _leaningNormals(CpuDevice device) =>
           ...<int>[128, 40, 190, 255],
         ]),
       ),
-    )!;
+    );
 
 /// The HDR frame of a two-metre plane seen from straight above, drawn with
 /// [material] on [mesh] — the plain plane when null.
 Float32List _render(
-  Material Function(CpuDevice device) material, {
+  RenderMaterial Function(CpuDevice device) material, {
   MeshData? mesh,
   bool lit = false,
 }) {
@@ -77,10 +79,11 @@ Float32List _render(
   final scene = Scene()
     ..add(plane)
     ..add(camera)
-    ..ambientIntensity = 0.25;
+    ..ambientIntensity = 0.25 * Photometric.legacyUnit;
   if (lit) {
     scene.add(
-      LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.4, -1.0, 0.0),
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.4, -1.0, 0.0),
     );
   }
   final result = Renderer.create(device: device).render(
@@ -117,28 +120,28 @@ void main() {
     test('the base colour read at the sampler is the baked mesh\'s', () {
       final plane = const PlaneShape(width: 2.0, depth: 2.0).build();
       final atSampler = _render(
-        (device) => Material(
+        (device) => RenderMaterial(
           lighting: LightingModel.pbrLayered,
           albedo: _quadrants(device),
-          albedoSampler: SamplerOptions.nearestClamp,
+          albedoSampler: SamplerDescriptor.nearestClamp,
           textureTransforms: <MaterialMap, TextureTransform>{
             MaterialMap.baseColor: _turned(),
           },
         ),
       );
       final baked = _render(
-        (device) => Material(
+        (device) => RenderMaterial(
           lighting: LightingModel.pbrLayered,
           albedo: _quadrants(device),
-          albedoSampler: SamplerOptions.nearestClamp,
+          albedoSampler: SamplerDescriptor.nearestClamp,
         ),
         mesh: withTextureTransform(plane, _turned()),
       );
       final untransformed = _render(
-        (device) => Material(
+        (device) => RenderMaterial(
           lighting: LightingModel.pbrLayered,
           albedo: _quadrants(device),
-          albedoSampler: SamplerOptions.nearestClamp,
+          albedoSampler: SamplerDescriptor.nearestClamp,
         ),
       );
 
@@ -161,30 +164,36 @@ void main() {
         offset: Vector2(0.0, 0.5),
         scale: Vector2(1.0, 0.5),
       );
-      Material apart(CpuDevice device, {required bool glow}) => Material(
-        lighting: LightingModel.pbrLayered,
-        baseColor: glow ? Vector4(0.0, 0.0, 0.0, 1.0) : null,
-        albedo: _quadrants(device),
-        albedoSampler: SamplerOptions.nearestClamp,
-        emissiveTexture: _quadrants(device),
-        emissiveSampler: SamplerOptions.nearestClamp,
-        emissive: glow ? Vector3(0.5, 0.5, 0.5) : null,
-        textureTransforms: <MaterialMap, TextureTransform>{
-          MaterialMap.baseColor: moveColour,
-          MaterialMap.emissive: moveGlow,
-        },
-      );
-      Material baked(CpuDevice device, {required bool glow}) => Material(
-        lighting: LightingModel.pbrLayered,
-        baseColor: glow ? Vector4(0.0, 0.0, 0.0, 1.0) : null,
-        albedo: _quadrants(device),
-        albedoSampler: SamplerOptions.nearestClamp,
-        emissiveTexture: _quadrants(device),
-        emissiveSampler: SamplerOptions.nearestClamp,
-        emissive: glow ? Vector3(0.5, 0.5, 0.5) : null,
-      );
+      RenderMaterial apart(CpuDevice device, {required bool glow}) =>
+          RenderMaterial(
+            lighting: LightingModel.pbrLayered,
+            baseColor: glow ? LinearColor.black : LinearColor.white,
+            albedo: _quadrants(device),
+            albedoSampler: SamplerDescriptor.nearestClamp,
+            emissiveTexture: _quadrants(device),
+            emissiveSampler: SamplerDescriptor.nearestClamp,
+            emissive: glow
+                ? const LinearColor(0.5, 0.5, 0.5)
+                : LinearColor.black,
+            textureTransforms: <MaterialMap, TextureTransform>{
+              MaterialMap.baseColor: moveColour,
+              MaterialMap.emissive: moveGlow,
+            },
+          );
+      RenderMaterial baked(CpuDevice device, {required bool glow}) =>
+          RenderMaterial(
+            lighting: LightingModel.pbrLayered,
+            baseColor: glow ? LinearColor.black : LinearColor.white,
+            albedo: _quadrants(device),
+            albedoSampler: SamplerDescriptor.nearestClamp,
+            emissiveTexture: _quadrants(device),
+            emissiveSampler: SamplerDescriptor.nearestClamp,
+            emissive: glow
+                ? const LinearColor(0.5, 0.5, 0.5)
+                : LinearColor.black,
+          );
 
-      final colour = _render((device) => apart(device, glow: false));
+      final color = _render((device) => apart(device, glow: false));
       final colourBaked = _render(
         (device) => baked(device, glow: false),
         mesh: withTextureTransform(plane, moveColour),
@@ -197,18 +206,18 @@ void main() {
 
       // Mutation: reading the emissive map through `kMapBaseColor`'s rows
       // puts the glow in the colour's quadrants and the second fails.
-      expect(_largestDifference(colour, colourBaked), lessThan(1e-4));
+      expect(_largestDifference(color, colourBaked), lessThan(1e-4));
       expect(_largestDifference(glow, glowBaked), lessThan(1e-4));
-      expect(_largestDifference(glow, colour), greaterThan(0.1));
+      expect(_largestDifference(glow, color), greaterThan(0.1));
     });
 
     test('a normal map turned by its transform turns its frame', () {
       final plane = const PlaneShape(width: 2.0, depth: 2.0).build();
-      Material bumpy(CpuDevice device, {TextureTransform? transform}) =>
-          Material(
+      RenderMaterial bumpy(CpuDevice device, {TextureTransform? transform}) =>
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
             normal: _leaningNormals(device),
-            normalSampler: SamplerOptions.nearestClamp,
+            normalSampler: SamplerDescriptor.nearestClamp,
             roughness: 0.7,
             textureTransforms: <MaterialMap, TextureTransform>{
               MaterialMap.normal: ?transform,
@@ -242,11 +251,11 @@ void main() {
         scale: Vector2(0.8, 0.8),
         rotation: 0.9,
       );
-      Material bumpy(CpuDevice device, {TextureTransform? transform}) =>
-          Material(
+      RenderMaterial bumpy(CpuDevice device, {TextureTransform? transform}) =>
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
             normal: _leaningNormals(device),
-            normalSampler: SamplerOptions.nearestClamp,
+            normalSampler: SamplerDescriptor.nearestClamp,
             roughness: 0.7,
             textureTransforms: <MaterialMap, TextureTransform>{
               MaterialMap.normal: ?transform,
@@ -269,7 +278,7 @@ void main() {
 
     test('the identity draws what no transform draws, to the bit', () {
       final none = _render(
-        (device) => Material(
+        (device) => RenderMaterial(
           lighting: LightingModel.pbrLayered,
           albedo: _quadrants(device),
           normal: _leaningNormals(device),
@@ -277,7 +286,7 @@ void main() {
         lit: true,
       );
       final identity = _render(
-        (device) => Material(
+        (device) => RenderMaterial(
           lighting: LightingModel.pbrLayered,
           albedo: _quadrants(device),
           normal: _leaningNormals(device),
@@ -291,12 +300,12 @@ void main() {
     });
 
     test('a pointer track moves the offset of the map it names', () {
-      Material glowing(CpuDevice device) => Material(
+      RenderMaterial glowing(CpuDevice device) => RenderMaterial(
         lighting: LightingModel.pbrLayered,
-        baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         emissiveTexture: _quadrants(device),
-        emissiveSampler: SamplerOptions.nearestClamp,
-        emissive: Vector3(1.0, 1.0, 1.0),
+        emissiveSampler: SamplerDescriptor.nearestClamp,
+        emissive: LinearColor(1.0, 1.0, 1.0),
         textureTransforms: <MaterialMap, TextureTransform>{
           MaterialMap.emissive: TextureTransform(scale: Vector2(0.5, 0.5)),
         },
@@ -304,7 +313,7 @@ void main() {
       final pointer = AnimationPointer.parse(
         '/materials/0/emissiveTexture/extensions/KHR_texture_transform/'
         'offset',
-      )!;
+      );
 
       final before = _render(glowing);
       final moved = _render((device) {

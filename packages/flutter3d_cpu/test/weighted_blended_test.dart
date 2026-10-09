@@ -13,23 +13,24 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _size = 40;
 
 /// A pane of glass, upright and facing the camera unless [yaw] turns it.
-({double x, double z, double yaw, Vector4 colour}) _pane(
+({double x, double z, double yaw, Vector4 color}) _pane(
   double x,
   double z,
-  Vector4 colour, {
+  Vector4 color, {
   double yaw = 0.0,
-}) => (x: x, z: z, yaw: yaw, colour: colour);
+}) => (x: x, z: z, yaw: yaw, color: color);
 
 /// `glass-stack-oit`: three overlapping panes at three depths and two more
 /// crossing through each other, in front of a grey wall.
-final List<({double x, double z, double yaw, Vector4 colour})> _glassStack =
-    <({double x, double z, double yaw, Vector4 colour})>[
+final List<({double x, double z, double yaw, Vector4 color})> _glassStack =
+    <({double x, double z, double yaw, Vector4 color})>[
       _pane(-0.3, -1.0, Vector4(0.9, 0.1, 0.1, 0.5)),
       _pane(0.0, -1.6, Vector4(0.1, 0.9, 0.1, 0.45)),
       _pane(0.3, -2.2, Vector4(0.1, 0.2, 0.9, 0.6)),
@@ -45,7 +46,7 @@ final List<({double x, double z, double yaw, Vector4 colour})> _glassStack =
 /// [SortMode.backToFront] the list sorts them, whatever order they came in.
 Float32List _render({
   required TransparencyMode mode,
-  List<({double x, double z, double yaw, Vector4 colour})>? panes,
+  List<({double x, double z, double yaw, Vector4 color})>? panes,
   List<int>? order,
   SortMode sort = SortMode.none,
   bool independentBlend = true,
@@ -69,9 +70,9 @@ Float32List _render({
             device,
             const PlaneShape(width: 8, depth: 8).build(),
           ),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+            baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
             doubleSided: true,
           ),
         )
@@ -86,9 +87,9 @@ Float32List _render({
     scene.add(
       MeshNode(
           quad,
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: pane.colour,
+            baseColor: _fromSrgb(pane.color),
             alphaMode: MaterialAlphaMode.blend,
             depthWrite: paneDepthWrite,
             doubleSided: true,
@@ -192,7 +193,7 @@ void main() {
     );
     final bare = _render(
       mode: TransparencyMode.weightedBlended,
-      panes: const <({double x, double z, double yaw, Vector4 colour})>[],
+      panes: const <({double x, double z, double yaw, Vector4 color})>[],
     );
     // Mutation: return `Vector4.zero()` from `WboitResolveShader`. The
     // resolve then covers nothing and the frame is the bare wall.
@@ -202,7 +203,7 @@ void main() {
   });
 
   test('one pane over the wall composites as the sorted blend does', () {
-    final one = <({double x, double z, double yaw, Vector4 colour})>[
+    final one = <({double x, double z, double yaw, Vector4 color})>[
       _pane(0.0, -1.5, Vector4(0.2, 0.6, 0.9, 0.5)),
     ];
     final oit = _render(mode: TransparencyMode.weightedBlended, panes: one);
@@ -219,7 +220,7 @@ void main() {
         oit,
         _render(
           mode: TransparencyMode.weightedBlended,
-          panes: const <({double x, double z, double yaw, Vector4 colour})>[],
+          panes: const <({double x, double z, double yaw, Vector4 color})>[],
         ),
       ),
       greaterThan(0),
@@ -227,7 +228,7 @@ void main() {
   });
 
   test('without transparent draws it is the sorted frame, byte for byte', () {
-    const none = <({double x, double z, double yaw, Vector4 colour})>[];
+    const none = <({double x, double z, double yaw, Vector4 color})>[];
     // Revealage one everywhere, so the resolve lays a coverage of nought
     // over the scene and the source-over leaves every pixel as it was.
     expect(
@@ -257,3 +258,6 @@ void main() {
     );
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

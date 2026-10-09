@@ -18,6 +18,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'bundle_section_exception.dart';
+
 /// What the section decodes to.
 typedef WebGlSectionSources = ({
   Map<String, String> vertex,
@@ -38,26 +40,25 @@ ByteData encodeWebGlSection({
 
 /// The sources in [bytes].
 ///
-/// Throws [FormatException] when the bytes are not the document above — the
-/// device turns that into a refusal naming the bundle.
+/// Throws [BundleSectionFormatException] when the bytes are not the document
+/// above — the device turns that into a refusal naming the bundle.
 WebGlSectionSources decodeWebGlSection(ByteData bytes) {
-  final text = utf8.decode(
-    bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-  );
-  final document = jsonDecode(text);
+  final document = decodeSectionJson(bytes);
   if (document is! Map<String, dynamic>) {
-    throw const FormatException('the section is not a JSON object');
+    throw const BundleSectionFormatException(
+      'the section is not a JSON object',
+    );
   }
   Map<String, String> stages(String kind) {
     final entries = document[kind];
     if (entries is! Map<String, dynamic>) {
-      throw FormatException('the section has no "$kind" object');
+      throw BundleSectionFormatException('the section has no "$kind" object');
     }
     return <String, String>{
       for (final entry in entries.entries)
         entry.key: switch (entry.value) {
           final String source => source,
-          _ => throw FormatException(
+          _ => throw BundleSectionFormatException(
             '"${entry.key}" under "$kind" is not a source string',
           ),
         },

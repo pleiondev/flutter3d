@@ -30,7 +30,7 @@
 /// **Colours are linear and scene-referred.** They are multiplied by
 /// `RenderSettings.exposure` and pass through the tone curve like everything
 /// else, so they are not the numbers an eyedropper reads off a screenshot —
-/// unlike `RenderView.clearColor`, which the renderer decodes from sRGB. The
+/// unlike `RenderView.clearColorSrgb`, which the renderer decodes from sRGB. The
 /// first sky anybody writes will look too bright, and it will look wrong in a
 /// way that reads as a shader bug rather than as a units mismatch.
 library;
@@ -38,9 +38,13 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
+import 'engine_light_units.dart';
 import 'physical_sky.dart';
+import 'shadow_settings.dart' show ShadowSettings;
 
 /// What the sky looks like, and whether there is one.
 final class SkySettings {
@@ -53,8 +57,8 @@ final class SkySettings {
     this.sunColor,
     this.glowExponent = 6.0,
     this.glowStrength = 0.3,
-    this.sunAngularRadiusDegrees = 0.53,
-    this.sunSoftnessDegrees = 0.35,
+    this.sunAngularRadius = ShadowSettings.sunAngularRadius,
+    this.sunSoftness = 0.35 * math.pi / 180.0,
     this.sunIntensity = 0.0,
     this.cubemap,
     this.tint,
@@ -64,28 +68,27 @@ final class SkySettings {
   /// Whether to draw at all. False emits nothing — see the library docstring.
   final bool enabled;
 
-  // Nullable with a `resolved` accessor beside each, which is the shape
-  // `FogSettings` in `render_settings.dart` already takes and for the same
-  // reason:
-  // `Vector3` has no const constructor, so a default cannot be written in the
-  // parameter list of a const constructor. Null has a second meaning on the
-  // four colours below: with all of them null and no [physical], the sky is
-  // the default air rather than the gradient — see [resolvedPhysical].
+  // Nullable with a `resolved` accessor beside each. Null has a meaning on
+  // the four colours below: with all of them null and no [physical], the sky
+  // is the default air rather than the gradient — see [resolvedPhysical]. So
+  // a default cannot simply be written in the parameter list, even though a
+  // `LinearColor` is const. [directionToSun] is a `Vector3`, which has no
+  // const constructor, and keeps the same shape for that reason.
 
   /// The sky straight up, for the gradient. Null takes [resolvedZenith];
   /// set, it asks for the gradient over the default air.
-  final Vector3? zenith;
+  final LinearColor? zenith;
 
   /// The sky level with the horizon, for the gradient. Null takes
   /// [resolvedHorizon]; set, it asks for the gradient, as [zenith] does.
-  final Vector3? horizon;
+  final LinearColor? horizon;
 
   /// The sky straight down, for the gradient. Null takes [resolvedNadir];
   /// set, it asks for the gradient, as [zenith] does.
   ///
   /// Not the ground: it is what fills the frame when the camera looks down at
   /// nothing, which is haze, and haze is darker than the sky above it.
-  final Vector3? nadir;
+  final LinearColor? nadir;
 
   /// A unit vector pointing **at** the sun.
   ///
@@ -97,37 +100,52 @@ final class SkySettings {
   /// The sun's own colour, used by both the lobe and the disc of the
   /// gradient. Set, it asks for the gradient, as [zenith] does: the air
   /// colours its own sun.
-  final Vector3? sunColor;
+  final LinearColor? sunColor;
 
-  Vector3 get resolvedZenith => zenith ?? _defaultZenith;
-  Vector3 get resolvedHorizon => horizon ?? _defaultHorizon;
-  Vector3 get resolvedNadir => nadir ?? _defaultNadir;
+  LinearColor get resolvedZenith => zenith ?? _defaultZenith;
+  LinearColor get resolvedHorizon => horizon ?? _defaultHorizon;
+  LinearColor get resolvedNadir => nadir ?? _defaultNadir;
   Vector3 get resolvedDirectionToSun =>
       directionToSun ?? _defaultDirectionToSun;
-  Vector3 get resolvedSunColor => sunColor ?? _defaultSunColor;
+  LinearColor get resolvedSunColor => sunColor ?? _defaultSunColor;
 
-  // Getters rather than `static final`: a `Vector3` is mutable, so a shared one
-  // is a global variable that looks like a constant — and these are handed
-  // straight to a caller's settings object, which is free to scale them.
-  static Vector3 get _defaultZenith => Vector3(0.10, 0.22, 0.52);
-  static Vector3 get _defaultHorizon => Vector3(0.42, 0.50, 0.62);
-  static Vector3 get _defaultNadir => Vector3(0.06, 0.06, 0.07);
+  static const LinearColor _defaultZenith = LinearColor(0.10, 0.22, 0.52);
+  static const LinearColor _defaultHorizon = LinearColor(0.42, 0.50, 0.62);
+  static const LinearColor _defaultNadir = LinearColor(0.06, 0.06, 0.07);
+  static const LinearColor _defaultSunColor = LinearColor(1.0, 0.95, 0.86);
+
+  // A getter rather than `static final`: a `Vector3` is mutable, so a shared
+  // one is a global variable that looks like a constant — and this is handed
+  // straight to a caller's settings object, which is free to scale it.
   static Vector3 get _defaultDirectionToSun => Vector3(0.34, 0.56, 0.76);
-  static Vector3 get _defaultSunColor => Vector3(1.0, 0.95, 0.86);
 
   /// The wide scattering lobe around the sun: how tight, and how bright.
+  /// A unitless exponent on the cosine of the angle to the sun.
   final double glowExponent;
+
+  /// A unitless multiplier on the sun's colour at the lobe's peak.
   final double glowStrength;
 
-  /// The disc, in degrees. The real sun is about 0.53 across.
+  /// The disc's angular radius, in radians, and the width of its soft edge
+  /// beyond that, in radians too. The default is the real sun's radius,
+  /// 0.2666° ([ShadowSettings.sunAngularRadius], the one the soft shadows
+  /// use); before 1.0-rc.1 it was 0.53°, which is the sun's diameter.
   ///
   /// [sunIntensity] is zero by default, which means no disc: a sky with a sun
   /// in it needs the sun to agree with the light in the scene, and a disc drawn
   /// where no light comes from is worse than none. It is free to be far above
-  /// one — the target is HDR, and a sun that cannot blow out is a sun bloom has
-  /// nothing to find.
-  final double sunAngularRadiusDegrees;
-  final double sunSoftnessDegrees;
+  /// the scene's own light — the target is HDR, and a sun that cannot blow
+  /// out is a sun bloom has nothing to find.
+  final double sunAngularRadius;
+
+  /// In radians.
+  final double sunSoftness;
+
+  /// How bright the disc is, in **lux** since 1.0: the illuminance whose
+  /// white Lambertian surface shows the disc's luminance, `E/π` nits — the
+  /// same unit as `Atmosphere.sunIntensity` and a directional light's
+  /// intensity. Before 1.0 it was the engine's own unit; multiply such a
+  /// number by `Photometric.legacyUnit`. Zero, the default, draws no disc.
   final double sunIntensity;
 
   /// A cube map to sample instead of evaluating the gradient.
@@ -148,11 +166,9 @@ final class SkySettings {
 
   /// Multiplied into the cube's own colour, so one cube can serve more than one
   /// hour of the day. Ignored when there is no [cubemap].
-  final Vector3? tint;
+  final LinearColor? tint;
 
-  Vector3 get resolvedTint => tint ?? _defaultTint;
-
-  static Vector3 get _defaultTint => Vector3(1.0, 1.0, 1.0);
+  LinearColor get resolvedTint => tint ?? LinearColor.white;
 
   /// The air to scatter the sun through instead of evaluating the gradient —
   /// `P5`. What draws is [resolvedPhysical], not this field: null takes the
@@ -205,7 +221,7 @@ final class SkySettings {
     final air = resolvedPhysical;
     if (air != null) return _samplePhysical(air, direction);
     final length = direction.length;
-    if (length <= 0.0) return Vector3.copy(resolvedHorizon);
+    if (length <= 0.0) return _rgb(resolvedHorizon);
     final x = direction.x / length;
     final y = (direction.y / length).clamp(-1.0, 1.0);
     final z = direction.z / length;
@@ -214,39 +230,41 @@ final class SkySettings {
     final far = y >= 0.0 ? resolvedZenith : resolvedNadir;
     final magnitude = y.abs();
     final t = magnitude * magnitude * (3.0 - 2.0 * magnitude);
-    final colour = Vector3(
-      base.x + (far.x - base.x) * t,
-      base.y + (far.y - base.y) * t,
-      base.z + (far.z - base.z) * t,
+    final color = Vector3(
+      base.r + (far.r - base.r) * t,
+      base.g + (far.g - base.g) * t,
+      base.b + (far.b - base.b) * t,
     );
 
     final sun = resolvedDirectionToSun.normalized();
     final towards = x * sun.x + y * sun.y + z * sun.z;
     if (towards > 0.0) {
       final lobe = glowStrength * math.pow(towards, glowExponent).toDouble();
-      colour.addScaled(resolvedSunColor, lobe);
+      color.addScaled(_rgb(resolvedSunColor), lobe);
     }
 
     final edge =
-        _smoothstep(discOuterCosine, discInnerCosine, towards) * sunIntensity;
-    if (edge > 0.0) colour.addScaled(resolvedSunColor, edge);
+        _smoothstep(discOuterCosine, discInnerCosine, towards) *
+        luxToEngine(sunIntensity);
+    if (edge > 0.0) color.addScaled(_rgb(resolvedSunColor), edge);
 
-    return colour;
+    return color;
   }
 
   /// [sample] for a physical sky: the scattered light, and the disc where the
   /// ray reaches space, white and dimmed by the air it crossed.
   Vector3 _samplePhysical(PhysicalSky air, Vector3 direction) {
     final seen = air.look(direction, resolvedDirectionToSun);
-    final colour = seen.radiance;
-    if (seen.ground || sunIntensity <= 0.0) return colour;
+    final color = seen.radiance;
+    if (seen.ground || sunIntensity <= 0.0) return color;
     final length = direction.length;
-    if (length <= 0.0) return colour;
+    if (length <= 0.0) return color;
     final towards = direction.dot(resolvedDirectionToSun.normalized()) / length;
     final edge =
-        _smoothstep(discOuterCosine, discInnerCosine, towards) * sunIntensity;
-    if (edge > 0.0) colour.addScaled(seen.transmittance, edge);
-    return colour;
+        _smoothstep(discOuterCosine, discInnerCosine, towards) *
+        luxToEngine(sunIntensity);
+    if (edge > 0.0) color.addScaled(seen.transmittance, edge);
+    return color;
   }
 
   /// Cosine of the disc's angular radius, and of the radius plus its soft edge.
@@ -255,45 +273,59 @@ final class SkySettings {
   /// the outer one is the *smaller* number: cosine falls as the angle grows.
   /// Getting these the wrong way round gives a disc that is inside out — bright
   /// everywhere except at the sun.
-  double get discInnerCosine =>
-      math.cos(sunAngularRadiusDegrees * math.pi / 180.0);
-  double get discOuterCosine => math.cos(
-    (sunAngularRadiusDegrees + sunSoftnessDegrees.abs()) * math.pi / 180.0,
-  );
+  double get discInnerCosine => math.cos(sunAngularRadius);
 
+  /// The cosine of the soft edge's outer angle, unitless.
+  double get discOuterCosine => math.cos(sunAngularRadius + sunSoftness.abs());
+
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
   SkySettings copyWith({
     bool? enabled,
-    Vector3? zenith,
-    Vector3? horizon,
-    Vector3? nadir,
+    LinearColor? zenith,
+    LinearColor? horizon,
+    LinearColor? nadir,
     Vector3? directionToSun,
-    Vector3? sunColor,
+    LinearColor? sunColor,
     double? glowExponent,
     double? glowStrength,
-    double? sunAngularRadiusDegrees,
-    double? sunSoftnessDegrees,
+    double? sunAngularRadius,
+    double? sunSoftness,
     double? sunIntensity,
     TextureHandle? cubemap,
-    Vector3? tint,
+    LinearColor? tint,
     PhysicalSky? physical,
+    bool clearZenith = false,
+    bool clearHorizon = false,
+    bool clearNadir = false,
+    bool clearDirectionToSun = false,
+    bool clearSunColor = false,
+    bool clearCubemap = false,
+    bool clearTint = false,
+    bool clearPhysical = false,
   }) => SkySettings(
     enabled: enabled ?? this.enabled,
-    zenith: zenith ?? this.zenith,
-    horizon: horizon ?? this.horizon,
-    nadir: nadir ?? this.nadir,
-    directionToSun: directionToSun ?? this.directionToSun,
-    sunColor: sunColor ?? this.sunColor,
+    zenith: clearZenith ? null : (zenith ?? this.zenith),
+    horizon: clearHorizon ? null : (horizon ?? this.horizon),
+    nadir: clearNadir ? null : (nadir ?? this.nadir),
+    directionToSun: clearDirectionToSun
+        ? null
+        : (directionToSun ?? this.directionToSun),
+    sunColor: clearSunColor ? null : (sunColor ?? this.sunColor),
     glowExponent: glowExponent ?? this.glowExponent,
     glowStrength: glowStrength ?? this.glowStrength,
-    sunAngularRadiusDegrees:
-        sunAngularRadiusDegrees ?? this.sunAngularRadiusDegrees,
-    sunSoftnessDegrees: sunSoftnessDegrees ?? this.sunSoftnessDegrees,
+    sunAngularRadius: sunAngularRadius ?? this.sunAngularRadius,
+    sunSoftness: sunSoftness ?? this.sunSoftness,
     sunIntensity: sunIntensity ?? this.sunIntensity,
-    cubemap: cubemap ?? this.cubemap,
-    tint: tint ?? this.tint,
-    physical: physical ?? this.physical,
+    cubemap: clearCubemap ? null : (cubemap ?? this.cubemap),
+    tint: clearTint ? null : (tint ?? this.tint),
+    physical: clearPhysical ? null : (physical ?? this.physical),
   );
 }
+
+/// [color]'s red, green and blue as the `Vector3` the sky's arithmetic is
+/// written in.
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
 
 double _smoothstep(double edge0, double edge1, double x) {
   if (edge0 == edge1) return x < edge0 ? 0.0 : 1.0;

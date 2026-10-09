@@ -10,6 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,17 +33,25 @@ const int _height = 64;
     ..lookAt(Vector3.zero());
   final scene = Scene()
     ..add(
-      MeshNode(cube, Material(baseColor: Vector4(0.9, 0.9, 0.9, 1.0)))
-        ..setRotationYawPitchRoll(0.5, 0.2, 0.1),
+      MeshNode(
+        cube,
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0)),
+      )..setRotationYawPitchRoll(0.5, 0.2, 0.1),
     )
-    ..add(LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.4, -0.7, 0.0))
+    ..add(
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.4, -0.7, 0.0),
+    )
     ..add(camera);
   final result = Renderer.create(device: device).render(
     width: _width,
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.05, 0.05, 0.08, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+      ),
     ],
     settings: RenderSettings(
       renderScale: scale,

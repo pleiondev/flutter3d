@@ -37,12 +37,11 @@ final Float32List _triangle = Float32List.fromList(<double>[
 final Uint16List _indices = Uint16List.fromList(<int>[0, 1, 2]);
 
 WebGlDevice _device() {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: 8,
     height: 8,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -60,7 +59,6 @@ TextureHandle _twoTexels(WebGlDevice device) {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: pixels,
   );
-  if (texture == null) fail('a two-texel texture could not be uploaded');
   return texture;
 }
 
@@ -69,7 +67,7 @@ TextureHandle _twoTexels(WebGlDevice device) {
 Future<int> _drawThrough(WebGlDevice device, int taps) async {
   final texture = _twoTexels(device);
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 8,
       height: 8,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -104,15 +102,14 @@ Future<int> _drawThrough(WebGlDevice device, int taps) async {
       fragment,
       'particle_texture',
       texture,
-      sampler: SamplerOptions.trilinearRepeat.withAnisotropy(taps),
+      sampler: SamplerDescriptor.trilinearRepeat.withAnisotropy(taps),
     )
     ..bindVertexData(ByteData.sublistView(_triangle), 3)
     ..bindIndexData(ByteData.sublistView(_indices), IndexType.int16, 3)
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  if (read == null) fail('the target could not be read back at $taps taps');
+  final read = await device.readback(target);
   return read.buffer.asUint8List()[(4 * 8 + 4) * 4];
 }
 
@@ -123,7 +120,7 @@ void main() {
 
     // Above whatever this browser answers, by construction. Unclamped, this is
     // the value the extension rejects.
-    await _drawThrough(device, device.maxAnisotropy * 2);
+    await _drawThrough(device, device.limits.maxSamplerAnisotropy * 2);
 
     expect(
       device.debugDrainErrors('after an above-ceiling anisotropic bind'),
@@ -141,8 +138,14 @@ void main() {
     // nothing — by skipping the bind, say — would pass the check above.
     final device = _device();
 
-    final atCeiling = await _drawThrough(device, device.maxAnisotropy);
-    final beyond = await _drawThrough(device, device.maxAnisotropy * 2);
+    final atCeiling = await _drawThrough(
+      device,
+      device.limits.maxSamplerAnisotropy,
+    );
+    final beyond = await _drawThrough(
+      device,
+      device.limits.maxSamplerAnisotropy * 2,
+    );
 
     expect(beyond, atCeiling);
     expect(beyond, greaterThan(128), reason: 'neither draw sampled anything');
@@ -156,7 +159,7 @@ void main() {
     // setting it would be INVALID_ENUM on every single bind.
     final device = _device();
 
-    expect(device.maxAnisotropy, greaterThanOrEqualTo(1));
+    expect(device.limits.maxSamplerAnisotropy, greaterThanOrEqualTo(1));
     device.dispose();
   });
 }

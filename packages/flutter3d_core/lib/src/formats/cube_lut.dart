@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'format_exceptions.dart';
 
 /// A parsed `.cube` file.
 final class CubeLut {
@@ -28,7 +29,7 @@ final class CubeLut {
     required this._values,
   });
 
-  /// Reads [text], a `.cube` file's contents. Throws a [FormatException]
+  /// Reads [text], a `.cube` file's contents. Throws a [CubeLutFormatException]
   /// naming the line when it is not one: a missing size, a line that is not
   /// three numbers, too few or too many entries, a domain that is empty.
   factory CubeLut.parse(String text) {
@@ -42,11 +43,11 @@ final class CubeLut {
 
     (double, double, double) triple(List<String> words, int line) {
       if (words.length != 3) {
-        throw FormatException('line $line: expected three numbers');
+        throw CubeLutFormatException('line $line: expected three numbers');
       }
       final parsed = words.map(double.tryParse).toList();
       if (parsed.contains(null)) {
-        throw FormatException(
+        throw CubeLutFormatException(
           'line $line: "${words.join(' ')}" is not three '
           'numbers',
         );
@@ -66,12 +67,16 @@ final class CubeLut {
         case 'LUT_3D_SIZE':
           size3 = int.tryParse(words.length == 2 ? words[1] : '');
           if (size3 == null || size3 < 2 || size3 > 256) {
-            throw FormatException('line $line: LUT_3D_SIZE must be 2 to 256');
+            throw CubeLutFormatException(
+              'line $line: LUT_3D_SIZE must be 2 to 256',
+            );
           }
         case 'LUT_1D_SIZE':
           size1 = int.tryParse(words.length == 2 ? words[1] : '');
           if (size1 == null || size1 < 2 || size1 > 65536) {
-            throw FormatException('line $line: LUT_1D_SIZE must be 2 to 65536');
+            throw CubeLutFormatException(
+              'line $line: LUT_1D_SIZE must be 2 to 65536',
+            );
           }
         case 'DOMAIN_MIN':
           domainMin = triple(words.sublist(1), line);
@@ -81,7 +86,9 @@ final class CubeLut {
         case 'LUT_3D_INPUT_RANGE' || 'LUT_1D_INPUT_RANGE':
           final range = words.skip(1).map(double.tryParse).toList();
           if (range.length != 2 || range.contains(null)) {
-            throw FormatException('line $line: an input range is two numbers');
+            throw CubeLutFormatException(
+              'line $line: an input range is two numbers',
+            );
           }
           domainMin = (range[0]!, range[0]!, range[0]!);
           domainMax = (range[1]!, range[1]!, range[1]!);
@@ -95,15 +102,15 @@ final class CubeLut {
     }
 
     if (size3 != null && size1 != null) {
-      throw const FormatException('a table is 3D or 1D, not both');
+      throw const CubeLutFormatException('a table is 3D or 1D, not both');
     }
     final size = size3 ?? size1;
     if (size == null) {
-      throw const FormatException('no LUT_3D_SIZE or LUT_1D_SIZE');
+      throw const CubeLutFormatException('no LUT_3D_SIZE or LUT_1D_SIZE');
     }
     final expected = size3 != null ? size * size * size : size;
     if (values.length != expected * 3) {
-      throw FormatException(
+      throw CubeLutFormatException(
         'expected $expected entries for a '
         '${size3 != null ? '3D' : '1D'} table of $size, found '
         '${values.length ~/ 3}',
@@ -112,7 +119,7 @@ final class CubeLut {
     if (domainMax.$1 <= domainMin.$1 ||
         domainMax.$2 <= domainMin.$2 ||
         domainMax.$3 <= domainMin.$3) {
-      throw const FormatException('DOMAIN_MAX must be above DOMAIN_MIN');
+      throw const CubeLutFormatException('DOMAIN_MAX must be above DOMAIN_MIN');
     }
     return CubeLut._(
       title: title,

@@ -23,6 +23,7 @@
 
 #include <lib/frag_coord_info.glsl>
 #include <lib/blue_noise.glsl>
+#include <lib/shadow_storage.glsl>
 
 in vec2 v_uv;
 
@@ -89,7 +90,8 @@ uniform VolumeFogInfo {
   // there is no shadow map and every point is lit. w unused.
   vec4 cascades;
 
-  // x, y, z: each cascade's depth bias. w unused.
+  // x, y, z: each cascade's depth bias. w: how the map stores its depth, the
+  // mode `lib/shadow_storage.glsl` lists.
   vec4 bias;
 
   // x: the air's extinction σ at the base height, per metre. y: how fast it
@@ -164,7 +166,8 @@ float LitAt(vec3 world, float viewDistance) {
     }
 
     vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
-    float stored = textureLod(shadow_texture, uv, 0.0).r;
+    float stored =
+        ShadowStored(textureLod(shadow_texture, uv, 0.0).r, fog_info.bias.w);
     float bias = which == 0
         ? fog_info.bias.x
         : (which == 1 ? fog_info.bias.y : fog_info.bias.z);
@@ -298,7 +301,9 @@ vec3 ClusterLight(vec3 world, vec3 along, float g) {
     // multiply would not clear.
     if (type > 1.5 && type < 2.5) {
       float cosAngle = dot(normalize(direction.xyz), -l);
-      attenuation *= clamp((cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
+      // Squared, as the surfaces' spot falloff is (KHR_lights_punctual).
+      float ramp = clamp((cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
+      attenuation *= ramp * ramp;
     }
     // Asked only of a light that reaches here, since it costs two reads.
     float visibility = attenuation * usable > 0.0 ? LocalLitAt(world, cone) : 1.0;

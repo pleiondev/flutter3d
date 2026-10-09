@@ -132,7 +132,7 @@ const Map<String, double> _budgets = <String, double>{
   'material-instance-data': 0.01,
   'widget-scene': 0.01,
   // 0.565% measured, on the discs' rims and nowhere else: coverage here,
-  // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
+  // the hard cutoff on Impeller — `RenderMaterial.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.65,
   'orthographic-metal': 0.01,
   'orthographic-shadows': 0.01,

@@ -6,13 +6,19 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_storage_texture.dart';
 import 'cpu_texture.dart';
 
 /// A map rather than a generated struct, because the binding contract is by
 /// name: the engine writes `bindUniformBlock(shader, 'FragInfo', {...})` and a
 /// backend looks the members up. A Dart shader does the same lookup.
 final class ShaderBindings {
-  const ShaderBindings(this.blocks, this.textures) : _found = null;
+  const ShaderBindings(
+    this.blocks,
+    this.textures, {
+    this.storage = const <String, ByteData>{},
+    this.storageTextures = const <String, CpuStorageTexture>{},
+  }) : _found = null;
 
   /// The same bindings, remembering what [read] finds.
   ///
@@ -20,9 +26,24 @@ final class ShaderBindings {
   /// the same few dozen members for every fragment, and two string-keyed map
   /// lookups per read were a tenth of a software frame. The blocks must not
   /// change while these are in use — true of a draw, where nothing binds.
-  ShaderBindings.forDraw(this.blocks, this.textures) : _found = _Found();
+  ShaderBindings.forDraw(
+    this.blocks,
+    this.textures, {
+    this.storage = const <String, ByteData>{},
+    this.storageTextures = const <String, CpuStorageTexture>{},
+  }) : _found = _Found();
 
   final _Found? _found;
+
+  /// Storage buffers a render stage was handed by name —
+  /// `PassEncoder.bindStorageBuffer`. The bytes themselves, a bound range of
+  /// the buffer: a stage that writes them writes the buffer. Empty for
+  /// every draw that binds none.
+  final Map<String, ByteData> storage;
+
+  /// Storage textures a render stage was handed by name —
+  /// `PassEncoder.bindStorageTexture`.
+  final Map<String, CpuStorageTexture> storageTextures;
 
   /// Block name to member name to floats, exactly as the engine wrote them.
   final Map<String, Map<String, Float32List>> blocks;

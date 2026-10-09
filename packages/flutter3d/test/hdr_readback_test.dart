@@ -12,7 +12,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 32;
 const int _height = 32;
@@ -29,7 +28,10 @@ void main() {
               it.device,
               const PlaneShape(width: 4.0, depth: 4.0).build(),
             ),
-            Material(name: 'floor', baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
+            RenderMaterial(
+              name: 'floor',
+              baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
+            ),
           ),
         );
       // Ten metres out, looking straight down the axis: the surface buffer's
@@ -37,7 +39,7 @@ void main() {
       // `0..1` ceiling.
       final camera = CameraNode(
         projection: const PerspectiveProjection(
-          fovYRadians: 1.0,
+          fovY: 1.0,
           near: 0.05,
           far: 50.0,
         ),
@@ -62,18 +64,18 @@ void main() {
       );
 
       final raw = it.device.readHdrPixels(result.frame);
-      final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
-      final depth = raw[centre + 3];
+      final center = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+      final depth = raw[center + 3];
       expect(
         depth,
         closeTo(10.0, 0.5),
         reason: 'the surface buffer\'s alpha is view depth in world metres',
       );
 
-      final clamped = await it.device.readPixels(result.frame);
-      final bytes = clamped!.buffer.asUint8List();
+      final clamped = await it.device.readback(result.frame);
+      final bytes = clamped.buffer.asUint8List();
       expect(
-        bytes[centre + 3],
+        bytes[center + 3],
         255,
         reason:
             'readPixels clamps the same ten metres to 1.0 — the exact loss '

@@ -10,6 +10,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'cpu_shaders_surface.dart' show uvFootprint;
 
 /// `shadow_depth.frag`: window depth into a colour target.
 ///
@@ -19,7 +20,7 @@ import 'cpu_shaders_layout.dart';
 /// shadow camera is orthographic — under perspective it would be hyperbolic,
 /// all its precision near the near plane, and comparing two of them would mean
 /// nothing.
-final class ShadowDepthShader implements CpuFragmentShader {
+final class ShadowDepthShader extends CpuFragmentShader {
   const ShadowDepthShader();
 
   @override
@@ -32,7 +33,7 @@ final class ShadowDepthShader implements CpuFragmentShader {
 /// Not clip depth. Clip depth is measured along one cube face's axis, so the
 /// same distance reads differently depending which face a direction lands on
 /// and every face boundary shows a seam.
-final class ShadowDistanceShader implements CpuFragmentShader {
+final class ShadowDistanceShader extends CpuFragmentShader {
   const ShadowDistanceShader();
 
   @override
@@ -71,7 +72,7 @@ bool _maskPasses(ShaderBindings bindings, Float32List v) {
 /// is the whole stage: a leaf card that does not cut out casts the shadow of
 /// its quad, which is a stack of dark slabs where the eye expects dappled
 /// light.
-final class ShadowDepthMaskedShader implements CpuFragmentShader {
+final class ShadowDepthMaskedShader extends CpuFragmentShader {
   const ShadowDepthMaskedShader();
 
   @override
@@ -80,7 +81,7 @@ final class ShadowDepthMaskedShader implements CpuFragmentShader {
 }
 
 /// `shadow_distance_masked.frag`: the point-light twin of the above.
-final class ShadowDistanceMaskedShader implements CpuFragmentShader {
+final class ShadowDistanceMaskedShader extends CpuFragmentShader {
   const ShadowDistanceMaskedShader();
 
   @override
@@ -100,15 +101,15 @@ final class ShadowDistanceMaskedShader implements CpuFragmentShader {
 /// Green and blue are what it takes from red and green, alpha what it leaves
 /// of blue, red nought so the depth beneath survives the blend; the GLSL
 /// stage has the reasons, and this is the same arithmetic.
-final class ShadowTransmittanceShader implements CpuFragmentShader {
+final class ShadowTransmittanceShader extends CpuFragmentShader {
   const ShadowTransmittanceShader();
 
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
-    final colour = bindings.vec4('TransmittanceInfo', 'color', Vector4.zero());
+    final color = bindings.vec4('TransmittanceInfo', 'color', Vector4.zero());
     final light = bindings.vec4('TransmittanceInfo', 'light', Vector4.zero());
     final params = bindings.vec4('TransmittanceInfo', 'params', Vector4.zero());
-    final opacity = colour.w.clamp(0.0, 1.0);
+    final opacity = color.w.clamp(0.0, 1.0);
     final transmission = params.x.clamp(0.0, 1.0);
     final map = bindings.textures['base_color_texture'];
     final texel = map?.sample(v[kVUv], v[kVUv + 1]) ?? Vector4.all(1.0);
@@ -134,16 +135,16 @@ final class ShadowTransmittanceShader implements CpuFragmentShader {
         : math.sqrt(math.max(body(channel, mapped), 0.0)) * (1.0 - lost);
     return Vector4(
       0.0,
-      1.0 - through(colour.x, texel.x),
-      1.0 - through(colour.y, texel.y),
-      through(colour.z, texel.z),
+      1.0 - through(color.x, texel.x),
+      1.0 - through(color.y, texel.y),
+      through(color.z, texel.z),
     );
   }
 }
 
 /// `shadow_copy.frag`: one cascade's tile of the static atlas, into colour
 /// and depth — `S1`.
-final class ShadowCopyShader implements CpuFragmentShader {
+final class ShadowCopyShader extends CpuFragmentShader {
   const ShadowCopyShader();
 
   @override
@@ -161,12 +162,77 @@ final class ShadowCopyShader implements CpuFragmentShader {
           tile.y + fromV.clamp(0.0, 1.0) * tile.w,
         )
         .x;
-    // Nothing stays nothing: the far end is not a depth the move shifts.
-    final depth = inside && stored < 1.0
+    // Nothing stays nothing: the far end is not a depth the move shifts. One
+    // the ordinary way round, nought turned round, and mode two writes the
+    // turned map back the ordinary way — `A2.8`, as `shadow_copy.frag`.
+    final mode = shift.w;
+    final nothing = mode > 0.5 ? 0.0 : 1.0;
+    final moved = inside && stored != nothing
         ? (stored + shift.z).clamp(0.0, 1.0)
-        : 1.0;
+        : nothing;
+    final depth = mode > 1.5 ? 1.0 - moved : moved;
     c.fragDepth = depth;
     return Vector4(depth, 0.0, 0.0, 1.0);
+  }
+}
+
+/// `depth_predraw.frag`: a surface's depth where it covers the pixel, and no
+/// colour — `A1.2`, `A1.3`.
+///
+/// The cut the lit stage's opaque variant leaves out, made here instead and
+/// to the texel the same: the base colour map read with the same footprint
+/// and level bias, its alpha times the material's and the vertex colour's,
+/// against the cutoff or the world-anchored hash; then a cross-fading level's
+/// share of the pixels from the same pattern the GLSL takes, interleaved
+/// gradient noise at the pixel. Null is the discard; anything else is drawn
+/// under a blend that keeps what is there.
+final class DepthPredrawShader extends CpuFragmentShader {
+  const DepthPredrawShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final mask = bindings.vec4('PredrawInfo', 'mask', Vector4(-1, 1, 1, 0));
+    final cutoff = mask.x;
+    double alpha() {
+      final texture = bindings.textures['base_color_texture'];
+      if (texture == null) return mask.y * v[kVColour + 3];
+      final uv = uvFootprint(c, bias: mask.w);
+      final texel = texture.sample(
+        v[kVUv],
+        v[kVUv + 1],
+        du: uv.du,
+        dv: uv.dv,
+        dudx: uv.dudx,
+        dvdx: uv.dvdx,
+        dudy: uv.dudy,
+        dvdy: uv.dvdy,
+      );
+      return texel.w * mask.y * v[kVColour + 3];
+    }
+
+    if (cutoff >= 0.0 && cutoff <= 1.0) {
+      if (alpha() < cutoff) return null;
+    } else if (cutoff < -1.5) {
+      final t =
+          math.sin(
+            (v[kVWorld] * 16.0).floorToDouble() * 12.9898 +
+                (v[kVWorld + 1] * 16.0).floorToDouble() * 78.233 +
+                (v[kVWorld + 2] * 16.0).floorToDouble() * 37.719,
+          ) *
+          43758.5453;
+      if (alpha() < t - t.floorToDouble()) return null;
+    }
+
+    final share = mask.z;
+    if (share < 1.0) {
+      double fract(double x) => x - x.floorToDouble();
+      final pattern = fract(
+        52.9829189 * fract(c.coord.x * 0.06711056 + c.coord.y * 0.00583715),
+      );
+      final kept = share >= 0.0 ? pattern < share : pattern >= 1.0 + share;
+      if (!kept) return null;
+    }
+    return Vector4.zero();
   }
 }
 
@@ -174,7 +240,7 @@ final class ShadowCopyShader implements CpuFragmentShader {
 ///
 /// A texel no caster covers means "nothing between the light and its range",
 /// which is the right answer for a direction with nothing in it.
-final class ShadowTileResetShader implements CpuFragmentShader {
+final class ShadowTileResetShader extends CpuFragmentShader {
   const ShadowTileResetShader();
 
   @override
@@ -189,7 +255,7 @@ final class ShadowTileResetShader implements CpuFragmentShader {
 /// covered, and a mid-depth value stamped across the tile makes every caster
 /// beyond it fail and vanish. In the engine's history that was a shadow that
 /// was present before the tile reset existed and missing after.
-final class ShadowTileResetVertexShader implements CpuVertexShader {
+final class ShadowTileResetVertexShader extends CpuVertexShader {
   const ShadowTileResetVertexShader();
 
   @override
@@ -205,7 +271,7 @@ final class ShadowTileResetVertexShader implements CpuVertexShader {
 
 /// `caustic_surface.frag`: a refracting caster's normal and depth, as the sun
 /// sees it — `ShadowSettings.caustics`.
-final class CausticSurfaceShader implements CpuFragmentShader {
+final class CausticSurfaceShader extends CpuFragmentShader {
   const CausticSurfaceShader();
 
   @override
@@ -219,7 +285,7 @@ final class CausticSurfaceShader implements CpuFragmentShader {
 /// `caustic_photon.vert`: one photon followed through a caster to where it
 /// lands, sized by where its neighbours land — the same arithmetic, with the
 /// instance index as the texel.
-final class CausticPhotonVertexShader implements CpuVertexShaderByIndex {
+final class CausticPhotonVertexShader extends CpuVertexShaderByIndex {
   const CausticPhotonVertexShader();
 
   @override
@@ -397,7 +463,7 @@ final class CausticPhotonVertexShader implements CpuVertexShaderByIndex {
 }
 
 /// `caustic_photon.frag`: a photon's quad, given back into the atlas.
-final class CausticPhotonShader implements CpuFragmentShader {
+final class CausticPhotonShader extends CpuFragmentShader {
   const CausticPhotonShader();
 
   @override

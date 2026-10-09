@@ -59,6 +59,16 @@ vec3 SampleLightmap() {
 /// same set truthfully. `tool/build_shaders.sh` prints the compiled slots so
 /// the two cannot drift apart unnoticed.
 
+/// The three maps whose numbers are factors — metallic, roughness, occlusion
+/// and an emissive texel before its strength — are read at mediump in a
+/// material stage. The coordinate each is read at is the highp varying, and
+/// the emissive light itself is made of highp uniforms, so nothing that can
+/// run past a half float's range is mediump here.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
+
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
@@ -78,6 +88,8 @@ void ApplyEmissiveMap(inout Surface s) {
   vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {

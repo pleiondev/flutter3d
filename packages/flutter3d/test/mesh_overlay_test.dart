@@ -12,15 +12,15 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An overlay looking down −Z from ten units away, with a pixel that is a
 /// hundredth of a unit at one unit of distance.
 MeshOverlay looking({Vector3? eye, bool perspective = true}) {
   final overlay = MeshOverlay(
-    vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-    fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+    vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+    fragmentShader: wrapShader(backend: 1, name: 'DebugLine'),
   )..biasPixels = 0;
   overlay.lookFrom(
     eye: eye ?? Vector3(0, 0, 10),
@@ -81,15 +81,15 @@ void main() {
       final camera = CameraNode(projection: projection)
         ..setPosition(0.0, 0.0, 10.0);
       return MeshOverlay(
-        vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-        fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+        vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+        fragmentShader: wrapShader(backend: 1, name: 'DebugLine'),
       )..lookThrough(camera, 400.0, 300.0);
     }
 
     test('through a perspective lens, the pixel a field of view gives', () {
-      const fov = 0.9;
-      final overlay = through(const PerspectiveProjection(fovYRadians: fov));
-      final expected = 2 * math.tan(fov / 2) / 300.0;
+      const fovY = 0.9;
+      final overlay = through(const PerspectiveProjection(fovY: fovY));
+      final expected = 2 * math.tan(fovY / 2) / 300.0;
       // Ten units away, so ten of the pixel at one unit.
       expect(
         overlay.worldSize(1.0, Vector3.zero()),
@@ -127,7 +127,7 @@ void main() {
         overlay.edge(
           Vector3(i.toDouble(), 0, 0),
           Vector3(0, 1, 0),
-          Vector4(1, 1, 1, 1),
+          LinearColor.white,
         );
       }
 
@@ -143,7 +143,11 @@ void main() {
     test('clearing keeps the buffer and drops the contents', () {
       final overlay = looking();
       for (var i = 0; i < 500; i++) {
-        overlay.edge(Vector3.zero(), Vector3(1, 0, 0), Vector4(1, 0, 0, 1));
+        overlay.edge(
+          Vector3.zero(),
+          Vector3(1, 0, 0),
+          const LinearColor(1, 0, 0),
+        );
       }
       overlay.clear();
 
@@ -151,15 +155,19 @@ void main() {
       expect(overlay.isActive, isFalse);
       // And it fills again without complaint, which is what a selection
       // changing every frame does to it.
-      overlay.edge(Vector3.zero(), Vector3(1, 0, 0), Vector4(1, 0, 0, 1));
+      overlay.edge(
+        Vector3.zero(),
+        Vector3(1, 0, 0),
+        const LinearColor(1, 0, 0),
+      );
       expect(overlay.lines.vertexCount, 2);
     });
   });
 
   group('a handle keeps its size on screen', () {
     test('a point twice as far away is twice as wide in the world', () {
-      final near = looking()..point(Vector3(0, 0, 5), Vector4(1, 1, 1, 1));
-      final far = looking()..point(Vector3(0, 0, 0), Vector4(1, 1, 1, 1));
+      final near = looking()..point(Vector3(0, 0, 5), LinearColor.white);
+      final far = looking()..point(Vector3(0, 0, 0), LinearColor.white);
 
       // Five units away against ten: the far one has to be twice the size in
       // metres to be the same size in pixels. Mutation: size it in world units
@@ -172,9 +180,9 @@ void main() {
 
     test('an orthographic camera sizes it the same everywhere', () {
       final near = looking(perspective: false)
-        ..point(Vector3(0, 0, 5), Vector4(1, 1, 1, 1));
+        ..point(Vector3(0, 0, 5), LinearColor.white);
       final far = looking(perspective: false)
-        ..point(Vector3(0, 0, -50), Vector4(1, 1, 1, 1));
+        ..point(Vector3(0, 0, -50), LinearColor.white);
 
       // Nothing shrinks with distance in an orthographic view, and neither
       // does the handle.
@@ -183,7 +191,7 @@ void main() {
     });
 
     test('it is two triangles facing the camera', () {
-      final overlay = looking()..point(Vector3.zero(), Vector4(1, 1, 1, 1));
+      final overlay = looking()..point(Vector3.zero(), LinearColor.white);
       final corners = positionsOf(overlay.handles);
 
       expect(corners, hasLength(6));
@@ -200,7 +208,7 @@ void main() {
         ..ribbon(
           Vector3(0, -1, 0),
           Vector3(0, 1, 0),
-          Vector4(1, 1, 1, 1),
+          LinearColor.white,
           width: 4,
         );
       final corners = positionsOf(overlay.handles);
@@ -212,7 +220,7 @@ void main() {
 
     test('a band of no length draws nothing rather than dividing by it', () {
       final overlay = looking()
-        ..ribbon(Vector3.zero(), Vector3.zero(), Vector4(1, 1, 1, 1));
+        ..ribbon(Vector3.zero(), Vector3.zero(), LinearColor.white);
 
       // Mutation: normalise the direction without checking, and every
       // degenerate edge in a model puts NaN into the buffer — which draws as
@@ -222,7 +230,7 @@ void main() {
 
     test('it turns to face the camera rather than keeping a fixed side', () {
       final fromTheSide = looking(eye: Vector3(10, 0, 0))
-        ..ribbon(Vector3(0, -1, 0), Vector3(0, 1, 0), Vector4(1, 1, 1, 1));
+        ..ribbon(Vector3(0, -1, 0), Vector3(0, 1, 0), LinearColor.white);
       final corners = positionsOf(fromTheSide.handles);
 
       // Seen down x now, so the width has moved to z and there is none in x.
@@ -244,7 +252,7 @@ void main() {
           Vector3.zero(),
           Vector3(1, 0, 0),
           Vector3(0, 1, 0),
-          Vector4(0, 0.31, 0.35, 1),
+          LinearColor.fromSrgb(0, 0.31, 0.35),
         );
 
       // Mutation: take the caller's alpha, and a selection drawn with an
@@ -259,8 +267,8 @@ void main() {
   group('sitting on the surface', () {
     test('the nudge towards the eye grows with distance', () {
       final overlay = MeshOverlay(
-        vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-        fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+        vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+        fragmentShader: wrapShader(backend: 1, name: 'DebugLine'),
       )..biasPixels = 10;
       overlay.lookFrom(
         eye: Vector3(0, 0, 10),
@@ -269,8 +277,8 @@ void main() {
         pixel: 0.01,
       );
       overlay
-        ..edge(Vector3(0, 0, 5), Vector3(0, 0, 5), Vector4(1, 1, 1, 1))
-        ..edge(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector4(1, 1, 1, 1));
+        ..edge(Vector3(0, 0, 5), Vector3(0, 0, 5), LinearColor.white)
+        ..edge(Vector3(0, 0, 0), Vector3(0, 0, 0), LinearColor.white);
 
       final at = positionsOf(overlay.lines);
       // Five units away, ten units away: the nudge is a constant in pixels, so
@@ -284,7 +292,7 @@ void main() {
 
     test('a point at the eye is left where it is', () {
       final overlay = looking()..biasPixels = 10;
-      overlay.edge(Vector3(0, 0, 10), Vector3(0, 0, 10), Vector4(1, 1, 1, 1));
+      overlay.edge(Vector3(0, 0, 10), Vector3(0, 0, 10), LinearColor.white);
 
       // Nothing to nudge along: dividing by that distance would be dividing by
       // zero, and a NaN in a vertex buffer is a frame nobody can debug.
@@ -311,8 +319,8 @@ void main() {
 
       overlay.throughGeometry(() {
         overlay
-          ..edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1))
-          ..point(Vector3.zero(), Vector4(1, 1, 1, 1));
+          ..edge(Vector3(0, 0, 0), Vector3(1, 0, 0), LinearColor.white)
+          ..point(Vector3.zero(), LinearColor.white);
       });
 
       // Mutation: write into the ordinary batches whatever the flag says.
@@ -328,13 +336,10 @@ void main() {
       final overlay = looking()..throughOpacity = 0.25;
 
       overlay.throughGeometry(
-        () => overlay.edge(
-          Vector3(0, 0, 0),
-          Vector3(1, 0, 0),
-          Vector4(1, 1, 1, 1),
-        ),
+        () =>
+            overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), LinearColor.white),
       );
-      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1));
+      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), LinearColor.white);
 
       // Mutation: keep the alpha at whatever the caller passed. The ghost is
       // then as strong as the handle itself, and a gizmo inside a model reads
@@ -354,7 +359,7 @@ void main() {
       // Mutation: set the flag and clear it after the call rather than in a
       // `finally`. One throw and the wireframe silently stops respecting
       // depth for the rest of the session.
-      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1));
+      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), LinearColor.white);
       expect(overlay.lines.vertexCount, 2);
       expect(overlay.linesThrough.vertexCount, 0);
     });
@@ -362,11 +367,8 @@ void main() {
     test('clear empties them too', () {
       final overlay = looking();
       overlay.throughGeometry(
-        () => overlay.edge(
-          Vector3(0, 0, 0),
-          Vector3(1, 0, 0),
-          Vector4(1, 1, 1, 1),
-        ),
+        () =>
+            overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), LinearColor.white),
       );
       expect(overlay.isActive, isTrue);
 

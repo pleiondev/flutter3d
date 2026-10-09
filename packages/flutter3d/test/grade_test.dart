@@ -18,7 +18,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A ramp from black to white, composited through [look].
 ///
@@ -46,7 +45,7 @@ Future<List<int>> _ramp(LookSettings look, {int width = 256}) async {
     height: 1,
     format: TextureFormat.r32g32b32a32Float,
     pixels: pixels.buffer.asByteData(),
-  )!;
+  );
 
   final frame = renderer.renderPost(
     hdr: hdr,
@@ -57,8 +56,8 @@ Future<List<int>> _ramp(LookSettings look, {int width = 256}) async {
       look: look,
     ),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var x = 0; x < width; x++) bytes!.getUint8(x * 4)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var x = 0; x < width; x++) bytes.getUint8(x * 4)];
 }
 
 void main() {
@@ -69,9 +68,9 @@ void main() {
     final plain = await _ramp(const LookSettings());
     final spelled = await _ramp(
       LookSettings(
-        lift: Vector3.zero(),
-        gamma: Vector3(1.0, 1.0, 1.0),
-        gain: Vector3(1.0, 1.0, 1.0),
+        lift: const LinearColor(0.0, 0.0, 0.0),
+        gamma: LinearColor(1.0, 1.0, 1.0),
+        gain: LinearColor(1.0, 1.0, 1.0),
       ),
     );
     expect(spelled, plain);
@@ -80,7 +79,9 @@ void main() {
   group('each range moves its own end', () {
     test('lift raises black and leaves white', () async {
       final plain = await _ramp(const LookSettings());
-      final lifted = await _ramp(LookSettings(lift: Vector3(0.1, 0.1, 0.1)));
+      final lifted = await _ramp(
+        LookSettings(lift: const LinearColor(0.1, 0.1, 0.1)),
+      );
 
       expect(
         lifted.first,
@@ -98,7 +99,9 @@ void main() {
 
     test('gain moves white and leaves black', () async {
       final plain = await _ramp(const LookSettings());
-      final gained = await _ramp(LookSettings(gain: Vector3(0.5, 0.5, 0.5)));
+      final gained = await _ramp(
+        LookSettings(gain: const LinearColor(0.5, 0.5, 0.5)),
+      );
 
       expect(
         gained.first,
@@ -114,7 +117,9 @@ void main() {
 
     test('gamma moves the midtones and leaves both ends', () async {
       final plain = await _ramp(const LookSettings());
-      final curved = await _ramp(LookSettings(gamma: Vector3(0.5, 0.5, 0.5)));
+      final curved = await _ramp(
+        LookSettings(gamma: const LinearColor(0.5, 0.5, 0.5)),
+      );
 
       expect(curved.first, plain.first, reason: 'zero to any power is zero');
       expect(curved.last, plain.last, reason: 'and one to any power is one');
@@ -130,7 +135,9 @@ void main() {
   test('a grade is per channel, which is why it is a colour', () async {
     // One number per stage could not say "warm highlights over cool shadows",
     // and that is the reason these are vectors rather than scalars.
-    final warm = await _ramp(LookSettings(gain: Vector3(1.0, 0.8, 0.6)));
+    final warm = await _ramp(
+      LookSettings(gain: const LinearColor(1.0, 0.8, 0.6)),
+    );
     final plain = await _ramp(const LookSettings());
     expect(warm.last, plain.last, reason: 'red was left at one');
   });

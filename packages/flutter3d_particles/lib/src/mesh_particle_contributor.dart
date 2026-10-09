@@ -33,6 +33,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'particle_system.dart';
@@ -139,10 +140,9 @@ final class MeshParticleContributor extends PassContributor {
     ],
   );
 
-  static final VertexLayoutSpec _layout = VertexLayoutSpec(<BufferLayout>[
-    _meshSlot,
-    _instanceSlot,
-  ]);
+  static final VertexLayoutDescriptor _layout = VertexLayoutDescriptor(
+    <BufferLayout>[_meshSlot, _instanceSlot],
+  );
 
   @override
   bool get isActive => particles.aliveCount > 0;
@@ -201,10 +201,10 @@ final class MeshParticleContributor extends PassContributor {
     });
 
     final fog = frame.settings.fog;
-    final colour = fog.resolvedColor;
-    _fog[0] = colour.x;
-    _fog[1] = colour.y;
-    _fog[2] = colour.z;
+    final color = fog.resolvedColor;
+    _fog[0] = color.r;
+    _fog[1] = color.g;
+    _fog[2] = color.b;
     view.camera.readViewOrigin(_eye);
     // The air as thick as it is at the camera: a height fog's falloff is not
     // integrated here — `FogSettings.densityAt` says what that costs.
@@ -229,8 +229,9 @@ final class MeshParticleContributor extends PassContributor {
     });
 
     encoder.draw(instanceCount: written);
-    frame.state.drawCalls++;
-    frame.state.invalidatePipeline();
+    frame
+      ..noteDraw()
+      ..invalidatePipeline();
     developer.Timeline.finishSync();
   }
 

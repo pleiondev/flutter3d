@@ -18,9 +18,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
@@ -47,7 +48,10 @@ Future<Uint8List> _draw({
             device,
             CuboidShape(size: Vector3(1.4, 2.6, 0.2)).build(),
           ),
-          Material(name: name, baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+          RenderMaterial(
+            name: name,
+            baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+          ),
           name: name,
         )
         ..setPosition(x, 0.0, 0.0)
@@ -56,7 +60,7 @@ Future<Uint8List> _draw({
   scene.add(quad('left', -1.0, leftChannels));
   scene.add(quad('right', 1.0, rightChannels));
 
-  final lamp = LightNode(intensity: 6.0)
+  final lamp = LightNode(intensity: 6.0 * Photometric.legacyUnit)
     ..setPosition(0.0, 0.0, 3.0)
     ..channels = lampChannels;
   lamp.lookAt(Vector3.zero());
@@ -69,7 +73,7 @@ Future<Uint8List> _draw({
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(0.0, 0.0, 5.0),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // **Bloom off, and that is not tidiness.** With it on, the lit quad's
@@ -84,7 +88,7 @@ Future<Uint8List> _draw({
       shadows: ShadowSettings(enabled: false),
     ),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// The brightest pixel in one half of the frame — the quad's own lit face.
@@ -215,13 +219,17 @@ void main() {
       // black.
       final lights = <LightNode>[
         for (var i = 0; i < 9; i++)
-          LightNode(type: LightType.point, intensity: 5.0, range: 50.0)
+          LightNode(
+              type: LightType.point,
+              intensity: 5.0 * Photometric.legacyUnit,
+              range: 50.0,
+            )
             ..setPosition(i.toDouble(), 0.0, 0.0)
             ..channels = i < 3 ? _skyChannel : _groundChannel,
       ];
 
       final table = LightBuffer()..gather(lights);
-      expect(table.count, LightBuffer.maxLights);
+      expect(table.count, LightNode.maxLights);
       expect(table.overflow, greaterThan(0));
 
       final forSky = LightBuffer()
@@ -240,7 +248,11 @@ void main() {
     test('and the same holds for a scene that fits in eight', () {
       final lights = <LightNode>[
         for (var i = 0; i < 4; i++)
-          LightNode(type: LightType.point, intensity: 5.0, range: 50.0)
+          LightNode(
+              type: LightType.point,
+              intensity: 5.0 * Photometric.legacyUnit,
+              range: 50.0,
+            )
             ..setPosition(i.toDouble(), 0.0, 0.0)
             ..channels = i.isEven ? _skyChannel : _groundChannel,
       ];

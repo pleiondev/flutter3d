@@ -10,6 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -41,9 +42,9 @@ Float32List _cardAndWall(
           device,
           CuboidShape(size: Vector3(60, 60, 0.1)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(0.0, wall, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(0.0, wall, 0.0, 1.0),
         ),
       )..setPosition(0.0, 0.0, -20.0),
     )
@@ -53,9 +54,9 @@ Float32List _cardAndWall(
           device,
           CuboidShape(size: Vector3(0.5, 0.5, 0.05)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(card, 0.0, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(card, 0.0, 0.0, 1.0),
         ),
       )..setPosition(0.1, 0.05, -2.0),
     )
@@ -68,7 +69,7 @@ Float32List _cardAndWall(
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),
-      volumetricFog: fog.copyWith(color: Vector3.zero()),
+      volumetricFog: fog.copyWith(color: LinearColor.black),
     ),
   );
   return device.readHdrPixels(result.frame);
@@ -98,7 +99,7 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
     ..add(
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(lighting: LightingModel.lambert),
+          RenderMaterial(lighting: LightingModel.lambert),
         )
         ..setPosition(0.0, -0.05, 0.0)
         ..setScale(12.0, 0.1, 12.0),
@@ -107,8 +108,11 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
   for (var i = 0; i < 8; i++) {
     for (var j = 0; j < 8; j++) {
       scene.add(
-        LightNode(type: LightType.point, intensity: 2.0, range: 1.5)
-          ..setPosition(i - 3.5, 0.3, j - 3.5),
+        LightNode(
+          type: LightType.point,
+          intensity: 2.0 * Photometric.legacyUnit,
+          range: 1.5,
+        )..setPosition(i - 3.5, 0.3, j - 3.5),
       );
     }
   }
@@ -123,7 +127,7 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
       heightFalloff: 1.0,
       steps: 16,
       distance: 20.0,
-    ).copyWith(color: Vector3.all(albedo)),
+    ).copyWith(color: Vector3.all(albedo).toLinearColor()),
   );
   FrameResult render() => renderer.render(
     width: _torchWidth,
@@ -159,16 +163,16 @@ Float32List _torchBehindWall({
           device,
           CuboidShape(size: Vector3(40, 40, 0.2)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.lambert,
-          baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),
       )..setPosition(0.0, 0.0, -3.0),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 20.0,
+        intensity: 20.0 * Photometric.legacyUnit,
         range: 8.0,
         castsShadow: castsShadow,
       )..setPosition(0.0, 0.0, -6.0),
@@ -176,8 +180,11 @@ Float32List _torchBehindWall({
     ..add(camera);
   for (var i = 0; i < 8; i++) {
     scene.add(
-      LightNode(type: LightType.point, intensity: 0.5, range: 0.5)
-        ..setPosition(30.0 + i, 0.0, -10.0),
+      LightNode(
+        type: LightType.point,
+        intensity: 0.5 * Photometric.legacyUnit,
+        range: 0.5,
+      )..setPosition(30.0 + i, 0.0, -10.0),
     );
   }
   final renderer = Renderer.create(device: device);
@@ -191,7 +198,7 @@ Float32List _torchBehindWall({
       heightFalloff: 0.0,
       steps: 16,
       distance: 20.0,
-    ).copyWith(color: Vector3.all(albedo)),
+    ).copyWith(color: Vector3.all(albedo).toLinearColor()),
   );
   FrameResult render() => renderer.render(
     width: _size,
@@ -219,7 +226,7 @@ Float32List _crease(VolumetricFogSettings fog, {required bool occlusion}) {
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
-  MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, Material())
+  MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, RenderMaterial())
     ..setPosition(at.x, at.y, at.z)
     ..setScale(scale.x, scale.y, scale.z);
   final camera = CameraNode()
@@ -242,8 +249,8 @@ Float32List _crease(VolumetricFogSettings fog, {required bool occlusion}) {
         radius: 0.6,
       ),
       volumetricFog: fog.copyWith(
-        color: Vector3.all(1.0),
-        ambient: Vector3.all(0.5),
+        color: LinearColor.white,
+        ambient: Vector3.all(0.5).toLinearColor(),
       ),
     ),
   );

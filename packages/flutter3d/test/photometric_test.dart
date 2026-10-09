@@ -26,7 +26,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 32;
 const int _height = 32;
@@ -53,7 +52,10 @@ Future<Uint8List> _draw(LightNode lamp) async {
           device,
           CuboidShape(size: Vector3(4.0, 4.0, 0.2)).build(),
         ),
-        Material(name: 'wall', baseColor: Vector4(1.0, 1.0, 1.0, 1.0)),
+        RenderMaterial(
+          name: 'wall',
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+        ),
         name: 'wall',
       )..setPosition(0.0, 0.0, 0.0),
     )
@@ -66,7 +68,7 @@ Future<Uint8List> _draw(LightNode lamp) async {
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(0.0, 0.0, 9.0),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Every stage that would move a number between the shader and the pixel,
@@ -78,7 +80,7 @@ Future<Uint8List> _draw(LightNode lamp) async {
       shadows: ShadowSettings(enabled: false),
     ),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// The green channel at the middle of the frame — the quad's lit face.
@@ -87,11 +89,13 @@ int _middle(Uint8List rgba) =>
 
 void main() {
   group('the exchange rate, as arithmetic', () {
-    test('an 800-lumen bulb is intensity one', () {
-      // The row's own sentence, and the anchor every other number here hangs
-      // off. Eight hundred lumens is what replaced the sixty-watt bulb, and
-      // one is what every light in this engine has defaulted to.
-      expect(Photometric.fromLumens(800.0), closeTo(1.0, 1e-9));
+    test('an 800-lumen bulb is about 64 candela', () {
+      // Since 1.0 a point lamp's intensity is candela: its lumens over the
+      // whole sphere, 800 / 4π.
+      expect(
+        Photometric.fromLumens(800.0),
+        closeTo(Photometric.bulbAtOneMeter, 1e-9),
+      );
     });
 
     test('a point lamp spreads over the whole sphere', () {
@@ -99,7 +103,7 @@ void main() {
       // every bulb in every scene twice as bright and looks plausible.
       expect(
         Photometric.fromLumens(800.0, type: LightType.point),
-        closeTo(Photometric.fromCandela(800.0 / (4.0 * math.pi)), 1e-12),
+        closeTo(800.0 / (4.0 * math.pi), 1e-12),
       );
     });
 
@@ -140,10 +144,14 @@ void main() {
       );
     });
 
-    test('lux and candela are the same number a metre away', () {
-      // What makes `fromCandela` `fromLux` with the metre already in it: a
-      // source of one candela lights a surface a metre off with one lux.
-      expect(Photometric.fromCandela(500.0), Photometric.fromLux(500.0));
+    test('a pre-1.0 intensity is one legacy unit of lux or candela', () {
+      // What `migrate` multiplies a pre-1.0 literal by, and what the renderer
+      // divides by on the way to the shaders, so the picture does not move.
+      expect(
+        Photometric.legacyUnit,
+        closeTo(math.pi * Photometric.legacyNits, 1e-3),
+      );
+      expect(LightNode().intensity, Photometric.legacyUnit);
     });
 
     test('every conversion comes back', () {
@@ -155,26 +163,22 @@ void main() {
           reason: 'lumens through $type',
         );
       }
-      expect(
-        Photometric.toLux(Photometric.fromLux(320.0)),
-        closeTo(320.0, 1e-9),
-      );
     });
   });
 
   group("the row's own acceptance, as pixels", () {
     test(
-      'an 800-lumen lamp lights a wall exactly like the tuned one',
+      'a lamp rated in lumens lights a wall exactly like the same candela',
       () async {
         // The half that arithmetic cannot give: that the conversion is wired to
         // the field the shader actually reads, and in the right direction. The
         // two lamps below are the same lamp said two ways.
-        final tuned = LightNode(type: LightType.point, intensity: 1.0)
-          ..setPosition(0.0, 0.0, 5.1);
-        final rated = LightNode(
+        final tuned = LightNode(
           type: LightType.point,
-          intensity: Photometric.fromLumens(800.0),
+          intensity: 1.0 * Photometric.legacyUnit,
         )..setPosition(0.0, 0.0, 5.1);
+        final rated = LightNode.lumens(Photometric.legacyUnit * 4.0 * math.pi)
+          ..setPosition(0.0, 0.0, 5.1);
 
         expect(_middle(await _draw(rated)), _middle(await _draw(tuned)));
       },

@@ -7,8 +7,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart' show LiquidSteps;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
+        NativeLiquidProperties,
         NativeShallowLiquid,
         NativeWorld,
         nativeBubbleFloats,
@@ -44,6 +48,83 @@ final class LiquidDetail {
   final int sheet, drops, bubbles;
 }
 
+/// Mist where falling water lands — [LiquidView.mist].
+///
+/// [shareAt] the speed it lands at, of the mass that lands goes up as
+/// droplets [droplet] m across; how much light a cloud of them stops
+/// follows from that: over a length L of cloud holding w kg of water a
+/// cubic metre it lets through e^(−βL), β = 3w / (2ρr) for drops much
+/// larger than light's wavelength, whose extinction efficiency is two (van
+/// de Hulst, Light Scattering by Small Particles, 1957).
+///
+/// The share is the airborne fraction measured off falling water: three
+/// times DOE-HDBK-3010's 8.9·10⁻¹⁰·Ar^0.55, the handbook's own bound for
+/// water-like spills, at the height a free fall lands at that speed from.
+/// That is 3·10⁻⁴ at 10 m/s, what lands clear of a plunge pool measured
+/// as (Sun and colleagues, 2023; Liu and colleagues, 2020), and rises as
+/// the speed to the 3.3; no more than 1.5 %, the most of a jet the flood
+/// spray models turn to spray (`doc/mist_share.md`).
+final class MistSettings {
+  const MistSettings({this.share, this.droplet = 14.8e-6});
+
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  MistSettings copyWith({
+    double? share,
+    double? droplet,
+    bool clearShare = false,
+  }) => MistSettings(
+    share: clearShare ? null : (share ?? this.share),
+    droplet: droplet ?? this.droplet,
+  );
+
+  /// The share of the mass of falling water landing on the liquid that goes
+  /// up as mist, whatever its speed; null for [shareAt]'s law.
+  final double? share;
+
+  /// The mist's droplets' diameter, in metres: the Sauter mean of what a spill of
+  /// water throws into the air, 27 µm by mass with a geometric spread of
+  /// 3.0 (DOE-HDBK-3010-94, table 3-7), 27·e^(−½ ln²3) — what stops light
+  /// for its mass (`doc/mist_share.md`).
+  final double droplet;
+
+  /// The share of water landing at [speed] m/s that goes up as mist:
+  /// [share] when one is given, else the law above, under the world's
+  /// gravity [g] and of a liquid of [viscosity] — see [mistShare].
+  double shareAt(
+    double speed, {
+
+    /// The world's gravity, in metres per second squared.
+    double g = standardGravity,
+    double? viscosity,
+  }) => share ?? mistShare(speed, g: g, viscosity: viscosity);
+}
+
+/// The airborne share of a liquid landing at [speed] m/s
+/// (`doc/mist_share.md`): 3 × 8.9·10⁻¹⁰ Ar^0.55, Ar = ρ_a² g H³ / μ², H
+/// = v² / 2g; at most 0.015.
+///
+/// **g is the world's and μ the liquid's** — [g] a [LiquidView] reads off
+/// its world, [viscosity] off the liquid's preset, water's
+/// ([NativeLiquidProperties.water], 1.0 mPa s) when none is given: on the
+/// Moon a fall lands slower from the same height and throws up less. ρ_a is
+/// not the world's: it is the 1.2 kg/m³ the handbook's correlation was
+/// fitted in (DOE-HDBK-3010-94, eq. 3-13), part of the fit rather than of
+/// any air the water falls through.
+double mistShare(
+  double speed, {
+
+  /// The world's gravity, in metres per second squared.
+  double g = standardGravity,
+  double? viscosity,
+}) {
+  const air = 1.2;
+  final mu = viscosity ?? NativeLiquidProperties.water.viscosity;
+  final fall = speed * speed / (2.0 * g);
+  final archimedes = air * air * g * fall * fall * fall / (mu * mu);
+  return math.min(3.0 * 8.9e-10 * math.pow(archimedes, 0.55), 0.015);
+}
+
 /// [liquid] of [world] drawn into [scene] with [look], over the ground it
 /// was made with.
 ///
@@ -63,8 +144,13 @@ final class LiquidDetail {
 /// it, face to face, and to its neighbours along the lip; the sheet's edges
 /// stand half a face out. It is drawn with the surface's look, which its vertices
 /// tell what it is: clear at the lip, streaked and whitening as it falls,
-/// fraying apart at its foot. Where the drops come down on the water they
-/// raise a mist, drawn with that look as well.
+/// plunging whole into water or fraying through where the core parts it.
+///
+/// **Spray is drawn as the light it stops.** The drops the sheet parts
+/// into, the [mist] they raise where they come down on the water and the
+/// bubbles a plunge drives down are each drawn with that look too, as
+/// clouds as deep as their drops' extinction makes them ([dropShadow]),
+/// so a broken strand falls on as a veil.
 ///
 /// **None of it casts a shadow:** water lets most of the sun through, and a
 /// shadow map knows only through or not — a solid shadow of a waterfall on
@@ -76,9 +162,12 @@ final class LiquidView {
     required List<double> ground,
     required GraphicsDevice device,
     required Scene scene,
-    required Material look,
+    required RenderMaterial look,
     this.detail = LiquidDetail.full,
-  }) : _device = device,
+    this.mist,
+    NativeLiquidProperties? properties,
+  }) : properties = properties ?? NativeLiquidProperties.water,
+       _device = device,
        _ground = List<double>.of(ground) {
     if (ground.length != liquid.cells) {
       throw ArgumentError.value(
@@ -110,7 +199,7 @@ final class LiquidView {
     // tells them apart by what their vertices and instances carry.
     sheetNode = MeshNode(_sheet, look, name: 'falling water')
       ..castsShadow = false;
-    _mist = InstancedMeshNode(
+    _mistNode = InstancedMeshNode(
       DeviceMesh.upload(
         device,
         const SphereShape(radius: 1.0, segments: 10, rings: 6).build(),
@@ -119,32 +208,24 @@ final class LiquidView {
       capacity: math.max(detail.drops ~/ 3, 1),
       name: 'mist',
     )..castsShadow = false;
+    // Drops are drawn as the mist is, a cloud as thick as they make it:
+    // millimetre drops a few metres off are far under a pixel, and what an
+    // eye sees of a falls' spray is the veil they make together.
     _drops = InstancedMeshNode(
       DeviceMesh.upload(
         device,
-        const SphereShape(radius: 1.0, segments: 6, rings: 4).build(),
+        const SphereShape(radius: 1.0, segments: 8, rings: 5).build(),
       ),
-      Material(
-        name: 'drops',
-        baseColor: Vector4(0.92, 0.96, 1.0, 0.6),
-        emissive: Vector3(0.6, 0.65, 0.7),
-        alphaMode: MaterialAlphaMode.blend,
-      ),
+      look,
       capacity: detail.drops,
       name: 'drops',
     )..castsShadow = false;
-    // Each cloud of millimetre bubbles drawn as one bead an eye picks out.
     _bubbles = InstancedMeshNode(
       DeviceMesh.upload(
         device,
-        const SphereShape(radius: 0.03, segments: 6, rings: 4).build(),
+        const SphereShape(radius: 1.0, segments: 8, rings: 5).build(),
       ),
-      Material(
-        name: 'bubbles',
-        baseColor: Vector4(0.95, 0.98, 1.0, 0.55),
-        emissive: Vector3(0.5, 0.55, 0.6),
-        alphaMode: MaterialAlphaMode.blend,
-      ),
+      look,
       capacity: detail.bubbles,
       name: 'bubbles',
     )..castsShadow = false;
@@ -152,8 +233,8 @@ final class LiquidView {
       ..add(surfaceNode)
       ..add(sheetNode)
       ..add(_drops)
-      ..add(_mist)
       ..add(_bubbles);
+    if (mist != null) scene.add(_mistNode);
   }
 
   final NativeWorld _world;
@@ -165,12 +246,21 @@ final class LiquidView {
   /// How much of its falling water is drawn at most.
   final LiquidDetail detail;
 
+  /// The mist where its falling water lands; none for null.
+  final MistSettings? mist;
+
+  /// What the liquid drawn is: the density that weighs a cubic metre of it
+  /// thrown up as mist, the viscosity [MistSettings.shareAt] reads. The
+  /// liquid's own preset, as it was given to the world;
+  /// [NativeLiquidProperties.water] when none is said.
+  final NativeLiquidProperties properties;
+
   final List<double> _ground;
   late final Float32List _vertices;
   late final DeviceMesh _surface;
   late final Float32List _sheetVertices;
   late final DeviceMesh _sheet;
-  late final InstancedMeshNode _drops, _mist, _bubbles;
+  late final InstancedMeshNode _drops, _mistNode, _bubbles;
   final List<_Puff> _puffs = <_Puff>[];
   final Matrix4 _m = Matrix4.identity();
 
@@ -185,28 +275,94 @@ final class LiquidView {
   /// The surface's vertices as the last [update] wrote them.
   Float32List get surfaceVertices => _vertices;
 
+  /// The falling sheet's vertices as the last [update] wrote them, four a
+  /// quad, [sheetQuads] of them.
+  Float32List get sheetVertices => _sheetVertices;
+
   /// The ground under it changed — dug, built on — as the core's
   /// `setShallowGround` was told.
-  set ground(List<double> heights) => _ground.setAll(0, heights);
+  set ground(List<double> heights) {
+    _ground.setAll(0, heights);
+    _stale = true;
+  }
+
+  /// Every node it draws with.
+  List<SceneNode> get nodes => <SceneNode>[
+    surfaceNode,
+    sheetNode,
+    _drops,
+    _mistNode,
+    _bubbles,
+  ];
+
+  /// Its nodes taken out of the scene they are in.
+  void dispose() {
+    for (final node in nodes) {
+      node.removeFromParent();
+    }
+  }
+
+  /// Which of its steps the view takes ([LiquidSteps]).
+  LiquidSteps steps = LiquidSteps.all;
+
+  /// What each step wanted to draw this frame and how much it holds: the
+  /// pieces of drops in the air and the clouds of bubbles past what the
+  /// detail draws.
+  List<(String, int, int)> get wanted => <(String, int, int)>[
+    ('drops', sprayInFlight, detail.drops),
+    ('bubbles', bubbleClouds, detail.bubbles),
+  ];
+
+  /// Whether what was last drawn may no longer be what the core has.
+  bool _stale = true;
 
   /// Everything brought up to date with the world as it stands, [dt]
   /// seconds after the last time: how far the mist off a falls has drifted
   /// and thinned, which a step at sixty a second assumes when not told.
   void update([double dt = 1.0 / 60.0]) {
+    // Water the core lets rest, with nothing in the air over it, is as it
+    // was last drawn.
+    final resting = _world.shallowInfoOf(liquid).resting;
+    if (resting &&
+        !_stale &&
+        sprayInFlight == 0 &&
+        bubbleClouds == 0 &&
+        _puffs.isEmpty) {
+      return;
+    }
+    _stale = !resting;
     final bubbles = _world.readBubbles(of: liquid);
-    _surface.overwriteVertices(
-      _device,
-      0,
-      _writeSurface(bubbles).buffer.asByteData(),
-    );
-    surfaceNode.markBoundsDirty();
+    surfaceNode.isVisible = steps.surface;
+    if (steps.surface) {
+      _surface.overwriteVertices(
+        _device,
+        0,
+        _writeSurface(bubbles).buffer.asByteData(),
+      );
+      surfaceNode.markBoundsDirty();
+    }
     final spray = _world.readSpray(
       capacity: detail.sheet + detail.drops,
       of: liquid,
     );
-    _drawDrops(spray, dt);
-    _drawSheet(spray);
-    _drawBubbles(bubbles);
+    // Drops and the mist where they land come of the same pieces.
+    if (steps.drops || steps.mist) {
+      _drawDrops(spray, dt);
+    } else {
+      _puffs.clear();
+    }
+    if (!steps.drops) _drops.count = 0;
+    if (!steps.mist) {
+      _puffs.clear();
+      _mistNode.count = 0;
+    }
+    sheetNode.isVisible = steps.sheet;
+    if (steps.sheet) _drawSheet(spray, dt);
+    if (steps.bubbles) {
+      _drawBubbles(bubbles);
+    } else {
+      _bubbles.count = 0;
+    }
   }
 
   /// How much of each column is air, of the bubbles in it, spread over the
@@ -377,90 +533,192 @@ final class LiquidView {
       return h.isNaN || (h - _drawn[c]).abs() > fall ? _drawn[c] : h;
     }
 
+    // Written straight into the vertices, as `writeVertex` lays them out: a
+    // river keeps tens of thousands of cells, and three small objects a
+    // cell a frame were most of what drawing it cost.
+    final v = _vertices;
     for (var j = 0; j < nz; j++) {
       for (var i = 0; i < nx; i++) {
         final c = i + j * nx;
         final sunk = _drawn[c].isNaN;
-        final normal = sunk
-            ? Vector3(0.0, 1.0, 0.0)
-            : (Vector3(
-                -(height(c, i + 1, j) - height(c, i - 1, j)) / (2 * cell),
-                1.0,
-                -(height(c, i, j + 1) - height(c, i, j - 1)) / (2 * cell),
-              )..normalize());
-        writeVertex(
-          _vertices,
-          c,
-          Vector3(
-            o.x + (i + 0.5) * cell,
-            o.y + (sunk ? _ground[c] - 0.2 * cell : _drawn[c]),
-            o.z + (j + 0.5) * cell,
-          ),
-          normal,
-          Vector4(
-            (0.5 + flow[2 * c] / 8.0).clamp(0.0, 1.0),
-            (0.5 + flow[2 * c + 1] / 8.0).clamp(0.0, 1.0),
-            (air[c] / 0.03).clamp(0.0, 1.0),
-            1.0,
-          ),
-          uv: (_edge(c, depth[c]), 0.0),
-        );
+        var gx = 0.0, gz = 0.0;
+        if (!sunk) {
+          gx = -(height(c, i + 1, j) - height(c, i - 1, j)) / (2 * cell);
+          gz = -(height(c, i, j + 1) - height(c, i, j - 1)) / (2 * cell);
+        }
+        final unit = 1.0 / math.sqrt(gx * gx + 1.0 + gz * gz);
+        final k = c * vertexFloats;
+        v[k] = o.x + (i + 0.5) * cell;
+        v[k + 1] = o.y + (sunk ? _ground[c] - 0.2 * cell : _drawn[c]);
+        v[k + 2] = o.z + (j + 0.5) * cell;
+        v[k + 3] = gx * unit;
+        v[k + 4] = unit;
+        v[k + 5] = gz * unit;
+        v[k + 6] = _edge(c, depth[c]);
+        v[k + 7] = 0.0;
+        v[k + 8] = 1.0;
+        v[k + 9] = 0.0;
+        v[k + 10] = 0.0;
+        v[k + 11] = 1.0;
+        v[k + 12] = 0.5 + flow[2 * c] / 8.0;
+        v[k + 13] = 0.5 + flow[2 * c + 1] / 8.0;
+        v[k + 14] = (air[c] / 0.03).clamp(0.0, 1.0);
+        v[k + 15] = 1.0;
       }
     }
-    return _vertices;
+    return v;
+  }
+
+  /// The light [volume] m³ of water in drops [diameter] m across stops,
+  /// m²: N drops of radius r each stop Q times their cross-section, N·πr²
+  /// = 3V / (4r) in all, Q by van de Hulst's anomalous diffraction, 2 −
+  /// (4/ρ)·sin ρ + (4/ρ²)(1 − cos ρ), ρ = 2πd(n − 1)/λ, at green light,
+  /// 550 nm, and water's n = 1.333 (van de Hulst, Light Scattering by
+  /// Small Particles, 1957): twice their cross-section for drops much
+  /// larger than the light's wavelength, as rain and spray are, and next
+  /// to nothing for drops much smaller. Over a cloud spread round its
+  /// middle as a cloud of drops thrown with a scatter of speeds spreads,
+  /// normally, σ either way, the optical depth through its middle is that
+  /// over 2πσ² ([cloudDepth]).
+  static double dropShadow({required double volume, required double diameter}) {
+    if (!(diameter > 0.0) || !(volume > 0.0)) return 0.0;
+    final rho = 2.0 * math.pi * diameter * 0.333 / 550e-9;
+    // Below a hundredth, the series' first term, ρ²/2, as the closed form
+    // loses its digits there.
+    final q = rho < 1e-2
+        ? 0.5 * rho * rho
+        : 2.0 -
+              4.0 / rho * math.sin(rho) +
+              4.0 / (rho * rho) * (1.0 - math.cos(rho));
+    return q * 3.0 * volume / (2.0 * diameter);
+  }
+
+  /// The optical depth through the middle of a cloud stopping [shadow] m²
+  /// of light, spread normally [spread] m either way.
+  static double cloudDepth(double shadow, double spread) =>
+      spread <= 0.0 ? 0.0 : shadow / (2.0 * math.pi * spread * spread);
+
+  /// [_m] set to a cloud at [x], [y], [z] spread [spread] m either way,
+  /// [depth] through its middle, and what the look is told of it: a sphere
+  /// out to as many spreads, three at the least, as it takes for the cloud
+  /// to stop under a hundredth of the light there, e^(−R²/2)·τ = 0.01, so
+  /// that even a thick cloud thins to nothing at the sphere's rim and is
+  /// not cut off by it; the depth through the middle, and that many
+  /// spreads.
+  Vector4 _cloud(double x, double y, double z, double spread, double depth) {
+    final reach = math.max(
+      3.0,
+      math.sqrt(2.0 * math.log(math.max(100.0 * depth, 1.0))),
+    );
+    final r = reach * spread;
+    _m
+      ..setIdentity()
+      ..setTranslationRaw(x, y, z)
+      ..scaleByDouble(r, r, r, 1.0);
+    return Vector4(depth, reach, 0.0, 1.0);
   }
 
   void _drawDrops(Float32List spray, double dt) {
     sprayInFlight = spray.length ~/ nativeSprayFloats;
     var drops = 0;
-    for (var k = 0; k < sprayInFlight && drops < detail.drops; k++) {
+    final cell = liquid.cell;
+    final mist = this.mist;
+    // The world's pull and the liquid's own make-up, read once a frame
+    // rather than a drop at a time.
+    final g = _world.gravityMagnitude;
+    final density = properties.density, viscosity = properties.viscosity;
+    for (var k = 0; k < sprayInFlight; k++) {
       final o = k * nativeSprayFloats;
-      if (spray[o + 9] == nativeSpraySheet) continue;
-      // Too small to see is drawn at a size an eye picks out.
-      final d = math.max(spray[o + 7], 0.012);
-      _m
-        ..setIdentity()
-        ..setTranslationRaw(spray[o], spray[o + 1], spray[o + 2])
-        ..scaleByDouble(d, d, d, 1.0);
-      _drops.setTransform(drops++, _m);
-      // Where it comes down on the water fast, every third drop throws up
-      // a puff of mist as well: a plume over the foot of a falls, thick
-      // where most comes down, faint over a lone splash.
-      if (k % 3 == 0 && _puffs.length < _mist.capacity) {
-        final i = ((spray[o] - liquid.origin.x) / liquid.cell).floor();
-        final j = ((spray[o + 2] - liquid.origin.z) / liquid.cell).floor();
-        if (i < 0 || j < 0 || i >= liquid.nx || j >= liquid.nz) continue;
-        final water = _drawn[i + j * liquid.nx];
-        final over = spray[o + 1] - liquid.origin.y - water;
-        // Slower than a fall of a few tens of centimetres, it is a trickle
-        // just leaving a lip over other water, not a landing.
-        final speed2 =
-            spray[o + 3] * spray[o + 3] +
-            spray[o + 4] * spray[o + 4] +
-            spray[o + 5] * spray[o + 5];
-        // And it must be coming down: a drop thrown off a lip flies fast
-        // over the water it left, but it has not landed on it.
-        if (water.isNaN ||
-            over > 0.6 * liquid.cell ||
-            // Below the surface of the cell it is over, it is falling past
-            // a cliff whose top is wet, not landing on water.
-            over < -0.3 * liquid.cell ||
-            speed2 < 6.0 ||
-            spray[o + 4] > -2.0) {
-          continue;
-        }
-        _puffs.add(
-          _Puff(
-            Vector3(spray[o], spray[o + 1], spray[o + 2]),
-            // Thrown out the way the drop was going, slowed by the air.
-            Vector3(spray[o + 3] * 0.15, 0.0, spray[o + 5] * 0.15),
-            0.25 + 0.35 * _hash(k),
-          ),
+      final sheet = spray[o + 9] == nativeSpraySheet;
+      if (!sheet && drops < detail.drops) {
+        // A piece of drops is what one face of a lip, or one cell's
+        // splash, threw in a step: drawn as a cloud spread over a cell
+        // across and as far as it flies in a step, so the clouds thrown
+        // side by side and one after another add up to an even veil, as
+        // thick as its drops make it. Where the sheet broke, its strand
+        // goes on falling as a veil of its own drops, not as a few beads.
+        final speed = math.sqrt(
+          spray[o + 3] * spray[o + 3] +
+              spray[o + 4] * spray[o + 4] +
+              spray[o + 5] * spray[o + 5],
         );
+        final spread = 0.5 * math.max(cell, speed * dt);
+        final shadow = dropShadow(volume: spray[o + 6], diameter: spray[o + 7]);
+        final cloud = _cloud(
+          spray[o],
+          spray[o + 1],
+          spray[o + 2],
+          spread,
+          cloudDepth(shadow, spread),
+        );
+        _drops
+          ..setTransform(drops, _m)
+          ..setInstanceData(drops, cloud);
+        drops++;
       }
+      // Where drops come down on the water, a puff of mist goes up with
+      // the mist's share of the water they bring at the speed they bring
+      // it — more the farther they fell — as wide as the face they
+      // fell from: a plume along the line they land on, thick where most
+      // comes down, faint over a lone splash. A sheet plunging into water
+      // deeper than it is thick goes in whole, the core says, and drives
+      // air down instead of throwing spray up.
+      if (sheet ||
+          mist == null ||
+          _puffs.length >= _mistNode.capacity ||
+          !_landing(spray, o, dt, onWater: true)) {
+        continue;
+      }
+      // The air the falling drops drag down with them turns where they
+      // land and runs out over the water the way they were going over the
+      // ground — a falls' drops forward off its foot, a splash's crown out
+      // all round — so the mist is carried off in billows along the pool,
+      // not heaped on it; straight down, it runs out any way. Slowed by
+      // the air.
+      final speed = math.sqrt(
+        spray[o + 3] * spray[o + 3] +
+            spray[o + 4] * spray[o + 4] +
+            spray[o + 5] * spray[o + 5],
+      );
+      final level = math.sqrt(
+        spray[o + 3] * spray[o + 3] + spray[o + 5] * spray[o + 5],
+      );
+      final heading = level > 1e-3
+          ? math.atan2(spray[o + 5], spray[o + 3])
+          : 2.0 * math.pi * _hash(k + 7);
+      final out = 0.15 * speed;
+      _puffs.add(
+        _Puff(
+          Vector3(spray[o], spray[o + 1], spray[o + 2]),
+          Vector3(out * math.cos(heading), 0.0, out * math.sin(heading)),
+          0.5 * cell * (1.0 + _hash(k)),
+          mist.shareAt(speed, g: g, viscosity: viscosity) *
+              density *
+              spray[o + 6],
+        ),
+      );
     }
     _drops.count = drops;
     _drawMist(dt);
+  }
+
+  /// Whether piece [o] of [spray] comes down within the next [dt] seconds
+  /// on the water drawn under it — or, unless [onWater], on the ground
+  /// where there is none. It must be coming down onto it: a drop thrown
+  /// off a lip flies over the water it left, but has not landed on it;
+  /// below the surface of the cell it is over, it is falling past a cliff
+  /// whose top is wet.
+  bool _landing(Float32List spray, int o, double dt, {bool onWater = false}) {
+    final i = ((spray[o] - liquid.origin.x) / liquid.cell).floor();
+    final j = ((spray[o + 2] - liquid.origin.z) / liquid.cell).floor();
+    if (i < 0 || j < 0 || i >= liquid.nx || j >= liquid.nz) return false;
+    final c = i + j * liquid.nx;
+    final water = _drawn[c];
+    if (onWater && water.isNaN) return false;
+    final over =
+        spray[o + 1] - liquid.origin.y - (water.isNaN ? _ground[c] : water);
+    final falling = -spray[o + 4];
+    return falling > 0.0 && over <= falling * dt && over >= -0.3 * liquid.cell;
   }
 
   /// The mist's puffs, each risen, grown, thinned and carried on by how
@@ -476,23 +734,33 @@ final class LiquidView {
         ..y += 0.45 * dt;
       p.drift.scale(1.0 - 0.8 * dt);
       final t = p.age / _Puff.life;
-      final r = p.size * (1.0 + 2.2 * t);
-      _m
-        ..setIdentity()
-        ..setTranslationRaw(p.at.x, p.at.y, p.at.z)
-        ..scaleByDouble(r, r * 0.8, r, 1.0);
-      // Thickest just after the landing, thinning as it spreads.
-      final thick = 0.07 * (1.0 - t) * (1.0 - t) * _smooth(0.0, 0.15, t);
-      _mist
+      // Spread as far either way as half its size, which grows as it
+      // hangs; as much as its droplets stop through its middle, come in
+      // over its first moments and gone over its last.
+      final spread = 0.5 * p.size * (1.0 + 2.2 * t);
+      final shadow = dropShadow(
+        volume: p.kilograms / properties.density,
+        diameter: this.mist!.droplet,
+      );
+      final cloud = _cloud(
+        p.at.x,
+        p.at.y,
+        p.at.z,
+        spread,
+        cloudDepth(shadow, spread) *
+            _smooth(0.0, 0.15, t) *
+            (1.0 - _smooth(0.8, 1.0, t)),
+      );
+      _mistNode
         ..setTransform(mist, _m)
-        ..setInstanceData(mist, Vector4(thick, 0.0, 0.0, 1.0));
+        ..setInstanceData(mist, cloud);
       mist++;
       return false;
     });
-    _mist.count = mist;
+    _mistNode.count = mist;
   }
 
-  void _drawSheet(Float32List spray) {
+  void _drawSheet(Float32List spray, double dt) {
     // A row starts again where a face's number does not rise, the order
     // the core throws a step's pieces in.
     final rows = <Map<int, int>>[];
@@ -545,20 +813,43 @@ final class LiquidView {
     // The foot is the lowest piece of the run sewn unbroken to the lip:
     // past the first tear the rest of the strand is drops, and a stretch
     // sewn together again lower down is not where this one ends.
-    final lip = <int, double>{}, foot = <int, double>{};
+    // Rows are a step apart, so how many rows a piece is under its face's
+    // lip is how many steps ago it left it.
+    final lip = <int, double>{}, lipRow = <int, int>{}, footRow = <int, int>{};
+    final footAt = <int, int>{};
     final broken = <int>{};
     for (var r = 0; r < rows.length; r++) {
       for (final MapEntry(key: face, value: o) in rows[r].entries) {
         lip.putIfAbsent(face, () => spray[o + 1]);
+        lipRow.putIfAbsent(face, () => r);
         if (broken.contains(face)) continue;
         final above = r == 0 ? null : rows[r - 1][face];
         if (above == null) continue;
         if (apart(above, o) <= torn) {
-          foot[face] = math.min(foot[face] ?? spray[o + 1], spray[o + 1]);
+          footRow[face] = r;
+          footAt[face] = o;
         } else {
           broken.add(face);
         }
       }
+    }
+    // A strand whose foot is about to land — on the water, or the ground
+    // where there is none — plunges whole, as a falls of a few metres
+    // does. One whose foot is still in the air ends where the core broke
+    // its next piece into drops: the ripples on it grow an e-fold each
+    // Weber time, and twelve part it (Grant and Middleman), so it is
+    // holed through, and frays, over the last of the twelve, the last
+    // twelfth of the time its foot has fallen; then the veil of its drops
+    // goes on below it.
+    final plunges = <int>{
+      for (final MapEntry(key: face, value: o) in footAt.entries)
+        if (_landing(spray, o, dt)) face,
+    };
+    double fray(int face, int r) {
+      final age = (footRow[face] ?? 0) - (lipRow[face] ?? 0);
+      if (plunges.contains(face) || age <= 0) return 0.0;
+      final s = r - lipRow[face]!;
+      return ((s - age * 11.0 / 12.0) / (age / 12.0)).clamp(0.0, 1.0);
     }
 
     // Faces side by side on a lip: faces across x are numbered one apart,
@@ -575,7 +866,7 @@ final class LiquidView {
           quads * 4 + k,
           corner.at,
           normal,
-          corner.colour,
+          corner.color,
           uv: corner.uv,
         );
       }
@@ -587,23 +878,20 @@ final class LiquidView {
     // that coordinate is one plus how far under its lip the corner is, m,
     // and the first how far along the lip, m, so the look's streaks run
     // down the fall and stay with the water; the colour's red is how far
-    // down its face's strand of the sheet it is, nought at the lip and one
-    // at the strand's foot, and its green how thick the water is, three
-    // centimetres and more counting as one. Its alpha is what the sheet's
-    // outline leaves:
-    // its edges thin to nothing over half a face, not a cut ribbon, and
-    // its last stretch, where the core breaks it into drops, thins out.
-    _SheetCorner piece(int o, int face, double side) {
+    // through its fraying the strand is there, nought above its last
+    // e-fold and one where it parts, and its green how thick the water
+    // is, three centimetres and more counting as one. Its alpha is what
+    // the sheet's outline leaves: its edges thin to nothing over half a
+    // face, not a cut ribbon, and it is gone where the strand parts.
+    _SheetCorner piece(int o, int face, int r, double side) {
       final at = point(o, side);
       final top = lip[face] ?? at.y;
-      final fallen = ((top - at.y) / math.max(top - (foot[face] ?? at.y), 1e-3))
-          .clamp(0.0, 1.0);
+      final frayed = fray(face, r);
       final thick = (spray[o + 8] / 0.03).clamp(0.0, 1.0);
-      final last = 1.0 - _smooth(0.5, 1.0, fallen);
       final edge = 1.0 - _smooth(0.2, 0.5, side.abs());
       return (
         at: at,
-        colour: Vector4(fallen, thick, 0.0, last * edge),
+        color: Vector4(frayed, thick, 0.0, (1.0 - frayed) * edge),
         uv: (at.dot(acrossOf(o)), 1.0 + math.max(top - at.y, 0.0)),
       );
     }
@@ -620,27 +908,27 @@ final class LiquidView {
         final right = i == faces.length - 1 || !beside(f, faces[i + 1]);
         if (left) {
           quad(
-            piece(a, f, -0.5),
-            piece(a, f, 0.0),
-            piece(b, f, -0.5),
-            piece(b, f, 0.0),
+            piece(a, f, r, -0.5),
+            piece(a, f, r, 0.0),
+            piece(b, f, r + 1, -0.5),
+            piece(b, f, r + 1, 0.0),
           );
         }
         if (right) {
           quad(
-            piece(a, f, 0.0),
-            piece(a, f, 0.5),
-            piece(b, f, 0.0),
-            piece(b, f, 0.5),
+            piece(a, f, r, 0.0),
+            piece(a, f, r, 0.5),
+            piece(b, f, r + 1, 0.0),
+            piece(b, f, r + 1, 0.5),
           );
         } else {
           final g = faces[i + 1];
           if (apart(a, now[g]!) > torn) continue;
           quad(
-            piece(a, f, 0.0),
-            piece(now[g]!, g, 0.0),
-            piece(b, f, 0.0),
-            piece(next[g]!, g, 0.0),
+            piece(a, f, r, 0.0),
+            piece(now[g]!, g, r, 0.0),
+            piece(b, f, r + 1, 0.0),
+            piece(next[g]!, g, r + 1, 0.0),
           );
         }
       }
@@ -668,12 +956,43 @@ final class LiquidView {
   void _drawBubbles(Float32List bubbles) {
     bubbleClouds = bubbles.length ~/ nativeBubbleFloats;
     final drawn = math.min(bubbleClouds, detail.bubbles);
+    // A cloud of bubbles stops light as a cloud of drops does, each
+    // bubble twice its cross-section: what a plunging sheet drags down in
+    // a step under a cell, spread over that cell — but no further than
+    // keeps it under the surface, which it is gone at — white under the
+    // water where much air is driven in and gone where little is.
+    final cell = liquid.cell;
     for (var k = 0; k < drawn; k++) {
       final o = k * nativeBubbleFloats;
-      _m
-        ..setIdentity()
-        ..setTranslationRaw(bubbles[o], bubbles[o + 1], bubbles[o + 2]);
-      _bubbles.setTransform(k, _m);
+      final i = ((bubbles[o] - liquid.origin.x) / cell).floor();
+      final j = ((bubbles[o + 2] - liquid.origin.z) / cell).floor();
+      final inside = i >= 0 && j >= 0 && i < liquid.nx && j < liquid.nz;
+      final surface = inside ? _drawn[i + j * liquid.nx] : double.nan;
+      final under = surface.isNaN
+          ? 0.0
+          : liquid.origin.y + surface - bubbles[o + 1];
+      final shadow = under > 0.0
+          ? dropShadow(volume: bubbles[o + 4], diameter: 2.0 * bubbles[o + 3])
+          : 0.0;
+      // Drawn as far round as it takes to thin out, that far under: a
+      // narrower cloud is deeper and takes more spreads to thin out, so
+      // the two are settled together.
+      var spread = math.max(math.min(0.5 * cell, under / 3.0), 1e-6);
+      for (var settle = 0; settle < 8; settle++) {
+        final reach = _cloud(0, 0, 0, spread, cloudDepth(shadow, spread)).y;
+        if (reach * spread <= under) break;
+        spread = math.max(under / reach, 1e-6);
+      }
+      final cloud = _cloud(
+        bubbles[o],
+        bubbles[o + 1],
+        bubbles[o + 2],
+        spread,
+        cloudDepth(shadow, spread),
+      );
+      _bubbles
+        ..setTransform(k, _m)
+        ..setInstanceData(k, cloud);
     }
     _bubbles.count = drawn;
   }
@@ -681,17 +1000,25 @@ final class LiquidView {
 
 /// A corner of the falling sheet: where it is, and what the look is told
 /// of it.
-typedef _SheetCorner = ({Vector3 at, Vector4 colour, (double, double) uv});
+typedef _SheetCorner = ({Vector3 at, Vector4 color, (double, double) uv});
 
 /// A puff of mist off falling water landing: where it is, how it drifts,
-/// how big it began and how long it has hung in the air.
+/// how big it began, the water it holds and how long it has hung in the
+/// air.
 final class _Puff {
-  _Puff(this.at, this.drift, this.size);
+  _Puff(this.at, this.drift, this.size, this.kilograms);
 
   /// Seconds a puff hangs before it has thinned away.
   static const double life = 1.6;
 
   final Vector3 at, drift;
+
+  /// How big it began, in metres.
   final double size;
+
+  /// The water it holds as droplets, kg.
+  final double kilograms;
+
+  /// How long it has hung in the air, in seconds.
   double age = 0.0;
 }

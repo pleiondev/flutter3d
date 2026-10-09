@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+import 'package:flutter3d_webgl/src/webgl_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
@@ -67,11 +68,11 @@ void main() {
     // The engine's own: the hashed splat writes the colour alone, and a
     // G-buffer stage writes three.
     expect(
-      fragmentOutputNames(engineShaders.fragment['SplatHashed']!),
+      fragmentOutputNames(webGlEngineShaders.fragment['SplatHashed']!),
       <String>{'frag_color'},
     );
     expect(
-      engineShaders.fragment.values.map(fragmentOutputNames),
+      webGlEngineShaders.fragment.values.map(fragmentOutputNames),
       everyElement(isNotEmpty),
       reason:
           'a fragment stage whose outputs cannot be read writes every '
@@ -84,7 +85,7 @@ void main() {
     // Mutation: leave both draw buffers active whatever the program writes.
     // The draw is rejected with INVALID_OPERATION and the first attachment
     // keeps its clear colour.
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: _size,
       height: _size,
       sources: const ShaderSources(
@@ -92,7 +93,6 @@ void main() {
         <String, String>{'One': _one, 'Two': _two},
       ),
     );
-    if (device == null) fail('no WebGL2 context in this browser');
     addTearDown(device.dispose);
 
     final vertex = device.shaders['Cover']!;
@@ -100,7 +100,7 @@ void main() {
     final two = device.createPipeline(vertex, device.shaders['Two']!);
 
     TextureHandle target() => device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _size,
         height: _size,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -118,25 +118,25 @@ void main() {
       ..bindVertexData(ByteData.sublistView(_cover), 3)
       ..bindIndexData(ByteData.sublistView(_indices), IndexType.int16, 3)
       ..draw();
-    Future<List<int>> centre(TextureHandle texture) async {
-      final pixels = (await device.readPixels(texture))!.buffer.asUint8List();
+    Future<List<int>> center(TextureHandle texture) async {
+      final pixels = (await device.readback(texture)).buffer.asUint8List();
       final at = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
       return pixels.sublist(at, at + 4);
     }
 
-    final colour = target();
+    final color = target();
     final velocity = target();
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
-        colors: <ColorTarget>[cleared(colour), cleared(velocity)],
+        colors: <ColorTarget>[cleared(color), cleared(velocity)],
       ),
     );
     drawWith(pass, one);
     pass.submit();
 
     expect(device.debugDrainErrors('one output, two attachments'), isNull);
-    expect(await centre(colour), <int>[255, 0, 0, 255]);
-    expect(await centre(velocity), <int>[64, 64, 64, 255]);
+    expect(await center(color), <int>[255, 0, 0, 255]);
+    expect(await center(velocity), <int>[64, 64, 64, 255]);
 
     // And the full list back for a stage that writes both, in the same pass
     // after the one that did not: the second attachment must be drawn again.
@@ -152,7 +152,7 @@ void main() {
     both.submit();
 
     expect(device.debugDrainErrors('two outputs after one'), isNull);
-    expect(await centre(colour2), <int>[0, 0, 255, 255]);
-    expect(await centre(velocity2), <int>[0, 255, 0, 255]);
+    expect(await center(colour2), <int>[0, 0, 255, 255]);
+    expect(await center(velocity2), <int>[0, 255, 0, 255]);
   });
 }

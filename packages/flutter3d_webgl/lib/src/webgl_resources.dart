@@ -15,6 +15,7 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -39,6 +40,14 @@ void _bindForUpload(
   web.WebGL2RenderingContext gl,
   int target,
   web.WebGLTexture? texture,
+) => webglBindForUpload(gl, target, texture);
+
+/// Binds [texture] to [target] on [kUploadTextureUnit] — for every file that
+/// creates or writes a texture outside a draw. See [kUploadTextureUnit].
+void webglBindForUpload(
+  web.WebGL2RenderingContext gl,
+  int target,
+  web.WebGLTexture? texture,
 ) {
   gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + kUploadTextureUnit);
   gl.bindTexture(target, texture);
@@ -46,15 +55,17 @@ void _bindForUpload(
 
 /// Wraps [backend] and [spec] into the [TextureHandle] every creation path
 /// here returns.
-TextureHandle webglTextureHandle(WebGlTexture backend, RenderTargetSpec spec) =>
-    TextureHandle(
-      backend: backend,
-      width: spec.width,
-      height: spec.height,
-      format: spec.format,
-      sampleCount: spec.sampleCount,
-      storageMode: spec.storageMode,
-    );
+TextureHandle webglTextureHandle(
+  WebGlTexture backend,
+  RenderTargetDescriptor spec,
+) => wrapTexture(
+  backend: backend,
+  width: spec.width,
+  height: spec.height,
+  format: spec.format,
+  sampleCount: spec.sampleCount,
+  storageMode: spec.storageMode,
+);
 
 /// [faces] in `+X, −X, +Y, −Y, +Z, −Z` order as one cube texture, or null when
 /// they disagree about size or count. See `GraphicsDevice.createCubeTextureFromPixels`.
@@ -135,7 +146,7 @@ TextureHandle? webglCreateCubeTextureFromPixels(
   }
   if (tight) gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 4);
 
-  return TextureHandle(
+  return wrapTexture(
     backend: WebGlTexture(
       texture: texture,
       target: web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
@@ -177,7 +188,7 @@ TextureHandle webglCreateCubeRenderTarget(
     size,
     size,
   );
-  return TextureHandle(
+  return wrapTexture(
     backend: WebGlTexture(
       texture: texture,
       target: web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
@@ -199,7 +210,7 @@ TextureHandle webglCreateTexture(
   web.WebGL2RenderingContext gl,
   List<web.WebGLTexture> persistentTextures,
   List<web.WebGLRenderbuffer> persistentRenderbuffers,
-  RenderTargetSpec spec, {
+  RenderTargetDescriptor spec, {
   int levels = 1,
   bool rendered = true,
 }) {
@@ -311,7 +322,7 @@ TextureHandle? webglCreateTextureFromPixels(
     gl,
     persistentTextures,
     persistentRenderbuffers,
-    RenderTargetSpec(width: width, height: height, format: format),
+    RenderTargetDescriptor(width: width, height: height, format: format),
     levels: levels,
     // Its rows come from the caller, not from a draw, so they are already the
     // way up the engine states an image. See [WebGlTexture.rendered].
@@ -359,6 +370,9 @@ TextureHandle? webglCreateTextureFromPixels(
     // and just as silent. `glGenerateMipmap` is deliberately not called: the
     // levels are the engine's, identical on three backends, and generating a
     // second set here would put this backend one filter away from the others.
+    // An image the browser decoded is the exception, and a different call:
+    // its pixels never reach Dart, so its chain is the GPU's
+    // (`webgl_image_decode.dart`).
     gl.texParameteri(
       web.WebGLRenderingContext.TEXTURE_2D,
       web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL,
@@ -375,16 +389,46 @@ TextureHandle? webglCreateTextureFromPixels(
 /// either a byte view is a type error in the browser rather than a
 /// reinterpretation. Views, not copies — the bytes are read before this
 /// returns to the caller.
+///
+/// The same holds for every other type a format in [webglTransferOf] names:
+/// `BYTE` wants an `Int8Array`, `SHORT` an `Int16Array`, `UNSIGNED_SHORT` a
+/// `Uint16Array`, `INT` an `Int32Array`, and `UNSIGNED_INT` and the packed
+/// `*_REV` / `UNSIGNED_INT_24_8` types a `Uint32Array`.
 JSAny webglTransferView(ByteData bytes, int type) => switch (type) {
   web.WebGLRenderingContext.FLOAT => Float32List.view(
     bytes.buffer,
     bytes.offsetInBytes,
     bytes.lengthInBytes ~/ 4,
   ).toJS,
-  web.WebGL2RenderingContext.HALF_FLOAT => Uint16List.view(
+  web.WebGL2RenderingContext.HALF_FLOAT ||
+  web.WebGLRenderingContext.UNSIGNED_SHORT => Uint16List.view(
     bytes.buffer,
     bytes.offsetInBytes,
     bytes.lengthInBytes ~/ 2,
+  ).toJS,
+  web.WebGLRenderingContext.BYTE => Int8List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  ).toJS,
+  web.WebGLRenderingContext.SHORT => Int16List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes ~/ 2,
+  ).toJS,
+  web.WebGLRenderingContext.INT => Int32List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes ~/ 4,
+  ).toJS,
+  web.WebGLRenderingContext.UNSIGNED_INT ||
+  web.WebGL2RenderingContext.UNSIGNED_INT_2_10_10_10_REV ||
+  web.WebGL2RenderingContext.UNSIGNED_INT_10F_11F_11F_REV ||
+  web.WebGL2RenderingContext.UNSIGNED_INT_5_9_9_9_REV ||
+  web.WebGL2RenderingContext.UNSIGNED_INT_24_8 => Uint32List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes ~/ 4,
   ).toJS,
   _ => Uint8List.view(
     bytes.buffer,
@@ -548,7 +592,7 @@ TextureHandle? _webglCreateCompressedTextureFromPixels(
 
   return webglTextureHandle(
     WebGlTexture(texture: texture, rendered: false),
-    RenderTargetSpec(width: width, height: height, format: format),
+    RenderTargetDescriptor(width: width, height: height, format: format),
   );
 }
 
@@ -559,8 +603,9 @@ GeometryBuffer webglUploadGeometry(
   List<web.WebGLBuffer> persistentBuffers,
   Map<web.WebGLBuffer, int> bufferTargets,
   ByteData bytes,
-  GeometryUsage usage,
-) {
+  GeometryUsage usage, {
+  void Function(GeometryBuffer)? release,
+}) {
   final buffer = gl.createBuffer();
   if (buffer != null) persistentBuffers.add(buffer);
   // **WebGL binds a buffer to its target for life.** One bound to
@@ -586,10 +631,11 @@ GeometryBuffer webglUploadGeometry(
   // target it was made against, since nothing in `GeometryBuffer` itself
   // carries a `GeometryUsage` to ask a second time.
   if (buffer != null) bufferTargets[buffer] = target;
-  return GeometryBuffer(
+  return wrapGeometry(
     backend: buffer!,
     offsetInBytes: 0,
     lengthInBytes: bytes.lengthInBytes,
+    release: release,
   );
 }
 

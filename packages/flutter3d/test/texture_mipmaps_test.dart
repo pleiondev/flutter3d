@@ -4,7 +4,7 @@
 ///
 /// Everything a chain needs existed for months and nothing built one: `MipChain`
 /// was written and tested, all three backends upload a chain, all three answer
-/// `supportsMipmaps`, and `SamplerOptions.trilinearRepeat` was sitting there for
+/// `DeviceFeature.manualMipmaps`, and `SamplerDescriptor.trilinearRepeat` was sitting there for
 /// exactly this — but the one production call that uploads a decoded image
 /// passed no levels, so every model texture in every app was a single level.
 /// The visible cost is a minified surface that crawls as the camera moves.
@@ -21,20 +21,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// A device that says it cannot sample a hand-built chain.
 ///
-/// Not hypothetical: `GraphicsDevice.supportsMipmaps` exists because on an
+/// Not hypothetical: `DeviceFeature.manualMipmaps` exists because on an
 /// OpenGL ES 2 device without `GL_APPLE_texture_max_level` such a texture
 /// samples as **black** — not blurrier, black.
-final class _NoMipmaps implements GraphicsDevice {
+final class _NoMipmaps extends GraphicsDevice {
   @override
-  bool get supportsMipmaps => false;
+  DeviceFeatures get features => DeviceFeatures.none;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _WithMipmaps implements GraphicsDevice {
+final class _WithMipmaps extends GraphicsDevice {
   @override
-  bool get supportsMipmaps => true;
+  DeviceFeatures get features =>
+      DeviceFeatures(const <DeviceFeature>[DeviceFeature.manualMipmaps]);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

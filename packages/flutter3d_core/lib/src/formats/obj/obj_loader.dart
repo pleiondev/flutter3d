@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../asset_resolver.dart';
@@ -42,7 +43,7 @@ enum ObjNormals {
 /// permissive by design — unknown directives are recorded as warnings and
 /// skipped rather than treated as errors. That holds for the `.mtl` half too:
 /// see [parseMtl], which reports its own once each.
-final class ObjLoader implements ModelDecoder {
+final class ObjLoader extends ModelDecoder {
   ObjLoader({
     this.layout = VertexLayout.standard,
     this.normals = ObjNormals.smooth,

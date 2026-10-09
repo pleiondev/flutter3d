@@ -1,6 +1,9 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_target.dart' show AnimationTarget;
+import '../render/debug_view.dart' show DebugView;
 import 'light_node.dart' show LightChannels;
 import 'scene.dart';
 
@@ -12,9 +15,9 @@ import 'scene.dart';
 ///
 /// ## World transforms are never stale
 ///
-/// three.js and Babylon both need an explicit update pass (`updateMatrixWorld`,
-/// `computeWorldMatrix`); forgetting it yields a frame of lag, which is a classic
-/// and annoying bug. Instead every node carries a globally unique version stamp,
+/// A scene graph that needs an explicit update pass has a bug waiting in it:
+/// forget the pass and a frame lags behind. Here every node carries a globally
+/// unique version stamp,
 /// and [worldMatrix] compares its parent's current stamp against the one it last
 /// saw. A mismatch means recompute, walking up to resolve ancestors first.
 ///
@@ -27,7 +30,7 @@ import 'scene.dart';
 ///    parent the same number the old one had, and the change would go unnoticed.
 ///  * [worldVersion] doubles as a cheap invalidation key for anything derived
 ///    from the transform — world bounds, view matrices, normal matrices.
-base class SceneNode implements AnimationTarget {
+base class SceneNode with AnimationTarget {
   SceneNode({this.name});
 
   String? name;
@@ -44,44 +47,6 @@ base class SceneNode implements AnimationTarget {
   /// verified itself at.
   static int _dirtyEpoch = 1;
 
-  /// The counter as a public reading: "has anything anywhere changed since?"
-  ///
-  /// **What it is for — `gfx-62n`.** The lazy scheme above has one gap that
-  /// only shows at scale: there is no way to ask whether a frame needs to
-  /// redo work derived from transforms, short of reading every transform,
-  /// which is the work. `RenderList` hit this exactly. Keeping its spatial
-  /// tree meant repacking every mesh's bounding sphere each frame to find out
-  /// whether any had moved, and at 50 000 meshes that pack cost 3.3 ms —
-  /// as much as the cull it was there to make unnecessary, so the tree could
-  /// not win at any size.
-  ///
-  /// A reader that holds a previous value and finds it unchanged knows no node
-  /// was touched: not moved, not reparented, not added, not removed, not
-  /// hidden, and no mesh's own bounds invalidated.
-  ///
-  /// It over-reports on purpose. Setting a node to the position it already
-  /// holds advances it, and so does a move that nothing derived from
-  /// transforms cares about, because the alternative is comparing values on
-  /// every setter and paying for the comparison always to save a frame
-  /// rarely. Over-reporting costs a frame of redone work; under-reporting
-  /// draws the wrong picture.
-  static int get changeEpoch => _dirtyEpoch;
-
-  /// Advances [changeEpoch] for a change the graph itself cannot see.
-  ///
-  /// The one caller is `MeshNode.markBoundsDirty`, which is the only way
-  /// something a reader derived from the graph goes stale without a transform
-  /// being touched.
-  static void noteChange() => _dirtyEpoch++;
-
-  /// How many times a [worldMatrix] read has had to walk to the root.
-  ///
-  /// Here because the saving `gfx-65n` is about is invisible in a picture: a
-  /// frame that walks every ancestor of every drawable twice per pass draws
-  /// exactly what a frame that walks none of them draws. A count is what a test
-  /// can hold to, and what this one holds to is that a second read of an
-  /// unmoved node adds nothing.
-  static int get ancestorWalks => _ancestorWalks;
   static int _ancestorWalks = 0;
 
   /// Records that this node's local transform no longer matches its matrix.
@@ -115,10 +80,10 @@ base class SceneNode implements AnimationTarget {
   int _verifiedEpoch = 0;
 
   /// Whether this node and its subtree are drawn.
-  bool get visible => _visible;
+  bool get isVisible => _visible;
 
-  set visible(bool value) {
-    // Hiding a branch changes what [visibleInHierarchy] answers for everything
+  set isVisible(bool value) {
+    // Hiding a branch changes what [isVisibleInHierarchy] answers for everything
     // under it, and that answer is cached on the epoch — `gfx-65n`. Guarded on
     // the value because this is the one setter where the comparison is free and
     // the common write is `visible = visible`: `LodGroup` sets every level's
@@ -130,8 +95,8 @@ base class SceneNode implements AnimationTarget {
 
   bool _visible = true;
 
-  /// Bitmask filtered against a render view's mask, in the manner of three.js
-  /// layers. Bit 0 is the default layer.
+  /// Bitmask filtered against a render view's mask: a node is drawn in a view
+  /// when the two share a bit. Bit 0 is the default layer.
   int layerMask = 1;
 
   /// Which light channels this node accepts — `gfx-12n`.
@@ -140,12 +105,51 @@ base class SceneNode implements AnimationTarget {
   /// masks share a bit. Every bit by default, so a scene that has never heard
   /// of channels is lit as it always was.
   ///
-  /// **Not inherited down the graph**, unlike [visible]. A channel is a
+  /// **Not inherited down the graph**, unlike [isVisible]. A channel is a
   /// statement about one surface — the sky dome that the torch must not
   /// reach — and making it inherit would mean a prop parented to a lamp post
   /// silently changing what lights it. A caller who wants a subtree to share
   /// a channel sets it on the subtree, which is a loop they can read.
   int lightChannels = LightChannels.all;
+
+  /// The debug view this node and its subtree are drawn with, in place of
+  /// the frame's — `A5.21`. Null, the default, takes the nearest
+  /// ancestor's, and the frame's `RenderSettings.debugView` where no
+  /// ancestor sets one.
+  ///
+  /// **Inherited down the graph**, unlike [lightChannels]: the question it
+  /// answers — "show me this character's normals", "keep the terrain lit
+  /// while everything else shows its albedo" — is about a whole branch.
+  /// A channel set here covers the whole frame and ignores the wipe;
+  /// [DebugView.off] here excludes the subtree, which is drawn lit wherever
+  /// the frame shows a channel. Like the sky, a lit surface on a side that
+  /// shows a channel reaches the screen without the tone curve.
+  DebugView? get debugView => _debugView;
+
+  set debugView(DebugView? value) {
+    if (identical(_debugView, value)) return;
+    if (_debugView == null) _debugViewsSet++;
+    if (value == null) _debugViewsSet--;
+    _debugView = value;
+  }
+
+  DebugView? _debugView;
+
+  /// How many nodes have a [debugView] of their own, so a frame where none
+  /// does walks no ancestors to find out. A node dropped while it holds one
+  /// keeps the count up, which costs a walk and never a wrong answer.
+  static int _debugViewsSet = 0;
+
+  /// The view this node is drawn with: its own [debugView], or the nearest
+  /// ancestor's, or null when the frame's applies.
+  DebugView? get debugViewInHierarchy {
+    if (_debugViewsSet == 0) return null;
+    for (SceneNode? node = this; node != null; node = node._parent) {
+      final own = node._debugView;
+      if (own != null) return own;
+    }
+    return null;
+  }
 
   SceneNode? get parent => _parent;
 
@@ -204,8 +208,8 @@ base class SceneNode implements AnimationTarget {
   /// Replaces the local transform by decomposing a matrix.
   ///
   /// Lossy for shear: the node stores TRS, so a sheared matrix cannot round
-  /// trip. glTF `matrix` nodes are decomposed the same way by three.js and
-  /// Babylon, and shear in authored assets is vanishingly rare.
+  /// trip. A glTF `matrix` node is decomposed the same way when it is loaded,
+  /// and shear in authored assets is vanishingly rare.
   ///
   /// **`_invalidateWorld`, not `_bumpWorld`.** `_localMatrix` is already
   /// current here — [value] was written straight into it — so what is stale
@@ -236,6 +240,43 @@ base class SceneNode implements AnimationTarget {
 
   Vector3 readScale([Vector3? out]) => (out ?? Vector3.zero())..setFrom(_scale);
 
+  /// Where this node is in the world, in double precision: its scene's
+  /// [Scene.origin] plus the translation of [worldMatrix].
+  ///
+  /// **The one world-space answer, since 1.0** (decision 3 of the API
+  /// review). The node's own transforms stay float32 and relative to the
+  /// scene's origin — which is what the GPU draws and what stays exact while
+  /// the origin is kept near the action ([Scene.shiftOrigin]) — and this adds
+  /// the origin back in doubles. A node not in a scene answers relative to
+  /// [WorldPosition.origin].
+  WorldPosition get worldPosition {
+    final m = worldMatrix.storage;
+    final origin = _scene?.origin ?? WorldPosition.origin;
+    return WorldPosition(origin.x + m[12], origin.y + m[13], origin.z + m[14]);
+  }
+
+  /// Moves this node so that [worldPosition] is [position] — what a game
+  /// placing something by a simulation's double-precision position calls: the difference
+  /// from the scene's origin is narrowed to float32 once, and taken through
+  /// the parent's inverse when the node has one.
+  void setWorldPosition(WorldPosition position) {
+    final origin = _scene?.origin ?? WorldPosition.origin;
+    final target = Vector3(
+      position.x - origin.x,
+      position.y - origin.y,
+      position.z - origin.z,
+    );
+    final up = parent;
+    if (up != null) {
+      final inverse = Matrix4.copy(up.worldMatrix)..invert();
+      inverse.transform3(target);
+    }
+    setPositionFrom(target);
+  }
+
+  /// The translation of [worldMatrix]: this node's position in its scene's
+  /// own space, float32 and relative to [Scene.origin]. [worldPosition] is
+  /// the same point in the world.
   Vector3 readWorldPosition([Vector3? out]) {
     final result = out ?? Vector3.zero();
     final m = worldMatrix.storage;
@@ -332,8 +373,8 @@ base class SceneNode implements AnimationTarget {
 
   /// Aims the node's local -Z along [direction], expressed in the parent's space.
   ///
-  /// -Z is the forward axis for cameras in glTF, three.js and Babylon alike, so
-  /// this aims a camera, a spot light or a probe identically.
+  /// -Z is the forward axis for cameras here and in glTF, so this aims a
+  /// camera, a spot light or a probe identically.
   ///
   /// Working in parent space is what makes a child of a moving rig easy: a light
   /// parented to a camera gets a fixed local direction here and then follows the
@@ -427,7 +468,7 @@ base class SceneNode implements AnimationTarget {
 
   /// Adds [child] while preserving its current world transform.
   ///
-  /// The counterpart to three.js `attach`: use it when reparenting should not
+  /// The counterpart to [add]: use it when reparenting should not
   /// visibly move anything, which is almost always what a user expects when
   /// grouping existing objects.
   void attach(SceneNode child) {
@@ -481,7 +522,7 @@ base class SceneNode implements AnimationTarget {
   ///
   /// The box is in world space and it is grown by whatever
   /// [MeshNode.frustumCulled] refuses: a subtree holding a node that opted out
-  /// of culling answers [subtreeAlwaysDrawn], and a caller that rejects on this
+  /// of culling answers [isSubtreeAlwaysDrawn], and a caller that rejects on this
   /// box has to honour that or a sky dome disappears.
   Aabb3? get subtreeBounds {
     if (_subtreeEpoch == _dirtyEpoch) return _subtreeBounds;
@@ -493,7 +534,7 @@ base class SceneNode implements AnimationTarget {
       // A fresh box rather than the node's own: the union below writes into it,
       // and a `MeshNode`'s world bounds are the cache the whole engine reads.
       box = Aabb3.copy(box);
-      _subtreeAlwaysDrawn = !ownBoundsAreCullable;
+      _subtreeAlwaysDrawn = !hasCullableOwnBounds;
     }
 
     for (var i = 0; i < _children.length; i++) {
@@ -514,7 +555,7 @@ base class SceneNode implements AnimationTarget {
   /// Whether anything in this subtree has opted out of frustum culling.
   ///
   /// Reading it resolves [subtreeBounds], which is what computes it.
-  bool get subtreeAlwaysDrawn {
+  bool get isSubtreeAlwaysDrawn {
     subtreeBounds;
     return _subtreeAlwaysDrawn;
   }
@@ -533,8 +574,8 @@ base class SceneNode implements AnimationTarget {
   ///
   /// For `MeshNode` to override from its own `frustumCulled`, so that a subtree
   /// holding a sky dome or a held weapon cannot be rejected whole. Nothing else
-  /// calls it; [subtreeAlwaysDrawn] is the reading a caller wants.
-  bool get ownBoundsAreCullable => true;
+  /// calls it; [isSubtreeAlwaysDrawn] is the reading a caller wants.
+  bool get hasCullableOwnBounds => true;
 
   Aabb3? _subtreeBounds;
   int _subtreeEpoch = 0;
@@ -563,7 +604,7 @@ base class SceneNode implements AnimationTarget {
   }
 
   /// True when this node and every ancestor is visible.
-  bool get visibleInHierarchy {
+  bool get isVisibleInHierarchy {
     // Cached on the epoch for the reason [worldMatrix] is — `gfx-65n`. This one
     // is read from seventeen call sites, and the cull path alone asks it once
     // per mesh per pass, so a deep hierarchy paid a second full ancestor walk
@@ -611,3 +652,25 @@ base class SceneNode implements AnimationTarget {
   @override
   String toString() => '$runtimeType(${name ?? 'unnamed'})';
 }
+
+/// The scene graph's change counter as a reading: "has anything anywhere
+/// changed since?" — `gfx-62n`.
+///
+/// A reader that holds a previous value and finds it unchanged knows no node
+/// was touched: not moved, not reparented, not added, not removed, not
+/// hidden, and no mesh's own bounds invalidated. It over-reports on purpose;
+/// over-reporting costs a frame of redone work, under-reporting draws the
+/// wrong picture.
+///
+/// The engine's own, and not exported by `flutter3d_core.dart` since 1.0 (it
+/// was `sceneChangeEpoch`): what it counts is an implementation detail
+/// of the caches that read it.
+int get sceneChangeEpoch => SceneNode._dirtyEpoch;
+
+/// Advances [sceneChangeEpoch] for a change the graph itself cannot see: the
+/// one caller is `MeshNode.markBoundsDirty`.
+void noteSceneChange() => SceneNode._dirtyEpoch++;
+
+/// How many times a `SceneNode.worldMatrix` read has had to walk to the root
+/// — `gfx-65n`, for a test to hold the cache to.
+int get sceneAncestorWalks => SceneNode._ancestorWalks;

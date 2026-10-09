@@ -61,26 +61,36 @@ extension _F3dAnimation on F3dDocument {
     final table = _table(F3dSection.pointerTracks, F3dRecord.pointerTrack);
     final byClip = <int, List<(int, AnimationTrack)>>{};
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.pointerTrack;
+      final o = _at(F3dSection.pointerTracks, i, F3dRecord.pointerTrack);
       int word(int at) => _view.getUint32(o + at, Endian.little);
 
-      final interpolation = word(8);
-      if (interpolation >= AnimationInterpolation.values.length) {
+      final interpolationWord = word(8);
+      final interpolation = interpolationOf(interpolationWord);
+      if (interpolation == null) {
         throw F3dFormatException(
-          'pointerTracks[$i] names interpolation $interpolation, which this '
-          'build does not have.',
+          'pointerTracks[$i] names interpolation $interpolationWord, which '
+          'this build does not have.',
         );
       }
       final text = _string(word(32), word(36));
-      final pointer = text == null ? null : AnimationPointer.parse(text);
-      if (pointer == null) continue;
+      final pointer = text == null ? null : AnimationPointer.tryParse(text);
+      if (pointer == null) {
+        // Not dropped in silence: the track is gone from what this build
+        // reads, and from any file it writes from this document, so the
+        // document says so where a converter's own notes go.
+        _skippedPointers.add(
+          'clip ${word(0)}: a pointer track to "${text ?? ''}", which this '
+          'build does not animate, was skipped',
+        );
+        continue;
+      }
 
       (byClip[word(0)] ??= <(int, AnimationTrack)>[]).add((
         word(4),
         AnimationTrack(
           nodeIndex: -1,
           path: AnimationPath.pointer,
-          interpolation: AnimationInterpolation.values[interpolation],
+          interpolation: interpolation,
           componentCount: word(12),
           times: _floats(word(16), word(20)),
           values: _floats(word(24), word(28)),
@@ -93,21 +103,22 @@ extension _F3dAnimation on F3dDocument {
 
   AnimationTrack _readTrack(int index) {
     final o = _recordOffset(F3dSection.tracks, index, F3dRecord.track);
-    final pathIndex = _view.getUint32(o + 4, Endian.little);
-    final interpolationIndex = _view.getUint32(o + 8, Endian.little);
+    final pathWord = _view.getUint32(o + 4, Endian.little);
+    final interpolationWord = _view.getUint32(o + 8, Endian.little);
+    final path = animationPathOf(pathWord);
+    final interpolation = interpolationOf(interpolationWord);
 
-    if (pathIndex >= AnimationPath.values.length ||
-        interpolationIndex >= AnimationInterpolation.values.length) {
+    if (path == null || interpolation == null) {
       throw F3dFormatException(
-        'tracks[$index] names path $pathIndex and interpolation '
-        '$interpolationIndex, which this build does not have.',
+        'tracks[$index] names path $pathWord and interpolation '
+        '$interpolationWord, which this build does not have.',
       );
     }
 
     return AnimationTrack(
       nodeIndex: _view.getUint32(o, Endian.little),
-      path: AnimationPath.values[pathIndex],
-      interpolation: AnimationInterpolation.values[interpolationIndex],
+      path: path,
+      interpolation: interpolation,
       componentCount: _view.getUint32(o + 12, Endian.little),
       times: _floats(
         _view.getUint32(o + 16, Endian.little),

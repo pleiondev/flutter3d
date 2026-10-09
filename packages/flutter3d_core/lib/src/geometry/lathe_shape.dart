@@ -50,7 +50,11 @@ final class LatheShape extends Shape {
 
   final List<Vector2> profile;
   final int segments;
+
+  /// In radians.
   final double startAngle;
+
+  /// In radians.
   final double sweepAngle;
 
   /// Whether the profile's last point connects back to its first.

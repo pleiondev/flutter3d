@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_core/flutter3d_core.dart';
 
+import 'revalidated_asset.dart';
+
 /// A model in the Flutter asset bundle.
 ///
 /// Reading the bundle from a background isolate needs the platform channel to be
@@ -20,9 +22,14 @@ final class BundleAssetSource extends AssetSource {
   @override
   String get key => 'bundle:$assetPath';
 
+  /// A generated file ([isGeneratedAsset]) is read with
+  /// [loadRevalidatedAsset], so on the web a cached copy from an older
+  /// deploy is never paired with newer code — `A4.18`.
   @override
   Future<Uint8List> read() async {
-    final data = await rootBundle.load(assetPath);
+    final data = isGeneratedAsset(assetPath)
+        ? await loadRevalidatedAsset(assetPath)
+        : await rootBundle.load(assetPath);
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   }
 
@@ -33,9 +40,10 @@ final class BundleAssetSource extends AssetSource {
     return (request) async {
       final uri = request.uri;
       if (uri.startsWith('data:')) return decodeDataUri(uri);
-      final data = await rootBundle.load(
-        '$directory/${safeRelativeAssetPath(uri)}',
-      );
+      final key = '$directory/${safeRelativeAssetPath(uri)}';
+      final data = isGeneratedAsset(key)
+          ? await loadRevalidatedAsset(key)
+          : await rootBundle.load(key);
       return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     };
   }

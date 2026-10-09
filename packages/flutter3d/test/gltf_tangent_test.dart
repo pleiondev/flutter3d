@@ -7,7 +7,7 @@ import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 

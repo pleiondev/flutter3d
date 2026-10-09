@@ -1,9 +1,9 @@
 name: flutter3d_effects
 description: >-
-  The physics core's water and fire, drawn: a water surface lit as water is,
-  a waterfall as one sheet with its spray, bubbles and froth, and flames,
-  smoke, embers and firelight read off the core's fires.
-version: 0.9.0
+  The elements' water and fire, drawn: a water surface lit as water is,
+  a waterfall as one sheet with its spray, bubbles and froth, flames,
+  smoke, embers and firelight, and a liquid in a vessel as meshes.
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,25 +16,56 @@ topics:
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   # The scene, meshes, materials and the renderer the views draw into — the
   # Flutter-free core, so the package runs under `dart test`.
-  flutter3d_core: ^0.9.0
+  flutter3d_core: ^1.0.0-rc.1
   # The flames, embers and smoke, and the six-way smoke sheet's baker.
-  flutter3d_particles: ^0.9.0
-  # What is drawn: the core's water, spray, bubbles and fires.
-  flutter3d_physics_native: ^0.9.0
+  flutter3d_particles: ^1.0.0-rc.1
+  # What is drawn: the elements' simulation, which steps the world, the
+  # flames and every element, and which these views draw and sound.
+  flutter3d_elements: ^1.0.0-rc.1
+  # `Portable` for a view's trigonometry, and the crossings into
+  # `vector_math` a world position is narrowed through.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # The constants a view's mist and firelight are worked out with, and the
+  # liquid in a vessel the liquid meshes are built from (`liquidMeshes`).
+  flutter3d_physics: ^1.0.0-rc.1
+  # The core's water, spray, bubbles and fires, read as they are drawn.
+  flutter3d_physics_native: ^1.0.0-rc.1
+  # The loop the view plugin draws in, once a frame.
+  flutter3d_plugin_api: ^1.0.0-rc.1
   vector_math: ^2.2.0
-  # `hook/build.dart`: the material compiler the build hook runs for a
-  # game's own materials, run here for the package's, and the hook contract.
-  flutter3d_build: ^0.9.0
-  flutter3d_shaders: ^0.9.0
+  # `hook/build.dart`: the material compiler, run here for the package's own
+  # materials, and the hook contract. The light package rather than
+  # `flutter3d_build`, whose MCP servers and `dart_mcp` a hook's imports
+  # would otherwise resolve into every game (decision G of
+  # `tasks/1.0-arch-review.md`).
+  flutter3d_build_hooks: ^1.0.0-rc.1
+  flutter3d_shaders: ^1.0.0-rc.1
   hooks: ^2.0.0
+
+  # The graphics vocabulary, named here directly.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   test: ^1.25.0
   # The software device the tests draw on.
-  flutter3d_cpu: ^0.9.0
+  flutter3d_cpu: ^1.0.0-rc.1
   flutter_lints: ^6.0.0
 
 resolution: workspace

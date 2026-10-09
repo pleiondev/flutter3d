@@ -30,7 +30,7 @@ List<ConformanceCheck> loadedBundleChecks(
 
 /// The engine's names, as a bundle claims them.
 List<ShaderBundleStage> _engineStages() => <ShaderBundleStage>[
-  for (final shader in kRequiredShaders)
+  for (final shader in requiredShaders)
     ShaderBundleStage(shader.name, fragment: shader.fragment),
 ];
 
@@ -44,10 +44,10 @@ Future<void> checkLoadedLibrary(
   // for what should be one sentence.
   try {
     await device.loadShaders(ByteData(24));
-    throw const ConformanceFailure(
+    throw const ConformanceFailureException(
       'twenty-four zero bytes were accepted as a shader bundle',
     );
-  } on ShaderBundleRefused {
+  } on ShaderBundleException {
     // The right answer.
   }
 
@@ -64,8 +64,8 @@ Future<void> checkLoadedLibrary(
   final LoadedShaderLibrary loaded;
   try {
     loaded = await device.loadShaders(bundle.encode());
-  } on ShaderBundleRefused catch (refused) {
-    throw ConformanceFailure(
+  } on ShaderBundleException catch (refused) {
+    throw ConformanceFailureException(
       'the backend refused its own shaders packed as a bundle: $refused',
     );
   }
@@ -75,7 +75,7 @@ Future<void> checkLoadedLibrary(
     '"${bundle.name}"',
   );
   final missing = <String>[
-    for (final shader in kRequiredShaders)
+    for (final shader in requiredShaders)
       if (loaded[shader.name] == null) shader.name,
   ];
   require(
@@ -89,7 +89,7 @@ Future<void> checkLoadedLibrary(
   try {
     device.createPipeline(vertex, fragment);
   } catch (error) {
-    throw ConformanceFailure(
+    throw ConformanceFailureException(
       'MeshVertex + Pbr from the loaded library do not link: $error',
     );
   }
@@ -101,8 +101,8 @@ Future<void> checkLoadedLibrary(
   // would pass the identity check and fail at the first frame.
   try {
     loaded.refresh(bundle.encode());
-  } on ShaderBundleRefused catch (refused) {
-    throw ConformanceFailure(
+  } on ShaderBundleException catch (refused) {
+    throw ConformanceFailureException(
       'refreshing the bundle it had just accepted was refused: $refused',
     );
   }
@@ -116,7 +116,7 @@ Future<void> checkLoadedLibrary(
   try {
     device.createPipeline(loaded['MeshVertex']!, loaded['Pbr']!);
   } catch (error) {
-    throw ConformanceFailure(
+    throw ConformanceFailureException(
       'MeshVertex + Pbr do not link after a refresh: $error',
     );
   }
@@ -138,11 +138,11 @@ Future<void> checkLoadedLibrary(
   );
   try {
     loaded.refresh(dropping.encode());
-    throw const ConformanceFailure(
+    throw const ConformanceFailureException(
       'a refresh with a bundle that no longer names Pbr was accepted while '
       'the Pbr handle was in use',
     );
-  } on ShaderBundleRefused catch (refused) {
+  } on ShaderBundleException catch (refused) {
     require(
       refused.name == 'drops Pbr' && refused.reason.contains('Pbr'),
       'the refusal for a dropped stage names neither the bundle nor the '
@@ -177,7 +177,7 @@ Future<void> checkLoadedLibrary(
       'a stage the bundle claims and no section holds was answered with a '
       'handle',
     );
-  } on ShaderBundleRefused catch (refused) {
+  } on ShaderBundleException catch (refused) {
     require(
       refused.name == 'claims too much' &&
           refused.reason.contains('NoSuchStageAnywhere'),

@@ -54,7 +54,7 @@ final class RecordedTexture extends Recorded {
   const RecordedTexture(this.slot, this.texture, this.sampler, {this.shader});
   final String slot;
   final TextureHandle texture;
-  final SamplerOptions? sampler;
+  final SamplerDescriptor? sampler;
 
   /// The stage it was bound through. It was not recorded, so a test could not
   /// tell a texture bound to the vertex stage from one bound to the fragment
@@ -160,4 +160,23 @@ final class RecordedStencil extends Recorded {
 final class RecordedStencilReference extends Recorded {
   const RecordedStencilReference(this.value);
   final int value;
+}
+
+/// A 1.0-surface call — a storage bind, a query, an indirect or bundled
+/// draw, a buffer write, a copy — recorded by name with its arguments.
+///
+/// **One variant for the whole 1.0 surface rather than one per call**, so
+/// that a test switching over [Recorded] keeps compiling when the contract
+/// gains a call, which under 1.0's semver it may in any minor release. A test
+/// that cares asks for [name] and reads [arguments], which is whatever value
+/// the call was handed (a descriptor, a record of its parameters).
+final class RecordedCall extends Recorded {
+  const RecordedCall(this.name, [this.arguments]);
+
+  /// The member's name, as the contract spells it.
+  final String name;
+  final Object? arguments;
+
+  @override
+  String toString() => 'RecordedCall($name, $arguments)';
 }

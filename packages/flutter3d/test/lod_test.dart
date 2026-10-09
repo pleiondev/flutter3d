@@ -3,16 +3,20 @@ import 'dart:math' as math;
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 MeshNode level(String name) =>
-    MeshNode(CpuMesh(CuboidShape().build()), Material(), name: name);
+    MeshNode(CpuMesh(CuboidShape().build()), RenderMaterial(), name: name);
 
-({Scene scene, LodGroup group, CameraNode camera}) build() {
+({Scene scene, LodGroup group, CameraNode camera}) build({
+  double crossFade = LodGroup.defaultCrossFade,
+}) {
   final scene = Scene();
   final group = LodGroup(
     name: 'rock',
+    crossFade: crossFade,
     levels: <LodLevel>[
       // Finest first, and deliberately declared out of order so the
       // constructor's sort is doing something.
@@ -24,7 +28,7 @@ MeshNode level(String name) =>
   scene.add(group);
 
   final camera = scene.add(CameraNode(name: 'camera'))
-    ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+    ..projection = const PerspectiveProjection(fovY: math.pi / 2);
   camera.setPosition(0.0, 0.0, 5.0);
   camera.lookAt(Vector3.zero());
 
@@ -42,13 +46,13 @@ void main() {
       ]);
     });
 
-    test('only one level is ever visible', () {
-      final (:group, :scene, :camera) = build();
+    test('only one level is ever visible without a cross-fade', () {
+      final (:group, :scene, :camera) = build(crossFade: 0.0);
       for (final distance in <double>[1.0, 5.0, 30.0, 300.0]) {
         camera.setPosition(0.0, 0.0, distance);
         group.select(camera);
         expect(
-          group.levels.where((l) => l.node.visible).length,
+          group.levels.where((l) => l.node.isVisible).length,
           1,
           reason: 'more than one level visible at distance $distance',
         );
@@ -159,7 +163,7 @@ void main() {
       );
       final scene = Scene()..add(group);
       final camera = scene.add(CameraNode())
-        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+        ..projection = const PerspectiveProjection(fovY: math.pi / 2);
       final edge = group.levels.first.node.worldBoundsRadius / 0.2;
 
       camera.setPosition(0.0, 0.0, edge * 1.02);
@@ -212,7 +216,7 @@ void main() {
       );
       scene.add(group);
       final camera = scene.add(CameraNode())
-        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+        ..projection = const PerspectiveProjection(fovY: math.pi / 2);
       return (scene: scene, group: group, camera: camera);
     }
 
@@ -412,8 +416,9 @@ void main() {
   });
 
   group('a group built from materials', () {
-    Material tinted(double value) =>
-        Material(baseColor: Vector4(value, value, value, 1.0));
+    RenderMaterial tinted(double value) => RenderMaterial(
+      baseColor: LinearColor.fromSrgb(value, value, value, 1.0),
+    );
 
     test('shares one geometry across every level', () {
       // The whole point: a texture LOD should upload its buffers once however
@@ -421,7 +426,7 @@ void main() {
       final mesh = CpuMesh(CuboidShape().build());
       final group = LodGroup.forMaterials(
         mesh: mesh,
-        materials: <Material>[tinted(1.0), tinted(0.5)],
+        materials: <RenderMaterial>[tinted(1.0), tinted(0.5)],
         maxScreenFractions: <double>[1.0, 0.15],
         name: 'chest',
       );
@@ -435,25 +440,25 @@ void main() {
     test('each level carries its own material', () {
       final group = LodGroup.forMaterials(
         mesh: CpuMesh(CuboidShape().build()),
-        materials: <Material>[tinted(1.0), tinted(0.25)],
+        materials: <RenderMaterial>[tinted(1.0), tinted(0.25)],
         maxScreenFractions: <double>[1.0, 0.15],
       );
 
-      expect(group.levels[0].node.material.baseColor.x, 1.0);
-      expect(group.levels[1].node.material.baseColor.x, 0.25);
+      expect(group.levels[0].node.material.baseColor.toSrgb().r, 1.0);
+      expect(group.levels[1].node.material.baseColor.toSrgb().r, 0.25);
     });
 
     test('the coarse material takes over as the object shrinks', () {
       final scene = Scene();
       final group = LodGroup.forMaterials(
         mesh: CpuMesh(CuboidShape().build()),
-        materials: <Material>[tinted(1.0), tinted(0.25)],
+        materials: <RenderMaterial>[tinted(1.0), tinted(0.25)],
         maxScreenFractions: <double>[1.0, 0.15],
       );
       scene.add(group);
 
       final camera = scene.add(CameraNode())
-        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+        ..projection = const PerspectiveProjection(fovY: math.pi / 2);
 
       camera.setPosition(0.0, 0.0, 1.5);
       camera.lookAt(Vector3.zero());
@@ -462,14 +467,14 @@ void main() {
       camera.setPosition(0.0, 0.0, 40.0);
       camera.lookAt(Vector3.zero());
       expect(group.select(camera), 1);
-      expect(group.activeNode.material.baseColor.x, 0.25);
+      expect(group.activeNode.material.baseColor.toSrgb().r, 0.25);
     });
 
     test('mismatched lists are refused rather than silently truncated', () {
       expect(
         () => LodGroup.forMaterials(
           mesh: CpuMesh(CuboidShape().build()),
-          materials: <Material>[tinted(1.0), tinted(0.5)],
+          materials: <RenderMaterial>[tinted(1.0), tinted(0.5)],
           maxScreenFractions: <double>[1.0],
         ),
         throwsArgumentError,
@@ -490,8 +495,8 @@ void main() {
       // hardcoded angle, the wide camera would agree with the narrow one — and
       // an object seen through a wide lens covers less of the frame, not the
       // same.
-      final narrow = OffAxisProjection.symmetric(fovYRadians: math.pi / 6);
-      final wide = OffAxisProjection.symmetric(fovYRadians: math.pi / 2);
+      final narrow = OffAxisProjection.symmetric(fovY: math.pi / 6);
+      final wide = OffAxisProjection.symmetric(fovY: math.pi / 2);
 
       camera.projection = narrow;
       final throughNarrow = group.screenFraction(camera);
@@ -513,11 +518,11 @@ void main() {
       camera.setPosition(0.0, 0.0, 12.0);
       camera.lookAt(Vector3.zero());
 
-      camera.projection = const PerspectiveProjection(fovYRadians: 1.1);
+      camera.projection = const PerspectiveProjection(fovY: 1.1);
       final perspective = group.select(camera);
       final perspectiveFraction = group.screenFraction(camera);
 
-      camera.projection = OffAxisProjection.symmetric(fovYRadians: 1.1);
+      camera.projection = OffAxisProjection.symmetric(fovY: 1.1);
       expect(group.select(camera), perspective);
       expect(group.screenFraction(camera), closeTo(perspectiveFraction, 1e-12));
     });

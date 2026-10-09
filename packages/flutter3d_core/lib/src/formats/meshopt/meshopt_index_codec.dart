@@ -37,6 +37,7 @@
 library;
 
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// The one header byte an index buffer starts with.
 const int kMeshoptIndexHeader = 0xe1;
@@ -61,23 +62,23 @@ class _Fifo {
 /// format's own reference decoder reads, not only what
 /// [encodeMeshoptIndexBuffer] produces.
 ///
-/// Throws [FormatException] for anything it cannot decode, a truncated
+/// Throws [MeshoptFormatException] for anything it cannot decode, a truncated
 /// stream included.
 Uint32List decodeMeshoptIndexBuffer(Uint8List source, int count) {
   if (source.isEmpty || source[0] != kMeshoptIndexHeader) {
-    throw const FormatException(
+    throw const MeshoptFormatException(
       'not a meshopt index buffer (wrong header byte)',
     );
   }
   if (count < 0 || count % 3 != 0) {
-    throw FormatException(
+    throw MeshoptFormatException(
       'a triangle list has a multiple of 3 indices, and this one has $count',
     );
   }
   try {
     return _decodeIndexBuffer(source, count);
   } on RangeError {
-    throw const FormatException(
+    throw const MeshoptFormatException(
       'meshopt index buffer: the stream ends part way through',
     );
   }

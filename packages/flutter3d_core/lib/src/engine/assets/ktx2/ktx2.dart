@@ -34,11 +34,11 @@ export 'package:flutter3d_core/formats.dart'
         VkFormat,
         isBasisUniversalKtx2,
         isKtx2File,
-        kKtx2HeaderOffset,
-        kKtx2Identifier,
-        kKtx2IndexOffset,
-        kKtx2LevelIndexEntryBytes,
-        kKtx2LevelIndexOffset,
+        ktx2HeaderOffset,
+        ktx2Identifier,
+        ktx2IndexOffset,
+        ktx2LevelIndexEntryBytes,
+        ktx2LevelIndexOffset,
         universalBlockFormat;
 
 /// A KTX2 file, read down to what a texture upload needs: dimensions, an
@@ -121,7 +121,9 @@ formats.UniversalTarget? chooseUniversalTarget(
         ];
   for (final target in order) {
     final format = _engineFormat(target.vkFormat);
-    if (format != null && device.supportsTextureFormat(format)) return target;
+    if (format != null && device.textureFormatSupport(format).sampled) {
+      return target;
+    }
   }
   return null;
 }

@@ -9,7 +9,7 @@ import 'package:flutter3d/flutter3d.dart' as engine;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart' as vm show Matrix4;
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Aabb3, Vector3;
 
 import 'src/spike/backend.dart';
 import 'src/spike/control_panel.dart';
@@ -172,7 +172,7 @@ class _SpikePageState extends State<SpikePage>
   bool _spinning =
       GoldenRunner.fromEnvironment() == null && startupSpinFromEnvironment();
   bool _culling = true;
-  DebugDrawOptions _debug =
+  DebugDrawSettings _debug =
       GoldenRunner.fromEnvironment()?.scene.debug ?? debugDrawFromEnvironment();
 
   /// Set only by a golden that wants to look at the surface buffer.
@@ -300,8 +300,8 @@ class _SpikePageState extends State<SpikePage>
     // against a combined 17.
     _sun = LightNode(
       type: LightType.directional,
-      color: Vector3(1.0, 0.95, 0.85),
-      intensity: 4.0,
+      color: LinearColor(1.0, 0.95, 0.85),
+      intensity: 4.0 * Photometric.legacyUnit,
       name: 'sun',
     );
     _scene.add(_sun);
@@ -316,11 +316,11 @@ class _SpikePageState extends State<SpikePage>
       // Uploaded, not a CpuMesh: this one is drawn, and the renderer refuses
       // geometry that never reached the GPU rather than skipping it quietly.
       DeviceMesh.upload(device, const PlaneShape().build()),
-      engine.Material(
+      engine.RenderMaterial(
         lighting: LightingModel.pbr,
         // Mid grey, not white: a white floor under a lit model saturates and
         // the shadow lands on a surface with no headroom to darken.
-        baseColor: Vector4(0.45, 0.45, 0.47, 1.0),
+        baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.47, 1.0),
         roughness: 0.9,
       ),
       name: 'ground',
@@ -342,11 +342,11 @@ class _SpikePageState extends State<SpikePage>
     // the model in near-darkness, since ambient is deliberately low.
     _light = LightNode(
       type: LightType.directional,
-      color: Vector3(1.0, 0.97, 0.92),
+      color: LinearColor(1.0, 0.97, 0.92),
       // Dim, because a light parented to the camera is a headlight: it fills in
       // every shadow the viewer can see, which is the one place a shadow needs
       // to survive. It earns its keep as a fill, not as a key.
-      intensity: 0.35,
+      intensity: 0.35 * Photometric.legacyUnit,
       name: 'key light',
     );
     _camera.add(_light);
@@ -361,8 +361,8 @@ class _SpikePageState extends State<SpikePage>
     // distances for the same look.
     _fill = LightNode(
       type: LightType.point,
-      color: Vector3(0.35, 0.62, 1.0),
-      intensity: 4.0,
+      color: LinearColor(0.35, 0.62, 1.0),
+      intensity: 4.0 * Photometric.legacyUnit,
       name: 'fill light',
       // Set only by the golden that wants to look at the cube atlas, because
       // the atlas costs six views of the scene and nothing else here needs it.
@@ -370,8 +370,8 @@ class _SpikePageState extends State<SpikePage>
     );
     _spot = LightNode(
       type: LightType.spot,
-      color: Vector3(1.0, 0.45, 0.25),
-      intensity: 12.0,
+      color: LinearColor(1.0, 0.45, 0.25),
+      intensity: 12.0 * Photometric.legacyUnit,
       innerConeAngle: 0.25,
       outerConeAngle: 0.5,
       name: 'spot light',
@@ -390,8 +390,8 @@ class _SpikePageState extends State<SpikePage>
     for (var i = 0; i < extras; i++) {
       final light = LightNode(
         type: LightType.point,
-        color: Vector3(1.0, 0.72, 0.4),
-        intensity: 4.0,
+        color: LinearColor(1.0, 0.72, 0.4),
+        intensity: 4.0 * Photometric.legacyUnit,
         name: 'extra point $i',
         castsShadow: true,
       );
@@ -402,7 +402,7 @@ class _SpikePageState extends State<SpikePage>
     final enabled = _golden?.scene.lights ?? startupLightsFromEnvironment();
     if (enabled.isNotEmpty) {
       for (final light in <LightNode>[_light, _fill, _spot]) {
-        light.visible = enabled.contains(light.name?.toLowerCase());
+        light.isVisible = enabled.contains(light.name?.toLowerCase());
       }
     }
 
@@ -437,7 +437,7 @@ class _SpikePageState extends State<SpikePage>
     final renderer = _renderer;
     if (goldenScene != null && renderer != null) {
       if (goldenScene.name == 'particles-textured') {
-        renderer.addContributor(
+        renderer.renderSteps.addContributor(
           ParticleContributor(
             GoldenExtras.texturedParticles(),
             texture: GoldenExtras.particleSprite(device),
@@ -446,14 +446,14 @@ class _SpikePageState extends State<SpikePage>
       } else if (goldenScene.name == 'particles-mesh') {
         // A different contributor, not a mode of the other one: the mesh path
         // binds two vertex buffers where the billboard path binds one.
-        renderer.addContributor(
+        renderer.renderSteps.addContributor(
           MeshParticleContributor(
             GoldenExtras.meshParticles(),
             mesh: GoldenExtras.meshParticleShape(device),
           ),
         );
       } else if (goldenScene.particles) {
-        renderer.addContributor(
+        renderer.renderSteps.addContributor(
           ParticleContributor(switch (goldenScene.name) {
             'particle-one' => GoldenExtras.oneParticle(),
             'particles-recycled' => GoldenExtras.recycled(),
@@ -463,7 +463,7 @@ class _SpikePageState extends State<SpikePage>
         );
       }
       if (goldenScene.viewModel) {
-        renderer.addNode(GoldenExtras.viewModel(device));
+        renderer.renderSteps.addNode(GoldenExtras.viewModel(device));
       }
       if (goldenScene.name == 'mesh-overlay') {
         // Content is filled in once the scene is staged and the camera has
@@ -472,10 +472,10 @@ class _SpikePageState extends State<SpikePage>
         // first frame like every other one above; `isActive` is false until
         // then, so an empty overlay draws nothing and costs nothing.
         _meshOverlay = MeshOverlay(
-          vertexShader: renderer.debugLineVertexShader,
-          fragmentShader: renderer.debugLineFragmentShader,
+          vertexShader: renderer.shaders['DebugLineVertex']!,
+          fragmentShader: renderer.shaders['DebugLine']!,
         );
-        renderer.addContributor(_meshOverlay!);
+        renderer.renderSteps.addContributor(_meshOverlay!);
       }
     }
 
@@ -558,7 +558,7 @@ class _SpikePageState extends State<SpikePage>
       // see `ReflectionProbeNode.intensity` — and this knob does not reach
       // them.
       instance.removeFromScene();
-      _scene.ambientIntensity = 1.0;
+      _scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
       _modelPivot.add(GoldenExtras.probeRoom(_device!));
       return;
     }
@@ -568,7 +568,7 @@ class _SpikePageState extends State<SpikePage>
       // the sun, which every other scene wants on, and a lightmap lit by a
       // sun as well is a lightmap nobody can see.
       instance.removeFromScene();
-      _sun.visible = false;
+      _sun.isVisible = false;
       _modelPivot.add(GoldenExtras.lightmappedRoom(_device!));
       return;
     }
@@ -582,8 +582,8 @@ class _SpikePageState extends State<SpikePage>
       // in this repository before: see `ReflectionSettings.debugOnly`. With no
       // sun, everything on the floor that is not the floor is the march's.
       instance.removeFromScene();
-      _sun.visible = false;
-      _scene.ambientIntensity = 0.25;
+      _sun.isVisible = false;
+      _scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
       for (final node in GoldenExtras.mirrorRoom(_device!)) {
         _modelPivot.add(node);
       }
@@ -595,8 +595,8 @@ class _SpikePageState extends State<SpikePage>
       // the ambient term, and at the demo's 0.06 a correct pass takes six per
       // cent off the corners and is invisible.
       instance.removeFromScene();
-      _sun.visible = false;
-      _scene.ambientIntensity = 0.9;
+      _sun.isVisible = false;
+      _scene.ambientIntensity = 0.9 * Photometric.legacyUnit;
       for (final node in GoldenExtras.occlusionCorner(_device!)) {
         _modelPivot.add(node);
       }
@@ -631,7 +631,7 @@ class _SpikePageState extends State<SpikePage>
           ..setTranslationRaw((col - half) * 1.6, 0.0, (row - half) * 1.6)
           ..rotateY(i * 0.37)
           ..scaleByDouble(scale, scale, scale, 1.0),
-        color: Vector4(
+        color: LinearColor(
           0.55 + 0.45 * ((i * 7) % 5) / 4.0,
           0.55 + 0.45 * ((i * 3) % 5) / 4.0,
           0.55 + 0.45 * ((i * 11) % 5) / 4.0,
@@ -902,7 +902,7 @@ class _SpikePageState extends State<SpikePage>
     // High-contrast, chosen for legibility against the checkerboard rather
     // than to match any UI palette — this is a technical scene, not a
     // rendering of the app's own selection colours.
-    final wire = Vector4(0.0, 1.0, 1.0, 1.0);
+    final wire = LinearColor.fromSrgb(0.0, 1.0, 1.0);
     overlay
       ..edge(c000, c100, wire)
       ..edge(c100, c110, wire)
@@ -918,14 +918,19 @@ class _SpikePageState extends State<SpikePage>
       ..edge(c010, c011, wire);
 
     // Two vertex handles and one selected edge, distinct from the wireframe.
-    final selected = Vector4(1.0, 1.0, 0.0, 1.0);
+    final selected = LinearColor.fromSrgb(1.0, 1.0, 0.0);
     overlay
       ..point(c111, selected)
       ..point(c110, selected)
       ..ribbon(c111, c110, selected);
 
     // `#004F58` — the design's own fill colour, converted from sRGB bytes.
-    overlay.wash(c010, c110, c111, Vector4(0 / 255, 79 / 255, 88 / 255, 1.0));
+    overlay.wash(
+      c010,
+      c110,
+      c111,
+      LinearColor.fromSrgb(0 / 255, 79 / 255, 88 / 255),
+    );
   }
 
   /// Puts the second camera where the overlay can draw its whole frustum.
@@ -948,7 +953,7 @@ class _SpikePageState extends State<SpikePage>
     if (!(_golden?.scene.debug.cameraFrustums ?? false)) return;
     if (!bounds.min.x.isFinite) return;
 
-    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final center = (bounds.min + bounds.max)..scale(0.5);
     final radius = math.max(
       ((bounds.max - bounds.min)..scale(0.5)).length,
       1e-3,
@@ -959,7 +964,7 @@ class _SpikePageState extends State<SpikePage>
     // and the wedge opens across it towards the viewer.
     final camera = _frustumCamera ??= CameraNode(
       projection: PerspectiveProjection(
-        fovYRadians: 0.7,
+        fovY: 0.7,
         near: radius * 0.35,
         far: radius * 3.0,
       ),
@@ -968,11 +973,11 @@ class _SpikePageState extends State<SpikePage>
     if (camera.parent == null) _scene.add(camera);
     camera
       ..setPosition(
-        centre.x - radius * 1.5,
-        centre.y + radius * 1.0,
-        centre.z - radius * 1.15,
+        center.x - radius * 1.5,
+        center.y + radius * 1.0,
+        center.z - radius * 1.15,
       )
-      ..lookAt(centre);
+      ..lookAt(center);
   }
 
   /// Sits the ground plane just under the model and scales it to suit.
@@ -999,7 +1004,7 @@ class _SpikePageState extends State<SpikePage>
     _groundPending = false;
     if (!bounds.min.x.isFinite) return;
 
-    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final center = (bounds.min + bounds.max)..scale(0.5);
     final extent = (bounds.max - bounds.min)..scale(0.5);
     final radius = math.max(extent.length, 1e-3);
 
@@ -1012,7 +1017,7 @@ class _SpikePageState extends State<SpikePage>
     final reach = radius * ((golden?.groundScale ?? 3.0) + drop);
     _scene.add(_ground);
     _ground
-      ..setPosition(centre.x, bounds.min.y - radius * 0.02 - drop, centre.z)
+      ..setPosition(center.x, bounds.min.y - radius * 0.02 - drop, center.z)
       ..setScale(reach, 1.0, reach);
   }
 
@@ -1022,14 +1027,14 @@ class _SpikePageState extends State<SpikePage>
   /// distance that flatters a one-unit cube leaves a two-hundred-unit scene in
   /// the dark, and the intensity would have to be retuned per model instead.
   void _placeSceneLights(Aabb3 bounds) {
-    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final center = (bounds.min + bounds.max)..scale(0.5);
     final radius = ((bounds.max - bounds.min)..scale(0.5)).length;
     final distance = radius <= 0.0 ? 1.5 : radius * 2.0;
 
     _fill.setPosition(
-      centre.x - distance,
-      centre.y + distance * 0.35,
-      centre.z + distance * 0.6,
+      center.x - distance,
+      center.y + distance * 0.35,
+      center.z + distance * 0.6,
     );
     // Intensity is photometric-ish: with inverse-square falloff it has to grow
     // with the square of the distance to keep the same brightness on the model.
@@ -1052,21 +1057,21 @@ class _SpikePageState extends State<SpikePage>
       final radius = distance * (1.7 - 0.22 * i);
       _extraPoints[i]
         ..setPosition(
-          centre.x + math.cos(angle) * radius,
-          centre.y + distance * (0.9 - 0.12 * i),
-          centre.z + math.sin(angle) * radius,
+          center.x + math.cos(angle) * radius,
+          center.y + distance * (0.9 - 0.12 * i),
+          center.z + math.sin(angle) * radius,
         )
         ..intensity = 1.0 * distance * distance
         ..range = distance * 6.0;
     }
 
     _spot.setPosition(
-      centre.x + distance * 0.4,
-      centre.y + distance * 1.6,
-      centre.z + distance * 0.4,
+      center.x + distance * 0.4,
+      center.y + distance * 1.6,
+      center.z + distance * 0.4,
     );
     _spot
-      ..lookAt(centre)
+      ..lookAt(center)
       ..intensity = 2.5 * distance * distance
       ..range = distance * 6.0;
   }
@@ -1295,9 +1300,13 @@ class _SpikePageState extends State<SpikePage>
                     onSpecular: (v) => setState(() => _specular = v),
                     exposure: _exposure,
                     onExposure: (v) => setState(() => _exposure = v),
-                    ambient: _scene.ambientIntensity,
-                    onAmbient: (v) =>
-                        setState(() => _scene.ambientIntensity = v),
+                    // The slider is a share of the old unit; the scene's
+                    // ambient is lux.
+                    ambient: _scene.ambientIntensity / Photometric.legacyUnit,
+                    onAmbient: (v) => setState(
+                      () =>
+                          _scene.ambientIntensity = v * Photometric.legacyUnit,
+                    ),
                     wireframe: _wireframe,
                     onWireframe: (v) => setState(() => _wireframe = v),
                     spinning: _spinning,

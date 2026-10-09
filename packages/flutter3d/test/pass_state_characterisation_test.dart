@@ -69,7 +69,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,

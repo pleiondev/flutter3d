@@ -6,8 +6,13 @@
 // layers on top — `M1`. Everything under `#ifdef F3D_LAYERED` is the layered
 // stage's alone, and everything under its `#else` is what plain metal-rough
 // always was, kept as it was so that stage compiles to what it compiled to.
-// Formulations follow Filament, which is also what the glTF spec describes, so
-// imported glTF materials will land on the same look.
+// Formulations are the ones the glTF 2.0 specification's BRDF appendix gives:
+// the GGX distribution of Walter et al., "Microfacet Models for Refraction
+// through Rough Surfaces" (EGSR 2007), the height-correlated Smith masking of
+// Heitz, "Understanding the Masking-Shadowing Function in Microfacet-Based
+// BRDFs" (JCGT 2014), and Schlick, "An Inexpensive BRDF Model for
+// Physically-based Rendering" (Computer Graphics Forum, 1994), so imported
+// glTF materials will land on the same look.
 //
 // Image-based lighting is here when a scene supplies an environment, and the
 // flat hemispheric ambient stands in when it does not. `frame_params.w` carries
@@ -213,8 +218,8 @@ void ReadLayers(Surface s) {
   g_thickness = max(layer_info.transmission.y * coatTexel.a, 0.0);
   // `MaterialExtensions.convexVolume`: the thickness is the body's depth
   // through its middle, and a ray crosses as much of it as squarely as the
-  // bent ray meets the surface — Filament's solid sphere. Kept above nought,
-  // where nought means a thin wall.
+  // bent ray meets the surface, as if the body were a solid sphere. Kept
+  // above nought, where nought means a thin wall.
   if (layer_info.attenuation.w > 0.5 && g_thickness > 0.0) {
     vec3 bent = refract(-s.v, s.n, 1.0 / RefractionIor());
     g_thickness = max(g_thickness * max(-dot(s.n, bent), 0.0),
@@ -314,18 +319,30 @@ float V_SmithGGXCorrelated(float n_dot_v, float n_dot_l, float alpha) {
   return 0.5 / max(lambda_v + lambda_l, 1e-5);
 }
 
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec3 F_Schlick(vec3 f0, float v_dot_h) {
   float f = pow(1.0 - v_dot_h, 5.0);
   return f0 + (vec3(1.0) - f0) * f;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 #ifdef F3D_LAYERED
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 /// [F_Schlick] towards [f90] rather than towards one at grazing — what
 /// `KHR_materials_specular`'s strength scales.
 vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
   float f = pow(1.0 - v_dot_h, 5.0);
   return f0 + (f90 - f0) * f;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// The clear coat's own GGX lobe for [light], on the coat's normal, with the
 /// Fresnel of a dielectric of index 1.5. Scaled so that the loop's `n_dot_l`,
@@ -357,8 +374,9 @@ float CoatLobe(Surface s, LightSample light) {
          max(light.n_dot_l, 1e-6);
 }
 
-/// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
-/// floor on `sin²θ` so the power stays inside a half float.
+/// The Charlie sheen distribution of Estevez and Kulla, "Production Friendly
+/// Microfacet Sheen BRDF" (Sony Pictures Imageworks, 2017), with `sin²θ`
+/// floored at 2⁻⁷ so the power stays inside a half float.
 float D_Charlie(float roughness, float n_dot_h) {
   float inv_alpha = 1.0 / (roughness * roughness);
   float sin2h = max(1.0 - n_dot_h * n_dot_h, 0.0078125);
@@ -369,8 +387,8 @@ float D_Charlie(float roughness, float n_dot_h) {
 /// optical path difference [opd] in nanometres and a phase [shift]: the
 /// spectral sensitivity of the eye, as Gaussians in XYZ, taken to linear
 /// Rec. 709. Belcour and Barla, "A Practical Extension to Microfacet Theory
-/// for the Modeling of Varying Iridescence", 2017, with the constants the
-/// glTF sample viewer uses.
+/// for the Modeling of Varying Iridescence" (ACM Transactions on Graphics,
+/// SIGGRAPH 2017), with the Gaussian fit from the paper's supplemental code.
 vec3 IridescenceSensitivity(float opd, vec3 shift) {
   float phase = 2.0 * kPi * opd * 1.0e-9;
   vec3 val = vec3(5.4856e-13, 4.4201e-13, 5.2481e-13);
@@ -510,9 +528,10 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// texel of the texture, which is the size of the scene the chain was copied
 /// from.
 ///
-/// **The thickness is in world units as authored.** glTF measures it in the
-/// mesh's own space; a node scaled up or down refracts as if it were not,
-/// because the stage has no model matrix to scale it by.
+/// **The thickness is in world units.** glTF measures it in the mesh's own
+/// space; the renderer scales it by the node's scale, the geometric mean of
+/// its axes, when it binds `layer_info` for the draw, so the stage needs no
+/// model matrix of its own.
 vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
@@ -568,11 +587,17 @@ bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
 /// Fdez-Agüera's. With the albedo the split sum already reads — the albedo of the very lobe it
 /// scales, at the roughness [ShadeLight] evaluates it at, or the white
 /// furnace would not come back white.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec3 MultiscatterScale(vec3 f0, Surface s) {
   vec2 ab = EnvBrdf(max(s.roughness, kMinGgxRoughness), s.n_dot_v);
   float ess = max(ab.x + ab.y, 1e-4);
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Whether the diffuse lobe is EON rather than Lambert — `L8`,
 /// `RenderSettings.diffuseModel`, in `FragInfo.ambient_sky.w`.

@@ -64,6 +64,7 @@ double shadowFactor(
   final count = (cascades.z + 0.5).floor().clamp(1, 3);
   final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
   // `P7`: by depth along the axis through an orthographic lens.
+  /// How far the fragment is from the eye, in metres.
   final double viewDistance;
   if (orthographic(b)) {
     final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
@@ -180,7 +181,12 @@ double shadowFactor(
 
   // Each cascade's own bias — `shadow_bias` in `surface.glsl`.
   final biases = b.vec4('FragInfo', 'shadow_bias', Vector4.zero());
-  final bias = biases[cascadeIndex];
+  // `A2.8`: how the map keeps its depth, and with half floats turned round
+  // the floor at this fragment's own depth — `lib/shadow_storage.glsl`.
+  final storage = params.y;
+  final bias = storage > 0.5 && storage < 1.5
+      ? math.max(biases[cascadeIndex], shadowStoredStep(projected.z))
+      : biases[cascadeIndex];
   // Horizontally a texel of the atlas, vertically a texel of a tile.
   final texelU = params.x;
   final texelV = cascades.w > 0.0 ? cascades.w : params.x;
@@ -189,8 +195,10 @@ double shadowFactor(
   final hiU = (cascadeIndex + 1) / count - 0.5 * texelU;
   final loV = 0.5 * texelV;
   final hiV = 1.0 - 0.5 * texelV;
-  double tap(double du, double dv) =>
-      map.sample((u + du).clamp(loU, hiU), (vv + dv).clamp(loV, hiV)).x;
+  double tap(double du, double dv) => shadowStored(
+    map.sample((u + du).clamp(loU, hiU), (vv + dv).clamp(loV, hiV)).x,
+    storage,
+  );
 
   // What the see-through casters let through, before the filter, whose soft
   // path leaves early — `ShadowSettings.translucentCasters`; `shadow.glsl`

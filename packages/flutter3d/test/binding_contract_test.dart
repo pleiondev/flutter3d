@@ -19,11 +19,15 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The declared slots [draw] left unbound, one line each.
 List<String> _unbound(
@@ -62,7 +66,7 @@ void main() {
         ..add(
           MeshNode(
             DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-            Material(name: 'unlit', lighting: LightingModel.unlit),
+            RenderMaterial(name: 'unlit', lighting: LightingModel.unlit),
           )..setPosition(-1.0, 0.0, 0.0),
         )
         ..add(
@@ -74,7 +78,7 @@ void main() {
                 Vector3(1.0, -0.8, 0.0),
               ], width: 4.0),
             ),
-            Material.polyline(viewportWidth: 64.0, viewportHeight: 64.0),
+            RenderMaterial.polyline(viewportWidth: 64.0, viewportHeight: 64.0),
           ),
         )
         ..add(
@@ -83,11 +87,11 @@ void main() {
               device,
               CuboidShape(size: Vector3.all(0.6)).build(),
             ),
-            Material(name: 'lit'),
+            RenderMaterial(name: 'lit'),
           )..setPosition(1.0, 0.0, 0.0),
         )
         ..add(
-          LightNode(intensity: 3.0)
+          LightNode(intensity: 3.0 * Photometric.legacyUnit)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
@@ -112,14 +116,14 @@ void main() {
         height: 8,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(8 * 8 * 4),
-      )!;
+      );
       final scene = Scene()
         ..add(
           ImpostorNode(
             device,
             albedo: atlas(),
             normalDepth: atlas(),
-            centre: Vector3.zero(),
+            center: Vector3.zero(),
             radius: 0.8,
           ),
         )
@@ -129,11 +133,11 @@ void main() {
               device,
               CuboidShape(size: Vector3.all(0.6)).build(),
             ),
-            Material(name: 'lit'),
+            RenderMaterial(name: 'lit'),
           )..setPosition(1.0, 0.0, 0.0),
         )
         ..add(
-          LightNode(intensity: 3.0)
+          LightNode(intensity: 3.0 * Photometric.legacyUnit)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
@@ -162,7 +166,7 @@ void main() {
         height: 4,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(4 * 4 * 4),
-      )!;
+      );
       final scene = Scene()
         ..add(
           MeshNode(
@@ -170,7 +174,7 @@ void main() {
               device,
               CuboidShape(size: Vector3(4.0, 0.2, 4.0)).build(),
             ),
-            Material(name: 'floor'),
+            RenderMaterial(name: 'floor'),
           )..setPosition(0.0, -0.1, 0.0),
         )
         ..add(DecalNode(texture: picture)..setScale(2.0, 1.0, 2.0))
@@ -206,7 +210,7 @@ void main() {
     final unbound = _unbound((FakeBackend device, Renderer renderer) {
       final floor = MeshNode(
         DeviceMesh.upload(device, const PlaneShape(width: 6, depth: 6).build()),
-        Material(name: 'floor'),
+        RenderMaterial(name: 'floor'),
       );
       final camera = CameraNode()
         ..setPosition(0.0, 3.0, 4.0)
@@ -219,18 +223,18 @@ void main() {
               device,
               CuboidShape(size: Vector3.all(0.6)).build(),
             ),
-            Material(name: 'box'),
+            RenderMaterial(name: 'box'),
           )..setPosition(0.0, 0.8, 0.0),
         )
         ..add(PlanarReflectorNode(surfaces: <MeshNode>[floor]))
         ..add(
-          LightNode(intensity: 3.0)
+          LightNode(intensity: 3.0 * Photometric.legacyUnit)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
         ..add(camera)
-        ..addRenderTexture(
-          RenderTexture.create(device, camera: camera, width: 16, height: 16),
+        ..addTextureView(
+          RenderView.texture(device, camera: camera, width: 16, height: 16),
         );
       final result = renderer.render(
         width: 64,

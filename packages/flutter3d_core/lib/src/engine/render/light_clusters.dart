@@ -61,6 +61,8 @@ final class LightClusters {
 
   /// Where slices begin, and slices per unit of `ln(w / near)`.
   double near = 0.1;
+
+  /// Slices per unit of `ln(w / near)`.
   double sliceScale = 1.0;
 
   /// Entries across every cell; what the index rows hold.

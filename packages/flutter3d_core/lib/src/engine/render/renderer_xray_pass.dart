@@ -81,7 +81,7 @@ extension _XrayPass on Renderer {
     // Asked, not assumed. A device that answers false is not offered a
     // stencil test to ignore; it draws no silhouettes, and the frame is the
     // frame it would have drawn before this stage existed.
-    if (!xray.enabled || !device.supportsStencil) return;
+    if (!xray.enabled || !device.features.has(DeviceFeature.stencil)) return;
 
     _xrayNodes.clear();
     for (var i = 0; i < _renderList.length; i++) {
@@ -90,8 +90,10 @@ extension _XrayPass on Renderer {
     }
     if (_xrayNodes.isEmpty) return;
 
-    final colour = xray.resolvedColor;
-    _xraySilhouette.baseColor.setValues(colour.x, colour.y, colour.z, 1.0);
+    final color = xray.resolvedColor;
+    // The flat colour lands in the encoded slot as the linear numbers, as it
+    // always has: the silhouette is the colour the settings name, unlit.
+    _xraySilhouette.baseColor = LinearColor.fromSrgb(color.r, color.g, color.b);
 
     void drawAll(_DrawOverride override) {
       for (final node in _xrayNodes) {

@@ -37,13 +37,16 @@ const int _height = 96;
 /// The device, or null where this browser has no WebGPU — see
 /// `reflection_probe_test.dart` for why null and not a `setUp`.
 Future<WebGpuDevice?> _open() async {
-  final made = await WebGpuDevice.create(
-    width: _width,
-    height: _height,
-    stages: engineShaders,
-  );
-  if (made == null) markTestSkipped('no WebGPU in this browser');
-  return made;
+  try {
+    return await WebGpuDevice.open(
+      width: _width,
+      height: _height,
+      stages: webGpuEngineShaders,
+    );
+  } on DeviceUnavailableException {
+    markTestSkipped('no WebGPU in this browser');
+    return null;
+  }
 }
 
 /// [count] splats in a box around the origin, a fifth of them copies of
@@ -52,18 +55,18 @@ Future<WebGpuDevice?> _open() async {
 /// index, so an order shows in a picture.
 SplatCloud _cloud(int count, {double extent = 2.0, double size = 0.05}) {
   final random = math.Random(11);
-  final centres = Float32List(count * 3);
+  final centers = Float32List(count * 3);
   for (var i = 0; i < count; i++) {
     final copy = i % 5 == 4 && i > 0;
     for (var k = 0; k < 3; k++) {
-      centres[i * 3 + k] = copy
-          ? centres[(i ~/ 2) * 3 + k]
+      centers[i * 3 + k] = copy
+          ? centers[(i ~/ 2) * 3 + k]
           : (random.nextDouble() * 2.0 - 1.0) * extent;
     }
   }
   return SplatCloud(
-    centres: centres,
-    colours: Float32List.fromList(<double>[
+    centers: centers,
+    colors: Float32List.fromList(<double>[
       for (var i = 0; i < count; i++) ...<double>[
         (i % 3) / 2.0,
         ((i ~/ 3) % 3) / 2.0,
@@ -90,7 +93,7 @@ Future<void> _expectSameOrder(
   Vector3? axis,
 }) async {
   final reference = SplatSorter()..sort(cloud, eye, model: model, axis: axis);
-  final keys = SplatSorter()..quantise(cloud, eye, model: model, axis: axis);
+  final keys = SplatSorter()..quantize(cloud, eye, model: model, axis: axis);
   final gpu = SplatGpuSort(device, readable: true)
     ..sort(keys.keys, cloud.count, frameIndex: 0);
   final indices = await gpu.readIndices();
@@ -166,7 +169,7 @@ void main() {
       final device = await _open();
       if (device == null) return;
       final cloud = _cloud(2000);
-      final keys = SplatSorter()..quantise(cloud, Vector3(0.0, 0.0, 6.0));
+      final keys = SplatSorter()..quantize(cloud, Vector3(0.0, 0.0, 6.0));
       final gpu = SplatGpuSort(device)..sort(keys.keys, 2000, frameIndex: 1);
       final first = gpu.drawn(1)!.backend;
       gpu.sort(keys.keys, 2000, frameIndex: 1);
@@ -190,7 +193,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -198,13 +201,9 @@ void main() {
     );
     // Big enough to overlap many deep: the order shows wherever they do.
     final splats = SplatContributor(_cloud(3000, extent: 1.5, size: 0.12));
-    renderer.addContributor(splats);
+    renderer.renderSteps.addContributor(splats);
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 0.9,
-        near: 0.1,
-        far: 60.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 0.9, near: 0.1, far: 60.0),
     );
     final scene = Scene()..add(camera);
 
@@ -217,16 +216,18 @@ void main() {
         height: _height,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(
           shadows: ShadowSettings(enabled: false),
           bloom: BloomSettings(enabled: false),
         ),
       );
-      expect(splats.drewGpuOrder, gpu);
-      final pixels = await device.readPixels(result.frame);
-      if (pixels == null) fail('the frame could not be read back');
+      expect(splats.didDrawGpuOrder, gpu);
+      final pixels = await device.readback(result.frame);
       return Uint8List.fromList(pixels.buffer.asUint8List());
     }
 

@@ -13,6 +13,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -26,15 +28,15 @@ const int _height = 360;
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.0
+        ..intensity = 3.0 * Photometric.legacyUnit
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     )
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.4)).build()),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.pbr,
-          baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
         ),
         name: 'a',
       )..setPosition(0.6, 0.2, 0.0),
@@ -42,10 +44,10 @@ const int _height = 360;
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.5)).build()),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
-          emissive: Vector3.all(12.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+          emissive: Vector3.all(12.0).toLinearColor(),
         ),
         name: 'lamp',
       )..setPosition(-0.55, 0.15, 0.4),
@@ -53,7 +55,7 @@ const int _height = 360;
   final camera =
       CameraNode(
           name: 'eye',
-          projection: const PerspectiveProjection(fovYRadians: 0.9),
+          projection: const PerspectiveProjection(fovY: 0.9),
         )
         ..setPosition(2.2, 1.4, 3.4)
         ..lookAt(Vector3.zero());
@@ -85,9 +87,9 @@ Future<Uint8List> _whole(RenderSettings settings) async {
     views: <RenderView>[RenderView(camera: game.camera)],
     settings: settings,
   );
-  final pixels = (await game.renderer.device.readPixels(
+  final pixels = (await game.renderer.device.readback(
     result.frame,
-  ))!.buffer.asUint8List();
+  )).buffer.asUint8List();
   for (var i = 3; i < pixels.length; i += 4) {
     pixels[i] = 255;
   }
@@ -278,7 +280,7 @@ void main() {
       writer.close();
       final bytes = file.toBytes();
 
-      final decoded = decodePng(bytes)!;
+      final decoded = decodePng(bytes);
       expect(decoded.width, width);
       expect(decoded.rgba, pixels);
 

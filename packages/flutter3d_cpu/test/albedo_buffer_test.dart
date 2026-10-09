@@ -8,8 +8,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 16;
 
@@ -25,7 +26,7 @@ final class _AlbedoProbe extends RenderNode {
   String get name => 'albedo probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
@@ -41,7 +42,7 @@ final class _AlbedoProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final albedo = this.albedo = frame.resources.tryTexture(
       FrameResourceIds.albedoBuffer,
     );
@@ -55,7 +56,7 @@ final class _AlbedoProbe extends RenderNode {
 }
 
 ({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera}) _stage(
-  Material material, {
+  RenderMaterial material, {
   int attachments = 3,
 }) {
   final device = CpuDevice(
@@ -82,14 +83,14 @@ final class _AlbedoProbe extends RenderNode {
 void main() {
   test('a lit surface leaves its own colour, as it was authored', () {
     final it = _stage(
-      Material(
+      RenderMaterial(
         lighting: LightingModel.lambert,
-        baseColor: Vector4(0.8, 0.2, 0.1, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.2, 0.1, 1.0),
       ),
     );
     final probe = _AlbedoProbe(it.device);
     it.renderer
-      ..addNode(probe)
+      ..renderSteps.addNode(probe)
       ..render(
         width: _size,
         height: _size,
@@ -112,10 +113,10 @@ void main() {
   // an eight-bit albedo beside the half-float surface buffer held the raw
   // bytes of two half floats, and the bounces read a quarter of the colour.
   test('the albedo buffer shares the surface buffer\'s format', () {
-    final it = _stage(Material(lighting: LightingModel.lambert));
+    final it = _stage(RenderMaterial(lighting: LightingModel.lambert));
     final probe = _AlbedoProbe(it.device);
     it.renderer
-      ..addNode(probe)
+      ..renderSteps.addNode(probe)
       ..render(
         width: _size,
         height: _size,
@@ -129,14 +130,14 @@ void main() {
 
   test('an unlit surface reflects nothing', () {
     final it = _stage(
-      Material(
+      RenderMaterial(
         lighting: LightingModel.unlit,
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
       ),
     );
     final probe = _AlbedoProbe(it.device);
     it.renderer
-      ..addNode(probe)
+      ..renderSteps.addNode(probe)
       ..render(
         width: _size,
         height: _size,
@@ -148,9 +149,9 @@ void main() {
   });
 
   test('a device that opens two attachments has no albedo buffer to read', () {
-    final it = _stage(Material(), attachments: 2);
+    final it = _stage(RenderMaterial(), attachments: 2);
     final probe = _AlbedoProbe(it.device);
-    (it.renderer..addNode(probe)).render(
+    (it.renderer..renderSteps.addNode(probe)).render(
       width: _size,
       height: _size,
       scene: it.scene,

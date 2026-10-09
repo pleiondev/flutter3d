@@ -7,6 +7,10 @@
 /// this is a move rather than a design change.
 library;
 
+import 'shadow_technique.dart';
+
+export 'shadow_technique.dart';
+
 /// Which faces of a caster are drawn into a shadow map.
 ///
 /// The two ways a shadow map fails are opposites, and this picks which one to
@@ -37,11 +41,49 @@ enum ShadowCasterFaces {
 /// **A final class with const instances rather than an enum**, for the reason
 /// `PassSkip` gives: a published enum is a promise that the list is closed,
 /// and a fourth filter should not break somebody's exhaustive `switch`.
+///
+/// **An open set.** [ShadowFilter.custom] names a filter of one's own. Given
+/// a [ShadowTechnique], the renderer draws it with that: the cascades, the
+/// moments prefilter and the lookup's parameters are the technique's, and
+/// [ShadowTechnique] says what a technique can and cannot change. Without
+/// one it is drawn as its [base], so a settings file or a plugin can name
+/// the filter it means and a renderer that does not know it still draws a
+/// shadow.
 final class ShadowFilter {
-  const ShadowFilter._(this.name);
+  const ShadowFilter._(this.name) : _base = null, _technique = null;
+
+  /// A filter called [name], drawn with [technique] when it is given and as
+  /// [base] — one of [values] — when it is not.
+  const ShadowFilter.custom(
+    this.name, {
+    required ShadowFilter base,
+    ShadowTechnique? technique,
+  }) : _base = base, // ignore: prefer_initializing_formals
+       _technique = technique; // ignore: prefer_initializing_formals
 
   /// The name it is written down as.
   final String name;
+
+  final ShadowFilter? _base;
+
+  final ShadowTechnique? _technique;
+
+  /// The built-in filter this one is drawn as when no technique is given,
+  /// and what a reader that does not know [name] falls back to: itself for
+  /// each of [values].
+  ShadowFilter get base => _base?.base ?? this;
+
+  /// What the renderer draws this filter with: the technique it was given,
+  /// or its [base]'s. [ShadowTechnique.pcf], [ShadowTechnique.pcss] and
+  /// [ShadowTechnique.evsm] for the built-ins.
+  ShadowTechnique get technique =>
+      _technique ??
+      _base?.technique ??
+      switch (name) {
+        'pcss' => ShadowTechnique.pcss,
+        'evsm' => ShadowTechnique.evsm,
+        _ => ShadowTechnique.pcf,
+      };
 
   /// Nine taps of the depth map in a 3×3 square: a fixed, texel-wide edge,
   /// sharp or soft only as the map's resolution makes it. What this renderer
@@ -73,7 +115,7 @@ final class ShadowFilter {
   /// `PassSkip.unsupported`, and the frame draws [pcf] instead.
   static const ShadowFilter evsm = ShadowFilter._('evsm');
 
-  /// All of them.
+  /// The built-in filters.
   static const List<ShadowFilter> values = <ShadowFilter>[pcf, pcss, evsm];
 
   @override
@@ -119,16 +161,23 @@ final class ShadowSettings {
   /// [pointLightRadius].
   final ShadowFilter? filter;
 
-  /// The sun's apparent radius, in radians: what [ShadowFilter.pcss] uses
-  /// when it is asked for by name and [directionalLightRadius] is left at
-  /// zero, since a light of no size casts no penumbra to search for.
-  static const double sunAngularRadius = 0.0047;
+  /// The sun's apparent radius, in radians: 0.2666°, half the 0.533° the
+  /// disc spans seen from the Earth. What [ShadowFilter.pcss] uses when it is
+  /// asked for by name and [directionalLightRadius] is left at zero, since a
+  /// light of no size casts no penumbra to search for; and the size of the
+  /// sky's disc by default (`SkySettings.sunAngularRadius`), so the disc and
+  /// the penumbra are the same sun.
+  static const double sunAngularRadius = 0.00465;
 
   /// The filter the directional map is drawn with: [filter], or what
   /// [directionalLightRadius] implies when that is null.
   ShadowFilter get directionalFilter =>
       filter ??
       (directionalLightRadius > 0.0 ? ShadowFilter.pcss : ShadowFilter.pcf);
+
+  /// What the renderer draws the directional map with: [directionalFilter]'s
+  /// [ShadowFilter.technique].
+  ShadowTechnique get directionalTechnique => directionalFilter.technique;
 
   /// How far [ShadowFilter.evsm]'s blur reaches to each side, in texels of
   /// the cascade atlas, nought to eight.
@@ -464,7 +513,7 @@ final class ShadowSettings {
   /// worth the paragraph. It used to: the same number was clamped to
   /// [minCubeTile]–[maxCubeTile] and used for a cube tile as well. A game
   /// asking for a 1024 sun therefore got a cube atlas six tiles across and
-  /// `Renderer.kShadowedLights` rows down of the same size — at six rows,
+  /// `Renderer.shadowedLights` rows down of the same size — at six rows,
   /// 6144 × 6144 texels of `r16g16b16a16Float`, **302 MB**, and there are two
   /// of them, the movers and the bake. Six hundred megabytes of video memory
   /// for shadows nobody asked to be that sharp, on a platform where the whole
@@ -486,7 +535,7 @@ final class ShadowSettings {
   /// be visibly blocky.
   ///
   /// The atlas is `cubeResolution × 6` square — six faces across and
-  /// `Renderer.kShadowedLights` rows down. At the default that is 3072 × 3072,
+  /// `Renderer.shadowedLights` rows down. At the default that is 3072 × 3072,
   /// or 75 MB in the HDR format, twice. Deriving the tile from [resolution]
   /// instead, as it used to, would make the same atlas 302 MB.
   final int cubeResolution;
@@ -504,6 +553,13 @@ final class ShadowSettings {
   /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
   /// comes from a surface being sampled at a slightly different depth than it
   /// was rendered at.
+  ///
+  /// Normalized over the nearest cascade's own depth. The cascades past it
+  /// keep the same bias in metres, not the same share of their depth — the
+  /// last one's depth is the whole level, and a share of that lifted a
+  /// metre-high caster's shadow off the ground — and none goes below one
+  /// step of what the map stores, which is what a half float can tell apart
+  /// over that cascade's depth.
   final double bias;
 
   /// How far along the surface normal the sample point moves before being
@@ -525,6 +581,8 @@ final class ShadowSettings {
   /// clipped out of the map and stop casting.
   final double depthPadding;
 
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
   ShadowSettings copyWith({
     bool? enabled,
     int? resolution,
@@ -533,6 +591,9 @@ final class ShadowSettings {
     double? normalOffset,
     double? strength,
     double? depthPadding,
+    int? cascades,
+    double? cascadeSplit,
+    double? viewDistance,
     double? pointBias,
     double? pointNormalOffset,
     double? pointSoftness,
@@ -541,50 +602,39 @@ final class ShadowSettings {
     double? pointMaxSoftness,
     ShadowCasterFaces? casterFaces,
     ShadowCasterFaces? directionalCasterFaces,
-    int? cascades,
-    double? cascadeSplit,
-    double? viewDistance,
     ShadowFilter? filter,
     int? evsmBlurRadius,
     double? evsmBleedReduction,
     bool? translucentCasters,
     bool? caustics,
     int? causticPhotons,
-  }) =>
-      // Every field, and that is not bookkeeping. This method already dropped
-      // the point-shadow settings on the floor: `settingsFrom` calls it once a
-      // frame, so anything not listed here was silently reset to its default
-      // and no amount of setting it would have had any effect. The same shape
-      // of bug once meant a torch marked as a caster cast nothing.
-      ShadowSettings(
-        enabled: enabled ?? this.enabled,
-        resolution: resolution ?? this.resolution,
-        cubeResolution: cubeResolution ?? this.cubeResolution,
-        bias: bias ?? this.bias,
-        normalOffset: normalOffset ?? this.normalOffset,
-        strength: strength ?? this.strength,
-        depthPadding: depthPadding ?? this.depthPadding,
-        pointBias: pointBias ?? this.pointBias,
-        pointNormalOffset: pointNormalOffset ?? this.pointNormalOffset,
-        pointSoftness: pointSoftness ?? this.pointSoftness,
-        directionalLightRadius:
-            directionalLightRadius ?? this.directionalLightRadius,
-        pointLightRadius: pointLightRadius ?? this.pointLightRadius,
-        pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
-        casterFaces: casterFaces ?? this.casterFaces,
-        directionalCasterFaces:
-            directionalCasterFaces ?? this.directionalCasterFaces,
-        // The three the comment above was written about, missing for exactly
-        // the reason it names: a caller who set `cascades: 3` and went through
-        // `copyWith` got one cascade back and no way to tell.
-        cascades: cascades ?? this.cascades,
-        cascadeSplit: cascadeSplit ?? this.cascadeSplit,
-        viewDistance: viewDistance ?? this.viewDistance,
-        filter: filter ?? this.filter,
-        evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
-        evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
-        translucentCasters: translucentCasters ?? this.translucentCasters,
-        caustics: caustics ?? this.caustics,
-        causticPhotons: causticPhotons ?? this.causticPhotons,
-      );
+    bool clearFilter = false,
+  }) => ShadowSettings(
+    enabled: enabled ?? this.enabled,
+    resolution: resolution ?? this.resolution,
+    cubeResolution: cubeResolution ?? this.cubeResolution,
+    bias: bias ?? this.bias,
+    normalOffset: normalOffset ?? this.normalOffset,
+    strength: strength ?? this.strength,
+    depthPadding: depthPadding ?? this.depthPadding,
+    cascades: cascades ?? this.cascades,
+    cascadeSplit: cascadeSplit ?? this.cascadeSplit,
+    viewDistance: viewDistance ?? this.viewDistance,
+    pointBias: pointBias ?? this.pointBias,
+    pointNormalOffset: pointNormalOffset ?? this.pointNormalOffset,
+    pointSoftness: pointSoftness ?? this.pointSoftness,
+    directionalLightRadius:
+        directionalLightRadius ?? this.directionalLightRadius,
+    pointLightRadius: pointLightRadius ?? this.pointLightRadius,
+    pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
+    casterFaces: casterFaces ?? this.casterFaces,
+    directionalCasterFaces:
+        directionalCasterFaces ?? this.directionalCasterFaces,
+    filter: clearFilter ? null : (filter ?? this.filter),
+    evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
+    evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
+    translucentCasters: translucentCasters ?? this.translucentCasters,
+    caustics: caustics ?? this.caustics,
+    causticPhotons: causticPhotons ?? this.causticPhotons,
+  );
 }

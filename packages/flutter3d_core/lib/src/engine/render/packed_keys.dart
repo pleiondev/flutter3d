@@ -21,7 +21,7 @@
 /// `flutter test --platform chrome`.
 ///
 /// The web form keeps the key and the payload apart instead of packed. A key
-/// is at most [kSortKeyBits] wide and fits a double exactly, so ordering there
+/// is at most [sortKeyBits] wide and fits a double exactly, so ordering there
 /// is identical to native rather than approximate — which matters more than it
 /// sounds: the back-to-front mode decides the order transparent surfaces blend
 /// in, and a coarser key would change the picture, not just the speed.

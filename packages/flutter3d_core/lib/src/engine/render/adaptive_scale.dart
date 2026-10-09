@@ -51,6 +51,29 @@ final class AdaptiveScaleSettings {
          'resolution oscillates across the single point where they meet',
        );
 
+  /// A copy with the given fields replaced.
+  AdaptiveScaleSettings copyWith({
+    bool? enabled,
+    int? targetMicros,
+    double? minimum,
+    double? maximum,
+    double? step,
+    int? window,
+    int? holdWindows,
+    double? slowRatio,
+    double? fastRatio,
+  }) => AdaptiveScaleSettings(
+    enabled: enabled ?? this.enabled,
+    targetMicros: targetMicros ?? this.targetMicros,
+    minimum: minimum ?? this.minimum,
+    maximum: maximum ?? this.maximum,
+    step: step ?? this.step,
+    window: window ?? this.window,
+    holdWindows: holdWindows ?? this.holdWindows,
+    slowRatio: slowRatio ?? this.slowRatio,
+    fastRatio: fastRatio ?? this.fastRatio,
+  );
+
   /// Off by default: an application that has not asked for its resolution to
   /// move should not find it moving.
   final bool enabled;
@@ -63,6 +86,8 @@ final class AdaptiveScaleSettings {
   /// application considers "full", which need not be 1 on a display whose
   /// pixel ratio already costs it.
   final double minimum;
+
+  /// A render scale, as [minimum] is.
   final double maximum;
 
   /// How much the scale moves in one step. Whole steps rather than a
@@ -81,6 +106,7 @@ final class AdaptiveScaleSettings {
   final double slowRatio;
 
   /// Below this multiple, there is room to give resolution back.
+  /// A unitless ratio to [targetMicros].
   final double fastRatio;
 }
 

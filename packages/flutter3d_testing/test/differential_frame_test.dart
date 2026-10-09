@@ -23,7 +23,6 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Uint8List _sample(String relativePath) =>
     File('../flutter3d_samples/assets/$relativePath').readAsBytesSync();
@@ -69,21 +68,21 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
   asset.instantiate(scene);
 
   final bounds = scene.computeBounds();
-  final centre = (bounds.min + bounds.max)..scale(0.5);
+  final center = (bounds.min + bounds.max)..scale(0.5);
   final radius = math.max(((bounds.max - bounds.min)..scale(0.5)).length, 1e-3);
 
   scene.add(
-    LightNode(intensity: 3.0)
+    LightNode(intensity: 3.0 * Photometric.legacyUnit)
       ..setPosition(
-        centre.x - radius * 1.4,
-        centre.y + radius * 2.0,
-        centre.z - radius * 1.1,
+        center.x - radius * 1.4,
+        center.y + radius * 2.0,
+        center.z - radius * 1.1,
       )
-      ..lookAt(centre),
+      ..lookAt(center),
   );
 
   final camera = scene.add(
-    CameraNode(projection: const PerspectiveProjection(fovYRadians: 0.8)),
+    CameraNode(projection: const PerspectiveProjection(fovY: 0.8)),
   );
   final orbit = OrbitController(camera, yaw: 0.7, pitch: 0.35)
     ..frameBounds(bounds);
@@ -99,16 +98,19 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
     height: height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.05, 0.05, 0.08, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+      ),
     ],
     settings: const RenderSettings(
       shadows: ShadowSettings(enabled: false),
       bloom: BloomSettings(enabled: false),
     ),
   );
-  final pixels = await kit.device.readPixels(result.frame);
+  final pixels = await kit.device.readback(result.frame);
   return (
-    pixels: pixels!.buffer.asUint8List(),
+    pixels: pixels.buffer.asUint8List(),
     width: width,
     height: height,
     drawCalls: result.drawCalls,

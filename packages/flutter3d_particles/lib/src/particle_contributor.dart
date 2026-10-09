@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'flipbook.dart';
@@ -182,10 +183,10 @@ final class ParticleContributor extends PassContributor {
     // Without it a distant flame stays vivid against a wall that has faded
     // into the murk, which is the one place a viewer notices fog is missing.
     final fog = frame.settings.fog;
-    final colour = fog.resolvedColor;
-    _fog[0] = colour.x;
-    _fog[1] = colour.y;
-    _fog[2] = colour.z;
+    final color = fog.resolvedColor;
+    _fog[0] = color.r;
+    _fog[1] = color.g;
+    _fog[2] = color.b;
     view.camera.readViewOrigin(_eye);
     // The air as thick as it is at the camera: a height fog's falloff is not
     // integrated here — `FogSettings.densityAt` says what that costs.
@@ -227,16 +228,16 @@ final class ParticleContributor extends PassContributor {
         fragmentShader,
         'particle_texture',
         sprite,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       );
     }
 
     encoder.draw();
-    frame.state.drawCalls++;
+    frame.noteDraw();
 
     // The pipeline tracker describes the mesh pipelines only, and this pass
     // just replaced whatever it thought was bound.
-    frame.state.invalidatePipeline();
+    frame.invalidatePipeline();
     developer.Timeline.finishSync();
   }
 
@@ -353,20 +354,20 @@ final class ParticleContributor extends PassContributor {
         stage,
         'six_way_positive',
         sheet.positive,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       )
       ..bindTexture(
         stage,
         'six_way_negative',
         sheet.negative,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       );
 
     // One selection for the whole batch, as an instanced mesh gets one for
     // its bounds: a cloud of smoke is local, and the stage reads a light's
     // falloff per fragment, so near and far puffs still differ.
-    final radius = particles.boundsInto(_centre);
-    lights.bind(encoder, stage, centre: _centre, radius: radius);
+    final radius = particles.boundsInto(_center);
+    lights.bind(encoder, stage, center: _center, radius: radius);
   }
 
   /// The scene's depth and what a soft stage reads it by: the texel a
@@ -405,7 +406,7 @@ final class ParticleContributor extends PassContributor {
         stage,
         'scene_depth_texture',
         depth,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 
@@ -499,7 +500,7 @@ final class ParticleContributor extends PassContributor {
   final vm.Vector3 _right = vm.Vector3.zero();
   final vm.Vector3 _up = vm.Vector3.zero();
   final vm.Vector3 _forward = vm.Vector3.zero();
-  final vm.Vector3 _centre = vm.Vector3.zero();
+  final vm.Vector3 _center = vm.Vector3.zero();
   final Float32List _sixWayRight = Float32List(4);
   final Float32List _sixWayUp = Float32List(4);
   final Float32List _sixWayForward = Float32List(4);

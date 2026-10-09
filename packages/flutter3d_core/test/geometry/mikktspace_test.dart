@@ -59,7 +59,7 @@ MeshData _unevenFan() {
     <double>[0.55, 0.2],
     <double>[0.9, 0.3],
   ];
-  final centre = builder.addVertex(
+  final center = builder.addVertex(
     position: Vector3(0.0, 0.0, 0.3),
     normal: Vector3(0.0, 0.0, 1.0),
     texcoord: Vector2(0.5, 0.5),
@@ -73,7 +73,7 @@ MeshData _unevenFan() {
       ),
   ];
   for (var i = 0; i < around.length; i++) {
-    builder.addTriangle(centre, around[i], around[(i + 1) % around.length]);
+    builder.addTriangle(center, around[i], around[(i + 1) % around.length]);
   }
   return builder.build();
 }
@@ -112,7 +112,7 @@ void main() {
       // Mutation: `method: TangentMethod.lengyel` as the default (the old
       // generator) misses these by a hundredth at the centre; weighting every
       // face alike in `_evaluate` instead of by its angle misses by 3e-4.
-      const centre = <double>[0.995514, -0.094616, 0.000000, -1.0];
+      const center = <double>[0.995514, -0.094616, 0.000000, -1.0];
       const ring = <List<double>>[
         <double>[0.940659, -0.034397, -0.337605, -1.0],
         <double>[0.989365, -0.013109, -0.144865, -1.0],
@@ -125,7 +125,7 @@ void main() {
       final mesh = _unevenFan().withGeneratedTangents();
       _expectCorners(mesh, <List<double>>[
         for (var i = 0; i < ring.length; i++) ...<List<double>>[
-          centre,
+          center,
           ring[i],
           ring[(i + 1) % ring.length],
         ],

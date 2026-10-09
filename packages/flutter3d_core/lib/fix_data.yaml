@@ -1,0 +1,1984 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (F3dAttributeFlags)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'F3dAttributeFlags'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'F3dAttributeFlags'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (F3dMorphFlags)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'F3dMorphFlags'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'F3dMorphFlags'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (F3dRecord)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'F3dRecord'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'F3dRecord'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (F3dSamplingFlags)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'F3dSamplingFlags'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'F3dSamplingFlags'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (F3dSection)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'F3dSection'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'F3dSection'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (GltfAccessorReader)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'GltfAccessorReader'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'GltfAccessorReader'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (GltfAccessorType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      enum: 'GltfAccessorType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          enum: 'GltfAccessorType'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (GltfPrimitiveMode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      enum: 'GltfPrimitiveMode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          enum: 'GltfPrimitiveMode'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2ColorModel)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2ColorModel'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2ColorModel'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2GlobalDataField)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2GlobalDataField'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2GlobalDataField'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2HeaderField)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2HeaderField'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2HeaderField'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2ImageDescField)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2ImageDescField'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2ImageDescField'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2IndexField)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2IndexField'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2IndexField'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (Ktx2SupercompressionScheme)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'Ktx2SupercompressionScheme'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'Ktx2SupercompressionScheme'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialBinary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialBinary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialBinary'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialBuiltin)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialBuiltin'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialBuiltin'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialCall)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialCall'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialCall'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialConstant)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialConstant'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialConstant'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialConstruct)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialConstruct'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialConstruct'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialExpression)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialExpression'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialExpression'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialInput)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialInput'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialInput'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialInputRef)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialInputRef'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialInputRef'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialLet)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialLet'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialLet'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialLocalRef)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialLocalRef'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialLocalRef'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialNegate)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialNegate'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialNegate'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialParamRef)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialParamRef'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialParamRef'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialReturn)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialReturn'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialReturn'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialSample)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialSample'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialSample'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialSwizzle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'MaterialSwizzle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'MaterialSwizzle'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (ModelOrthographicCamera)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ModelOrthographicCamera'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'ModelOrthographicCamera'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (UsdzZip)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'UsdzZip'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'UsdzZip'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (applyBinary)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'applyBinary'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'applyBinary'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (broadcastArguments)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'broadcastArguments'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'broadcastArguments'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (checkMaterialSurface)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'checkMaterialSurface'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'checkMaterialSurface'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (decodeImagePure)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'decodeImagePure'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'decodeImagePure'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (decodeSplatPage)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'decodeSplatPage'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'decodeSplatPage'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (decodeUniversalBlock)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'decodeUniversalBlock'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'decodeUniversalBlock'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (encodeAstc4x4Block)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'encodeAstc4x4Block'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'encodeAstc4x4Block'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (encodeEtc2Rgb8Block)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'encodeEtc2Rgb8Block'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'encodeEtc2Rgb8Block'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (encodeSplatOctree)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'encodeSplatOctree'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'encodeSplatOctree'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (encodeUniversalBlock)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'encodeUniversalBlock'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'encodeUniversalBlock'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (encodeUniversalBlocks)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'encodeUniversalBlocks'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'encodeUniversalBlocks'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (exportToF3d)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'exportToF3d'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'exportToF3d'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (hasConflictingTextureTransforms)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'hasConflictingTextureTransforms'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'hasConflictingTextureTransforms'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (hdrSizeOf)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'hdrSizeOf'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'hdrSizeOf'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (isBasisUniversalKtx2)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'isBasisUniversalKtx2'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'isBasisUniversalKtx2'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (isBinaryStl)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'isBinaryStl'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'isBinaryStl'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (isKtx2BasisUniversal)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'isKtx2BasisUniversal'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'isKtx2BasisUniversal'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (isKtx2File)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'isKtx2File'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'isKtx2File'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (linearToSrgb)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'linearToSrgb'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'linearToSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (looksLikeAsciiStl)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'looksLikeAsciiStl'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'looksLikeAsciiStl'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (looksLikeSpz)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'looksLikeSpz'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'looksLikeSpz'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (materialExtensionsFromJson)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'materialExtensionsFromJson'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'materialExtensionsFromJson'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (materialExtensionsToJson)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'materialExtensionsToJson'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'materialExtensionsToJson'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (mergeSplats)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'mergeSplats'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'mergeSplats'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (parseMtl)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'parseMtl'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'parseMtl'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (parseSplatOctree)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'parseSplatOctree'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'parseSplatOctree'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (parseSplatOctreeIndex)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'parseSplatOctreeIndex'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'parseSplatOctreeIndex'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (sharedTextureTransform)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'sharedTextureTransform'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'sharedTextureTransform'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (sniffImageMimeType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'sniffImageMimeType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'sniffImageMimeType'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (splatChannel)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'splatChannel'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'splatChannel'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (splatOctreeIndexBytes)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'splatOctreeIndexBytes'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'splatOctreeIndexBytes'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (splatOpacity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'splatOpacity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'splatOpacity'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (srgbToLinear)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'srgbToLinear'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'srgbToLinear'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (surfaceMaterialFromJson)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'surfaceMaterialFromJson'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'surfaceMaterialFromJson'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (surfaceMaterialToJson)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'surfaceMaterialToJson'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'surfaceMaterialToJson'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (symmetricEigen3)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'symmetricEigen3'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'symmetricEigen3'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (toGltfFilters)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'toGltfFilters'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'toGltfFilters'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (transcodeUniversal)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'transcodeUniversal'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'transcodeUniversal'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (universalBlockFormat)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'universalBlockFormat'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'universalBlockFormat'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (zlibCompress)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'zlibCompress'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'zlibCompress'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (zlibInflate)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'zlibInflate'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'zlibInflate'
+  - title: 'flutter3d 1.0.0-rc.1: core-AbsolutePixels (AbsolutePixels)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'AbsolutePixels'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'AbsolutePixels'
+  - title: 'flutter3d 1.0.0-rc.1: core-ClusterDraws (ClusterDraws)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ClusterDraws'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ClusterDraws'
+  - title: 'flutter3d 1.0.0-rc.1: core-FrameCaptureBuilder (FrameCaptureBuilder)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'FrameCaptureBuilder'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'FrameCaptureBuilder'
+  - title: 'flutter3d 1.0.0-rc.1: core-ImmediateTextureSource (ImmediateTextureSource)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ImmediateTextureSource'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ImmediateTextureSource'
+  - title: 'flutter3d 1.0.0-rc.1: core-InMemoryDeviceClassMemory (InMemoryDeviceClassMemory)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'InMemoryDeviceClassMemory'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'InMemoryDeviceClassMemory'
+  - title: 'flutter3d 1.0.0-rc.1: core-PackedLane (PackedLane)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      typedef: 'PackedLane'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          typedef: 'PackedLane'
+  - title: 'flutter3d 1.0.0-rc.1: core-PackedMap (PackedMap)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      typedef: 'PackedMap'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          typedef: 'PackedMap'
+  - title: 'flutter3d 1.0.0-rc.1: core-ProbeFace (ProbeFace)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ProbeFace'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ProbeFace'
+  - title: 'flutter3d 1.0.0-rc.1: core-SceneShadows (SceneShadows)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'SceneShadows'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'SceneShadows'
+  - title: 'flutter3d 1.0.0-rc.1: core-ShadowAssignment (ShadowAssignment)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ShadowAssignment'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ShadowAssignment'
+  - title: 'flutter3d 1.0.0-rc.1: core-ShadowCandidate (ShadowCandidate)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ShadowCandidate'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ShadowCandidate'
+  - title: 'flutter3d 1.0.0-rc.1: core-ShadowFaceScheduler (ShadowFaceScheduler)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ShadowFaceScheduler'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ShadowFaceScheduler'
+  - title: 'flutter3d 1.0.0-rc.1: core-ShadowSlotAllocator (ShadowSlotAllocator)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ShadowSlotAllocator'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ShadowSlotAllocator'
+  - title: 'flutter3d 1.0.0-rc.1: core-animationTrackKey (animationTrackKey)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'animationTrackKey'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'animationTrackKey'
+  - title: 'flutter3d 1.0.0-rc.1: core-chooseUniversalTarget (chooseUniversalTarget)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'chooseUniversalTarget'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'chooseUniversalTarget'
+  - title: 'flutter3d 1.0.0-rc.1: core-clusterEye (clusterEye)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'clusterEye'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'clusterEye'
+  - title: 'flutter3d 1.0.0-rc.1: core-decodeOctahedral (decodeOctahedral)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_cpu/flutter3d_cpu.dart']
+      function: 'decodeOctahedral'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'decodeOctahedral'
+  - title: 'flutter3d 1.0.0-rc.1: core-encodeOctahedral (encodeOctahedral)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_cpu/flutter3d_cpu.dart']
+      function: 'encodeOctahedral'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'encodeOctahedral'
+  - title: 'flutter3d 1.0.0-rc.1: core-ensureSphereCapacity (ensureSphereCapacity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'ensureSphereCapacity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'ensureSphereCapacity'
+  - title: 'flutter3d 1.0.0-rc.1: core-escapesAssetBase (escapesAssetBase)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'escapesAssetBase'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'escapesAssetBase'
+  - title: 'flutter3d 1.0.0-rc.1: core-gatherProbe (gatherProbe)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'gatherProbe'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'gatherProbe'
+  - title: 'flutter3d 1.0.0-rc.1: core-impostorDecode (impostorDecode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'impostorDecode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'impostorDecode'
+  - title: 'flutter3d 1.0.0-rc.1: core-impostorEncode (impostorEncode)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'impostorEncode'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'impostorEncode'
+  - title: 'flutter3d 1.0.0-rc.1: core-jitterOffset (jitterOffset)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'jitterOffset'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'jitterOffset'
+  - title: 'flutter3d 1.0.0-rc.1: core-kIrradianceReach (kIrradianceReach)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kIrradianceReach'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'irradianceReach'
+  - title: 'flutter3d 1.0.0-rc.1: core-kMaxPayload (kMaxPayload)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kMaxPayload'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'maxPayload'
+  - title: 'flutter3d 1.0.0-rc.1: core-kNeutralColor (kNeutralColor)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kNeutralColor'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'neutralColor'
+  - title: 'flutter3d 1.0.0-rc.1: core-kNeutralJoints (kNeutralJoints)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kNeutralJoints'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'neutralJoints'
+  - title: 'flutter3d 1.0.0-rc.1: core-kNeutralTangent (kNeutralTangent)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kNeutralTangent'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'neutralTangent'
+  - title: 'flutter3d 1.0.0-rc.1: core-kNeutralWeights (kNeutralWeights)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kNeutralWeights'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'neutralWeights'
+  - title: 'flutter3d 1.0.0-rc.1: core-kNoHit (kNoHit)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kNoHit'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'noHit'
+  - title: 'flutter3d 1.0.0-rc.1: core-kPayloadMask (kPayloadMask)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kPayloadMask'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'payloadMask'
+  - title: 'flutter3d 1.0.0-rc.1: core-kRadixThreshold (kRadixThreshold)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kRadixThreshold'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'radixThreshold'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSortKeyBits (kSortKeyBits)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSortKeyBits'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'sortKeyBits'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSplatFloatsPerVertex (kSplatFloatsPerVertex)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatFloatsPerVertex'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'splatFloatsPerVertex'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSplatKeyMax (kSplatKeyMax)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatKeyMax'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'splatKeyMax'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSplatLeanLimit (kSplatLeanLimit)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatLeanLimit'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'splatLeanLimit'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSplatLowPass (kSplatLowPass)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatLowPass'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'splatLowPass'
+  - title: 'flutter3d 1.0.0-rc.1: core-kSplatReach (kSplatReach)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatReach'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          variable: 'splatReach'
+  - title: 'flutter3d 1.0.0-rc.1: core-lookAtRightHanded (lookAtRightHanded)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'lookAtRightHanded'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'lookAtRightHanded'
+  - title: 'flutter3d 1.0.0-rc.1: core-optimizeVertexCache (optimizeVertexCache)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'optimizeVertexCache'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'optimizeVertexCache'
+  - title: 'flutter3d 1.0.0-rc.1: core-packLanes (packLanes)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'packLanes'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'packLanes'
+  - title: 'flutter3d 1.0.0-rc.1: core-packSceneSpheres (packSceneSpheres)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'packSceneSpheres'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'packSceneSpheres'
+  - title: 'flutter3d 1.0.0-rc.1: core-probeFaceIsMirrored (probeFaceIsMirrored)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'probeFaceIsMirrored'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'probeFaceIsMirrored'
+  - title: 'flutter3d 1.0.0-rc.1: core-probeFaceViewProjection (probeFaceViewProjection)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'probeFaceViewProjection'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'probeFaceViewProjection'
+  - title: 'flutter3d 1.0.0-rc.1: core-radixSortPackedKeys (radixSortPackedKeys)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'radixSortPackedKeys'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'radixSortPackedKeys'
+  - title: 'flutter3d 1.0.0-rc.1: core-selectVisibleClusters (selectVisibleClusters)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'selectVisibleClusters'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'selectVisibleClusters'
+  - title: 'flutter3d 1.0.0-rc.1: core-sortSplatKeys (sortSplatKeys)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'sortSplatKeys'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'sortSplatKeys'
+  - title: 'flutter3d 1.0.0-rc.1: core-uploadCoatMap (uploadCoatMap)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'uploadCoatMap'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'uploadCoatMap'
+  - title: 'flutter3d 1.0.0-rc.1: core-uploadSheenMap (uploadSheenMap)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'uploadSheenMap'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'uploadSheenMap'
+  - title: 'flutter3d 1.0.0-rc.1: core-TonemapCurve-agxFull'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'agxFull'
+      inClass: 'TonemapCurve'
+    changes:
+      - kind: 'rename'
+        newName: 'agx'
+  - title: 'flutter3d 1.0.0-rc.1: core-MaterialSyntaxError'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialSyntaxError'
+    changes:
+      - kind: 'rename'
+        newName: 'MaterialSyntaxException'
+  - title: 'flutter3d 1.0.0-rc.1: core-Material'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      class: 'Material'
+    changes:
+      - kind: 'rename'
+        newName: 'RenderMaterial'
+  - title: 'flutter3d 1.0.0-rc.1: core-NodeFrame'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      class: 'NodeFrame'
+    changes:
+      - kind: 'rename'
+        newName: 'RenderFrame'
+  - title: 'flutter3d 1.0.0-rc.1: core-Pose'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Pose'
+    changes:
+      - kind: 'rename'
+        newName: 'AnimationPose'
+  - title: 'flutter3d 1.0.0-rc.1: core-Ray'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      class: 'Ray'
+    changes:
+      - kind: 'rename'
+        newName: 'LocalRay'
+  - title: 'flutter3d 1.0.0-rc.1: core-RenderView-clearColor'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'clearColor'
+      inClass: 'RenderView'
+    changes:
+      - kind: 'rename'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: core-RenderView-clearColor-parameter'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'RenderView'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'clearColor'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: core-Atmosphere-applyTo-clearColor'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'applyTo'
+      inClass: 'Atmosphere'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'clearColor'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SkyColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      typedef: 'SkyColour'
+    changes:
+      - kind: 'rename'
+        newName: 'SkyColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-CellGrid-mesh'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      method: 'mesh'
+      inClass: 'CellGrid'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-FrameResourceIds-hdrColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'hdrColour'
+      inClass: 'FrameResourceIds'
+    changes:
+      - kind: 'rename'
+        newName: 'hdrColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-FrameResourceIds-sceneColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'sceneColour'
+      inClass: 'FrameResourceIds'
+    changes:
+      - kind: 'rename'
+        newName: 'sceneColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-FreeLook-metresPerSecond'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'metresPerSecond'
+      inClass: 'FreeLook'
+    changes:
+      - kind: 'rename'
+        newName: 'metersPerSecond'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ImpostorNode-ImpostorNode'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'ImpostorNode'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ImpostorNode-ImpostorNode-withCard'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: 'withCard'
+      inClass: 'ImpostorNode'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ImpostorNode-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'centre'
+      inClass: 'ImpostorNode'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-LineStripNode-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'colour'
+      inClass: 'LineStripNode'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ModelImpostor-ModelImpostor'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'ModelImpostor'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ModelImpostor-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      field: 'centre'
+      inClass: 'ModelImpostor'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ModelSplat-ModelSplat'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'ModelSplat'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colourSpace'
+        newName: 'colorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ModelSplat-colourSpace'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      field: 'colourSpace'
+      inClass: 'ModelSplat'
+    changes:
+      - kind: 'rename'
+        newName: 'colorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ShadowCastingMode-drawsColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'drawsColour'
+      inEnum: 'ShadowCastingMode'
+    changes:
+      - kind: 'rename'
+        newName: 'drawsColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SkyGradient-SkyGradient'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'SkyGradient'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'sunColour'
+        newName: 'sunColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SkyGradient-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'colour'
+      inClass: 'SkyGradient'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SkyGradient-sunColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'sunColour'
+      inClass: 'SkyGradient'
+    changes:
+      - kind: 'rename'
+        newName: 'sunColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SplatCloud-SplatCloud'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'SplatCloud'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centres'
+        newName: 'centers'
+      - kind: 'renameParameter'
+        oldName: 'colours'
+        newName: 'colors'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SplatCloud-centres'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      field: 'centres'
+      inClass: 'SplatCloud'
+    changes:
+      - kind: 'rename'
+        newName: 'centers'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SplatCloud-colours'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      field: 'colours'
+      inClass: 'SplatCloud'
+    changes:
+      - kind: 'rename'
+        newName: 'colors'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SplatColourSpace'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      enum: 'SplatColourSpace'
+    changes:
+      - kind: 'rename'
+        newName: 'SplatColorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-specialiseMaterial'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      function: 'specialiseMaterial'
+    changes:
+      - kind: 'rename'
+        newName: 'specializeMaterial'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-splatColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      function: 'splatColour'
+    changes:
+      - kind: 'rename'
+        newName: 'splatColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-LineStripNode-LineStripNode'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'LineStripNode'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-ContributorLights-bind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'bind'
+      inClass: 'ContributorLights'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-MeshNode-worldBoundsCentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'worldBoundsCentre'
+      inClass: 'MeshNode'
+    changes:
+      - kind: 'rename'
+        newName: 'worldBoundsCenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-OffAxisProjection-OffAxisProjection-symmetric'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: 'symmetric'
+      inClass: 'OffAxisProjection'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fovYRadians'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-OrbitController-OrbitController'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'OrbitController'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'framingFov'
+        newName: 'framingFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-OrbitController-frameBounds'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'frameBounds'
+      inClass: 'OrbitController'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fovYRadians'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-OrbitController-framingFov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'framingFov'
+      inClass: 'OrbitController'
+    changes:
+      - kind: 'rename'
+        newName: 'framingFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-PerspectiveProjection-PerspectiveProjection'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'PerspectiveProjection'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fovYRadians'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-PerspectiveProjection-copyWith'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'copyWith'
+      inClass: 'PerspectiveProjection'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fovYRadians'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-PerspectiveProjection-fovYRadians'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'fovYRadians'
+      inClass: 'PerspectiveProjection'
+    changes:
+      - kind: 'rename'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-EffectiveAntiAliasing-none'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'none'
+      inClass: 'EffectiveAntiAliasing'
+    changes:
+      - kind: 'rename'
+        newName: 'isNone'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-FrameGraphNode-supported'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'supported'
+      inClass: 'FrameGraphNode'
+    changes:
+      - kind: 'rename'
+        newName: 'isSupported'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-GltfWriter-usedGeometryQuantization'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      getter: 'usedGeometryQuantization'
+      inClass: 'GltfWriter'
+    changes:
+      - kind: 'rename'
+        newName: 'didQuantizeGeometry'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-GltfWriter-usedVertexCacheReordering'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      getter: 'usedVertexCacheReordering'
+      inClass: 'GltfWriter'
+    changes:
+      - kind: 'rename'
+        newName: 'didReorderVertexCache'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-InstanceHandle-live'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'live'
+      inClass: 'InstanceHandle'
+    changes:
+      - kind: 'rename'
+        newName: 'isLive'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-MeshNode-worldIsMirrored'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'worldIsMirrored'
+      inClass: 'MeshNode'
+    changes:
+      - kind: 'rename'
+        newName: 'isWorldMirrored'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SceneNode-ownBoundsAreCullable'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'ownBoundsAreCullable'
+      inClass: 'SceneNode'
+    changes:
+      - kind: 'rename'
+        newName: 'hasCullableOwnBounds'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SceneNode-subtreeAlwaysDrawn'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'subtreeAlwaysDrawn'
+      inClass: 'SceneNode'
+    changes:
+      - kind: 'rename'
+        newName: 'isSubtreeAlwaysDrawn'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SceneNode-visible'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'visible'
+      inClass: 'SceneNode'
+    changes:
+      - kind: 'rename'
+        newName: 'isVisible'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-SceneNode-visibleInHierarchy'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      getter: 'visibleInHierarchy'
+      inClass: 'SceneNode'
+    changes:
+      - kind: 'rename'
+        newName: 'isVisibleInHierarchy'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kDefaultVertexCacheSize'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      variable: 'kDefaultVertexCacheSize'
+    changes:
+      - kind: 'rename'
+        newName: 'defaultVertexCacheSize'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kImpostorGrid'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kImpostorGrid'
+    changes:
+      - kind: 'rename'
+        newName: 'impostorGrid'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kPayloadBits'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kPayloadBits'
+    changes:
+      - kind: 'rename'
+        newName: 'payloadBits'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kRootMotionExtra'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kRootMotionExtra'
+    changes:
+      - kind: 'rename'
+        newName: 'rootMotionExtra'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatVerticesPerSplat'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      variable: 'kSplatVerticesPerSplat'
+    changes:
+      - kind: 'rename'
+        newName: 'splatVerticesPerSplat'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kF3dHeaderBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kF3dHeaderBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'f3dHeaderBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kF3dMagic'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kF3dMagic'
+    changes:
+      - kind: 'rename'
+        newName: 'f3dMagic'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kF3dSectionEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kF3dSectionEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'f3dSectionEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kFmatVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kFmatVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'fmatVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2HeaderBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2HeaderBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2HeaderBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2HeaderOffset'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2HeaderOffset'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2HeaderOffset'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2Identifier'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2Identifier'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2Identifier'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2IndexBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2IndexBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2IndexBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2IndexOffset'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2IndexOffset'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2IndexOffset'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2LevelIndexEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2LevelIndexEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2LevelIndexEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kKtx2LevelIndexOffset'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kKtx2LevelIndexOffset'
+    changes:
+      - kind: 'rename'
+        newName: 'ktx2LevelIndexOffset'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kMaterialInputs'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kMaterialInputs'
+    changes:
+      - kind: 'rename'
+        newName: 'materialInputs'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kMaterialTextureBindings'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kMaterialTextureBindings'
+    changes:
+      - kind: 'rename'
+        newName: 'materialTextureBindings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatOctreeExtension'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatOctreeExtension'
+    changes:
+      - kind: 'rename'
+        newName: 'splatOctreeExtension'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatOctreeHeaderBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatOctreeHeaderBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'splatOctreeHeaderBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatOctreeNodeBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatOctreeNodeBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'splatOctreeNodeBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatOctreeVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatOctreeVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'splatOctreeVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatPageBytesPerSplat'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatPageBytesPerSplat'
+    changes:
+      - kind: 'rename'
+        newName: 'splatPageBytesPerSplat'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSplatShC0'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSplatShC0'
+    changes:
+      - kind: 'rename'
+        newName: 'splatShC0'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kSpzLatestVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kSpzLatestVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'spzLatestVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kUniversalBlockKey'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kUniversalBlockKey'
+    changes:
+      - kind: 'rename'
+        newName: 'universalBlockKey'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kUniversalBlockRgb'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kUniversalBlockRgb'
+    changes:
+      - kind: 'rename'
+        newName: 'universalBlockRgb'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kUniversalBlockRgba'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kUniversalBlockRgba'
+    changes:
+      - kind: 'rename'
+        newName: 'universalBlockRgba'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-Renderer-kShadowedLights'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'kShadowedLights'
+      inClass: 'Renderer'
+    changes:
+      - kind: 'rename'
+        newName: 'shadowedLights'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-kF3dVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      variable: 'kF3dVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'f3dVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-DebugDrawOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      class: 'DebugDrawOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'DebugDrawSettings'
+  - title: 'flutter3d 1.0.0-rc.1: f2-core-RenderSettings-pixelAlteringPasses'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'pixelAlteringPasses'
+      inClass: 'RenderSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'pixelAlteringSteps'
+  - title: 'flutter3d 1.0.0-rc.1: c-build-core-library (DeviceClass)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'DeviceClass'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'DeviceClass'
+  - title: 'flutter3d 1.0.0-rc.1: c-build-core-library (deviceClassPath)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      function: 'deviceClassPath'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'deviceClassPath'

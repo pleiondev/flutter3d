@@ -260,8 +260,10 @@ void main() {
       renderer = Renderer.create(device: device);
       scene = Scene()
         ..add(
-          MeshNode(DeviceMesh.upload(device, CuboidShape().build()), Material())
-            ..setPosition(0.0, 0.0, -5.0),
+          MeshNode(
+            DeviceMesh.upload(device, CuboidShape().build()),
+            RenderMaterial(),
+          )..setPosition(0.0, 0.0, -5.0),
         )
         ..add(CameraNode());
       view = RenderView(camera: scene.cameras.single);

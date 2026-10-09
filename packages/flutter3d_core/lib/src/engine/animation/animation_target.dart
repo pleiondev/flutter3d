@@ -4,12 +4,16 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// An interface rather than `SceneNode` directly, and the direction matters:
 /// the animation layer is reached from the asset decoders, so depending on the
-/// scene graph would drag `Material` — and through it the graphics backend and
+/// scene graph would drag `RenderMaterial` — and through it the graphics backend and
 /// `dart:ui` — into everything that merely decodes a glTF file. That is exactly
 /// what stopped `tool/bench/bench.dart` from compiling ahead of time.
 ///
 /// `SceneNode` satisfies it as written; nothing else has to.
-abstract interface class AnimationTarget {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class AnimationTarget {
   void setPosition(double x, double y, double z);
   void setRotation(Quaternion value);
   void setScale(double x, double y, double z);

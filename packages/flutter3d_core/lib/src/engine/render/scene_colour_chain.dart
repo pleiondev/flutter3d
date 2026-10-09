@@ -9,7 +9,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// laid side by side in one texture.
 ///
 /// **One texture rather than a mip chain, and the reason is the interface.**
-/// A 2D render target has no levels here: `RenderTargetSpec` carries none and
+/// A 2D render target has no levels here: `RenderTargetDescriptor` carries none and
 /// only a cube is made with a chain (`createCubeRenderTarget`). And a set of
 /// textures, one per level the way bloom keeps its pyramid, would cost the
 /// lit stage a sampler a level where it has one left under WebGL2's sixteen.

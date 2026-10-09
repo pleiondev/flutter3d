@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/build_ktx2.dart';
 
 Uint8List _readSample(String name) =>
-    File('$kSamplesPath/$name').readAsBytesSync();
+    File('$samplesPath/$name').readAsBytesSync();
 
 /// Every call in this file takes the KTX2 branch, which never reaches
 /// [ImageDecoder] — so this exists only to satisfy the parameter, and a call
@@ -317,9 +317,7 @@ void main() {
             ),
           ),
         ],
-        keyValues: const <String, String>{
-          kUniversalBlockKey: kUniversalBlockRgb,
-        },
+        keyValues: const <String, String>{universalBlockKey: universalBlockRgb},
       );
 
       for (final (name, unsupported, expected)

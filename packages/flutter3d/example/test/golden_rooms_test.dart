@@ -47,7 +47,8 @@ Future<Uint8List> _draw(
     fallbackNormal: it.normal,
   );
 
-  final world = Scene(name: sceneName)..ambientIntensity = ambient;
+  final world = Scene(name: sceneName)
+    ..ambientIntensity = ambient * Photometric.legacyUnit;
   for (final node in room(it.device)) {
     world.add(node);
   }
@@ -77,9 +78,9 @@ Future<Uint8List> _draw(
           : const AmbientOcclusionSettings(enabled: false),
     ),
   );
-  final pixels = await it.device.readPixels(frame.frame);
+  final pixels = await it.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels where [b] is brighter than [a] by more than a channel of noise, and

@@ -31,9 +31,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
-import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+import 'package:flutter3d_webgl/src/webgl_device.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Average luminance per cell, row-major from the top, as Impeller drew each
@@ -2906,12 +2908,11 @@ void main() {
     test(
       'WebGL draws ${which.name} the way Impeller does',
       () async {
-        final device = WebGlDevice.create(
+        final device = WebGlDevice.open(
           width: kParityWidth,
           height: kParityHeight,
-          sources: engineShaders,
+          sources: webGlEngineShaders,
         );
-        if (device == null) fail('no WebGL2 context in this browser');
         // Reported once per fixture, because it is the difference between
         // shadows and no shadows and nothing else says so.
         // ignore: avoid_print
@@ -2922,7 +2923,7 @@ void main() {
           height: 1,
           format: TextureFormat.r8g8b8a8UNormInt,
           pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-        )!;
+        );
 
         final renderer = Renderer.create(
           device: device,
@@ -2947,11 +2948,11 @@ void main() {
           '${result.pipelines} pipelines',
         );
 
-        final pixels = await device.readPixels(result.frame);
+        final pixels = await device.readback(result.frame);
         expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
         final mine = parityGrid(
-          pixels!.buffer.asUint8List(),
+          pixels.buffer.asUint8List(),
           kParityWidth,
           kParityHeight,
         );
@@ -3091,14 +3092,13 @@ void main() {
 /// that cannot be created is a shadow pass that cannot run.
 void _atlasTests() {
   test('the cube shadow atlas is a texture this backend can make', () {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: 64,
       height: 64,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
     final atlas = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 6144,
         height: 4096,
         format: TextureFormat.r16g16b16a16Float,
@@ -3185,12 +3185,11 @@ void _linkTests() {
 
   for (final (vertex, fragment) in pairs) {
     test('$vertex + $fragment links', () {
-      final device = WebGlDevice.create(
+      final device = WebGlDevice.open(
         width: 64,
         height: 64,
-        sources: engineShaders,
+        sources: webGlEngineShaders,
       );
-      if (device == null) fail('no WebGL2 context in this browser');
       final v = device.shaders[vertex];
       final f = device.shaders[fragment];
       expect(v, isNotNull, reason: '$vertex did not compile');

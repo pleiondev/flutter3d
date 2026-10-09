@@ -23,9 +23,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -91,15 +93,18 @@ Future<_Shot> _draw({
       if (poison) _poison(texture);
     };
 
-  final scene = Scene()..ambientIntensity = 0.15;
-  final wall = Material(name: 'wall', baseColor: Vector4(0.8, 0.8, 0.8, 1.0));
-  final block = Material(
-    name: 'block',
-    baseColor: Vector4(0.9, 0.4, 0.2, 1.0),
-    emissive: Vector3(1.5, 0.6, 0.2),
+  final scene = Scene()..ambientIntensity = 0.15 * Photometric.legacyUnit;
+  final wall = RenderMaterial(
+    name: 'wall',
+    baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
   );
-  for (final (Vector3 size, Vector3 at, Material material)
-      in <(Vector3, Vector3, Material)>[
+  final block = RenderMaterial(
+    name: 'block',
+    baseColor: LinearColor.fromSrgb(0.9, 0.4, 0.2, 1.0),
+    emissive: LinearColor(1.5, 0.6, 0.2),
+  );
+  for (final (Vector3 size, Vector3 at, RenderMaterial material)
+      in <(Vector3, Vector3, RenderMaterial)>[
         (Vector3(2.8, 0.1, 2.8), Vector3(0.0, -1.4, 0.0), wall),
         (Vector3(0.1, 2.8, 2.8), Vector3(-1.4, 0.0, 0.0), wall),
         (Vector3(2.8, 2.8, 0.1), Vector3(0.0, 0.0, -1.4), wall),
@@ -113,14 +118,17 @@ Future<_Shot> _draw({
     );
   }
   scene.add(
-    LightNode(type: LightType.directional, intensity: 0.8, castsShadow: true)
-      ..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
+    LightNode(
+      type: LightType.directional,
+      intensity: 0.8 * Photometric.legacyUnit,
+      castsShadow: true,
+    )..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
   );
   final view = RenderView(
     camera: CameraNode()
       ..setPosition(1.8, 1.2, 1.8)
       ..lookAt(Vector3(-0.6, -0.8, -0.6)),
-    clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+    clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
   );
 
   late FrameResult frame;
@@ -134,7 +142,7 @@ Future<_Shot> _draw({
     );
   }
   return (
-    pixels: (await device.readPixels(frame.frame))!.buffer.asUint8List(),
+    pixels: (await device.readback(frame.frame)).buffer.asUint8List(),
     created: renderer.targetPool.createdCount,
     retired: retired,
     ran: <String>[

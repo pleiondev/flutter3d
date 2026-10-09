@@ -18,7 +18,11 @@ library;
 /// `MorphState` implements it, which is the only implementation the engine
 /// ships: the weights live on the scene node so that two copies of a model can
 /// wear different expressions from one set of deltas.
-abstract interface class MorphSink {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class MorphSink {
   /// Sets every weight from [values].
   ///
   /// Longer than the mesh has is tolerated and shorter leaves the rest at

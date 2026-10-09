@@ -37,16 +37,15 @@ const int _frame = 16;
 
 void main() {
   test('presenting covers the canvas even when the frame is smaller', () {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: _canvas,
       height: _canvas,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
     addTearDown(device.dispose);
 
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _frame,
         height: _frame,
         format: TextureFormat.r8g8b8a8UNormInt,

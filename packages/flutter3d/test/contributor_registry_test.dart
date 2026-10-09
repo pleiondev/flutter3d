@@ -1,4 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A plugin that records nothing and draws nothing.

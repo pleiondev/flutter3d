@@ -41,13 +41,13 @@ final class _FailingNode extends RenderNode {
   String get name => 'failing overlay';
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) => throw StateError('the overlay went wrong');
+  void execute(RenderFrame frame) => throw StateError('the overlay went wrong');
 }
 
 /// An application node that reads a name nothing writes. The graph refuses it
@@ -66,10 +66,10 @@ final class _MisreadingNode extends RenderNode {
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {}
+  void execute(RenderFrame frame) {}
 }
 
 /// One pixel's worth of bytes carrying [id].
@@ -95,12 +95,12 @@ void main() {
     renderer = Renderer.create(device: device);
     left = MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(),
+      RenderMaterial(),
       name: 'left',
     )..setPosition(-1.5, 0.0, -5.0);
     right = MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(),
+      RenderMaterial(),
       name: 'right',
     )..setPosition(1.5, 0.0, -5.0);
     scene = Scene()
@@ -242,12 +242,12 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     left.material
       ..albedo = holes
       ..alphaMode = MaterialAlphaMode.mask
       ..alphaCutoff = 0.3
-      ..baseColor.w = 0.5;
+      ..baseColor = left.material.baseColor.withAlpha(0.5);
     renderer.pickPixel(0.5, 0.5).ignore();
     frame();
 
@@ -283,7 +283,7 @@ void main() {
       // renderer outside the `try` that builds the frame — the completer is
       // on no list anybody finishes, and this test hangs on the await until
       // the runner gives up on it.
-      renderer.addNode(const _MisreadingNode());
+      renderer.renderSteps.addNode(const _MisreadingNode());
       final asked = renderer.pickPixel(0.5, 0.5);
       expect(frame, throwsA(isA<FrameGraphError>()));
       expect(idPasses(), isEmpty, reason: 'no pass ran');
@@ -335,7 +335,7 @@ void main() {
       // with a pixel. Mutation: drop the `isCompleted` check in the pick pass —
       // the second answer throws "Future already completed" from inside a
       // `then`, which is an unhandled error nobody's `await` sees.
-      renderer.addNode(const _FailingNode());
+      renderer.renderSteps.addNode(const _FailingNode());
       final asked = renderer.pickPixel(0.5, 0.5);
       expect(frame, throwsStateError);
       expect(device.readbacks, hasLength(1), reason: 'the id pass had run');

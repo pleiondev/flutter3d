@@ -59,15 +59,11 @@ final class EngineTables {
   TextureHandle get smaaArea => this[tables.smaaArea];
 
   /// [table] on this device, uploaded now if it was not already.
-  TextureHandle operator [](EngineTable table) => _uploaded[table] ??=
-      _device.createTextureFromPixels(
+  TextureHandle operator [](EngineTable table) =>
+      _uploaded[table] ??= _device.createTextureFromPixels(
         width: table.width,
         height: table.height,
         format: table.format,
         pixels: ByteData.sublistView(table.bytes),
-      ) ??
-      (throw StateError(
-        '${table.name}: the device refused a ${table.width}×'
-        '${table.height} ${table.format.name} table',
-      ));
+      );
 }

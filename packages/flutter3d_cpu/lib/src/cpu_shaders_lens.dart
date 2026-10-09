@@ -10,7 +10,7 @@ import 'package:vector_math/vector_math.dart';
 import 'cpu_shader.dart';
 
 /// `lens_flare.frag`.
-final class LensFlareShader implements CpuFragmentShader {
+final class LensFlareShader extends CpuFragmentShader {
   const LensFlareShader();
 
   /// `Falloff`: all of a reflection in the middle, nothing at the corners.

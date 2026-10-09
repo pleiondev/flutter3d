@@ -80,6 +80,8 @@ Vector4 planeInEyeSpace(
   Matrix4 view,
   Vector3 normal,
   Vector3 point, {
+
+  /// In metres.
   double offset = 0.0,
 }) {
   final n = normal.normalized();

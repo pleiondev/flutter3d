@@ -679,7 +679,17 @@ void main() {
   // Chosen here rather than returned from the top: an early return on a
   // per-pixel condition would leave every read above in non-uniform control
   // flow, which WGSL refuses.
-  if (composite_info.lens.y > 0.5 && v_uv.x >= composite_info.lens.z) {
+  //
+  // `A5.22`: lens.y says which sides of the wipe hold display values — one
+  // the right, two the left, three both — because a wipe between two
+  // channels, or a lit right beside a channel on the left, is now a frame
+  // the materials draw.
+  float sides = composite_info.lens.y;
+  bool right_of_wipe = v_uv.x >= composite_info.lens.z;
+  bool shows_channel = sides > 2.5 ||
+                       (sides > 1.5 && sides < 2.5 && !right_of_wipe) ||
+                       (sides > 0.5 && sides < 1.5 && right_of_wipe);
+  if (shows_channel) {
     vec4 raw = textureLod(scene_texture, v_uv, 0.0);
     frag_color = vec4(LinearToSrgb(clamp(raw.rgb, vec3(0.0), vec3(1.0))),
                       raw.a);

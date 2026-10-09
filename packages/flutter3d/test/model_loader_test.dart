@@ -7,7 +7,7 @@ import 'package:flutter3d_core/src/engine/assets/model_loader.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 void main() {
   group('format detection', () {

@@ -105,7 +105,7 @@ void main() {
 
       expect(prepared.glsl, contains('uniform textureCube sky_texture_tex;'));
       expect(prepared.glsl, contains('#define sky_texture samplerCube('));
-      expect(prepared.samplers.single.dimension, kCubeDimension);
+      expect(prepared.samplers.single.dimension, cubeDimension);
     });
 
     test('takes two bindings, texture first', () {
@@ -131,7 +131,7 @@ void main() {
       expect(prepared.samplers[0].samplerBinding, 1);
       expect(prepared.samplers[1].textureBinding, 2);
       expect(prepared.samplers[1].samplerBinding, 3);
-      expect(prepared.samplers.every((s) => s.group == kFragmentGroup), isTrue);
+      expect(prepared.samplers.every((s) => s.group == fragmentGroup), isTrue);
     });
 
     test('asks for the samplerless extension only when something needs it', () {
@@ -194,7 +194,7 @@ void main() {
       );
       final block = prepared.blocks.single;
       expect(block.name, 'FrameInfo');
-      expect(block.group, kVertexGroup);
+      expect(block.group, vertexGroup);
       expect(block.binding, 0);
       expect(block.sizeInBytes, 80);
       expect(
@@ -249,7 +249,7 @@ void main() {
           fragment: true,
           varyingLocations: locations,
         ),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
   });
@@ -376,9 +376,9 @@ void main() {
     test('refuse a family wider than WebGPU has locations for', () {
       expect(
         () => assignVaryingLocations(<Set<String>>[
-          <String>{for (var i = 0; i <= kMaxInterStageVariables; i++) 'v_$i'},
+          <String>{for (var i = 0; i <= maxInterStageVariables; i++) 'v_$i'},
         ]),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
 
@@ -391,7 +391,7 @@ void main() {
           fragment: false,
           varyingLocations: const <String, int>{},
         ),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
   });
@@ -454,7 +454,7 @@ void main() {
           fragment: false,
           varyingLocations: locations,
         ),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
   });
@@ -544,7 +544,7 @@ void main() {
           fragment: true,
           varyingLocations: locations,
         ),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
 
@@ -560,7 +560,7 @@ void main() {
           fragment: true,
           varyingLocations: locations,
         ),
-        throwsA(isA<WgslPrepareError>()),
+        throwsA(isA<WgslPrepareException>()),
       );
     });
   });

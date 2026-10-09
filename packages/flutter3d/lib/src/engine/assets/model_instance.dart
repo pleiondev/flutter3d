@@ -27,13 +27,13 @@ final class ModelInstance {
     this.variants = const <String>[],
     List<(MeshNode, ModelPart)> drawn = const <(MeshNode, ModelPart)>[],
     this._slots = const <String, int>{},
-    Material Function(Material)? materialFor,
+    RenderMaterial Function(RenderMaterial)? materialFor,
     PointerTargets? pointerTargets,
   }) : _drawn = List<(MeshNode, ModelPart)>.of(drawn),
        _materialFor = materialFor ?? _same,
        pointerTargets = pointerTargets ?? PointerTargets();
 
-  static Material _same(Material material) => material;
+  static RenderMaterial _same(RenderMaterial material) => material;
 
   /// The material variants this model offers, by name — the asset's own.
   final List<String> variants;
@@ -50,7 +50,7 @@ final class ModelInstance {
 
   /// The instance's own copy of an asset material, or the material itself
   /// when materials are shared — see [ModelAssetInstantiate.instantiate].
-  final Material Function(Material) _materialFor;
+  final RenderMaterial Function(RenderMaterial) _materialFor;
 
   /// Where the player's `KHR_animation_pointer` tracks land: this instance's
   /// materials by the file's index, and whatever lights the caller binds
@@ -179,7 +179,7 @@ final class ModelSwap {
   final List<String> added;
 
   /// Whether the instance now draws everything the new asset has.
-  bool get complete => added.isEmpty;
+  bool get isComplete => added.isEmpty;
 }
 
 /// `instantiate` and its helpers, added to [ModelAsset].
@@ -226,13 +226,13 @@ extension ModelAssetInstantiate on ModelAsset {
     final bounds = localBounds;
     final extent = bounds.max[axis] - bounds.min[axis];
     final scale = extent > 1e-9 ? length / extent : 1.0;
-    final centre = (bounds.min + bounds.max)..scale(0.5 * scale);
+    final center = (bounds.min + bounds.max)..scale(0.5 * scale);
     instance.root
       ..setUniformScale(scale)
       ..setPosition(
-        -centre.x,
-        onGround ? -bounds.min.y * scale : -centre.y,
-        -centre.z,
+        -center.x,
+        onGround ? -bounds.min.y * scale : -center.y,
+        -center.z,
       );
     return instance;
   }
@@ -259,7 +259,7 @@ extension ModelAssetInstantiate on ModelAsset {
     final meshNodes = <MeshNode>[];
     final drawn = <(MeshNode, ModelPart)>[];
     final slots = <String, int>{};
-    final materials = <Material, Material>{};
+    final materials = <RenderMaterial, RenderMaterial>{};
     // Skeletons are attached after the walk: a joint may be created later than
     // the mesh that references it, so binding as we go would capture nulls.
     final pendingSkins = <(MeshNode, int)>[];
@@ -269,7 +269,7 @@ extension ModelAssetInstantiate on ModelAsset {
     // sinks are gathered per node and fanned out below.
     final morphSinks = List<List<MorphState>?>.filled(nodes.length, null);
 
-    Material materialFor(Material source) => shareMaterials
+    RenderMaterial materialFor(RenderMaterial source) => shareMaterials
         ? source
         : materials.putIfAbsent(source, () => _copyMaterial(source));
 
@@ -358,7 +358,7 @@ extension ModelAssetInstantiate on ModelAsset {
                     part.card,
                     albedo: part.albedo,
                     normalDepth: part.normalDepth,
-                    centre: lod.impostor!.centre,
+                    center: lod.impostor!.center,
                     radius: lod.impostor!.radius,
                     name: '${model.name ?? 'node'} impostor',
                   ),
@@ -407,7 +407,7 @@ extension ModelAssetInstantiate on ModelAsset {
     // By the file's material index, through the same copy the parts got, so
     // a track on an unshared instance moves that instance's material only.
     final pointerTargets = PointerTargets(
-      materials: <int, Material>{
+      materials: <int, RenderMaterial>{
         for (final MapEntry(:key, :value) in this.materials.entries)
           key: materialFor(value),
       },
@@ -476,7 +476,7 @@ extension ModelAssetInstantiate on ModelAsset {
     _ => _MorphFan(states),
   };
 
-  static Material _copyMaterial(Material source) => source.copy();
+  static RenderMaterial _copyMaterial(RenderMaterial source) => source.copy();
 
   /// The part each slot of this asset draws, keyed as [instantiate] keys
   /// them, for [ModelInstance.adopt] to match against.
@@ -510,7 +510,7 @@ extension ModelAssetInstantiate on ModelAsset {
 }
 
 /// A weights track reaching every primitive of one split mesh.
-final class _MorphFan implements MorphSink {
+final class _MorphFan with MorphSink {
   _MorphFan(this.states);
 
   final List<MorphState> states;

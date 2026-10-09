@@ -5,7 +5,7 @@
 /// `ParityScene.torchesRunningOut` exists to compare two backends on a frame
 /// where the cube atlas cannot hold every caster, so that they have to agree
 /// about *which* lights go without. It was built against four rows and six
-/// torches; `Renderer.kShadowedLights` then became six, every torch got a row,
+/// torches; `Renderer.shadowedLights` then became six, every torch got a row,
 /// and the fixture went on being called "running out" while nothing ran out.
 /// Nothing failed, because the only thing checking it is a recorded grid, and a
 /// grid of a full atlas is a perfectly good grid.
@@ -29,10 +29,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ({Renderer renderer, FakeBackend device}) _engine() {
   final device = FakeBackend();
@@ -41,7 +42,7 @@ import 'package:vector_math/vector_math.dart';
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(4),
-  )!;
+  );
   return (
     renderer: Renderer.create(
       device: device,
@@ -74,14 +75,14 @@ void main() {
     final casters = built.scene.lights.where((l) => l.castsShadow).length;
     expect(
       casters,
-      greaterThan(Renderer.kShadowedLights),
+      greaterThan(Renderer.shadowedLights),
       reason:
           'the fixture asks for $casters rows and the atlas has '
-          '${Renderer.kShadowedLights}: nothing here is contended',
+          '${Renderer.shadowedLights}: nothing here is contended',
     );
     expect(
       frame.shadowsDenied,
-      casters - Renderer.kShadowedLights,
+      casters - Renderer.shadowedLights,
       reason: 'the frame did not report the casters it turned away',
     );
   });
@@ -116,11 +117,11 @@ void main() {
       ..sort((a, b) => priority(b).compareTo(priority(a)));
 
     final kept = byRelevance
-        .take(Renderer.kShadowedLights)
+        .take(Renderer.shadowedLights)
         .map((light) => light.name)
         .toSet();
     final firstWritten = casters
-        .take(Renderer.kShadowedLights)
+        .take(Renderer.shadowedLights)
         .map((light) => light.name)
         .toSet();
 

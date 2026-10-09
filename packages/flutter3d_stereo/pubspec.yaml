@@ -1,6 +1,6 @@
 name: flutter3d_stereo
 description: "Stereo rendering for flutter3d: a rig of two eyes under a head, the widget that draws the pair into one frame, and the settings a pair can actually have."
-version: 0.9.0
+version: 1.0.0-rc.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -15,23 +15,34 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: '>=3.44.0'
 
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter
 
   # The renderer: `RenderView`, `OffAxisProjection`, `RenderSettings.forStereo`.
   # All three exist because of this package and are used by nothing else yet.
-  flutter3d: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
 
   # `presentFrame`, since `GraphicsDevice` names no widget of its own — see
   # `StereoSurface`.
-  flutter3d_app: ^0.9.0
+  flutter3d_app: ^1.0.0-rc.1
 
   # `edu-06`: `EntityDef`, the `edu_step`/`edu_sequence` a lesson is made of.
   # Plain Dart already (no Flutter, no genre), the same reason
   # `flutter3d_editor_core` depends on it directly rather than through
   # `flutter3d_game`.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 
@@ -44,7 +55,7 @@ dev_dependencies:
   # widget tests use it, and the only way `lesson_stereo_view_test.dart` can
   # prove the button actually paints a stereo pair rather than only calling
   # a callback that compiles.
-  flutter3d_cpu: ^0.9.0
+  flutter3d_cpu: ^1.0.0-rc.1
 
 flutter:
   plugin:

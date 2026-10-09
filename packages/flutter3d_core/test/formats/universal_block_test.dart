@@ -183,7 +183,7 @@ void main() {
       pixelHeight: source.height,
       levels: <Uint8List>[cooked],
       keyValues: <String, String>{
-        kUniversalBlockKey: hasAlpha ? kUniversalBlockRgba : kUniversalBlockRgb,
+        universalBlockKey: hasAlpha ? universalBlockRgba : universalBlockRgb,
       },
     );
 

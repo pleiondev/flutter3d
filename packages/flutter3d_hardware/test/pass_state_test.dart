@@ -15,7 +15,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
 /// Records the calls rather than performing them.
-final class _Recorder implements PassEncoder {
+final class _Recorder extends PassEncoder {
   final List<String> calls = <String>[];
 
   @override
@@ -33,7 +33,8 @@ final class _Recorder implements PassEncoder {
   void setWindingOrder(WindingOrder order) =>
       calls.add('winding ${order.name}');
   @override
-  void setDepthWrite(bool enabled) => calls.add('depthWrite $enabled');
+  void setDepthWrite({required bool enabled}) =>
+      calls.add('depthWrite $enabled');
   @override
   void setDepthCompare(CompareFunction compare) =>
       calls.add('depthCompare ${compare.name}');

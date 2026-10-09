@@ -37,7 +37,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 480;
 const int _height = 360;
@@ -47,19 +46,18 @@ const double _lift = 0.9;
 
 void main() {
   test('the glow is on the same side of the frame as what is glowing', () async {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
 
     TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
       width: 1,
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
 
     final renderer = Renderer.create(
       device: device,
@@ -77,9 +75,9 @@ void main() {
         // Unlit and far above display white, so what reaches the bloom
         // threshold is the sphere and nothing else in the frame — no light rig
         // to place, no specular to depend on.
-        Material(
+        RenderMaterial(
           name: 'ball',
-          baseColor: Vector4(4.0, 4.0, 4.0, 1.0),
+          baseColor: LinearColor.fromSrgb(4.0, 4.0, 4.0, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'ball',
@@ -96,7 +94,7 @@ void main() {
       views: <RenderView>[
         // Black, so "glowing" and "not glowing" cannot be confused by a
         // background that is already lit.
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: const RenderSettings(
         // Low, so the sphere is nowhere near clipping and the glow around it
@@ -109,9 +107,9 @@ void main() {
       ),
     );
 
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    final bytes = pixels!.buffer.asUint8List();
+    final bytes = pixels.buffer.asUint8List();
 
     double brightest(int fromRow, int toRow) {
       var most = 0.0;

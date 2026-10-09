@@ -156,6 +156,8 @@ final class Surface {
     this.tangent,
   );
   Vector3 albedo;
+
+  /// Opacity, nought to one.
   double alpha;
   Vector3 normal;
   final Vector3 world;
@@ -163,14 +165,18 @@ final class Surface {
   /// Hemispheric and already scaled by the scene's strength: the sky above,
   /// the ground bounce below, blended by which way the surface faces.
   final Vector3 ambient;
+
+  /// How metallic the surface is, nought to one.
   double metallic;
+
+  /// Perceptual roughness, nought to one.
   double roughness;
 
   /// Towards the eye, which every specular term needs.
   final Vector3 view;
 
   /// Clamped away from zero: a grazing view otherwise divides by zero in the
-  /// specular visibility term.
+  /// specular visibility term. A cosine, with no unit.
   double nDotV;
 
   /// xyz the tangent, w the bitangent sign — glTF's convention for a mirrored
@@ -523,6 +529,20 @@ bool nonFinite(Vector3 c) =>
     c.y.isInfinite ||
     c.z.isInfinite;
 
+/// `DebugIdentityColour` from `surface.glsl` — `A5.21`: a key spread round
+/// the hue circle by the golden ratio.
+Vector3 debugIdentityColour(double key) {
+  final hue = fract(key * 0.6180340 + 0.13);
+  double channel(double offset) =>
+      ((fract(hue + offset) * 6.0 - 3.0).abs() - 1.0).clamp(0.0, 1.0);
+  double toward(double k) => (1.0 + (k - 1.0) * 0.7) * 0.95;
+  return Vector3(
+    toward(channel(0.0)),
+    toward(channel(2.0 / 3.0)),
+    toward(channel(1.0 / 3.0)),
+  );
+}
+
 /// `WriteDebugView` from `surface.glsl` — `P6`: the material channel
 /// `FragInfo.debug_view` asks for, in place of [lit], or null when no view
 /// is on or the fragment sits left of the split, and the caller writes the
@@ -543,14 +563,27 @@ Vector4? writeDebugView(
   Vector3? geometric,
 }) {
   final debug = b.vec4('FragInfo', 'debug_view', Vector4.zero());
-  if (debug.x < 0.5) return null;
-  if (c.coord.x < debug.y * debug.z) return null;
+  // `A5.22`: left of the column the view in z, right of it the one in x.
+  final view = c.coord.x < debug.y ? debug.z : debug.x;
+  if (view < 0.5) return null;
   Vector3 srgbOf(Vector3 linear) => Vector3(
     toSrgb(linear.x.clamp(0.0, 1.0)),
     toSrgb(linear.y.clamp(0.0, 1.0)),
     toSrgb(linear.z.clamp(0.0, 1.0)),
   );
-  final shown = switch ((debug.x + 0.5).floor()) {
+  // `A5.21`: the vertex tangent square to the vertex normal, and the draw's
+  // identity unpacked from w, as `WriteDebugView` has them.
+  final vertexNormal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2])
+    ..normalize();
+  final rawTangent = Vector3(v[kVTangent], v[kVTangent + 1], v[kVTangent + 2]);
+  final tangent = rawTangent - vertexNormal * vertexNormal.dot(rawTangent);
+  final tangentUsable =
+      tangent.length2 > 1e-12 && (v[kVTangent + 3].abs() - 1.0).abs() < 0.01;
+  final identityObject = (debug.w / 8192.0).floorToDouble();
+  final identityRest = debug.w - identityObject * 8192.0;
+  final identityMaterial = (identityRest / 2.0).floorToDouble();
+  final normalMapped = identityRest - identityMaterial * 2.0 > 0.5;
+  final shown = switch ((view + 0.5).floor()) {
     1 => srgbOf(s.albedo),
     2 => Vector3(
       s.normal.x * 0.5 + 0.5,
@@ -580,6 +613,55 @@ Vector4? writeDebugView(
                 (0.2126 * e.x + 0.7152 * e.y + 0.0722 * e.z) * 0.5,
               );
             }(),
+    9 =>
+      tangentUsable
+          ? ((tangent.normalized()..scale(0.5))..add(Vector3.all(0.5)))
+          : Vector3.zero(),
+    10 => () {
+      final (u: u, v: w, footprint: _) = mapUv(
+        kMapBaseColor,
+        v,
+        b,
+        c,
+        transformed: transformed,
+      );
+      final cellSum = (u * 8.0).floorToDouble() + (w * 8.0).floorToDouble();
+      final odd = fract(cellSum * 0.5) * 2.0;
+      final grey = 0.22 + (0.92 - 0.22) * odd;
+      return Vector3(
+        grey * (0.55 + 0.45 * fract(u)),
+        grey * (0.55 + 0.45 * fract(w)),
+        grey * 0.85,
+      );
+    }(),
+    11 => c.frontFacing ? Vector3(0.2, 0.35, 0.95) : Vector3(0.95, 0.15, 0.15),
+    12 => srgbOf(Vector3(v[kVColour], v[kVColour + 1], v[kVColour + 2])),
+    13 || 14 => debugIdentityColour(
+      (view + 0.5).floor() == 13 ? identityObject : identityMaterial,
+    )..scale(0.55 + 0.45 * s.nDotV),
+    15 => () {
+      final e = srgbOf(s.albedo);
+      final luma = 0.2126 * e.x + 0.7152 * e.y + 0.0722 * e.z;
+      final metal = s.metallic > 0.5;
+      final brightest = math.max(e.x, math.max(e.y, e.z));
+      return !metal && luma < 30.0 / 255.0
+          ? Vector3(0.1, 0.3, 1.0)
+          : !metal && brightest > 240.0 / 255.0
+          ? Vector3(1.0, 0.1, 0.1)
+          : metal && luma < 180.0 / 255.0
+          ? Vector3(1.0, 0.85, 0.1)
+          : Vector3.all(luma);
+    }(),
+    16 =>
+      s.metallic > 0.05 && s.metallic < 0.95
+          ? Vector3(1.0, 0.5, 0.0)
+          : Vector3.all(s.metallic > 0.5 ? 1.0 : 0.15),
+    17 =>
+      !normalMapped
+          ? Vector3.all(0.5)
+          : tangentUsable
+          ? Vector3(0.2, 0.8, 0.3)
+          : Vector3(1.0, 0.1, 0.1),
     _ => Vector3.zero(),
   };
   writeSurface(c, v, b, geometric ?? s.normal, s.roughness);

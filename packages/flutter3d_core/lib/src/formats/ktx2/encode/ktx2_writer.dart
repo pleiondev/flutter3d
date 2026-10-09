@@ -40,7 +40,7 @@ Uint8List writeKtx2({
 
   final levelCount = levels.length;
   final levelIndexEnd =
-      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+      ktx2LevelIndexOffset + levelCount * ktx2LevelIndexEntryBytes;
 
   // Each entry is a u32 length, then the key, a NUL, the value and its own
   // NUL, then padding to the next multiple of four — the layout
@@ -65,11 +65,11 @@ Uint8List writeKtx2({
   }
 
   final bytes = Uint8List(cursor);
-  bytes.setRange(0, kKtx2Identifier.length, kKtx2Identifier);
+  bytes.setRange(0, ktx2Identifier.length, ktx2Identifier);
   final view = ByteData.sublistView(bytes);
 
   void putHeader(int field, int value) =>
-      view.setUint32(kKtx2HeaderOffset + field, value, Endian.little);
+      view.setUint32(ktx2HeaderOffset + field, value, Endian.little);
   putHeader(Ktx2HeaderField.vkFormat, vkFormat);
   // Block-compressed formats carry no per-texel type: the spec's own
   // wording for `typeSize` is "1 for block-compressed formats".
@@ -87,12 +87,12 @@ Uint8List writeKtx2({
 
   if (kvdByteLength != 0) {
     view.setUint32(
-      kKtx2IndexOffset + Ktx2IndexField.kvdByteOffset,
+      ktx2IndexOffset + Ktx2IndexField.kvdByteOffset,
       kvdByteOffset,
       Endian.little,
     );
     view.setUint32(
-      kKtx2IndexOffset + Ktx2IndexField.kvdByteLength,
+      ktx2IndexOffset + Ktx2IndexField.kvdByteLength,
       kvdByteLength,
       Endian.little,
     );
@@ -104,7 +104,7 @@ Uint8List writeKtx2({
   }
 
   for (var i = 0; i < levelCount; i++) {
-    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final entry = ktx2LevelIndexOffset + i * ktx2LevelIndexEntryBytes;
     final length = levels[i].lengthInBytes;
     // 64-bit fields as two little-endian 32-bit halves, high half always
     // zero — the same limit `ktx2_loader.dart`'s `_readOffsetOrLength`

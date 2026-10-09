@@ -1,0 +1,30 @@
+{
+ "format": "flutter3d.frameCapture",
+ "version": 1,
+ "width": 4,
+ "height": 2,
+ "notes": "a version-1 capture: the shape before the format envelope",
+ "passes": [
+  {
+   "name": "main",
+   "active": true,
+   "reads": [],
+   "optionalReads": [],
+   "writes": ["color"],
+   "keeps": [],
+   "micros": 12,
+   "drawCalls": 1,
+   "triangles": 2,
+   "images": [
+    {
+     "resource": "color",
+     "width": 4,
+     "height": 2,
+     "format": "r8g8b8a8UNormInt"
+    }
+   ]
+  }
+ ],
+ "draws": [],
+ "undetailedDraws": {}
+}

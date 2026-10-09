@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+
+import '../fmat/lighting_json.dart';
 import '../model_document.dart';
 import 'f3d_format.dart';
+import 'f3d_loader.dart';
+import 'f3d_wire.dart';
 
 // `write()` below is the top of the encode pipeline. Writing each section's
 // records is split into its own file by theme (geometry, scene, materials,
@@ -12,6 +16,7 @@ import 'f3d_format.dart';
 // of this library rather than files that import it — see each part's doc
 // comment for why.
 part 'f3d_writer_animation.dart';
+part 'f3d_writer_bundle.dart';
 part 'f3d_writer_geometry.dart';
 part 'f3d_writer_materials.dart';
 part 'f3d_writer_scene.dart';
@@ -26,9 +31,70 @@ part 'f3d_writer_scene.dart';
 /// Nothing here is on a frame path, so it favours being obviously correct
 /// over being quick.
 final class F3dWriter {
-  F3dWriter(this.document);
+  F3dWriter(
+    this.document, {
+    List<F3dExtraSection> extraSections = const <F3dExtraSection>[],
+    Map<String, String> programs = const <String, String>{},
+    Map<String, Map<String, Object?>> prefabs =
+        const <String, Map<String, Object?>>{},
+    Map<String, Uint8List> files = const <String, Uint8List>{},
+  }) : extraSections = List<F3dExtraSection>.unmodifiable(extraSections),
+       programs = Map<String, String>.unmodifiable(programs),
+       prefabs = Map<String, Map<String, Object?>>.unmodifiable(prefabs),
+       files = Map<String, Uint8List>.unmodifiable(files) {
+    for (final extra in extraSections) {
+      if (F3dSection.known.contains(extra.kind)) {
+        throw ArgumentError.value(
+          extra.kind,
+          'extraSections',
+          'is one of the engine\'s kinds',
+        );
+      }
+    }
+  }
+
+  /// A writer for [document] that carries everything a `.f3d` it was read
+  /// from carried: its programs, prefabs, files and every section of a kind
+  /// the engine does not write itself, flags included. A document from any
+  /// other reader carries nothing beyond the model.
+  ///
+  /// This is what re-exporting a bundle goes through (`F3dModelWriter`), so
+  /// a `.f3d` opened and saved keeps its bundle and a tool's sections.
+  factory F3dWriter.carrying(ModelDocument document) => switch (document) {
+    final F3dDocument bundle => F3dWriter(
+      bundle,
+      programs: bundle.programs,
+      prefabs: bundle.prefabs,
+      files: bundle.files,
+      extraSections: bundle.extraSections,
+    ),
+    _ => F3dWriter(document),
+  };
 
   final ModelDocument document;
+
+  /// Material language (`.f3dmat`) sources to carry, by the name a material's
+  /// lighting model names them by — [F3dSection.programs].
+  final Map<String, String> programs;
+
+  /// Level and prefab documents to carry, by name, each a JSON object in the
+  /// format envelope (`"format": "f3d.level"`) — [F3dSection.prefabs].
+  final Map<String, Map<String, Object?>> prefabs;
+
+  /// Files to carry whole, by the path a prefab names them by —
+  /// [F3dSection.files].
+  final Map<String, Uint8List> files;
+
+  /// Sections written after the engine's own, as they are: a tool's data under
+  /// a [f3dVendorKindStart] kind, or a section a newer engine reads.
+  ///
+  /// **Only a section with [F3dExtraSection.flags] set makes the file version
+  /// 2**, because version 2 is the one whose directory carries the flags.
+  /// Everything else, the bundle's sections and unflagged extra sections
+  /// included, is written at version 1. The 0.8 readers accept only version 1
+  /// and skip kinds they do not know, so they still open such a file and draw
+  /// its geometry.
+  final List<F3dExtraSection> extraSections;
 
   final BytesBuilder _strings = BytesBuilder();
   final Map<String, int> _internedStrings = <String, int>{};
@@ -51,10 +117,12 @@ final class F3dWriter {
   ///
   /// **Not empty by assumption.** `.f3d` holds geometry, materials, the
   /// hierarchy, skins and clips, and a document has grown fields since that
-  /// the container has no record for: a texture's `KHR_texture_transform`, a
-  /// material's own lighting model, lights, cameras and an additive clip's
-  /// reference time. `extras` it carries, in [F3dSection.extras]. Each is named here when the document has one, so a
-  /// converted asset that draws differently from its source says why.
+  /// the container has no record for: a texture's `KHR_texture_transform`,
+  /// splat clouds and an additive clip's reference time. `extras`, lights,
+  /// cameras and a material's lighting model it carries (in
+  /// [F3dSection.extras] and the bundle's sections). Each one it cannot is
+  /// named here when the document has one, so a converted asset that draws
+  /// differently from its source says why.
   late final List<String> warnings = _buildWarnings();
 
   List<String> _buildWarnings() {
@@ -72,7 +140,6 @@ final class F3dWriter {
           transformed(m.occlusionTexture) ||
           transformed(m.emissiveTexture),
     );
-    final withLighting = count((m) => m.lightingModel != null);
     final additive = document.animations
         .where((a) => a.referenceTime != null)
         .length;
@@ -83,11 +150,6 @@ final class F3dWriter {
     return <String>[
       if (withTransform > 0)
         dropped(withTransform, 'material(s) with a KHR_texture_transform'),
-      if (withLighting > 0) dropped(withLighting, 'material lighting model(s)'),
-      if (document.lights.isNotEmpty)
-        dropped(document.lights.length, 'light(s)'),
-      if (document.cameras.isNotEmpty)
-        dropped(document.cameras.length, 'camera(s)'),
       if (document.splats.isNotEmpty)
         dropped(document.splats.length, 'splat cloud(s)'),
       if (additive > 0) dropped(additive, 'additive clip reference time(s)'),
@@ -124,6 +186,13 @@ final class F3dWriter {
     final skinTable = _writeSkins();
     final layoutTable = _writeLayouts();
     final (extrasTable, extrasCount) = _writeExtras();
+    final (lightTable, lightCount) = _writeLights();
+    final (cameraTable, cameraCount) = _writeCameras();
+    final (attachmentTable, attachmentCount) = _writeNodeAttachments();
+    final (lightingTable, lightingCount) = _writeMaterialLighting();
+    final (programTable, programCount) = _writePrograms();
+    final (prefabTable, prefabCount) = _writePrefabs();
+    final (fileTable, fileCount) = _writeFiles();
 
     final sections = <(int kind, Uint8List data, int count)>[
       (F3dSection.layouts, layoutTable, _layouts.length),
@@ -168,12 +237,28 @@ final class F3dWriter {
       // Only when there is one, so a document with none writes the bytes it
       // did before the section existed.
       if (extrasCount > 0) (F3dSection.extras, extrasTable, extrasCount),
+      // The bundle's sections, each only when there is something in it, for
+      // the same reason: a model without them is the bytes it always was.
+      if (lightCount > 0) (F3dSection.lights, lightTable, lightCount),
+      if (cameraCount > 0) (F3dSection.cameras, cameraTable, cameraCount),
+      if (attachmentCount > 0)
+        (F3dSection.nodeAttachments, attachmentTable, attachmentCount),
+      if (lightingCount > 0)
+        (F3dSection.materialLighting, lightingTable, lightingCount),
+      if (programCount > 0) (F3dSection.programs, programTable, programCount),
+      if (prefabCount > 0) (F3dSection.prefabs, prefabTable, prefabCount),
+      if (fileCount > 0) (F3dSection.files, fileTable, fileCount),
       (F3dSection.strings, _strings.toBytes(), 0),
       (F3dSection.blob, _blob.toBytes(), 0),
+      for (final extra in extraSections) (extra.kind, extra.bytes, extra.count),
     ];
+    final version = extraSections.any((extra) => extra.flags != 0) ? 2 : 1;
+    final entryBytes = version == 1
+        ? f3dSectionEntryBytes
+        : f3dSectionEntryBytesV2;
 
-    final directoryBytes = sections.length * kF3dSectionEntryBytes;
-    var cursor = _align(kF3dHeaderBytes + directoryBytes);
+    final directoryBytes = sections.length * entryBytes;
+    var cursor = _align(f3dHeaderBytes + directoryBytes);
 
     final offsets = <int>[];
     for (final (_, data, _) in sections) {
@@ -184,18 +269,26 @@ final class F3dWriter {
     final out = Uint8List(cursor);
     final view = ByteData.view(out.buffer);
 
-    view.setUint32(0, kF3dMagic, Endian.little);
-    view.setUint32(4, kF3dVersion, Endian.little);
+    view.setUint32(0, f3dMagic, Endian.little);
+    view.setUint32(4, version, Endian.little);
     view.setUint32(8, sections.length, Endian.little);
-    view.setUint32(12, 0, Endian.little);
+    view.setUint32(12, version == 1 ? 0 : entryBytes, Endian.little);
 
     for (var i = 0; i < sections.length; i++) {
       final (kind, data, count) = sections[i];
-      final entry = kF3dHeaderBytes + i * kF3dSectionEntryBytes;
+      final entry = f3dHeaderBytes + i * entryBytes;
       view.setUint32(entry, kind, Endian.little);
       view.setUint32(entry + 4, offsets[i], Endian.little);
       view.setUint32(entry + 8, data.length, Endian.little);
       view.setUint32(entry + 12, count, Endian.little);
+      if (version > 1) {
+        final extraIndex = i - (sections.length - extraSections.length);
+        view.setUint32(
+          entry + 16,
+          extraIndex >= 0 ? extraSections[extraIndex].flags : 0,
+          Endian.little,
+        );
+      }
       out.setRange(offsets[i], offsets[i] + data.length, data);
     }
 
@@ -253,4 +346,30 @@ final class F3dWriter {
     }
     return table;
   }
+}
+
+/// A section of a `.f3d` as its directory describes it: what
+/// [F3dDocument.section] reads back, and what [F3dWriter] writes beside the
+/// engine's own.
+///
+/// A section handed to [F3dWriter.extraSections] must not be one of the
+/// engine's kinds ([F3dSection.known]), which the writer checks; a tool's own
+/// data takes a kind from [f3dVendorKindStart] up.
+final class F3dExtraSection {
+  F3dExtraSection({
+    required this.kind,
+    required this.bytes,
+    this.count = 0,
+    this.flags = 0,
+  });
+
+  final int kind;
+  final Uint8List bytes;
+
+  /// Records in [bytes], for a table; 0 for raw bytes.
+  final int count;
+
+  /// [F3dSectionFlags] bits; [F3dSectionFlags.mustUnderstand] makes a reader
+  /// that does not know [kind] refuse the file.
+  final int flags;
 }

@@ -33,7 +33,7 @@ time drifts the smoke away from the world it is attached to.
 over its lifetime, `Flipbook` walks a sprite sheet, and `LightEmitter` is what
 makes a muzzle flash light the wall.
 
-`emit`, `emitTimed`, `emitFor` and `stopEmitting(key)` are the continuous forms;
+`emit`, `emitTimed` and `stopEmitting(key)` are the continuous forms;
 `burst` is the one-shot. A continuous emitter is addressed by a key, so whatever
 started it can stop it without holding a handle across a save. A burst takes
 `source:` for the same purpose the key serves: pass the `LightEmitter` the flash

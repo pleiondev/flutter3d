@@ -2,7 +2,7 @@ name: flutter3d_testing
 description: >-
   Renders a flutter3d scene with no GPU and compares it against a reference
   image, so a game gets pixel regression tests on a machine with no display.
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,6 +16,16 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: '>=3.44.0'
 
+# Declared rather than left to pub.dev's detector: golden files are read and
+# written through `dart:io`, so wherever `flutter test` runs on the VM, not the
+# browser.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter
@@ -23,14 +33,14 @@ dependencies:
   # its own package: `flutter3d_cpu` must not depend on `flutter3d` — a backend
   # that could not compile without the engine would be part of the engine — so
   # neither of them can hold something that needs both.
-  flutter3d: ^0.9.0
-  flutter3d_cpu: ^0.9.0
-  flutter3d_hardware: ^0.9.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_hardware: ^1.0.0-rc.1
   # `Demo`, `InputTapePlayback` and `InputState` — `rp-01`'s `.f3drun`, for
   # `replayGolden`. A real dependency and not a dev one: replaying a demo
   # to a frame is this package's own job, the same as rendering a
   # hand-built scene already is.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
   # The material language — `gfx-84n`. A real dependency now, and for the same
   # reason the two above it are: `MaterialProgramStage` is what lets the
   # software backend draw a material written as source, and it needs the
@@ -38,7 +48,7 @@ dependencies:
   # `flutter3d_cpu` may not reach for the first (its own pubspec says nothing
   # in its `lib/` does), so the pairing lives here, which is the package that
   # exists for pairings neither side may hold.
-  flutter3d_core: ^0.9.0
+  flutter3d_core: ^1.0.0-rc.1
   # `expect` and the test binding, which is what makes this a testing package
   # rather than a rendering one.
   flutter_test:
@@ -51,15 +61,21 @@ dev_dependencies:
   # The material language's software stage and compiler, for the two tests
   # that draw a material written in it — `P8` moved them to the package a
   # game depends on, which this one is not.
-  flutter3d_app: ^0.9.0
+  flutter3d_app: ^1.0.0-rc.1
 
   # The Khronos sample models the document decoders read — for the one test
   # that checks a *rendered* round trip rather than a byte one. Not a real
   # dependency: nothing this package ships builds a `ModelDocument`.
-  flutter3d_samples: ^0.9.0
+  flutter3d_samples: ^1.0.0-rc.1
 
   # Decodes the FLIP reference crops in `test/flip/` synchronously, the
   # package the engine already reads PNGs with.
   image: ^4.10.1
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
 
 resolution: workspace

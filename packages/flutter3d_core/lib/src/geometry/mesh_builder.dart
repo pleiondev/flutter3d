@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_data.dart';
@@ -64,7 +66,7 @@ final class MeshBuilder {
     Vector3? normal,
     Vector2? texcoord,
     Vector4? tangent,
-    Vector4? color,
+    LinearColor? color,
     Vector4? joints,
     Vector4? weights,
   }) {
@@ -88,28 +90,28 @@ final class MeshBuilder {
       _vertices[base + _texcoordOffset + 1] = texcoord.y;
     }
     if (_tangentOffset >= 0) {
-      final t = tangent ?? kNeutralTangent;
+      final t = tangent ?? neutralTangent;
       _vertices[base + _tangentOffset] = t.x;
       _vertices[base + _tangentOffset + 1] = t.y;
       _vertices[base + _tangentOffset + 2] = t.z;
       _vertices[base + _tangentOffset + 3] = t.w;
     }
     if (_colorOffset >= 0) {
-      final c = color ?? kNeutralColor;
-      _vertices[base + _colorOffset] = c.x;
-      _vertices[base + _colorOffset + 1] = c.y;
-      _vertices[base + _colorOffset + 2] = c.z;
-      _vertices[base + _colorOffset + 3] = c.w;
+      final c = color ?? neutralColor;
+      _vertices[base + _colorOffset] = c.r;
+      _vertices[base + _colorOffset + 1] = c.g;
+      _vertices[base + _colorOffset + 2] = c.b;
+      _vertices[base + _colorOffset + 3] = c.a;
     }
     if (_jointsOffset >= 0) {
-      final j = joints ?? kNeutralJoints;
+      final j = joints ?? neutralJoints;
       _vertices[base + _jointsOffset] = j.x;
       _vertices[base + _jointsOffset + 1] = j.y;
       _vertices[base + _jointsOffset + 2] = j.z;
       _vertices[base + _jointsOffset + 3] = j.w;
     }
     if (_weightsOffset >= 0) {
-      final w = weights ?? kNeutralWeights;
+      final w = weights ?? neutralWeights;
       _vertices[base + _weightsOffset] = w.x;
       _vertices[base + _weightsOffset + 1] = w.y;
       _vertices[base + _weightsOffset + 2] = w.z;

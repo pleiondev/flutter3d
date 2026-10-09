@@ -1,4 +1,7 @@
+import 'package:vector_math/vector_math.dart' show Aabb3;
+
 import 'pass_contributor.dart';
+import 'render_view.dart';
 
 /// Something that draws inside a pass it does not own.
 ///
@@ -37,7 +40,31 @@ abstract base class PassContributor {
   /// multisampling for the frame, as any reader of the surface buffer does.
   bool get readsSceneDepth => false;
 
+  /// Whether what [encode] draws is an overlay on the picture rather than
+  /// part of it — a wireframe, a grid, a gizmo — `A5.22`. False by default.
+  ///
+  /// True confines it to the side of a debug wipe that
+  /// `DebugViewSettings.overlays` names: the scene pass narrows the scissor
+  /// before [encode] and widens it after, so a contributor that draws
+  /// through `PassState` without a scissor of its own needs nothing else.
+  bool get isOverlay => false;
+
   void encode(ContributorFrame frame);
+
+  /// Where [encode] will draw in [view] this frame, in scene space (float32,
+  /// relative to `Scene.origin`, the space the view's camera and every
+  /// node's `worldMatrix` are in), or null when this contributor cannot say.
+  ///
+  /// Asked while `RenderSettings.reversedDepth` fits the view's near plane
+  /// to what the view draws, and only of a contributor that [isActive]. The
+  /// near plane is moved out to just in front of the nearest box anything
+  /// drawn in the view gives, so a contributor that draws nearer than every
+  /// mesh — smoke at the lens, a muzzle flash — has to be counted or it is
+  /// cut away. **Null is the safe answer, and the default**: the view keeps
+  /// the camera's own near plane, which is the picture before fitting
+  /// existed. A box whose minimum lies past its maximum on any axis says the
+  /// contributor draws nothing in [view].
+  Aabb3? boundsFor(RenderView view) => null;
 
   /// Marks where this contributor's draws cover the frame, for the temporal
   /// resolve to keep less history there — `R4`. Called only while the

@@ -102,12 +102,12 @@ final class FrameResources {
 
   /// Textures retired this frame and free to be lent again before it ends,
   /// by spec. Empty unless [alias] is on.
-  final Map<RenderTargetSpec, List<TextureHandle>> _reusable =
-      <RenderTargetSpec, List<TextureHandle>>{};
+  final Map<RenderTargetDescriptor, List<TextureHandle>> _reusable =
+      <RenderTargetDescriptor, List<TextureHandle>>{};
 
   /// A texture for [spec]: one retired earlier this frame when there is one,
   /// otherwise the source's.
-  TextureHandle _acquire(RenderTargetSpec spec) {
+  TextureHandle _acquire(RenderTargetDescriptor spec) {
     final free = _reusable[spec];
     final texture = free != null && free.isNotEmpty
         ? free.removeLast()
@@ -143,7 +143,7 @@ final class FrameResources {
       source.release(texture);
       return;
     }
-    (_reusable[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(
+    (_reusable[RenderTargetDescriptor.of(texture)] ??= <TextureHandle>[]).add(
       texture,
     );
   }
@@ -295,6 +295,40 @@ final class FrameResources {
   TextureHandle? tryTexture(ResourceId id) =>
       _live[ResourceVersion(id, _versionFor(id))];
 
+  // ----------------------------------------------------------- buffers, 1.0
+
+  /// Hands [buffer] in as the current version of [id]: a buffer resource,
+  /// declared in a node's `writes` like a texture, so the graph orders the
+  /// node that fills it before the nodes that read it — a compute pass
+  /// writing counts an indirect draw reads, a culling pass writing the
+  /// instances a later pass draws.
+  ///
+  /// The buffer stays its provider's: a frame does not allocate or release
+  /// buffers, it carries them between the nodes that declared them.
+  void provideBuffer(ResourceId id, StorageBuffer buffer) {
+    _buffers[ResourceVersion(id, _writeVersionFor(id))] = buffer;
+  }
+
+  /// The buffer the node now running reads as [id]. Throws a
+  /// [FrameGraphError] when no node provided one.
+  StorageBuffer buffer(ResourceId id) {
+    final found = tryBuffer(id);
+    if (found != null) return found;
+    throw FrameGraphError(
+      'a pass asked for the buffer "${id.name}", which no pass before it '
+      'provided. A buffer is provided by the node that writes it, with '
+      'FrameResources.provideBuffer',
+    );
+  }
+
+  /// The buffer the node now running reads as [id], or null when none was
+  /// provided.
+  StorageBuffer? tryBuffer(ResourceId id) =>
+      _buffers[ResourceVersion(id, _versionFor(id))];
+
+  final Map<ResourceVersion, StorageBuffer> _buffers =
+      <ResourceVersion, StorageBuffer>{};
+
   /// The texture behind a frame *output*, once every node has run.
   ///
   /// The one read that legitimately happens outside a node, and the only one:
@@ -350,7 +384,7 @@ final class FrameResources {
   /// scratch back while the command buffers that read it are in flight. Doing
   /// that through [FrameTextureSource] is what makes the deferral automatic
   /// rather than something each call site has to remember.
-  TextureHandle transient(RenderTargetSpec spec) {
+  TextureHandle transient(RenderTargetDescriptor spec) {
     final texture = _acquire(spec);
     _scratch.add(texture);
     return texture;
@@ -462,6 +496,7 @@ final class FrameResources {
   /// other way to learn they are free. Without this a failing frame leaks one
   /// set of targets per attempt.
   void releaseAll() {
+    _buffers.clear();
     // By identity rather than by version, because two versions of one name can
     // stand on the same texture when a pass modified it in place, and handing
     // one texture back twice corrupts the pool's idea of what it has lent.

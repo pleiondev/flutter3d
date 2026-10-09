@@ -33,7 +33,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 TextureHandle _texel(FakeBackend device) => device.createTexture(
-  const RenderTargetSpec(
+  const RenderTargetDescriptor(
     width: 1,
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
@@ -62,22 +62,22 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-      Material(name: 'block'),
+      RenderMaterial(name: 'block'),
       name: 'block',
     )..setPosition(meshAt, 0.0, 0.0),
   );
 
-  for (var i = 0; i < LightBuffer.maxLights; i++) {
+  for (var i = 0; i < LightNode.maxLights; i++) {
     scene.add(
       LightNode(name: 'west$i', type: LightType.point)
-        ..intensity = 5.0
+        ..intensity = 5.0 * Photometric.legacyUnit
         ..range = 6.0
         ..setPosition(-40.0 + i * 0.25, 2.0, 0.0),
     );
   }
   scene.add(
     LightNode(name: 'east', type: LightType.point)
-      ..intensity = 5.0
+      ..intensity = 5.0 * Photometric.legacyUnit
       ..range = 6.0
       ..setPosition(0.0, 2.0, 0.0),
   );
@@ -135,8 +135,8 @@ void main() {
 
     // The other end of the same room, where the eight are the right answer.
     final west = _draw(meshAt: -40.0);
-    expect(west.count, LightBuffer.maxLights.toDouble());
-    for (var i = 0; i < LightBuffer.maxLights; i++) {
+    expect(west.count, LightNode.maxLights.toDouble());
+    for (var i = 0; i < LightNode.maxLights; i++) {
       expect(west.positions[i * 4], lessThan(-30.0));
     }
   });

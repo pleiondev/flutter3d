@@ -33,13 +33,17 @@
 /// brightly while the light it casts has gone out.
 library;
 
+export 'src/effect_document.dart';
+export 'src/effects_section.dart';
 export 'src/flipbook.dart';
 export 'src/light_emitter.dart';
 export 'src/mesh_particle_contributor.dart';
 export 'src/particle.dart';
 export 'src/particle_affector.dart';
+export 'src/particle_collision.dart';
 export 'src/particle_contributor.dart';
 export 'src/particle_curve.dart';
+export 'src/particle_effects.dart';
 export 'src/particle_emitter.dart';
 export 'src/particle_random.dart';
 export 'src/particle_system.dart';

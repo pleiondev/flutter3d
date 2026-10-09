@@ -8,7 +8,6 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 /// A torus, a cone and a box, lit from above and to the right.
 ///
@@ -28,9 +27,9 @@ import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
         device,
         const TorusShape(radius: 0.75, tubeRadius: 0.3).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'torus',
-        baseColor: Vector4(0.85, 0.35, 0.15, 1.0),
+        baseColor: LinearColor.fromSrgb(0.85, 0.35, 0.15, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'torus',
@@ -43,9 +42,9 @@ import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
         device,
         CuboidShape(size: Vector3(0.7, 0.7, 0.7)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'box',
-        baseColor: Vector4(0.25, 0.55, 0.85, 1.0),
+        baseColor: LinearColor.fromSrgb(0.25, 0.55, 0.85, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'box',
@@ -58,9 +57,9 @@ import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
         device,
         const ConeShape(radius: 0.45, height: 1.0).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'cone',
-        baseColor: Vector4(0.35, 0.75, 0.4, 1.0),
+        baseColor: LinearColor.fromSrgb(0.35, 0.75, 0.4, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'cone',
@@ -69,7 +68,7 @@ import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
   scene.root.add(
     LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 3.5
+      ..intensity = 3.5 * Photometric.legacyUnit
       ..setPosition(1.5, 3.0, 2.0)
       ..lookAt(Vector3.zero()),
   );

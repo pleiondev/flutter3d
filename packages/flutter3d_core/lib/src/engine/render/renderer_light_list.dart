@@ -45,7 +45,7 @@ extension _LightList on Renderer {
     final count = lights.candidates.length;
     if (count <= LightBuffer.maxLights) return null;
 
-    // **Compared, not keyed on `SceneNode.changeEpoch`.** The epoch covers a
+    // **Compared, not keyed on `sceneChangeEpoch`.** The epoch covers a
     // light that moved, appeared or vanished, and nothing else: colour,
     // intensity, range and the cone are plain fields on `LightNode` that
     // advance no counter, so a torch flickering in place kept the row it was
@@ -108,7 +108,7 @@ extension _LightList on Renderer {
   /// row keeps them, because its cone texel holds an edge, and it is never
   /// given an atlas row.
   void _writeShadowRow(LightNode light, Float32List rows, int at) {
-    if (light.type == LightType.area) return;
+    if (light.type.base == LightType.area) return;
     final row = _shadowRowOf[light];
     rows[at + 14] = row == null ? 0.0 : row + 1.0;
     rows[at + 15] = row == null ? 0.0 : _shadowRowShape[row];
@@ -181,7 +181,7 @@ extension _LightList on Renderer {
         // Nearest and clamped: a row holds a light's numbers, and a filtered
         // read halfway between two rows would invent a light that is the
         // average of two.
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 }

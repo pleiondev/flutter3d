@@ -15,8 +15,13 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -35,21 +40,21 @@ final class _Probe extends RenderNode {
   String get name => 'probe hdr';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
     FrameResourceIds.frame,
-    FrameResourceIds.hdrColour,
+    FrameResourceIds.hdrColor,
   ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     last = _device.readHdrPixels(
-      frame.resources.texture(FrameResourceIds.hdrColour),
+      frame.resources.texture(FrameResourceIds.hdrColor),
     );
     frame.resources.provide(
       FrameResourceIds.frame,
@@ -80,8 +85,8 @@ Float32List _render({
       device,
       CuboidShape(size: Vector3(12.0, 0.4, 12.0)).build(),
     ),
-    Material(
-      baseColor: floorColour ?? Vector4(0.05, 0.05, 0.06, 1.0),
+    RenderMaterial(
+      baseColor: _fromSrgb(floorColour ?? Vector4(0.05, 0.05, 0.06, 1.0)),
       roughness: 0.02,
     ),
   )..setPosition(0.0, -0.2, 0.0);
@@ -92,9 +97,9 @@ Float32List _render({
       device,
       CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
     ),
-    Material(
+    RenderMaterial(
       lighting: LightingModel.unlit,
-      baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
     ),
   )..setPosition(0.0, 0.5, 0.0);
   final camera = CameraNode()
@@ -104,7 +109,7 @@ Float32List _render({
     ..add(floor)
     ..add(cube)
     ..add(camera)
-    ..ambientIntensity = 1.0;
+    ..ambientIntensity = 1.0 * Photometric.legacyUnit;
   if (sky) {
     const size = 8;
     const levels = 3;
@@ -127,7 +132,7 @@ Float32List _render({
   }
   final probe = _Probe(device);
   Renderer.create(device: device)
-    ..addNode(probe)
+    ..renderSteps.addNode(probe)
     ..render(
       width: _width,
       height: _height,
@@ -247,7 +252,7 @@ void main() {
       ..add(
         MeshNode(
           DeviceMesh.upload(device, const PlaneShape().build()),
-          Material(roughness: 0.02),
+          RenderMaterial(roughness: 0.02),
         ),
       );
     final result = Renderer.create(device: device).render(
@@ -263,3 +268,6 @@ void main() {
     expect(device.bindingViolations, isEmpty);
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

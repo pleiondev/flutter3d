@@ -5,7 +5,7 @@
 /// **The claim is not that an effect can be added — it could be — but that it
 /// is a pass like any other once it is.** It reports its time in
 /// `FrameResult.passes`, it reports a reason in `skipped` when it does not
-/// run, and it can be switched off by name through `disabledPasses` beside
+/// run, and it can be switched off as a step through `without` beside
 /// `bloom` and `ssao`. An extension point whose members are second-class is an
 /// extension point whose author has not used it.
 ///
@@ -20,13 +20,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 32;
 
 /// A stage that paints every pixel the same colour, so "did it run" is a
 /// question about bytes rather than about shape.
-final class _FlatShader implements CpuFragmentShader {
+final class _FlatShader extends CpuFragmentShader {
   const _FlatShader();
 
   @override
@@ -44,22 +43,27 @@ CpuShaderLibrary _shaders() => CpuShaderLibrary(<String, CpuStage>{
 Future<({FrameResult result, List<int> pixels})> _frame({
   List<FullscreenEffect> Function(ShaderLibrary shaders)? effects,
   RenderSettings settings = const RenderSettings(),
+  RenderStep? step,
 }) async {
   final device = CpuDevice(width: _size, height: _size, shaders: _shaders());
   final renderer = Renderer.create(device: device);
+  if (step != null) renderer.renderSteps.addStep(step);
   for (final effect in effects?.call(device.shaders) ?? <FullscreenEffect>[]) {
-    renderer.nodes.add(effect);
+    renderer.renderSteps.addNode(effect, step: step);
   }
 
   final scene = Scene()
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-        Material(name: 'ball', baseColor: Vector4(0.8, 0.2, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'ball',
+          baseColor: LinearColor.fromSrgb(0.8, 0.2, 0.2, 1.0),
+        ),
       ),
     )
     ..add(
-      LightNode(intensity: 5.0)
+      LightNode(intensity: 5.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -72,16 +76,16 @@ Future<({FrameResult result, List<int> pixels})> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,
   );
-  final bytes = await device.readPixels(result.frame);
+  final bytes = await device.readback(result.frame);
   return (
     result: result,
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
   );
 }
@@ -123,28 +127,31 @@ void main() {
     );
   });
 
-  test('it can be switched off by name, beside the engine\'s own', () async {
-    // **The key space, which is the half of this row that is not a
-    // convenience.** A caller types 'flat' into the same set they type
-    // 'bloom' into, and the graph accepts it because the name is registered.
+  test('it can be switched off as a step, beside the engine\'s own', () async {
+    // **The vocabulary, which is the half of this row that is not a
+    // convenience.** A caller names the effect's step in the same `without`
+    // they name `RenderStep.bloom` in, and the frame reports it the same way.
+    const flat = RenderStep('flat effect');
     final plain = await _frame();
     final off = await _frame(
       effects: (shaders) => <FullscreenEffect>[
         FullscreenEffect.present(name: 'flat', shader: shaders['Flat']!),
       ],
-      settings: const RenderSettings(disabledPasses: <String>{'flat'}),
+      settings: const RenderSettings().without(<RenderStep>{flat}),
+      step: flat,
     );
 
     expect(off.pixels, plain.pixels);
-    expect(off.result.skipReasonOf('flat'), PassSkip.disabled);
+    expect(off.result.skipReasonOf('flat'), PassSkip.switchedOff);
   });
 
   test(
     'switched off by its own flag it reports the settings instead',
     () async {
       // Two ways to be off and two different answers, which is the whole of
-      // `gfx-39n` applied to somebody else's pass: 'disabled' means a caller
-      // named it and 'settings' means the node said there was nothing to do.
+      // `gfx-39n` applied to somebody else's pass: 'switched off' means a
+      // caller switched its step off and 'settings' means the node said there
+      // was nothing to do.
       final plain = await _frame();
       final off = await _frame(
         effects: (shaders) => <FullscreenEffect>[

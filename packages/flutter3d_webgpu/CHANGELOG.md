@@ -1,4 +1,142 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `engineShaders` is `webGpuEngineShaders`.** `flutter3d_webgl`
+  had the same name for its own table, so an application that opens WebGPU
+  and falls back to WebGL could not import both libraries.
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  exceptions its refusals extend.
+
+- **`createPipelineAsync` and `createComputePipelineAsync` are real.** A
+  compute pipeline is built whole through `createComputePipelineAsync`, and
+  a refusal completes the future with the error. A render pipeline is a
+  stage pair until a draw says the rest (targets, blend, depth, stencil),
+  so `createPipelineAsync` records the pair and **warms** it: it is built
+  through `createRenderPipelineAsync` in each of the last
+  `WebGpuDevice.warmStateLimit` draw states the device has built a
+  pipeline in, into the cache a draw looks in. A draw in a state nobody
+  drew before still builds synchronously.
+- **`releaseSampler` drops the `GPUSampler`** made for a description, with
+  the bind groups that hold it; `ShaderHandle.dispose` lets a module go.
+- **Breaking: a WebGPU section that will not read throws
+  `BundleSectionFormatException`** (from `flutter3d_shaders`), where
+  `decodeWebGpuSection` threw the SDK's `FormatException`; the device still
+  answers a `ShaderBundleException` naming the bundle.
+
+- **Breaking: one way to open the backend.** `openWebGpu` is gone:
+  `WebGpuDevice.open` takes the engine's stages by default, completes with a
+  `WebGpuDevice` rather than a nullable one, and throws a
+  `DeviceUnavailableException` where there is no WebGPU.
+- **Breaking: the reflection classes are this backend's own.**
+  `WebGpuStage`, `WebGpuBlock`, `WebGpuBlockMember`, `WebGpuSampler`,
+  `WebGpuAttribute` and `encodeWebGpuSection` are no longer exported; a
+  bundle's stages are still read with `decodeWebGpuSection` as a
+  `WebGpuSectionStages`.
+- **Breaking: the device follows the HAL** — `readPixels` is `readback`,
+  `createTextureWithDescriptor` is `createTexture`, the creators throw where
+  they answered null, and `readBufferSync`, which only ever refused, is gone.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderTargetSpec` is `RenderTargetDescriptor`, `VertexLayoutSpec`
+  is `VertexLayoutDescriptor`. Every settings class is `final` with a
+  `const` constructor and a `copyWith` over every field; a nullable field
+  is reset with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kTwoDimensional` is `twoDimensional`. The
+  values are the same; `dart fix` carries the renames.
+- **Breaking: `WebGpuDevice.create` is `open`, and
+  `createTextureFromEncodedImage` is `decodeTexture`**: a device is opened,
+  bytes are decoded, and `create` is the synchronous verb.
+- **Breaking: WebGPU is not in the API.** The JavaScript bindings (`GPU*`),
+  the translation tables (`gpu*`), the pipeline cache, the encoders and
+  `WebGpuDevice`'s browser-typed members are not exported. An application
+  needs `openWebGpu`, `WebGpuDevice` and `WebGpuFramePresenter`.
+- **Debug groups, labels and device loss reach the browser.** Encoders push
+  and pop the browser's debug groups, `setLabel` names textures, buffers,
+  query sets and compute pipelines, and `WebGpuDevice.lost` reports the
+  device's `lost` promise.
+
+- **Breaking:** `GpuDeviceError` is `GpuDeviceException`, with the same
+  constructor and members, extending `ResourceException` from
+  `flutter3d_plugin_api`. A browser refusing a call is not a programmer's
+  mistake. `dart fix` renames it (`webgpu-GpuDeviceError`).
+- **`webGpuFullscreenUvLocation()`**, where the engine's full-screen stages
+  read `v_uv`, for a full-screen stage in the material language written at
+  run time.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Depth is `depth32float-stencil8` where the adapter grants it — `A2.8`**,
+  and the device then reports `DeviceFeature.reversedDepth`.
+  `depth24plus-stencil8` may be stored either way, and the browser does not
+  say which. The engine's table is regenerated: the opaque variants, the
+  depth pre-draw, the shadow map's storage mode and the sky's depth.
+
+- **A material loaded while the game runs draws here.**
+  `webGpuMaterialHost()` hands `flutter3d_plugin_runtime`'s `RuntimeShaders`
+  the engine's compiled `Unlit` stage with its reflection, and a plugin's
+  material without a `light` block is spliced into it as WGSL — no
+  compiler in the browser. A test hands the result to naga.
+
+- **The WebGPU section reads every version up to its own.** A section with
+  no version is version 1, and only a newer one is refused. That refusal is
+  marked `stale`, and the build rebuilds the bundle when the section's
+  version moves.
+
+- **Breaking: `WgslModuleCompiler` can no longer be implemented outside their
+  own library: it is an `abstract base mixin class` now, so a game or a test
+  mixes it in (`with`) and its class is `final` or `base`. A member added to
+  it in a 1.x release arrives with a body, which an `implements` could not
+  have taken without breaking somebody.
+
+- **Breaking: `engine_compute_shaders.dart` is no longer a public library.**
+  Only the device reads `engineComputeShaders`, so the generated table lives
+  under `lib/src/`; `engine_shaders.dart` stays public, because
+  `WebGpuDevice.open` takes its stages.
+
+- **This device answers the capability contract as one set.** `features`,
+  `limits` and `textureFormatSupport` are decided from what the adapter
+  granted, `webgpuDeviceFeatures` and `webgpuTextureFormatSupport` state the
+  rules on the VM, and the `supportsX` getters are answered from them through
+  `DeviceCapabilityForwarders`, each with the answer it gave before. The
+  device now requests every optional feature it can report when the adapter
+  offers it: unclipped depth, indirect first instance, dual-source and
+  float32 blending, `rg11b10ufloat` targets, `f16`, subgroups, clip distances
+  and multi-draw-indirect, beside the five it already asked for.
+
+- **The rest of the GPU, on the API that defined most of it.** Textures of
+  every shape through `createTextureWithDescriptor`, `writeTexture` at any
+  level, layer and row stride, general buffers with mapping both ways,
+  transfer passes (buffer and texture copies, `clearBuffer`, explicit
+  resolves), occlusion and timestamp query sets, render bundles, indexed,
+  non-indexed, indirect and multi draws, depth bias, write masks, depth clamp,
+  min/max and dual-source blending, comparison samplers and level clamps, and
+  compute passes that bind buffer ranges, textures, storage textures and
+  laid-out uniform bytes and dispatch indirectly. The depth bias, write masks
+  and unclipped depth are part of the pipeline signature, since WebGPU bakes
+  them into the pipeline.
+
+- **What WebGPU does not have is refused by name.** Border colours, ASTC HDR,
+  pipeline statistics and synchronous readback are absent from the API;
+  storage in vertex and fragment stages waits on the section's reflection
+  carrying storage bindings. Each throws `UnsupportedCapability` before it
+  looks at the handle it was given, and the pre-1.0 refusals — the blend
+  constant, `PolygonMode.line` — are now that same type.
+
+- **The section format grew two things, and old sections read unchanged.**
+  `WebGpuTextureDimension` has `1d`, `2d-array`, `3d` and `cube-array`, and a
+  sampler may be a comparison one, written only when it is. A compute stage
+  can declare sampled and storage textures; the generator does not write any
+  yet, so the engine's own stages answer false for them.
+
+- A compute pass destroys the uniform buffers it made once it is submitted,
+  rather than keeping one per bind for the life of the device.
 
 - **Splat clouds are sorted on this device's compute — `H11`.** The
   compute table carries `SplatSortCount`, `SplatSortScan` and
@@ -20,6 +158,7 @@
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured
   sun shadow (`ShadowSettings.translucentCasters`).
+
 - **Alpha to coverage**: a pipeline's `alphaToCoverageEnabled`, part of its
   signature, set only where the pass multisamples.
 
@@ -31,6 +170,7 @@
 
 - **`LensFlare` translated, and the composite's distortion**, through
   glslang and naga; both lens scenes match Impeller's to the pixel.
+
 - **SMAA 1x's three stages translated**, through glslang and naga like every
   other stage; `smaa-teapot` is in the WebGPU reference set and matches
   Impeller's to the pixel.
@@ -52,7 +192,13 @@ tools and tests here import them from `package:flutter3d_shaders/compile.dart`,
 and `flutter3d_webgl` is no longer a dev dependency: it was here only for
 `resolveIncludes`.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+- **Images are decoded by the browser, with mips drawn on the GPU.**
+  `WebGpuDevice` is an `EncodedImageUpload`: `createImageBitmap` decodes and
+  scales to the cap, `copyExternalImageToTexture` fills level zero, and a
+  small render pass draws each level from the one above. The interop gains
+  `GPUQueue.copyExternalImageToTexture` and its two descriptors.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.2+1
 

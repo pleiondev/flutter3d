@@ -24,7 +24,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 128;
 const int _height = 48;
@@ -49,9 +48,9 @@ const double _reach = 6.0;
     scene.add(
       MeshNode(
         ball,
-        Material(
+        RenderMaterial(
           name: 'ball',
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'ball',
@@ -66,8 +65,8 @@ const double _reach = 6.0;
     scene.add(
       LightNode(
         type: LightType.point,
-        color: Vector3(0.1, 0.2, 1.0),
-        intensity: 4.0,
+        color: LinearColor(0.1, 0.2, 1.0),
+        intensity: 4.0 * Photometric.legacyUnit,
         range: _reach,
         name: 'blue$i',
       )..setPosition(-_apart + (i - 4) * 0.05, 0.0, -3.5),
@@ -77,8 +76,8 @@ const double _reach = 6.0;
   scene.add(
     LightNode(
       type: LightType.point,
-      color: Vector3(1.0, 0.15, 0.05),
-      intensity: 4.0,
+      color: LinearColor(1.0, 0.15, 0.05),
+      intensity: 4.0 * Photometric.legacyUnit,
       range: _reach,
       name: 'red',
     )..setPosition(_apart, 0.0, -3.5),
@@ -96,7 +95,7 @@ const double _reach = 6.0;
 /// background, so averaging it in would drag both halves toward each other,
 /// which is the one thing this must not do. [litPixels] comes back with it,
 /// because "no lit pixels at all" is the reading that matters most.
-({Vector3 colour, int litPixels}) _half(Uint8List rgba, {required bool left}) {
+({Vector3 color, int litPixels}) _half(Uint8List rgba, {required bool left}) {
   var r = 0.0, g = 0.0, b = 0.0;
   var n = 0;
   for (var y = 0; y < _height; y++) {
@@ -111,9 +110,9 @@ const double _reach = 6.0;
       n++;
     }
   }
-  if (n == 0) return (colour: Vector3.zero(), litPixels: 0);
+  if (n == 0) return (color: Vector3.zero(), litPixels: 0);
   return (
-    colour: Vector3(r / n / 255.0, g / n / 255.0, b / n / 255.0),
+    color: Vector3(r / n / 255.0, g / n / 255.0, b / n / 255.0),
     litPixels: n,
   );
 }
@@ -139,14 +138,14 @@ void main() {
       views: <RenderView>[
         RenderView(
           camera: room.camera,
-          clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
         ),
       ],
       settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
     );
-    final pixels = await it.device.readPixels(frame.frame);
+    final pixels = await it.device.readback(frame.frame);
     expect(pixels, isNotNull);
-    final rgba = pixels!.buffer.asUint8List();
+    final rgba = pixels.buffer.asUint8List();
 
     final left = _half(rgba, left: true);
     final right = _half(rgba, left: false);
@@ -157,8 +156,8 @@ void main() {
     // frame holds which ball depends on the projection's handedness, so this
     // asks only that the two ends disagree and that each reads as the colour of
     // exactly one lamp set.
-    final blue = left.colour.z > left.colour.x ? left.colour : right.colour;
-    final red = identical(blue, left.colour) ? right.colour : left.colour;
+    final blue = left.color.z > left.color.x ? left.color : right.color;
+    final red = identical(blue, left.color) ? right.color : left.color;
 
     // A difference between channels rather than a ratio between them: the tone
     // curve and the sRGB encode both lift a dark channel hard, so a lamp of

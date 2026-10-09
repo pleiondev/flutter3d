@@ -5,7 +5,9 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Snapshot;
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 import 'package:test/test.dart';
@@ -90,11 +92,11 @@ void main() {
 
     test('the changes name the chunk, its neighbour across a border, and '
         'the region', () {
-      final world = _hills()..takeChanges();
+      final world = _hills()..drainChanges();
       world
         ..edit(16, 0, 3, Voxels.empty)
         ..edit(20, 7, 9, 9);
-      final changes = world.takeChanges();
+      final changes = world.drainChanges();
       expect(changes.chunks, <ChunkKey>{(x: 1, y: 0, z: 0)});
       // x = 16 is the first column of chunk 1, so chunk 0 draws the face
       // the dug voxel opened.
@@ -110,7 +112,7 @@ void main() {
         maxY: 8,
         maxZ: 10,
       ));
-      expect(world.takeChanges().isEmpty, isTrue, reason: 'taken once');
+      expect(world.drainChanges().isEmpty, isTrue, reason: 'taken once');
     });
   });
 
@@ -143,7 +145,7 @@ void main() {
       // Mutation: reading the edits back in another order of x, y and z.
       expect(back.digest, world.digest);
       expect(back.toJson(), world.toJson());
-      expect(back.takeChanges().isEmpty, isTrue);
+      expect(back.drainChanges().isEmpty, isTrue);
     });
 
     test('restoring over a world puts back exactly the edits saved', () {
@@ -151,20 +153,72 @@ void main() {
       final world = edited()
         ..edit(3, 2, 3, Voxels.dirt)
         ..edit(10, 20, 10, 7)
-        ..takeChanges();
+        ..drainChanges();
       world.restoreEdits(saved);
       // Mutation: leaving an edit made after the save in place.
       expect(world.digest, edited().digest);
       expect(world.editCount, 5);
-      expect(world.takeChanges().chunks, <ChunkKey>{
+      expect(world.drainChanges().chunks, <ChunkKey>{
         (x: 0, y: 0, z: 0),
         (x: 0, y: 1, z: 0),
       });
     });
 
+    test('the version 1 fixture opens, and a world saved before the '
+        'envelope reads as version 1', () {
+      final fixture =
+          jsonDecode(
+                File('test/fixtures/v1/sandbox.voxels.json').readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      // Minted on 2026-10-09 when the world went into the envelope and the
+      // terrain took its generator version. Mutation: compare the version
+      // with `!=` against a bumped `formatVersion` and this throws.
+      final world = VoxelWorld.fromJson(fixture);
+      expect(world.terrain, const VoxelTerrain(seed: 7));
+      expect(world.editCount, 4);
+
+      final bare = <String, Object?>{
+        for (final MapEntry(:key, :value) in fixture.entries)
+          if (!FormatSpec.envelopeKeys.contains(key)) key: value,
+        'terrain': <String, Object?>{
+          ...(fixture['terrain']! as Map<String, Object?>),
+        }..remove('generatorVersion'),
+      };
+      expect(VoxelWorld.fromJson(bare).digest, world.digest);
+    });
+
+    test('a newer world, newer terrain and an unknown key', () {
+      final saved = edited().toJson();
+      expect(saved['format'], 'f3d.voxelWorld');
+      expect(
+        () => VoxelWorld.fromJson(<String, Object?>{...saved, 'version': 99}),
+        throwsA(isA<VoxelFormatException>()),
+      );
+      expect(
+        () => VoxelWorld.fromJson(<String, Object?>{
+          ...saved,
+          'terrain': <String, Object?>{
+            ...(saved['terrain']! as Map<String, Object?>),
+            'generatorVersion': VoxelTerrain.generatorVersion + 1,
+          },
+        }),
+        throwsA(isA<VoxelFormatException>()),
+      );
+      // Mutation: drop `_unknown` from `toJson` and the key is lost.
+      final kept = VoxelWorld.fromJson(<String, Object?>{
+        ...saved,
+        'weather': 'rain',
+      });
+      expect(kept.toJson()['weather'], 'rain');
+    });
+
     test('edits saved over other ground are refused', () {
       final saved = edited().toJson();
-      expect(() => _hills(seed: 8).restoreEdits(saved), throwsFormatException);
+      expect(
+        () => _hills(seed: 8).restoreEdits(saved),
+        throwsA(isA<VoxelFormatException>()),
+      );
       expect(
         () => VoxelWorld(
           chunksX: 2,
@@ -172,7 +226,7 @@ void main() {
           chunksZ: 3,
           terrain: const VoxelTerrain(seed: 7),
         ).restoreEdits(saved),
-        throwsFormatException,
+        throwsA(isA<VoxelFormatException>()),
       );
     });
   });

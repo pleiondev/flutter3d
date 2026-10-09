@@ -12,13 +12,13 @@ import 'package:vector_math/vector_math.dart';
 const int vertexFloats = 3 + 3 + 2 + 4 + 4;
 
 /// Writes vertex [index] of [into]: at [at], facing [normal], coloured
-/// [colour], with the texture coordinate [uv] and a tangent along x.
+/// [color], with the texture coordinate [uv] and a tangent along x.
 void writeVertex(
   Float32List into,
   int index,
   Vector3 at,
   Vector3 normal,
-  Vector4 colour, {
+  Vector4 color, {
   (double, double) uv = (0.0, 0.0),
 }) {
   final o = index * vertexFloats;
@@ -34,10 +34,10 @@ void writeVertex(
   into[o + 9] = 0.0;
   into[o + 10] = 0.0;
   into[o + 11] = 1.0;
-  into[o + 12] = colour.x;
-  into[o + 13] = colour.y;
-  into[o + 14] = colour.z;
-  into[o + 15] = colour.w;
+  into[o + 12] = color.x;
+  into[o + 13] = color.y;
+  into[o + 14] = color.z;
+  into[o + 15] = color.w;
 }
 
 /// The triangles of a grid of [nx] × [nz] vertices, x fastest.

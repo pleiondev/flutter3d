@@ -19,6 +19,7 @@ import 'package:flutter3d_core/src/engine/render/renderer.dart';
 import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
 import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,7 +47,7 @@ final class _Frame {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -61,13 +62,13 @@ final class _Frame {
     );
     for (var i = 0; i < plainNodes; i++) {
       scene.root.add(
-        MeshNode(cube, Material(name: 'wall $i'), name: 'wall $i')
+        MeshNode(cube, RenderMaterial(name: 'wall $i'), name: 'wall $i')
           ..setPosition(i * 0.1, 0.0, 0.0),
       );
     }
     for (var i = 0; i < markedNodes; i++) {
       scene.root.add(
-        MeshNode(cube, Material(name: 'monster $i'), name: 'monster $i')
+        MeshNode(cube, RenderMaterial(name: 'monster $i'), name: 'monster $i')
           ..layerMask = 1 | _marked
           ..setPosition(i * 0.1, 0.0, -1.0),
       );
@@ -213,7 +214,7 @@ void main() {
   test('the silhouette is the colour the settings name, unlit', () {
     final frame = _Frame.build();
     final pass = frame.render(
-      XraySettings(layerMask: _marked, color: Vector3(0.1, 0.9, 0.2)),
+      XraySettings(layerMask: _marked, color: LinearColor(0.1, 0.9, 0.2)),
     );
     // The last FragInfo block bound in the pass belongs to the silhouette
     // draw, and its base colour is what the flat colour comes from.

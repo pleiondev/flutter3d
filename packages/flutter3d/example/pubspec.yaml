@@ -5,6 +5,7 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -40,6 +41,10 @@ dependencies:
     path: ../../flutter3d_webgpu
   flutter3d:
     path: ../
+  # The parity scene, the engine's own test fixture: not API since 1.0, so
+  # the spikes that draw it import it from the core directly.
+  flutter3d_core:
+    path: ../../flutter3d_core
   # minimal_main.dart opens its device through this package, because that is
   # what a new application does: say `openDevice()` and not which backend.
   flutter3d_app:
@@ -74,10 +79,12 @@ dev_dependencies:
   # material it compiles — `P8`.
   flutter3d_shaders:
     path: ../../flutter3d_shaders
+
+  flutter3d_build_hooks:
+    path: ../../flutter3d_build_hooks
   # `test/material_language_test.dart`: the language's parser, to hold the
-  # golden's lighting model to its source.
-  flutter3d_core:
-    path: ../../flutter3d_core
+  # golden's lighting model to its source, comes from `flutter3d_core`, a
+  # dependency above.
 
 flutter:
   uses-material-design: true

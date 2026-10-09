@@ -25,7 +25,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 36;
@@ -46,7 +45,7 @@ TextureHandle _identity(CpuDevice device, {int size = 33}) =>
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(buildIdentityLut(size: size)),
-    )!;
+    );
 
 /// A table that swaps red and blue — visibly not the identity, and its own
 /// inverse, which is what lets a round trip be checked.
@@ -62,11 +61,11 @@ TextureHandle _swapRedAndBlue(CpuDevice device, {int size = 33}) {
     height: size,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(pixels),
-  )!;
+  );
 }
 
 /// A scene with a spread of colours in it, so a table has something to move.
-Scene _colours(CpuDevice device) {
+Scene _colors(CpuDevice device) {
   final scene = Scene();
   const List<List<double>> swatches = <List<double>>[
     <double>[0.8, 0.2, 0.2],
@@ -82,9 +81,9 @@ Scene _colours(CpuDevice device) {
           device,
           CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'swatch$i',
-          baseColor: Vector4(rgb[0], rgb[1], rgb[2], 1.0),
+          baseColor: LinearColor.fromSrgb(rgb[0], rgb[1], rgb[2], 1.0),
           lighting: LightingModel.unlit,
         ),
       )..setPosition((i - 1.5) * 1.0, 0.0, 0.0),
@@ -100,14 +99,14 @@ Future<Uint8List> _draw(
   final frame = it.renderer.render(
     width: _width,
     height: _height,
-    scene: _colours(it.device),
+    scene: _colors(it.device),
     views: <RenderView>[
       RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
     ],
     settings: RenderSettings(look: look),
   );
-  final pixels = await it.device.readPixels(frame.frame);
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(frame.frame);
+  return pixels.buffer.asUint8List();
 }
 
 /// The largest difference in any channel of any pixel.

@@ -17,7 +17,7 @@
 ///    memory that holds nothing once it ends. It keeps each view's
 ///    transmissive and transparent draws rather than drawing them, as
 ///    weighted blended transparency keeps its layers (`R8`).
-/// 2. **The copy** (`'scene colour copy'`): the scene target as it stands,
+/// 2. **The copy** (`'scene color copy'`): the scene target as it stands,
 ///    at its own size and at five halvings of it, side by side in one
 ///    texture — see `SceneColourChain` for why one texture.
 /// 3. **The transparent half** (`'transparent'`): the scene target, the
@@ -38,9 +38,10 @@
 /// are tile memory as well, and a second pass cannot load what the first
 /// left in them; `FrameResult.msaaDeclined` says so.
 ///
-/// Switching `'transparent'` off draws the frame in one pass as before, the
-/// glass reading the environment; switching `'scene colour copy'` off keeps
-/// the split and leaves the glass reading the environment in the second pass.
+/// Switching `RenderStep.transparent` off draws the frame in one pass as
+/// before, the glass reading the environment; switching
+/// `RenderStep.sceneColorCopy` off keeps the split and leaves the glass
+/// reading the environment in the second pass.
 part of 'renderer.dart';
 
 /// What the scene pass hands the transparent pass on a frame it split: each
@@ -69,7 +70,7 @@ extension _TransmissionPasses on Renderer {
   /// Whether [material] shows what is behind it — `M3`. Only the layered
   /// model reads a transmission; a material that has one and asks for plain
   /// metal-rough is drawn without it.
-  static bool _transmits(Material material) =>
+  static bool _transmits(RenderMaterial material) =>
       identical(material.lighting, LightingModel.pbrLayered) &&
       (material.extensions?.transmission ?? 0.0) > 0.0;
 
@@ -86,8 +87,8 @@ extension _TransmissionPasses on Renderer {
     return scene.meshes.any(
       (node) =>
           _transmits(node.material) &&
-          node.visibleInHierarchy &&
-          node.shadowCasting.drawsColour &&
+          node.isVisibleInHierarchy &&
+          node.shadowCasting.drawsColor &&
           (node.layerMask & mask) != 0,
     );
   }
@@ -111,17 +112,17 @@ extension _TransmissionPasses on Renderer {
       ..bindPipeline(
         _postPipeline(
           _sceneColourCopyPipeline,
-          sceneColourCopyShader,
+          _sceneColourCopyShader,
           (p) => _sceneColourCopyPipeline = p,
         ),
       )
       ..bindVertexBuffer(_fullscreenTriangle, 3)
       ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
       ..bindTexture(
-        sceneColourCopyShader,
+        _sceneColourCopyShader,
         'source_texture',
         source,
-        sampler: SamplerOptions.linearClamp,
+        sampler: SamplerDescriptor.linearClamp,
       );
     _sceneCopyInfo.params
       ..[1] = 1.0 / source.width
@@ -133,7 +134,7 @@ extension _TransmissionPasses on Renderer {
         ..setState(
           Renderer._kFullscreenState.copyWith(viewport: rect, scissor: rect),
         )
-        ..bindBlock(sceneColourCopyShader, _sceneCopyInfo)
+        ..bindBlock(_sceneColourCopyShader, _sceneCopyInfo)
         ..draw();
       _frameCounters?.drawCalls++;
     }
@@ -150,7 +151,7 @@ extension _TransmissionPasses on Renderer {
     final info = _layerInfo;
     final read = _sceneColourRead;
     if (read == null) {
-      info.sceneColour[0] = 0.0;
+      info.sceneColor[0] = 0.0;
       return;
     }
     final chain = read.chain;
@@ -160,7 +161,7 @@ extension _TransmissionPasses on Renderer {
         : rect.y.toDouble();
     final atlasWidth = chain.atlasWidth;
     final atlasHeight = chain.atlasHeight;
-    info.sceneColour
+    info.sceneColor
       ..[0] = chain.levels.toDouble()
       ..[1] = 1.0 / atlasWidth
       ..[2] = 1.0 / atlasHeight;
@@ -189,7 +190,7 @@ extension _TransmissionPasses on Renderer {
   }
 
   /// The second half of a split scene: every view's transmissive draws over
-  /// the scene the first half left, reading [sceneColour] — or the
+  /// the scene the first half left, reading [sceneColor] — or the
   /// environment, where the copy was switched off — then the transparent
   /// half and the contributors. See the module comment for the order.
   void _encodeTransparentHalf({
@@ -200,19 +201,16 @@ extension _TransmissionPasses on Renderer {
     required int height,
     required FramePassState passState,
     required List<PassContributor> contributors,
-    required TextureHandle? sceneColour,
+    required TextureHandle? sceneColor,
   }) {
     final hdr = _hdrColor!;
     final orderIndependent =
         settings.transparency == TransparencyMode.weightedBlended;
     final views = split.views;
     final multiView = views.length > 1;
-    _sceneColourRead = sceneColour == null
+    _sceneColourRead = sceneColor == null
         ? null
-        : (
-            texture: sceneColour,
-            chain: SceneColourChain(hdr.width, hdr.height),
-          );
+        : (texture: sceneColor, chain: SceneColourChain(hdr.width, hdr.height));
     try {
       final surface = split.surfaceIsRead ? _surfaceColor : null;
       // The contributors that read the scene's depth, drawn in a pass of
@@ -225,26 +223,45 @@ extension _TransmissionPasses on Renderer {
       final here = readers.isEmpty
           ? contributors
           : contributors.where((c) => !c.readsSceneDepth).toList();
-      final pass = device.beginRenderPass(
-        RenderPassDescriptor(
-          label: _passLabel,
-          colors: <ColorTarget>[
-            ColorTarget(texture: hdr, loadAction: LoadAction.load),
-            if (surface != null)
-              ColorTarget(texture: surface, loadAction: LoadAction.load),
-            if (split.albedoIsRead && surface != null)
-              ColorTarget(texture: _albedoColor!, loadAction: LoadAction.load),
-          ],
-          // Stored again only for the layers that follow under `R8`, or for
-          // the contributors that read the depth.
-          depth: DepthTarget(
-            texture: _storedSceneDepth(),
-            loadAction: LoadAction.load,
-            storeAction: orderIndependent || readers.isNotEmpty
-                ? StoreAction.store
-                : StoreAction.dontCare,
+      // Version 2 of the material language: a translucent surface reading
+      // the scene behind it is drawn in that same pass, before the
+      // contributors, with the buffer lent to it — and without one, or under
+      // `R8`, where it is drawn as it always is, reading the sky.
+      bool readsScene(MeshNode node) =>
+          surface != null &&
+          !orderIndependent &&
+          node.material.lighting.usesSceneDepth;
+      final sceneReaders = <List<MeshNode>>[
+        for (final deferred in views)
+          deferred.transparent.where(readsScene).toList(),
+      ];
+      final readsAny = sceneReaders.any((nodes) => nodes.isNotEmpty);
+      final pass = _turnDepth(
+        device.beginRenderPass(
+          RenderPassDescriptor(
+            label: _passLabel,
+            colors: <ColorTarget>[
+              ColorTarget(texture: hdr, loadAction: LoadAction.load),
+              if (surface != null)
+                ColorTarget(texture: surface, loadAction: LoadAction.load),
+              if (split.albedoIsRead && surface != null)
+                ColorTarget(
+                  texture: _albedoColor!,
+                  loadAction: LoadAction.load,
+                ),
+            ],
+            // Stored again only for the layers that follow under `R8`, or for
+            // the contributors and surfaces that read the depth.
+            depth: DepthTarget(
+              texture: _storedSceneDepth(),
+              loadAction: LoadAction.load,
+              storeAction: orderIndependent || readers.isNotEmpty || readsAny
+                  ? StoreAction.store
+                  : StoreAction.dontCare,
+            ),
           ),
         ),
+        reversed: _depthReversed,
       );
       for (final deferred in views) {
         _restoreView(deferred, rebuildClusters: multiView);
@@ -259,7 +276,7 @@ extension _TransmissionPasses on Renderer {
               viewProjection: deferred.viewProjection,
               shadows: split.shadows,
               probes: split.probes,
-              lights: lights,
+              lights: _frameLights,
               shadowSlots: _shadowSlots,
               state: passState,
             );
@@ -268,7 +285,11 @@ extension _TransmissionPasses on Renderer {
 
         draw(deferred.transmissive);
         if (orderIndependent) continue;
-        draw(deferred.transparent);
+        draw(
+          readsAny
+              ? deferred.transparent.where((n) => !readsScene(n)).toList()
+              : deferred.transparent,
+        );
         // Handed no depth: the surface buffer is an attachment here, and a
         // contributor that reads it is in [readers] or had none to read.
         _encodeContributors(
@@ -287,22 +308,44 @@ extension _TransmissionPasses on Renderer {
       // The readers, over what the pass above left: the colour and the depth
       // loaded, the surface buffer bound, and nothing else attached — their
       // stages write one colour.
-      if (readers.isNotEmpty) {
-        final soft = device.beginRenderPass(
-          RenderPassDescriptor(
-            label: _passLabel,
-            colors: <ColorTarget>[
-              ColorTarget(texture: hdr, loadAction: LoadAction.load),
-            ],
-            depth: DepthTarget(
-              texture: _storedSceneDepth(),
-              loadAction: LoadAction.load,
+      if (readers.isNotEmpty || readsAny) {
+        final soft = _turnDepth(
+          device.beginRenderPass(
+            RenderPassDescriptor(
+              label: _passLabel,
+              colors: <ColorTarget>[
+                ColorTarget(texture: hdr, loadAction: LoadAction.load),
+              ],
+              depth: DepthTarget(
+                texture: _storedSceneDepth(),
+                loadAction: LoadAction.load,
+              ),
             ),
           ),
+          reversed: _depthReversed,
         );
-        for (final deferred in views) {
+        for (final (index, deferred) in views.indexed) {
           _restoreView(deferred, rebuildClusters: multiView);
           _beginView(soft, deferred, passState);
+          _sceneDepthRead = surface;
+          try {
+            for (final node in sceneReaders[index]) {
+              _encodeNode(
+                encoder: soft,
+                node: node,
+                scene: scene,
+                settings: settings,
+                viewProjection: deferred.viewProjection,
+                shadows: split.shadows,
+                probes: split.probes,
+                lights: _frameLights,
+                shadowSlots: _shadowSlots,
+                state: passState,
+              );
+            }
+          } finally {
+            _sceneDepthRead = null;
+          }
           _encodeContributors(
             pass: soft,
             deferred: deferred,
@@ -336,7 +379,7 @@ extension _TransmissionPasses on Renderer {
       // Nothing after this pass reads the copy: a probe's capture, the view
       // model and the next frame all see the environment again.
       _sceneColourRead = null;
-      _layerInfo.sceneColour[0] = 0.0;
+      _layerInfo.sceneColor[0] = 0.0;
     }
   }
 }

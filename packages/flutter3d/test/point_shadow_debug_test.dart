@@ -18,11 +18,12 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -54,9 +55,9 @@ const int _height = 72;
 
   MeshNode block(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       lighting: LightingModel.pbr,
     ),
     name: name,
@@ -68,7 +69,7 @@ const int _height = 72;
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0,
+        intensity: 60.0 * Photometric.legacyUnit,
         range: 20.0,
         castsShadow: castsShadow,
         name: 'torch',
@@ -94,9 +95,9 @@ Future<List<int>> _grid(
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: settings,
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return parityGrid(pixels!.buffer.asUint8List(), _width, _height);
+  return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 
 RenderSettings _settings({

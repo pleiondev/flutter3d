@@ -31,6 +31,14 @@ uniform ShadowCopyInfo {
   /// depth. Nought for a plain copy. A texel whose source lies outside the
   /// tile is the strip that scrolled in, and reads as nothing there, for
   /// the casters drawn into it next.
+  ///
+  /// w: how the source stores its depth, and what is written — `A2.8`, the
+  /// modes `lib/shadow_storage.glsl` lists. Nought copies a map drawn the
+  /// ordinary way, where nothing is one. One copies a map turned round into
+  /// another, where nothing is nought and z is already the move in the
+  /// stored direction. Two reads a map turned round and writes the depth the
+  /// ordinary way, for a pass that compares against it as drawn — the
+  /// caustics' copy of a tile.
   vec4 shift;
 }
 copy_info;
@@ -44,10 +52,14 @@ void main() {
                  copy_info.tile.xy + clamp(from, 0.0, 1.0) * copy_info.tile.zw,
                  0.0)
           .r;
-  // Nothing stays nothing: the far end is not a depth the move shifts.
-  float depth = inside && stored < 1.0
+  // Nothing stays nothing: the far end is not a depth the move shifts. It is
+  // one the ordinary way round and nought turned round.
+  float mode = copy_info.shift.w;
+  float nothing = mode > 0.5 ? 0.0 : 1.0;
+  float depth = inside && stored != nothing
                     ? clamp(stored + copy_info.shift.z, 0.0, 1.0)
-                    : 1.0;
+                    : nothing;
+  if (mode > 1.5) depth = 1.0 - depth;
   frag_color = vec4(depth, 0.0, 0.0, 1.0);
   gl_FragDepth = depth;
 }

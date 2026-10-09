@@ -39,14 +39,14 @@ extension _GltfSplats on GltfLoader {
   /// `_decodeMesh` reads it — and one that carries it and cannot be read is
   /// skipped with the reason in [warnings], the way a broken triangle
   /// primitive is.
-  List<(SplatCloud, SplatColourSpace)> _decodeMeshSplats(
+  List<(SplatCloud, SplatColorSpace)> _decodeMeshSplats(
     Map<String, Object?> mesh,
     int meshIndex,
     GltfAccessorReader reader,
     List<String> warnings,
   ) {
     final primitives = _mapList(mesh['primitives']);
-    return <(SplatCloud, SplatColourSpace)>[
+    return <(SplatCloud, SplatColorSpace)>[
       for (var i = 0; i < primitives.length; i++)
         if (_splatExtensionOf(primitives[i]) case final extension?)
           ?_decodeSplatPrimitive(
@@ -59,7 +59,7 @@ extension _GltfSplats on GltfLoader {
     ];
   }
 
-  (SplatCloud, SplatColourSpace)? _decodeSplatPrimitive(
+  (SplatCloud, SplatColorSpace)? _decodeSplatPrimitive(
     Map<String, Object?> primitive,
     Map<String, Object?> extension,
     String label,
@@ -75,15 +75,15 @@ extension _GltfSplats on GltfLoader {
         '"ellipse".',
       );
     }
-    final colourSpace = switch (extension['colorSpace']) {
-      'srgb_rec709_display' => SplatColourSpace.srgb,
-      'lin_rec709_display' => SplatColourSpace.linear,
+    final colorSpace = switch (extension['colorSpace']) {
+      'srgb_rec709_display' => SplatColorSpace.srgb,
+      'lin_rec709_display' => SplatColorSpace.linear,
       final other => () {
         warnings.add(
           '$label: $_kSplat colorSpace "$other" is not one this reader '
           'knows; read as srgb_rec709_display.',
         );
-        return SplatColourSpace.srgb;
+        return SplatColorSpace.srgb;
       }(),
     };
     for (final (key, expected) in const <(String, String)>[
@@ -160,21 +160,21 @@ extension _GltfSplats on GltfLoader {
       return null;
     }
 
-    final centres = reader.readAsFloats(position);
+    final centers = reader.readAsFloats(position);
     final scales = reader.readAsFloats(scale);
     final rotations = reader.readAsFloats(rotation);
     final opacities = reader.readAsFloats(opacity);
     final coefficients = reader.readAsFloats(dc);
 
-    final colours = Float32List(count * 4);
+    final colors = Float32List(count * 4);
     for (var i = 0; i < count; i++) {
       for (var c = 0; c < 3; c++) {
         // Negative colours clamp to nought, as the extension requires; an
         // sRGB one also clamps at one, since the curve is only defined there.
         // The PLY and SPZ readers take the same path.
-        colours[i * 4 + c] = splatColour(coefficients[i * 3 + c], colourSpace);
+        colors[i * 4 + c] = splatColor(coefficients[i * 3 + c], colorSpace);
       }
-      colours[i * 4 + 3] = opacities[i].clamp(0.0, 1.0);
+      colors[i * 4 + 3] = opacities[i].clamp(0.0, 1.0);
 
       // Unit by the text, and not quite unit once quantised to bytes or
       // shorts, which is most of what a compressed file writes. The
@@ -206,14 +206,14 @@ extension _GltfSplats on GltfLoader {
     );
     return (
       SplatCloud(
-        centres: centres,
-        colours: colours,
+        centers: centers,
+        colors: colors,
         scales: scales,
         rotations: rotations,
         shDegree: degree,
         shRest: rest,
       ),
-      colourSpace,
+      colorSpace,
     );
   }
 

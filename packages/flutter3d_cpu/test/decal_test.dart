@@ -15,6 +15,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -31,16 +33,16 @@ final class _SceneProbe extends RenderNode {
   String get name => 'scene probe';
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
-    final scene = frame.resources.texture(FrameResourceIds.hdrColour);
+  void execute(RenderFrame frame) {
+    final scene = frame.resources.texture(FrameResourceIds.hdrColor);
     last = _device.readHdrPixels(scene);
-    frame.resources.provide(FrameResourceIds.hdrColour, scene);
+    frame.resources.provide(FrameResourceIds.hdrColor, scene);
   }
 }
 
@@ -61,7 +63,7 @@ double _linear(double c) =>
 
 /// A floor eight metres square with its top at y = 0, a sun, and a camera
 /// [from] somewhere above it looking at the middle.
-_Stage _stage({Material? floor, Vector3? from, Vector3? up}) {
+_Stage _stage({RenderMaterial? floor, Vector3? from, Vector3? up}) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -70,7 +72,7 @@ _Stage _stage({Material? floor, Vector3? from, Vector3? up}) {
   final camera = CameraNode()
     ..setPositionFrom(from ?? Vector3(0.0, 6.0, 0.0))
     ..lookAt(Vector3.zero(), up: up ?? Vector3(0.0, 0.0, -1.0));
-  final sun = LightNode(intensity: 2.0)
+  final sun = LightNode(intensity: 2.0 * Photometric.legacyUnit)
     ..setPosition(0.4, 5.0, 0.3)
     ..lookAt(Vector3.zero());
   final scene = Scene()
@@ -81,18 +83,18 @@ _Stage _stage({Material? floor, Vector3? from, Vector3? up}) {
           CuboidShape(size: Vector3(8.0, 0.2, 8.0)).build(),
         ),
         floor ??
-            Material(
+            RenderMaterial(
               name: 'floor',
               lighting: LightingModel.lambert,
-              baseColor: _grey,
+              baseColor: _fromSrgb(_grey),
             ),
       )..setPosition(0.0, -0.1, 0.0),
     )
     ..add(sun)
     ..add(camera);
-  scene.ambientIntensity = 0.3;
+  scene.ambientIntensity = 0.3 * Photometric.legacyUnit;
   final probe = _SceneProbe(device);
-  final renderer = Renderer.create(device: device)..addNode(probe);
+  final renderer = Renderer.create(device: device)..renderSteps.addNode(probe);
   return (
     device: device,
     renderer: renderer,
@@ -108,9 +110,10 @@ const RenderSettings _on = RenderSettings(
   decals: DecalSettings(enabled: true),
 );
 
-/// A decal three metres square on the floor, painted [colour].
-DecalNode _decal(Vector4 colour, {int order = 0}) =>
-    DecalNode(color: colour, order: order)..setScale(3.0, 1.0, 3.0);
+/// A decal three metres square on the floor, painted [color].
+DecalNode _decal(Vector4 color, {int order = 0}) =>
+    DecalNode(color: color.toLinearColor(), order: order)
+      ..setScale(3.0, 1.0, 3.0);
 
 FrameResult _render(_Stage it, [RenderSettings settings = _on]) =>
     it.renderer.render(
@@ -154,7 +157,7 @@ void main() {
   test('on, with every decal hidden, nothing splits and nothing moves', () {
     final it = _stage();
     final without = _scene(it);
-    it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0))..visible = false);
+    it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0))..isVisible = false);
     final result = _render(it);
     final ran = result.passes.map((p) => p.name);
     // Mutation: asking `decals.isNotEmpty` instead of whether any is visible
@@ -177,13 +180,16 @@ void main() {
           it.device,
           CuboidShape(size: Vector3(1.5, 0.2, 4.0)).build(),
         ),
-        Material(lighting: LightingModel.lambert, baseColor: _grey),
+        RenderMaterial(
+          lighting: LightingModel.lambert,
+          baseColor: _fromSrgb(_grey),
+        ),
       )..setPosition(0.0, 1.2, 0.0),
     );
     final decal = it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0)));
-    decal.visible = false;
+    decal.isVisible = false;
     final reference = _scene(it);
-    decal.visible = true;
+    decal.isVisible = true;
     final painted = _scene(it);
 
     final inside = _changed(painted, reference);
@@ -217,16 +223,16 @@ void main() {
           it.device,
           CuboidShape(size: Vector3(0.2, 2.0, 2.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.lambert,
-          baseColor: Vector4(0.1, 0.2, 0.9, 1.0),
+          baseColor: LinearColor.fromSrgb(0.1, 0.2, 0.9, 1.0),
         ),
       )..setPosition(0.5, 1.0, 0.0),
     );
     final decal = it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0)));
-    decal.visible = false;
+    decal.isVisible = false;
     final reference = _scene(it);
-    decal.visible = true;
+    decal.isVisible = true;
 
     bool onWall(int p) => reference[p * 4 + 2] > reference[p * 4] * 2.0;
     final defaultLimit = _changed(_scene(it), reference);
@@ -244,33 +250,33 @@ void main() {
     final it = _stage();
     final red = it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0), order: 1));
     final green = it.scene.add(_decal(Vector4(0.0, 1.0, 0.0, 1.0)));
-    Vector4 centre() => _at(_scene(it), _size ~/ 2, _size ~/ 2);
+    Vector4 center() => _at(_scene(it), _size ~/ 2, _size ~/ 2);
 
     // Mutation: drawing in attachment order ignores `order`, and green, the
     // later, wins.
-    expect(centre().x, greaterThan(0.1));
-    expect(centre().y, closeTo(0.0, 1e-3));
+    expect(center().x, greaterThan(0.1));
+    expect(center().y, closeTo(0.0, 1e-3));
 
     red.order = 0;
     // Equal now, so the later attached is on top.
-    expect(centre().y, greaterThan(0.1));
-    expect(centre().x, closeTo(0.0, 1e-3));
+    expect(center().y, greaterThan(0.1));
+    expect(center().x, closeTo(0.0, 1e-3));
 
     green.order = -1;
-    expect(centre().x, greaterThan(0.1));
+    expect(center().x, greaterThan(0.1));
   });
 
   test('more decals and pictures than one draw holds are all painted', () {
     final it = _stage();
-    final colours = <Vector4>[
-      Vector4(1.0, 0.0, 0.0, 1.0),
-      Vector4(0.0, 1.0, 0.0, 1.0),
-      Vector4(0.0, 0.0, 1.0, 1.0),
-      Vector4(1.0, 1.0, 0.0, 1.0),
-      Vector4(0.0, 1.0, 1.0, 1.0),
+    const colors = <LinearColor>[
+      LinearColor(1.0, 0.0, 0.0),
+      LinearColor(0.0, 1.0, 0.0),
+      LinearColor(0.0, 0.0, 1.0),
+      LinearColor(1.0, 1.0, 0.0),
+      LinearColor(0.0, 1.0, 1.0),
     ];
     final pictures = <TextureHandle>[
-      for (final colour in colours) SolidColorTexture(colour).upload(it.device),
+      for (final color in colors) SolidColorTexture(color).upload(it.device),
     ];
     // Twenty-five, a metre apart: two draws' worth of decals, and five
     // pictures where a draw binds four.
@@ -285,7 +291,7 @@ void main() {
     ];
     final painted = _scene(it);
     for (final decal in decals) {
-      decal.visible = false;
+      decal.isVisible = false;
     }
     final reference = _scene(it);
 
@@ -295,7 +301,7 @@ void main() {
       final clip = project.transform(Vector4(at.x, at.y, at.z, 1.0));
       final x = ((clip.x / clip.w * 0.5 + 0.5) * _size).floor();
       final y = ((0.5 - clip.y / clip.w * 0.5) * _size).floor();
-      final colour = colours[(i ~/ 5 + i % 5) % 5];
+      final color = colors[(i ~/ 5 + i % 5) % 5];
       final got = _at(painted, x, y);
       final was = _at(reference, x, y);
       // The picture's channels that are off are off; the ones that are on
@@ -305,9 +311,9 @@ void main() {
       // a fifth picture read through a slot holding the fourth, leaves a
       // decal here the floor's colour or another's.
       for (final (channel, on) in <(double, double)>[
-        (got.x, colour.x),
-        (got.y, colour.y),
-        (got.z, colour.z),
+        (got.x, color.r),
+        (got.y, color.g),
+        (got.z, color.b),
       ]) {
         expect(
           channel,
@@ -329,7 +335,7 @@ void main() {
         255, 0, 0, 255, 0, 255, 0, 255, //
         0, 0, 255, 255, 255, 255, 255, 255,
       ]).buffer.asByteData(),
-    )!;
+    );
     it.scene.add(_decal(Vector4(1.0, 1.0, 1.0, 1.0))..texture = picture);
     final painted = _scene(it);
     // The camera looks straight down with the box's -z at the top of the
@@ -359,15 +365,18 @@ void main() {
     'an unlit surface has no light to lend, so the decal is its own colour',
     () {
       final it = _stage(
-        floor: Material(lighting: LightingModel.unlit, baseColor: _grey),
+        floor: RenderMaterial(
+          lighting: LightingModel.unlit,
+          baseColor: _fromSrgb(_grey),
+        ),
       );
       it.scene.add(_decal(Vector4(0.2, 0.6, 1.0, 1.0)));
-      final centre = _at(_scene(it), _size ~/ 2, _size ~/ 2);
+      final center = _at(_scene(it), _size ~/ 2, _size ~/ 2);
       // Mutation: dividing by the albedo buffer's nought with no floor under
       // it paints the unlit floor white, or infinite.
-      expect(centre.x, closeTo(_linear(0.2), 2e-3));
-      expect(centre.y, closeTo(_linear(0.6), 2e-3));
-      expect(centre.z, closeTo(1.0, 2e-3));
+      expect(center.x, closeTo(_linear(0.2), 2e-3));
+      expect(center.y, closeTo(_linear(0.6), 2e-3));
+      expect(center.z, closeTo(1.0, 2e-3));
     },
   );
 
@@ -375,7 +384,7 @@ void main() {
     final it = _stage();
     final decal = it.scene.add(_decal(Vector4(1.0, 0.5, 0.0, 1.0)));
     final lit = _at(_scene(it), _size ~/ 2, _size ~/ 2);
-    decal.emissive = Vector3(3.0, 3.0, 3.0);
+    decal.emissive = LinearColor(3.0, 3.0, 3.0);
     final glowing = _at(_scene(it), _size ~/ 2, _size ~/ 2);
     // Mutation: an emission multiplied in with the factor rather than added
     // with the term scales with the light and is nought in the dark.
@@ -393,26 +402,26 @@ void main() {
           it.device,
           CuboidShape(size: Vector3(5.0, 0.05, 5.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(1.0, 1.0, 1.0, 0.3),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 0.3),
           alphaMode: MaterialAlphaMode.blend,
         ),
       )..setPosition(0.0, 1.5, 0.0),
     );
     final decal = it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0)));
-    decal.visible = false;
+    decal.isVisible = false;
     final reference = _scene(it);
-    decal.visible = true;
+    decal.isVisible = true;
     final result = _render(it);
     final painted = it.probe.last!;
     expect(result.passes.map((p) => p.name), contains('transparent'));
-    final centre = _at(painted, _size ~/ 2, _size ~/ 2);
+    final center = _at(painted, _size ~/ 2, _size ~/ 2);
     final was = _at(reference, _size ~/ 2, _size ~/ 2);
     // Mutation: painting after the glass reads the pane's depth out of the
     // surface buffer, finds it outside the box, and the decal is gone.
-    expect(centre.x, greaterThan(was.x + 0.1));
-    expect(centre.y, lessThan(was.y));
+    expect(center.x, greaterThan(was.x + 0.1));
+    expect(center.y, lessThan(was.y));
   });
 
   test('a decal near the top of the frame is painted to its edges', () {
@@ -423,13 +432,13 @@ void main() {
     // away all of it.
     final it = _stage();
     final decal = it.scene.add(
-      DecalNode(color: Vector4(1.0, 0.0, 0.0, 1.0))
+      DecalNode(color: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0))
         ..setScale(2.0, 1.0, 1.0)
         ..setPosition(0.0, 0.0, -1.5),
     );
-    decal.visible = false;
+    decal.isVisible = false;
     final reference = _scene(it);
-    decal.visible = true;
+    decal.isVisible = true;
     final painted = _scene(it);
 
     // Where the box's footprint on the floor lands, row by row.
@@ -452,15 +461,18 @@ void main() {
     expect(rows.every((y) => y >= top && y <= bottom), isTrue);
   });
 
-  test('switched off by name like any other pass', () {
+  test('switched off as a step like any other pass', () {
     final it = _stage();
     final without = _scene(it);
     it.scene.add(_decal(Vector4(1.0, 0.0, 0.0, 1.0)));
     final result = _render(
       it,
-      _on.copyWith(disabledPasses: const <String>{'decals'}),
+      _on.without(const <RenderStep>{RenderStep.decals}),
     );
     expect(result.passes.map((p) => p.name), isNot(contains('decals')));
     expect(_changed(it.probe.last!, without), isEmpty);
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -130,12 +130,12 @@ void main() {
           // Mutation: one winding for both directions of an axis turns every
           // face looking along -x, -y or -z inside out.
           expect((b - a).cross(c - a).dot(normal), greaterThan(0.0));
-          final centre = (a + b + c) / 3.0;
+          final center = (a + b + c) / 3.0;
           bool solid(Vector3 p) =>
               world.isSolid(p.x.floor(), p.y.floor(), p.z.floor());
-          expect(solid(centre + normal * 0.5), isFalse, reason: 'air ahead');
+          expect(solid(center + normal * 0.5), isFalse, reason: 'air ahead');
           expect(
-            solid(centre - normal * 0.5),
+            solid(center - normal * 0.5),
             isTrue,
             reason: 'a block behind',
           );

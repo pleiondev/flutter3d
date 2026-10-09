@@ -7,10 +7,9 @@
 /// the same skeleton grown a model browser; start reading here.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 void main() => runApp(const MinimalApp());
 
@@ -54,9 +53,9 @@ class _MinimalPageState extends State<MinimalPage> {
     _scene.add(
       MeshNode(
         DeviceMesh.upload(device, const SphereShape(radius: 1.0).build()),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.pbr,
-          baseColor: Vector4(0.9, 0.42, 0.28, 1.0),
+          baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28, 1.0),
           roughness: 0.35,
         ),
         name: 'sphere',
@@ -68,8 +67,8 @@ class _MinimalPageState extends State<MinimalPage> {
     _scene.add(
       LightNode(
         type: LightType.point,
-        color: Vector3(0.9, 0.95, 1.0),
-        intensity: 16.0,
+        color: LinearColor(0.9, 0.95, 1.0),
+        intensity: 16.0 * Photometric.legacyUnit,
         range: 20.0,
         name: 'point light',
       )..setPosition(2.0, 2.5, 2.0),

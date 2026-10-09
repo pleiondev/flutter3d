@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4;
 
@@ -34,7 +35,7 @@ final class _VelocityProbe extends RenderNode {
   String get name => 'velocity probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   // The frame is read and passed on untouched: a node the output does not
   // depend on is culled, and this one has to run.
@@ -48,7 +49,7 @@ final class _VelocityProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     last = _device.readHdrPixels(
       frame.resources.texture(FrameResourceIds.velocity),
     );
@@ -76,12 +77,12 @@ _Staged _staged() {
   final mesh = DeviceMesh.upload(device, CuboidShape().build());
   final camera = CameraNode();
   final scene = Scene()
-    ..add(MeshNode(mesh, Material())..setPosition(0.0, 0.0, -5.0))
+    ..add(MeshNode(mesh, RenderMaterial())..setPosition(0.0, 0.0, -5.0))
     ..add(camera);
   final probe = _VelocityProbe(device);
   return (
     device: device,
-    renderer: Renderer.create(device: device)..addNode(probe),
+    renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
     scene: scene,
     camera: camera,
     probe: probe,
@@ -124,21 +125,21 @@ void main() {
     it.camera.setPosition(0.2, 0.0, 0.0);
     final v = _velocity(it);
 
-    final centre = _at(v, _width ~/ 2, _height ~/ 2);
+    final center = _at(v, _width ~/ 2, _height ~/ 2);
     // A point five metres off moved 0.2 m to the left of a view whose half
     // width at that depth is 5·tan(fov/2)·aspect: in UV that is half of
     // 0.2 / (that half width), and negative because it went left.
     // The default camera's vertical field of view.
-    const fov = math.pi / 4;
-    final halfWidth = 5.0 * math.tan(fov / 2) * (_width / _height);
+    const fovY = math.pi / 4;
+    final halfWidth = 5.0 * math.tan(fovY / 2) * (_width / _height);
     // The box's front face is half a metre nearer than its centre.
-    final nearHalfWidth = 4.5 * math.tan(fov / 2) * (_width / _height);
-    expect(centre.x, lessThan(0.0));
+    final nearHalfWidth = 4.5 * math.tan(fovY / 2) * (_width / _height);
+    expect(center.x, lessThan(0.0));
     expect(
-      -centre.x,
+      -center.x,
       inInclusiveRange(0.1 / halfWidth - 1e-3, 0.1 / nearHalfWidth + 1e-3),
     );
-    expect(centre.y.abs(), lessThan(1e-4));
+    expect(center.y.abs(), lessThan(1e-4));
 
     // A corner is sky: at infinity, a sideways step does not move it.
     final corner = _at(v, 0, 0);
@@ -183,9 +184,9 @@ void main() {
 
       // The box's centre moved 0.3 m right at five metres: in UV, half of
       // 0.3 over the half width there, and positive because it went right.
-      const fov = math.pi / 4;
-      final halfWidth = 5.0 * math.tan(fov / 2) * (_width / _height);
-      final nearHalfWidth = 4.5 * math.tan(fov / 2) * (_width / _height);
+      const fovY = math.pi / 4;
+      final halfWidth = 5.0 * math.tan(fovY / 2) * (_width / _height);
+      final nearHalfWidth = 4.5 * math.tan(fovY / 2) * (_width / _height);
       // The box's new centre, a little right of the frame's.
       final x = (_width / 2 + 0.3 / (2 * halfWidth) * _width).round();
       final at = _at(v, x, _height ~/ 2);
@@ -204,7 +205,7 @@ void main() {
       final device = it.device;
       final wall = MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        Material(),
+        RenderMaterial(),
       )..setPosition(0.0, 0.0, -2.0);
       it.scene.add(wall);
       _velocity(it);
@@ -212,15 +213,15 @@ void main() {
       final v = _velocity(it);
       // Mutation: drop the depth comparison in `velocity.frag`'s mirror. The
       // box's motion paints over the wall that hides it.
-      final centre = _at(v, _width ~/ 2, _height ~/ 2);
-      expect(centre.x.abs(), lessThan(1e-6));
+      final center = _at(v, _width ~/ 2, _height ~/ 2);
+      expect(center.x.abs(), lessThan(1e-6));
     });
 
     test('a batch moves by the placements it had last frame', () {
       final it = _staged();
       final batch = InstancedMeshNode(
         DeviceMesh.upload(it.device, CuboidShape().build()),
-        Material(),
+        RenderMaterial(),
         capacity: 2,
       )..addInstance(Matrix4.translationValues(0.0, 0.0, -5.0));
       it.scene
@@ -230,8 +231,8 @@ void main() {
       // The batch's own node stays put; one instance moves.
       batch.setTransform(0, Matrix4.translationValues(0.3, 0.0, -5.0));
       final v = _velocity(it);
-      const fov = math.pi / 4;
-      final halfWidth = 5.0 * math.tan(fov / 2) * (_width / _height);
+      const fovY = math.pi / 4;
+      final halfWidth = 5.0 * math.tan(fovY / 2) * (_width / _height);
       final x = (_width / 2 + 0.3 / (2 * halfWidth) * _width).round();
       expect(_at(v, x, _height ~/ 2).x, greaterThan(0.1 / halfWidth));
     });

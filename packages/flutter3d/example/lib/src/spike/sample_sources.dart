@@ -1,6 +1,5 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
-import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 
 import 'scene_source.dart';
 
@@ -11,7 +10,7 @@ import 'scene_source.dart';
 /// package says that prefix itself rather than every caller spelling it out.
 /// The engine's tests read the same files straight off disk through the other
 /// constant beside this one.
-const String _samples = kSamplesAsset;
+const String _samples = samplesAsset;
 
 /// Everything the demo can display.
 ///

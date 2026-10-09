@@ -32,6 +32,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatSpec;
 import 'package:vector_math/vector_math.dart';
 
 import 'splat_cloud.dart';
@@ -54,6 +56,7 @@ final class SplatOctreeNode {
   final double x, y, z;
 
   /// A sphere around every splat centre in the box: half the box's diagonal.
+  /// In metres.
   final double radius;
 
   /// The children are nodes `firstChild .. firstChild + childCount - 1`,
@@ -122,7 +125,7 @@ SplatOctree buildSplatOctree(
     throw ArgumentError('leafCapacity and grid must be at least 1');
   }
   final n = cloud.count;
-  final c = cloud.centres;
+  final c = cloud.centers;
   final lo = Vector3.all(double.infinity);
   final hi = Vector3.all(double.negativeInfinity);
   for (var i = 0; i < n; i++) {
@@ -130,7 +133,7 @@ SplatOctree buildSplatOctree(
     Vector3.min(lo, p, lo);
     Vector3.max(hi, p, hi);
   }
-  final centre = n == 0 ? Vector3.zero() : (lo + hi) * 0.5;
+  final center = n == 0 ? Vector3.zero() : (lo + hi) * 0.5;
   final half = n == 0
       ? 0.0
       : math.max(math.max(hi.x - lo.x, hi.y - lo.y), hi.z - lo.z) * 0.5;
@@ -138,7 +141,7 @@ SplatOctree buildSplatOctree(
   final root = _build(
     cloud,
     Int32List.fromList(List<int>.generate(n, (int i) => i)),
-    centre,
+    center,
     half,
     0,
     leafCapacity,
@@ -160,19 +163,17 @@ SplatOctree buildSplatOctree(
   // Where each page will sit in the file `encodeSplatOctree` writes: after
   // the header and the table, one after another in this same order.
   final pageOffsets = <int>[
-    kSplatOctreeHeaderBytes + order.length * kSplatOctreeNodeBytes,
+    splatOctreeHeaderBytes + order.length * splatOctreeNodeBytes,
   ];
   for (final b in order) {
-    pageOffsets.add(
-      pageOffsets.last + b.splats.count * kSplatPageBytesPerSplat,
-    );
+    pageOffsets.add(pageOffsets.last + b.splats.count * splatPageBytesPerSplat);
   }
   return SplatOctree(<SplatOctreeNode>[
     for (final (k, b) in order.indexed)
       SplatOctreeNode(
-        x: b.centre.x,
-        y: b.centre.y,
-        z: b.centre.z,
+        x: b.center.x,
+        y: b.center.y,
+        z: b.center.z,
         radius: b.half * math.sqrt(3),
         firstChild: b.children.isEmpty ? 0 : firstChild[b]!,
         childCount: b.children.length,
@@ -185,8 +186,10 @@ SplatOctree buildSplatOctree(
 
 /// A node while the tree is being built: its box, its splats, its children.
 final class _Built {
-  _Built(this.centre, this.half, this.splats, this.children);
-  final Vector3 centre;
+  _Built(this.center, this.half, this.splats, this.children);
+  final Vector3 center;
+
+  /// Half the box's side, in metres.
   final double half;
   final SplatCloud splats;
   final List<_Built> children;
@@ -200,22 +203,22 @@ const int _kMaxDepth = 21;
 _Built _build(
   SplatCloud cloud,
   Int32List indices,
-  Vector3 centre,
+  Vector3 center,
   double half,
   int depth,
   int leafCapacity,
   int grid,
 ) {
   if (indices.length <= leafCapacity || depth >= _kMaxDepth || half <= 0) {
-    return _Built(centre, half, _subset(cloud, indices), const <_Built>[]);
+    return _Built(center, half, _subset(cloud, indices), const <_Built>[]);
   }
-  final c = cloud.centres;
+  final c = cloud.centers;
   final octants = List<List<int>>.generate(8, (_) => <int>[]);
   for (final i in indices) {
     final o =
-        (c[i * 3] >= centre.x ? 1 : 0) |
-        (c[i * 3 + 1] >= centre.y ? 2 : 0) |
-        (c[i * 3 + 2] >= centre.z ? 4 : 0);
+        (c[i * 3] >= center.x ? 1 : 0) |
+        (c[i * 3 + 1] >= center.y ? 2 : 0) |
+        (c[i * 3 + 2] >= center.z ? 4 : 0);
     octants[o].add(i);
   }
   final quarter = half * 0.5;
@@ -225,7 +228,7 @@ _Built _build(
         _build(
           cloud,
           Int32List.fromList(octants[o]),
-          centre +
+          center +
               Vector3(
                 (o & 1) != 0 ? quarter : -quarter,
                 (o & 2) != 0 ? quarter : -quarter,
@@ -238,11 +241,11 @@ _Built _build(
         ),
   ];
   return _Built(
-    centre,
+    center,
     half,
     mergeSplats(
       <SplatCloud>[for (final child in children) child.splats],
-      centre: centre,
+      center: center,
       half: half,
       grid: grid,
     ),
@@ -252,20 +255,20 @@ _Built _build(
 
 SplatCloud _subset(SplatCloud cloud, Int32List indices) {
   final n = indices.length;
-  final centres = Float32List(n * 3);
-  final colours = Float32List(n * 4);
+  final centers = Float32List(n * 3);
+  final colors = Float32List(n * 4);
   final scales = Float32List(n * 3);
   final rotations = Float32List(n * 4);
   for (var k = 0; k < n; k++) {
     final i = indices[k];
-    centres.setRange(k * 3, k * 3 + 3, cloud.centres, i * 3);
-    colours.setRange(k * 4, k * 4 + 4, cloud.colours, i * 4);
+    centers.setRange(k * 3, k * 3 + 3, cloud.centers, i * 3);
+    colors.setRange(k * 4, k * 4 + 4, cloud.colors, i * 4);
     scales.setRange(k * 3, k * 3 + 3, cloud.scales, i * 3);
     rotations.setRange(k * 4, k * 4 + 4, cloud.rotations, i * 4);
   }
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
   );
@@ -276,7 +279,7 @@ SplatCloud _subset(SplatCloud cloud, Int32List indices) {
 const int _kCell = 14;
 
 /// The splats of [parts] merged into at most `grid³`, one per occupied cell
-/// of a [grid]³ lattice over the cube of half-size [half] about [centre].
+/// of a [grid]³ lattice over the cube of half-size [half] about [center].
 ///
 /// Each merged splat is the moment match of its cell: the mean and
 /// covariance of the cell's Gaussians weighted by opacity times footprint,
@@ -288,7 +291,7 @@ const int _kCell = 14;
 /// that is as opaque as they were together.
 SplatCloud mergeSplats(
   List<SplatCloud> parts, {
-  required Vector3 centre,
+  required Vector3 center,
   required double half,
   required int grid,
 }) {
@@ -301,9 +304,9 @@ SplatCloud mergeSplats(
 
   for (final part in parts) {
     for (var i = 0; i < part.count; i++) {
-      final px = part.centres[i * 3] - centre.x;
-      final py = part.centres[i * 3 + 1] - centre.y;
-      final pz = part.centres[i * 3 + 2] - centre.z;
+      final px = part.centers[i * 3] - center.x;
+      final py = part.centers[i * 3 + 1] - center.y;
+      final pz = part.centers[i * 3 + 2] - center.z;
       final cell =
           (cellOf(px, 0) * grid + cellOf(py, 0)) * grid + cellOf(pz, 0);
       final at = cell * _kCell;
@@ -315,7 +318,7 @@ SplatCloud mergeSplats(
             2 / 3,
           )
           .toDouble();
-      final alpha = part.colours[i * 4 + 3];
+      final alpha = part.colors[i * 4 + 3];
       // Never zero, so a cell of fully transparent splats still has a place
       // and a shape — it merges into a transparent splat, not a division by
       // nothing.
@@ -332,17 +335,17 @@ SplatCloud mergeSplats(
       cells[at + 7] += w * (covariance[3] + py * py);
       cells[at + 8] += w * (covariance[4] + py * pz);
       cells[at + 9] += w * (covariance[5] + pz * pz);
-      cells[at + 10] += w * part.colours[i * 4];
-      cells[at + 11] += w * part.colours[i * 4 + 1];
-      cells[at + 12] += w * part.colours[i * 4 + 2];
+      cells[at + 10] += w * part.colors[i * 4];
+      cells[at + 11] += w * part.colors[i * 4 + 1];
+      cells[at + 12] += w * part.colors[i * 4 + 2];
       cells[at + 13] += alpha * footprint;
     }
   }
 
   occupied.sort();
   final n = occupied.length;
-  final centres = Float32List(n * 3);
-  final colours = Float32List(n * 4);
+  final centers = Float32List(n * 3);
+  final colors = Float32List(n * 4);
   final scales = Float32List(n * 3);
   final rotations = Float32List(n * 4);
   final sigma = Float64List(9);
@@ -373,9 +376,9 @@ SplatCloud mergeSplats(
       ..[8] = zz;
     final (values, vectors) = symmetricEigen3(sigma);
 
-    centres[k * 3] = mx + centre.x;
-    centres[k * 3 + 1] = my + centre.y;
-    centres[k * 3 + 2] = mz + centre.z;
+    centers[k * 3] = mx + center.x;
+    centers[k * 3 + 1] = my + center.y;
+    centers[k * 3 + 2] = mz + center.z;
     var footprint = 1.0;
     for (var a = 0; a < 3; a++) {
       final s = math.sqrt(math.max(values[a], 1e-24));
@@ -401,15 +404,15 @@ SplatCloud mergeSplats(
       ..[k * 4 + 1] = q.y
       ..[k * 4 + 2] = q.z
       ..[k * 4 + 3] = q.w;
-    colours
+    colors
       ..[k * 4] = cells[at + 10] / w
       ..[k * 4 + 1] = cells[at + 11] / w
       ..[k * 4 + 2] = cells[at + 12] / w
       ..[k * 4 + 3] = math.min(1.0, cells[at + 13] / footprint);
   }
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
   );
@@ -486,23 +489,34 @@ SplatCloud mergeSplats(
 const int _kMagic = 0x53443346;
 
 /// The tree file's format version.
-const int kSplatOctreeVersion = 1;
+const int splatOctreeVersion = 1;
+
+/// `.f3dsplat` in the format registry.
+const FormatSpec f3dsplatFormat = FormatSpec(
+  id: 'f3d.splat',
+  version: splatOctreeVersion,
+  suffixes: <String>['.f3dsplat'],
+  fixture: 'test/fixtures/v<N>/one.f3dsplat',
+  enveloped: false,
+  magic: <int>[0x46, 0x33, 0x44, 0x53],
+);
 
 /// Bytes before the node table.
-const int kSplatOctreeHeaderBytes = 32;
+const int splatOctreeHeaderBytes = 32;
 
 /// Bytes a node takes in the table.
-const int kSplatOctreeNodeBytes = 36;
+const int splatOctreeNodeBytes = 36;
 
 /// Bytes a splat takes in a page: centre, colour, scale, rotation as float32.
-const int kSplatPageBytesPerSplat = 56;
+const int splatPageBytesPerSplat = 56;
 
 /// The file suffix `flutter3d_build convert` writes a splat tree to.
-const String kSplatOctreeExtension = '.f3dsplat';
+const String splatOctreeExtension = '.f3dsplat';
 
 /// Thrown when bytes are not a splat tree this can read.
-final class SplatOctreeException implements Exception {
+final class SplatOctreeException extends Flutter3dFormatException {
   const SplatOctreeException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'SplatOctreeException: $message';
@@ -512,16 +526,14 @@ final class SplatOctreeException implements Exception {
 /// Every node must be loaded.
 Uint8List encodeSplatOctree(SplatOctree tree) {
   final nodes = tree.nodes;
-  final pagesAt =
-      kSplatOctreeHeaderBytes + nodes.length * kSplatOctreeNodeBytes;
+  final pagesAt = splatOctreeHeaderBytes + nodes.length * splatOctreeNodeBytes;
   final total = nodes.fold(
     pagesAt,
-    (int sum, SplatOctreeNode n) =>
-        sum + n.splatCount * kSplatPageBytesPerSplat,
+    (int sum, SplatOctreeNode n) => sum + n.splatCount * splatPageBytesPerSplat,
   );
   final out = ByteData(total)
     ..setUint32(0, _kMagic, Endian.little)
-    ..setUint32(4, kSplatOctreeVersion, Endian.little)
+    ..setUint32(4, splatOctreeVersion, Endian.little)
     ..setUint32(8, nodes.length, Endian.little)
     ..setUint32(12, tree.leafSplatCount, Endian.little);
 
@@ -532,7 +544,7 @@ Uint8List encodeSplatOctree(SplatOctree tree) {
     if (splats == null) {
       throw StateError('node $k has no splats to write');
     }
-    final at = kSplatOctreeHeaderBytes + k * kSplatOctreeNodeBytes;
+    final at = splatOctreeHeaderBytes + k * splatOctreeNodeBytes;
     out
       ..setFloat32(at, node.x, Endian.little)
       ..setFloat32(at + 4, node.y, Endian.little)
@@ -551,8 +563,8 @@ Uint8List encodeSplatOctree(SplatOctree tree) {
 int _writePage(ByteData out, int at, SplatCloud splats) {
   var p = at;
   for (final array in <Float32List>[
-    splats.centres,
-    splats.colours,
+    splats.centers,
+    splats.colors,
     splats.scales,
     splats.rotations,
   ]) {
@@ -565,24 +577,29 @@ int _writePage(ByteData out, int at, SplatCloud splats) {
 }
 
 /// How many bytes of the file [parseSplatOctreeIndex] needs, given its
-/// first [kSplatOctreeHeaderBytes].
+/// first [splatOctreeHeaderBytes].
 int splatOctreeIndexBytes(Uint8List header) {
   final nodeCount = _readHeader(header);
-  return kSplatOctreeHeaderBytes + nodeCount * kSplatOctreeNodeBytes;
+  return splatOctreeHeaderBytes + nodeCount * splatOctreeNodeBytes;
 }
 
 int _readHeader(Uint8List bytes) {
-  if (bytes.length < kSplatOctreeHeaderBytes) {
+  if (bytes.length < splatOctreeHeaderBytes) {
     throw const SplatOctreeException('shorter than a splat tree header');
   }
   final data = ByteData.sublistView(bytes);
   if (data.getUint32(0, Endian.little) != _kMagic) {
     throw const SplatOctreeException('no F3DS magic: not a splat tree');
   }
+  // Every version up to this build's; only the future is refused (decision 8
+  // of `tasks/1.0-stability.md`). A later layout reads an older node record
+  // the older way in `_node`. Mutation: put back `!=` and bump the constant,
+  // and `test/fixtures/v1/one.f3dsplat` stops opening.
   final version = data.getUint32(4, Endian.little);
-  if (version != kSplatOctreeVersion) {
+  if (version < 1 || version > splatOctreeVersion) {
     throw SplatOctreeException(
-      'splat tree version $version; this reads $kSplatOctreeVersion',
+      'splat tree version $version; this reads up to $splatOctreeVersion. '
+      'Update flutter3d to open it',
     );
   }
   return data.getUint32(8, Endian.little);
@@ -591,7 +608,7 @@ int _readHeader(Uint8List bytes) {
 /// The tree's nodes out of the header and table, every page still to load.
 SplatOctree parseSplatOctreeIndex(Uint8List bytes) {
   final nodeCount = _readHeader(bytes);
-  final needed = kSplatOctreeHeaderBytes + nodeCount * kSplatOctreeNodeBytes;
+  final needed = splatOctreeHeaderBytes + nodeCount * splatOctreeNodeBytes;
   if (bytes.length < needed || nodeCount == 0) {
     throw SplatOctreeException(
       '$nodeCount nodes need a $needed-byte index; got ${bytes.length}',
@@ -600,7 +617,7 @@ SplatOctree parseSplatOctreeIndex(Uint8List bytes) {
   final data = ByteData.sublistView(bytes);
   final nodes = <SplatOctreeNode>[
     for (var k = 0; k < nodeCount; k++)
-      _node(data, kSplatOctreeHeaderBytes + k * kSplatOctreeNodeBytes),
+      _node(data, splatOctreeHeaderBytes + k * splatOctreeNodeBytes),
   ];
   for (final (k, node) in nodes.indexed) {
     if (node.childCount > 8 ||
@@ -628,9 +645,9 @@ SplatOctreeNode _node(ByteData d, int at) => SplatOctreeNode(
 
 /// One node's page, [count] splats, as a cloud.
 SplatCloud decodeSplatPage(Uint8List bytes, int count) {
-  if (bytes.length < count * kSplatPageBytesPerSplat) {
+  if (bytes.length < count * splatPageBytesPerSplat) {
     throw SplatOctreeException(
-      'a page of $count splats is ${count * kSplatPageBytesPerSplat} bytes; '
+      'a page of $count splats is ${count * splatPageBytesPerSplat} bytes; '
       'got ${bytes.length}',
     );
   }
@@ -645,8 +662,8 @@ SplatCloud decodeSplatPage(Uint8List bytes, int count) {
   }
 
   return SplatCloud(
-    centres: read(count * 3),
-    colours: read(count * 4),
+    centers: read(count * 3),
+    colors: read(count * 4),
     scales: read(count * 3),
     rotations: read(count * 4),
   );
@@ -656,7 +673,7 @@ SplatCloud decodeSplatPage(Uint8List bytes, int count) {
 SplatOctree parseSplatOctree(Uint8List bytes) {
   final tree = parseSplatOctreeIndex(bytes);
   for (final (k, node) in tree.nodes.indexed) {
-    final end = node.pageOffset + node.splatCount * kSplatPageBytesPerSplat;
+    final end = node.pageOffset + node.splatCount * splatPageBytesPerSplat;
     if (end > bytes.length) {
       throw SplatOctreeException('node $k\'s page runs past the end');
     }

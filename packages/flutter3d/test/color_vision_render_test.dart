@@ -16,13 +16,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 36;
 
 /// Red, green, blue and yellow swatches, unlit.
-Scene _colours(CpuDevice device) {
+Scene _colors(CpuDevice device) {
   final scene = Scene();
   const swatches = <List<double>>[
     <double>[0.8, 0.2, 0.2],
@@ -38,9 +37,9 @@ Scene _colours(CpuDevice device) {
           device,
           CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'swatch$i',
-          baseColor: Vector4(rgb[0], rgb[1], rgb[2], 1.0),
+          baseColor: LinearColor.fromSrgb(rgb[0], rgb[1], rgb[2], 1.0),
           lighting: LightingModel.unlit,
         ),
       )..setPosition((i - 1.5) * 1.0, 0.0, 0.0),
@@ -59,13 +58,13 @@ Future<Uint8List> _draw(LookSettings Function(CpuDevice device) look) async {
   final frame = renderer.render(
     width: _width,
     height: _height,
-    scene: _colours(device),
+    scene: _colors(device),
     views: <RenderView>[
       RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
     ],
     settings: RenderSettings(look: look(device)),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 void main() {

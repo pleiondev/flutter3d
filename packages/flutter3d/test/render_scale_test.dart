@@ -17,7 +17,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ({int width, int height}) _drawn(double scale, {int asked = 64}) {
   final device = FakeBackend();
@@ -79,7 +78,10 @@ void main() {
             device,
             CuboidShape(size: Vector3(1, 1, 1)).build(),
           ),
-          Material(name: 'box', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(
+            name: 'box',
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+          ),
         ),
       )
       ..add(CameraNode()..setPosition(0.0, 0.0, 4.0));
@@ -100,9 +102,9 @@ void main() {
     expect(frame.frame.width, 32);
     expect(frame.frame.height, 32);
 
-    final bytes = await device.readPixels(frame.frame);
+    final bytes = await device.readback(frame.frame);
     expect(
-      bytes!.lengthInBytes,
+      bytes.lengthInBytes,
       32 * 32 * 4,
       reason:
           'the texture handed back is the one that was drawn, not an '

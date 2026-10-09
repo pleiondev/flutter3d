@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 32;
@@ -28,19 +27,19 @@ const int _height = 32;
           device,
           CuboidShape(size: Vector3(6, 0.1, 6)).build(),
         ),
-        Material(baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0)),
       )..setPosition(0.0, -0.05, 0.0),
     )
     ..add(
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(baseColor: Vector4(0.8, 0.3, 0.1, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.1, 1.0)),
         )
         ..setPosition(0.0, 0.5, 0.0)
         ..setRotationYawPitchRoll(0.6, 0.0, 0.0),
     )
     ..add(
-      LightNode(intensity: 3.0)
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 4.0, 3.0)
         ..lookAt(Vector3.zero()),
     )

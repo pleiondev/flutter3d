@@ -23,6 +23,7 @@ in vec2 v_uv;
 out vec4 frag_color;
 
 #include <lib/evsm.glsl>
+#include <lib/shadow_storage.glsl>
 
 uniform sampler2D evsm_source;
 
@@ -35,7 +36,8 @@ uniform EvsmFilterInfo {
 
   /// x: how many cascades share the atlas across. y, z: half a texel of the
   /// atlas, across and down, which is how far in from a tile's edge a tap is
-  /// held.
+  /// held. w: how the depth atlas stores its depth — the mode
+  /// `lib/shadow_storage.glsl` lists — read only when [axis].w warps.
   vec4 tile;
 }
 evsm_info;
@@ -62,7 +64,8 @@ void main() {
     if (abs(offset) > taps) continue;
     vec2 at = clamp(v_uv + evsm_info.axis.xy * offset, lo, hi);
     vec4 texel = textureLod(evsm_source, at, 0.0);
-    vec4 value = warp ? EvsmMoments(texel.r) : texel;
+    vec4 value =
+        warp ? EvsmMoments(ShadowStored(texel.r, evsm_info.tile.w)) : texel;
     float weight = exp(-(offset * offset) / (2.0 * sigma * sigma));
     total += value * weight;
     weightSum += weight;

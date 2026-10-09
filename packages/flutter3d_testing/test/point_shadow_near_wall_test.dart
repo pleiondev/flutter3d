@@ -21,7 +21,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Where the flame is, and how far off the wall.
 ///
@@ -53,9 +52,9 @@ void main() {
             device,
             CuboidShape(size: Vector3(8.0, 4.0, 0.4)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'wall',
-            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
             roughness: 0.9,
           ),
           name: 'wall',
@@ -65,8 +64,8 @@ void main() {
         scene.add(
           LightNode(
             type: LightType.point,
-            color: Vector3(1.0, 1.0, 1.0),
-            intensity: 6.0,
+            color: LinearColor(1.0, 1.0, 1.0),
+            intensity: 6.0 * Photometric.legacyUnit,
             range: 13.0,
             castsShadow: true,
             name: 'torch',
@@ -76,7 +75,7 @@ void main() {
         // Straight on, far enough back to see three metres of wall either side
         // of the flame.
         final camera = CameraNode(
-          projection: const PerspectiveProjection(fovYRadians: 1.0),
+          projection: const PerspectiveProjection(fovY: 1.0),
         )..setPosition(0.0, 0.0, 6.0);
         return (scene: scene, camera: camera);
       },

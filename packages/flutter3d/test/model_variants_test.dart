@@ -18,7 +18,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 32;
 
@@ -46,8 +45,14 @@ PlainModelDocument _document() => PlainModelDocument(
     ),
   ],
   materials: <SurfaceMaterial>[
-    SurfaceMaterial(baseColor: Vector4(0.1, 0.0, 0.0, 1.0), unlit: true),
-    SurfaceMaterial(baseColor: Vector4(0.0, 0.0, 1.0, 1.0), unlit: true),
+    SurfaceMaterial(
+      baseColor: LinearColor.fromSrgb(0.1, 0.0, 0.0, 1.0),
+      unlit: true,
+    ),
+    SurfaceMaterial(
+      baseColor: LinearColor.fromSrgb(0.0, 0.0, 1.0, 1.0),
+      unlit: true,
+    ),
   ],
   nodes: <ModelNode>[
     ModelNode(surfaces: <int>[0]),
@@ -82,7 +87,7 @@ PlainModelDocument _document() => PlainModelDocument(
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[128, 128, 255, 255])),
-  )!;
+  );
   return (
     device: device,
     renderer: Renderer.create(device: device, fallbackNormal: flat),
@@ -90,7 +95,7 @@ PlainModelDocument _document() => PlainModelDocument(
 }
 
 /// The centre pixel of [scene] seen head on, as 8-bit RGBA.
-Future<List<int>> _centre(
+Future<List<int>> _center(
   ({CpuDevice device, Renderer renderer}) engine,
   Scene scene,
 ) async {
@@ -104,9 +109,9 @@ Future<List<int>> _centre(
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = (await engine.device.readPixels(
+  final pixels = (await engine.device.readback(
     frame.frame,
-  ))!.buffer.asUint8List();
+  )).buffer.asUint8List();
   final i = (_size ~/ 2 * _size + _size ~/ 2) * 4;
   return pixels.sublist(i, i + 4);
 }
@@ -156,15 +161,18 @@ void main() {
 
     a.selectVariant('blue');
     expect(a.meshes.single.material, isNot(same(asset.materials[1])));
-    expect(a.meshes.single.material.baseColor.z, 1.0);
-    expect(b.meshes.single.material.baseColor.x, closeTo(0.1, 1e-6));
+    expect(a.meshes.single.material.baseColor.toSrgb().b, 1.0);
+    expect(b.meshes.single.material.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
 
     a.player!
       ..play(0)
       ..seek(2.0);
-    expect(a.pointerTargets.materials[0]!.baseColor.x, closeTo(1.0, 1e-6));
-    expect(b.meshes.single.material.baseColor.x, closeTo(0.1, 1e-6));
-    expect(asset.materials[0]!.baseColor.x, closeTo(0.1, 1e-6));
+    expect(
+      a.pointerTargets.materials[0]!.baseColor.toSrgb().r,
+      closeTo(1.0, 1e-6),
+    );
+    expect(b.meshes.single.material.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
+    expect(asset.materials[0]!.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
   });
 
   test(
@@ -182,7 +190,7 @@ void main() {
       final frames = <List<int>>[];
       for (final t in <double>[0.0, 1.0, 2.0]) {
         player.seek(t);
-        frames.add(await _centre(engine, scene));
+        frames.add(await _center(engine, scene));
       }
       // Red climbs with the clip and stays the dominant channel. The tone map
       // lifts green and blue together as full red nears white, so they are
@@ -198,7 +206,7 @@ void main() {
       // The clip drives material 0; the variant's material is another one, so
       // switching to it shows blue whatever the clip last wrote.
       instance.selectVariant('blue');
-      final blue = await _centre(engine, scene);
+      final blue = await _center(engine, scene);
       expect(blue[2], greaterThan(200));
       expect(blue[0], lessThan(blue[2] ~/ 2));
     },

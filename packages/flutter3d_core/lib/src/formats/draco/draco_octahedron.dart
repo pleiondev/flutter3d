@@ -54,6 +54,9 @@ final class OctahedronToolBox {
   final int maxQuantizedValue;
   final int maxValue;
   final int centerValue;
+
+  /// What one quantized step is across the octahedron's square, whose side runs
+  /// −1 to 1: a unitless factor.
   final double dequantizationScale;
 
   /// Whether `(s, t)`, with the centre already at the origin, is on the near
@@ -197,9 +200,9 @@ void octahedronComputeOriginal(
   int correctionS,
   int correctionT,
 ) {
-  final centre = box.centerValue;
-  point[predictedAt] -= centre;
-  point[predictedAt + 1] -= centre;
+  final center = box.centerValue;
+  point[predictedAt] -= center;
+  point[predictedAt + 1] -= center;
 
   final inDiamond = box.isInDiamond(point[predictedAt], point[predictedAt + 1]);
   if (!inDiamond) box.invertDiamond(point, predictedAt);
@@ -217,8 +220,8 @@ void octahedronComputeOriginal(
   if (!inBottomLeft) _rotate(point, predictedAt, (4 - rotation) % 4);
   if (!inDiamond) box.invertDiamond(point, predictedAt);
 
-  point[predictedAt] += centre;
-  point[predictedAt + 1] += centre;
+  point[predictedAt] += center;
+  point[predictedAt + 1] += center;
 }
 
 bool _isInBottomLeft(int s, int t) {

@@ -3,7 +3,7 @@
 /// **Node indices, not nodes, and that is the boundary talking.**
 /// [AnimationTarget] is three setters and no hierarchy, deliberately: the
 /// animation layer is reached from the asset decoders, so a dependency on
-/// `SceneNode` would drag `Material` — and through it the graphics backend and
+/// `SceneNode` would drag `RenderMaterial` — and through it the graphics backend and
 /// `dart:ui` — into everything that merely reads a glTF file. A mask built by
 /// walking parents would need exactly that hierarchy.
 ///

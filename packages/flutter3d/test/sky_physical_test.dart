@@ -17,12 +17,11 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 // Odd, so that the centre pixel's centre is the camera's axis. With an even
 // size it sits half a pixel off, which near the horizon at dusk is enough
@@ -36,17 +35,25 @@ Vector3 _sunAt(double degrees) {
   return Vector3(math.cos(radians), math.sin(radians), 0.0);
 }
 
+/// The air the frames here are drawn through: the default with a sun of
+/// E/π, so that under the reference camera the sky stays below white and the
+/// comparisons against the model compare colours rather than two clipped
+/// whites. The default sun is a real noon's, which saturates at f/4.
+const PhysicalSky _dimAir = PhysicalSky(
+  sunIlluminance: 20.0 * Photometric.legacyNits,
+);
+
 SkySettings _sky({
   bool enabled = true,
   double sunDegrees = 30.0,
   double sunIntensity = 0.0,
-  PhysicalSky air = const PhysicalSky(),
+  PhysicalSky air = _dimAir,
 }) => SkySettings(
   enabled: enabled,
   directionToSun: _sunAt(sunDegrees),
-  sunAngularRadiusDegrees: 2.0,
-  sunSoftnessDegrees: 0.5,
-  sunIntensity: sunIntensity,
+  sunAngularRadius: 2.0 * math.pi / 180.0,
+  sunSoftness: 0.5 * math.pi / 180.0,
+  sunIntensity: sunIntensity * Photometric.legacyUnit,
   physical: air,
 );
 
@@ -64,11 +71,7 @@ SkySettings _sky({
 
 CameraNode _camera(Vector3 looking) {
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.3,
-      far: 500.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.3, far: 500.0),
   )..lookAt(looking);
   return camera;
 }
@@ -89,9 +92,9 @@ Future<Uint8List> _draw(
           it.device,
           CuboidShape(size: Vector3.all(1.0)).build(),
         ),
-        engine.Material(
+        engine.RenderMaterial(
           name: 'block',
-          baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+          baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'block',
@@ -103,7 +106,7 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       sky: sky,
@@ -111,13 +114,13 @@ Future<Uint8List> _draw(
       tonemap: false,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// The pixel at the centre of [frame], which is where the camera points.
-Vector3 _centre(Uint8List frame) {
+Vector3 _center(Uint8List frame) {
   final at = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
   return Vector3(
     frame[at] / 255.0,
@@ -184,7 +187,10 @@ void main() {
       expect(const SkySettings().resolvedPhysical, same(const PhysicalSky()));
       const named = PhysicalSky(starBrightness: 0.0);
       expect(
-        SkySettings(physical: named, zenith: Vector3.zero()).resolvedPhysical,
+        SkySettings(
+          physical: named,
+          zenith: LinearColor.black,
+        ).resolvedPhysical,
         same(named),
         reason: 'air that was named wins over colours',
       );
@@ -224,10 +230,10 @@ void main() {
       // Mutation: drop the colours from the test in `resolvedPhysical`. Every
       // level that chose its three colours would come up in the default air.
       for (final coloured in <SkySettings>[
-        SkySettings(zenith: Vector3(0.1, 0.2, 0.5)),
-        SkySettings(horizon: Vector3(0.4, 0.5, 0.6)),
-        SkySettings(nadir: Vector3(0.1, 0.1, 0.1)),
-        SkySettings(sunColor: Vector3(1.0, 0.9, 0.8)),
+        SkySettings(zenith: LinearColor(0.1, 0.2, 0.5)),
+        SkySettings(horizon: LinearColor(0.4, 0.5, 0.6)),
+        SkySettings(nadir: LinearColor(0.1, 0.1, 0.1)),
+        SkySettings(sunColor: LinearColor(1.0, 0.9, 0.8)),
       ]) {
         expect(coloured.resolvedPhysical, isNull);
       }
@@ -238,10 +244,10 @@ void main() {
       final sky = SkySettings(
         enabled: true,
         directionToSun: _sunAt(50.0),
-        zenith: Vector3(0.10, 0.22, 0.52),
+        zenith: LinearColor(0.10, 0.22, 0.52),
       );
       final frame = await _draw(_engine(), _camera(looking), sky: sky);
-      final drawn = _centre(frame);
+      final drawn = _center(frame);
       final gradient = _expected(sky, looking);
       final air = _expected(
         sky.copyWith(physical: const PhysicalSky()),
@@ -275,7 +281,7 @@ void main() {
         // this comparison sees it.
         final sky = _sky(sunDegrees: sunDegrees, sunIntensity: intensity);
         final frame = await _draw(_engine(), _camera(looking), sky: sky);
-        final drawn = _centre(frame);
+        final drawn = _center(frame);
         final expected = _expected(sky, looking);
         for (final channel in <int>[0, 1, 2]) {
           expect(
@@ -345,6 +351,50 @@ void main() {
       expect(night.radiance.y, lessThan(1e-4), reason: '${night.radiance}');
     });
 
+    test('the sky is luminance: thin air overhead reads E·β·H·p in nits', () {
+      // Mutation: carry the sunlight on the illuminance scale again
+      // (`luxToEngine` in `PhysicalSky._sun` or the sky pass), which is what
+      // the sky did before 1.0-rc.1: the same blue, π times too dark.
+      //
+      // Optically thin air, no haze, no ozone, sun and eye both straight up:
+      // single scattering is the sunlight times the column of air above the
+      // eye, β·H·e^(−altitude/H), times Rayleigh's phase function looking
+      // back along the beam, 3/(8π) per steradian.
+      const e = 100000.0;
+      const beta = 1.0e-8;
+      const height = 8000.0;
+      final air = PhysicalSky(
+        rayleigh: Vector3.all(beta),
+        rayleighScaleHeight: height,
+        mie: 0.0,
+        mieAbsorption: 0.0,
+        ozone: 0.0,
+        sunIlluminance: e,
+      );
+      final up = Vector3(0.0, 1.0, 0.0);
+      final nits = air.radiance(up, up).y * Photometric.legacyNits;
+      final column =
+          beta *
+          height *
+          (math.exp(-200.0 / height) - math.exp(-60000.0 / height));
+      final expected = e * column * 3.0 / (8.0 * math.pi);
+      expect(nits, closeTo(expected, expected * 0.05));
+    });
+
+    test('ozone keeps the zenith blue at dusk and leaves noon alone', () {
+      // Mutation: drop ozone from `Through`. The dusk zenith turns grey, since
+      // the green and red that ozone takes on the sunlight's long way in stay.
+      const ozone = PhysicalSky();
+      const none = PhysicalSky(ozone: 0.0);
+      final up = Vector3(0.001, 1.0, 0.0);
+      final dusk = ozone.radiance(up, _sunAt(2.0));
+      final duskNone = none.radiance(up, _sunAt(2.0));
+      expect(dusk.z / dusk.y, greaterThan(duskNone.z / duskNone.y * 1.2));
+      final noon = ozone.radiance(up, _sunAt(60.0));
+      final noonNone = none.radiance(up, _sunAt(60.0));
+      expect((noon.y / noonNone.y - 1.0).abs(), lessThan(0.06));
+    });
+
     test('stars come out at night, and not by day', () async {
       // Mutation: drop the night fade, or test the sun's height the wrong
       // way round. Stars at noon are points brighter than a smooth sky, and
@@ -357,7 +407,7 @@ void main() {
         up,
         sky: _sky(
           sunDegrees: -20.0,
-          air: const PhysicalSky(starBrightness: 0.0),
+          air: _dimAir.copyWith(starBrightness: 0.0),
         ),
       );
       expect(_points(night), greaterThan(5));
@@ -372,7 +422,7 @@ void main() {
       final sky = _sky(sunDegrees: -20.0);
       final starless = _sky(
         sunDegrees: -20.0,
-        air: const PhysicalSky(starBrightness: 0.0),
+        air: _dimAir.copyWith(starBrightness: 0.0),
       );
       for (var i = 0; i < 64; i++) {
         final direction = Vector3(
@@ -523,9 +573,9 @@ Future<double> _wallMean(
           it.device,
           CuboidShape(size: Vector3(2.0, 2.0, 0.1)).build(),
         ),
-        engine.Material(
+        engine.RenderMaterial(
           name: 'wall',
-          baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+          baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'wall',
@@ -540,17 +590,15 @@ Future<double> _wallMean(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
-      fog: fog.copyWith(color: Vector3.zero()),
+      fog: fog.copyWith(color: LinearColor.black),
       bloom: const BloomSettings(enabled: false),
       tonemap: false,
     ),
   );
-  final pixels = (await it.device.readPixels(
-    result.frame,
-  ))!.buffer.asUint8List();
+  final pixels = (await it.device.readback(result.frame)).buffer.asUint8List();
   // The centre pixel only: the wall is small at sixty metres, and the
   // centre is where the ray is the one the integral was taken along.
   return pixels[((_height ~/ 2) * _width + _width ~/ 2) * 4].toDouble();

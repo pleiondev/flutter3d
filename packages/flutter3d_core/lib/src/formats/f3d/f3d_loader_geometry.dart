@@ -78,7 +78,7 @@ extension _F3dGeometry on F3dDocument {
     final table = _table(F3dSection.clusters, F3dRecord.clusters);
     final clusters = <int, MeshClusters>{};
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.clusters;
+      final o = _at(F3dSection.clusters, i, F3dRecord.clusters);
       final meshIndex = _view.getUint32(o, Endian.little);
       final count = _view.getUint32(o + 4, Endian.little);
       try {
@@ -115,7 +115,7 @@ extension _F3dGeometry on F3dDocument {
     final grouped = <int, List<MorphTarget>>{};
 
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.morphTarget;
+      final o = _at(F3dSection.morphTargets, i, F3dRecord.morphTarget);
       final meshIndex = _view.getUint32(o, Endian.little);
       final vertexCount = _view.getUint32(o + 12, Endian.little);
       final flags = _view.getUint32(o + 28, Endian.little);
@@ -147,7 +147,7 @@ extension _F3dGeometry on F3dDocument {
     return Map<int, List<double>>.fromEntries(<MapEntry<int, List<double>>>[
       for (var i = 0; i < table.count; i++)
         () {
-          final o = table.offset + i * F3dRecord.morphWeights;
+          final o = _at(F3dSection.morphWeights, i, F3dRecord.morphWeights);
           return MapEntry<int, List<double>>(
             _view.getUint32(o, Endian.little),
             _floats(

@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,12 +20,11 @@ void main() {
   runDeviceConformance(
     backend: 'webgl',
     makeDevice: ({required int width, required int height}) {
-      final device = WebGlDevice.create(
+      final device = WebGlDevice.open(
         width: width,
         height: height,
-        sources: engineShaders,
+        sources: webGlEngineShaders,
       );
-      if (device == null) fail('no WebGL2 context in this browser');
       return device;
     },
     // The same sources the device was built with, as the section a packed
@@ -32,8 +32,8 @@ void main() {
     ownShaders: () async => (
       id: ShaderBundle.webglSection,
       bytes: encodeWebGlSection(
-        vertex: engineShaders.vertex,
-        fragment: engineShaders.fragment,
+        vertex: webGlEngineShaders.vertex,
+        fragment: webGlEngineShaders.fragment,
       ),
       sdk: '',
     ),

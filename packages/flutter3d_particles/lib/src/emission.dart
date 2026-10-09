@@ -5,7 +5,7 @@ import 'particle_effect.dart';
 /// A standing emission: what, where, how fast, and for how long.
 ///
 /// An implementation detail of [ParticleSystem]'s standing-rate bookkeeping,
-/// kept in its own file for the same reason [Emission.spent] is a getter
+/// kept in its own file for the same reason [Emission.isSpent] is a getter
 /// rather than a field read at the call site: it is a fact about one source's
 /// countdown, not part of what a particle effect is.
 final class Emission {
@@ -18,7 +18,11 @@ final class Emission {
   );
 
   final ParticleEffect effect;
+
+  /// Where it emits from, in scene space (relative to `Scene.origin`).
   final Vector3 origin;
+
+  /// How many particles it emits, per second.
   final double perSecond;
   final Vector3? direction;
 
@@ -31,5 +35,5 @@ final class Emission {
   double? remaining;
 
   /// Whether this emission has run out and should be dropped.
-  bool get spent => remaining != null && remaining! <= 0.0;
+  bool get isSpent => remaining != null && remaining! <= 0.0;
 }

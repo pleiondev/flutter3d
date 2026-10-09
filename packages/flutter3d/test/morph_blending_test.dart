@@ -18,7 +18,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _Sink implements MorphSink {
+final class _Sink with MorphSink {
   List<double> last = const <double>[];
 
   @override

@@ -7,7 +7,7 @@ import 'cpu_shader_stage.dart';
 
 /// `prefix_sum.comp`: an inclusive prefix sum over 1024 unsigned integers in
 /// one workgroup of 256 invocations, phase by phase between its barriers.
-final class PrefixSumShader implements CpuComputeShader {
+final class PrefixSumShader extends CpuComputeShader {
   const PrefixSumShader();
 
   static const int _invocations = 256;

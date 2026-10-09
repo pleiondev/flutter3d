@@ -25,7 +25,7 @@ typedef BundleStageSource = ({String file, bool fragment, String resolved});
 /// A location per varying name, agreeing with [engine]'s.
 ///
 /// Computed over both manifests, then held against the engine's alone. Throws
-/// [WgslPrepareError] when the bundle would move one of the engine's
+/// [WgslPrepareException] when the bundle would move one of the engine's
 /// varyings: the failure is a refusal to pack rather than a section that
 /// would compile and read the wrong slot.
 Map<String, int> bundleVaryingLocations(
@@ -50,7 +50,7 @@ Map<String, int> bundleVaryingLocations(
 
   for (final entry in engineOnly.entries) {
     if (together[entry.key] == entry.value) continue;
-    throw WgslPrepareError(
+    throw WgslPrepareException(
       'this bundle moves the engine\'s varying "${entry.key}" from location '
       '${entry.value} to ${together[entry.key]}. A stage packed here is paired '
       'with a stage the engine already compiled, and WebGPU joins the two by '
@@ -66,7 +66,7 @@ Map<String, int> bundleVaryingLocations(
 String _resolveEngine(ShaderSet engine, String file) {
   try {
     return resolveIncludes(engine.sources[file]!, engine.sources, from: file);
-  } on GlslTranslateError catch (error) {
-    throw WgslPrepareError('the engine\'s $file: ${error.message}');
+  } on GlslTranslateException catch (error) {
+    throw WgslPrepareException('the engine\'s $file: ${error.message}');
   }
 }

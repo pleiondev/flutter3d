@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -21,7 +22,7 @@ const int _height = 24;
 
 /// One opaque red splat at the origin, seen from five metres, as the centre
 /// pixel's colour.
-List<double> _centre(SplatComposite composite, FogSettings fog) {
+List<double> _center(SplatComposite composite, FogSettings fog) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -34,19 +35,19 @@ List<double> _centre(SplatComposite composite, FogSettings fog) {
     ..ambientIntensity = 0.0
     ..add(camera);
   final cloud = SplatCloud(
-    centres: Float32List(3),
-    colours: Float32List.fromList(<double>[1.0, 0.0, 0.0, 1.0]),
+    centers: Float32List(3),
+    colors: Float32List.fromList(<double>[1.0, 0.0, 0.0, 1.0]),
     scales: Float32List.fromList(<double>[1.0, 1.0, 1.0]),
     rotations: Float32List.fromList(<double>[0.0, 0.0, 0.0, 1.0]),
   );
   final renderer = Renderer.create(device: device)
-    ..addContributor(SplatContributor(cloud, composite: composite));
+    ..renderSteps.addContributor(SplatContributor(cloud, composite: composite));
   final result = renderer.render(
     width: _width,
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -67,10 +68,10 @@ void main() {
     test('a ${composite.name} splat takes the fog colour at a distance', () {
       // Mutation: drop the FogInfo binding from SplatContributor.encode. The
       // fogged centre comes back red, the same as the clear one.
-      final clear = _centre(composite, const FogSettings());
-      final fogged = _centre(
+      final clear = _center(composite, const FogSettings());
+      final fogged = _center(
         composite,
-        FogSettings(color: Vector3(0.0, 0.0, 1.0), density: 2.0),
+        FogSettings(color: LinearColor(0.0, 0.0, 1.0), density: 2.0),
       );
       expect(clear[0], greaterThan(0.5), reason: 'the splat is not there');
       expect(clear[2], lessThan(0.05));
@@ -101,8 +102,8 @@ void main() {
         ..ambientIntensity = 0.0
         ..add(camera);
       final cloud = SplatCloud(
-        centres: Float32List.fromList(<double>[0.0, 0.0, 0.0, 4.0, 0.0, 0.0]),
-        colours: Float32List.fromList(<double>[
+        centers: Float32List.fromList(<double>[0.0, 0.0, 0.0, 4.0, 0.0, 0.0]),
+        colors: Float32List.fromList(<double>[
           1.0, 0.0, 0.0, 1.0, //
           1.0, 0.0, 0.0, 1.0,
         ]),
@@ -113,18 +114,23 @@ void main() {
         ]),
       );
       final renderer = Renderer.create(device: device)
-        ..addContributor(SplatContributor(cloud, composite: composite));
+        ..renderSteps.addContributor(
+          SplatContributor(cloud, composite: composite),
+        );
       final result = renderer.render(
         width: _width,
         height: _height,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: RenderSettings(
           tonemap: false,
           bloom: const BloomSettings(enabled: false),
-          fog: FogSettings(color: Vector3(0.0, 0.0, 1.0), density: 0.2),
+          fog: FogSettings(color: LinearColor(0.0, 0.0, 1.0), density: 0.2),
         ),
       );
       final pixels = device.readHdrPixels(result.frame);

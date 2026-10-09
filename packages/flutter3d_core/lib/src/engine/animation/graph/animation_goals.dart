@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d_physics/flutter3d_physics.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
 import '../inverse_kinematics.dart';
@@ -82,7 +82,7 @@ sealed class AnimationGoal {
   void _restoreInputs(Map<String, Object?> from);
 
   /// Lays this goal on [pose] by [weight]; nothing at nought.
-  void apply(Pose pose);
+  void apply(AnimationPose pose);
 }
 
 /// An arm or a leg bent to reach [target]: [root] → [mid] → [tip] by
@@ -121,7 +121,7 @@ final class ReachGoal extends AnimationGoal {
   }
 
   @override
-  void apply(Pose pose) {
+  void apply(AnimationPose pose) {
     if (weight <= 0.0) return;
     final before = <Quaternion>[_rotation(pose, root), _rotation(pose, mid)];
     TwoBoneIk.solve(
@@ -186,7 +186,7 @@ final class LookGoal extends AnimationGoal {
   }
 
   @override
-  void apply(Pose pose) {
+  void apply(AnimationPose pose) {
     if (weight <= 0.0) return;
     _facing ??= _turn(
       _rotationOf(pose.restCopy().worldMatrices()[joint]).conjugated(),
@@ -285,7 +285,7 @@ final class FootPlantGoal extends AnimationGoal {
   }
 
   @override
-  void apply(Pose pose) {
+  void apply(AnimationPose pose) {
     if (weight <= 0.0 || legs.isEmpty) return;
     final drop =
         legs.fold<double>(0.0, (d, l) => math.min(d, l.ground)) * weight;
@@ -320,7 +320,7 @@ final class FootPlantGoal extends AnimationGoal {
 
 /// Moves [joint] by [by] in the pose's space, through its parent's frame;
 /// [scratch] holds the parent's world matrix on the way.
-void _moveWorld(Pose pose, int joint, Vector3 by, Matrix4 scratch) {
+void _moveWorld(AnimationPose pose, int joint, Vector3 by, Matrix4 scratch) {
   final parent = pose.parents[joint];
   final local = parent < 0
       ? by
@@ -351,14 +351,14 @@ Quaternion _rotationOf(Matrix4 world) {
   return rotation..normalize();
 }
 
-Quaternion _rotation(Pose pose, int joint) => Quaternion(
+Quaternion _rotation(AnimationPose pose, int joint) => Quaternion(
   pose.rotations[joint * 4],
   pose.rotations[joint * 4 + 1],
   pose.rotations[joint * 4 + 2],
   pose.rotations[joint * 4 + 3],
 );
 
-void _setRotation(Pose pose, int joint, Quaternion q) {
+void _setRotation(AnimationPose pose, int joint, Quaternion q) {
   pose.rotations[joint * 4] = q.x;
   pose.rotations[joint * 4 + 1] = q.y;
   pose.rotations[joint * 4 + 2] = q.z;

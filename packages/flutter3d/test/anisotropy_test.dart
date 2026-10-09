@@ -41,7 +41,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 90;
@@ -49,7 +48,7 @@ const int _height = 90;
 /// A checkerboard with a full mip chain — the texture whose detail a grazing
 /// angle destroys. The two greys are a little apart in warmth so a blurred
 /// check reads as a different colour rather than as one of them.
-Material _checkerFloor(GraphicsDevice device, int anisotropy) {
+RenderMaterial _checkerFloor(GraphicsDevice device, int anisotropy) {
   const int size = 512;
   const int texelsPerCheck = size ~/ 64;
   final pixels = Uint8List(size * size * 4);
@@ -70,11 +69,11 @@ Material _checkerFloor(GraphicsDevice device, int anisotropy) {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: base,
     mipLevels: MipChain.build(base, size, size),
-  )!;
-  return Material(name: 'floor', lighting: LightingModel.unlit)
+  );
+  return RenderMaterial(name: 'floor', lighting: LightingModel.unlit)
     ..albedo = texture
-    ..albedoSampler = SamplerOptions.trilinearRepeat.withAnisotropy(
-      math.min(anisotropy, device.maxAnisotropy),
+    ..albedoSampler = SamplerDescriptor.trilinearRepeat.withAnisotropy(
+      math.min(anisotropy, device.limits.maxSamplerAnisotropy),
     );
 }
 
@@ -148,7 +147,7 @@ Future<Uint8List> _floorAt(int anisotropy) async {
           // what makes the footprint long and thin.
           ..setPosition(0.0, 1.2, 0.0)
           ..lookAt(Vector3(0.0, 0.85, -40.0)),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(
@@ -157,7 +156,7 @@ Future<Uint8List> _floorAt(int anisotropy) async {
       shadows: ShadowSettings(enabled: false),
     ),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// How many pixels of [a] and [b] differ by more than a channel's rounding.
@@ -229,6 +228,6 @@ void main() {
       height: 4,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    expect(device.maxAnisotropy, 16);
+    expect(device.limits.maxSamplerAnisotropy, 16);
   });
 }

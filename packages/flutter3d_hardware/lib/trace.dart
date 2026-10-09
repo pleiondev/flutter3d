@@ -5,7 +5,7 @@
 /// final recording = RecordingDevice(device);
 /// final renderer = Renderer.create(device: recording);
 /// final frame = renderer.render(...);
-/// await recording.readPixels(frame.frame);
+/// await recording.readback(frame.frame);
 /// final bytes = Trace(recording.events).encode();
 ///
 /// final replay = await replayTrace(Trace.decode(bytes), otherDevice);
@@ -19,4 +19,5 @@ library;
 export 'src/trace/recording_device.dart' show RecordingDevice;
 export 'src/trace/trace.dart' show Trace, TraceReplay, replayTrace;
 export 'src/trace/trace_event.dart';
+export 'src/trace/trace_format_exception.dart';
 export 'src/trace/trace_values.dart' show TraceBlobReader, TraceBlobWriter;

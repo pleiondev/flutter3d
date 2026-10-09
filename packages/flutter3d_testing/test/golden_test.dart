@@ -14,13 +14,12 @@ import 'dart:io';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 40;
 const int _height = 32;
 
 /// A wall of one colour, filling the view.
-FrameBuilder _wall(Vector4 colour) => (FrameRequest request) {
+FrameBuilder _wall(Vector4 color) => (FrameRequest request) {
   final device = request.device;
   final scene = Scene();
   scene.add(
@@ -29,16 +28,16 @@ FrameBuilder _wall(Vector4 colour) => (FrameRequest request) {
         device,
         CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
       ),
-      Material(name: 'wall', baseColor: colour, lighting: LightingModel.unlit),
+      RenderMaterial(
+        name: 'wall',
+        baseColor: _fromSrgb(color),
+        lighting: LightingModel.unlit,
+      ),
     )..setPosition(0.0, 0.0, -8.0),
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 60.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
@@ -228,3 +227,6 @@ void main() {
     });
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

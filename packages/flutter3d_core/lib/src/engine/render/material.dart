@@ -1,13 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
+
+import '../scene/light_node.dart' show Photometric;
 
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.
 ///
 /// The renderer uses this to split draws into the opaque and transparent halves
-/// of the render list, in the manner of PlayCanvas sub-layers.
+/// of the render list, which are sorted differently.
 enum MaterialAlphaMode {
   opaque,
   mask,
@@ -35,6 +37,44 @@ enum MaterialAlphaMode {
   hashed,
 }
 
+/// How a blended surface is combined with what is behind it — read only when
+/// [RenderMaterial.alphaMode] is [MaterialAlphaMode.blend].
+///
+/// A `final class` with const instances rather than an enum, the rule for a
+/// type a published package exports and may grow.
+final class MaterialBlendMode {
+  const MaterialBlendMode._(this.name);
+
+  /// Over, on straight colour: glTF's blend, and what a blended material has
+  /// always drawn with. The stage weighs its colour by its alpha.
+  static const MaterialBlendMode alpha = MaterialBlendMode._('alpha');
+
+  /// The colour, times its alpha, added to what is there — light that adds:
+  /// a glow, a beam, a spark. Commutative, so it needs no order.
+  static const MaterialBlendMode additive = MaterialBlendMode._('additive');
+
+  /// Over, on a colour the stage already multiplied by its alpha, so a
+  /// stage can add light and cover at once. **Honoured by a stage that says
+  /// so** — a material-language stage whose state block reads
+  /// `blend premultiplied` leaves its colour as it returned it. The engine's
+  /// own lighting models weigh their colour by their alpha whatever this
+  /// says, so on them it draws as [alpha] does.
+  static const MaterialBlendMode premultiplied = MaterialBlendMode._(
+    'premultiplied',
+  );
+
+  static const List<MaterialBlendMode> values = <MaterialBlendMode>[
+    alpha,
+    additive,
+    premultiplied,
+  ];
+
+  final String name;
+
+  @override
+  String toString() => 'MaterialBlendMode.$name';
+}
+
 /// Surface appearance as plain data.
 ///
 /// Materials carry no GPU objects beyond textures: the shader is selected by
@@ -42,11 +82,11 @@ enum MaterialAlphaMode {
 /// cannot assemble one at runtime. That makes [lighting] the pipeline key, and
 /// the pipeline the most expensive state change in a pass — which is why it is
 /// the high-order term when the render list is sorted.
-final class Material {
-  Material({
+final class RenderMaterial {
+  RenderMaterial({
     this.name,
     this.lighting = LightingModel.pbr,
-    Vector4? baseColor,
+    LinearColor baseColor = LinearColor.white,
     this.metallic = 0.0,
     this.roughness = 0.5,
     this.albedo,
@@ -61,8 +101,8 @@ final class Material {
     this.occlusionStrength = 1.0,
     this.emissiveTexture,
     this.emissiveSampler,
-    Vector3? emissive,
-    this.emissiveStrength = 1.0,
+    this.emissive = LinearColor.black,
+    this.emissiveStrength = Photometric.legacyNits,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.alphaToCoverage = false,
@@ -80,12 +120,14 @@ final class Material {
     this.parameterBlock = 'MaterialParams',
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
-  }) : parameters = parameters ?? <String, Float32List>{},
+    this.blendMode = MaterialBlendMode.alpha,
+    this.depthLayer = 0,
+    this.effectsDepth = false,
+  }) : _baseColor = baseColor, // ignore: prefer_initializing_formals
+       parameters = parameters ?? <String, Float32List>{},
        textureTransforms =
            textureTransforms ?? <MaterialMap, TextureTransform>{},
-       extraTextures = extraTextures ?? const <String, TextureHandle>{},
-       baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
-       emissive = emissive ?? Vector3.zero();
+       extraTextures = extraTextures ?? const <String, TextureHandle>{};
 
   /// The material a `buildPolyline` mesh is drawn with — `gfx-86n`.
   ///
@@ -106,11 +148,11 @@ final class Material {
   /// face, would draw a route through the mountain. A line laid exactly on the
   /// ground it follows will fight that ground for depth, and the answer there
   /// is to lift the points, not to bias the pass.
-  factory Material.polyline({
+  factory RenderMaterial.polyline({
     String? name,
     required double viewportWidth,
     required double viewportHeight,
-  }) => Material(
+  }) => RenderMaterial(
     name: name,
     lighting: LightingModel.polyline,
     doubleSided: true,
@@ -127,7 +169,7 @@ final class Material {
   /// The material an `ImpostorNode` is drawn with — `C4`.
   ///
   /// [albedo] is the baked colour and coverage, [normalDepth] the baked
-  /// normals and depths, each [kImpostorGrid] views to a side. They ride in
+  /// normals and depths, each [impostorGrid] views to a side. They ride in
   /// the albedo and normal map slots, which [LightingModel.impostor]'s stage
   /// reads as atlases rather than as ordinary maps.
   ///
@@ -135,11 +177,11 @@ final class Material {
   /// a mask here would have the shared surface code discard first against a
   /// read of the atlas at the card's own corner coordinates, which is not
   /// any view at all.
-  factory Material.impostor({
+  factory RenderMaterial.impostor({
     String? name,
     required TextureHandle albedo,
     required TextureHandle normalDepth,
-  }) => Material(
+  }) => RenderMaterial(
     name: name,
     lighting: LightingModel.impostor,
     albedo: albedo,
@@ -148,7 +190,7 @@ final class Material {
     doubleSided: true,
   );
 
-  /// The render target size a [Material.polyline] widens its line against, as
+  /// The render target size a [RenderMaterial.polyline] widens its line against, as
   /// the list the renderer binds — so writing to it takes effect on the next
   /// frame, with nothing rebuilt. Null for any other material.
   Float32List? get polylineViewport =>
@@ -197,24 +239,37 @@ final class Material {
   /// Selects the pre-built fragment shader, and therefore the pipeline.
   LightingModel lighting;
 
-  /// RGBA tint applied on top of [albedo], **sRGB-encoded in rgb** and linear
-  /// in alpha — the same colour space the albedo texture's own texels are in,
-  /// which is the point: a tint is how you would have painted that texture.
+  /// RGBA tint applied on top of [albedo], in linear light with straight
+  /// alpha, as every colour the engine takes is.
   ///
-  /// So `Vector4(0.9, 0.35, 0.12, 1)` is the colour a paint program shows for
-  /// bytes 230, 90, 30, not a linear intensity. Every shader converts it
-  /// before multiplying — `toLinear(tint)` in `flutter3d_cpu`, the same call
-  /// in `lib/surface.glsl` — and this doc used to say "linear", which sent
-  /// anybody who converted by hand through the curve twice: a tint meant to
-  /// read 230, 90, 30 came out 202, 26, 3, and a mid-grey came out about half
-  /// as bright as it should.
-  final Vector4 baseColor;
+  /// **Linear since 1.0.** It was a `Vector4` holding the sRGB-encoded
+  /// colour a paint program shows; the colour a person picked is now said as
+  /// `LinearColor.fromSrgb(0.9, 0.35, 0.12)` (bytes 230, 90, 30), and the
+  /// renderer encodes it once, where the shaders' `toLinear(tint)` expects
+  /// the encoded value, so the picture is the one it was.
+  ///
+  /// Assigned whole: a [LinearColor] is immutable, so a change is
+  /// `material.baseColor = …`, which the next frame draws.
+  LinearColor get baseColor => _baseColor;
+  set baseColor(LinearColor value) {
+    _baseColor = value;
+    _baseColorEncoded = null;
+  }
 
+  LinearColor _baseColor;
+
+  /// [baseColor]'s red, green and blue sRGB-encoded, worked out once per
+  /// assignment rather than once per draw.
+  ({double r, double g, double b, double a})? _baseColorEncoded;
+
+  /// A 0..1 fraction.
   double metallic;
+
+  /// Perceptual roughness, a 0..1 fraction.
   double roughness;
 
   TextureHandle? albedo;
-  SamplerOptions? albedoSampler;
+  SamplerDescriptor? albedoSampler;
 
   /// Tangent-space normal map. Null means the geometric normal is used.
   ///
@@ -224,24 +279,24 @@ final class Material {
   /// two places; a neutral texel is right by construction, and the branch it
   /// would have cost is worth more than the sample.
   TextureHandle? normal;
-  SamplerOptions? normalSampler;
+  SamplerDescriptor? normalSampler;
 
   /// Scales the tangent-space xy of the normal map, per glTF's `normalScale`.
   double normalScale;
 
   /// glTF's ORM packing: roughness in green, metallic in blue.
   TextureHandle? metallicRoughness;
-  SamplerOptions? metallicRoughnessSampler;
+  SamplerDescriptor? metallicRoughnessSampler;
 
   /// Ambient occlusion in red.
   TextureHandle? occlusion;
-  SamplerOptions? occlusionSampler;
+  SamplerDescriptor? occlusionSampler;
 
   /// How much of the occlusion map to apply, from 0 (ignore) to 1 (in full).
   double occlusionStrength;
 
   TextureHandle? emissiveTexture;
-  SamplerOptions? emissiveSampler;
+  SamplerDescriptor? emissiveSampler;
 
   /// The level's baked lightmap, sampled at the vertex's second coordinate.
   ///
@@ -250,17 +305,27 @@ final class Material {
   /// map's corner. Null binds a one-texel black, which adds nothing, so every
   /// lit model samples the slot and nothing branches.
   TextureHandle? lightmap;
-  SamplerOptions? lightmapSampler;
+  SamplerDescriptor? lightmapSampler;
 
   /// Linear emissive factor, multiplied by the emissive map. Black by default,
   /// so a material with a map but no factor emits nothing — which is what glTF
-  /// specifies.
-  final Vector3 emissive;
+  /// specifies. Alpha is not read.
+  LinearColor emissive;
 
-  /// `KHR_materials_emissive_strength`, a multiplier on top of the factor.
+  /// How bright [emissive] is, in **nits** (cd/m²) since 1.0: an emissive of
+  /// white shines at this luminance, and a colour at its share of it.
+  ///
+  /// 1 843.2 by default, `Photometric.legacyNits`, the luminance the old
+  /// default of one stood for, so a glowing surface looks as it did; a
+  /// material loaded from a file multiplies the file's own strength
+  /// (`KHR_materials_emissive_strength`, a plain multiple) by it. A screen
+  /// is a few hundred nits, a lit sign a few thousand. Multiply a pre-1.0
+  /// strength by `Photometric.legacyNits`.
   double emissiveStrength;
 
   MaterialAlphaMode alphaMode;
+
+  /// A 0..1 fraction: in the mask mode, alpha below it is cut away.
   double alphaCutoff;
 
   /// A masked surface's edge antialiased by the multisample resolve rather
@@ -306,14 +371,14 @@ final class Material {
   /// stage has two samplers left under WebGL2's sixteen and this is one of
   /// them — see `binding_budget_test.dart`.
   TextureHandle? coatMap;
-  SamplerOptions? coatMapSampler;
+  SamplerDescriptor? coatMapSampler;
 
   /// The sheen map — `M2`: the sheen colour in red, green and blue, sRGB as
   /// it was authored, and its roughness in alpha, each multiplying its factor
   /// in [extensions]. Null binds white. The layered stage's sixteenth sampler,
   /// and its last.
   TextureHandle? sheenMap;
-  SamplerOptions? sheenMapSampler;
+  SamplerDescriptor? sheenMapSampler;
 
   /// `KHR_texture_transform` per map, applied at the sampler — `C8`. A map
   /// with no entry is read at the vertex's own coordinate.
@@ -328,7 +393,7 @@ final class Material {
   /// [TextureTransform.offset] in place.
   final Map<MaterialMap, TextureTransform> textureTransforms;
 
-  /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
+  /// Coarse manual ordering: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
   ///
@@ -370,6 +435,47 @@ final class Material {
   /// occlude in a shadow map says so with `MeshNode.castsShadow`.
   CompareFunction? depthCompare;
 
+  /// How a blended surface meets what is behind it — read only under
+  /// [MaterialAlphaMode.blend]. [MaterialBlendMode.alpha] by default, which
+  /// is what every blended material drew with before there was a choice.
+  ///
+  /// Under weighted blended transparency (`TransparencyMode.weightedBlended`)
+  /// every blended surface is a layer of the weighted average, and this is
+  /// not read.
+  MaterialBlendMode blendMode;
+
+  /// Which of two coplanar surfaces wins: the higher layer, wherever the two
+  /// meet at one depth — a decal on a wall, a road's markings on the road, a
+  /// puddle on the floor. Nought for every ordinary surface; from
+  /// −[materialDepthLayerLimit] to [materialDepthLayerLimit], clamped.
+  ///
+  /// **How the renderer honours it.** Where the device has
+  /// `DeviceFeature.depthBias`, a layered draw is pulled towards the eye by
+  /// a small constant and slope-scaled bias per layer — four of the depth
+  /// format's smallest steps and one slope each, the depth turned round
+  /// under reversed-Z as every bias is. Wherever it does not — Impeller
+  /// today — the order is stable instead: the opaque half draws its layered
+  /// surfaces after the rest, lowest layer first, and tests them
+  /// `lessEqual`, so the later of two equal depths wins. Both apply where
+  /// both can, so coplanar faces that rasterise to the very same depth and
+  /// faces a hair apart are ordered alike. Applies to the scene pass; a
+  /// shadow does not care which of two coplanar faces casts it.
+  int depthLayer;
+
+  /// Whether a translucent surface writes its normal and depth into the
+  /// surface buffer — the depth the screen-space effects read: depth of
+  /// field, ambient occlusion, the fog march, soft particles, outlines.
+  /// False by default, which leaves the buffer the opaque scene's.
+  ///
+  /// **For a surface that is the scene to those effects**: water a camera
+  /// focuses on, or the soft particles that should fade against its top
+  /// rather than the river bed. Read only under [MaterialAlphaMode.blend],
+  /// in a frame that sorts its transparency, on a device with
+  /// `DeviceFeature.independentBlend` — the buffer is then written whole
+  /// while the colour blends. Elsewhere it is not honoured, and the
+  /// surface stays out of the buffer as before.
+  bool effectsDepth;
+
   bool get isTransparent => alphaMode == MaterialAlphaMode.blend;
 
   /// An independent copy: the vectors are cloned, the textures are shared.
@@ -387,8 +493,8 @@ final class Material {
   /// already assumes. The [parameters] lists are cloned like the vectors,
   /// because they are written in place — [polylineViewport] is one — and a
   /// copy sharing them would resize its original.
-  Material copy() =>
-      Material(
+  RenderMaterial copy() =>
+      RenderMaterial(
           name: name,
           parameterBlock: parameterBlock,
           parameters: <String, Float32List>{
@@ -397,7 +503,7 @@ final class Material {
           },
           extraTextures: Map<String, TextureHandle>.of(extraTextures),
           lighting: lighting,
-          baseColor: baseColor.clone(),
+          baseColor: baseColor,
           metallic: metallic,
           roughness: roughness,
           albedo: albedo,
@@ -412,7 +518,7 @@ final class Material {
           occlusionStrength: occlusionStrength,
           emissiveTexture: emissiveTexture,
           emissiveSampler: emissiveSampler,
-          emissive: emissive.clone(),
+          emissive: emissive,
           emissiveStrength: emissiveStrength,
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
@@ -431,19 +537,78 @@ final class Material {
           drawBucket: drawBucket,
           depthWrite: depthWrite,
           depthCompare: depthCompare,
+          blendMode: blendMode,
+          depthLayer: depthLayer,
+          effectsDepth: effectsDepth,
         )
         ..lightmap = lightmap
         ..lightmapSampler = lightmapSampler;
 }
 
+/// A [RenderMaterial] drawn with a bundle's material, its file's state on it —
+/// item 9 of `tasks/1.0-scope-additions.md`.
+/// What the renderer reads off a material that a caller does not. Not
+/// exported by `flutter3d_core.dart`.
+extension RenderMaterialInternals on RenderMaterial {
+  /// [RenderMaterial.baseColor] with red, green and blue sRGB-encoded, the
+  /// form every material shader's `toLinear(tint)` takes.
+  ({double r, double g, double b, double a}) get baseColorEncoded =>
+      _baseColorEncoded ??= _baseColor.toSrgb();
+}
+
+extension BundledMaterialLooks on BundledMaterials {
+  /// A new [RenderMaterial] drawn with material [name]: its lighting model, its
+  /// uniforms at their defaults ([BundledMaterials.parameters]), and what
+  /// its `state` block says — the blend, the cutoff, the depth write and
+  /// test, alpha to coverage, double-sidedness, the depth layer and the
+  /// effects depth. What the file leaves unsaid keeps [RenderMaterial]'s own
+  /// default, and every field stays the game's to change.
+  ///
+  /// [materialName] names the material, [name] when null.
+  RenderMaterial material(String name, {String? materialName}) {
+    final state = this.state(name);
+    final blend = state.blend;
+    final compare = switch ((state.depthTest, state.depthCompare)) {
+      (false, _) => CompareFunction.always,
+      // The file's word, through the format's table: a rename of a value
+      // must not change what a `.f3dmat` says.
+      (_, final String named) => materialDepthCompareWire[named],
+      _ => null,
+    };
+    return RenderMaterial(
+      name: materialName ?? name,
+      lighting: this[name],
+      parameters: parameters(name),
+      alphaMode: switch (blend) {
+        MaterialBlend.mask => MaterialAlphaMode.mask,
+        MaterialBlend.hashed => MaterialAlphaMode.hashed,
+        final b? when b.translucent => MaterialAlphaMode.blend,
+        _ => MaterialAlphaMode.opaque,
+      },
+      blendMode: switch (blend) {
+        MaterialBlend.additive => MaterialBlendMode.additive,
+        MaterialBlend.premultiplied => MaterialBlendMode.premultiplied,
+        _ => MaterialBlendMode.alpha,
+      },
+      alphaCutoff: state.cutoff ?? 0.5,
+      alphaToCoverage: state.alphaToCoverage ?? false,
+      doubleSided: state.doubleSided ?? false,
+      depthWrite: state.depthWrite,
+      depthCompare: compare,
+      depthLayer: state.depthLayer ?? 0,
+      effectsDepth: state.effectsDepth ?? false,
+    );
+  }
+}
+
 /// Assigns small dense integers to materials for use as a sort key.
 ///
-/// An owned registry rather than a static counter on [Material]: global mutable
+/// An owned registry rather than a static counter on [RenderMaterial]: global mutable
 /// state is the least testable kind of static, and ids only need to be unique
 /// within the thing that sorts by them. The renderer owns one.
-/// **Weakly, which it was not.** A `Map<Material, int>` filled on every draw
+/// **Weakly, which it was not.** A `Map<RenderMaterial, int>` filled on every draw
 /// and emptied by nobody is a strong reference to every material the renderer
-/// has ever seen, for as long as the renderer lives — and a [Material] holds
+/// has ever seen, for as long as the renderer lives — and a [RenderMaterial] holds
 /// its base colour, normal, metallic-roughness, occlusion and emissive
 /// textures. That defeated `ResourceCache.evictUnused` outright: a game could
 /// load level two, drop level one and evict it, and level one's textures still
@@ -472,7 +637,7 @@ final class MaterialSortIds {
   /// Bounded by [limit] because the id is packed into a bit field; wrapping is
   /// better than corrupting neighbouring fields, and a collision only costs
   /// sort quality, never correctness.
-  int idOf(Material material, {int limit = 0x7FFFFF}) {
+  int idOf(RenderMaterial material, {int limit = 0x7FFFFF}) {
     final existing = _ids[material];
     if (existing != null) return existing;
     final id = (++_assigned) % limit;

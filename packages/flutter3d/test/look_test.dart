@@ -18,7 +18,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -41,9 +40,9 @@ _room() {
         device,
         CuboidShape(size: Vector3(60.0, 60.0, 1.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+        baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
         lighting: LightingModel.unlit,
       ),
       name: 'wall',
@@ -51,11 +50,7 @@ _room() {
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
@@ -77,13 +72,16 @@ Future<Uint8List> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// The red channel at a pixel.
@@ -212,12 +210,8 @@ void main() {
       // Mutation: mix towards the wrong end — a grey wall would stay grey
       // either way, so this uses a coloured one to tell the two apart.
       final it = _room();
-      (it.scene.root.children.first as MeshNode).material.baseColor.setValues(
-        0.9,
-        0.2,
-        0.2,
-        1.0,
-      );
+      (it.scene.root.children.first as MeshNode).material.baseColor =
+          LinearColor.fromSrgb(0.9, 0.2, 0.2, 1.0);
 
       final plain = await _draw(it, const RenderSettings());
       final grey = await _draw(

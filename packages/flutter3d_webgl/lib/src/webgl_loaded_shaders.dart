@@ -11,8 +11,10 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/translate.dart' show decodeWebGlSection;
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException, decodeWebGlSection;
 import 'package:web/web.dart' as web;
 
 import 'webgl_shaders.dart';
@@ -23,7 +25,7 @@ import 'webgl_shaders.dart';
 /// compiled object behind each handle already handed out is replaced, and
 /// every program linked from the old one is forgotten through the device's
 /// library so the next link uses the new code. See `WebGlShader.shader`.
-final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
+final class WebGlLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   WebGlLoadedShaderLibrary._(this._gl, this._linker, this._name, this._sources);
 
   /// Builds the library, or refuses the bundle by name.
@@ -48,7 +50,7 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
   static ShaderSources _sourcesOf(ShaderBundle bundle) {
     final section = bundle.section(ShaderBundle.webglSection);
     if (section == null) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it has no "${ShaderBundle.webglSection}" section, so there is '
@@ -59,8 +61,8 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
     try {
       final decoded = decodeWebGlSection(section);
       return ShaderSources(decoded.vertex, decoded.fragment);
-    } on FormatException catch (error) {
-      throw ShaderBundleRefused(
+    } on BundleSectionFormatException catch (error) {
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'its "${ShaderBundle.webglSection}" section is not the JSON '
@@ -87,7 +89,20 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
     final source = isVertex ? _sources.vertex[name] : _sources.fragment[name];
     if (source == null) return null;
     final shader = compileWebGlShader(_gl, name, source, isVertex: isVertex);
-    return ShaderHandle(backend: WebGlShader(shader, isVertex), name: name);
+    return wrapShader(
+      backend: WebGlShader(shader, isVertex),
+      name: name,
+      release: _release,
+    );
+  }
+
+  /// A disposed handle's release: forgotten, and its shader object deleted.
+  /// A program already linked from it keeps the object alive until the
+  /// program goes, which is GL's rule for a shader deleted while attached.
+  void _release(ShaderHandle handle) {
+    if (!identical(_handles[handle.name], handle)) return;
+    _handles.remove(handle.name);
+    _gl.deleteShader((handle.backend as WebGlShader).shader);
   }
 
   @override
@@ -112,7 +127,7 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
                   : sources.fragment[handle.name]
             : null;
         if (source == null) {
-          throw ShaderBundleRefused(
+          throw ShaderBundleException(
             name: bundle.name,
             reason:
                 'it no longer has the ${stage.isVertex ? 'vertex' : 'fragment'}'
@@ -130,8 +145,8 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
       for (final shader in fresh.values) {
         _gl.deleteShader(shader);
       }
-      throw ShaderBundleRefused(name: bundle.name, reason: error.message);
-    } on ShaderBundleRefused {
+      throw ShaderBundleException(name: bundle.name, reason: error.message);
+    } on ShaderBundleException {
       for (final shader in fresh.values) {
         _gl.deleteShader(shader);
       }

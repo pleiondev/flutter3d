@@ -11,6 +11,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show FormatSpec;
+
 import '../command_encoder.dart';
 import '../compute.dart';
 import '../geometry_buffer.dart';
@@ -18,35 +20,71 @@ import '../graphics_device.dart';
 import '../shader.dart';
 import '../texture.dart';
 import 'trace_event.dart';
+import 'trace_format_exception.dart';
 import 'trace_values.dart';
+
+/// One step of [Trace.decode]'s migration chain: a JSON header of one format
+/// version, as the next one writes it.
+typedef _TraceMigration =
+    Map<String, Object?> Function(Map<String, Object?> header);
 
 /// Calls made of a device, in order, with every resource named by an id.
 final class Trace {
   const Trace(this.events, {this.metadata = const <String, Object?>{}});
 
   /// Reads a trace written by [encode].
+  ///
+  /// Throws a [TraceFormatException] for bytes that are not a trace, a
+  /// version newer than [formatVersion], or an event or a value this build
+  /// does not know.
   factory Trace.decode(Uint8List bytes) {
     final data = ByteData.sublistView(bytes);
     for (var i = 0; i < _magic.length; i++) {
       if (bytes.length <= i || bytes[i] != _magic[i]) {
-        throw const FormatException('not a flutter3d trace: no F3DTRACE magic');
+        throw const TraceFormatException(
+          'not a flutter3d trace: no F3DTRACE magic',
+        );
       }
     }
+    // Every format up to this build's, lifted through [_migrations]; only a
+    // trace from the future is refused (decision 8 of
+    // `tasks/1.0-stability.md`). Mutation: put back `!=` and bump the
+    // constant, and `test/fixtures/v1/frame.f3dtrace` stops opening.
     final version = data.getUint32(8, Endian.little);
-    if (version != formatVersion) {
-      throw FormatException(
-        'a trace of format $version; this build reads $formatVersion',
+    if (version < 1 || version > formatVersion) {
+      throw TraceFormatException(
+        'a trace of format $version; this build reads up to $formatVersion. '
+        'Update flutter3d to replay it',
       );
     }
     final headerLength = data.getUint32(12, Endian.little);
-    final header = asMap(
-      jsonDecode(utf8.decode(bytes.sublist(16, 16 + headerLength))),
-    );
-    final blob = TraceBlobReader(bytes.sublist(16 + headerLength));
-    return Trace(<TraceEvent>[
-      for (final e in (header['events']! as List<Object?>).map(asMap))
-        TraceEvent.fromJson(e, blob),
-    ], metadata: asMap(header['metadata'] ?? <String, Object?>{}));
+    if (bytes.length < 16 + headerLength) {
+      throw TraceFormatException(
+        'a trace whose header says $headerLength bytes, in a file of '
+        '${bytes.length}',
+      );
+    }
+    try {
+      final header = _migrations
+          .skip(version - 1)
+          .fold(
+            asMap(
+              jsonDecode(utf8.decode(bytes.sublist(16, 16 + headerLength))),
+            ),
+            (Map<String, Object?> json, _TraceMigration lift) => lift(json),
+          );
+      final blob = TraceBlobReader(bytes.sublist(16 + headerLength));
+      return Trace(<TraceEvent>[
+        for (final e in (header['events']! as List<Object?>).map(asMap))
+          TraceEvent.fromJson(e, blob),
+      ], metadata: asMap(header['metadata'] ?? <String, Object?>{}));
+    } on FormatException catch (error) {
+      // JSON or UTF-8 that does not parse: the file, not this build.
+      throw TraceFormatException(
+        'a trace header that does not read',
+        cause: error,
+      );
+    }
   }
 
   final List<TraceEvent> events;
@@ -60,7 +98,29 @@ final class Trace {
   ];
 
   /// Bumped when an event's fields change meaning, not when one is added.
+  ///
+  /// A bump adds the step that lifts the previous version's header to
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   static const int formatVersion = 1;
+
+  /// `.f3dtrace` for a `FormatRegistry`.
+  ///
+  /// A binary format: its envelope is the `F3DTRACE` magic and the version
+  /// word after it, which [decode] reads before anything else, and every
+  /// enum it writes goes through the word tables of `trace_wire_names.dart`.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.trace',
+    version: formatVersion,
+    suffixes: <String>['.f3dtrace'],
+    fixture: 'test/fixtures/v<N>/frame.f3dtrace',
+    enveloped: false,
+    magic: _magic,
+  );
+
+  /// Entry `i` lifts a header from version `i + 1` to `i + 2`, so a file of
+  /// version `v` runs every step from `v - 1` on. Empty while version 1 is the
+  /// only one: reading it is the identity.
+  static const List<_TraceMigration> _migrations = <_TraceMigration>[];
 
   /// The `.f3dtrace` bytes.
   Uint8List encode() {
@@ -74,7 +134,7 @@ final class Trace {
         ],
       }),
     );
-    final payload = blob.take();
+    final payload = blob.drain();
     final prefix = ByteData(16);
     for (var i = 0; i < _magic.length; i++) {
       prefix.setUint8(i, _magic[i]);
@@ -94,7 +154,9 @@ final class Trace {
 final class TraceReplay {
   TraceReplay._(this.pixels, this.readbacks, this.buffers);
 
-  /// One per `readPixels`, null where the device could not read it.
+  /// One per `readPixels` event, which a trace written before 1.0 holds and
+  /// a replay answers with a whole-texture `readback`. Never null since 1.0,
+  /// when a texture that cannot be read throws instead.
   final List<ByteData?> pixels;
 
   /// One per `readback`.
@@ -151,29 +213,26 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
       case TraceCreateTexture(:final id, :final spec):
         textures[id] = device.createTexture(spec);
       case TraceCreateTextureFromPixels():
-        final made = device.createTextureFromPixels(
+        textures[event.id] = device.createTextureFromPixels(
           width: event.width,
           height: event.height,
           format: event.format,
           pixels: event.pixels,
           mipLevels: event.mipLevels,
         );
-        if (made != null) textures[event.id] = made;
       case TraceCreateCubeTextureFromPixels():
-        final made = device.createCubeTextureFromPixels(
+        textures[event.id] = device.createCubeTextureFromPixels(
           size: event.size,
           format: event.format,
           faces: event.faces,
           mipLevels: event.mipLevels,
         );
-        if (made != null) textures[event.id] = made;
       case TraceCreateCubeRenderTarget():
-        final made = device.createCubeRenderTarget(
+        textures[event.id] = device.createCubeRenderTarget(
           size: event.size,
           format: event.format,
           mipLevels: event.mipLevels,
         );
-        if (made != null) textures[event.id] = made;
       case TraceOverwriteTexture():
         await device.overwriteTexture(
           texture(event.texture),
@@ -224,7 +283,7 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
           ),
         );
       case TraceReadPixels(:final texture):
-        pixels.add(device.readPixels(textures[texture]!));
+        pixels.add(device.readback(textures[texture]!));
       case TraceReadback(:final texture, :final region):
         readbacks.add(device.readback(textures[texture]!, region: region));
       case TracePassEvent(:final pass):
@@ -273,6 +332,19 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
         computePasses.remove(pass)!.submit();
       case TraceReadBuffer(:final buffer):
         buffers.add(device.readBuffer(storage[buffer]!));
+      case TraceSetLabel(:final resource, :final id, :final label):
+        final Object? named = switch (resource) {
+          TraceLabeled.texture => textures[id],
+          TraceLabeled.geometry => geometry[id],
+          TraceLabeled.pipeline => pipelines[id],
+          TraceLabeled.storage => storage[id],
+          _ => null,
+        };
+        if (named != null) device.setLabel(named, label);
+      default:
+        throw StateError(
+          'this replay does not know the trace event "${event.kind}"',
+        );
     }
   }
 
@@ -305,9 +377,9 @@ void _replayPassEvent(
     case TraceSetWindingOrder(:final value):
       pass.setWindingOrder(value);
     case TraceSetDepthWrite(:final value):
-      pass.setDepthWrite(value);
+      pass.setDepthWrite(enabled: value);
     case TraceSetAlphaToCoverage(:final value):
-      pass.setAlphaToCoverage(value);
+      pass.setAlphaToCoverage(enabled: value);
     case TraceSetDepthCompare(:final value):
       pass.setDepthCompare(value);
     case TraceSetStencil(:final front, :final back):
@@ -318,6 +390,12 @@ void _replayPassEvent(
       pass.setBlend(state, attachment: attachment);
     case TraceSetBlendColor(:final color):
       pass.setBlendColor(color);
+    case TracePushDebugGroup(:final label):
+      pass.pushDebugGroup(label);
+    case TracePopDebugGroup():
+      pass.popDebugGroup();
+    case TraceInsertDebugMarker(:final label):
+      pass.insertDebugMarker(label);
     case TraceBindPipeline(:final pipeline):
       pass.bindPipeline(pipelines[pipeline]!);
     case TraceBindVertexBuffer(:final buffer, :final vertexCount, :final slot):
@@ -347,5 +425,9 @@ void _replayPassEvent(
       );
     case TraceSubmit():
       pass.submit();
+    default:
+      throw StateError(
+        'this replay does not know the pass event "${event.kind}"',
+      );
   }
 }

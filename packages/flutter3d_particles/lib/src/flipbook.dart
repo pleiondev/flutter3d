@@ -17,9 +17,16 @@ import 'particle.dart';
 final class FlipbookCell {
   const FlipbookCell(this.left, this.top, this.width, this.height);
 
+  /// The cell's left edge, in UV: a fraction of the sheet's width.
   final double left;
+
+  /// The cell's top edge, in UV: a fraction of the sheet's height.
   final double top;
+
+  /// The cell's width, in UV: a fraction of the sheet's width.
   final double width;
+
+  /// The cell's height, in UV: a fraction of the sheet's height.
   final double height;
 }
 

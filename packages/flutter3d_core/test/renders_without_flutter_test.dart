@@ -23,7 +23,7 @@ void main() {
     final device = FakeBackend();
     final mesh = DeviceMesh.upload(device, CuboidShape().build());
     final scene = Scene()
-      ..add(MeshNode(mesh, Material())..setPosition(0.0, 0.0, -5.0))
+      ..add(MeshNode(mesh, RenderMaterial())..setPosition(0.0, 0.0, -5.0))
       ..add(CameraNode());
     final renderer = Renderer.create(device: device);
 

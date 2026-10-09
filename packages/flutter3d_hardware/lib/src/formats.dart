@@ -29,6 +29,19 @@
 ///
 /// When a second backend arrives, this file does not change; a second
 /// translation file appears beside `gpu_formats.dart`.
+///
+/// ## The one exception, since 0.9
+///
+/// Three enums grew values flutter_gpu does not have — [TextureFormat],
+/// [BlendFactor] and [BlendOperation] — because a contract that promises the
+/// whole of a modern GPU cannot stop at what one backend's binding exposes:
+/// integer and packed formats a storage texture needs, the depth-only formats,
+/// dual-source blending, min and max. **They are appended after every mirrored
+/// value, never interleaved**, so the mirrored prefix keeps flutter_gpu's
+/// order and the trace codec, which writes enums by name, reads old traces
+/// unchanged. [extendedTextureFormats], [extendedBlendFactors] and
+/// [extendedBlendOperations] name the appended tail; the Impeller translation
+/// skips exactly those in its same-name test and refuses each one by name.
 library;
 
 /// What shape a texture is.
@@ -75,22 +88,62 @@ enum StorageMode {
 /// `PixelFormat` of its own, for image data rather than for textures, and every
 /// application on this engine imports both libraries. The values are
 /// flutter_gpu's, unchanged.
-enum TextureFormat {
-  unknown,
-  a8UNormInt,
-  r8UNormInt,
-  r8g8UNormInt,
-  r8g8b8a8UNormInt,
-  r8g8b8a8UNormIntSRGB,
-  b8g8r8a8UNormInt,
-  b8g8r8a8UNormIntSRGB,
-  r32g32b32a32Float,
-  r16g16b16a16Float,
-  r32Float,
+final class TextureFormat {
+  const TextureFormat._(this.index, this.name);
+
+  static const TextureFormat unknown = TextureFormat._(0, 'unknown');
+
+  static const TextureFormat a8UNormInt = TextureFormat._(1, 'a8UNormInt');
+
+  static const TextureFormat r8UNormInt = TextureFormat._(2, 'r8UNormInt');
+
+  static const TextureFormat r8g8UNormInt = TextureFormat._(3, 'r8g8UNormInt');
+
+  static const TextureFormat r8g8b8a8UNormInt = TextureFormat._(
+    4,
+    'r8g8b8a8UNormInt',
+  );
+
+  static const TextureFormat r8g8b8a8UNormIntSRGB = TextureFormat._(
+    5,
+    'r8g8b8a8UNormIntSRGB',
+  );
+
+  static const TextureFormat b8g8r8a8UNormInt = TextureFormat._(
+    6,
+    'b8g8r8a8UNormInt',
+  );
+
+  static const TextureFormat b8g8r8a8UNormIntSRGB = TextureFormat._(
+    7,
+    'b8g8r8a8UNormIntSRGB',
+  );
+
+  static const TextureFormat r32g32b32a32Float = TextureFormat._(
+    8,
+    'r32g32b32a32Float',
+  );
+
+  static const TextureFormat r16g16b16a16Float = TextureFormat._(
+    9,
+    'r16g16b16a16Float',
+  );
+
+  static const TextureFormat r32Float = TextureFormat._(10, 'r32Float');
+
   // Depth and stencil formats.
-  s8UInt,
-  d24UnormS8Uint,
-  d32FloatS8UInt,
+  static const TextureFormat s8UInt = TextureFormat._(11, 's8UInt');
+
+  static const TextureFormat d24UnormS8Uint = TextureFormat._(
+    12,
+    'd24UnormS8Uint',
+  );
+
+  static const TextureFormat d32FloatS8UInt = TextureFormat._(
+    13,
+    'd32FloatS8UInt',
+  );
+
   // Block-compressed formats. Sample-only everywhere: they cannot be render
   // targets, shader-writable, or multisampled, and hardware support varies by
   // family.
@@ -104,24 +157,249 @@ enum TextureFormat {
   // (`cpu_device.dart`) because it samples raw texels and always will. See
   // [TextureFormatCompression.isCompressed], which every backend now reads
   // instead of re-listing this exact tail of the enum for itself.
-  bc1RGBAUNormInt,
-  bc1RGBAUNormIntSRGB,
-  bc3RGBAUNormInt,
-  bc3RGBAUNormIntSRGB,
-  bc5RGUNormInt,
-  bc7RGBAUNormInt,
-  bc7RGBAUNormIntSRGB,
-  etc2RGB8UNormInt,
-  etc2RGB8UNormIntSRGB,
-  etc2RGBA8UNormInt,
-  etc2RGBA8UNormIntSRGB,
-  astc4x4LDR,
-  astc4x4LDRSRGB,
-  astc8x8LDR,
-  astc8x8LDRSRGB,
-  astc4x4HDR,
-  astc8x8HDR,
+  static const TextureFormat bc1RGBAUNormInt = TextureFormat._(
+    14,
+    'bc1RGBAUNormInt',
+  );
+
+  static const TextureFormat bc1RGBAUNormIntSRGB = TextureFormat._(
+    15,
+    'bc1RGBAUNormIntSRGB',
+  );
+
+  static const TextureFormat bc3RGBAUNormInt = TextureFormat._(
+    16,
+    'bc3RGBAUNormInt',
+  );
+
+  static const TextureFormat bc3RGBAUNormIntSRGB = TextureFormat._(
+    17,
+    'bc3RGBAUNormIntSRGB',
+  );
+
+  static const TextureFormat bc5RGUNormInt = TextureFormat._(
+    18,
+    'bc5RGUNormInt',
+  );
+
+  static const TextureFormat bc7RGBAUNormInt = TextureFormat._(
+    19,
+    'bc7RGBAUNormInt',
+  );
+
+  static const TextureFormat bc7RGBAUNormIntSRGB = TextureFormat._(
+    20,
+    'bc7RGBAUNormIntSRGB',
+  );
+
+  static const TextureFormat etc2RGB8UNormInt = TextureFormat._(
+    21,
+    'etc2RGB8UNormInt',
+  );
+
+  static const TextureFormat etc2RGB8UNormIntSRGB = TextureFormat._(
+    22,
+    'etc2RGB8UNormIntSRGB',
+  );
+
+  static const TextureFormat etc2RGBA8UNormInt = TextureFormat._(
+    23,
+    'etc2RGBA8UNormInt',
+  );
+
+  static const TextureFormat etc2RGBA8UNormIntSRGB = TextureFormat._(
+    24,
+    'etc2RGBA8UNormIntSRGB',
+  );
+
+  static const TextureFormat astc4x4LDR = TextureFormat._(25, 'astc4x4LDR');
+
+  static const TextureFormat astc4x4LDRSRGB = TextureFormat._(
+    26,
+    'astc4x4LDRSRGB',
+  );
+
+  static const TextureFormat astc8x8LDR = TextureFormat._(27, 'astc8x8LDR');
+
+  static const TextureFormat astc8x8LDRSRGB = TextureFormat._(
+    28,
+    'astc8x8LDRSRGB',
+  );
+
+  static const TextureFormat astc4x4HDR = TextureFormat._(29, 'astc4x4HDR');
+
+  static const TextureFormat astc8x8HDR = TextureFormat._(30, 'astc8x8HDR');
+
+  // ---- Beyond flutter_gpu, since 0.9 — see the library doc. Appended only.
+  // What storage textures, packed HDR targets and depth-only attachments
+  // need, named in this enum's own spelling. `extendedTextureFormats` lists
+  // them; `TextureFormatInfo` describes every value.
+  static const TextureFormat r8g8b8a8SNormInt = TextureFormat._(
+    31,
+    'r8g8b8a8SNormInt',
+  );
+
+  static const TextureFormat r8g8b8a8UInt = TextureFormat._(32, 'r8g8b8a8UInt');
+
+  static const TextureFormat r8g8b8a8SInt = TextureFormat._(33, 'r8g8b8a8SInt');
+
+  static const TextureFormat r16Float = TextureFormat._(34, 'r16Float');
+
+  static const TextureFormat r16g16Float = TextureFormat._(35, 'r16g16Float');
+
+  static const TextureFormat r16g16b16a16UInt = TextureFormat._(
+    36,
+    'r16g16b16a16UInt',
+  );
+
+  static const TextureFormat r16g16b16a16SInt = TextureFormat._(
+    37,
+    'r16g16b16a16SInt',
+  );
+
+  static const TextureFormat r32UInt = TextureFormat._(38, 'r32UInt');
+
+  static const TextureFormat r32SInt = TextureFormat._(39, 'r32SInt');
+
+  static const TextureFormat r32g32Float = TextureFormat._(40, 'r32g32Float');
+
+  static const TextureFormat r32g32UInt = TextureFormat._(41, 'r32g32UInt');
+
+  static const TextureFormat r32g32SInt = TextureFormat._(42, 'r32g32SInt');
+
+  static const TextureFormat r32g32b32a32UInt = TextureFormat._(
+    43,
+    'r32g32b32a32UInt',
+  );
+
+  static const TextureFormat r32g32b32a32SInt = TextureFormat._(
+    44,
+    'r32g32b32a32SInt',
+  );
+
+  /// Ten bits per colour channel and two of alpha, unsigned normalised.
+  static const TextureFormat r10g10b10a2UNormInt = TextureFormat._(
+    45,
+    'r10g10b10a2UNormInt',
+  );
+
+  /// Packed unsigned floats, 11/11/10 bits: half the bytes of
+  /// [r16g16b16a16Float] for an HDR colour target with no alpha. Renderable
+  /// only where `DeviceFeature.rg11b10Renderable` says so.
+  static const TextureFormat r11g11b10UFloat = TextureFormat._(
+    46,
+    'r11g11b10UFloat',
+  );
+
+  /// Three nine-bit mantissas sharing a five-bit exponent: sample-only HDR.
+  static const TextureFormat r9g9b9e5UFloat = TextureFormat._(
+    47,
+    'r9g9b9e5UFloat',
+  );
+
+  /// Depth only, sixteen bits.
+  static const TextureFormat d16UNormInt = TextureFormat._(48, 'd16UNormInt');
+
+  /// Depth only, 32-bit float — what reversed-Z wants.
+  static const TextureFormat d32Float = TextureFormat._(49, 'd32Float');
+
+  /// Every value this version names, in the order of [index].
+  static const List<TextureFormat> values = <TextureFormat>[
+    unknown,
+    a8UNormInt,
+    r8UNormInt,
+    r8g8UNormInt,
+    r8g8b8a8UNormInt,
+    r8g8b8a8UNormIntSRGB,
+    b8g8r8a8UNormInt,
+    b8g8r8a8UNormIntSRGB,
+    r32g32b32a32Float,
+    r16g16b16a16Float,
+    r32Float,
+    s8UInt,
+    d24UnormS8Uint,
+    d32FloatS8UInt,
+    bc1RGBAUNormInt,
+    bc1RGBAUNormIntSRGB,
+    bc3RGBAUNormInt,
+    bc3RGBAUNormIntSRGB,
+    bc5RGUNormInt,
+    bc7RGBAUNormInt,
+    bc7RGBAUNormIntSRGB,
+    etc2RGB8UNormInt,
+    etc2RGB8UNormIntSRGB,
+    etc2RGBA8UNormInt,
+    etc2RGBA8UNormIntSRGB,
+    astc4x4LDR,
+    astc4x4LDRSRGB,
+    astc8x8LDR,
+    astc8x8LDRSRGB,
+    astc4x4HDR,
+    astc8x8HDR,
+    r8g8b8a8SNormInt,
+    r8g8b8a8UInt,
+    r8g8b8a8SInt,
+    r16Float,
+    r16g16Float,
+    r16g16b16a16UInt,
+    r16g16b16a16SInt,
+    r32UInt,
+    r32SInt,
+    r32g32Float,
+    r32g32UInt,
+    r32g32SInt,
+    r32g32b32a32UInt,
+    r32g32b32a32SInt,
+    r10g10b10a2UNormInt,
+    r11g11b10UFloat,
+    r9g9b9e5UFloat,
+    d16UNormInt,
+    d32Float,
+  ];
+
+  /// The value whose [name] is [wireName], or null when this version names
+  /// none (absent) — how a file that names a value is read.
+  static TextureFormat? byName(String wireName) {
+    for (final value in values) {
+      if (value.name == wireName) return value;
+    }
+    return null;
+  }
+
+  /// The position in [values]: stable within a major, appended only.
+  final int index;
+
+  /// The stable name, and the wire name: what a file, a report or a
+  /// snapshot writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureFormat.$name';
 }
+
+/// The [TextureFormat] values flutter_gpu does not have, in declaration
+/// order. The Impeller backend refuses each of them by name.
+const List<TextureFormat> extendedTextureFormats = <TextureFormat>[
+  TextureFormat.r8g8b8a8SNormInt,
+  TextureFormat.r8g8b8a8UInt,
+  TextureFormat.r8g8b8a8SInt,
+  TextureFormat.r16Float,
+  TextureFormat.r16g16Float,
+  TextureFormat.r16g16b16a16UInt,
+  TextureFormat.r16g16b16a16SInt,
+  TextureFormat.r32UInt,
+  TextureFormat.r32SInt,
+  TextureFormat.r32g32Float,
+  TextureFormat.r32g32UInt,
+  TextureFormat.r32g32SInt,
+  TextureFormat.r32g32b32a32UInt,
+  TextureFormat.r32g32b32a32SInt,
+  TextureFormat.r10g10b10a2UNormInt,
+  TextureFormat.r11g11b10UFloat,
+  TextureFormat.r9g9b9e5UFloat,
+  TextureFormat.d16UNormInt,
+  TextureFormat.d32Float,
+];
 
 /// Whether a [TextureFormat] carries an eight-bit stencil beside its depth.
 ///
@@ -258,10 +536,35 @@ enum BlendFactor {
   oneMinusBlendColor,
   blendAlpha,
   oneMinusBlendAlpha,
+  // ---- Beyond flutter_gpu, since 0.9 — see the library doc. Appended only.
+  // The fragment's second colour output, for dual-source blending. Ask
+  // `DeviceFeature.dualSourceBlending`; a backend without it refuses a
+  // `BlendState` naming one.
+  source1Color,
+  oneMinusSource1Color,
+  source1Alpha,
+  oneMinusSource1Alpha,
 }
 
+/// The [BlendFactor] values flutter_gpu does not have.
+const List<BlendFactor> extendedBlendFactors = <BlendFactor>[
+  BlendFactor.source1Color,
+  BlendFactor.oneMinusSource1Color,
+  BlendFactor.source1Alpha,
+  BlendFactor.oneMinusSource1Alpha,
+];
+
 /// How the two blend terms are combined.
-enum BlendOperation { add, subtract, reverseSubtract }
+///
+/// [min] and [max] are beyond flutter_gpu (see the library doc) and ignore
+/// both factors, as every API defines them; ask `DeviceFeature.minMaxBlend`.
+enum BlendOperation { add, subtract, reverseSubtract, min, max }
+
+/// The [BlendOperation] values flutter_gpu does not have.
+const List<BlendOperation> extendedBlendOperations = <BlendOperation>[
+  BlendOperation.min,
+  BlendOperation.max,
+];
 
 /// What happens to an attachment's existing contents when a pass begins.
 ///
@@ -394,8 +697,9 @@ enum StencilFace { both, front, back }
 /// What a backend's clip space maps depth onto.
 ///
 /// Metal and Vulkan put the near plane at 0 and the far plane at 1. OpenGL puts
-/// them at -1 and 1, and WebGL2 has no way to change that — `glClipControl` is
-/// not exposed there.
+/// them at -1 and 1, and WebGL2 changes that only where the browser offers
+/// `EXT_clip_control` — which the WebGL2 backend asks for, and then answers
+/// [zeroToOne].
 ///
 /// Not a detail that can be papered over. A projection built for one and fed to
 /// the other does not error: with an OpenGL matrix on Metal roughly half the

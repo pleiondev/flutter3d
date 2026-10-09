@@ -46,7 +46,7 @@ void main() {
       );
       final decodedSheet = await decodeImagePure(sheet);
       expect(decodedSheet, isNotNull);
-      expect(decodedSheet!.width, 128);
+      expect(decodedSheet.width, 128);
       expect(decodedSheet.height, 128);
 
       for (var i = 0; i < renderSheetViews.length; i++) {
@@ -55,7 +55,7 @@ void main() {
           RenderRequest(project: project, view: view, width: 64, height: 64),
           deviceFactory: _cpuDevice,
         );
-        final tile = (await decodeImagePure(tilePng))!;
+        final tile = await decodeImagePure(tilePng);
 
         final originX = (i % 2) * 64;
         final originY = (i ~/ 2) * 64;
@@ -82,7 +82,7 @@ void main() {
     final project = _cubeProject();
     const int size = 256;
     const int tile = size ~/ 2;
-    final plain = (await decodeImagePure(
+    final plain = await decodeImagePure(
       await renderSheet(
         project: project,
         width: size,
@@ -90,15 +90,15 @@ void main() {
         labels: false,
         deviceFactory: _cpuDevice,
       ),
-    ))!;
-    final labelled = (await decodeImagePure(
+    );
+    final labelled = await decodeImagePure(
       await renderSheet(
         project: project,
         width: size,
         height: size,
         deviceFactory: _cpuDevice,
       ),
-    ))!;
+    );
 
     // The label box: the bottom-left corner of each quadrant, generously
     // sized. Everything outside every box has to be untouched, or the
@@ -158,7 +158,7 @@ void main() {
     );
     final decoded = await decodeImagePure(sheet);
     expect(decoded, isNotNull);
-    expect(decoded!.width, 64);
+    expect(decoded.width, 64);
     expect(decoded.height, 64);
   });
 

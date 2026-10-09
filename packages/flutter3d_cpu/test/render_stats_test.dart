@@ -6,8 +6,10 @@ library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/backend.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -23,8 +25,10 @@ FrameResult _render(RenderSettings settings, {int cubes = 1}) {
   final scene = Scene();
   for (var i = 0; i < cubes; i++) {
     scene.add(
-      MeshNode(mesh, Material(baseColor: Vector4(0.5, 0.5, 0.5, 1.0)))
-        ..setPosition(i * 1.5 - (cubes - 1) * 0.75, 0.0, -6.0),
+      MeshNode(
+        mesh,
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0)),
+      )..setPosition(i * 1.5 - (cubes - 1) * 0.75, 0.0, -6.0),
     );
   }
   final camera = CameraNode();
@@ -42,7 +46,7 @@ void main() {
   test('a texture is counted as its texels, every slice and sample', () {
     // Mutation: leave out the slices, and a cube target is a sixth of itself.
     TextureHandle handle(TextureFormat format, {TextureType? type}) =>
-        TextureHandle(
+        wrapTexture(
           backend: Object(),
           width: 8,
           height: 4,

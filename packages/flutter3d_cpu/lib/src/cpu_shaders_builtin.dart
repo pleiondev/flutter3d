@@ -1,7 +1,7 @@
 /// The engine's shaders, written in Dart.
 ///
 /// **Every one of them, and the count is checked rather than written down
-/// here.** `kRequiredShaders` in `flutter3d_shaders` is the list — the mesh
+/// here.** `requiredShaders` in `flutter3d_shaders` is the list — the mesh
 /// vertex stages, the lighting models and the flat one the x-ray stage draws
 /// with, the shadow passes and the atlas tile reset, the bloom chain, the
 /// composite, reflections, occlusion, the sky, the probe pair, object id,
@@ -114,25 +114,33 @@ export 'cpu_shaders_volumetric_fog.dart';
 /// them at `Renderer.create` and throws on the first missing one, so a backend
 /// with gaps cannot start at all. Answering with something that draws would be
 /// worse than answering with something that says no.
-final class _Unimplemented implements CpuVertexShader, CpuFragmentShader {
-  const _Unimplemented(this.name);
+final class _UnimplementedVertex extends CpuVertexShader {
+  const _UnimplementedVertex(this.name);
   final String name;
 
   @override
   int get varyingCount => 0;
 
   @override
-  Vector4 run(
-    Float32List a,
-    ShaderBindings b, [
-    Object? out,
-    Object? context,
-  ]) => throw UnsupportedError(
-    '$name is not written in Dart. This backend answers to every name the '
-    'engine asks for so that it can start, and refuses the ones it cannot '
-    'draw rather than drawing something else.',
-  );
+  Vector4 run(Float32List a, ShaderBindings b, Float32List out) =>
+      throw _refusal(name);
 }
+
+/// The fragment half of [_UnimplementedVertex].
+final class _UnimplementedFragment extends CpuFragmentShader {
+  const _UnimplementedFragment(this.name);
+  final String name;
+
+  @override
+  Vector4? run(Float32List a, ShaderBindings b, FragmentContext context) =>
+      throw _refusal(name);
+}
+
+UnsupportedError _refusal(String name) => UnsupportedError(
+  '$name is not written in Dart. This backend answers to every name the '
+  'engine asks for so that it can start, and refuses the ones it cannot '
+  'draw rather than drawing something else.',
+);
 
 /// The stages that are not written in Dart, by name.
 ///
@@ -159,6 +167,18 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Pbr': const CpuStage.fragment(PbrShader()),
     'PbrLayered': const CpuStage.fragment(PbrShader.layered()),
     'Toon': const CpuStage.fragment(ToonShader()),
+    // `A1.2`: the lit models' opaque variants, which leave the alpha cut to
+    // the depth pre-draw. The same transcriptions: a fragment this rasteriser
+    // reaches through one has already passed that pre-draw's `equal` test,
+    // so the cut it still makes throws away nothing the variant would have
+    // drawn, and there is no early depth here for a `discard` to cost.
+    'UnlitOpaque': const CpuStage.fragment(UnlitShader()),
+    'LambertOpaque': const CpuStage.fragment(LambertShader()),
+    'BlinnPhongOpaque': const CpuStage.fragment(BlinnPhongShader()),
+    'PbrOpaque': const CpuStage.fragment(PbrShader()),
+    'PbrLayeredOpaque': const CpuStage.fragment(PbrShader.layered()),
+    'ToonOpaque': const CpuStage.fragment(ToonShader()),
+    'DepthPredraw': const CpuStage.fragment(DepthPredrawShader()),
     'Normals': const CpuStage.fragment(NormalsShader()),
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),
     'Luminance': const CpuStage.fragment(LuminanceShader()),
@@ -277,10 +297,10 @@ Map<String, CpuStage> builtinCpuShaders() {
   };
 
   for (final name in kUnimplementedCpuVertexShaders) {
-    stages[name] = CpuStage.vertex(_Unimplemented(name));
+    stages[name] = CpuStage.vertex(_UnimplementedVertex(name));
   }
   for (final name in kUnimplementedCpuFragmentShaders) {
-    stages[name] = CpuStage.fragment(_Unimplemented(name));
+    stages[name] = CpuStage.fragment(_UnimplementedFragment(name));
   }
   return stages;
 }

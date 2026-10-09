@@ -17,7 +17,7 @@ import 'cpu_shaders_layout.dart';
 ///
 /// Writes no surface: the GLSL declares `F3D_NO_SURFACE_BUFFER`, and the
 /// surface underneath keeps describing itself, as under `XrayShader`.
-final class PlanarReflectionShader implements CpuFragmentShader {
+final class PlanarReflectionShader extends CpuFragmentShader {
   const PlanarReflectionShader();
 
   @override
@@ -59,7 +59,7 @@ final class PlanarReflectionShader implements CpuFragmentShader {
 
 /// `render_texture_encode.frag`: the light times the exposure, clipped to
 /// one and encoded as sRGB.
-final class RenderTextureEncodeShader implements CpuFragmentShader {
+final class RenderTextureEncodeShader extends CpuFragmentShader {
   const RenderTextureEncodeShader();
 
   @override

@@ -113,6 +113,9 @@ extension _GltfAnimation on GltfLoader {
         try {
           times = reader.readAsFloats(inputAccessor);
           values = reader.readAsFloats(outputAccessor);
+        } on Flutter3dFormatException catch (error) {
+          warnings.add('$channelLabel could not be read: ${error.message}');
+          continue;
         } on FormatException catch (error) {
           warnings.add('$channelLabel could not be read: ${error.message}');
           continue;
@@ -201,7 +204,7 @@ extension _GltfAnimation on GltfLoader {
       );
       return null;
     }
-    final pointer = AnimationPointer.parse(text);
+    final pointer = AnimationPointer.tryParse(text);
     if (pointer == null) {
       warnings.add(
         '$channelLabel points at "$text", which is not a property this engine '

@@ -34,11 +34,11 @@ final class PackedKeys {
   }
 
   void setEntry(int index, int key, int payload) {
-    _buffer[index] = (key << kPayloadBits) | payload;
+    _buffer[index] = (key << payloadBits) | payload;
   }
 
   void sort(int count) =>
       sortPackedKeys(_buffer, _scratch, count, counts: _histogram);
 
-  int payloadAt(int index) => _buffer[index] & kPayloadMask;
+  int payloadAt(int index) => _buffer[index] & payloadMask;
 }

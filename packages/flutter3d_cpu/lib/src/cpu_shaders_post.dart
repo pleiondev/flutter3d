@@ -23,7 +23,7 @@ import 'cpu_shaders_color.dart';
 /// away from the engine's on any backend whose framebuffer disagrees, and
 /// there is no way to see that in a fixture whose picture is roughly
 /// symmetric.
-final class FullscreenVertexShader implements CpuVertexShader {
+final class FullscreenVertexShader extends CpuVertexShader {
   const FullscreenVertexShader();
 
   @override
@@ -38,7 +38,7 @@ final class FullscreenVertexShader implements CpuVertexShader {
 }
 
 /// `composite.frag`: add the bloom, expose, tone map, encode.
-final class CompositeShader implements CpuFragmentShader {
+final class CompositeShader extends CpuFragmentShader {
   const CompositeShader();
 
   /// `Distort` in `composite.frag`: radially by `1 + k·r²` on the frame's
@@ -87,7 +87,16 @@ final class CompositeShader implements CpuFragmentShader {
     // `P6`: right of a debug view's split the scene holds display values,
     // and only the encode touches them. A return here where the GLSL decides
     // at its end: this rasteriser has no uniform control flow to keep.
-    if (lens.y > 0.5 && v[0] >= lens.z) {
+    // `A5.22`: lens.y names the sides — one the right, two the left, three
+    // both.
+    final rightOfWipe = v[0] >= lens.z;
+    final showsChannel = switch ((lens.y + 0.5).floor()) {
+      1 => rightOfWipe,
+      2 => !rightOfWipe,
+      >= 3 => true,
+      _ => false,
+    };
+    if (showsChannel) {
       final raw = scene.sample(v[0], v[1]);
       return Vector4(
         toSrgb(raw.x.clamp(0.0, 1.0)),
@@ -103,12 +112,12 @@ final class CompositeShader implements CpuFragmentShader {
     // Dispersion at sampling, because that is where a lens does it — see the
     // note in `composite.frag`, which this mirrors operation for operation.
     final sampled = scene.sample(u, w);
-    var colour = Vector3(sampled.x, sampled.y, sampled.z);
+    var color = Vector3(sampled.x, sampled.y, sampled.z);
     if (look.w > 0.0) {
       final ox = (u - 0.5) * look.w;
       final oy = (w - 0.5) * look.w;
-      colour.x = scene.sample(u + ox, w + oy).x;
-      colour.z = scene.sample(u - ox, w - oy).z;
+      color.x = scene.sample(u + ox, w + oy).x;
+      color.z = scene.sample(u - ox, w - oy).z;
     }
 
     // Occlusion first, then the glow — the order matters and it is the order
@@ -134,7 +143,7 @@ final class CompositeShader implements CpuFragmentShader {
     if (contactInfo.w > 0.0) {
       final stops = bindings.textures['local_exposure_texture'];
       if (stops != null) {
-        colour.scale(
+        color.scale(
           math.pow(2.0, stops.sample(u, w).x * contactInfo.w).toDouble(),
         );
       }
@@ -182,7 +191,7 @@ final class CompositeShader implements CpuFragmentShader {
     // multiply by one is exact, so this is a shortcut rather than a difference,
     // and it keeps the frames ninety-six goldens hold untouched by arithmetic
     // they never used to go through.
-    if (shade != 1.0) colour.scale(shade);
+    if (shade != 1.0) color.scale(shade);
 
     // Additive, and unconditional: the engine binds a black texture when bloom
     // is off rather than leaving the sampler unbound, so there is no branch to
@@ -190,16 +199,16 @@ final class CompositeShader implements CpuFragmentShader {
     final bloom = bindings.textures['bloom_texture'];
     if (bloom != null) {
       final b = bloom.sample(u, w);
-      colour += Vector3(b.x, b.y, b.z) * params.y;
+      color += Vector3(b.x, b.y, b.z) * params.y;
     }
-    if (bounced != null) colour += bounced;
+    if (bounced != null) color += bounced;
 
-    colour.scale(math.max(params.x, 0.0));
+    color.scale(math.max(params.x, 0.0));
     final curve = (params.z + 0.5).floor();
     final display = bindings.textures['display_texture'];
-    colour = curve == 6 && display != null
-        ? _sampleDisplay(display, colour, math.max(contactInfo.y, 2.0))
-        : tonemapBy(colour, curve);
+    color = curve == 6 && display != null
+        ? _sampleDisplay(display, color, math.max(contactInfo.y, 2.0))
+        : tonemapBy(color, curve);
 
     // Grading after the tone map, then the barrel, then the film. The order is
     // the one a camera imposes and it is the order `composite.frag` uses; the
@@ -208,16 +217,16 @@ final class CompositeShader implements CpuFragmentShader {
     if (look.x != 1.0) {
       double pivot(double x) =>
           0.18 * math.pow(math.max(x, 0.0) / 0.18, look.x).toDouble();
-      colour = Vector3(pivot(colour.x), pivot(colour.y), pivot(colour.z));
+      color = Vector3(pivot(color.x), pivot(color.y), pivot(color.z));
     }
-    final luma = 0.2126 * colour.x + 0.7152 * colour.y + 0.0722 * colour.z;
-    colour = Vector3(
-      luma + (colour.x - luma) * look.y,
-      luma + (colour.y - luma) * look.y,
-      luma + (colour.z - luma) * look.y,
+    final luma = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+    color = Vector3(
+      luma + (color.x - luma) * look.y,
+      luma + (color.y - luma) * look.y,
+      luma + (color.z - luma) * look.y,
     );
-    colour.x *= 1.0 + look.z * 0.1;
-    colour.z *= 1.0 - look.z * 0.1;
+    color.x *= 1.0 + look.z * 0.1;
+    color.z *= 1.0 - look.z * 0.1;
 
     // `gfx-27n`: lift, then gamma, then gain — the order `composite.frag`
     // applies them and the order a grading panel names them.
@@ -233,19 +242,19 @@ final class CompositeShader implements CpuFragmentShader {
       Vector4(1.0, 1.0, 1.0, 0.0),
     );
     // `c * (1 - lift) + lift`: black rises, white stays.
-    colour = Vector3(
-      math.max(colour.x * (1.0 - lift.x) + lift.x, 0.0),
-      math.max(colour.y * (1.0 - lift.y) + lift.y, 0.0),
-      math.max(colour.z * (1.0 - lift.z) + lift.z, 0.0),
+    color = Vector3(
+      math.max(color.x * (1.0 - lift.x) + lift.x, 0.0),
+      math.max(color.y * (1.0 - lift.y) + lift.y, 0.0),
+      math.max(color.z * (1.0 - lift.z) + lift.z, 0.0),
     );
     if (gammaCurve.x != 1.0 || gammaCurve.y != 1.0 || gammaCurve.z != 1.0) {
-      colour = Vector3(
-        math.pow(colour.x, 1.0 / gammaCurve.x).toDouble(),
-        math.pow(colour.y, 1.0 / gammaCurve.y).toDouble(),
-        math.pow(colour.z, 1.0 / gammaCurve.z).toDouble(),
+      color = Vector3(
+        math.pow(color.x, 1.0 / gammaCurve.x).toDouble(),
+        math.pow(color.y, 1.0 / gammaCurve.y).toDouble(),
+        math.pow(color.z, 1.0 / gammaCurve.z).toDouble(),
       );
     }
-    colour = Vector3(colour.x * gain.x, colour.y * gain.y, colour.z * gain.z);
+    color = Vector3(color.x * gain.x, color.y * gain.y, color.z * gain.z);
 
     // White balance and tint, which are the correction rather than the look
     // `look.z` above is — see `LookSettings.whiteBalance`.
@@ -255,10 +264,10 @@ final class CompositeShader implements CpuFragmentShader {
       Vector4.zero(),
     );
     if (encode.y != 0.0 || encode.z != 0.0) {
-      colour = Vector3(
-        colour.x * (1.0 + encode.y * 0.20) - encode.z * 0.075,
-        colour.y * (1.0 + encode.z * 0.15),
-        colour.z * (1.0 - encode.y * 0.20) - encode.z * 0.075,
+      color = Vector3(
+        color.x * (1.0 + encode.y * 0.20) - encode.z * 0.075,
+        color.y * (1.0 + encode.z * 0.15),
+        color.z * (1.0 - encode.y * 0.20) - encode.z * 0.075,
       );
     }
 
@@ -269,9 +278,9 @@ final class CompositeShader implements CpuFragmentShader {
     if (lut != null && aoTexel.z > 0.0) {
       // Indexed and answered in sRGB, the space a `.cube` is written in.
       final encodedIn = Vector3(
-        toSrgb(colour.x.clamp(0.0, 1.0)),
-        toSrgb(colour.y.clamp(0.0, 1.0)),
-        toSrgb(colour.z.clamp(0.0, 1.0)),
+        toSrgb(color.x.clamp(0.0, 1.0)),
+        toSrgb(color.y.clamp(0.0, 1.0)),
+        toSrgb(color.z.clamp(0.0, 1.0)),
       );
       final gradedEncoded = _sampleLut(
         lut,
@@ -284,10 +293,10 @@ final class CompositeShader implements CpuFragmentShader {
         toLinear(gradedEncoded.z),
       );
       final amount = aoTexel.z.clamp(0.0, 1.0);
-      colour = Vector3(
-        colour.x + (graded.x - colour.x) * amount,
-        colour.y + (graded.y - colour.y) * amount,
-        colour.z + (graded.z - colour.z) * amount,
+      color = Vector3(
+        color.x + (graded.x - color.x) * amount,
+        color.y + (graded.y - color.y) * amount,
+        color.z + (graded.z - color.z) * amount,
       );
     }
 
@@ -299,7 +308,7 @@ final class CompositeShader implements CpuFragmentShader {
         0.0,
         1.0,
       );
-      colour.scale(1.0 - lookMore.x * radius);
+      color.scale(1.0 - lookMore.x * radius);
     }
 
     // `gfx-24n`, and the grain below it: both are applied after the encode,
@@ -312,9 +321,9 @@ final class CompositeShader implements CpuFragmentShader {
       Vector4.zero(),
     );
     var encoded = Vector3(
-      toSrgb(math.max(colour.x, 0.0)),
-      toSrgb(math.max(colour.y, 0.0)),
-      toSrgb(math.max(colour.z, 0.0)),
+      toSrgb(math.max(color.x, 0.0)),
+      toSrgb(math.max(color.y, 0.0)),
+      toSrgb(math.max(color.z, 0.0)),
     );
 
     if (lookMore.z > 0.0) {
@@ -372,7 +381,7 @@ double _bayerCell(double x, double y) {
 /// Mirrors the GLSL operation for operation, the same contract every shader in
 /// this file keeps: the two are compared by golden images and a shortcut here
 /// would read as a backend disagreeing about the picture.
-final class FxaaShader implements CpuFragmentShader {
+final class FxaaShader extends CpuFragmentShader {
   const FxaaShader();
 
   /// `SearchStep` from `fxaa.frag`, the first step (one texel) included:
@@ -528,7 +537,7 @@ final class FxaaShader implements CpuFragmentShader {
 /// `SharpenRobust` from `fxaa.frag` — `R2`: the lobe that keeps every
 /// channel inside the neighbourhood's range, limited to three sixteenths.
 Vector4 _sharpenRobust(
-  Vector4 centre,
+  Vector4 center,
   Vector4 n,
   Vector4 s,
   Vector4 w,
@@ -545,7 +554,7 @@ Vector4 _sharpenRobust(
   }
   lobe = math.max(-0.1875, math.min(lobe, 0.0)) * amount;
   double mix(int c) =>
-      (lobe * (n[c] + s[c] + w[c] + e[c]) + centre[c]) / (4.0 * lobe + 1.0);
+      (lobe * (n[c] + s[c] + w[c] + e[c]) + center[c]) / (4.0 * lobe + 1.0);
   return Vector4(mix(0), mix(1), mix(2), 1.0);
 }
 
@@ -556,7 +565,7 @@ Vector4 _sharpenRobust(
 /// shader for the normalised form this replaced and the flat grey frame that
 /// came back white.
 Vector4 _sharpen(
-  Vector4 centre,
+  Vector4 center,
   Vector4 n,
   Vector4 s,
   Vector4 w,
@@ -564,8 +573,8 @@ Vector4 _sharpen(
   double strength, {
   bool robust = false,
 }) {
-  if (strength <= 0.0) return Vector4(centre.x, centre.y, centre.z, 1.0);
-  if (robust) return _sharpenRobust(centre, n, s, w, e, strength);
+  if (strength <= 0.0) return Vector4(center.x, center.y, center.z, 1.0);
+  if (robust) return _sharpenRobust(center, n, s, w, e, strength);
 
   double lowestOf(double a, double b, double cc, double d, double f) =>
       math.min(a, math.min(math.min(b, cc), math.min(d, f)));
@@ -576,16 +585,16 @@ Vector4 _sharpen(
       math.min(lo, 1.0 - hi) / math.max(hi, 1e-5);
 
   final roomR = roomOf(
-    lowestOf(centre.x, n.x, s.x, w.x, e.x),
-    highestOf(centre.x, n.x, s.x, w.x, e.x),
+    lowestOf(center.x, n.x, s.x, w.x, e.x),
+    highestOf(center.x, n.x, s.x, w.x, e.x),
   );
   final roomG = roomOf(
-    lowestOf(centre.y, n.y, s.y, w.y, e.y),
-    highestOf(centre.y, n.y, s.y, w.y, e.y),
+    lowestOf(center.y, n.y, s.y, w.y, e.y),
+    highestOf(center.y, n.y, s.y, w.y, e.y),
   );
   final roomB = roomOf(
-    lowestOf(centre.z, n.z, s.z, w.z, e.z),
-    highestOf(centre.z, n.z, s.z, w.z, e.z),
+    lowestOf(center.z, n.z, s.z, w.z, e.z),
+    highestOf(center.z, n.z, s.z, w.z, e.z),
   );
   final room = math.min(roomR, math.min(roomG, roomB)).clamp(0.0, 1.0);
   final amount = math.sqrt(room).clamp(0.0, 1.0);
@@ -594,16 +603,16 @@ Vector4 _sharpen(
       cc + (cc - (a + b + d + f) * 0.25) * amount * strength;
 
   return Vector4(
-    blend(centre.x, n.x, s.x, w.x, e.x),
-    blend(centre.y, n.y, s.y, w.y, e.y),
-    blend(centre.z, n.z, s.z, w.z, e.z),
+    blend(center.x, n.x, s.x, w.x, e.x),
+    blend(center.y, n.y, s.y, w.y, e.y),
+    blend(center.z, n.z, s.z, w.z, e.z),
     1.0,
   );
 }
 
 /// `SampleDisplay` from `composite.frag` — `L2`: the log2 shaper of −10…+10
 /// stops about 0.18, then [_sampleLut]'s lookup.
-Vector3 _sampleDisplay(BoundTexture table, Vector3 colour, double size) {
+Vector3 _sampleDisplay(BoundTexture table, Vector3 color, double size) {
   double shaped(double x) =>
       ((math.log(math.max(x, 1e-10) / 0.18) / math.ln2 + 10.0) / 20.0).clamp(
         0.0,
@@ -611,7 +620,7 @@ Vector3 _sampleDisplay(BoundTexture table, Vector3 colour, double size) {
       );
   return _sampleLut(
     table,
-    Vector3(shaped(colour.x), shaped(colour.y), shaped(colour.z)),
+    Vector3(shaped(color.x), shaped(color.y), shaped(color.z)),
     size,
   );
 }
@@ -621,10 +630,10 @@ Vector3 _sampleDisplay(BoundTexture table, Vector3 colour, double size) {
 /// The half-texel inset on red and the `(size - 1) / size` span on green are
 /// what make the ends of the ramp reachable; without them an identity table
 /// darkens white, which is the one thing a neutral table must not do.
-Vector3 _sampleLut(BoundTexture table, Vector3 colour, double size) {
-  final r = colour.x.clamp(0.0, 1.0);
-  final g = colour.y.clamp(0.0, 1.0);
-  final b = colour.z.clamp(0.0, 1.0);
+Vector3 _sampleLut(BoundTexture table, Vector3 color, double size) {
+  final r = color.x.clamp(0.0, 1.0);
+  final g = color.y.clamp(0.0, 1.0);
+  final b = color.z.clamp(0.0, 1.0);
 
   final sliceWidth = 1.0 / size;
   final texel = 1.0 / (size * size);
@@ -663,7 +672,7 @@ double _hash(double x, double y) {
 /// two are held together by the exposure test rather than by this file: a
 /// floor or a range that drifted here would meter a scene as a different
 /// brightness and read as a tuning problem.
-final class LuminanceShader implements CpuFragmentShader {
+final class LuminanceShader extends CpuFragmentShader {
   const LuminanceShader();
 
   @override
@@ -695,7 +704,7 @@ final class LuminanceShader implements CpuFragmentShader {
 /// the surface buffer, as 24 bits of the far plane, and in alpha whether the
 /// whole block was drawn and how near its nearest depth comes to that —
 /// `C3`. `HiZOcclusion.accept` is the other end.
-final class DepthPyramidShader implements CpuFragmentShader {
+final class DepthPyramidShader extends CpuFragmentShader {
   const DepthPyramidShader();
 
   @override
@@ -746,7 +755,7 @@ final class DepthPyramidShader implements CpuFragmentShader {
 }
 
 /// `field_decay.frag`: every texel times a factor plus a constant — `H5`.
-final class FieldDecayShader implements CpuFragmentShader {
+final class FieldDecayShader extends CpuFragmentShader {
   const FieldDecayShader();
 
   @override
@@ -768,7 +777,7 @@ final class FieldDecayShader implements CpuFragmentShader {
 ///
 /// It exists to answer whether a backend writes the second target at all, so
 /// there is nothing to get right here except writing both.
-final class MrtProbeShader implements CpuFragmentShader {
+final class MrtProbeShader extends CpuFragmentShader {
   const MrtProbeShader();
 
   @override
@@ -782,7 +791,7 @@ final class MrtProbeShader implements CpuFragmentShader {
 /// tap: twelve taps, the edge's direction and length from the four nearest,
 /// an approximated Lanczos-2 stretched along the edge, and the result held
 /// between the four nearest.
-final class EasuShader implements CpuFragmentShader {
+final class EasuShader extends CpuFragmentShader {
   const EasuShader();
 
   @override
@@ -864,9 +873,9 @@ final class EasuShader implements CpuFragmentShader {
 
     final sum = Vector3.zero();
     var total = 0.0;
-    void add(Vector3 colour, double ox, double oy) {
+    void add(Vector3 color, double ox, double oy) {
       final w = weight(ox - px, oy - py);
-      sum.addScaled(colour, w);
+      sum.addScaled(color, w);
       total += w;
     }
 
@@ -906,7 +915,7 @@ final class EasuShader implements CpuFragmentShader {
 
 /// `local_exposure.frag`: how well exposed each place would be at three
 /// exposures — `R7`.
-final class LocalExposureShader implements CpuFragmentShader {
+final class LocalExposureShader extends CpuFragmentShader {
   const LocalExposureShader();
 
   static double _luma(Vector4 c) => 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
@@ -950,7 +959,7 @@ final class LocalExposureShader implements CpuFragmentShader {
 
 /// `local_exposure_blur.frag`: the weights blurred along one axis, and on
 /// the second run the exposure in stops — `R7`.
-final class LocalExposureBlurShader implements CpuFragmentShader {
+final class LocalExposureBlurShader extends CpuFragmentShader {
   const LocalExposureBlurShader();
 
   @override
@@ -982,7 +991,7 @@ final class LocalExposureBlurShader implements CpuFragmentShader {
 /// transmissive draws read, the mean of the block of the scene under each
 /// texel, taken as the stage takes it — bilinear taps on the corners inside
 /// the block, rows outside and columns inside, in the stage's order.
-final class SceneColourCopyShader implements CpuFragmentShader {
+final class SceneColourCopyShader extends CpuFragmentShader {
   const SceneColourCopyShader();
 
   @override
@@ -1010,7 +1019,7 @@ final class SceneColourCopyShader implements CpuFragmentShader {
 /// `wboit_resolve.frag` — `R8`: the weighted average of the transparent
 /// layers, covering as much of the pixel as they do together, premultiplied
 /// for the source-over it is drawn with.
-final class WboitResolveShader implements CpuFragmentShader {
+final class WboitResolveShader extends CpuFragmentShader {
   const WboitResolveShader();
 
   @override

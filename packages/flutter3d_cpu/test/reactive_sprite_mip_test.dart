@@ -12,6 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -36,10 +37,10 @@ BoundTexture _checkerSprite(CpuDevice device) {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: bytes,
     mipLevels: MipChain.build(bytes, _size, _size),
-  )!;
+  );
   return BoundTexture(
     handle.backend as CpuTexture,
-    SamplerOptions.trilinearRepeat,
+    SamplerDescriptor.trilinearRepeat,
   );
 }
 

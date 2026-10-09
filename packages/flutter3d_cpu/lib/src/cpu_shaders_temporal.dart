@@ -32,14 +32,14 @@ Vector3 _fromYCoCg(Vector3 c) =>
     Vector3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z);
 
 Vector3 _clipToBox(Vector3 lo, Vector3 hi, Vector3 q) {
-  final centre = (hi + lo) * 0.5;
+  final center = (hi + lo) * 0.5;
   final extent = (hi - lo) * 0.5 + Vector3.all(1e-5);
-  final v = q - centre;
+  final v = q - center;
   final most = math.max(
     (v.x / extent.x).abs(),
     math.max((v.y / extent.y).abs(), (v.z / extent.z).abs()),
   );
-  return most > 1.0 ? centre + v / most : q;
+  return most > 1.0 ? center + v / most : q;
 }
 
 /// `ClipToDop`: [history] moved along the line to [current] until it is
@@ -85,7 +85,7 @@ Vector3 _rgb(Vector4 v) => Vector3(v.x, v.y, v.z);
 
 /// `temporal_accumulate.frag` — `R3`: a noisy effect blended into its own
 /// history, clamped to this frame's neighbourhood.
-final class TemporalAccumulateShader implements CpuFragmentShader {
+final class TemporalAccumulateShader extends CpuFragmentShader {
   const TemporalAccumulateShader();
 
   @override
@@ -133,7 +133,7 @@ final class TemporalAccumulateShader implements CpuFragmentShader {
 }
 
 /// `temporal_resolve.frag`: this frame blended into the ones before it.
-final class TemporalResolveShader implements CpuFragmentShader {
+final class TemporalResolveShader extends CpuFragmentShader {
   const TemporalResolveShader();
 
   @override

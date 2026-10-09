@@ -19,7 +19,7 @@ is why the fourth backend cost nothing above this layer.
 ```dart
 device.beginFrame();
 final pass = device.beginRenderPass(RenderPassDescriptor(
-  colors: [ColorTarget(texture: colour, loadAction: LoadAction.clear)],
+  colors: [ColorTarget(texture: color, loadAction: LoadAction.clear)],
   depth: DepthTarget(texture: depth),
 ));
 pass.setViewport(rect);
@@ -28,7 +28,7 @@ pass.bindPipeline(pipeline);
 pass.bindVertexBuffer(geometry, vertexCount);
 pass.bindIndexBuffer(indices, IndexType.uint32, indexCount);
 pass.bindUniformBlock('FrameInfo', bytes);
-pass.bindTexture('base_color_texture', handle, SamplerOptions());
+pass.bindTexture('base_color_texture', handle, SamplerDescriptor());
 pass.draw();
 pass.submit();
 ```
@@ -78,5 +78,5 @@ That is how a test asserts sorting, culling and state changes — the questions 
 screenshot cannot answer. `releasedTextures`, `releasedGeometry` and `disposed`
 answer whether what was allocated was handed back.
 
-`RenderTargetPool` keys targets by `RenderTargetSpec` and reuses them across
+`RenderTargetPool` keys targets by `RenderTargetDescriptor` and reuses them across
 frames, so a post chain does not allocate one per pass per frame.

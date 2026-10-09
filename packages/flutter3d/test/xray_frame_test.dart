@@ -32,7 +32,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -78,9 +77,9 @@ Future<Uint8List> _frame({
           device,
           CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'cube',
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'cube',
@@ -95,9 +94,9 @@ Future<Uint8List> _frame({
           device,
           CuboidShape(size: Vector3(6.0, 6.0, 0.2)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'wall',
-          baseColor: Vector4(0.3, 0.3, 0.3, glass ? 0.6 : 1.0),
+          baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.3, glass ? 0.6 : 1.0),
           lighting: LightingModel.unlit,
           alphaMode: glass ? MaterialAlphaMode.blend : MaterialAlphaMode.opaque,
         ),
@@ -112,9 +111,9 @@ Future<Uint8List> _frame({
             device,
             CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'near',
-            baseColor: Vector4(0.0, 0.0, 1.0, 1.0),
+            baseColor: LinearColor.fromSrgb(0.0, 0.0, 1.0, 1.0),
             lighting: LightingModel.unlit,
           ),
           name: 'near',
@@ -128,11 +127,7 @@ Future<Uint8List> _frame({
     );
   }
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 50.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 50.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -8.0));
   scene.add(camera);
@@ -147,11 +142,14 @@ Future<Uint8List> _frame({
       shadows: const ShadowSettings(enabled: false),
       tonemap: false,
       exposure: 1.0,
-      xray: XraySettings(color: _silhouette, layerMask: xray ? _layer : 0),
+      xray: XraySettings(
+        color: _silhouette.toLinearColor(),
+        layerMask: xray ? _layer : 0,
+      ),
     ),
   );
-  final bytes = await device.readPixels(result.frame);
-  return bytes!.buffer.asUint8List();
+  final bytes = await device.readback(result.frame);
+  return bytes.buffer.asUint8List();
 }
 
 /// The same idea as [_frame], for the second attachment rather than the first.
@@ -183,9 +181,9 @@ Future<Uint8List> _surfaceFrame({required bool xray}) async {
 
   MeshNode node(String name, Vector3 size, double roughness) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
       lighting: LightingModel.lambert,
       roughness: roughness,
     ),
@@ -207,11 +205,7 @@ Future<Uint8List> _surfaceFrame({required bool xray}) async {
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 50.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 50.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -8.0));
   scene.add(camera);
@@ -227,11 +221,14 @@ Future<Uint8List> _surfaceFrame({required bool xray}) async {
       tonemap: false,
       exposure: 1.0,
       showSurfaceBuffer: true,
-      xray: XraySettings(color: _silhouette, layerMask: xray ? _layer : 0),
+      xray: XraySettings(
+        color: _silhouette.toLinearColor(),
+        layerMask: xray ? _layer : 0,
+      ),
     ),
   );
-  final bytes = await device.readPixels(result.frame);
-  return bytes!.buffer.asUint8List();
+  final bytes = await device.readback(result.frame);
+  return bytes.buffer.asUint8List();
 }
 
 int _count(Uint8List rgba, bool Function(int, int, int) wanted) {

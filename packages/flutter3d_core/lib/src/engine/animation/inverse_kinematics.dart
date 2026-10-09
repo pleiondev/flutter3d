@@ -17,7 +17,7 @@ import 'pose.dart';
 /// through every step and hoping nothing downstream forgot to refresh it — is
 /// exactly the kind of bug an IK solver is hard to unit test into finding,
 /// since a wrong-but-plausible pose still *looks* like a bent limb.
-void _rotateJointWorld(Pose pose, int joint, Quaternion delta) {
+void _rotateJointWorld(AnimationPose pose, int joint, Quaternion delta) {
   final parent = pose.parents[joint];
   final currentWorld = _rotationOf(pose.worldMatrixOf(joint));
   final newWorld = (delta * currentWorld)..normalize();
@@ -91,8 +91,7 @@ double _signedAngle(Vector3 a, Vector3 b, Vector3 axis) {
 /// `anim-14`'s own row.
 ///
 /// **The textbook three-step algorithm**, the same one behind every
-/// off-the-shelf two-bone IK node (Unity's Animation Rigging package
-/// documents the identical three steps under the same name): bend the middle
+/// off-the-shelf two-bone IK node: bend the middle
 /// joint by the difference between its current and desired interior angle
 /// (law of cosines) in whatever plane the chain is *already* bent in; aim the
 /// root so the now-correctly-bent chain points at the target; twist the whole
@@ -114,7 +113,7 @@ abstract final class TwoBoneIk {
   /// Returns the distance between where `tip` actually landed and [target] —
   /// zero within floating-point error whenever [target] was inside reach.
   static double solve(
-    Pose pose, {
+    AnimationPose pose, {
     required int root,
     required int mid,
     required int tip,
@@ -229,7 +228,7 @@ abstract final class FabrikIk {
   /// [target] before the loop needed to run, and up to [maxIterations] when
   /// it never met [tolerance].
   static int solve(
-    Pose pose, {
+    AnimationPose pose, {
     required List<int> joints,
     required Vector3 target,
     double tolerance = 1e-4,

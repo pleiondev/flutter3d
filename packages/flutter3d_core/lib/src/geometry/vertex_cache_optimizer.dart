@@ -6,7 +6,7 @@ import 'mesh_data.dart';
 /// A FIFO post-transform vertex cache's own size on real GPUs, give or take —
 /// the number [optimizeVertexCache] scores triangle choices against when the
 /// caller does not name one.
-const int kDefaultVertexCacheSize = 32;
+const int defaultVertexCacheSize = 32;
 
 const double _cacheDecayPower = 1.5;
 const double _lastTriangleScore = 0.75;
@@ -52,7 +52,7 @@ double _vertexScore(int cachePosition, int activeTriangleCount, int cacheSize) {
 Uint32List optimizeTriangleOrder(
   Uint32List indices,
   int vertexCount, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   final triangleCount = indices.length ~/ 3;
   if (triangleCount == 0) return indices;
@@ -225,7 +225,7 @@ Uint32List optimizeTriangleOrder(
 /// count.
 MeshData optimizeVertexCache(
   MeshData mesh, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   if (mesh.triangleCount == 0) return mesh;
 
@@ -291,7 +291,7 @@ MorphTarget _remapMorphTarget(MorphTarget target, Uint32List oldToNew) {
 /// corner, which is what a triangle order with no locality at all gets.
 double averageCacheMissRatio(
   Uint32List indices, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   final triangleCount = indices.length ~/ 3;
   if (triangleCount == 0) return 0.0;

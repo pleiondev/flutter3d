@@ -14,7 +14,7 @@
 /// **The last group is the half that touches a device.** `bindMaterial` and
 /// `loadMaterial` are exported from `flutter3d.dart` and had no caller
 /// anywhere — no app, no sample, no test — so a published path from a file on
-/// disk to a `Material` the renderer draws with had never been run once. It
+/// disk to a `RenderMaterial` the renderer draws with had never been run once. It
 /// runs here, against `FakeBackend` and a hand-built KTX2, which needs no
 /// live binding: `uploadEncodedImage` sniffs KTX2 before `dart:ui` sees the
 /// bytes.
@@ -34,7 +34,7 @@ import 'helpers/build_ktx2.dart';
 /// Deliberately not a real format. What is being checked is that the engine
 /// hands the file over and takes back a material, not that anybody can parse
 /// anything.
-final class _ToyMaterials implements MaterialDecoder {
+final class _ToyMaterials extends MaterialDecoder {
   const _ToyMaterials({this.greedy = false});
 
   /// Whether it also claims `.fmat`, which is how *replacing* the built-in
@@ -149,7 +149,7 @@ void main() {
         FileAssetSource(_fileNamed('rusty.toymat', 'TOYMAT 0.125')),
       ),
       throwsA(
-        isA<FormatException>().having(
+        isA<FmatFormatException>().having(
           (e) => e.message,
           'message',
           allOf(contains('MaterialDecoder'), contains('.fmat')),
@@ -164,7 +164,7 @@ void main() {
   // touches a device had never run. These four take the same path an
   // application would.
   group('and the half that reaches a device', () {
-    // Mutation: passing `albedo: null` to `Material`'s constructor in
+    // Mutation: passing `albedo: null` to `RenderMaterial`'s constructor in
     // `bindMaterial` — the document still reads, and the two expectations
     // that the image reached the device report false.
     test('loads a file into a drawable material', () async {
@@ -210,7 +210,7 @@ void main() {
     });
 
     // The extension point, end to end: a slot no `SurfaceMaterial` field
-    // names becomes a `Material.extraTextures` entry the encoder binds by
+    // names becomes a `RenderMaterial.extraTextures` entry the encoder binds by
     // name. Mutation: dropping the `extraTextures` loop from `bindMaterial`
     // leaves the map empty and this reports false.
     test('binds a slot only the application\'s shader knows', () async {
@@ -229,7 +229,7 @@ void main() {
       expect(material.extraTextures.keys, <String>['flow']);
     });
 
-    // A `.fmat` may ask an extra slot for a sampler, and `Material` has
+    // A `.fmat` may ask an extra slot for a sampler, and `RenderMaterial` has
     // nowhere to keep one: `extraTextures` is `Map<String, TextureHandle>`
     // and the encoder binds those with the device's default. Said out loud
     // rather than dropped. Mutation: deleting the `sampling` check in

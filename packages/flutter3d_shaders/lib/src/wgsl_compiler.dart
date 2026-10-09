@@ -42,22 +42,26 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
+
 /// Where the two programs are, by name, resolved through `PATH`.
-const String kGlslang = 'glslangValidator';
+const String glslangExecutable = 'glslangValidator';
 
 /// naga's CLI. Installed by `cargo install naga-cli`, which puts it under
 /// `~/.cargo/bin` — on `PATH` for a developer and worth naming in the failure
 /// message for everyone else.
-const String kNaga = 'naga';
+const String nagaExecutable = 'naga';
 
 /// Raised when one of the two programs refuses, carrying what it said.
-final class WgslCompileError implements Exception {
-  const WgslCompileError(this.message);
+final class WgslCompileException extends Flutter3dFormatException {
+  const WgslCompileException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'WgslCompileError: $message';
+  String toString() => 'WgslCompileException: $message';
 }
 
 /// What one stage's compilation produced.
@@ -91,7 +95,7 @@ CompiledStage compileStage(
     final spirv = '${directory.path}/$name.spv';
     final wgsl = '${directory.path}/$name.wgsl';
 
-    final compiled = Process.runSync(kGlslang, <String>[
+    final compiled = Process.runSync(glslangExecutable, <String>[
       '-V',
       '--auto-map-locations',
       '-H',
@@ -100,19 +104,19 @@ CompiledStage compileStage(
       spirv,
     ]);
     if (compiled.exitCode != 0) {
-      throw WgslCompileError(
-        '$kGlslang refused $name:\n${compiled.stdout}${compiled.stderr}',
+      throw WgslCompileException(
+        '$glslangExecutable refused $name:\n${compiled.stdout}${compiled.stderr}',
       );
     }
 
-    final translated = Process.runSync(kNaga, <String>[
+    final translated = Process.runSync(nagaExecutable, <String>[
       '--keep-coordinate-space',
       spirv,
       wgsl,
     ]);
     if (translated.exitCode != 0) {
-      throw WgslCompileError(
-        '$kNaga refused $name:\n${translated.stdout}${translated.stderr}',
+      throw WgslCompileException(
+        '$nagaExecutable refused $name:\n${translated.stdout}${translated.stderr}',
       );
     }
 
@@ -122,14 +126,14 @@ CompiledStage compileStage(
     // opinion of its own. Anything WGSL's own validator rejects would reach the
     // device as a compile error at first draw, on a user's machine, with the
     // build long finished.
-    final revalidated = Process.runSync(kNaga, <String>[
+    final revalidated = Process.runSync(nagaExecutable, <String>[
       '--input-kind',
       'wgsl',
       wgsl,
     ]);
     if (revalidated.exitCode != 0) {
-      throw WgslCompileError(
-        '$kNaga would not read back the WGSL it wrote for $name:\n'
+      throw WgslCompileException(
+        '$nagaExecutable would not read back the WGSL it wrote for $name:\n'
         '${revalidated.stdout}${revalidated.stderr}',
       );
     }
@@ -139,7 +143,7 @@ CompiledStage compileStage(
       offsets: _offsets(compiled.stdout as String),
     );
   } on ProcessException catch (error) {
-    throw WgslCompileError(
+    throw WgslCompileException(
       'could not run ${error.executable} for $name: ${error.message}. '
       'glslangValidator comes with the Vulkan SDK or `brew install '
       'glslang`; naga comes from `cargo install naga-cli`.',

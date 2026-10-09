@@ -5,6 +5,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_node.dart'
+    show FrameContextInternals;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -128,12 +134,12 @@ void main() {
     });
 
     test('bounds every quad of what is alive', () {
-      final centre = vm.Vector3.zero();
-      final radius = threeInARow().boundsInto(centre);
-      expect(centre.z, closeTo(-3.0, 1e-9));
+      final center = vm.Vector3.zero();
+      final radius = threeInARow().boundsInto(center);
+      expect(center.z, closeTo(-3.0, 1e-9));
       // Two metres to either end, and half a quad's diagonal past that.
       expect(radius, closeTo(2.0 + 0.5 * 0.7071067811865476, 1e-9));
-      expect(ParticleSystem().boundsInto(centre), 0.0);
+      expect(ParticleSystem().boundsInto(center), 0.0);
     });
   });
 
@@ -147,14 +153,13 @@ void main() {
       encoder: pass,
       device: device,
       services: _NoServices(),
-      state: FramePassState(),
       settings: const RenderSettings(),
       width: 320,
       height: 200,
       view: RenderView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
       lights: lights,
-    );
+    )..state = FramePassState();
 
     setUp(() {
       device = FakeBackend();
@@ -175,7 +180,7 @@ void main() {
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(4),
-      )!;
+      );
       sheet = SixWayMaterial(positive: texture(), negative: texture());
     });
 
@@ -227,7 +232,7 @@ void main() {
   });
 }
 
-final class _RecordingLights implements ContributorLights {
+final class _RecordingLights with ContributorLights {
   final List<ShaderHandle> stages = <ShaderHandle>[];
   final List<double> radii = <double>[];
 
@@ -235,7 +240,7 @@ final class _RecordingLights implements ContributorLights {
   void bind(
     PassEncoder encoder,
     ShaderHandle stage, {
-    required vm.Vector3 centre,
+    required vm.Vector3 center,
     required double radius,
   }) {
     stages.add(stage);
@@ -243,10 +248,10 @@ final class _RecordingLights implements ContributorLights {
   }
 }
 
-final class _NoServices implements RenderServices {
+final class _NoServices with RenderServices {
   @override
   void encodeScene({
-    required NodeFrame frame,
+    required RenderFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,

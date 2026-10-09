@@ -81,9 +81,9 @@ final class ResourceDesc {
   /// `FrameResources.declare` now refuses one that is.
   final StorageMode storageMode;
 
-  RenderTargetSpec resolve(int frameWidth, int frameHeight) {
+  RenderTargetDescriptor resolve(int frameWidth, int frameHeight) {
     final (width, height) = size.resolve(frameWidth, frameHeight);
-    return RenderTargetSpec(
+    return RenderTargetDescriptor(
       width: width,
       height: height,
       format: format,

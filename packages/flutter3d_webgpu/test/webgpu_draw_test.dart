@@ -21,7 +21,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+import 'package:flutter3d_webgpu/src/webgpu_device.dart';
+import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
@@ -48,7 +49,7 @@ final class _Scene {
       pixels: ByteData.sublistView(
         Uint8List.fromList(<int>[..._red, ..._green]),
       ),
-    )!;
+    );
     pipeline = device.createPipeline(vertexStage, fragmentStage);
     pairPipeline = device.createPipeline(vertexStage, pairStage);
   }
@@ -65,7 +66,7 @@ final class _Scene {
 
   TextureHandle target({int size = 4, int sampleCount = 1}) =>
       device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: size,
           height: size,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -78,7 +79,7 @@ final class _Scene {
     PassEncoder pass, {
     required Float32List where,
     Float32List? tint,
-    SamplerOptions? sampler,
+    SamplerDescriptor? sampler,
     GeometryBuffer? geometry,
   }) {
     pass
@@ -100,8 +101,13 @@ final class _Scene {
   }
 }
 
-Future<WebGpuDevice?> _open() =>
-    WebGpuDevice.create(width: 64, height: 64, stages: quadStages);
+Future<WebGpuDevice?> _open() async {
+  try {
+    return await WebGpuDevice.open(width: 64, height: 64, stages: quadStages);
+  } on DeviceUnavailableException {
+    return null;
+  }
+}
 
 /// The device and a scene over it, or null where this browser has no WebGPU.
 Future<_Scene?> _scene() async {
@@ -139,7 +145,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -184,7 +190,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(y: 0.5, height: 0.5),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -214,7 +220,7 @@ void main() {
       scene.bindQuad(
         pass,
         where: placedAt(y: 0.5, height: 0.5),
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
       pass
         ..draw()
@@ -257,14 +263,14 @@ void main() {
       scene.bindQuad(
         pass,
         where: placedAt(y: 0.5, height: 0.5),
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
       pass.draw();
       scene.bindQuad(
         pass,
         where: placedAt(y: -0.5, height: 0.5),
         tint: tinted(0, 1, 1, 1),
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
       pass
         ..draw()
@@ -294,7 +300,7 @@ void main() {
   test('a sampler is one object per description, not one per bind', () async {
     // In GL the filter and the wrap modes are properties of the texture, so the
     // WebGL2 backend sets four `texParameteri` on every bind. WebGPU has real
-    // sampler objects compared by value, and `SamplerOptions` already is one.
+    // sampler objects compared by value, and `SamplerDescriptor` already is one.
     final scene = await _scene();
     if (scene == null) return;
     final target = scene.target();
@@ -305,13 +311,13 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass.draw();
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass.draw();
     expect(scene.device.debugSamplerCount, 1);
@@ -319,13 +325,103 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.linearClamp,
+      sampler: SamplerDescriptor.linearClamp,
     );
     pass
       ..draw()
       ..submit();
     expect(scene.device.debugSamplerCount, 2);
     expect(await scene.device.debugDrainErrors('samplers'), isNull);
+
+    // Released, the object goes; the next bind of the same description makes
+    // it again.
+    scene.device.releaseSampler(SamplerDescriptor.linearClamp);
+    expect(scene.device.debugSamplerCount, 1);
+    scene.device.releaseSampler(SamplerDescriptor.linearClamp);
+    expect(scene.device.debugSamplerCount, 1, reason: 'a second release');
+    final again = scene.device.beginRenderPass(
+      RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+    )..bindPipeline(scene.pipeline);
+    scene.bindQuad(
+      again,
+      where: placedAt(),
+      sampler: SamplerDescriptor.linearClamp,
+    );
+    again
+      ..draw()
+      ..submit();
+    expect(scene.device.debugSamplerCount, 2);
+    expect(await scene.device.debugDrainErrors('released'), isNull);
+    scene.device.dispose();
+  });
+
+  test(
+    'an asynchronous pipeline is warmed in the states drawn before',
+    () async {
+      // `createPipelineAsync` builds through `createRenderPipelineAsync` in
+      // every state the device has built a pipeline in, and a draw in one of
+      // them finds it ready rather than building it in the frame.
+      // Mutation: return before `_warm` in `createPipelineAsync`. Nothing is
+      // warmed and the draw below builds a third pipeline.
+      final scene = await _scene();
+      if (scene == null) return;
+      final target = scene.target();
+      final first = scene.device.beginRenderPass(
+        RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+      )..bindPipeline(scene.pipeline);
+      scene.bindQuad(first, where: placedAt());
+      first
+        ..draw()
+        ..submit();
+      expect(scene.device.pipelines.length, 1);
+
+      final padded = scene.device.uploadGeometry(
+        quadVertices(stride: 32),
+        GeometryUsage.vertices,
+      );
+      final warmed = await scene.device.createPipelineAsync(
+        scene.vertexStage,
+        scene.fragmentStage,
+        layout: const VertexLayoutDescriptor(<BufferLayout>[
+          BufferLayout(
+            strideInBytes: 32,
+            attributes: <InputAttribute>[
+              InputAttribute(name: 'position', format: VertexFormat.float32x2),
+              InputAttribute(
+                name: 'uv',
+                format: VertexFormat.float32x2,
+                offsetInBytes: 8,
+              ),
+            ],
+          ),
+        ]),
+      );
+      expect(scene.device.debugWarmedPipelines, 1);
+      expect(scene.device.debugWarmRefused, 0);
+      expect(scene.device.pipelines.length, 2);
+
+      final second = scene.device.beginRenderPass(
+        RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+      )..bindPipeline(warmed);
+      scene.bindQuad(second, where: placedAt(), geometry: padded);
+      second
+        ..draw()
+        ..submit();
+      expect(scene.device.pipelines.length, 2, reason: 'found, not built');
+      expect(await scene.device.debugDrainErrors('warmed'), isNull);
+      scene.device.dispose();
+    },
+  );
+
+  test('a compute pipeline is realised asynchronously, whole', () async {
+    final scene = await _scene();
+    if (scene == null) return;
+    // The engine's own compute stage, which every library of this device
+    // answers whatever sidecar it was opened with.
+    final stage = scene.device.shaders['PrefixSum']!;
+    final pipeline = await scene.device.createComputePipelineAsync(stage);
+    expect(pipeline.isDisposed, isFalse);
+    expect(await scene.device.debugDrainErrors('compute async'), isNull);
     scene.device.dispose();
   });
 
@@ -349,7 +445,7 @@ void main() {
     final paddedPipeline = scene.device.createPipeline(
       scene.vertexStage,
       scene.fragmentStage,
-      layout: const VertexLayoutSpec(<BufferLayout>[
+      layout: const VertexLayoutDescriptor(<BufferLayout>[
         BufferLayout(
           strideInBytes: 32,
           attributes: <InputAttribute>[
@@ -370,7 +466,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(y: 0.5, height: 0.5),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -378,7 +474,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(y: -0.5, height: 0.5),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
       geometry: padded,
     );
     pass
@@ -475,7 +571,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -524,7 +620,7 @@ void main() {
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -555,7 +651,7 @@ void main() {
       size: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       faces: <ByteData>[
-        for (final colour in const <List<int>>[
+        for (final color in const <List<int>>[
           _red,
           _green,
           <int>[0, 0, 255, 255],
@@ -563,9 +659,9 @@ void main() {
           <int>[255, 0, 255, 255],
           <int>[0, 255, 255, 255],
         ])
-          ByteData.sublistView(Uint8List.fromList(colour)),
+          ByteData.sublistView(Uint8List.fromList(color)),
       ],
-    )!;
+    );
     final target = scene.target();
 
     final pass = scene.device.beginRenderPass(
@@ -580,7 +676,12 @@ void main() {
       ..bindUniformBlock(cubeStage, 'Tint', <String, Float32List>{
         'value': tinted(1, 1, 1, 1),
       })
-      ..bindTexture(cubeStage, 'sky', cube, sampler: SamplerOptions.linearClamp)
+      ..bindTexture(
+        cubeStage,
+        'sky',
+        cube,
+        sampler: SamplerDescriptor.linearClamp,
+      )
       ..draw()
       ..submit();
 
@@ -596,7 +697,7 @@ void main() {
     if (scene == null) return;
     final target = scene.target();
     final depth = scene.device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.d24UnormS8Uint,
@@ -612,11 +713,11 @@ void main() {
           )
           ..bindPipeline(scene.pipeline)
           ..setDepthCompare(CompareFunction.less)
-          ..setDepthWrite(true);
+          ..setDepthWrite(enabled: true);
     scene.bindQuad(
       pass,
       where: placedAt(),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass.draw();
     // The same depth again, so `less` rejects every fragment of it: the cyan
@@ -625,7 +726,7 @@ void main() {
       pass,
       where: placedAt(),
       tint: tinted(0, 1, 1, 1),
-      sampler: SamplerOptions.nearestClamp,
+      sampler: SamplerDescriptor.nearestClamp,
     );
     pass
       ..draw()
@@ -645,19 +746,19 @@ void main() {
     test('a blend constant, from both ends', () async {
       final scene = await _scene();
       if (scene == null) return;
-      expect(scene.device.supportsBlendColor, isFalse);
+      expect(scene.device.features.has(DeviceFeature.blendConstant), isFalse);
       final pass = scene.device.beginRenderPass(
         RenderPassDescriptor(colors: <ColorTarget>[_clearTo(scene.target())]),
       );
       expect(
         () => pass.setBlendColor(Vector4(1, 1, 1, 1)),
-        throwsUnsupportedError,
+        throwsA(isA<UnsupportedCapability>()),
       );
       expect(
         () => pass.setBlend(
           const BlendState(sourceColorFactor: BlendFactor.blendColor),
         ),
-        throwsUnsupportedError,
+        throwsA(isA<UnsupportedCapability>()),
       );
       pass.submit();
       scene.device.dispose();
@@ -666,13 +767,13 @@ void main() {
     test('a wireframe, which this API has no fill mode for', () async {
       final scene = await _scene();
       if (scene == null) return;
-      expect(scene.device.supportsWireframe, isFalse);
+      expect(scene.device.features.has(DeviceFeature.wireframe), isFalse);
       final pass = scene.device.beginRenderPass(
         RenderPassDescriptor(colors: <ColorTarget>[_clearTo(scene.target())]),
       );
       expect(
         () => pass.setPolygonMode(PolygonMode.line),
-        throwsUnsupportedError,
+        throwsA(isA<UnsupportedCapability>()),
       );
       pass
         ..setPolygonMode(PolygonMode.fill)
@@ -708,7 +809,7 @@ void main() {
         TextureFormat.astc8x8HDR,
       ]) {
         expect(
-          scene.device.supportsTextureFormat(format),
+          scene.device.textureFormatSupport(format).sampled,
           isFalse,
           reason: '${format.name} has no WebGPU spelling and never will',
         );
@@ -726,7 +827,7 @@ void main() {
       if (scene == null) return;
       expect(
         () => scene.device.createTexture(
-          const RenderTargetSpec(
+          const RenderTargetDescriptor(
             width: 8,
             height: 8,
             format: TextureFormat.bc1RGBAUNormInt,
@@ -765,10 +866,10 @@ void main() {
         (TextureFormat.astc4x4LDR, GpuFeature.textureCompressionAstc),
       ]) {
         expect(
-          device.supportsTextureFormat(format),
+          device.textureFormatSupport(format).sampled,
           device.gpuDevice.features.has(feature),
           reason:
-              '${format.name} is reported as ${device.supportsTextureFormat(format)} '
+              '${format.name} is reported as ${device.textureFormatSupport(format).sampled} '
               'while the device ${device.gpuDevice.features.has(feature) ? 'has' : 'has not'} '
               '"$feature"',
         );
@@ -793,7 +894,7 @@ void main() {
       final scene = await _scene();
       if (scene == null) return;
       final device = scene.device;
-      if (!device.supportsTextureFormat(TextureFormat.bc1RGBAUNormInt)) {
+      if (!device.textureFormatSupport(TextureFormat.bc1RGBAUNormInt).sampled) {
         markTestSkipped('this adapter carries no texture-compression-bc');
         device.dispose();
         return;
@@ -856,21 +957,21 @@ void main() {
       scene.bindQuad(
         pass,
         where: placedAt(),
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
       pass
         ..bindTexture(
           scene.fragmentStage,
           'palette',
-          texture!,
-          sampler: SamplerOptions.nearestClamp,
+          texture,
+          sampler: SamplerDescriptor.nearestClamp,
         )
         ..draw()
         ..submit();
 
-      final pixels = await device.readPixels(target);
+      final pixels = await device.readback(target);
       expect(await device.debugDrainErrors('the compressed draw'), isNull);
-      final got = _texel(pixels!, 4, 1, 1);
+      final got = _texel(pixels, 4, 1, 1);
       // BC1 stores 5:6:5, so the endpoint comes back as (140, 69, 206). Eight is
       // the same tolerance the conformance suite allows for the same reason.
       for (final (channel, read, want) in <(String, int, int)>[
@@ -908,21 +1009,21 @@ void main() {
     Future<List<int>> read(
       WebGpuDevice device,
       TextureFormat format,
-      Vector4 colour,
+      Vector4 color,
     ) async {
       final target = device.createTexture(
-        RenderTargetSpec(width: 4, height: 4, format: format),
+        RenderTargetDescriptor(width: 4, height: 4, format: format),
       );
       device
           .beginRenderPass(
             RenderPassDescriptor(
               colors: <ColorTarget>[
-                ColorTarget(texture: target, clearValue: colour),
+                ColorTarget(texture: target, clearValue: color),
               ],
             ),
           )
           .submit();
-      final pixels = await device.readPixels(target);
+      final pixels = await device.readback(target);
       expect(
         await device.debugDrainErrors('the ${format.name} conversion'),
         isNull,
@@ -935,7 +1036,7 @@ void main() {
             'target here',
       );
       expect(
-        pixels!.lengthInBytes,
+        pixels.lengthInBytes,
         4 * 4 * 4,
         reason:
             'the answer is the region times four bytes, whatever the '
@@ -1001,9 +1102,9 @@ void main() {
       // allocated without TEXTURE_BINDING — so the conversion could not sample
       // it either.
       expect(
-        await device.readPixels(
+        await device.readback(
           device.createTexture(
-            const RenderTargetSpec(
+            const RenderTargetDescriptor(
               width: 4,
               height: 4,
               format: TextureFormat.r8g8b8a8UNormInt,
@@ -1018,7 +1119,7 @@ void main() {
       // backend: there are no pixels to copy until a pass resolves it. Read the
       // resolve target.
       expect(
-        await device.readPixels(scene.target(sampleCount: 4)),
+        await device.readback(scene.target(sampleCount: 4)),
         isNull,
         reason: 'a multisampled target is refused on every backend',
       );
@@ -1028,9 +1129,9 @@ void main() {
       // the two the other backends already give. Read the same texture through
       // its non-sRGB layout.
       expect(
-        await device.readPixels(
+        await device.readback(
           device.createTexture(
-            const RenderTargetSpec(
+            const RenderTargetDescriptor(
               width: 4,
               height: 4,
               format: TextureFormat.r8g8b8a8UNormIntSRGB,
@@ -1055,8 +1156,8 @@ void main() {
       // clears one and reads it back, and by `reflection_probe_test.dart`.
       final scene = await _scene();
       if (scene == null) return;
-      expect(scene.device.supportsCubeTextures, isTrue);
-      expect(scene.device.supportsRenderToMip, isTrue);
+      expect(scene.device.features.has(DeviceFeature.cubeTextures), isTrue);
+      expect(scene.device.features.has(DeviceFeature.renderToMipLevel), isTrue);
       final cube = scene.device.createCubeRenderTarget(
         size: 8,
         format: TextureFormat.r16g16b16a16Float,
@@ -1071,7 +1172,7 @@ void main() {
             RenderPassDescriptor(
               colors: <ColorTarget>[
                 ColorTarget(
-                  texture: cube!,
+                  texture: cube,
                   face: 5,
                   mipLevel: 3,
                   clearValue: Vector4(1, 1, 1, 1),

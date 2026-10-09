@@ -28,7 +28,7 @@ void main() {
     test('solid_8x8.jpg is 8x8 — one exact MCU', () {
       final decoded = decodeJpeg(_fixture('solid_8x8.jpg'));
       expect(decoded, isNotNull);
-      expect(decoded!.width, 8);
+      expect(decoded.width, 8);
       expect(decoded.height, 8);
       expect(decoded.rgba.length, 8 * 8 * 4);
     });
@@ -36,21 +36,21 @@ void main() {
     test('gradient_444.jpg is 16x16', () {
       final decoded = decodeJpeg(_fixture('gradient_444.jpg'));
       expect(decoded, isNotNull);
-      expect(decoded!.width, 16);
+      expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
 
     test('gradient_420.jpg is 16x16', () {
       final decoded = decodeJpeg(_fixture('gradient_420.jpg'));
       expect(decoded, isNotNull);
-      expect(decoded!.width, 16);
+      expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
 
     test('gray_16x16.jpg is 16x16, single component', () {
       final decoded = decodeJpeg(_fixture('gray_16x16.jpg'));
       expect(decoded, isNotNull);
-      expect(decoded!.width, 16);
+      expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
   });
@@ -59,7 +59,7 @@ void main() {
     // solid_8x8.jpg was encoded at quality 100 from a flat (200, 100, 50)
     // fill — one MCU, no block boundary for an error to hide across.
     test('solid_8x8.jpg decodes back to its own flat colour', () {
-      final decoded = decodeJpeg(_fixture('solid_8x8.jpg'))!;
+      final decoded = decodeJpeg(_fixture('solid_8x8.jpg'));
       for (var i = 0; i < decoded.rgba.length; i += 4) {
         expect(decoded.rgba[i], closeTo(200, 3));
         expect(decoded.rgba[i + 1], closeTo(100, 3));
@@ -72,7 +72,7 @@ void main() {
     // b = (x+y)*255/30 — so (0,0) is black and every corner is a known,
     // specific colour rather than a shape only "looks like a gradient".
     test('gradient_444.jpg — corner colours match the source gradient', () {
-      final decoded = decodeJpeg(_fixture('gradient_444.jpg'))!;
+      final decoded = decodeJpeg(_fixture('gradient_444.jpg'));
       final w = decoded.width;
       int at(int x, int y, int channel) =>
           decoded.rgba[(y * w + x) * 4 + channel];
@@ -96,30 +96,39 @@ void main() {
 
   group('truncated or malformed files refuse by value', () {
     test('too short to hold even a signature', () {
-      expect(decodeJpeg(Uint8List.fromList(<int>[0xFF, 0xD8])), isNull);
+      expect(
+        () => decodeJpeg(Uint8List.fromList(<int>[0xFF, 0xD8])),
+        throwsA(isA<ImageFormatException>()),
+      );
     });
 
     test('missing the SOI marker entirely', () {
       final bytes = _fixture('solid_8x8.jpg');
       final wrongSignature = Uint8List.fromList(bytes);
       wrongSignature[0] = 0x00;
-      expect(decodeJpeg(wrongSignature), isNull);
+      expect(
+        () => decodeJpeg(wrongSignature),
+        throwsA(isA<ImageFormatException>()),
+      );
     });
 
     test('cut off partway through the entropy-coded scan', () {
       final bytes = _fixture('gradient_444.jpg');
       final truncated = Uint8List.sublistView(bytes, 0, bytes.length - 20);
-      expect(decodeJpeg(truncated), isNull);
+      expect(() => decodeJpeg(truncated), throwsA(isA<ImageFormatException>()));
     });
 
     test('cut off before any SOF/scan at all', () {
       final bytes = _fixture('gradient_444.jpg');
       final truncated = Uint8List.sublistView(bytes, 0, 4);
-      expect(decodeJpeg(truncated), isNull);
+      expect(() => decodeJpeg(truncated), throwsA(isA<ImageFormatException>()));
     });
 
     test('an empty byte list', () {
-      expect(decodeJpeg(Uint8List(0)), isNull);
+      expect(
+        () => decodeJpeg(Uint8List(0)),
+        throwsA(isA<ImageFormatException>()),
+      );
     });
   });
 }

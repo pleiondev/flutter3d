@@ -18,7 +18,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -48,11 +47,14 @@ Scene _scene(
     ..add(
       MeshNode(
         floor,
-        Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+        ),
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(
-      MeshNode(block, Material(name: 'near'))
+      MeshNode(block, RenderMaterial(name: 'near'))
         ..setPosition(0.0, 0.6, 0.0)
         ..shadowCasting = nearCasts
             ? ShadowCastingMode.on
@@ -61,7 +63,7 @@ Scene _scene(
 
   for (var i = 0; i < distant; i++) {
     scene.add(
-      MeshNode(block, Material(name: 'far $i'))
+      MeshNode(block, RenderMaterial(name: 'far $i'))
         ..setPosition(60.0 + i * 4.0, 0.6, 60.0 + i * 4.0)
         ..shadowCasting = casting ? ShadowCastingMode.on : ShadowCastingMode.off
         // **The switch this file compares against.** `frustumCulled` is the
@@ -80,7 +82,7 @@ Scene _scene(
 
   return scene
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -118,17 +120,17 @@ Future<({List<int> pixels, int shadowDraws})> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(
       shadows: ShadowSettings(enabled: true, cascades: 3),
     ),
   );
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     shadowDraws: frame.passes
         .where((p) => p.name == 'directional shadows')
@@ -154,7 +156,7 @@ Future<({List<int> pixels, int shadowDraws})> _pointFrame({
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 40.0,
+        intensity: 40.0 * Photometric.legacyUnit,
         range: 20.0,
         castsShadow: true,
       )..setPosition(0.0, 3.0, 0.0),
@@ -167,15 +169,15 @@ Future<({List<int> pixels, int shadowDraws})> _pointFrame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
   );
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     shadowDraws: frame.passes
         .where((p) => p.name.startsWith('point shadows'))

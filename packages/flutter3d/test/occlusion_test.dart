@@ -16,9 +16,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 // The pyramid's own size, so each cell is one pixel of the frame.
 const int _width = 256;
@@ -31,7 +33,7 @@ const int _height = 128;
 ({Scene scene, CameraNode camera}) _city(GraphicsDevice device) {
   final scene = Scene()
     ..add(
-      LightNode(intensity: 5.0, castsShadow: true)
+      LightNode(intensity: 5.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(6.0, 10.0, 8.0)
         ..lookAt(Vector3.zero()),
     );
@@ -41,7 +43,10 @@ const int _height = 128;
         device,
         CuboidShape(size: Vector3(40, 0.2, 40)).build(),
       ),
-      Material(name: 'floor', baseColor: Vector4(0.7, 0.7, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'floor',
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
+      ),
     )..setPosition(0.0, -0.1, 0.0),
   );
   final block = DeviceMesh.upload(
@@ -52,7 +57,10 @@ const int _height = 128;
     final node = scene.add(
       MeshNode(
         block,
-        Material(name: 'block $i', baseColor: Vector4(0.8, 0.5, 0.3, 1.0)),
+        RenderMaterial(
+          name: 'block $i',
+          baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
+        ),
       )..setPosition(-8.0 + i * 4.0, 3.0, 3.0),
     );
     // Mirrored in x: the same box, its triangles turned over on screen.
@@ -64,7 +72,7 @@ const int _height = 128;
           device,
           const PlaneShape(width: 3.0, depth: 6.0).build(),
         ),
-        Material(name: 'sheet', doubleSided: true),
+        RenderMaterial(name: 'sheet', doubleSided: true),
       )
       ..setPosition(9.5, 3.0, 3.0)
       ..setRotation(
@@ -79,7 +87,7 @@ const int _height = 128;
     scene.add(
       MeshNode(
         thing,
-        Material(baseColor: Vector4(0.3, 0.6, 0.9, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.3, 0.6, 0.9, 1.0)),
         name: 'thing $i',
       )..setPosition(-9.0 + (i % 10) * 2.0, 0.3, -1.0 - (i ~/ 10) * 3.0),
     );
@@ -119,8 +127,8 @@ void main() {
         views: <RenderView>[RenderView(camera: camera)],
         settings: _settings.copyWith(occlusion: mode),
       );
-      final pixels = await it.device.readPixels(frame.frame);
-      return (pixels: pixels!.buffer.asUint8List(), culled: frame.culled);
+      final pixels = await it.device.readback(frame.frame);
+      return (pixels: pixels.buffer.asUint8List(), culled: frame.culled);
     }
 
     final off = await draw(OcclusionMode.none);
@@ -152,8 +160,8 @@ void main() {
           views: views,
           settings: _settings.copyWith(occlusion: mode),
         );
-        final pixels = await it.device.readPixels(frame.frame);
-        return (pixels: pixels!.buffer.asUint8List(), culled: frame.culled);
+        final pixels = await it.device.readback(frame.frame);
+        return (pixels: pixels.buffer.asUint8List(), culled: frame.culled);
       }
 
       final off = await draw(OcclusionMode.none);

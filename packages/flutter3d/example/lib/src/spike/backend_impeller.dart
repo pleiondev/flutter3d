@@ -21,7 +21,7 @@ Future<GraphicsDevice> createBackend({
   required int height,
 }) async => kUseCpuBackend
     ? createCpuBackend(width: width, height: height)
-    : await GpuRenderBackend.create();
+    : await GpuRenderBackend.open();
 
 /// What to call this build in a diagnostic.
 String get kBackendName => kUseCpuBackend ? 'cpu' : 'impeller';

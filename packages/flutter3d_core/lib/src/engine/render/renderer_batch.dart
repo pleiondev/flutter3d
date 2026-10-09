@@ -37,7 +37,7 @@ extension _BatchedDraws on Renderer {
       // The probe a member reflects is chosen by where it is, so two nodes that
       // agree on everything else and sit either side of a probe boundary are
       // two different draws and must stay two.
-      final probe = probes.nearest(first.worldBoundsCentre);
+      final probe = probes.nearest(first.worldBoundsCenter);
 
       var end = i + 1;
       while (end < indices.length) {
@@ -48,8 +48,8 @@ extension _BatchedDraws on Renderer {
             // Adjacent across a boundary of two orders, and the merge would
             // draw the later one at the earlier one's place — `P7`.
             next.drawOrder != first.drawOrder ||
-            next.worldIsMirrored != first.worldIsMirrored ||
-            !identical(probes.nearest(next.worldBoundsCentre), probe)) {
+            next.isWorldMirrored != first.isWorldMirrored ||
+            !identical(probes.nearest(next.worldBoundsCenter), probe)) {
           break;
         }
         end++;
@@ -77,7 +77,7 @@ extension _BatchedDraws on Renderer {
       // it can land on the other side of a probe boundary from the members that
       // agreed with each other. Rather than reason about when that can happen,
       // ask — and draw the run one at a time when the answer differs.
-      if (!identical(probes.nearest(batch.worldBoundsCentre), probe)) {
+      if (!identical(probes.nearest(batch.worldBoundsCenter), probe)) {
         for (var k = i; k < end; k++) {
           encode(_renderList.itemAt(indices[k]).requireNode);
         }
@@ -102,6 +102,9 @@ extension _BatchedDraws on Renderer {
   bool _isBatchable(MeshNode node) =>
       node is! InstancedMeshNode &&
       !node.isTinted &&
+      // `A1.3`: part way through a level-of-detail cross-fade, which is a
+      // pre-draw of its own.
+      node.lodFade == 1.0 &&
       node.skeleton == null &&
       node.morph == null &&
       !node.lightmapped &&
@@ -142,7 +145,7 @@ final class _BatchKey {
   const _BatchKey(this.mesh, this.material);
 
   final MeshGeometry mesh;
-  final Material material;
+  final RenderMaterial material;
 
   @override
   bool operator ==(Object other) =>

@@ -33,7 +33,7 @@ final class VertexLayout {
 
   /// RGBA, **linear**, as glTF's `COLOR_0` is, multiplied into the surface
   /// after the material's sRGB tint has been converted. A colour picked on
-  /// screen goes in through `linearFromSrgb`.
+  /// screen goes in through `LinearColor.fromSrgb`.
   static const VertexAttribute color = VertexAttribute('color', 4);
 
   /// Up to four joint indices, held as floats.

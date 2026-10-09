@@ -75,11 +75,11 @@ void main() {
 
   test('a variant is the same tree with its numbers in it', () {
     final program = parseMaterial(_rimLight);
-    final sharp = specialiseMaterial(
+    final sharp = specializeMaterial(
       program,
       const MaterialVariant('RimSharp'),
     );
-    final soft = specialiseMaterial(
+    final soft = specializeMaterial(
       program,
       const MaterialVariant('RimSoft', <String, List<double>>{
         'rimPower': <double>[8],
@@ -102,7 +102,7 @@ void main() {
     // result is the albedo alone. Hand-computed rather than compared against
     // the evaluator's own earlier answer, which would only say it has not
     // changed.
-    final program = specialiseMaterial(
+    final program = specializeMaterial(
       parseMaterial(_rimLight),
       const MaterialVariant('Rim'),
     );
@@ -123,7 +123,7 @@ void main() {
   });
 
   test('a texture multiplies where the source says it does', () {
-    final program = specialiseMaterial(
+    final program = specializeMaterial(
       parseMaterial(_rimLight),
       const MaterialVariant('Rim'),
     );
@@ -142,7 +142,7 @@ void main() {
       expect(
         () => parseMaterial(source),
         throwsA(
-          isA<MaterialSyntaxError>().having(
+          isA<MaterialSyntaxException>().having(
             (e) => e.message,
             'message',
             stringContainsInOrder(<String>[contains]),
@@ -227,7 +227,7 @@ void main() {
 
     test('a variant that sets a parameter the material has not got', () {
       expect(
-        () => specialiseMaterial(
+        () => specializeMaterial(
           parseMaterial(_rimLight),
           const MaterialVariant('Typo', <String, List<double>>{
             'rimPowr': <double>[4],
@@ -241,7 +241,7 @@ void main() {
       try {
         parseMaterial('material M {\n  fragment {\n    return wind;\n  }\n}');
         fail('parsed');
-      } on MaterialSyntaxError catch (error) {
+      } on MaterialSyntaxException catch (error) {
         expect(error.line, 3);
         expect(error.column, 12);
       }
@@ -251,7 +251,7 @@ void main() {
   test('the emitter writes whole numbers with a decimal point', () {
     // `pow(x, 2)` does not compile in GLSL: the overload takes floats, and an
     // integer literal is the classic way a generated shader stops building.
-    final program = specialiseMaterial(
+    final program = specializeMaterial(
       parseMaterial(
         'material M { fragment { return vec4(albedo * 2.0, 1.0); } }',
       ),
@@ -346,7 +346,7 @@ material Tint {
       // Mutation: fold a uniform with the params in `_fold`, and the block
       // disappears and the default is baked in.
       final glsl = emitMaterialFragment(
-        specialiseMaterial(parseMaterial(source), const MaterialVariant('T')),
+        specializeMaterial(parseMaterial(source), const MaterialVariant('T')),
       );
       expect(glsl, contains('uniform MaterialParams {'));
       expect(glsl, contains('  vec3 tint;'));
@@ -355,7 +355,7 @@ material Tint {
     });
 
     test('takes the draw\'s value, and its default without one', () {
-      final program = specialiseMaterial(
+      final program = specializeMaterial(
         parseMaterial(source),
         const MaterialVariant('T'),
       );
@@ -382,7 +382,7 @@ material Tint {
 
     test('cannot be set by a variant', () {
       expect(
-        () => specialiseMaterial(
+        () => specializeMaterial(
           parseMaterial(source),
           const MaterialVariant('T', <String, List<double>>{
             'tint': <double>[0, 0, 0],
@@ -393,7 +393,7 @@ material Tint {
     });
 
     test(
-      'says the stage binds Material.parameters, and what they start as',
+      'says the stage binds RenderMaterial.parameters, and what they start as',
       () {
         final bindings = describeMaterial(parseMaterial(source));
         expect(bindings.usesMaterialParameters, isTrue);
@@ -423,7 +423,7 @@ material Tint {
           'material M { uniform float material_params = 1.0; '
           'fragment { return vec4(albedo, 1.0); } }',
         ),
-        throwsA(isA<MaterialSyntaxError>()),
+        throwsA(isA<MaterialSyntaxException>()),
       );
     });
   });
@@ -445,7 +445,7 @@ material Toon {
       expect(
         () => parseMaterial(source),
         throwsA(
-          isA<MaterialSyntaxError>().having(
+          isA<MaterialSyntaxException>().having(
             (e) => e.message,
             'message',
             contains(says),
@@ -466,7 +466,7 @@ material Toon {
       // Mutation: keep the unlit stubs for a material with a light block —
       // the engine's loop calls a ShadeLight that ignores the block.
       final glsl = emitMaterialFragment(
-        specialiseMaterial(parseMaterial(toon), const MaterialVariant('Toon')),
+        specializeMaterial(parseMaterial(toon), const MaterialVariant('Toon')),
       );
       expect(glsl, isNot(contains('F3D_NO_LIGHT_LIST')));
       expect(glsl, contains('#include <lib/shadow.glsl>'));
@@ -540,7 +540,7 @@ material Toon {
     // A fragment input no vertex stage writes is a link error, so a stage
     // that does not read `instance` must not declare it.
     String emitted(String body) => emitMaterialFragment(
-      specialiseMaterial(
+      specializeMaterial(
         parseMaterial('material M { fragment { return $body; } }'),
         const MaterialVariant('M'),
       ),

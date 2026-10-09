@@ -4,13 +4,12 @@
 /// [CpuDevice] `wg-01`'s own tests already use to avoid a GPU.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 GraphicsDevice _device() => CpuDevice(
   width: 16,
@@ -65,13 +64,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(part.visible, isTrue, reason: 'step-1 shows it');
+    expect(part.isVisible, isTrue, reason: 'step-1 shows it');
     final beforeX = rig.stage.readWorldPosition().x;
 
     await tester.tap(find.byTooltip('Next step'));
     await tester.pump();
 
-    expect(part.visible, isFalse, reason: 'step-2 hides it');
+    expect(part.isVisible, isFalse, reason: 'step-2 hides it');
     final afterX = rig.stage.readWorldPosition().x;
     expect(afterX - beforeX, closeTo(1.0, 1e-6));
   });

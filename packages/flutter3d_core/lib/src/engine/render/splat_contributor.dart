@@ -30,7 +30,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/typed_blocks.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
@@ -39,6 +42,7 @@ import '../scene/scene_node.dart';
 import 'engine_tables.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
+import 'render_node.dart' show FrameContextInternals;
 import 'splat_lod.dart';
 import 'splat_sort.dart';
 import 'splat_sort_gpu.dart';
@@ -49,25 +53,25 @@ import 'splat_sort_gpu.dart';
 /// that cost fill rate to add nothing; nearer and the cut-off in `splat.frag`
 /// starts clipping something visible, which shows as the quad's own square edge
 /// — a field of faint rectangles.
-const double kSplatReach = 3.0;
+const double splatReach = 3.0;
 
 /// Floats per vertex in `VertexLayout.positionColorTexcoord`: xyz, rgba, uv.
-const int kSplatFloatsPerVertex = 9;
+const int splatFloatsPerVertex = 9;
 
 /// Six vertices a splat: two triangles sharing no vertex between them, drawn
 /// through the identity index buffer `MeshOverlay` also reaches for, since
 /// this engine has no unindexed draw at all.
-const int kSplatVerticesPerSplat = 6;
+const int splatVerticesPerSplat = 6;
 
 /// The screen-space low-pass filter every splat's footprint is widened by, in
 /// pixels squared: the variance a Gaussian at least one pixel across has.
-const double kSplatLowPass = 0.3;
+const double splatLowPass = 0.3;
 
 /// How far off the view axis the perspective lean is taken, as a multiple of
 /// the half field of view: a splat centred beyond the frame's edge is leaned
 /// as if it sat at 1.3 times the edge, so one far off to the side and close
 /// to the eye does not become a streak across the whole screen.
-const double kSplatLeanLimit = 1.3;
+const double splatLeanLimit = 1.3;
 
 /// What [SplatQuads.build] needs of a camera beyond its right and up axes:
 /// its view axis, and how the projection turns depth into pixels.
@@ -111,7 +115,7 @@ final class SplatLens {
   final Vector3 forward;
 
   /// Whether this is an orthographic lens: clip `w` does not grow with depth.
-  bool get orthographic => depthWeight == 0.0;
+  bool get isOrthographic => depthWeight == 0.0;
 
   /// Pixels per unit of `x / w` on the screen: half the viewport's height
   /// times the projection's vertical scale.
@@ -120,11 +124,16 @@ final class SplatLens {
   /// Clip `w` as `depthWeight · depth + depthOffset`, depth measured along
   /// [forward]: `(1, 0)` for a perspective projection, `(0, 1)` for an
   /// orthographic one.
+  /// A unitless factor.
   final double depthWeight;
+
+  /// In clip `w`: unitless.
   final double depthOffset;
 
   /// The tangents of the half fields of view, which bound the lean.
   final double tanHalfWidth;
+
+  /// Tangent of half the vertical field of view, a unitless ratio.
   final double tanHalfHeight;
 }
 
@@ -142,8 +151,8 @@ final class SplatQuads {
   SplatQuads.lod(SplatLod this.lod) : _cloud = _noSplats();
 
   static SplatCloud _noSplats() => SplatCloud(
-    centres: Float32List(0),
-    colours: Float32List(0),
+    centers: Float32List(0),
+    colors: Float32List(0),
     scales: Float32List(0),
     rotations: Float32List(0),
   );
@@ -229,7 +238,7 @@ final class SplatQuads {
   /// the eye has moved since.
   ///
   /// [lens] is the rest of the camera: with it each ellipse is the
-  /// perspective one and is widened by [kSplatLowPass] on the screen, which
+  /// perspective one and is widened by [splatLowPass] on the screen, which
   /// is how [SplatContributor] always builds. Without it the covariance is
   /// projected onto [right] and [up] alone and nothing is added — the exact
   /// ellipse on the view axis, and a quad whose size is the splat's own, for
@@ -251,7 +260,7 @@ final class SplatQuads {
     // A tree's cut is chosen where the sort runs, so a hashed build still
     // sorts when the cut moves: the order and the cut have to agree.
     // `P7`: depth along the axis through an orthographic lens.
-    final axis = lens != null && lens.orthographic ? lens.forward : null;
+    final axis = lens != null && lens.isOrthographic ? lens.forward : null;
     if ((sorted || lod != null) && _needsSort(eye, model, axis, keysOnly)) {
       final lod = this.lod;
       if (lod != null) {
@@ -264,7 +273,7 @@ final class SplatQuads {
         _sortedBudget = lod.budget;
       }
       if (keysOnly) {
-        _sorter.quantise(cloud, eye, model: model, axis: axis);
+        _sorter.quantize(cloud, eye, model: model, axis: axis);
       } else {
         _sorter.sort(cloud, eye, model: model, axis: axis);
       }
@@ -277,7 +286,7 @@ final class SplatQuads {
     }
     final order = sorted && !keysOnly ? _sorter.order : null;
     final count = cloud.count;
-    final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
+    final needed = count * splatVerticesPerSplat * splatFloatsPerVertex;
     if (_vertices.length < needed) _vertices = Float32List(needed);
 
     // The camera's axes as the cloud's own space sees them, when it has one.
@@ -311,23 +320,23 @@ final class SplatQuads {
     final fx = m == null ? wfx : m[0] * wfx + m[1] * wfy + m[2] * wfz;
     final fy = m == null ? wfy : m[4] * wfx + m[5] * wfy + m[6] * wfz;
     final fz = m == null ? wfz : m[8] * wfx + m[9] * wfy + m[10] * wfz;
-    final leanX = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfWidth;
-    final leanY = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfHeight;
+    final leanX = lens == null ? 0.0 : splatLeanLimit * lens.tanHalfWidth;
+    final leanY = lens == null ? 0.0 : splatLeanLimit * lens.tanHalfHeight;
 
     var at = 0;
     for (var n = 0; n < count; n++) {
       final i = order == null ? n : order[n];
       cloud.covarianceOf(i, _covariance);
 
-      final lx = cloud.centres[i * 3];
-      final ly = cloud.centres[i * 3 + 1];
-      final lz = cloud.centres[i * 3 + 2];
+      final lx = cloud.centers[i * 3];
+      final ly = cloud.centers[i * 3 + 1];
+      final lz = cloud.centers[i * 3 + 2];
       final cx = m == null ? lx : m[0] * lx + m[4] * ly + m[8] * lz + m[12];
       final cy = m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13];
       final cz = m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14];
 
       // Where the splat sits in the camera's frame, and so how far `J`'s rows
-      // lean: `x/w` and `y/w` along the view axis, bounded as [kSplatLeanLimit]
+      // lean: `x/w` and `y/w` along the view axis, bounded as [splatLeanLimit]
       // says, and nothing for an orthographic lens, whose `w` does not move.
       // Its size in pixels is `focal / w` per world unit in the quad's plane.
       final double leanR, leanU, pixel;
@@ -370,7 +379,7 @@ final class SplatQuads {
 
       // With the screen's low-pass filter added to the diagonal, taken from
       // pixels squared to the quad's world units squared.
-      final dilation = kSplatLowPass * pixel * pixel;
+      final dilation = splatLowPass * pixel * pixel;
       final a = jrx * arx + jry * ary + jrz * arz + dilation;
       final b = jrx * aux + jry * auy + jrz * auz;
       final d = jux * aux + juy * auy + juz * auz + dilation;
@@ -397,8 +406,8 @@ final class SplatQuads {
         e1y = b / length;
       }
 
-      final sigma1 = math.sqrt(major) * kSplatReach;
-      final sigma2 = math.sqrt(minor) * kSplatReach;
+      final sigma1 = math.sqrt(major) * splatReach;
+      final sigma2 = math.sqrt(minor) * splatReach;
 
       // The two quad axes, back in world space.
       final axX = (e1x * sigma1) * wrx + (e1y * sigma1) * wux;
@@ -408,15 +417,15 @@ final class SplatQuads {
       final ayY = (-e1y * sigma2) * wry + (e1x * sigma2) * wuy;
       final ayZ = (-e1y * sigma2) * wrz + (e1x * sigma2) * wuz;
 
-      final r = cloud.colours[i * 4];
-      final g = cloud.colours[i * 4 + 1];
-      final bl = cloud.colours[i * 4 + 2];
-      final alpha = cloud.colours[i * 4 + 3];
+      final r = cloud.colors[i * 4];
+      final g = cloud.colors[i * 4 + 1];
+      final bl = cloud.colors[i * 4 + 2];
+      final alpha = cloud.colors[i * 4 + 3];
 
       // Two triangles over the four corners. The texture coordinate is the
       // corner's position in the Gaussian's own frame, in standard deviations,
       // which is what `splat.frag` evaluates its falloff from — so the corners
-      // carry ±[kSplatReach] rather than the zero-to-one a texture would want.
+      // carry ±[splatReach] rather than the zero-to-one a texture would want.
       void corner(double sx, double sy) {
         _vertices[at] = cx + axX * sx + ayX * sy;
         _vertices[at + 1] = cy + axY * sx + ayY * sy;
@@ -425,9 +434,9 @@ final class SplatQuads {
         _vertices[at + 4] = g;
         _vertices[at + 5] = bl;
         _vertices[at + 6] = alpha;
-        _vertices[at + 7] = sx * kSplatReach;
-        _vertices[at + 8] = sy * kSplatReach;
-        at += kSplatFloatsPerVertex;
+        _vertices[at + 7] = sx * splatReach;
+        _vertices[at + 8] = sy * splatReach;
+        at += splatFloatsPerVertex;
       }
 
       corner(-1, -1);
@@ -438,7 +447,7 @@ final class SplatQuads {
       corner(-1, 1);
     }
 
-    vertexCount = count * kSplatVerticesPerSplat;
+    vertexCount = count * splatVerticesPerSplat;
   }
 
   bool _needsSort(Vector3 eye, Matrix4? model, Vector3? axis, bool keysOnly) {
@@ -531,7 +540,7 @@ final class SplatContributor extends PassContributor {
 
   /// Whether a sorted cloud is ordered on the GPU where the device can —
   /// `H11`: compute and the `SplatSort` stages, which is WebGPU, and a cloud
-  /// of at most [kSplatGpuSortLimit] splats. On by default. Off sorts on the
+  /// of at most [splatGpuSortLimit] splats. On by default. Off sorts on the
   /// CPU everywhere, which is the order the GPU's is held to; the picture is
   /// the same either way.
   bool gpuSort = true;
@@ -548,7 +557,7 @@ final class SplatContributor extends PassContributor {
 
   /// Whether the last frame drew this cloud in the GPU sort's order — what
   /// a test asks to know which of the two orders it is looking at.
-  bool get drewGpuOrder => _drewGpuOrder;
+  bool get didDrawGpuOrder => _drewGpuOrder;
 
   /// [_gpu] for [frame]'s device, made the first time it is asked for, or
   /// null where the CPU sorts.
@@ -557,7 +566,7 @@ final class SplatContributor extends PassContributor {
     final most = lod != null ? lod.budget : cloud.count;
     if (!gpuSort ||
         hashed ||
-        most > kSplatGpuSortLimit ||
+        most > splatGpuSortLimit ||
         !SplatGpuSort.availableOn(frame.device)) {
       return null;
     }
@@ -607,7 +616,7 @@ final class SplatContributor extends PassContributor {
       // A tree has drawn nothing before its first cut, which is made in
       // encode; asking the cut would keep it from ever being made.
       (quads.lod != null || cloud.count > 0) &&
-      (node?.visibleInHierarchy ?? true);
+      (node?.isVisibleInHierarchy ?? true);
 
   @override
   void encode(ContributorFrame frame) {
@@ -696,7 +705,7 @@ final class SplatContributor extends PassContributor {
     final bytes = ByteData.view(
       quads.vertices.buffer,
       quads.vertices.offsetInBytes,
-      quads.vertexCount * kSplatFloatsPerVertex * 4,
+      quads.vertexCount * splatFloatsPerVertex * 4,
     );
 
     _particleInfo.viewProjection.setAll(0, viewProjection.storage);
@@ -711,11 +720,11 @@ final class SplatContributor extends PassContributor {
     // out of the murk at full colour on every backend while the walls behind
     // it faded. WebGL2 was the one that said so, naming the block at the draw.
     final fog = frame.settings.fog;
-    final colour = fog.resolvedColor;
+    final color = fog.resolvedColor;
     _fog
-      ..[0] = colour.x
-      ..[1] = colour.y
-      ..[2] = colour.z
+      ..[0] = color.r
+      ..[1] = color.g
+      ..[2] = color.b
       ..[3] = fog.densityAt(eye.y);
     _eye
       ..[0] = eye.x
@@ -763,7 +772,7 @@ final class SplatContributor extends PassContributor {
           fragmentShader,
           'blue_noise_texture',
           EngineTables.of(frame.device).blueNoise,
-          sampler: SamplerOptions.nearestClamp,
+          sampler: SamplerDescriptor.nearestClamp,
         );
     }
     frame.encoder.draw();
@@ -785,7 +794,7 @@ final class SplatContributor extends PassContributor {
     final bytes = ByteData.view(
       quads.vertices.buffer,
       quads.vertices.offsetInBytes,
-      quads.vertexCount * kSplatFloatsPerVertex * 4,
+      quads.vertexCount * splatFloatsPerVertex * 4,
     );
     _particleInfo.viewProjection.setAll(0, frame.viewProjection.storage);
     frame.encoder

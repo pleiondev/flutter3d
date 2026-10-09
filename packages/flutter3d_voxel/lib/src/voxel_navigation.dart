@@ -1,5 +1,5 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show Brush, NavLattice, NavMesh, NavMeshConfig;
+    show Brush, NavLattice, NavMesh, NavMeshSettings;
 import 'package:vector_math/vector_math.dart';
 
 import 'voxel_boxes.dart';
@@ -8,14 +8,14 @@ import 'voxel_world.dart';
 /// The lattice and tiles a voxel world's navigation mesh is baked on: half a
 /// metre a cell, so a one-voxel corridor is two cells wide, and four-metre
 /// tiles, so an edit bakes again a few tiles round it and not the world.
-const NavMeshConfig voxelNavConfig = NavMeshConfig(
+const NavMeshSettings voxelNavConfig = NavMeshSettings(
   tileSize: 8,
   maxEdgeError: 0.45,
 );
 
 /// [box] as a level brush: what the navigation mesh is baked from.
 Brush brushOf(VoxelBox box) => Brush(
-  centre: Vector3(
+  center: Vector3(
     (box.minX + box.maxX) / 2.0,
     (box.minY + box.maxY) / 2.0,
     (box.minZ + box.maxZ) / 2.0,
@@ -57,7 +57,7 @@ final class VoxelNavigation {
   final VoxelWorld voxels;
 
   /// What the mesh is baked to.
-  final NavMeshConfig config;
+  final NavMeshSettings config;
 
   final Map<ChunkKey, List<Brush>> _brushes = <ChunkKey, List<Brush>>{};
 

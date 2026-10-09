@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'flip.dart';
 
@@ -210,10 +211,7 @@ Future<Uint8List> _picture(
   int width,
   int height,
 ) async {
-  final bytes = await device.readPixels(result.frame);
-  if (bytes == null) {
-    throw StateError('the device could not read back the frame');
-  }
+  final bytes = await device.readback(result.frame);
   return _stretch(
     bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
     result.frame.width,

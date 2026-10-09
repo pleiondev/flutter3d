@@ -32,10 +32,7 @@ void main() {
       );
       look
         ..update(seconds: 3.0, eye: Vector3(0.0, -2.0, 0.0), level: 1.5)
-        ..water(
-          absorb: Vector3(0.45, 0.065, 0.025),
-          scatter: Vector3(0.05, 0.22, 0.30),
-        )
+        ..optics = LiquidOptics.pureWater
         ..sun(along: Vector3(0.0, -1.0, 0.0), light: Vector3(2.0, 2.0, 2.0));
       expect(look.material.parameters['level'], <double>[1.5]);
       expect(look.material.parameters['toSun'], <double>[0.0, 1.0, 0.0]);

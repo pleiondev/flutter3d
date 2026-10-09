@@ -1,4 +1,4 @@
-/// Writes `lib/engine_compute_shaders.dart`: the engine's compute stages in
+/// Writes `lib/src/engine_compute_shaders.dart`: the engine's compute stages in
 /// WGSL, with their bindings and workgroup size — `H6`.
 ///
 ///     dart run tool/generate_compute_shaders.dart
@@ -67,8 +67,8 @@ void main() {
     ..writeln('// through glslangValidator and naga.')
     ..writeln('library;')
     ..writeln()
-    ..writeln("import 'src/webgpu_bundle_section.dart';")
-    ..writeln("import 'src/webgpu_compute_stage.dart';")
+    ..writeln("import 'webgpu_bundle_section.dart';")
+    ..writeln("import 'webgpu_compute_stage.dart';")
     ..writeln()
     ..writeln("/// The engine's compute stages, in WGSL, with their bindings.")
     ..writeln(
@@ -142,7 +142,7 @@ void main() {
   }
   out.writeln('};');
 
-  final target = File('lib/engine_compute_shaders.dart')
+  final target = File('lib/src/engine_compute_shaders.dart')
     ..writeAsStringSync(out.toString());
   Process.runSync('dart', <String>['format', target.path]);
   stdout.writeln(

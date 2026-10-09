@@ -29,7 +29,7 @@ VoxelWorld _plot() => VoxelWorld(
   void Function(VoxelWorld world) edits,
 ) {
   edits(world);
-  nav.follow(world.takeChanges());
+  nav.follow(world.drainChanges());
   return (followed: nav, whole: VoxelNavigation(world).mesh.digest);
 }
 
@@ -91,7 +91,7 @@ void main() {
         ..edit(x, 2, 20, Voxels.empty)
         ..edit(x, 1, 20, Voxels.empty);
       // Each block followed on its own, as a player digs.
-      nav.follow(world.takeChanges());
+      nav.follow(world.drainChanges());
     }
     expect(nav.mesh.digest, VoxelNavigation(world).mesh.digest);
     expect(
@@ -101,7 +101,7 @@ void main() {
     world
       ..edit(6, 4, 6, 5)
       ..edit(6, 5, 6, 5);
-    nav.follow(world.takeChanges());
+    nav.follow(world.drainChanges());
     expect(nav.mesh.digest, nav.bakeWhole().digest);
     expect(nav.mesh.polygonsAt(6.5, 6.5), isEmpty);
   });
@@ -109,14 +109,14 @@ void main() {
   test('a save restored over later edits bakes as the save does', () {
     final world = _plot()..edit(3, 3, 3, Voxels.empty);
     final saved = world.toJson();
-    world.takeChanges();
+    world.drainChanges();
     final nav = VoxelNavigation(world);
     world
       ..edit(25, 3, 25, Voxels.empty)
       ..edit(12, 4, 3, 5);
-    nav.follow(world.takeChanges());
+    nav.follow(world.drainChanges());
     world.restoreEdits(saved);
-    nav.follow(world.takeChanges());
+    nav.follow(world.drainChanges());
     expect(
       nav.mesh.digest,
       VoxelNavigation(VoxelWorld.fromJson(saved)).mesh.digest,
@@ -127,7 +127,7 @@ void main() {
     final world = _plot();
     final nav = VoxelNavigation(world);
     final mesh = nav.mesh;
-    nav.follow(world.takeChanges());
+    nav.follow(world.drainChanges());
     expect(nav.mesh, same(mesh));
   });
 }

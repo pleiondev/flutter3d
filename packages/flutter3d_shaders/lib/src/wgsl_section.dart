@@ -35,6 +35,9 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
+
 import 'glsl_to_wgsl.dart';
 
 /// The shape of the document this writer produces.
@@ -51,16 +54,17 @@ import 'glsl_to_wgsl.dart';
 /// changes, a bundle packed today would be read as one packed tomorrow — the
 /// gate would pass and the reflection would be misread. Saying the number is
 /// what makes the refusal possible.
-const int kSectionVersion = 1;
+const int sectionVersion = 1;
 
 /// Raised when a prepared stage cannot be turned into a section entry.
-final class WgslSectionError implements Exception {
-  const WgslSectionError(this.message);
+final class WgslSectionException extends Flutter3dFormatException {
+  const WgslSectionException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'WgslSectionError: $message';
+  String toString() => 'WgslSectionException: $message';
 }
 
 /// One finished stage: the WGSL the two compilers made, and the reflection the
@@ -80,7 +84,7 @@ String wgslSectionDocument({
   required Map<String, PackedStage> vertex,
   required Map<String, PackedStage> fragment,
 }) => jsonEncode(<String, Object>{
-  'version': kSectionVersion,
+  'version': sectionVersion,
   'vertex': <String, Object>{
     for (final entry in vertex.entries) entry.key: _stageJson(entry.value),
   },
@@ -137,11 +141,11 @@ Map<String, Object> _stageJson(PackedStage stage) => <String, Object>{
 /// than reaching a layout that would be refused at pipeline creation with
 /// nothing here to explain it.
 String _gpuDimension(PreparedSampler sampler) => switch (sampler.dimension) {
-  kTwoDimensional => '2d',
-  kCubeDimension => 'cube',
-  _ => throw WgslSectionError(
+  twoDimensional => '2d',
+  cubeDimension => 'cube',
+  _ => throw WgslSectionException(
     'the sampler "${sampler.name}" has the dimension "${sampler.dimension}", '
-    'which is neither $kTwoDimensional nor $kCubeDimension',
+    'which is neither $twoDimensional nor $cubeDimension',
   ),
 };
 
@@ -172,7 +176,7 @@ void checkStd140Offsets(
   for (final block in prepared.blocks) {
     final theirs = offsets[block.name];
     if (theirs == null) {
-      throw WgslSectionError(
+      throw WgslSectionException(
         '$name: the reflection has the block "${block.name}" and the compiled '
         'shader does not',
       );
@@ -180,13 +184,13 @@ void checkStd140Offsets(
     for (final member in block.members) {
       final expected = theirs[member.name];
       if (expected == null) {
-        throw WgslSectionError(
+        throw WgslSectionException(
           '$name: "${block.name}.${member.name}" is in the reflection and not '
           'in the compiled block',
         );
       }
       if (expected != member.offsetInBytes) {
-        throw WgslSectionError(
+        throw WgslSectionException(
           '$name: "${block.name}.${member.name}" is at ${member.offsetInBytes} '
           'by std140 and at $expected in the SPIR-V',
         );

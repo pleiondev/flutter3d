@@ -8,6 +8,7 @@
 /// refusal is added, so it is the place a test of one belongs.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -16,7 +17,7 @@ TextureHandle _texture({
   StorageMode storageMode = StorageMode.devicePrivate,
   int sampleCount = 1,
   TextureType type = TextureType.texture2D,
-}) => TextureHandle(
+}) => wrapTexture(
   backend: 'not a texture',
   width: 8,
   height: 6,

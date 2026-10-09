@@ -1,4 +1,146 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: the simulation, the physics and the audio are not re-exported.**
+  `EngineLoop`, `EntityDef`, `InputState`, `Level`, `LevelCollision`,
+  `LevelFormatException`, `LevelMaterial`, `Collider`, `CollisionWorld`,
+  `RigidDynamics`, `AudioEmitter`, `AudioListener`, `AudioScene`, `SoundBank`
+  and `SoundDef` are `flutter3d_game`'s facade now, or imported from their own
+  packages, and this package no longer depends on `flutter3d_sim`,
+  `flutter3d_physics` or `flutter3d_audio_core`. `OriginShifted` and
+  `RenderAnchor` are the plugin API's and imported from there. The
+  foundation's value types (`LinearColor`, `WorldPosition`, their crossings
+  and the exception roots) are re-exported from `flutter3d_foundation` itself,
+  by name, where they came through the core and the plugin API.
+
+- **`liquidMeshes`, `LiquidLayerMesh`, `jetMesh` and `particleMesh` are
+  no longer re-exported**: they moved from `flutter3d_core` to
+  `flutter3d_effects`, which draws the physics' liquids. New in 1.0, so no
+  0.8 code calls them.
+- **Breaking: `linearFromSrgb` is gone.** It made a `Vector4` vertex
+  colour; every vertex-colour call takes a `LinearColor` now, and
+  `LinearColor.fromSrgb(r, g, b)` is the same decoded colour.
+- **`ShadowTechnique`, `ShadowKernel` and `ShadowPrefilter` are
+  exported**, with the rest of the shadow settings.
+- **Breaking: a material file nobody claims throws `FmatFormatException`**,
+  where `loadMaterialDocument` threw the SDK's `FormatException`.
+
+- **Breaking: the facade follows the HAL and the core** — the device
+  exceptions `DeviceResourceException`, `DeviceUnavailableException` and
+  `PanoramaFormatException` and the `SynchronousBufferReadback` mixin are
+  exported, and `DeviceCapabilityForwarders` is not, being gone.
+- **Breaking: `ModelAsset.release(device)` is `dispose()`**, the one verb
+  for ending what holds GPU memory. The asset remembers the device it was
+  uploaded to; a second call does nothing, and `isDisposed` says whether it
+  ran. `dart fix` carries the call.
+- **A first game reaches the simulation, physics and audio through this
+  import.** `flutter3d` re-exports `Level`, `LevelCollision`,
+  `LevelMaterial`, `LevelFormatException`, `EntityDef`, `EngineLoop` and
+  `InputState` from `flutter3d_sim`, `CollisionWorld`, `Collider` and
+  `RigidDynamics` from `flutter3d_physics`, `AudioScene`, `AudioListener`,
+  `AudioEmitter`, `SoundBank` and `SoundDef` from `flutter3d_audio_core`, and
+  vector_math's `Vector2`, `Vector3`, `Vector4`, `Quaternion` and `Matrix3`
+  (not its `Colors`, which is Flutter's name). A file that declares one of
+  these names itself now hides it from this import.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `DebugDrawOptions` is `DebugDrawSettings`, `RenderTargetSpec` is
+  `RenderTargetDescriptor`, `RenderViewOptions` is `RenderViewSettings`,
+  `SamplerOptions` is `SamplerDescriptor`, `VertexLayoutSpec` is
+  `VertexLayoutDescriptor`. Every settings class is `final` with a `const`
+  constructor and a `copyWith` over every field; a nullable field is reset
+  with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kDefaultVertexCacheSize` is
+  `defaultVertexCacheSize`, `kF3dVendorKindStart` is `f3dVendorKindStart`,
+  `kImpostorGrid` is `impostorGrid`, `kPayloadBits` is `payloadBits`,
+  `kRootMotionExtra` is `rootMotionExtra`, `kSplatGpuSortLimit` is
+  `splatGpuSortLimit`, `kSplatShC0` is `splatShC0`,
+  `kSplatVerticesPerSplat` is `splatVerticesPerSplat`. The values are the
+  same; `dart fix` carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `ModelSwap.complete` is `isComplete`. `dart fix` carries the renames.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `SkyColour` is `SkyColor`, `specialiseMaterial` is
+  `specializeMaterial`, `SplatColourSpace` is `SplatColorSpace`. Only the
+  Dart names changed: a file keeps the keys it was written with, and `dart
+  fix` carries the renames.
+- **Breaking: the facade follows the core.** `RenderMaterial`, `LocalRay`,
+  `AnimationPose`, `RenderFrame`, `FrameContext`, `RenderViewSettings`,
+  `DeviceRegistry`, `WorldPosition`, `WorldRay`, `LinearColor` and the
+  vector crossings are shown; the internals the core no longer exports are
+  not. `parity_scene.dart` is gone (the engine's own test fixture), and so
+  is `assetDeviceClass`: pass `deviceClass` to `loadModelAsset` and
+  `loadModelByPath`. `MaterialDecoder` is an `abstract base class`.
+
+- **The core's format exceptions are re-exported.** `GltfFormatException`,
+  `FmatFormatException`, `CubeLutFormatException`, `ImageFormatException`,
+  `FrameCaptureFormatException`, `AnimationGraphFormatException`,
+  `FbxFormatException`, `MeshoptFormatException` and
+  `MaterialBundleException` are what the readers this package shows now
+  throw, so a game catches them with one import; `coreFormats`,
+  `F3dExtraSection`, `F3dSectionFlags` and `f3dVendorKindStart` come along.
+  See `flutter3d_core`'s notes for what changed in the readers.
+- **`LinearColor` from a Flutter `Color` and back.** `color.toLinear()`
+  decodes through the exact sRGB curve (a Display P3 colour goes through
+  extended sRGB, so nothing is clipped) and `linear.toColor()` encodes. The
+  foundation types, `Flutter3dException` with its families, `WorldPosition`
+  and `LinearColor`, are re-exported from here.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The facade re-exports the new debugging types**: `DebugViewKind`,
+  `DebugWipeSide`, `CaptureThumbnail`, `MemoryReport`, `MemoryEntry` and
+  `MemoryCategory`.
+
+- **`toReversedDepth` and `withDepthPlanes` are exported** with the rest of
+  the projection helpers — `A2.8`–`A2.10`; the depth convention, the fitted
+  near plane and the infinite far plane are in `flutter3d_core`'s notes.
+
+- **`Decoders`: material decoders beside the model ones, for plugins.** It
+  extends `ModelDecoders` with `addMaterialDecoder`, so an application that
+  draws hands the plugin host one registry and a plugin finds it as either
+  type. `withMaterialDecoders` puts a call's own decoders before the
+  registered ones. `loadModelByPath` takes the registry as `decoders:` and
+  reads a path whose scheme a plugin registered through that plugin's
+  source; without it nothing changes.
+
+- **`loadModelAsset` takes `decoders:` too.** A source path whose scheme a
+  plugin registered is read through that plugin's source, and every request
+  it makes, the debug fallback to `assets_src/` included, carries the
+  registered decoders after its own. `loadModelByPath` hands its registry on
+  for an `assets_src/` path, where it used to drop it. Without the argument
+  nothing changes.
+
+- **Breaking: `flutter3d.dart` re-exports `flutter3d_core` and
+  `flutter3d_hardware` by name.** The lists hold what applications, examples
+  and tests reach through this import, the types those names are written in,
+  and what the guides name. Format internals (`F3dSection`, the KTX2 field
+  tables, `f3dVersion`), the material language's syntax tree
+  (`MaterialExpression` and its nodes), the block encoders
+  (`encodeEtc2Rgb8Block`), splat and shadow bookkeeping
+  (`ShadowSlotAllocator`, `sortSplatKeys`) and the backend registries
+  (`BindUniformBlockObject`, `LayeredShaderLibrary`) are no longer
+  re-exported; they are still public in `flutter3d_core` and
+  `flutter3d_hardware`. A name added to either becomes this package's API only
+  by being added to the list.
+
+- **`RenderAnchor` and `RendererSteps` are on the list.** They are how an
+  application or a plugin places a pass of its own at one of the engine's
+  anchors and adds a render step of its own; see `flutter3d_core`.
+
+- **A test that a low caster keeps its shadow far from the camera,
+  against a computed truth.** `test/far_cascade_shadow_test.dart` works out
+  where a box's shadow lies on a plane by casting rays to the sun, and
+  holds the software backend's frame to it: most of the true shadow drawn,
+  and no lit floor darkened past the edge's texels. It is the guard on
+  `flutter3d_core`'s per-cascade bias.
 
 - **Listed for the web.** The engine ran in the browser through
   `flutter3d_webgl`, but pub.dev listed it without the web, because pub.dev
@@ -19,7 +161,23 @@
 - `bindMaterial` takes a `name` for the bound material, the file's own by
   default; a level passes the name its surfaces use.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+- **`defaultImageDecoder` decodes a large image at the size it will be
+  used.** It is a `SizedImageDecoder` now: `maxDimension` goes to `dart:ui`'s
+  target size, so the full-size pixels are never made. Every existing call
+  is unchanged.
+
+- **Generated assets are revalidated with the server on the web.**
+  `loadRevalidatedAsset` and `loadRevalidatedAssetString` fetch with
+  `cache: 'no-cache'` (or a content hash in the URL), so a bundle cached from
+  an older deploy is never paired with newer code; `BundleAssetSource` uses
+  them for every `isGeneratedAsset`. `loadShaderBundleAsset` and
+  `loadShaderBundleBytes` rethrow a bundle refused as stale as a
+  `ShaderBundleException` naming the file (`asset`) and what to do (`advice`),
+  and on the web reload the page once to fetch code and bundle from the same
+  build, with `refreshing` set while it goes. Natively these
+  are `rootBundle` reads.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.3+1
 

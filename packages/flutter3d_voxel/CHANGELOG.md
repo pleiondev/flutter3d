@@ -1,9 +1,38 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **A voxel world is a format of its own.** `VoxelWorld.toJson` writes the
+  envelope (`f3d.voxelWorld`, `VoxelWorld.format`), keeps the keys a later
+  build added, and refuses a newer world; a world saved before the envelope
+  reads as version 1, against the `v1/sandbox.voxels.json` fixture.
+- **Seeded terrain says which drawing made it.** `VoxelTerrain` writes
+  `generatorVersion` beside the seed, and a world drawn by a newer one is
+  refused rather than having its edits land on other blocks.
+- **Breaking: a world that will not read throws `VoxelFormatException`**,
+  a `Flutter3dFormatException`, where it threw the SDK's
+  `FormatException`.
+
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `NavMeshConfig` is `NavMeshSettings`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **Breaking: `VoxelWorld.takeChanges` is `drainChanges`**, the one verb for
+  a read that empties what it reads. `dart fix` carries it.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
 
 - **The first publication, and the number skips from 0.1.0.** That number
   was carried inside the workspace and never reached pub.dev, so nobody
   outside saw the ones passed over. The shelf goes out on one number so
-  that one number names one tree, and `^0.9.0` on any `flutter3d_*`
+  that one number names one tree, and `^1.0.0` on any `flutter3d_*`
   package resolves against every other.
 
 - **A world of blocks, kept as a seed and the edits since.** `VoxelWorld`
@@ -36,4 +65,4 @@
   boxes, which say where a ray stopped and not which voxel it was; the face
   it entered by is where a placed block goes.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.

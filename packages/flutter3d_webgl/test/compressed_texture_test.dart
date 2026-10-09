@@ -27,12 +27,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
 WebGlDevice _makeDevice({int width = 8, int height = 8}) {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: width,
     height: height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -58,7 +57,7 @@ void main() {
     );
 
     expect(handle, isNotNull);
-    expect(handle!.format, TextureFormat.etc2RGB8UNormInt);
+    expect(handle.format, TextureFormat.etc2RGB8UNormInt);
     expect(device.debugDrainErrors('after ETC2 upload'), isNull);
     device.dispose();
   });

@@ -7,6 +7,7 @@
 /// `WgslModuleCompiler`, and here it is a counter.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
@@ -24,7 +25,7 @@ final class _Module {
   final int serial;
 }
 
-final class _Compiler implements WgslModuleCompiler {
+final class _Compiler with WgslModuleCompiler {
   final List<String> compiled = <String>[];
   final Set<String> rejected = <String>{};
 
@@ -244,7 +245,7 @@ void main() {
   });
 
   group('a pipeline with a declared layout', () {
-    final layout = const VertexLayoutSpec(<BufferLayout>[
+    final layout = const VertexLayoutDescriptor(<BufferLayout>[
       BufferLayout(
         strideInBytes: 32,
         attributes: <InputAttribute>[
@@ -328,7 +329,7 @@ void main() {
           createWebGpuPipeline(
                 library['Sparse']!,
                 library['Pbr']!,
-                layout: const VertexLayoutSpec(<BufferLayout>[
+                layout: const VertexLayoutDescriptor(<BufferLayout>[
                   BufferLayout(
                     strideInBytes: 32,
                     attributes: <InputAttribute>[
@@ -359,7 +360,7 @@ void main() {
         () => createWebGpuPipeline(
           library['MeshVertex']!,
           library['Pbr']!,
-          layout: const VertexLayoutSpec(<BufferLayout>[
+          layout: const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 12,
               attributes: <InputAttribute>[
@@ -405,7 +406,7 @@ void main() {
       final library = WebGpuShaderLibrary(_Compiler(), sidecar);
       expect(
         () => createWebGpuPipeline(
-          const ShaderHandle(backend: 'not a WGSL module', name: 'Foreign'),
+          wrapShader(backend: 'not a WGSL module', name: 'Foreign'),
           library['Pbr']!,
         ),
         throwsA(
@@ -444,7 +445,7 @@ void main() {
       // engine never pairs those two, so nothing draws wrong today — and a
       // backend that took the first of the two silently would draw wrong the
       // day something did.
-      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final library = WebGpuShaderLibrary(_Compiler(), webGpuEngineShaders);
       expect(
         () => createWebGpuPipeline(
           library['VertexTextureProbeVertex']!,
@@ -500,28 +501,28 @@ void main() {
   group('the engine\'s own shaders', () {
     test('every stage the sidecar names compiles and knows its kind', () {
       final compiler = _Compiler();
-      final library = WebGpuShaderLibrary(compiler, engineShaders);
-      for (final name in engineShaders.vertex.keys) {
+      final library = WebGpuShaderLibrary(compiler, webGpuEngineShaders);
+      for (final name in webGpuEngineShaders.vertex.keys) {
         expect((library[name]!.backend as WebGpuShader).isVertex, isTrue);
       }
-      for (final name in engineShaders.fragment.keys) {
+      for (final name in webGpuEngineShaders.fragment.keys) {
         expect((library[name]!.backend as WebGpuShader).isVertex, isFalse);
       }
       expect(
         library.debugTrackedModuleCount,
-        engineShaders.vertex.length + engineShaders.fragment.length,
+        webGpuEngineShaders.vertex.length + webGpuEngineShaders.fragment.length,
       );
     });
 
     test('the instanced layout the renderer declares resolves', () {
       // The five call sites that hand a layout in are the reason both paths
       // exist; this is the shape of the one in `renderer_resources.dart`.
-      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final library = WebGpuShaderLibrary(_Compiler(), webGpuEngineShaders);
       final pipeline =
           createWebGpuPipeline(
                 library['MeshInstancedVertex']!,
                 library['Pbr']!,
-                layout: VertexLayoutSpec(<BufferLayout>[
+                layout: VertexLayoutDescriptor(<BufferLayout>[
                   BufferLayout(
                     strideInBytes: 64,
                     attributes: <InputAttribute>[
@@ -584,12 +585,12 @@ void main() {
     });
 
     test('the particle mesh layout resolves against its own stage', () {
-      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final library = WebGpuShaderLibrary(_Compiler(), webGpuEngineShaders);
       final pipeline =
           createWebGpuPipeline(
                 library['ParticleMeshVertex']!,
                 library['ParticleMesh']!,
-                layout: const VertexLayoutSpec(<BufferLayout>[
+                layout: const VertexLayoutDescriptor(<BufferLayout>[
                   BufferLayout(
                     strideInBytes: 64,
                     attributes: <InputAttribute>[
@@ -638,7 +639,7 @@ void main() {
     test('every fragment stage says which targets it writes', () {
       // A stage this cannot read falls back to writing every target, which is
       // the mistake that drew `taa-embers` black; none of the engine's may.
-      for (final entry in engineShaders.fragment.entries) {
+      for (final entry in webGpuEngineShaders.fragment.entries) {
         expect(
           wgslFragmentOutputs(entry.value.wgsl),
           isNotNull,
@@ -651,7 +652,7 @@ void main() {
       // The temporal pass carries both targets and the particle stage has one
       // output. Mutation: report every target as written, and the pipeline
       // WebGPU is handed claims the velocity it has nothing for.
-      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final library = WebGpuShaderLibrary(_Compiler(), webGpuEngineShaders);
       final pipeline =
           createWebGpuPipeline(
                 library['ParticleVertex']!,
@@ -726,7 +727,7 @@ fn main(@builtin(position) at: vec4<f32>) -> FragmentOutput {
     //
     // Mutation: build every slot bindable. The first expectation fails.
     test('is not the caller\'s to bind, and the kept ones still are', () {
-      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final library = WebGpuShaderLibrary(_Compiler(), webGpuEngineShaders);
       final pipeline =
           createWebGpuPipeline(
                 library['MeshVertex']!,

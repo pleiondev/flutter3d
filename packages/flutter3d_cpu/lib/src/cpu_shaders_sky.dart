@@ -20,12 +20,12 @@ import 'cpu_shaders_color.dart';
 /// and been right on its own, which is exactly the kind of divergence that
 /// makes a transcription stop being one.
 ///
-/// The two constants that have to match the GLSL are the output depth 0.999999
-/// — the far plane less a hair, so the ordinary `less` test passes against a
-/// buffer cleared to 1.0 — and the layout below. `sky_frame_test.dart` pins the
-/// depth against the text of the shader itself, because a drift between the two
-/// is a sky that is either invisible or in front of the world.
-final class SkyVertexShader implements CpuVertexShader {
+/// What has to match the GLSL is the layout below: three floats of position
+/// — the corner and the depth it is drawn at, which the renderer writes as
+/// 0.999999 the ordinary way round and nought reversed (`A2.8`) — then what the
+/// fragment stage reads. A drift between the two is a sky that is either
+/// invisible or in front of the world.
+final class SkyVertexShader extends CpuVertexShader {
   const SkyVertexShader();
 
   /// The ray, then the six vec4s of preset.
@@ -34,17 +34,17 @@ final class SkyVertexShader implements CpuVertexShader {
 
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
-    // Attribute 0..1 is the clip-space corner; the rest is what the fragment
-    // stage reads, passed straight through.
+    // Attribute 0..2 is the clip-space corner and its depth; the rest is
+    // what the fragment stage reads, passed straight through.
     for (var i = 0; i < varyingCount; i++) {
-      out[i] = a[2 + i];
+      out[i] = a[3 + i];
     }
-    return Vector4(a[0], a[1], 0.999999, 1.0);
+    return Vector4(a[0], a[1], a[2], 1.0);
   }
 }
 
 /// `sky_cube.vert`: the same triangle, carrying a tint instead of a preset.
-final class SkyCubeVertexShader implements CpuVertexShader {
+final class SkyCubeVertexShader extends CpuVertexShader {
   const SkyCubeVertexShader();
 
   @override
@@ -53,9 +53,9 @@ final class SkyCubeVertexShader implements CpuVertexShader {
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
     for (var i = 0; i < varyingCount; i++) {
-      out[i] = a[2 + i];
+      out[i] = a[3 + i];
     }
-    return Vector4(a[0], a[1], 0.999999, 1.0);
+    return Vector4(a[0], a[1], a[2], 1.0);
   }
 }
 
@@ -66,7 +66,7 @@ final class SkyCubeVertexShader implements CpuVertexShader {
 /// this package and not a dependency, because a software backend that needs the
 /// engine to draw a triangle is not a backend. `tonemapNeutral` is the same
 /// bargain. What keeps the two honest is a test that evaluates both.
-final class SkyShader implements CpuFragmentShader {
+final class SkyShader extends CpuFragmentShader {
   const SkyShader();
 
   @override
@@ -132,7 +132,7 @@ final class SkyShader implements CpuFragmentShader {
 /// The face table is `BoundTexture.sampleCube`'s, not this file's — written
 /// once, where the conformance suite can check it against the other two
 /// backends rather than against a reading of the code.
-final class SkyCubeShader implements CpuFragmentShader {
+final class SkyCubeShader extends CpuFragmentShader {
   const SkyCubeShader();
 
   @override
@@ -172,7 +172,7 @@ final class SkyCubeShader implements CpuFragmentShader {
 /// well under a step of eight bits. The one place that is not smooth is the
 /// stars' hash, where a `fract` decides whether a cell holds a star, and there
 /// every product is rounded to single precision, as the GPU computes it.
-final class SkyPhysicalShader implements CpuFragmentShader {
+final class SkyPhysicalShader extends CpuFragmentShader {
   const SkyPhysicalShader();
 
   static const int _viewSteps = 16;
@@ -192,7 +192,7 @@ final class SkyPhysicalShader implements CpuFragmentShader {
     final grounded = ground > 0.0;
     final span = grounded ? ground : _leave(eyeR, dy, air.top);
 
-    var seenR = 0.0, seenM = 0.0;
+    var seenR = 0.0, seenM = 0.0, seenO = 0.0;
     var molR = 0.0, molG = 0.0, molB = 0.0;
     var hazeR = 0.0, hazeG = 0.0, hazeB = 0.0;
     for (var i = 0; i < _viewSteps; i++) {
@@ -205,17 +205,20 @@ final class SkyPhysicalShader implements CpuFragmentShader {
       final h = r - air.planet;
       final airR = math.exp(-h / air.rayleighHeight) * stride;
       final airM = math.exp(-h / air.mieHeight) * stride;
+      final airO = _Air.ozoneDensity(h) * stride;
       seenR += airR;
       seenM += airM;
+      seenO += airO;
       if (_meet(r, (px * sx + py * sy + pz * sz) / r, air.planet) > 0.0) {
         continue;
       }
-      final (sunR, sunM) = air.sunward(px, py, pz, sx, sy, sz);
+      final (sunR, sunM, sunO) = air.sunward(px, py, pz, sx, sy, sz);
       final mr = seenR - 0.5 * airR + sunR;
       final mm = seenM - 0.5 * airM + sunM;
-      final tr = air.through(0, mr, mm);
-      final tg = air.through(1, mr, mm);
-      final tb = air.through(2, mr, mm);
+      final mo = seenO - 0.5 * airO + sunO;
+      final tr = air.through(0, mr, mm, mo);
+      final tg = air.through(1, mr, mm, mo);
+      final tb = air.through(2, mr, mm, mo);
       molR += airR * tr;
       molG += airR * tg;
       molB += airR * tb;
@@ -234,24 +237,26 @@ final class SkyPhysicalShader implements CpuFragmentShader {
         ((1.0 - gg) * (1.0 + mu * mu)) /
         ((2.0 + gg) * math.pow(1.0 + gg - 2.0 * g * mu, 1.5));
 
+    // Luminance: `v_sun.w` is the sunlight on the luminance scale, and the
+    // phase functions are per steradian.
     final sun = v[14];
     var r = sun * (molR * v[3] * rayleighPhase + hazeR * v[7] * miePhase);
     var gr = sun * (molG * v[4] * rayleighPhase + hazeG * v[7] * miePhase);
     var bl = sun * (molB * v[5] * rayleighPhase + hazeB * v[7] * miePhase);
-    final seen0 = air.through(0, seenR, seenM);
-    final seen1 = air.through(1, seenR, seenM);
-    final seen2 = air.through(2, seenR, seenM);
+    final seen0 = air.through(0, seenR, seenM, seenO);
+    final seen1 = air.through(1, seenR, seenM, seenO);
+    final seen2 = air.through(2, seenR, seenM, seenO);
 
     if (grounded) {
       final px = dx * span, py = eyeR + dy * span, pz = dz * span;
       final pl = math.sqrt(px * px + py * py + pz * pz);
       final lit = (px * sx + py * sy + pz * sz) / pl;
       if (lit > 0.0) {
-        final (sunR, sunM) = air.sunward(px, py, pz, sx, sy, sz);
+        final (sunR, sunM, sunO) = air.sunward(px, py, pz, sx, sy, sz);
         final k = v[18] / math.pi * lit * sun;
-        r += seen0 * air.through(0, sunR, sunM) * k;
-        gr += seen1 * air.through(1, sunR, sunM) * k;
-        bl += seen2 * air.through(2, sunR, sunM) * k;
+        r += seen0 * air.through(0, sunR, sunM, sunO) * k;
+        gr += seen1 * air.through(1, sunR, sunM, sunO) * k;
+        bl += seen2 * air.through(2, sunR, sunM, sunO) * k;
       }
     } else {
       // The disc, as `sky.frag` and [SkyShader] draw it, dimmed by the air.
@@ -365,19 +370,44 @@ final class _Air {
       eye = v[17];
 
   final Float32List v;
+
+  /// The molecules' scale height, in kilometres (thousands of metres), as
+  /// every length here is.
   final double rayleighHeight;
+
+  /// The haze's extinction at the ground, per kilometre (thousand metres).
   final double mieExtinction;
+
+  /// The haze's scale height, in kilometres.
   final double mieHeight;
+
+  /// The planet's radius, in kilometres (thousands of metres).
   final double planet;
+
+  /// The radius of the top of the air, in kilometres.
   final double top;
+
+  /// The eye's distance from the planet's centre, in kilometres (thousands
+  /// of metres).
   final double eye;
 
-  /// `Through`, one channel at a time.
-  double through(int channel, double molecules, double haze) =>
-      math.exp(-(v[3 + channel] * molecules + mieExtinction * haze));
+  /// `kOzone`: ozone's absorption at its peak, per km, at the Earth's amount.
+  static const List<double> _ozone = <double>[0.650e-3, 1.881e-3, 0.085e-3];
 
-  /// `SunwardAir`.
-  (double, double) sunward(
+  /// `OzoneDensity`: the ozone at [h] km, as a share of its peak 25 km up.
+  static double ozoneDensity(double h) =>
+      math.max(0.0, 1.0 - (h - 25.0).abs() / 15.0);
+
+  /// `Through`, one channel at a time. `v_stars.w` is the ozone's amount.
+  double through(int channel, double molecules, double haze, double ozone) =>
+      math.exp(
+        -(v[3 + channel] * molecules +
+            mieExtinction * haze +
+            _ozone[channel] * (v[22] * ozone)),
+      );
+
+  /// `SunwardAir`: molecules, haze and ozone.
+  (double, double, double) sunward(
     double px,
     double py,
     double pz,
@@ -392,14 +422,15 @@ final class _Air {
       top,
     );
     final stride = span / SkyPhysicalShader._lightSteps;
-    var airR = 0.0, airM = 0.0;
+    var airR = 0.0, airM = 0.0, airO = 0.0;
     for (var j = 0; j < SkyPhysicalShader._lightSteps; j++) {
       final u = (j + 0.5) * stride;
       final qx = px + sx * u, qy = py + sy * u, qz = pz + sz * u;
       final h = math.sqrt(qx * qx + qy * qy + qz * qz) - planet;
       airR += math.exp(-h / rayleighHeight) * stride;
       airM += math.exp(-h / mieHeight) * stride;
+      airO += ozoneDensity(h) * stride;
     }
-    return (airR, airM);
+    return (airR, airM, airO);
   }
 }

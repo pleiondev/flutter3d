@@ -32,27 +32,27 @@ import '../srgb.dart';
 /// Copied rather than derived, the choice `inflate.dart` makes for RFC 1951's
 /// tables: it is `0.5 * sqrt(1 / pi)`, and a version worked out here would be a
 /// second answer to a question the file format has already answered.
-const double kSplatShC0 = 0.28209479177387814;
+const double splatShC0 = 0.28209479177387814;
 
 /// A fitted cloud, in the units the file stored.
 final class SplatCloud {
   SplatCloud({
-    required this.centres,
-    required this.colours,
+    required this.centers,
+    required this.colors,
     required this.scales,
     required this.rotations,
     this.shDegree = 0,
     Float32List? shRest,
-  }) : count = centres.length ~/ 3,
+  }) : count = centers.length ~/ 3,
        shRest = shRest ?? Float32List(0) {
-    if (colours.length != count * 4 ||
+    if (colors.length != count * 4 ||
         scales.length != count * 3 ||
         rotations.length != count * 4) {
       throw ArgumentError(
         'A cloud of $count splats needs ${count * 3} centre floats, '
         '${count * 4} colour floats, ${count * 3} scale floats and '
-        '${count * 4} rotation floats; got ${centres.length}, '
-        '${colours.length}, ${scales.length} and ${rotations.length}.',
+        '${count * 4} rotation floats; got ${centers.length}, '
+        '${colors.length}, ${scales.length} and ${rotations.length}.',
       );
     }
     if (shDegree < 0 || shDegree > 4) {
@@ -71,11 +71,11 @@ final class SplatCloud {
   final int count;
 
   /// `xyz` per splat, in world units.
-  final Float32List centres;
+  final Float32List centers;
 
   /// Linear RGB and alpha per splat, already through the sigmoid and the
   /// spherical-harmonic constant — the file stores neither.
-  final Float32List colours;
+  final Float32List colors;
 
   /// The ellipsoid's reach along its own three axes, in world units, already
   /// through the exponential the file stores it under.
@@ -88,7 +88,7 @@ final class SplatCloud {
   /// The highest spherical-harmonic band the source carried, 0 to 4 — glTF
   /// stops at 3, SPZ goes to 4.
   ///
-  /// **Carried, not drawn.** [colours] is band 0 alone, which is the colour a
+  /// **Carried, not drawn.** [colors] is band 0 alone, which is the colour a
   /// splat has from every direction; the higher bands are what makes it
   /// change with the viewing angle, and nothing in the draw evaluates them
   /// yet. They are kept rather than dropped so that the stage which does
@@ -167,9 +167,9 @@ final class SplatCloud {
     for (var i = 0; i < count; i++) {
       order[i] = i;
       keys[i] =
-          (centres[i * 3] - eye.x) * forward.x +
-          (centres[i * 3 + 1] - eye.y) * forward.y +
-          (centres[i * 3 + 2] - eye.z) * forward.z;
+          (centers[i * 3] - eye.x) * forward.x +
+          (centers[i * 3 + 1] - eye.y) * forward.y +
+          (centers[i * 3 + 2] - eye.z) * forward.z;
     }
 
     // Along the view axis rather than by true distance: the two disagree only
@@ -189,8 +189,8 @@ double splatOpacity(double logit) => 1.0 / (1.0 + math.exp(-logit));
 /// A zeroth-band spherical-harmonic coefficient as a colour channel, in the
 /// space it was fitted in and unclamped — the raw sum the file's numbers make.
 ///
-/// What the engine draws is [splatColour]'s answer, not this one.
-double splatChannel(double coefficient) => 0.5 + kSplatShC0 * coefficient;
+/// What the engine draws is [splatColor]'s answer, not this one.
+double splatChannel(double coefficient) => 0.5 + splatShC0 * coefficient;
 
 /// The colour space a splat's colours were fitted in, as
 /// `KHR_gaussian_splatting`'s `colorSpace` names it.
@@ -198,7 +198,7 @@ double splatChannel(double coefficient) => 0.5 + kSplatShC0 * coefficient;
 /// A PLY or SPZ file does not say, and every trainer that writes one fits it
 /// to sRGB-encoded photographs and blends it in that encoding, so [srgb] is
 /// what their readers assume unless told otherwise.
-enum SplatColourSpace {
+enum SplatColorSpace {
   /// `srgb_rec709_display`: the fitted colours are sRGB-encoded.
   srgb,
 
@@ -218,10 +218,10 @@ enum SplatColourSpace {
 /// linear comes back out as about 0.735, which is the whole capture washed
 /// out. The curve is defined on `[0, 1]`, so an sRGB channel clamps at one
 /// too; a linear one keeps its highlights.
-double splatColour(double coefficient, SplatColourSpace space) {
+double splatColor(double coefficient, SplatColorSpace space) {
   final channel = math.max(0.0, splatChannel(coefficient));
   return switch (space) {
-    SplatColourSpace.srgb => srgbToLinear(math.min(channel, 1.0)),
-    SplatColourSpace.linear => channel,
+    SplatColorSpace.srgb => srgbToLinear(math.min(channel, 1.0)),
+    SplatColorSpace.linear => channel,
   };
 }

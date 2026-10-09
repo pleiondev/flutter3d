@@ -213,7 +213,7 @@ double rectangleFormFactor(List<Vector3> corners, Vector3 n) {
 
 /// `RectangleClosestPoint` — the representative point for the specular lobe.
 Vector3 rectangleClosestPoint(
-  Vector3 centre,
+  Vector3 center,
   Vector3 halfWidth,
   Vector3 halfHeight,
   Vector3 world,
@@ -221,10 +221,10 @@ Vector3 rectangleClosestPoint(
 ) {
   final n = halfWidth.cross(halfHeight);
   final nLen = n.length;
-  if (nLen < 1e-12) return centre;
+  if (nLen < 1e-12) return center;
   n.scale(1.0 / nLen);
 
-  final toPlane = centre - world;
+  final toPlane = center - world;
   final denom = mirror.dot(n);
   final Vector3 onPlane;
   if (denom.abs() < 1e-5) {
@@ -239,7 +239,7 @@ Vector3 rectangleClosestPoint(
   final hLen2 = math.max(halfHeight.dot(halfHeight), 1e-12);
   final u = (offset.dot(halfWidth) / wLen2).clamp(-1.0, 1.0);
   final v = (offset.dot(halfHeight) / hLen2).clamp(-1.0, 1.0);
-  return centre + halfWidth * u + halfHeight * v;
+  return center + halfWidth * u + halfHeight * v;
 }
 
 /// `SampleLight`.
@@ -264,7 +264,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   final position = fromList
       ? lightListTexel(bindings, row, 0)
       : bindings.vec4('FragInfo', 'light_position', Vector4.zero(), at: index);
-  final colour = fromList
+  final color = fromList
       ? (lightListTexel(bindings, row, 1)
           // The intensity and not the colour, for `_pack`'s own reason: the
           // same multiply, and only one of them is a number nobody authored.
@@ -331,7 +331,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     final h = (l + s.view)..normalize();
     return (
       direction: l,
-      radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * radiance),
+      radiance: Vector3(color.x, color.y, color.z) * (color.w * radiance),
       nDotL: formFactor,
       nDotH: math.max(s.normal.dot(h), 0.0),
       vDotH: math.max(s.view.dot(h), 0.0),
@@ -380,10 +380,9 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
         ? lightListTexel(bindings, row, 3)
         : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
     final cosAngle = aim.dot(-toLight);
-    lightAttenuation *= ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(
-      0.0,
-      1.0,
-    );
+    final ramp = ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
+    // Squared, as `surface.glsl`'s and KHR_lights_punctual's falloff is.
+    lightAttenuation *= ramp * ramp;
   }
 
   final half = (toLight + s.view)..normalize();
@@ -391,8 +390,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   if (nDotL <= 0.0) return null;
   return (
     direction: toLight,
-    radiance:
-        Vector3(colour.x, colour.y, colour.z) * (colour.w * lightAttenuation),
+    radiance: Vector3(color.x, color.y, color.z) * (color.w * lightAttenuation),
     nDotL: nDotL,
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
@@ -471,9 +469,9 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
       ? lightListTexel(bindings, row, column)
       : bindings.vec4(block, member, Vector4.zero(), at: index);
   final position = read('light_position', 0);
-  final colour = read('light_color', 1);
+  final color = read('light_color', 1);
   if (fromList) {
-    colour.w *= fromCell
+    color.w *= fromCell
         ? (inSlots(bindings, row) ? 0.0 : 1.0)
         : lightListScale(bindings, slot);
   }
@@ -498,16 +496,17 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
   final falloff = window * window / math.max(distance * distance, 1e-4);
 
   final spot = type > 1.5 && type < 2.5;
-  final ramp = spot
+  final linearRamp = spot
       ? ((aim.dot(-toLight) - cone.y) / math.max(cone.x - cone.y, 1e-4)).clamp(
           0.0,
           1.0,
         )
       : 1.0;
+  final ramp = linearRamp * linearRamp;
 
   final attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
   return (
     toLight: toLight,
-    radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * attenuation),
+    radiance: Vector3(color.x, color.y, color.z) * (color.w * attenuation),
   );
 }

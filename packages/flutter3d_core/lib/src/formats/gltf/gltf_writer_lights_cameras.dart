@@ -23,12 +23,18 @@ extension _GltfWriterLightsCameras on GltfWriter {
 
   Map<String, Object?> _lightJson(ModelLight light) => <String, Object?>{
     if (light.name != null) 'name': light.name,
-    'type': light.type.name,
+    // The extension's words, spelled out: a rename of a value must not
+    // change what the file says.
+    'type': switch (light.type) {
+      ModelLightType.directional => 'directional',
+      ModelLightType.point => 'point',
+      ModelLightType.spot => 'spot',
+    },
     // Written whenever it differs from white, rather than always: white is
     // the spec's own default, so a file this writer produces stays as small
     // as one written by an authoring tool that also omits the default.
-    if (light.color.x != 1.0 || light.color.y != 1.0 || light.color.z != 1.0)
-      'color': <double>[light.color.x, light.color.y, light.color.z],
+    if (light.color.r != 1.0 || light.color.g != 1.0 || light.color.b != 1.0)
+      'color': <double>[light.color.r, light.color.g, light.color.b],
     if (light.intensity != 1.0) 'intensity': light.intensity,
     if (light.range != null) 'range': light.range,
     if (light.type == ModelLightType.spot)

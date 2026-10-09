@@ -53,7 +53,11 @@ import 'package:vector_math/vector_math.dart';
 /// Nothing here is CPU-readable: the buffers are opaque handles, and
 /// [MeshGeometry.source] is still where triangles come from when anything needs
 /// them.
-abstract interface class DrawableGeometry implements MeshGeometry {
+///
+/// **Extended, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that
+/// extends it has to change.
+abstract base class DrawableGeometry with MeshGeometry {
   /// Interleaved vertex attributes, in the layout the vertex stage declares.
   GeometryBuffer get vertices;
 
@@ -90,7 +94,7 @@ abstract interface class DrawableGeometry implements MeshGeometry {
 /// draws the mesh: a backend whose collector frees them treats that as a no-op,
 /// and one that does not — WebGL, WebGPU — otherwise keeps them until the
 /// device itself goes.
-final class DeviceMesh implements DrawableGeometry {
+final class DeviceMesh extends DrawableGeometry {
   DeviceMesh._({
     required this.vertices,
     required this.indices,
@@ -100,7 +104,30 @@ final class DeviceMesh implements DrawableGeometry {
     required this.bounds,
     required this.source,
     required this.clusters,
-  });
+    GraphicsDevice? device,
+    // A named parameter may not be private; the device is the mesh's own
+    // business, kept only to give the buffers back.
+    // ignore: prefer_initializing_formals
+  }) : _device = device;
+
+  final GraphicsDevice? _device;
+
+  /// Gives the two buffers back to the device that holds them — item 20:
+  /// one release verb, on whatever holds GPU memory. A node still drawing
+  /// this mesh draws nothing after it; a second call does nothing.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    final device = _device;
+    if (device == null) return;
+    device
+      ..releaseGeometry(vertices)
+      ..releaseGeometry(indices);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
 
   /// Uploads [mesh] through [device].
   ///
@@ -115,6 +142,7 @@ final class DeviceMesh implements DrawableGeometry {
   }) {
     final packed = mesh.packIndices();
     return DeviceMesh._(
+      device: device,
       vertices: device.uploadGeometry(mesh.vertexBytes, GeometryUsage.vertices),
       indices: device.uploadGeometry(packed.bytes, GeometryUsage.indices),
       vertexCount: mesh.vertexCount,
@@ -173,6 +201,7 @@ final class DeviceMesh implements DrawableGeometry {
   @override
   final MeshData? source;
 
+  /// Half the bounds' diagonal, in metres.
   @override
   double get boundingRadius {
     final extent = (bounds.max - bounds.min)..scale(0.5);

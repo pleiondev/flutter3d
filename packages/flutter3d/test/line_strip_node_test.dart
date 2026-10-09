@@ -5,7 +5,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('it grows, lets go of its oldest when full, and is found where its '
@@ -14,7 +13,10 @@ void main() {
     final device = FakeBackend();
     final trail = LineStripNode(
       device: device,
-      material: Material.polyline(viewportWidth: 800, viewportHeight: 600),
+      material: RenderMaterial.polyline(
+        viewportWidth: 800,
+        viewportHeight: 600,
+      ),
       capacity: 3,
     );
     final mesh = trail.mesh;
@@ -40,13 +42,13 @@ void main() {
       final trail =
           LineStripNode(
               device: it.device,
-              material: Material.polyline(
+              material: RenderMaterial.polyline(
                 viewportWidth: 32,
                 viewportHeight: 32,
               ),
               capacity: 16,
               width: 4.0,
-              colour: Vector4(1.0, 0.2, 0.2, 1.0),
+              color: LinearColor(1.0, 0.2, 0.2, 1.0),
             )
             ..append(Vector3(-1.0, 0.0, -5.0))
             ..append(Vector3(1.0, 0.0, -5.0));
@@ -66,14 +68,12 @@ void main() {
             views: <RenderView>[
               RenderView(
                 camera: camera,
-                clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+                clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
               ),
             ],
             settings: const RenderSettings(tonemap: false),
           );
-      final rgba = (await it.device.readPixels(
-        frame.frame,
-      ))!.buffer.asUint8List();
+      final rgba = (await it.device.readback(frame.frame)).buffer.asUint8List();
       var red = 0;
       for (var i = 0; i < rgba.length; i += 4) {
         if (rgba[i] > 100) red++;

@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -70,12 +71,18 @@ List<_Frame> _render({
   );
   final scan = MeshNode(
     DeviceMesh.upload(device, split ? _split : _whole),
-    Material(baseColor: Vector4(0.8, 0.75, 0.7, 1.0), roughness: 0.8),
+    RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.8, 0.75, 0.7, 1.0),
+      roughness: 0.8,
+    ),
   )..setRotationYawPitchRoll(0.3, 0.1, 0.0);
   final camera = CameraNode();
   final scene = Scene()
     ..add(scan)
-    ..add(LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.4, -0.7, 0.0))
+    ..add(
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.4, -0.7, 0.0),
+    )
     ..add(camera);
   if (wall) {
     // A slab across the left half of the view, between the eye and the scan.
@@ -85,7 +92,7 @@ List<_Frame> _render({
             device,
             CuboidShape(size: Vector3(1.6, 3.0, 0.1)).build(),
           ),
-          Material(baseColor: Vector4(0.3, 0.35, 0.4, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.3, 0.35, 0.4, 1.0)),
         )
         ..occluder = true
         ..setPosition(-0.9, 0.0, 1.4),
@@ -105,7 +112,7 @@ List<_Frame> _render({
           views: <RenderView>[
             RenderView(
               camera: camera,
-              clearColor: Vector4(0.05, 0.05, 0.08, 1.0),
+              clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
             ),
           ],
           settings: RenderSettings(occlusion: occlusion),

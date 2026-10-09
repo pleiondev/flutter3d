@@ -84,6 +84,7 @@ final class TriggerCondition extends AnimationCondition {
 final class BlendPoint {
   const BlendPoint(this.at, this.clip, {this.y = 0.0});
 
+  /// In the unit of the value the blend's parameter carries.
   final double at;
 
   /// Where it stands along the blend's second parameter, for a blend across

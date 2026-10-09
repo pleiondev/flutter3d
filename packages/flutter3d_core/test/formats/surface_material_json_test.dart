@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -38,12 +39,12 @@ void main() {
       'back the exact value', () {
     final surface = SurfaceMaterial(
       name: 'brick',
-      baseColor: Vector4(0.6, 0.3, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.3, 0.2, 1.0),
       metallic: 0.4,
       roughness: 0.8,
       normalScale: 1.5,
       occlusionStrength: 0.9,
-      emissive: Vector3(0.1, 0.2, 0.3),
+      emissive: LinearColor(0.1, 0.2, 0.3),
       emissiveStrength: 2.0,
       alphaMode: SurfaceAlphaMode.blend,
       alphaCutoff: 0.3,

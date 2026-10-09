@@ -15,7 +15,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('n steps of a decay land where the closed form says', () async {
@@ -28,7 +27,7 @@ void main() {
     );
     final field = FieldPass(
       device,
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.r32g32b32a32Float,

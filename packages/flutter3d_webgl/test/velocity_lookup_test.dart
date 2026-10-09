@@ -23,19 +23,17 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 128;
 const int _height = 96;
 
 void main() {
   test('a box sliding in the upper half shows in the velocity view', () async {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
 
     TextureHandle texel(List<int> rgba) {
       final made = device.createTextureFromPixels(
@@ -44,7 +42,6 @@ void main() {
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
       );
-      if (made == null) fail('the device would not make a 1x1 texture');
       return made;
     }
 
@@ -56,11 +53,11 @@ void main() {
 
     final box = MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+      RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
       name: 'box',
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(fovYRadians: 1.0),
+      projection: const PerspectiveProjection(fovY: 1.0),
     )..setPosition(0.0, 0.0, 6.0);
     final scene = Scene()
       ..add(box)
@@ -76,7 +73,10 @@ void main() {
         height: _height,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(
           bloom: BloomSettings(enabled: false),
@@ -86,8 +86,8 @@ void main() {
           showVelocity: true,
         ),
       );
-      final read = await device.readPixels(result.frame);
-      pixels = read!.buffer.asUint8List();
+      final read = await device.readback(result.frame);
+      pixels = read.buffer.asUint8List();
     }
 
     final moving = <int>[

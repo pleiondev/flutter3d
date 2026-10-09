@@ -19,6 +19,9 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show CompareFunction;
+
 /// A type in the material language.
 ///
 /// A `final class` with const instances rather than an `enum`, which is the
@@ -71,7 +74,7 @@ final class MaterialType {
 /// **What this is not is the only way a value could reach the shader**, and an
 /// earlier version of this comment said it was. It claimed a parameter that
 /// changed per frame would need a new uniform block per material, which the
-/// engine could not have. The engine already has one: `Material.parameters`
+/// engine could not have. The engine already has one: `RenderMaterial.parameters`
 /// is bound as `MaterialParams` to the fragment stage, and since `gfx-86n` to
 /// a vertex stage the material brought as well. A runtime parameter in this
 /// language would be a member of that block; it is not written, and the reason
@@ -91,7 +94,7 @@ final class MaterialParameter {
   final List<double> defaultValue;
 
   /// Declared with `uniform` rather than `param` — `P8`: not folded, but a
-  /// member of the `MaterialParams` block, read from `Material.parameters`
+  /// member of the `MaterialParams` block, read from `RenderMaterial.parameters`
   /// on every draw, so a game sets it without a second entry point. A
   /// variant cannot set one; [defaultValue] is what a material that names
   /// no value is given.
@@ -135,7 +138,7 @@ final class MaterialInput {
 /// walks this list to check that it does — a backend that silently returned
 /// zero for an input it had not heard of would draw a material that is subtly
 /// wrong on one backend only.
-const List<MaterialInput> kMaterialInputs = <MaterialInput>[
+const List<MaterialInput> materialInputs = <MaterialInput>[
   MaterialInput('albedo', MaterialType.vec3, 's.albedo'),
   MaterialInput('alpha', MaterialType.float, 's.alpha'),
   MaterialInput('normal', MaterialType.vec3, 's.n'),
@@ -155,18 +158,285 @@ const List<MaterialInput> kMaterialInputs = <MaterialInput>[
 ];
 
 /// What the `light` block reads about the one light it is shading for, on
-/// top of [kMaterialInputs] — `P8`, the lighting hook.
+/// top of [materialInputs] — `P8`, the lighting hook.
 ///
 /// `surface.glsl`'s `LightSample` and `cpu_shaders_lighting.dart`'s, the same
 /// struct written twice, as the surface inputs are. Read only inside the
 /// block: outside it there is no one light to read them of.
-const List<MaterialInput> kMaterialLightInputs = <MaterialInput>[
+const List<MaterialInput> materialLightInputs = <MaterialInput>[
   MaterialInput('lightDir', MaterialType.vec3, 'light.l'),
   MaterialInput('halfDir', MaterialType.vec3, 'light.h'),
   MaterialInput('nDotL', MaterialType.float, 'light.n_dot_l'),
   MaterialInput('nDotH', MaterialType.float, 'light.n_dot_h'),
   MaterialInput('vDotH', MaterialType.float, 'light.v_dot_h'),
 ];
+
+/// What a fragment body of version 2 reads of the scene behind it — item 9
+/// of `tasks/1.0-scope-additions.md`, for soft edges, fog and water.
+///
+/// **Only a translucent material reads them**, and the parser holds it to
+/// that: the scene behind a surface is the opaque half's depth, which the
+/// engine lends a translucent draw after that half is done. `sceneDepth` is
+/// how far the opaque surface behind this fragment lies along the view axis,
+/// in metres, and a million where nothing was drawn behind — the sky is far;
+/// `viewDepth` is this fragment's own depth along the same axis, so
+/// `sceneDepth - viewDepth` is the thickness of what lies between;
+/// `scenePosition` is where, in the world, that opaque surface is.
+const List<MaterialInput> materialSceneInputs = <MaterialInput>[
+  MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth'),
+  MaterialInput('viewDepth', MaterialType.float, 'f3d_view_depth'),
+  MaterialInput('scenePosition', MaterialType.vec3, 'f3d_scene_position'),
+];
+
+/// What a `vertex` block reads — version 2.
+///
+/// The vertex as the engine has it once morphed, and skinned on a skinned
+/// draw: `position` and `objectNormal` in the mesh's own space (the pose's,
+/// for a skinned mesh), `world` and `normal` after the model transform, the
+/// first texture coordinate, the vertex colour, and `origin`, the model
+/// transform's translation — where the object stands, so a field of grass
+/// sways out of step blade by blade.
+const List<MaterialInput> materialVertexInputs = <MaterialInput>[
+  MaterialInput('position', MaterialType.vec3, 'f3d_position'),
+  MaterialInput('objectNormal', MaterialType.vec3, 'f3d_object_normal'),
+  MaterialInput('world', MaterialType.vec3, 'f3d_world'),
+  MaterialInput('normal', MaterialType.vec3, 'f3d_normal'),
+  MaterialInput('uv', MaterialType.vec2, 'texcoord'),
+  MaterialInput('color', MaterialType.vec4, 'color'),
+  MaterialInput('origin', MaterialType.vec3, 'frame_info.model[3].xyz'),
+];
+
+/// What a `vertex` block may write, with `out name = value;` — version 2.
+///
+/// `position` is the vertex in the mesh's own space, which the model
+/// transform then carries into the world; `world` is where it ends up, the
+/// transform already applied; one or the other, not both. `normal` is the
+/// world-space normal the surface is lit by. What the block does not write
+/// keeps the engine's own answer.
+const List<MaterialInput> materialVertexOutputs = <MaterialInput>[
+  MaterialInput('position', MaterialType.vec3, 'f3d_out_position'),
+  MaterialInput('world', MaterialType.vec3, 'f3d_out_world'),
+  MaterialInput('normal', MaterialType.vec3, 'f3d_out_normal'),
+];
+
+/// What an `ambient` block reads on top of [materialInputs] — version 2:
+/// the level's baked light at this fragment, which the engine's own ambient
+/// adds to the hemisphere.
+const List<MaterialInput> materialAmbientInputs = <MaterialInput>[
+  MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap'),
+];
+
+/// What a `composite` block reads on top of [materialInputs] — version 2:
+/// the lights gathered through the `light` block, and the light the
+/// `ambient` block (or the engine's own ambient) gave, neither yet under the
+/// occlusion.
+const List<MaterialInput> materialCompositeInputs = <MaterialInput>[
+  MaterialInput('direct', MaterialType.vec3, 'f3d_direct'),
+  MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect'),
+];
+
+/// What a `fullscreen` stage's fragment body reads — version 2: where on the
+/// screen it is, nought to one from the top left, and the depth the scene
+/// left there along the view axis, in metres, a million where nothing was
+/// drawn. The picture itself is the texture `scene`, read with
+/// `sample(scene, uv)`.
+const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[
+  MaterialInput('uv', MaterialType.vec2, 'v_uv'),
+  MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth'),
+];
+
+/// What a `compute` stage's kernel reads — version 2: the texel of its
+/// target this invocation writes, the target's size in texels, and the
+/// texel's centre as nought to one.
+const List<MaterialInput> materialComputeInputs = <MaterialInput>[
+  MaterialInput('cell', MaterialType.vec2, 'f3d_cell'),
+  MaterialInput('size', MaterialType.vec2, 'f3d_size'),
+  MaterialInput('uv', MaterialType.vec2, 'f3d_uv'),
+];
+
+/// What a source is — version 2 adds the two kinds after `material`.
+///
+/// * [surface], `material`: a surface the engine draws a mesh with.
+/// * [fullscreen]: one full-screen fragment stage over the picture — what a
+///   `FullscreenEffect` and a plugin's render step draw.
+/// * [compute]: a kernel run once per texel of a storage texture it writes.
+///
+/// A `final class` with const instances, for [MaterialType]'s reason.
+final class MaterialStageKind {
+  const MaterialStageKind._(this.name);
+
+  static const MaterialStageKind surface = MaterialStageKind._('material');
+  static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen');
+  static const MaterialStageKind compute = MaterialStageKind._('compute');
+
+  static const List<MaterialStageKind> all = <MaterialStageKind>[
+    surface,
+    fullscreen,
+    compute,
+  ];
+
+  /// The word the source opens with.
+  final String name;
+
+  @override
+  String toString() => name;
+}
+
+/// How a surface is combined with what is behind it — a `state` block's
+/// `blend` — version 2.
+///
+/// [opaque], [mask] and [hashed] are `MaterialAlphaMode`'s three that write
+/// depth; [alpha] is its blend, over straight colour; [additive] adds the
+/// colour, times its alpha, to what is there; [premultiplied] is over on a
+/// colour the material already multiplied by its alpha.
+final class MaterialBlend {
+  const MaterialBlend._(this.name, {required this.translucent});
+
+  static const MaterialBlend opaque = MaterialBlend._(
+    'opaque',
+    translucent: false,
+  );
+  static const MaterialBlend mask = MaterialBlend._('mask', translucent: false);
+  static const MaterialBlend hashed = MaterialBlend._(
+    'hashed',
+    translucent: false,
+  );
+  static const MaterialBlend alpha = MaterialBlend._(
+    'alpha',
+    translucent: true,
+  );
+  static const MaterialBlend additive = MaterialBlend._(
+    'additive',
+    translucent: true,
+  );
+  static const MaterialBlend premultiplied = MaterialBlend._(
+    'premultiplied',
+    translucent: true,
+  );
+
+  static const List<MaterialBlend> all = <MaterialBlend>[
+    opaque,
+    mask,
+    hashed,
+    alpha,
+    additive,
+    premultiplied,
+  ];
+
+  static MaterialBlend? byName(String name) {
+    for (final blend in all) {
+      if (blend.name == name) return blend;
+    }
+    return null;
+  }
+
+  /// What the `state` block calls it.
+  final String name;
+
+  /// Whether it is drawn in the transparent half, over what is behind it.
+  final bool translucent;
+
+  @override
+  String toString() => name;
+}
+
+/// The depth tests a `state` block's `depthCompare` names, and the
+/// [CompareFunction] each becomes.
+///
+/// **An explicit table, not `CompareFunction.values.byName`.** The words are
+/// the file's, and they were the Dart names of the values on the day the
+/// language was written; a rename of a value in a later release must not
+/// change which word a `.f3dmat` file has to say. A new compare function gets
+/// a new word here, and an old word never changes meaning.
+const Map<String, CompareFunction> materialDepthCompareWire =
+    <String, CompareFunction>{
+      'never': CompareFunction.never,
+      'less': CompareFunction.less,
+      'equal': CompareFunction.equal,
+      'lessEqual': CompareFunction.lessEqual,
+      'greater': CompareFunction.greater,
+      'notEqual': CompareFunction.notEqual,
+      'greaterEqual': CompareFunction.greaterEqual,
+      'always': CompareFunction.always,
+    };
+
+/// The words of [materialDepthCompareWire], in its order.
+const List<String> materialDepthCompares = <String>[
+  'never',
+  'less',
+  'equal',
+  'lessEqual',
+  'greater',
+  'notEqual',
+  'greaterEqual',
+  'always',
+];
+
+/// The furthest a `state` block's `depthLayer` reaches either way.
+const int materialDepthLayerLimit = 16;
+
+/// What a material's `state` block says — version 2: how it is drawn, and
+/// which light its stage leaves out.
+///
+/// **Two kinds of setting in one block.** Everything but the last two is
+/// draw state, which `BundledMaterials.material` copies onto the `RenderMaterial`
+/// it makes — a game can still change it there. [environment] and
+/// [directional] are compile-time switches: they change the stage itself, so
+/// they are answered once, here, and nothing at run time turns them back on.
+///
+/// Null is "the file says nothing", which leaves `RenderMaterial`'s own default.
+final class MaterialFileState {
+  const MaterialFileState({
+    this.blend,
+    this.cutoff,
+    this.depthWrite,
+    this.depthTest,
+    this.depthCompare,
+    this.alphaToCoverage,
+    this.doubleSided,
+    this.depthLayer,
+    this.effectsDepth,
+    this.environment = true,
+    this.directional = true,
+  });
+
+  /// A file with no `state` block.
+  static const MaterialFileState none = MaterialFileState();
+
+  final MaterialBlend? blend;
+
+  /// The alpha a [MaterialBlend.mask] surface is cut at, nought to one.
+  final double? cutoff;
+  final bool? depthWrite;
+
+  /// `off` is a depth test that always passes — `depthCompare always`.
+  final bool? depthTest;
+
+  /// One of [materialDepthCompares].
+  final String? depthCompare;
+
+  /// A masked edge as multisample coverage — `RenderMaterial.alphaToCoverage`.
+  final bool? alphaToCoverage;
+  final bool? doubleSided;
+
+  /// Which of two coplanar surfaces wins — `RenderMaterial.depthLayer`.
+  final int? depthLayer;
+
+  /// Whether a translucent surface puts its depth and normal into the
+  /// surface buffer the screen-space effects read — `RenderMaterial.effectsDepth`.
+  final bool? effectsDepth;
+
+  /// False compiles the environment's light out of `lit`: the hemisphere,
+  /// the irradiance field and the lightmap. A switch, not draw state.
+  final bool environment;
+
+  /// False compiles the directional lights — the sun — out of `lit`. A
+  /// switch, not draw state.
+  final bool directional;
+
+  /// Whether the blend draws the surface in the transparent half.
+  bool get isTranslucent => blend?.translucent ?? false;
+}
 
 /// The surface lit as the engine lights it, through the material's own
 /// `light` block — `P8`. Read in the fragment body of a material that has
@@ -180,7 +450,7 @@ const List<MaterialInput> kMaterialLightInputs = <MaterialInput>[
 /// and the shadow atlases to a lit model: a material whose output skipped
 /// the emissive would leave its map unread and the bind refused. A material
 /// adds to it what is not lighting — a rim, a glow.
-const MaterialInput kMaterialLitInput = MaterialInput(
+const MaterialInput materialLitInput = MaterialInput(
   'lit',
   MaterialType.vec3,
   'lit',
@@ -374,7 +644,7 @@ final class MaterialConstant extends MaterialExpression {
   final List<double> value;
 }
 
-/// One of [kMaterialInputs].
+/// One of [materialInputs].
 final class MaterialInputRef extends MaterialExpression {
   MaterialInputRef(this.input) : super(input.type);
 
@@ -384,7 +654,7 @@ final class MaterialInputRef extends MaterialExpression {
 /// A declared parameter, before a variant has said what it is.
 ///
 /// Kept as a reference through parsing and folded to a [MaterialConstant] by
-/// [specialiseMaterial] — the source is parsed once and every variant is a
+/// [specializeMaterial] — the source is parsed once and every variant is a
 /// fold of the same tree, rather than a parse per variant that could differ in
 /// some other way than the numbers.
 final class MaterialParamRef extends MaterialExpression {
@@ -483,6 +753,16 @@ final class MaterialReturn extends MaterialStatement {
   final MaterialExpression value;
 }
 
+/// `out name = expr;` — one of [materialVertexOutputs], written by a
+/// `vertex` block — version 2. Each at most once, and the block's only way
+/// to say anything: it has no `return`.
+final class MaterialOutput extends MaterialStatement {
+  const MaterialOutput(this.output, this.value);
+
+  final MaterialInput output;
+  final MaterialExpression value;
+}
+
 /// A material read from source: its name, what it declares, and its body.
 final class MaterialProgram {
   const MaterialProgram({
@@ -492,9 +772,50 @@ final class MaterialProgram {
     required this.body,
     required this.inputsUsed,
     this.light,
+    this.languageVersion = 1,
+    this.kind = MaterialStageKind.surface,
+    this.state = MaterialFileState.none,
+    this.vertex,
+    this.ambient,
+    this.composite,
+    this.workgroupSize = (8, 8),
   });
 
   final String name;
+
+  /// The material language version the source was written in: its
+  /// `f3dmat <version>` line, or 1 when it has none. See
+  /// `materialLanguageVersion`.
+  final int languageVersion;
+
+  /// What the source is: a surface, a full-screen stage or a compute
+  /// kernel — version 2. Every version 1 file is a surface.
+  final MaterialStageKind kind;
+
+  /// The `state` block — version 2. [MaterialFileState.none] without one.
+  final MaterialFileState state;
+
+  /// The `vertex` block — version 2: `let`s and [MaterialOutput]s, run for
+  /// every vertex in the scene pass, the depth pre-draw and the shadow
+  /// passes alike, so geometry it moves casts the shadow it draws. Null for
+  /// a material that keeps the engine's vertex stage.
+  final List<MaterialStatement>? vertex;
+
+  /// The `ambient` block — version 2: the light the surface takes from its
+  /// surroundings, a `vec3`, in place of the engine's
+  /// `albedo * (ambient + lightmap)`. Only beside a `light` block.
+  final List<MaterialStatement>? ambient;
+
+  /// The `composite` block — version 2: how `lit` is added up from
+  /// `direct`, `indirect` and the surface, a `vec3`, in place of the
+  /// engine's `(direct + indirect) * occlusion + emissive`. Only beside a
+  /// `light` block.
+  final List<MaterialStatement>? composite;
+
+  /// A [MaterialStageKind.compute] kernel's workgroup, x by y — its
+  /// `workgroup` line, eight by eight without one.
+  final (int, int) workgroupSize;
+
   final List<MaterialParameter> parameters;
   final List<MaterialTextureSlot> textures;
   final List<MaterialStatement> body;
@@ -503,10 +824,10 @@ final class MaterialProgram {
   /// `P8`. Run once per light, its return a `vec3`: how the surface responds
   /// to that light, which the engine multiplies by the light's radiance, its
   /// `n·l` and its shadow, as it does `ShadeLight` of every lit model. The
-  /// sum reaches the fragment body as [kMaterialLitInput].
+  /// sum reaches the fragment body as [materialLitInput].
   final List<MaterialStatement>? light;
 
-  /// Which of [kMaterialInputs] the body actually reads.
+  /// Which of [materialInputs] the body actually reads.
   ///
   /// **This is the binding metadata `gfx-84n` asks the toolchain to
   /// generate.** `LightingModel`'s `uses…` flags are declared by hand today,
@@ -516,6 +837,20 @@ final class MaterialProgram {
   /// segfaults inside Metal. A material whose source this package parsed does
   /// not have that problem: what it reads is what is written down.
   final Set<String> inputsUsed;
+
+  /// Whether the stage gathers lights: a surface with a `light` block.
+  bool get isLit => light != null;
+
+  /// Whether the fragment body reads the scene behind it —
+  /// [materialSceneInputs], or a full-screen stage's `sceneDepth`.
+  bool get readsSceneDepth =>
+      inputsUsed.contains('sceneDepth') || inputsUsed.contains('scenePosition');
+
+  /// The vertex stage the build makes of the `vertex` block, or null for a
+  /// material without one: the material's name with `Vertex` after it. The
+  /// skinned half is this with `Skinned` after it, as `LightingModel`'s
+  /// `vertexShaderName` says.
+  String? get vertexStageName => vertex == null ? null : '${name}Vertex';
 
   MaterialParameter? parameter(String name) {
     for (final parameter in parameters) {
@@ -553,7 +888,7 @@ final class MaterialVariant {
 /// Throws [ArgumentError] for a value of the wrong width or a name the program
 /// does not declare: a variant that set `rimPowr` would otherwise compile to
 /// the default and look like the parameter not working.
-MaterialProgram specialiseMaterial(
+MaterialProgram specializeMaterial(
   MaterialProgram program,
   MaterialVariant variant,
 ) {
@@ -583,30 +918,40 @@ MaterialProgram specialiseMaterial(
     }
   }
 
-  List<MaterialStatement> fold(List<MaterialStatement> body) =>
-      <MaterialStatement>[
-        for (final statement in body)
-          switch (statement) {
-            MaterialLet(:final name, :final value) => MaterialLet(
-              name,
-              _fold(value, variant),
-            ),
-            MaterialReturn(:final value) => MaterialReturn(
-              _fold(value, variant),
-            ),
-          },
-      ];
+  List<MaterialStatement> fold(
+    List<MaterialStatement> body,
+  ) => <MaterialStatement>[
+    for (final statement in body)
+      switch (statement) {
+        MaterialLet(:final name, :final value) => MaterialLet(
+          name,
+          _fold(value, variant),
+        ),
+        MaterialReturn(:final value) => MaterialReturn(_fold(value, variant)),
+        MaterialOutput(:final output, :final value) => MaterialOutput(
+          output,
+          _fold(value, variant),
+        ),
+      },
+  ];
+
+  List<MaterialStatement>? foldOptional(List<MaterialStatement>? body) =>
+      body == null ? null : fold(body);
 
   return MaterialProgram(
     name: variant.name,
     parameters: program.parameters,
     textures: program.textures,
     body: fold(program.body),
-    light: switch (program.light) {
-      final light? => fold(light),
-      null => null,
-    },
+    light: foldOptional(program.light),
+    vertex: foldOptional(program.vertex),
+    ambient: foldOptional(program.ambient),
+    composite: foldOptional(program.composite),
     inputsUsed: program.inputsUsed,
+    languageVersion: program.languageVersion,
+    kind: program.kind,
+    state: program.state,
+    workgroupSize: program.workgroupSize,
   );
 }
 

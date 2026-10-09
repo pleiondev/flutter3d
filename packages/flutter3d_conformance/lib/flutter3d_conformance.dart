@@ -14,7 +14,7 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: thirty-two of the forty-two link stages and draw. A new
+/// pipeline: thirty-two of the forty-four link stages and draw. A new
 /// backend following the old promise would have met thirty-two shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
@@ -41,7 +41,7 @@
 /// row-order check" or "the scissor-inheritance check" does not mean scrolling
 /// past eleven others.
 ///
-/// **A check may decline**, and [ConformanceDeclined] is how: a backend that
+/// **A check may decline**, and [ConformanceDeclinedException] is how: a backend that
 /// answers false to the capability a check is about is not asked, and the
 /// harness prints which backend declined and why rather than a green line for
 /// something it never ran.
@@ -50,10 +50,13 @@ library;
 import 'dart:async';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show CapabilityException;
 import 'package:test/test.dart' show markTestSkipped, test;
 
 import 'src/attachment_checks.dart';
 import 'src/blend_checks.dart';
+import 'src/capability_checks.dart';
 import 'src/compressed_checks.dart';
 import 'src/compute_checks.dart';
 import 'src/core_checks.dart';
@@ -73,6 +76,7 @@ import 'src/shader_link_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
 
+export 'src/capability_checks.dart' show capabilityChecks, unprobedFeatures;
 export 'src/compute_checks.dart' show computeChecks;
 export 'src/fuzz/fuzz.dart'
     show
@@ -113,8 +117,9 @@ typedef DeviceFactory =
     });
 
 /// Raised by a check the backend did not satisfy.
-final class ConformanceFailure implements Exception {
-  const ConformanceFailure(this.message);
+final class ConformanceFailureException extends CapabilityException {
+  const ConformanceFailureException(this.message);
+  @override
   final String message;
   @override
   String toString() => message;
@@ -132,9 +137,11 @@ final class ConformanceFailure implements Exception {
 ///
 /// [decline] builds one, and stamps the backend's own type on the front so the
 /// line says who declined as well as why.
-final class ConformanceDeclined implements Exception {
-  const ConformanceDeclined(this.reason);
+final class ConformanceDeclinedException extends CapabilityException {
+  const ConformanceDeclinedException(this.reason);
   final String reason;
+  @override
+  String get message => reason;
   @override
   String toString() => reason;
 }
@@ -146,7 +153,7 @@ final class ConformanceDeclined implements Exception {
 /// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
 /// read on its own, beside a check name, by somebody holding a phone.
 Never decline(GraphicsDevice device, String why) =>
-    throw ConformanceDeclined('${device.runtimeType} $why');
+    throw ConformanceDeclinedException('${device.runtimeType} $why');
 
 /// Fails the check unless [condition].
 ///
@@ -158,7 +165,19 @@ Never decline(GraphicsDevice device, String why) =>
 /// the backend, and reported it only on the backend that could not use the
 /// harness in the first place.
 void require(bool condition, String message) {
-  if (!condition) throw ConformanceFailure(message);
+  if (!condition) throw ConformanceFailureException(message);
+}
+
+/// Whether [call] is refused the way the contract refuses a request the
+/// device cannot honour: with a [DeviceResourceException]. Anything else
+/// thrown is the backend falling over, and goes on up.
+bool refusesResource(Object? Function() call) {
+  try {
+    call();
+  } on DeviceResourceException {
+    return true;
+  }
+  return false;
 }
 
 /// One check: a name and something that throws if the backend is wrong.
@@ -187,7 +206,7 @@ typedef ConformanceCheck = ({
 /// for this backend at all — headless Chrome on a CI runner has
 /// `navigator.gpu` and hands out no adapter — is the same kind of answer a
 /// check gives when the capability behind it is false: nothing was asked, so
-/// nothing may be reported green. A [ConformanceDeclined] thrown while the
+/// nothing may be reported green. A [ConformanceDeclinedException] thrown while the
 /// device is being made skips the check with the sentence it carries, and
 /// every other exception is still a failure.
 void runDeviceConformance({
@@ -203,13 +222,13 @@ void runDeviceConformance({
       final GraphicsDevice device;
       try {
         device = await makeDevice(width: 64, height: 64);
-      } on ConformanceDeclined catch (declined) {
+      } on ConformanceDeclinedException catch (declined) {
         markTestSkipped('$backend: ${declined.reason}');
         return;
       }
       try {
         await check.run(device);
-      } on ConformanceDeclined catch (declined) {
+      } on ConformanceDeclinedException catch (declined) {
         // Skipped, not passed. A runner that prints a green line for a check
         // the backend never ran is the same lie as the `return` this replaced,
         // only louder.
@@ -348,7 +367,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     name: 'a texture bound to a slot the stage lacks is false',
     run: checkUndeclaredSamplerIsFalse,
   ),
-  // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
+  // The clamp the HAL promises for `SamplerDescriptor.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.
   (
     name: 'a sampler asking for more anisotropy than there is is accepted',
@@ -425,6 +444,8 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   ...coreChecks,
   ...shaderChecks,
   ...computeChecks,
+  // Since 1.0: the capability report, held true in both directions.
+  ...capabilityChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders

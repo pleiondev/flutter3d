@@ -26,6 +26,7 @@
 
 #include <lib/frag_coord_info.glsl>
 #include <lib/blue_noise.glsl>
+#include <lib/shadow_storage.glsl>
 
 in vec2 v_uv;
 
@@ -64,7 +65,8 @@ uniform ShaftInfo {
   vec4 sun;
 
   // x, y, z: each cascade's depth bias, in the units its part of the map
-  // holds — `FragInfo.shadow_bias`, for the reason given there. w unused.
+  // holds — `FragInfo.shadow_bias`, for the reason given there. w: how the
+  // map stores its depth, the mode `lib/shadow_storage.glsl` lists.
   vec4 bias;
 }
 shaft_info;
@@ -117,7 +119,8 @@ float LitAt(vec3 world, float viewDistance) {
     // continues and breaks on values computed per fragment, so a WGSL backend
     // refuses the implicit derivative here as possibly non-uniform. One level,
     // so naming it directly changes no pixel.
-    float stored = textureLod(shadow_texture, uv, 0.0).r;
+    float stored =
+        ShadowStored(textureLod(shadow_texture, uv, 0.0).r, shaft_info.bias.w);
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.

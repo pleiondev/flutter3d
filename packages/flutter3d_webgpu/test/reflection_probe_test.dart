@@ -35,7 +35,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 96;
 const int _height = 96;
@@ -56,14 +55,14 @@ MeshNode _wall(
   WebGpuDevice device,
   Vector3 at,
   double roll,
-  Vector4 colour,
+  Vector4 color,
   String name,
 ) =>
     MeshNode(
         DeviceMesh.upload(device, const PlaneShape().build()),
-        Material(
+        RenderMaterial(
           name: name,
-          baseColor: colour,
+          baseColor: _fromSrgb(color),
           lighting: LightingModel.unlit,
           doubleSided: true,
         ),
@@ -82,7 +81,6 @@ Renderer _renderer(WebGpuDevice device) {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
     );
-    if (made == null) fail('the device would not make a 1x1 texture');
     return made;
   }
 
@@ -101,16 +99,16 @@ Renderer _renderer(WebGpuDevice device) {
   MeshNode ball,
 })
 _room(WebGpuDevice device) {
-  final scene = Scene()..ambientIntensity = 1.0;
+  final scene = Scene()..ambientIntensity = 1.0 * Photometric.legacyUnit;
 
   final ball = MeshNode(
     DeviceMesh.upload(
       device,
       SphereShape(radius: 1.0, segments: 32, rings: 24).build(),
     ),
-    Material(
+    RenderMaterial(
       name: 'mirror',
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
       metallic: 1.0,
       roughness: 0.0,
       lighting: LightingModel.pbr,
@@ -134,17 +132,15 @@ _room(WebGpuDevice device) {
       ),
     )
     ..add(
-      LightNode(type: LightType.directional, intensity: 3.0)
-        ..setLocalForward(Vector3(0.0, -1.0, -0.3)),
+      LightNode(
+        type: LightType.directional,
+        intensity: 3.0 * Photometric.legacyUnit,
+      )..setLocalForward(Vector3(0.0, -1.0, -0.3)),
     )
     ..add(ReflectionProbeNode(faceSize: 32, levels: 2)..excluded.add(ball));
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.6,
-      near: 0.1,
-      far: 60.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.6, near: 0.1, far: 60.0),
   )..setPosition(0.0, 0.0, 6.0);
   camera.lookAt(Vector3.zero());
   scene.add(camera);
@@ -173,15 +169,17 @@ Future<Uint8List> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(
       shadows: ShadowSettings(enabled: false),
       bloom: BloomSettings(enabled: false),
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  if (pixels == null) fail('the frame could not be read back');
+  final pixels = await it.device.readback(result.frame);
   return pixels.buffer.asUint8List();
 }
 
@@ -199,13 +197,16 @@ List<int> _at(Uint8List pixels, int x, int y) {
 /// back null and letting each test return is what the other suites in this
 /// package do, and it is the shape that actually skips.
 Future<WebGpuDevice?> _open() async {
-  final made = await WebGpuDevice.create(
-    width: _width,
-    height: _height,
-    stages: engineShaders,
-  );
-  if (made == null) markTestSkipped('no WebGPU in this browser');
-  return made;
+  try {
+    return await WebGpuDevice.open(
+      width: _width,
+      height: _height,
+      stages: webGpuEngineShaders,
+    );
+  } on DeviceUnavailableException {
+    markTestSkipped('no WebGPU in this browser');
+    return null;
+  }
 }
 
 void main() {
@@ -216,8 +217,8 @@ void main() {
     // line the two tests below give meaning to: answering true here without
     // them is how a backend hands `ReflectionProbeNode.supportedOn` a yes and
     // gets a black ball instead of a skip.
-    expect(device.supportsCubeTextures, isTrue);
-    expect(device.supportsRenderToMip, isTrue);
+    expect(device.features.has(DeviceFeature.cubeTextures), isTrue);
+    expect(device.features.has(DeviceFeature.renderToMipLevel), isTrue);
     expect(ReflectionProbeNode.supportedOn(device), isTrue);
     device.dispose();
   });
@@ -230,7 +231,7 @@ void main() {
       final it = _room(device);
       final pixels = await _draw(it);
 
-      final centre = _at(pixels, _width ~/ 2, _height ~/ 2);
+      final center = _at(pixels, _width ~/ 2, _height ~/ 2);
       final right = _at(pixels, _width ~/ 2 + _offset, _height ~/ 2);
       final left = _at(pixels, _width ~/ 2 - _offset, _height ~/ 2);
 
@@ -243,11 +244,11 @@ void main() {
       // Straight ahead the ball reflects the empty space behind the camera,
       // which is the clear colour: neither wall.
       expect(
-        centre[0],
+        center[0],
         lessThan(40),
-        reason: 'centre reflects nothing: $centre',
+        reason: 'centre reflects nothing: $center',
       );
-      expect(centre[2], lessThan(40));
+      expect(center[2], lessThan(40));
       device.dispose();
     },
   );
@@ -269,3 +270,6 @@ void main() {
     device.dispose();
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

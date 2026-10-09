@@ -1,12 +1,15 @@
 import 'dart:collection';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor, OriginShifted, Registration, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
-import '../render/render_texture.dart';
+import '../render/render_view.dart';
 import 'camera_node.dart';
 import 'decal_node.dart';
 import 'irradiance_field.dart';
+import 'light_buffer.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
 import 'mesh_node.dart';
@@ -19,8 +22,7 @@ import 'scene_node.dart';
 /// The hierarchy is what users author against. The registries are what the
 /// renderer iterates.
 ///
-/// Keeping both is deliberate, and it is what Babylon does too (`scene.meshes`
-/// alongside the node tree). Choosing a classic inheritance tree does not oblige
+/// Keeping both is deliberate. Choosing a classic inheritance tree does not oblige
 /// anyone to walk that tree every frame: registries are maintained on attach and
 /// detach, so per-frame culling is a linear pass over a contiguous list. In Dart
 /// that difference matters more than in JS, because a tree walk with a callback
@@ -83,9 +85,9 @@ final class Scene {
   final List<PlanarReflectorNode> _reflectors = <PlanarReflectorNode>[];
 
   /// Cameras drawing into textures — `P4`. Not nodes, so not registered by
-  /// attaching anything: a [RenderTexture] is added here, and is drawn for as
+  /// attaching anything: a [RenderView] is added here, and is drawn for as
   /// long as it stays.
-  final List<RenderTexture> _renderTextures = <RenderTexture>[];
+  final List<RenderView> _textureViews = <RenderView>[];
 
   /// Everything drawable currently in the scene, in attachment order.
   ///
@@ -104,6 +106,103 @@ final class Scene {
   );
 
   List<LightNode> get lights => _lightsView;
+
+  // ------------------------------------------------------- 1.0: the origin
+
+  /// Where this scene's own space starts in the world — items 17 and 18.
+  ///
+  /// Every node's transform is float32 and relative to this point, and the
+  /// GPU draws in that space. Float32 holds a millimetre to about ten
+  /// kilometres from where it starts, so a world bigger than that keeps the
+  /// origin near the camera with [shiftOrigin] (or [rebaseAround] each
+  /// frame), and asks [SceneNode.worldPosition] for a position in doubles.
+  WorldPosition get origin => _origin;
+  WorldPosition _origin = WorldPosition.origin;
+
+  /// [position] in this scene's space — **scene space**, the float32 offset
+  /// from [origin] that node transforms, contributors and the GPU work in
+  /// (see "Space" in `docs/CONTRACTS.md`): the difference from [origin] taken
+  /// in doubles, then narrowed to float32 once.
+  Vector3 toScene(WorldPosition position, [Vector3? out]) =>
+      (out ?? Vector3.zero())..setValues(
+        position.x - _origin.x,
+        position.y - _origin.y,
+        position.z - _origin.z,
+      );
+
+  /// A point in scene space, back in the world: the inverse of [toScene].
+  WorldPosition toWorld(Vector3 point) => WorldPosition(
+    _origin.x + point.x,
+    _origin.y + point.y,
+    _origin.z + point.z,
+  );
+
+  /// Moves [origin] to [to], keeping every node where it is in the world:
+  /// the root's children move by the difference, in float32, once.
+  ///
+  /// Then each handler [onOriginShift] registered is told, in registration
+  /// order — the hook physics, particles and anything else holding positions
+  /// in this scene's space use to move theirs the same distance. Lights are
+  /// nodes and move with the graph, and [irradianceField]'s origin moves by
+  /// the same difference. A renderer drawing this scene notices the new
+  /// [origin] at its next frame and carries its history across. A shift to where the origin already is
+  /// does nothing and tells nobody. A view driving a simulation calls this
+  /// with each `OriginShifted` the loop publishes, so the picture and the
+  /// simulation share one origin.
+  void shiftOrigin(WorldPosition to) {
+    final from = _origin;
+    final dx = from.x - to.x;
+    final dy = from.y - to.y;
+    final dz = from.z - to.z;
+    if (dx == 0.0 && dy == 0.0 && dz == 0.0) return;
+    for (final child in root.childrenView.toList()) {
+      child.translate(dx, dy, dz);
+    }
+    // The field's probes stand in this scene's space too; what they hold is
+    // light at a place, and the place moves with everything else.
+    irradianceField?.origin.add(Vector3(dx, dy, dz));
+    _origin = to;
+    final shift = OriginShifted(from: from, to: to);
+    for (final handler in List<void Function(OriginShifted)>.of(
+      _shiftHandlers,
+    )) {
+      handler(shift);
+    }
+  }
+
+  /// For a game whose world is bigger than float32 holds: shifts [origin] to
+  /// [node]'s world position when the node has wandered
+  /// more than [beyond] metres from it — what a view calls with its camera
+  /// before a frame, so that what is drawn stays near the origin. Returns
+  /// whether it shifted. The new origin is rounded to whole metres, so a
+  /// shift moves nothing by a fraction float32 would round.
+  bool rebaseAround(SceneNode node, {required double beyond}) {
+    final at = node.worldPosition;
+    if (at.distanceSquaredTo(_origin) <= beyond * beyond) return false;
+    shiftOrigin(
+      WorldPosition(
+        at.x.roundToDouble(),
+        at.y.roundToDouble(),
+        at.z.roundToDouble(),
+      ),
+    );
+    return true;
+  }
+
+  /// Calls [handler] after every [shiftOrigin], until the registration is
+  /// undone.
+  Registration onOriginShift(void Function(OriginShifted shift) handler) {
+    _shiftHandlers.add(handler);
+    return Registration(() => _shiftHandlers.remove(handler));
+  }
+
+  final List<void Function(OriginShifted)> _shiftHandlers =
+      <void Function(OriginShifted)>[];
+
+  /// How many of [lights] do not fit the lights one draw is lit by
+  /// (`LightNode.maxLights`): zero for a scene that fits. What an editor
+  /// warns about before a frame is drawn.
+  int get overflowingLights => (LightBuffer()..gather(lights)).overflow;
   late final List<LightNode> _lightsView = UnmodifiableListView<LightNode>(
     _lights,
   );
@@ -130,30 +229,34 @@ final class Scene {
   late final List<PlanarReflectorNode> _reflectorsView =
       UnmodifiableListView<PlanarReflectorNode>(_reflectors);
 
-  List<RenderTexture> get renderTextures => _renderTexturesView;
-  late final List<RenderTexture> _renderTexturesView =
-      UnmodifiableListView<RenderTexture>(_renderTextures);
+  List<RenderView> get textureViews => _textureViewsView;
+  late final List<RenderView> _textureViewsView =
+      UnmodifiableListView<RenderView>(_textureViews);
 
   /// Has [texture]'s camera draw into it every frame, before the scene — or
   /// once, if it does not refresh every frame. Adding it twice draws it once.
-  void addRenderTexture(RenderTexture texture) {
-    if (!_renderTextures.contains(texture)) _renderTextures.add(texture);
+  void addTextureView(RenderView texture) {
+    if (!_textureViews.contains(texture)) _textureViews.add(texture);
   }
 
   /// Stops drawing [texture]: for a game switching a monitor off, or taking
   /// a portal down, before it gives the texture back. Nothing here calls it;
   /// the texture itself is its owner's to give back.
-  void removeRenderTexture(RenderTexture texture) =>
-      _renderTextures.remove(texture);
+  void removeTextureView(RenderView texture) => _textureViews.remove(texture);
 
-  /// Ambient light applied where no direct light reaches.
+  /// Ambient light applied where no direct light reaches, in **lux**: the
+  /// illuminance it puts on a surface from every side.
   ///
   /// The flat stand-in for [environment], used when a scene has none. It also
   /// scales the environment when there is one, so the same knob dials indirect
   /// light either way and the two are alternatives rather than a sum.
-  double ambientIntensity = 0.06;
+  ///
+  /// About 347 lux by default — `0.06 × Photometric.legacyUnit`, the 0.06 it
+  /// was in the engine's own unit before 1.0, so a scene that never set it
+  /// looks as it did. Multiply a pre-1.0 number by `Photometric.legacyUnit`.
+  double ambientIntensity = 0.06 * Photometric.legacyUnit;
 
-  Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);
+  LinearColor ambientColor = LinearColor.white;
 
   /// Whether a scene with nothing lighting it gets a key light anyway.
   ///
@@ -164,7 +267,7 @@ final class Scene {
   ///
   /// **Set it false when unlit is the picture you want.** "No lights" is
   /// counted after hiding and dimming, so a scene whose only lamp is hidden
-  /// ([SceneNode.visibleInHierarchy]) or at zero intensity counts as empty
+  /// ([SceneNode.isVisibleInHierarchy]) or at zero intensity counts as empty
   /// too, and
   /// turning the lamp off used to turn a bright default light on instead —
   /// the opposite of what the author asked for, and awkward to work around
@@ -243,7 +346,7 @@ final class Scene {
     _probes.clear();
     _decals.clear();
     _reflectors.clear();
-    _renderTextures.clear();
+    _textureViews.clear();
 
     // Back to front, because `SceneNode.remove` takes the last child without
     // searching for it or shifting the rest; front to back shifted the whole
@@ -253,34 +356,6 @@ final class Scene {
       root.remove(children.last);
     }
   }
-
-  void registerMesh(MeshNode node) => _meshes.add(node);
-
-  void unregisterMesh(MeshNode node) => _meshes.remove(node);
-
-  void registerLight(LightNode node) => _lights.add(node);
-
-  void unregisterLight(LightNode node) => _lights.remove(node);
-
-  void registerCamera(CameraNode node) => _cameras.add(node);
-
-  void unregisterCamera(CameraNode node) => _cameras.remove(node);
-
-  void registerLodGroup(LodGroup node) => _lodGroups.add(node);
-
-  void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
-
-  void registerProbe(ReflectionProbeNode node) => _probes.add(node);
-
-  void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
-
-  void registerDecal(DecalNode node) => _decals.add(node);
-
-  void unregisterDecal(DecalNode node) => _decals.remove(node);
-  void registerReflector(PlanarReflectorNode node) => _reflectors.add(node);
-
-  void unregisterReflector(PlanarReflectorNode node) =>
-      _reflectors.remove(node);
 
   /// First light of the given type, or null.
   ///
@@ -313,7 +388,7 @@ final class Scene {
 
     for (var i = 0; i < _meshes.length; i++) {
       final node = _meshes[i];
-      if (visibleOnly && !node.visibleInHierarchy) continue;
+      if (visibleOnly && !node.isVisibleInHierarchy) continue;
       if (castersOnly && !node.castsShadow) continue;
       final bounds = node.worldBounds;
       any = true;
@@ -333,4 +408,37 @@ final class Scene {
   String toString() =>
       'Scene(${_meshes.length} meshes, ${_lights.length} '
       'lights, ${_cameras.length} cameras)';
+}
+
+/// How a node joins and leaves its scene's lists, called by the nodes
+/// themselves on attach and detach. Not exported by `flutter3d_core.dart`:
+/// a node is added with `Scene.add`, and the lists follow.
+extension SceneRegistry on Scene {
+  void registerMesh(MeshNode node) => _meshes.add(node);
+
+  void unregisterMesh(MeshNode node) => _meshes.remove(node);
+
+  void registerLight(LightNode node) => _lights.add(node);
+
+  void unregisterLight(LightNode node) => _lights.remove(node);
+
+  void registerCamera(CameraNode node) => _cameras.add(node);
+
+  void unregisterCamera(CameraNode node) => _cameras.remove(node);
+
+  void registerLodGroup(LodGroup node) => _lodGroups.add(node);
+
+  void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
+
+  void registerProbe(ReflectionProbeNode node) => _probes.add(node);
+
+  void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
+
+  void registerDecal(DecalNode node) => _decals.add(node);
+
+  void unregisterDecal(DecalNode node) => _decals.remove(node);
+  void registerReflector(PlanarReflectorNode node) => _reflectors.add(node);
+
+  void unregisterReflector(PlanarReflectorNode node) =>
+      _reflectors.remove(node);
 }

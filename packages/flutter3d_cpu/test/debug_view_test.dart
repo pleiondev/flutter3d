@@ -12,6 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -20,7 +21,7 @@ const int _height = 48;
 
 /// A card filling the middle of the frame, of [material], through
 /// [settings], lit by one light from the front.
-Float32List _render(RenderSettings settings, {Material? material}) {
+Float32List _render(RenderSettings settings, {RenderMaterial? material}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -30,8 +31,8 @@ Float32List _render(RenderSettings settings, {Material? material}) {
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
           material ??
-              Material(
-                baseColor: Vector4(0.6, 0.3, 0.1, 1.0),
+              RenderMaterial(
+                baseColor: LinearColor.fromSrgb(0.6, 0.3, 0.1, 1.0),
                 roughness: 0.35,
                 metallic: 0.8,
               ),
@@ -39,7 +40,8 @@ Float32List _render(RenderSettings settings, {Material? material}) {
         ..setPosition(0.0, 0.0, -2.0)
         ..setScale(2.4, 1.8, 0.05);
   final camera = CameraNode();
-  final light = LightNode(intensity: 3.0)..lookAt(Vector3(0.0, 0.0, -1.0));
+  final light = LightNode(intensity: 3.0 * Photometric.legacyUnit)
+    ..lookAt(Vector3(0.0, 0.0, -1.0));
   final result = Renderer.create(device: device).render(
     width: _width,
     height: _height,
@@ -48,7 +50,7 @@ Float32List _render(RenderSettings settings, {Material? material}) {
       ..add(light)
       ..add(camera),
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: settings,
   );
@@ -83,7 +85,7 @@ void main() {
     // `composite.frag`, and the greys come out brighter or flatter than the
     // material's own numbers. A doubled exposure is there to show it.
     final exposed = _plain.copyWith(exposure: 2.0);
-    Vector3 centre(DebugView view) => _at(
+    Vector3 center(DebugView view) => _at(
       _render(exposed.copyWith(debugView: DebugViewSettings(view: view))),
       _width ~/ 2,
       _height ~/ 2,
@@ -91,18 +93,18 @@ void main() {
 
     // `baseColor` is given in sRGB and the view shows it in sRGB: the
     // numbers come back as they went in.
-    final albedo = centre(DebugView.albedo);
+    final albedo = center(DebugView.albedo);
     expect(albedo.x, closeTo(0.6, 0.01));
     expect(albedo.y, closeTo(0.3, 0.01));
     expect(albedo.z, closeTo(0.1, 0.01));
 
-    expect(centre(DebugView.roughness).x, closeTo(0.35, 0.01));
-    expect(centre(DebugView.metallic).x, closeTo(0.8, 0.01));
-    expect(centre(DebugView.occlusion).x, closeTo(1.0, 0.01));
-    expect(centre(DebugView.emissive).x, closeTo(0.0, 0.01));
+    expect(center(DebugView.roughness).x, closeTo(0.35, 0.01));
+    expect(center(DebugView.metallic).x, closeTo(0.8, 0.01));
+    expect(center(DebugView.occlusion).x, closeTo(1.0, 0.01));
+    expect(center(DebugView.emissive).x, closeTo(0.0, 0.01));
 
     // The card faces the camera, so its normal is +z: (0.5, 0.5, 1).
-    final normal = centre(DebugView.normal);
+    final normal = center(DebugView.normal);
     expect(normal.x, closeTo(0.5, 0.02));
     expect(normal.y, closeTo(0.5, 0.02));
     expect(normal.z, closeTo(1.0, 0.02));
@@ -133,7 +135,7 @@ void main() {
     final broken = _render(
       _showing(DebugView.nonFinite),
       // Emission is added as it is, so a NaN there reaches the light.
-      material: Material(emissive: Vector3(double.nan, 0.0, 0.0)),
+      material: RenderMaterial(emissive: LinearColor(double.nan, 0.0, 0.0)),
     );
     expect(_at(broken, _width ~/ 2, _height ~/ 2), Vector3(1.0, 0.0, 1.0));
 

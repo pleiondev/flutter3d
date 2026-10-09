@@ -11,7 +11,7 @@ import 'cpu_shaders_layout.dart';
 import 'cpu_shaders_surface.dart' show uvFootprint;
 
 /// `debug_line.vert`: position and colour, through one matrix.
-final class DebugLineVertexShader implements CpuVertexShader {
+final class DebugLineVertexShader extends CpuVertexShader {
   const DebugLineVertexShader();
 
   @override
@@ -28,7 +28,7 @@ final class DebugLineVertexShader implements CpuVertexShader {
 }
 
 /// `debug_line.frag`: the colour, unchanged.
-final class DebugLineShader implements CpuFragmentShader {
+final class DebugLineShader extends CpuFragmentShader {
   const DebugLineShader();
 
   @override
@@ -46,7 +46,7 @@ final class DebugLineShader implements CpuFragmentShader {
 /// [readSurface] computes — texel, tint, vertex colour — held against the
 /// cutoff in `IdInfo.mask.x`, and a fragment under it is discarded before the
 /// id is written, so a click through the hole answers with what is behind it.
-final class ObjectIdShader implements CpuFragmentShader {
+final class ObjectIdShader extends CpuFragmentShader {
   const ObjectIdShader();
 
   @override
@@ -74,7 +74,7 @@ final class ObjectIdShader implements CpuFragmentShader {
 /// Written through the display-colour path — the value is not a light quantity,
 /// so it is converted to linear here and the composite's encode hands the
 /// original back, provided tone mapping and exposure are off.
-final class NormalsShader implements CpuFragmentShader {
+final class NormalsShader extends CpuFragmentShader {
   const NormalsShader();
 
   @override

@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 96;
@@ -46,9 +45,9 @@ Future<Uint8List> _draw(
           device,
           CuboidShape(size: Vector3(3.0, 3.0, 0.1)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'leaf',
-          baseColor: Vector4(1.0, 1.0, 1.0, alpha),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, alpha),
           lighting: LightingModel.unlit,
           alphaMode: mode,
           alphaCutoff: 0.5,
@@ -62,12 +61,12 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(shift, 0.0, 3.0),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(tonemap: false),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// What fraction of the quad's own area survived.

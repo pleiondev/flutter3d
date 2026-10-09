@@ -21,7 +21,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// How far the one target slides the whole cube.
 const double _slide = 8.0;
@@ -50,13 +49,13 @@ const double _slide = 8.0;
     height: packed.height,
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
-  )!;
+  );
 
   final scene = Scene();
   final node =
       MeshNode(
           DeviceMesh.upload(device, source),
-          Material(name: 'cube'),
+          RenderMaterial(name: 'cube'),
           name: 'cube',
         )
         ..morph = (MorphState(

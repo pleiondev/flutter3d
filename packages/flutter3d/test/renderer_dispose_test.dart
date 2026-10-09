@@ -31,7 +31,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -47,7 +47,7 @@ void main() {
           device,
           const PlaneShape(width: 4.0, depth: 4.0).build(),
         ),
-        Material(name: 'floor'),
+        RenderMaterial(name: 'floor'),
         name: 'floor',
       ),
     );
@@ -76,7 +76,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -117,7 +117,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,

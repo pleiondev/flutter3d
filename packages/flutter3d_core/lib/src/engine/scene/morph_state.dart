@@ -18,7 +18,7 @@ import '../animation/morph_sink.dart';
 /// the vertex stage reads — see `lib/morph.glsl`. Nothing here is recomputed:
 /// a weight is set by an animation clip, by a game, or by nobody, and the cost
 /// of a face holding an expression is the same as the cost of one at rest.
-final class MorphState implements MorphSink {
+final class MorphState with MorphSink {
   MorphState({
     required this.texture,
     required int targetCount,

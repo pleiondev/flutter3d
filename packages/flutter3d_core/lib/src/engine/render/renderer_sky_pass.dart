@@ -16,15 +16,29 @@ extension _SkyPass on Renderer {
   /// buffer at all. With MSAA the scene's colour is a multisample texture that
   /// cannot be pre-filled either.
   ///
-  /// **No `setDepthCompare`.** `sky.vert` puts the triangle at 0.999999, which
-  /// passes the pass's own `less` against a buffer cleared to 1.0 and fails
-  /// against anything already drawn. So the tracker is untouched and stays
-  /// `less`, and a frame with no sky in it is byte-for-byte what it was.
+  /// **No `setDepthCompare` the ordinary way round.** The triangle goes at
+  /// 0.999999, which passes the pass's own `less` against a buffer cleared
+  /// to 1.0 and fails against anything already drawn. So the tracker is
+  /// untouched and stays `less`, and a frame with no sky in it is
+  /// byte-for-byte what it was.
+  ///
+  /// **[reversed], the far plane is nought** — `A2.8` — and nothing strictly
+  /// beyond it passes a `greater` test against a buffer cleared to nought.
+  /// So the triangle goes at nought itself and is tested `lessEqual`, which
+  /// the reversed pass asks as `greaterEqual`: equal to the clear where
+  /// nothing was drawn, and behind everything that was. Not a hair in front
+  /// of nought, as the ordinary sky is a hair in front of one: under an
+  /// infinite far plane a mountain at a million near planes is a hair in
+  /// front of nought itself, and no fixed hair is small enough.
+  ///
+  /// [viewProjection] is the view's matrix with nothing done to its depth —
+  /// the rays are all the sky reads of it.
   void _encodeSky({
     required PassEncoder pass,
     required RenderSettings settings,
     required vm.Matrix4 viewProjection,
     required FramePassState state,
+    bool reversed = false,
   }) {
     final sky = settings.sky;
     if (!sky.enabled) return;
@@ -76,7 +90,12 @@ extension _SkyPass on Renderer {
     // the previous one set — and on WebGL that is global GL state.
     pass.setBlend(null);
     pass.setCullMode(CullMode.none);
-    pass.setDepthWrite(false);
+    pass.setDepthWrite(enabled: false);
+    if (reversed && state.depthCompare != CompareFunction.lessEqual) {
+      pass.setDepthCompare(CompareFunction.lessEqual);
+      state.depthCompare = CompareFunction.lessEqual;
+    }
+    final depth = reversed ? 0.0 : Renderer._kSkyDepth;
 
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
     _skyOrthoLens = isOrthographic(viewProjection)
@@ -95,13 +114,16 @@ extension _SkyPass on Renderer {
     state.invalidatePipeline();
 
     if (textured) {
-      pass.bindVertexData(_skyVertexBytes(inverse, sky, textured: true), 3);
+      pass.bindVertexData(
+        _skyVertexBytes(inverse, sky, textured: true, depth: depth),
+        3,
+      );
       pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
       pass.bindTexture(
         fragment,
         'sky_texture',
         cubemap,
-        sampler: SamplerOptions.linearClamp,
+        sampler: SamplerDescriptor.linearClamp,
       );
       pass.draw();
       state.drawCalls++;
@@ -110,8 +132,8 @@ extension _SkyPass on Renderer {
 
     pass.bindVertexData(
       air != null
-          ? _skyPhysicalVertexBytes(inverse, sky, air)
-          : _skyVertexBytes(inverse, sky, textured: false),
+          ? _skyPhysicalVertexBytes(inverse, sky, air, depth: depth)
+          : _skyVertexBytes(inverse, sky, textured: false, depth: depth),
       3,
     );
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
@@ -136,6 +158,7 @@ extension _SkyPass on Renderer {
     vm.Matrix4 inverse,
     SkySettings sky, {
     required bool textured,
+    required double depth,
   }) {
     final data = _skyVertexData;
     // The clip-space corners of the full-screen triangle.
@@ -162,6 +185,7 @@ extension _SkyPass on Renderer {
 
       data[at++] = x;
       data[at++] = y;
+      data[at++] = depth;
 
       _skyCornerRay(inverse, x, y, _skyRay);
       data[at++] = _skyRay.x;
@@ -169,26 +193,26 @@ extension _SkyPass on Renderer {
       data[at++] = _skyRay.z;
 
       if (textured) {
-        data[at++] = tint.x;
-        data[at++] = tint.y;
-        data[at++] = tint.z;
+        data[at++] = tint.r;
+        data[at++] = tint.g;
+        data[at++] = tint.b;
         data[at++] = 1.0;
         continue;
       }
 
-      data[at++] = zenith.x;
-      data[at++] = zenith.y;
-      data[at++] = zenith.z;
+      data[at++] = zenith.r;
+      data[at++] = zenith.g;
+      data[at++] = zenith.b;
       data[at++] = 0.0;
 
-      data[at++] = horizon.x;
-      data[at++] = horizon.y;
-      data[at++] = horizon.z;
+      data[at++] = horizon.r;
+      data[at++] = horizon.g;
+      data[at++] = horizon.b;
       data[at++] = 0.0;
 
-      data[at++] = nadir.x;
-      data[at++] = nadir.y;
-      data[at++] = nadir.z;
+      data[at++] = nadir.r;
+      data[at++] = nadir.g;
+      data[at++] = nadir.b;
       data[at++] = 0.0;
 
       data[at++] = toSun.x;
@@ -196,9 +220,9 @@ extension _SkyPass on Renderer {
       data[at++] = toSun.z;
       data[at++] = sky.glowExponent;
 
-      data[at++] = glow.x;
-      data[at++] = glow.y;
-      data[at++] = glow.z;
+      data[at++] = glow.r;
+      data[at++] = glow.g;
+      data[at++] = glow.b;
       data[at++] = sky.glowStrength;
 
       // The disc's inner cosine, then **how much softer its edge is** rather
@@ -209,7 +233,7 @@ extension _SkyPass on Renderer {
       // shader's `inner > outer` guard false. A sun that never draws.
       data[at++] = sky.discInnerCosine;
       data[at++] = sky.discInnerCosine - sky.discOuterCosine;
-      data[at++] = sky.sunIntensity;
+      data[at++] = luxToEngine(sky.sunIntensity);
       data[at++] = 0.0;
     }
 
@@ -226,8 +250,9 @@ extension _SkyPass on Renderer {
   ByteData _skyPhysicalVertexBytes(
     vm.Matrix4 inverse,
     SkySettings sky,
-    PhysicalSky air,
-  ) {
+    PhysicalSky air, {
+    required double depth,
+  }) {
     final data = _skyVertexData;
     const corners = <double>[-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
     const stride = Renderer._kSkyVertexFloats;
@@ -241,6 +266,7 @@ extension _SkyPass on Renderer {
 
       data[at++] = x;
       data[at++] = y;
+      data[at++] = depth;
 
       _skyCornerRay(inverse, x, y, _skyRay);
       data[at++] = _skyRay.x;
@@ -260,7 +286,10 @@ extension _SkyPass on Renderer {
       data[at++] = toSun.x;
       data[at++] = toSun.y;
       data[at++] = toSun.z;
-      data[at++] = air.sunIlluminance;
+      // On the luminance scale, not the illuminance one: the shader multiplies
+      // it by per-metre coefficients and per-steradian phase functions, which
+      // turn lux into nits. `PhysicalSky._sun` says the same.
+      data[at++] = nitsToEngine(air.sunIlluminance);
 
       data[at++] = k.planet;
       data[at++] = k.top;
@@ -270,13 +299,13 @@ extension _SkyPass on Renderer {
       data[at++] = air.starBrightness;
       data[at++] = air.starDensity;
       data[at++] = air.starCells.toDouble();
-      data[at++] = 0.0;
+      data[at++] = air.ozone;
 
       // The disc as the gradient sends it, inner cosine and the width of the
       // edge — see `_skyVertexBytes` for why not the outer cosine.
       data[at++] = sky.discInnerCosine;
       data[at++] = sky.discInnerCosine - sky.discOuterCosine;
-      data[at++] = sky.sunIntensity;
+      data[at++] = luxToEngine(sky.sunIntensity);
       data[at++] = 0.0;
     }
 
@@ -290,6 +319,12 @@ extension _SkyPass on Renderer {
   /// zero-to-one on Impeller and on the software rasteriser and minus-one-to-one
   /// on WebGL, and the difference of two points on one ray is the same direction
   /// wherever the two points sit.
+  ///
+  /// **Except where the far plane is at infinity**, which is where depth 1.0
+  /// lands with w nought — a point at infinity, and a division by it. There
+  /// the second point is taken at 0.75 instead, which is a finite distance
+  /// under every convention [inverse] can be in; any finite camera keeps the
+  /// 1.0 it always had, so its sky is the sky it was.
   ///
   /// **Through an orthographic lens every corner's ray is the view axis**, so
   /// the sky would be one colour, a cube map one texel, and the sun's disc the
@@ -308,7 +343,10 @@ extension _SkyPass on Renderer {
       return;
     }
     final near = inverse.transform(vm.Vector4(x, y, 0.5, 1.0));
-    final far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
+    var far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
+    if (far.w.abs() < 1e-12) {
+      far = inverse.transform(vm.Vector4(x, y, 0.75, 1.0));
+    }
     out.setValues(
       far.x / far.w - near.x / near.w,
       far.y / far.w - near.y / near.w,
@@ -330,10 +368,10 @@ extension _SkyPass on Renderer {
       return vm.Vector3(p.x / p.w, p.y / p.w, p.z / p.w);
     }
 
-    final centre = at(0.0, 0.0, 0.5);
-    final forward = (at(0.0, 0.0, 1.0) - centre)..normalize();
-    final right = at(1.0, 0.0, 0.5) - centre;
-    final up = at(0.0, 1.0, 0.5) - centre;
+    final center = at(0.0, 0.0, 0.5);
+    final forward = (at(0.0, 0.0, 1.0) - center)..normalize();
+    final right = at(1.0, 0.0, 0.5) - center;
+    final up = at(0.0, 1.0, 0.5) - center;
     final halfHeight = up.length;
     final aspect = halfHeight > 0.0 ? right.length / halfHeight : 1.0;
     return (

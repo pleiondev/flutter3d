@@ -143,6 +143,19 @@ extension BlendFactorToGpu on BlendFactor {
     BlendFactor.oneMinusBlendColor => gpu.BlendFactor.oneMinusBlendColor,
     BlendFactor.blendAlpha => gpu.BlendFactor.blendAlpha,
     BlendFactor.oneMinusBlendAlpha => gpu.BlendFactor.oneMinusBlendAlpha,
+    // TODO(impeller): flutter_gpu's BlendFactor has no second-source factors
+    // and its pipelines no second fragment output — unblocked by an upstream
+    // flutter_gpu BlendFactor.source1* (dual-source blending) API.
+    BlendFactor.source1Color ||
+    BlendFactor.oneMinusSource1Color ||
+    BlendFactor.source1Alpha ||
+    BlendFactor.oneMinusSource1Alpha => throw UnsupportedCapability(
+      DeviceFeature.dualSourceBlending,
+      backend: 'Impeller',
+      reason:
+          'flutter_gpu has no BlendFactor.$name and no second fragment '
+          'output to read it from',
+    ),
   };
 }
 
@@ -152,5 +165,13 @@ extension BlendOperationToGpu on BlendOperation {
     BlendOperation.add => gpu.BlendOperation.add,
     BlendOperation.subtract => gpu.BlendOperation.subtract,
     BlendOperation.reverseSubtract => gpu.BlendOperation.reverseSubtract,
+    // TODO(impeller): flutter_gpu's BlendOperation stops at reverseSubtract —
+    // unblocked by upstream flutter_gpu gaining min and max, which Impeller's
+    // own blend descriptor and both its APIs already have.
+    BlendOperation.min || BlendOperation.max => throw UnsupportedCapability(
+      DeviceFeature.minMaxBlend,
+      backend: 'Impeller',
+      reason: 'flutter_gpu has no BlendOperation.$name',
+    ),
   };
 }

@@ -14,6 +14,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -21,7 +23,7 @@ const int _size = 16;
 
 /// Red, written the way a stage of one's own writes it: through `WriteSurface`
 /// and nothing else.
-final class _Red implements CpuFragmentShader {
+final class _Red extends CpuFragmentShader {
   const _Red();
 
   @override
@@ -29,7 +31,7 @@ final class _Red implements CpuFragmentShader {
     c,
     v,
     b,
-    colour: Vector3(1.0, 0.0, 0.0),
+    color: Vector3(1.0, 0.0, 0.0),
     alpha: 1.0,
     normal: Vector3(0.0, 0.0, 1.0),
     roughness: 1.0,
@@ -48,7 +50,7 @@ const LightingModel _red = LightingModel(
 );
 
 /// The centre of a red wall three metres off, under [fog].
-Vector3 _centre(FogSettings fog) {
+Vector3 _center(FogSettings fog) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -67,7 +69,7 @@ Vector3 _centre(FogSettings fog) {
             device,
             const PlaneShape(width: 8, depth: 8).build(),
           ),
-          Material(lighting: _red, doubleSided: true),
+          RenderMaterial(lighting: _red, doubleSided: true),
         )
         ..setPosition(0.0, 0.0, -3.0)
         ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0),
@@ -77,7 +79,7 @@ Vector3 _centre(FogSettings fog) {
     height: _size,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -100,9 +102,9 @@ void main() {
   test('a stage without FragInfo is fogged', () {
     // Mutation: bind FogInfo only beside FragInfo, as it was. The fogged wall
     // comes back as red as the clear one.
-    final clear = _centre(const FogSettings());
-    final fogged = _centre(
-      FogSettings(color: Vector3(0.0, 0.0, 1.0), density: 2.0),
+    final clear = _center(const FogSettings());
+    final fogged = _center(
+      FogSettings(color: LinearColor(0.0, 0.0, 1.0), density: 2.0),
     );
     expect(clear.x, greaterThan(0.5), reason: 'the wall is not there');
     expect(clear.z, lessThan(0.05));

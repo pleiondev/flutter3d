@@ -9,7 +9,10 @@ library;
 
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'capabilities.dart';
+import 'format_info.dart';
 import 'formats.dart';
+import 'resources.dart';
 import 'texture.dart';
 
 /// A rectangle of a render target, in pixels.
@@ -55,7 +58,7 @@ final class ScreenRect {
 ///
 /// A value type with `==`, so a backend can cache one native object per
 /// distinct state and a test can assert on the state a pass was left in — the
-/// same two reasons `SamplerOptions` is one.
+/// same two reasons `SamplerDescriptor` is one.
 ///
 /// The field set and the defaults are flutter_gpu's, unchanged, which is what
 /// makes [alphaBlend] exactly the equation the engine used to get by
@@ -128,6 +131,21 @@ final class BlendState {
       _readsConstant(sourceAlphaFactor) ||
       _readsConstant(destinationAlphaFactor);
 
+  /// Whether any factor reads the fragment's second output — what a backend
+  /// without `DeviceFeature.dualSourceBlending` refuses.
+  bool get usesDualSource =>
+      sourceColorFactor.isDualSource ||
+      destinationColorFactor.isDualSource ||
+      sourceAlphaFactor.isDualSource ||
+      destinationAlphaFactor.isDualSource;
+
+  /// Whether either operation is [BlendOperation.min] or
+  /// [BlendOperation.max] — what a backend without
+  /// `DeviceFeature.minMaxBlend` refuses.
+  bool get usesMinMax =>
+      extendedBlendOperations.contains(colorOperation) ||
+      extendedBlendOperations.contains(alphaOperation);
+
   /// Whether one factor multiplies by the blend constant.
   static bool _readsConstant(BlendFactor factor) => switch (factor) {
     BlendFactor.blendColor ||
@@ -168,7 +186,9 @@ final class ColorTarget {
     this.clearValue,
     this.face = 0,
     this.mipLevel = 0,
+    this.layer = 0,
   }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
+       assert(layer >= 0, 'a layer counts up from the first'),
        assert(mipLevel >= 0, 'a mip level counts down from the base'),
        // **Checked here rather than by each backend, because no backend was
        // checking.** The doc on [resolveTexture] said "the backend checks" and
@@ -221,6 +241,15 @@ final class ColorTarget {
   /// at the attachment, which is louder than drawing into the base level and
   /// leaving the chain as it was allocated.
   final int mipLevel;
+
+  /// Which layer of an array [texture], which cube of a cube array (its
+  /// faces then chosen by [face]), or which slice of a 3D texture the pass
+  /// draws into. Zero for every texture that has one.
+  ///
+  /// Ask `DeviceFeature.renderToArrayLayer` before naming anything but zero:
+  /// a backend without it throws `UnsupportedCapability` from
+  /// `beginRenderPass` rather than drawing into layer zero.
+  final int layer;
 
   /// Where a multisampled [texture] is resolved to when the pass ends.
   ///
@@ -359,12 +388,45 @@ final class DepthTarget {
     this.stencilLoadAction = LoadAction.clear,
     this.stencilStoreAction = StoreAction.dontCare,
     this.stencilClearValue = 0,
-  });
+    this.mipLevel = 0,
+    this.layer = 0,
+    this.face = 0,
+    this.depthReadOnly = false,
+    this.stencilReadOnly = false,
+  }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
+       assert(layer >= 0, 'a layer counts up from the first');
 
   final TextureHandle texture;
 
+  /// Which level of [texture] is the attachment — for a depth pyramid, or a
+  /// shadow drawn into one level of a chain. Ask
+  /// `DeviceFeature.renderToMipLevel` before naming anything but zero.
+  final int mipLevel;
+
+  /// Which layer of an array [texture] is the attachment — a cascaded or
+  /// point-light shadow drawn layer by layer. Ask
+  /// `DeviceFeature.renderToArrayLayer` before naming anything but zero.
+  ///
+  /// Counted as `ColorTarget.layer` counts: on a cube array it is the cube,
+  /// and [face] is the face of it, so a colour and a depth attachment that
+  /// name the same `layer` and `face` are the same plane.
+  final int layer;
+
+  /// Which face of a cube or cube-array [texture] is the attachment, in
+  /// `ColorTarget.face`'s order. Zero for every other shape.
+  final int face;
+
+  /// The pass tests against the depth but never writes it, so the same
+  /// texture may be sampled by the pass at the same time. WebGPU's
+  /// `depthReadOnly`; the load and store actions are then ignored.
+  final bool depthReadOnly;
+
+  /// As [depthReadOnly], for the stencil.
+  final bool stencilReadOnly;
+
   /// The far plane. One under this engine's `[0, 1]` depth convention; a
   /// reversed-Z backend would want zero, which is why it is a parameter.
+  /// A depth from 0 to 1, unitless.
   final double clearValue;
 
   /// What the depth holds when the pass opens: [clearValue] everywhere, or
@@ -396,7 +458,21 @@ final class DepthTarget {
 
 /// Everything a pass draws into.
 final class RenderPassDescriptor {
-  const RenderPassDescriptor({required this.colors, this.depth, this.label});
+  const RenderPassDescriptor({
+    required this.colors,
+    this.depth,
+    this.label,
+    this.occlusionQuerySet,
+    this.timestampWrites,
+  });
+
+  /// The [QueryType.occlusion] set `PassEncoder.beginOcclusionQuery` writes
+  /// into, or null for a pass that asks none. `DeviceFeature.occlusionQuery`.
+  final QuerySet? occlusionQuerySet;
+
+  /// Where the pass writes its start and end GPU times, or null.
+  /// `DeviceFeature.timestampQuery`.
+  final PassTimestampWrites? timestampWrites;
 
   /// What the pass is called, for a GPU debugger and for
   /// `GraphicsDevice.onGpuTimings` — `H2`. The renderer passes its frame
@@ -427,12 +503,49 @@ final class RenderPassDescriptor {
   /// [limit] is `GraphicsDevice.maxColorAttachments`. Passed rather than
   /// taken from a device, because this file may not know what a device is —
   /// the descriptor is what a caller builds before it has opened anything.
+  /// Throws [UnsupportedCapability] when this pass needs a feature [features]
+  /// lacks: a colour or depth attachment at a layer above zero
+  /// (`renderToArrayLayer`), at a mip level above zero (`renderToMipLevel`),
+  /// an occlusion query set (`occlusionQuery`) or timestamp writes
+  /// (`timestampQuery`).
+  ///
+  /// **For a backend's `beginRenderPass`, beside [checkAttachmentLimit]**,
+  /// so that every backend refuses the same descriptors in the same words.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    void need(bool used, DeviceFeature feature, String what) {
+      if (used) features.require(feature, backend: backend, reason: what);
+    }
+
+    final depth = this.depth;
+    need(
+      colors.any((ColorTarget c) => c.layer > 0) || (depth?.layer ?? 0) > 0,
+      DeviceFeature.renderToArrayLayer,
+      'this pass draws into a layer above zero',
+    );
+    need(
+      colors.any((ColorTarget c) => c.mipLevel > 0) ||
+          (depth?.mipLevel ?? 0) > 0,
+      DeviceFeature.renderToMipLevel,
+      'this pass draws into a mip level above the base',
+    );
+    need(
+      occlusionQuerySet != null,
+      DeviceFeature.occlusionQuery,
+      'this pass names an occlusion query set',
+    );
+    need(
+      timestampWrites != null,
+      DeviceFeature.timestampQuery,
+      'this pass names timestamp writes',
+    );
+  }
+
   void checkAttachmentLimit(int limit, {required String backend}) {
     if (colors.length <= limit) return;
     throw UnsupportedError(
       '$backend opens at most $limit colour '
       '${limit == 1 ? "attachment" : "attachments"} and this pass asks for '
-      '${colors.length}. Ask `GraphicsDevice.maxColorAttachments` before '
+      '${colors.length}. Ask `GraphicsDevice.limits.maxColorAttachments` before '
       'building a pass that wants more than one: this throw is the whole '
       'point of the number, because the alternative on at least one backend '
       'is that the process aborts.',

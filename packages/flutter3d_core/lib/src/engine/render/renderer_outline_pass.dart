@@ -65,7 +65,7 @@ extension _OutlinePass on Renderer {
         scene,
         view,
         viewMatrix: camera.viewMatrix,
-        frustum: vm.Frustum.matrix(unjittered),
+        frustum: _DepthConvention._viewFrustum(unjittered),
       );
       final marked = <MeshNode>[
         for (final index in <int>[
@@ -102,24 +102,24 @@ extension _OutlinePass on Renderer {
           jittered: jittered,
           current: current,
           previous: current,
-          fragment: outlineMaskShader,
+          fragment: _outlineMaskShader,
           name: 'OutlineMask',
           settings: settings,
         );
         if (stage == null) continue;
-        final colour = node.outlineColor!;
+        final color = node.outlineColor!;
         _outlineMaskInfo.color
-          ..[0] = colour.x.clamp(0.0, 1.0)
-          ..[1] = colour.y.clamp(0.0, 1.0)
-          ..[2] = colour.z.clamp(0.0, 1.0)
+          ..[0] = LinearColor.linearToSrgb(color.r).clamp(0.0, 1.0)
+          ..[1] = LinearColor.linearToSrgb(color.g).clamp(0.0, 1.0)
+          ..[2] = LinearColor.linearToSrgb(color.b).clamp(0.0, 1.0)
           ..[3] = 1.0;
         pass
-          ..bindBlock(outlineMaskShader, _outlineMaskInfo)
+          ..bindBlock(_outlineMaskShader, _outlineMaskInfo)
           ..bindTexture(
-            outlineMaskShader,
+            _outlineMaskShader,
             'surface_texture',
             surface,
-            sampler: SamplerOptions.nearestClamp,
+            sampler: SamplerDescriptor.nearestClamp,
           )
           ..draw(instanceCount: node is InstancedMeshNode ? node.count : 1);
         drawn++;
@@ -147,7 +147,7 @@ extension _OutlinePass on Renderer {
   }) {
     developer.Timeline.startSync('Renderer.highContrast');
     final target = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: scene.width,
         height: scene.height,
         format: scene.format,
@@ -166,9 +166,9 @@ extension _OutlinePass on Renderer {
       ..[3] = math.max(settings.flattenSpacing, 1.0);
     final line = settings.outlineColor;
     _highContrastInfo.line
-      ..[0] = line?.x ?? 0.0
-      ..[1] = line?.y ?? 0.0
-      ..[2] = line?.z ?? 0.0
+      ..[0] = line == null ? 0.0 : LinearColor.linearToSrgb(line.r)
+      ..[1] = line == null ? 0.0 : LinearColor.linearToSrgb(line.g)
+      ..[2] = line == null ? 0.0 : LinearColor.linearToSrgb(line.b)
       // Four is as far as the shader looks, so a wider ask is said as four
       // rather than as a number the shader silently clips.
       ..[3] = settings.roleWidth.clamp(0.0, 4.0);
@@ -181,7 +181,7 @@ extension _OutlinePass on Renderer {
     drawFullscreen(
       FullscreenDraw(
         target: target,
-        fragment: highContrastShader,
+        fragment: _highContrastShader,
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'surface_texture': surface ?? fallbackBlack,
@@ -194,9 +194,9 @@ extension _OutlinePass on Renderer {
         // a filtered tap at a silhouette averages a foreground normal with
         // the cleared background, and a filtered mark averages a colour with
         // nought — each a value belonging to neither side.
-        samplers: const <String, SamplerOptions>{
-          'surface_texture': SamplerOptions.nearestClamp,
-          'mask_texture': SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerDescriptor>{
+          'surface_texture': SamplerDescriptor.nearestClamp,
+          'mask_texture': SamplerDescriptor.nearestClamp,
         },
       ),
     );

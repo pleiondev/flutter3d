@@ -45,7 +45,10 @@ abstract base class Projection {
   /// Builds the projection matrix for a given viewport aspect ratio.
   Matrix4 toMatrix(double aspect);
 
+  /// Distance from the eye to the near clip plane, in metres.
   double get near;
+
+  /// Distance from the eye to the far clip plane, in metres.
   double get far;
 
   /// The vertical angle this projection sees, in radians, or null for one that
@@ -81,13 +84,44 @@ abstract base class Projection {
   }
 }
 
+/// A pinhole camera's frustum: a vertical angle, a near plane and a far one.
+///
+/// **The far plane may be at infinity.** `far: double.infinity` — or
+/// [PerspectiveProjection.infinite] — builds the limit of the matrix as the
+/// far plane recedes: everything in front of the near plane projects inside
+/// the depth range, and nothing is cut off however far it is. That costs
+/// nothing a finite plane would keep under the renderer's reversed depth,
+/// where precision follows distance rather than being spent near the eye,
+/// and it is what a planet, a sky full of ships or a flight over a valley
+/// wants: no far plane to choose, and no horizon that pops in. Under the
+/// ordinary convention it costs a little precision at every distance, which
+/// is the trade every infinite projection makes.
+///
+/// What needs a number where the plane is — the shadow cascades, the light
+/// clusters, the depth pyramid — takes the renderer's own stand-in for an
+/// infinite one; see `withDepthPlanes`.
 final class PerspectiveProjection extends Projection {
   const PerspectiveProjection({
-    this.fovYRadians = math.pi / 4,
+    this.fovY = math.pi / 4,
     this.near = 0.1,
     this.far = 1000.0,
   }) : assert(
-         fovYRadians > 0.0 && fovYRadians < math.pi,
+         fovY > 0.0 && fovY < math.pi,
+         'fovYRadians is in radians, and a field of view of 180 degrees or '
+         'more has no projection. A value like 60 or 90 here is degrees: '
+         'multiply by pi / 180.',
+       );
+
+  /// A projection with no far plane: [far] is `double.infinity`.
+  ///
+  /// The same as passing `far: double.infinity`, named so that a reader
+  /// sees the choice rather than a number that happens to be infinite.
+  const PerspectiveProjection.infinite({
+    this.fovY = math.pi / 4,
+    this.near = 0.1,
+  }) : far = double.infinity,
+       assert(
+         fovY > 0.0 && fovY < math.pi,
          'fovYRadians is in radians, and a field of view of 180 degrees or '
          'more has no projection. A value like 60 or 90 here is degrees: '
          'multiply by pi / 180.',
@@ -95,14 +129,18 @@ final class PerspectiveProjection extends Projection {
 
   /// Vertical field of view. Vertical rather than horizontal so that widening the
   /// viewport reveals more scene instead of squashing it.
-  final double fovYRadians;
+  /// In radians.
+  final double fovY;
 
+  /// [fovY], in radians.
   @override
-  double? get verticalFieldOfView => fovYRadians;
+  double? get verticalFieldOfView => fovY;
 
+  /// Distance from the eye to the near clip plane, in metres.
   @override
   final double near;
 
+  /// Distance from the eye to the far clip plane, in metres.
   @override
   final double far;
 
@@ -115,7 +153,7 @@ final class PerspectiveProjection extends Projection {
       throw ArgumentError('Expected 0 < near < far, got near=$near far=$far.');
     }
 
-    final f = 1.0 / math.tan(fovYRadians / 2.0);
+    final f = 1.0 / math.tan(fovY / 2.0);
     final m = Matrix4.zero();
 
     // setEntry takes (row, column). The two depth terms below sit in different
@@ -124,22 +162,18 @@ final class PerspectiveProjection extends Projection {
     // error anywhere. projection_test.dart pins the mapping.
     m.setEntry(0, 0, f / aspect);
     m.setEntry(1, 1, f);
-    m.setEntry(2, 2, far / (near - far));
-    m.setEntry(2, 3, (near * far) / (near - far));
+    _setDepthRow(m, near, far);
     m.setEntry(3, 2, -1.0);
 
     return m;
   }
 
-  PerspectiveProjection copyWith({
-    double? fovYRadians,
-    double? near,
-    double? far,
-  }) => PerspectiveProjection(
-    fovYRadians: fovYRadians ?? this.fovYRadians,
-    near: near ?? this.near,
-    far: far ?? this.far,
-  );
+  PerspectiveProjection copyWith({double? fovY, double? near, double? far}) =>
+      PerspectiveProjection(
+        fovY: fovY ?? this.fovY,
+        near: near ?? this.near,
+        far: far ?? this.far,
+      );
 }
 
 final class OrthographicProjection extends Projection {
@@ -152,9 +186,11 @@ final class OrthographicProjection extends Projection {
   /// Vertical extent of the view volume in world units; width follows the aspect.
   final double height;
 
+  /// Distance from the eye to the near clip plane, in metres.
   @override
   final double near;
 
+  /// Distance from the eye to the far clip plane, in metres.
   @override
   final double far;
 
@@ -247,12 +283,12 @@ final class OffAxisProjection extends Projection {
   /// The frustum a [PerspectiveProjection] of this shape would have, for
   /// comparing the two and for a stereo pair that wants a symmetric fallback.
   factory OffAxisProjection.symmetric({
-    double fovYRadians = math.pi / 4,
+    double fovY = math.pi / 4,
     double aspect = 1.0,
     double near = 0.1,
     double far = 1000.0,
   }) {
-    final up = math.tan(fovYRadians / 2.0);
+    final up = math.tan(fovY / 2.0);
     final right = up * aspect;
     return OffAxisProjection(
       tanLeft: -right,
@@ -264,14 +300,27 @@ final class OffAxisProjection extends Projection {
     );
   }
 
+  /// Tangent of the angle from the view axis to the left edge, negative to the
+  /// left: offset over distance, a unitless ratio.
   final double tanLeft;
+
+  /// Tangent of the angle from the view axis to the right edge: offset over
+  /// distance, a unitless ratio.
   final double tanRight;
+
+  /// Tangent of the angle from the view axis to the bottom edge, negative
+  /// below: offset over distance, a unitless ratio.
   final double tanDown;
+
+  /// Tangent of the angle from the view axis to the top edge: offset over
+  /// distance, a unitless ratio.
   final double tanUp;
 
+  /// Distance from the eye to the near clip plane, in metres.
   @override
   final double near;
 
+  /// Distance from the eye to the far clip plane, in metres.
   @override
   final double far;
 
@@ -309,12 +358,12 @@ final class OffAxisProjection extends Projection {
     m.setEntry(0, 2, (tanRight + tanLeft) / width);
     m.setEntry(1, 1, 2.0 / height);
     m.setEntry(1, 2, (tanUp + tanDown) / height);
-    // Depth, in this file's `[0, 1]` convention. Copied in shape from
-    // `PerspectiveProjection` because it is the same mapping and must stay the
-    // same mapping: an eye whose depth ran the other way would still draw, and
-    // would fight the shadow lookup rather than report anything.
-    m.setEntry(2, 2, far / (near - far));
-    m.setEntry(2, 3, (near * far) / (near - far));
+    // Depth, in this file's `[0, 1]` convention, and from the one function
+    // `PerspectiveProjection` builds its own with: it is the same mapping and
+    // must stay the same mapping. An eye whose depth ran the other way would
+    // still draw, and would fight the shadow lookup rather than report
+    // anything. A far plane at infinity is that function's to handle.
+    _setDepthRow(m, near, far);
     m.setEntry(3, 2, -1.0);
     return m;
   }
@@ -376,9 +425,11 @@ final class TiledProjection extends Projection {
   final int tilesX;
   final int tilesY;
 
+  /// [base]'s near clip distance, in metres.
   @override
   double get near => base.near;
 
+  /// [base]'s far clip distance, in metres.
   @override
   double get far => base.far;
 
@@ -451,17 +502,31 @@ final class CropProjection extends Projection {
   /// Width over height of the whole frame the rectangle is a piece of.
   final double frameAspect;
 
+  /// The rectangle's left edge, as a fraction of the whole frame's width from
+  /// its left.
   final double left;
+
+  /// The rectangle's top edge, as a fraction of the whole frame's height from
+  /// its top.
   final double top;
+
+  /// The rectangle's right edge, as a fraction of the whole frame's width from
+  /// its left.
   final double right;
+
+  /// The rectangle's bottom edge, as a fraction of the whole frame's height
+  /// from its top.
   final double bottom;
 
+  /// [base]'s near clip distance, in metres.
   @override
   double get near => base.near;
 
+  /// [base]'s far clip distance, in metres.
   @override
   double get far => base.far;
 
+  /// [base]'s vertical field of view, in radians.
   @override
   double? get verticalFieldOfView => base.verticalFieldOfView;
 
@@ -514,14 +579,19 @@ final class JitteredProjection extends Projection {
 
   /// The offset in NDC units.
   final double dx;
+
+  /// The vertical offset in NDC units, where the frame is two high.
   final double dy;
 
+  /// [base]'s near clip distance, in metres.
   @override
   double get near => base.near;
 
+  /// [base]'s far clip distance, in metres.
   @override
   double get far => base.far;
 
+  /// [base]'s vertical field of view, in radians.
   @override
   double? get verticalFieldOfView => base.verticalFieldOfView;
 
@@ -573,6 +643,101 @@ Matrix4 toDepthRange(Matrix4 projection, DepthRange range) {
     ..setEntry(2, 2, 2.0)
     ..setEntry(2, 3, -1.0)
     ..multiply(projection);
+}
+
+/// [projection] with its depth turned round: the near plane at one and the
+/// far plane at nought — reversed depth.
+///
+/// `z' = w - z`, which is its own inverse: applied twice it gives back
+/// [projection]. Works on any matrix in this file's `[0, 1]` convention,
+/// orthographic and oblique ones included, because it touches only the
+/// depth row. A pass drawn through the result clears its depth to nought
+/// and keeps the *greater* of two depths; see
+/// `RenderSettings.reversedDepth`.
+///
+/// **Why anybody would.** A perspective divide crowds depth towards the far
+/// end, and a float crowds its precision towards nought. Stored the ordinary
+/// way round, both pile up at the far plane and the distance is left with
+/// almost nothing; reversed, one undoes the other, and depth keeps roughly
+/// the same relative precision from the near plane to the horizon. That is
+/// only true where clip depth is `[0, 1]` and the depth buffer is a float —
+/// `DeviceFeature.reversedDepth` — and harmless elsewhere.
+///
+/// For a perspective matrix [withDepthPlanes] gives the same answer worked
+/// out from the planes rather than by a subtraction of nearly equal numbers,
+/// which is the one to prefer when the planes are known.
+Matrix4 toReversedDepth(Matrix4 projection) => Matrix4.identity()
+  ..setEntry(2, 2, -1.0)
+  ..setEntry(2, 3, 1.0)
+  ..multiply(projection);
+
+/// [projection] with its depth row rebuilt for a [near] and a [far] plane —
+/// [far] may be `double.infinity` — and turned round when [reversed]; or
+/// null when [projection] is not one whose depth row can be rebuilt.
+///
+/// **What can be rebuilt is a perspective matrix whose depth depends on
+/// depth alone**: a bottom row of `(0, 0, -1, 0)` and nothing in the depth
+/// row's first two columns. [PerspectiveProjection] and [OffAxisProjection]
+/// build those, and the crops and the jitter in this file keep them, since
+/// they move x and y only. An orthographic matrix has another bottom row and
+/// an oblique near plane — `obliqueNearPlane` — tilts the depth row, and
+/// both come back null: there is no pair of planes to move.
+///
+/// The renderer uses it twice. Every frame it moves the near plane out to
+/// the nearest thing it will draw, which costs nothing anybody can see and
+/// buys depth precision everywhere behind it; and wherever a far point has
+/// to be unprojected — a ray through a pixel, a frustum to cull by — it
+/// stands a finite plane in for an infinite one. Neither changes the
+/// projection a camera holds, which is what picking and every caller
+/// outside the renderer still see.
+///
+/// Worked out from the planes, never by composing matrices: reversing an
+/// ordinary matrix by subtraction takes one from a number a hair away from
+/// one, and in single precision that hair is most of what is left.
+Matrix4? withDepthPlanes(
+  Matrix4 projection, {
+  required double near,
+  required double far,
+  bool reversed = false,
+}) {
+  final s = projection.storage;
+  // Column-major: entry (row, column) is `s[column * 4 + row]`.
+  final perspective =
+      s[3] == 0.0 && s[7] == 0.0 && s[11] == -1.0 && s[15] == 0.0;
+  if (!perspective || s[2] != 0.0 || s[6] != 0.0) return null;
+  if (!(near > 0.0) || !(far > near)) {
+    throw ArgumentError('Expected 0 < near < far, got near=$near far=$far.');
+  }
+  final result = Matrix4.copy(projection);
+  if (!reversed) {
+    _setDepthRow(result, near, far);
+  } else if (far.isInfinite) {
+    // `w - z` of the infinite row below, which is exact: the depth is the
+    // near plane over the distance, one at the near plane and nought at the
+    // horizon.
+    result.setEntry(2, 2, 0.0);
+    result.setEntry(2, 3, near);
+  } else {
+    result.setEntry(2, 2, near / (far - near));
+    result.setEntry(2, 3, (near * far) / (far - near));
+  }
+  return result;
+}
+
+/// Writes a perspective depth row for [near] and [far] in this file's
+/// `[0, 1]` convention: near at nought, far at one, and a [far] at infinity
+/// as the limit of that row as the plane recedes.
+///
+/// The finite branch is the arithmetic `PerspectiveProjection` has always
+/// done, term for term, so every finite camera draws the matrix it drew.
+void _setDepthRow(Matrix4 m, double near, double far) {
+  if (far.isInfinite) {
+    m.setEntry(2, 2, -1.0);
+    m.setEntry(2, 3, -near);
+    return;
+  }
+  m.setEntry(2, 2, far / (near - far));
+  m.setEntry(2, 3, (near * far) / (near - far));
 }
 
 /// [projection] adjusted for where [origin] puts row zero.

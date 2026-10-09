@@ -69,6 +69,7 @@ final class AnimationParameter {
   final AnimationParameterType type;
 
   /// The starting value as stored: see [AnimationParameters.values].
+  /// In the unit of the value the parameter carries; a boolean is 0 or 1.
   final double initial;
 }
 
@@ -115,7 +116,7 @@ final class ParameterWrite {
   /// the value was written.
   final String? refusal;
 
-  bool get written => refusal == null;
+  bool get wasWritten => refusal == null;
 
   @override
   String toString() => refusal ?? 'written';

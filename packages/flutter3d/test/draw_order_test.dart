@@ -8,8 +8,10 @@
 /// list: neither may let a node's order be undone.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -18,7 +20,7 @@ import 'package:vector_math/vector_math.dart';
 /// each named by its order in [orders].
 ({Scene scene, CameraNode camera}) _row(
   List<int> orders,
-  engine.Material material, {
+  engine.RenderMaterial material, {
   MeshGeometry? geometry,
 }) {
   final scene = Scene();
@@ -41,15 +43,20 @@ import 'package:vector_math/vector_math.dart';
 /// half or transparent half.
 List<String> _sorted(
   List<int> orders, {
-  engine.Material? material,
+  engine.RenderMaterial? material,
   bool transparent = false,
 }) {
   final world = _row(
     orders,
     material ??
-        engine.Material(
+        engine.RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(1.0, 1.0, 1.0, transparent ? 0.5 : 1.0),
+          baseColor: LinearColor.fromSrgb(
+            1.0,
+            1.0,
+            1.0,
+            transparent ? 0.5 : 1.0,
+          ),
           alphaMode: transparent
               ? MaterialAlphaMode.blend
               : MaterialAlphaMode.opaque,
@@ -88,7 +95,7 @@ void main() {
   });
 
   test("a node's order adds to its material's bucket", () {
-    final material = engine.Material(
+    final material = engine.RenderMaterial(
       lighting: LightingModel.unlit,
       drawBucket: 3,
     );
@@ -113,7 +120,7 @@ void main() {
     final mesh = DeviceMesh.upload(device, CuboidShape().build());
     final world = _row(
       <int>[for (var i = 0; i < 12; i++) i < 6 ? 0 : 1],
-      engine.Material(lighting: LightingModel.unlit),
+      engine.RenderMaterial(lighting: LightingModel.unlit),
       geometry: mesh,
     );
     FrameResult draw({required bool batched}) =>

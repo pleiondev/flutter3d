@@ -23,7 +23,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 128;
 const int _height = 96;
@@ -40,20 +39,20 @@ const int _height = 96;
         device,
         const SphereShape(radius: 1.0, segments: 32, rings: 16).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'ball',
-        baseColor: Vector4(0.85, 0.55, 0.25, 1.0),
+        baseColor: LinearColor.fromSrgb(0.85, 0.55, 0.25, 1.0),
         lighting: model,
         // Emissive as well as lit, so a model that ignores lights entirely —
         // which is what Unlit is — still has something to show.
-        emissive: Vector3(0.2, 0.13, 0.06),
+        emissive: LinearColor(0.2, 0.13, 0.06),
       ),
       name: 'ball',
     ),
   );
   scene.root.add(
     LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 3.5
+      ..intensity = 3.5 * Photometric.legacyUnit
       ..setPosition(1.5, 3.0, 2.0)
       ..lookAt(Vector3.zero()),
   );
@@ -66,19 +65,18 @@ const int _height = 96;
 void main() {
   for (final model in LightingModel.builtIn) {
     test('${model.shaderName} draws something', () async {
-      final device = WebGlDevice.create(
+      final device = WebGlDevice.open(
         width: _width,
         height: _height,
-        sources: engineShaders,
+        sources: webGlEngineShaders,
       );
-      if (device == null) fail('no WebGL2 context in this browser');
 
       TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+      );
 
       final renderer = Renderer.create(
         device: device,
@@ -96,7 +94,7 @@ void main() {
             camera: built.camera,
             // Black, so "drew nothing" and "drew something" cannot be confused
             // by a background that is already bright.
-            clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(
@@ -105,9 +103,9 @@ void main() {
         ),
       );
 
-      final pixels = await device.readPixels(result.frame);
+      final pixels = await device.readback(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
-      final bytes = pixels!.buffer.asUint8List();
+      final bytes = pixels.buffer.asUint8List();
 
       var lit = 0;
       for (var i = 0; i < bytes.length; i += 4) {

@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// glTF primitive topology.
 ///
@@ -22,7 +23,7 @@ enum GltfPrimitiveMode {
     for (final value in values) {
       if (value.code == code) return value;
     }
-    throw FormatException('Unknown glTF primitive mode $code.');
+    throw GltfFormatException('Unknown glTF primitive mode $code.');
   }
 
   /// Whether this topology produces triangles at all.

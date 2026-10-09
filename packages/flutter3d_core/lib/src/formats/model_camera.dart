@@ -32,12 +32,14 @@ final class ModelPerspectiveCamera extends ModelCameraProjection {
   /// stays one.
   final double? aspectRatio;
 
+  /// Distance to the near clip plane, in metres.
   final double znear;
 
   /// Absent means an infinite far plane, which the specification allows
   /// only for a perspective camera — an orthographic one requires both
   /// planes finite, which is why [ModelOrthographicCamera.zfar] is not
   /// nullable the way this one is.
+  /// Distance to the far clip plane, in metres.
   final double? zfar;
 }
 
@@ -55,9 +57,13 @@ final class ModelOrthographicCamera extends ModelCameraProjection {
   final double xmag;
 
   /// Half the view volume's height.
+  /// In metres.
   final double ymag;
 
+  /// Distance to the near clip plane, in metres.
   final double znear;
+
+  /// Distance to the far clip plane, in metres.
   final double zfar;
 }
 

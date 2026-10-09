@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
+import 'voxel_format_exception.dart';
 import 'voxel_terrain.dart';
 
 /// Which chunk, counted in chunks from the world's corner.
@@ -16,7 +19,7 @@ typedef VoxelBox = ({
   int maxZ,
 });
 
-/// What changed since the last [VoxelWorld.takeChanges], for whatever keeps
+/// What changed since the last [VoxelWorld.drainChanges], for whatever keeps
 /// a copy of the world in another shape.
 final class VoxelChanges {
   /// Gathers [chunks], [surfaces] and [bounds].
@@ -85,11 +88,22 @@ final class VoxelWorld {
   }
 
   /// Reads what [toJson] wrote: the terrain drawn again, the edits on it.
+  ///
+  /// Throws a [VoxelFormatException] for a document that is not a voxel
+  /// world or is newer than [formatVersion]. A world saved before the
+  /// envelope (no `format`) reads as version 1, and keys this build does not
+  /// know are kept and written back by [toJson].
   factory VoxelWorld.fromJson(Map<String, Object?> json) {
-    final size = json['chunks'];
-    final terrain = json['terrain'];
-    if (size is! List || size.length != 3 || terrain is! Map) {
-      throw const FormatException('not a voxel world: no chunks or terrain');
+    final opened = format.open(json, refuse: VoxelFormatException.new);
+    final size = opened['chunks'];
+    final terrain = opened['terrain'];
+    if (size is! List ||
+        size.length != 3 ||
+        size.any((Object? n) => n is! num) ||
+        terrain is! Map) {
+      throw const VoxelFormatException(
+        'not a voxel world: no chunks or terrain',
+      );
     }
     final world = VoxelWorld(
       chunksX: (size[0] as num).toInt(),
@@ -97,10 +111,37 @@ final class VoxelWorld {
       chunksZ: (size[2] as num).toInt(),
       terrain: VoxelTerrain.fromJson(terrain.cast<String, Object?>()),
     );
-    world.restoreEdits(json);
-    world.takeChanges();
+    world
+      .._unknown = Map<String, Object?>.unmodifiable(<String, Object?>{
+        for (final MapEntry(:key, :value) in opened.entries)
+          if (!FormatSpec.envelopeKeys.contains(key) && !_known.contains(key))
+            key: value,
+      })
+      ..restoreEdits(opened)
+      ..drainChanges();
     return world;
   }
+
+  /// The version of the document [toJson] writes, and the newest
+  /// [VoxelWorld.fromJson] reads.
+  static const int formatVersion = 1;
+
+  /// A saved voxel world for a `FormatRegistry`: the envelope, the size in
+  /// chunks, the terrain's parameters with its generator version, and the
+  /// edits. Usually inside a save rather than a file of its own; the suffix
+  /// is for a world kept alone.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.voxelWorld',
+    version: formatVersion,
+    suffixes: <String>['.voxels.json'],
+    fixture: 'test/fixtures/v<N>/sandbox.voxels.json',
+  );
+
+  static const Set<String> _known = <String>{'chunks', 'terrain', 'edits'};
+
+  /// Keys a later build wrote that this one does not read, written back as
+  /// they came.
+  Map<String, Object?> _unknown = const <String, Object?>{};
 
   /// Voxels along each side of a chunk.
   static const int chunkSize = 16;
@@ -191,7 +232,7 @@ final class VoxelWorld {
 
   /// The chunks, surfaces and region changed since the last call, and
   /// forgets them.
-  VoxelChanges takeChanges() {
+  VoxelChanges drainChanges() {
     if (_changed.isEmpty) return VoxelChanges.none;
     final changes = VoxelChanges(
       chunks: Set<ChunkKey>.of(_changed),
@@ -210,12 +251,14 @@ final class VoxelWorld {
   ///
   /// Plain numbers, lists and maps, so it goes into a `Snapshot` as it is.
   Map<String, Object?> toJson() => <String, Object?>{
+    ...format.envelope(),
     'chunks': <int>[chunksX, chunksY, chunksZ],
     'terrain': terrain.toJson(),
     'edits': <List<int>>[
       for (final index in _edits.keys.toList()..sort())
         <int>[..._coordinatesOf(index), _edits[index]!],
     ],
+    for (final MapEntry(:key, :value) in _unknown.entries) key: value,
   };
 
   /// Puts the world back to the terrain with [json]'s edits on it, touching
@@ -225,30 +268,35 @@ final class VoxelWorld {
   /// Refused when [json] was saved over other terrain or another size: its
   /// edits are deltas against blocks this world does not have.
   void restoreEdits(Map<String, Object?> json) {
-    final terrain = json['terrain'];
-    final size = json['chunks'];
+    final opened = format.open(json, refuse: VoxelFormatException.new);
+    final terrain = opened['terrain'];
+    final size = opened['chunks'];
     if (terrain is Map &&
         VoxelTerrain.fromJson(terrain.cast<String, Object?>()) !=
             this.terrain) {
-      throw const FormatException('edits saved over other terrain');
+      throw const VoxelFormatException('edits saved over other terrain');
     }
     if (size is List &&
         (size.length != 3 ||
             size[0] != chunksX ||
             size[1] != chunksY ||
             size[2] != chunksZ)) {
-      throw const FormatException('edits saved in a world of another size');
+      throw const VoxelFormatException(
+        'edits saved in a world of another size',
+      );
     }
     final wanted = <int, int>{};
-    for (final row in (json['edits'] as List?) ?? const <Object?>[]) {
+    for (final row in (opened['edits'] as List?) ?? const <Object?>[]) {
       if (row is! List || row.length != 4 || row.any((v) => v is! num)) {
-        throw FormatException('an edit that is not [x, y, z, material]: $row');
+        throw VoxelFormatException(
+          'an edit that is not [x, y, z, material]: $row',
+        );
       }
       final [x, y, z, material] = <int>[
         for (final v in row) (v as num).toInt(),
       ];
       if (!contains(x, y, z)) {
-        throw FormatException('an edit outside the world: $row');
+        throw VoxelFormatException('an edit outside the world: $row');
       }
       wanted[_indexOf(x, y, z)] = material;
     }

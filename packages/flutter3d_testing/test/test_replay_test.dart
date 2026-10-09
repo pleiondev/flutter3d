@@ -14,17 +14,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
-const double _dt = 1.0 / 60.0;
 const String _levelHash = 'c0ffee00';
 
-/// Walks forward while the button is held, and counts every step.
-final class _Walker implements ReplaySubject {
-  _Walker(this.input, {this.strayFrom, this.hash});
+/// Walks forward while the button is held, and counts every step: the run
+/// the tape is a recording of.
+final class _Walk {
+  _Walk(this.input, {this.strayFrom});
 
   final InputState input;
 
@@ -32,30 +32,69 @@ final class _Walker implements ReplaySubject {
   /// simulation that only shows after it.
   final int? strayFrom;
 
-  final String? hash;
-
   double x = 0.0;
   int steps = 0;
-  final List<int> framesAt = <int>[];
 
-  @override
-  String? get levelHash => hash;
-
-  @override
-  void restore(Snapshot start) {
-    x = start.data.number('x');
-    steps = start.data.integer('steps');
-  }
-
-  @override
-  void step(double dt) {
+  void step() {
     steps++;
     final stray = strayFrom != null && steps >= strayFrom!;
     if (input.held(GameAction.moveForward)) x += stray ? 2.0 : 1.0;
   }
 
-  @override
   Snapshot save() => Snapshot(<String, Object?>{'x': x, 'steps': steps});
+
+  void restore(Snapshot start) {
+    x = start.data.number('x');
+    steps = start.data.integer('steps');
+  }
+}
+
+/// The walk as a genre: its step in the loop, its run in the snapshots.
+final class _WalkGenre extends GenrePlugin<_Walk> {
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: 'test.walk',
+    apiVersion: PluginApiVersion.current,
+    touches: PluginTouches.simulation,
+  );
+
+  @override
+  String get systemName => 'walk.step';
+
+  @override
+  void stepSimulation(_Walk simulation, LoopContext context) =>
+      simulation.step();
+
+  @override
+  Snapshot captureSimulation(_Walk simulation) => simulation.save();
+
+  @override
+  void restoreSimulation(_Walk simulation, Snapshot state) =>
+      simulation.restore(state);
+}
+
+/// The walk, installed in a loop the way a game installs its genre.
+final class _Walker extends ReplaySubject {
+  _Walker(InputState input, {int? strayFrom, this.hash})
+    : walk = _Walk(input, strayFrom: strayFrom) {
+    genre.simulation = walk;
+    loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre]);
+  }
+
+  final _Walk walk;
+  final String? hash;
+
+  @override
+  final _WalkGenre genre = _WalkGenre();
+
+  @override
+  late final EngineLoop loop;
+
+  int get steps => walk.steps;
+  final List<int> framesAt = <int>[];
+
+  @override
+  String? get levelHash => hash;
 
   @override
   FrameSubject frame(int step) {
@@ -63,7 +102,7 @@ final class _Walker implements ReplaySubject {
     final scene = Scene();
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.2,
+        fovY: 1.2,
         near: 0.05,
         far: 200.0,
       ),
@@ -78,8 +117,8 @@ final class _Walker implements ReplaySubject {
 /// a checkpoint every five — the way a game's own recorder writes a run.
 Demo _record({int steps = 20}) {
   final input = InputState();
-  final walker = _Walker(input);
-  final start = walker.save();
+  final walk = _Walk(input);
+  final start = walk.save();
   final recorder = InputTapeRecorder(seed: 1);
   final checkpoints = DigestTrace(every: 5);
   for (var i = 0; i < steps; i++) {
@@ -87,8 +126,9 @@ Demo _record({int steps = 20}) {
         ? input.release(GameAction.moveForward)
         : input.press(GameAction.moveForward);
     recorder.record(input);
-    walker.step(_dt);
-    checkpoints.observe(recorder.tape.steps, walker.save().toJson());
+    input.beginStep();
+    walk.step();
+    checkpoints.observe(recorder.tape.steps, walk.save().toJson());
     input.endStep();
   }
   return Demo(
@@ -112,8 +152,8 @@ void main() {
 
   test('the same simulation replays its own tape and every checkpoint '
       'agrees', () async {
-    // Mutation: drop `playback.applyTo(input)` from `expectReplayMatches`,
-    // and the walker stands still through the replay and diverges at step 5.
+    // Mutation: leave `loop.playback` unset in `expectReplayMatches`, and the
+    // walker stands still through the replay and diverges at step 5.
     late _Walker walker;
     await expectReplayMatches(
       _record(),
@@ -128,9 +168,9 @@ void main() {
 
   test('a changed simulation fails at the first checkpoint it changed '
       'before, and names the one that still agreed', () async {
-    // Mutation: compare the digest after `endStep` against a recorder that
-    // took it before, or compare nothing, and a walker that goes twice as
-    // far from step 8 passes.
+    // Mutation: compare nothing, or digest the loop's whole capture rather
+    // than the genre's part, and a walker that goes twice as far from step 8
+    // passes — or every checkpoint fails.
     await expectLater(
       expectReplayMatches(
         _record(),

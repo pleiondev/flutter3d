@@ -123,7 +123,7 @@ final List<AnimationClip> _clips = <AnimationClip>[
   _clip('jump', 3.0, 0.8),
 ];
 
-Pose _pose() => Pose(
+AnimationPose _pose() => AnimationPose(
   parents: const <int>[-1],
   restTranslations: Float32List(3),
   restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),
@@ -202,7 +202,7 @@ void main() {
     String complaint(Object? json) {
       try {
         AnimationGraphJson.decode(json);
-      } on FormatException catch (error) {
+      } on AnimationGraphFormatException catch (error) {
         return error.message;
       }
       fail('read $json');
@@ -284,7 +284,7 @@ void main() {
         ),
       ),
       throwsA(
-        isA<FormatException>().having(
+        isA<AnimationGraphFormatException>().having(
           (e) => e.message,
           'message',
           'graph "broken": the graph is [], not an object',

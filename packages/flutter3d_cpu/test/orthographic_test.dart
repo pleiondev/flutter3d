@@ -14,6 +14,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -30,7 +32,7 @@ Float32List _render(
     bloom: BloomSettings(enabled: false),
     look: LookSettings(dither: 0.0),
   ),
-  Material? material,
+  RenderMaterial? material,
   bool wall = true,
 }) {
   final device = CpuDevice(
@@ -44,8 +46,8 @@ Float32List _render(
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
           material ??
-              Material(
-                baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+              RenderMaterial(
+                baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
                 roughness: 0.2,
                 metallic: 1.0,
               ),
@@ -55,7 +57,8 @@ Float32List _render(
     );
   }
   scene.add(
-    LightNode(intensity: 3.0)..lookAt(Vector3(0.0, -0.3, -1.0).normalized()),
+    LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      ..lookAt(Vector3(0.0, -0.3, -1.0).normalized()),
   );
   final camera = CameraNode(projection: projection);
   scene.add(camera);
@@ -64,7 +67,7 @@ Float32List _render(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: settings,
   );
@@ -94,9 +97,7 @@ double _spread(Float32List frame) {
 }
 
 const OrthographicProjection _ortho = OrthographicProjection(height: 6.0);
-const PerspectiveProjection _perspective = PerspectiveProjection(
-  fovYRadians: 1.2,
-);
+const PerspectiveProjection _perspective = PerspectiveProjection(fovY: 1.2);
 
 void main() {
   test('an orthographic matrix is told from a perspective one', () {
@@ -151,15 +152,15 @@ void main() {
     final fogged = _render(
       _ortho,
       distance: 20.0,
-      material: Material(
+      material: RenderMaterial(
         lighting: LightingModel.unlit,
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
       ),
       settings: RenderSettings(
         bloom: const BloomSettings(enabled: false),
         look: const LookSettings(dither: 0.0),
         fog: FogSettings(
-          color: Vector3.zero(),
+          color: LinearColor.black,
           density: 0.05,
           heightFalloff: 0.0,
         ),
@@ -181,11 +182,11 @@ void main() {
     final settings = RenderSettings(
       bloom: const BloomSettings(enabled: false),
       look: const LookSettings(dither: 0.0),
-      fog: FogSettings(color: Vector3.zero(), density: 0.1),
+      fog: FogSettings(color: LinearColor.black, density: 0.1),
     );
-    final material = Material(
+    final material = RenderMaterial(
       lighting: LightingModel.unlit,
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     );
     final behind = _render(
       const OrthographicProjection(height: 6.0, near: -10.0),

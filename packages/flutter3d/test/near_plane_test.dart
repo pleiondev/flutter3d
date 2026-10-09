@@ -19,7 +19,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -61,9 +60,9 @@ void main() {
             it.device,
             CuboidShape(size: Vector3(brush[3], brush[4], brush[5])).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'brush',
-            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
             lighting: LightingModel.pbr,
           ),
           name: 'brush',
@@ -73,7 +72,7 @@ void main() {
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 40.0,
+        intensity: 40.0 * Photometric.legacyUnit,
         range: 80.0,
         name: 'sun',
       )..setPosition(0.0, 8.0, -16.0),
@@ -95,12 +94,12 @@ void main() {
       settings: const RenderSettings(),
     );
 
-    final pixels = await it.device.readPixels(frame.frame);
+    final pixels = await it.device.readback(frame.frame);
     expect(pixels, isNotNull);
 
     // And that it drew the floor rather than merely surviving: the bottom of
     // the frame is the floor near the camera, and it is lit.
-    final rgba = pixels!.buffer.asUint8List();
+    final rgba = pixels.buffer.asUint8List();
     var lit = 0;
     for (var y = _height ~/ 2; y < _height; y++) {
       for (var x = 0; x < _width; x++) {

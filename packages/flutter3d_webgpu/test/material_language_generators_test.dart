@@ -64,7 +64,7 @@ material RimLight {
 void main() {
   final shaders = loadShaders();
   final glsl = emitMaterialFragment(
-    specialiseMaterial(
+    specializeMaterial(
       parseMaterial(_source),
       const MaterialVariant('RimLight'),
     ),
@@ -139,7 +139,7 @@ void main() {
     // that needed a sampler to exist, or a block, would fail here and nowhere
     // else.
     final plain = emitMaterialFragment(
-      specialiseMaterial(
+      specializeMaterial(
         parseMaterial(
           'material Flat { fragment { return vec4(albedo, alpha); } }',
         ),

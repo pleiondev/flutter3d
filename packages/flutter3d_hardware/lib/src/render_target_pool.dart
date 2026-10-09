@@ -9,19 +9,26 @@
 library;
 
 import 'formats.dart';
+import 'resources.dart';
 import 'texture.dart';
 
 /// What makes two render targets interchangeable.
 ///
 /// A value type so it can be a map key: the pool's whole job is to answer "have
 /// I already got one of these", and that question is exactly this tuple.
-final class RenderTargetSpec {
-  const RenderTargetSpec({
-    required this.width,
-    required this.height,
-    required this.format,
-    this.sampleCount = 1,
-    this.storageMode = StorageMode.devicePrivate,
+///
+/// **A [TextureDescriptor] since 1.0**: the one shape every allocator makes
+/// — 2D, one level, [TextureUsage.standard] — so `createTexture` takes either
+/// and a pool's key is still these five fields. `deviceTransient`
+/// [storageMode] is tile memory: cheaper, but it cannot be sampled or loaded
+/// from, which rules it out for anything the next pass reads.
+final class RenderTargetDescriptor extends TextureDescriptor {
+  const RenderTargetDescriptor({
+    required super.width,
+    required super.height,
+    required super.format,
+    super.sampleCount = 1,
+    super.storageMode = StorageMode.devicePrivate,
   });
 
   /// The description a texture already carries, read back off it.
@@ -31,24 +38,16 @@ final class RenderTargetSpec {
   /// remembered spec that disagreed with the texture would put a target back in
   /// the wrong free list, and the next acquirer would be handed the wrong size
   /// with nothing to say so.
-  factory RenderTargetSpec.of(TextureHandle texture) => RenderTargetSpec(
-    width: texture.width,
-    height: texture.height,
-    format: texture.format,
-    sampleCount: texture.sampleCount,
-    storageMode: texture.storageMode,
-  );
+  factory RenderTargetDescriptor.of(TextureHandle texture) =>
+      RenderTargetDescriptor(
+        width: texture.width,
+        height: texture.height,
+        format: texture.format,
+        sampleCount: texture.sampleCount,
+        storageMode: texture.storageMode,
+      );
 
-  final int width;
-  final int height;
-  final TextureFormat format;
-  final int sampleCount;
-
-  /// `deviceTransient` is tile memory: cheaper, but cannot be sampled or loaded
-  /// from, which rules it out for anything the next pass reads.
-  final StorageMode storageMode;
-
-  RenderTargetSpec scaled(int divisor) => RenderTargetSpec(
+  RenderTargetDescriptor scaled(int divisor) => RenderTargetDescriptor(
     // Never below one pixel: a bloom chain taken far enough would otherwise
     // ask for a zero-sized texture, and the failure is a driver error
     // rather than an exception.
@@ -61,7 +60,7 @@ final class RenderTargetSpec {
 
   @override
   bool operator ==(Object other) =>
-      other is RenderTargetSpec &&
+      other is RenderTargetDescriptor &&
       other.width == width &&
       other.height == height &&
       other.format == format &&
@@ -83,10 +82,29 @@ final class RenderTargetSpec {
 /// Injected rather than imported so the pool holds no backend at all. Every
 /// [GraphicsDevice] is one, which is what makes texture creation a single rule
 /// across the engine — and any number of counting fakes in tests.
-abstract interface class TextureAllocator {
-  /// A brand-new texture matching [spec], with the single [TextureHandle] that
-  /// will ever stand for it.
-  TextureHandle createTexture(RenderTargetSpec spec);
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base mixin class TextureAllocator {
+  /// A brand-new texture matching [descriptor], with the single
+  /// [TextureHandle] that will ever stand for it, contents undefined until
+  /// written.
+  ///
+  /// **One creator since 1.0.** A [RenderTargetDescriptor] — the 2D target
+  /// the pool lends out, sampled, drawn into and copied either way — is what
+  /// every allocator makes. Any other [TextureDescriptor] is the general form
+  /// a `GraphicsDevice` makes beside it (it was `createTextureWithDescriptor`):
+  /// a 2D array, a 3D texture, a cube or a cube array, with
+  /// [TextureDescriptor.mipLevelCount] levels and the usages it names, gated
+  /// by the feature the shape needs — `textureArrays`, `texture3D`,
+  /// `cubeTextures`, `cubeArrayTextures`, and `textureWrites` for the general
+  /// form itself; a [TextureUsage.storage] texture needs `storageTextures`
+  /// and a format whose support says `storage`. A device without one throws
+  /// `UnsupportedCapability`, and a size past its limits an [ArgumentError].
+  TextureHandle createTexture(TextureDescriptor descriptor);
 
   /// Gives one back, rather than waiting for the whole device to go.
   ///
@@ -129,8 +147,8 @@ final class RenderTargetPool {
 
   final TextureAllocator allocator;
 
-  final Map<RenderTargetSpec, List<TextureHandle>> _free =
-      <RenderTargetSpec, List<TextureHandle>>{};
+  final Map<RenderTargetDescriptor, List<TextureHandle>> _free =
+      <RenderTargetDescriptor, List<TextureHandle>>{};
 
   /// What is currently out on loan, by identity.
   ///
@@ -165,7 +183,7 @@ final class RenderTargetPool {
   }
 
   /// A texture matching [spec], reused when one is free.
-  TextureHandle acquire(RenderTargetSpec spec) {
+  TextureHandle acquire(RenderTargetDescriptor spec) {
     final free = _free[spec];
     if (free != null && free.isNotEmpty) {
       final texture = free.removeLast();
@@ -195,7 +213,9 @@ final class RenderTargetPool {
       allocator.releaseTexture(texture);
       return;
     }
-    (_free[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(texture);
+    (_free[RenderTargetDescriptor.of(texture)] ??= <TextureHandle>[]).add(
+      texture,
+    );
   }
 
   /// Gives every pooled texture back to the allocator, keeping the ones still
@@ -213,7 +233,12 @@ final class RenderTargetPool {
   /// into them — but they are marked retired: when they come back through
   /// [release] they go to the allocator rather than into a free list, because
   /// their pre-trim spec is one no [acquire] after the resize will ever name.
-  void trim() {
+  ///
+  /// **Returns the bytes handed back**, as [TextureHandle.estimatedBytes]
+  /// counts them: the free textures only. A loan the trim retired is freed
+  /// later, when its frame releases it, and is not in the number.
+  int trim() {
+    final freed = pooledBytes;
     for (final bucket in _free.values) {
       for (final texture in bucket) {
         allocator.releaseTexture(texture);
@@ -221,7 +246,18 @@ final class RenderTargetPool {
     }
     _free.clear();
     _retired.addAll(_lent);
+    return freed;
   }
+
+  /// What the free textures hold, in bytes — what a [trim] would hand back
+  /// now.
+  int get pooledBytes => _free.values
+      .expand((List<TextureHandle> bucket) => bucket)
+      .fold(0, (int sum, TextureHandle t) => sum + t.estimatedBytes);
+
+  /// What the textures out on loan hold, in bytes.
+  int get lentBytes =>
+      _lent.fold(0, (int sum, TextureHandle t) => sum + t.estimatedBytes);
 
   @override
   String toString() =>

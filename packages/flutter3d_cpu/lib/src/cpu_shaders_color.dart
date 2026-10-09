@@ -44,7 +44,7 @@ double smoothstep(double edge0, double edge1, double x) {
 double fract(double x) => x - x.floor();
 
 /// `EncodeOctahedral` from `color.glsl`: a unit normal in two channels.
-Vector2 encodeOctahedral(Vector3 n) {
+Vector2 encodeSurfaceNormal(Vector3 n) {
   final sum = n.x.abs() + n.y.abs() + n.z.abs();
   final scaled = sum > 1e-6 ? n / sum : Vector3(0.0, 0.0, 1.0);
   var e = Vector2(scaled.x, scaled.y);
@@ -58,7 +58,7 @@ Vector2 encodeOctahedral(Vector3 n) {
 }
 
 /// `DecodeOctahedral`, the inverse of what the surface buffer stored.
-Vector3 decodeOctahedral(double ex, double ey) {
+Vector3 decodeSurfaceNormal(double ex, double ey) {
   final x = ex * 2.0 - 1.0;
   final y = ey * 2.0 - 1.0;
   final n = Vector3(x, y, 1.0 - x.abs() - y.abs());
@@ -207,11 +207,11 @@ void writeSurface(
     c.surface = Vector4(debug.x, debug.y, debug.z, depth);
     return;
   }
-  final encoded = encodeOctahedral(normal);
+  final encoded = encodeSurfaceNormal(normal);
   c.surface = Vector4(encoded.x, encoded.y, roughness.clamp(0.0, 1.0), depth);
 }
 
-/// `ApplyFog` from `color.glsl`: fades [colour] toward the fog with distance.
+/// `ApplyFog` from `color.glsl`: fades [color] toward the fog with distance.
 ///
 /// Exponential rather than linear, for the reason the GLSL gives: linear fog
 /// has a visible plane where it starts. The early return at zero density is
@@ -221,10 +221,10 @@ void writeSurface(
 /// A height fog (`P5`) is the same fog with its density averaged over the ray
 /// in closed form, from the falloff in `eye.w`; nought there skips it, as the
 /// GLSL does, for the same reason the early return is there.
-Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
+Vector3 applyFog(Vector3 color, Float32List v, ShaderBindings b) {
   final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
   var density = fog.w;
-  if (density <= 0.0) return colour;
+  if (density <= 0.0) return color;
 
   final falloff = b.vec4('FogInfo', 'eye', Vector4.zero()).w;
   if (falloff > 0.0) {
@@ -236,9 +236,9 @@ Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
   final t = math.exp(-density * eyeDistance(v, b)).clamp(0.0, 1.0);
 
   return Vector3(
-    fog.x * (1.0 - t) + colour.x * t,
-    fog.y * (1.0 - t) + colour.y * t,
-    fog.z * (1.0 - t) + colour.z * t,
+    fog.x * (1.0 - t) + color.x * t,
+    fog.y * (1.0 - t) + color.y * t,
+    fog.z * (1.0 - t) + color.z * t,
   );
 }
 
@@ -256,17 +256,19 @@ Vector4 writeLit(
   FragmentContext c,
   Float32List v,
   ShaderBindings b, {
-  required Vector3 colour,
+  required Vector3 color,
   required double alpha,
   required Vector3 normal,
   required double roughness,
+
+  /// How much light a transmissive surface lets through, nought to one.
   double passThrough = 0.0,
 }) {
   writeSurface(c, v, b, normal, roughness);
   // `g_premultiply`: a blended material's colour is weighted by its alpha,
   // after the fog, because the blend takes its source premultiplied.
   final weight = premultiplies(b) ? alpha : 1.0;
-  final fogged = applyFog(colour, v, b);
+  final fogged = applyFog(color, v, b);
   return writeWeightedBlended(
     c,
     v,
@@ -304,26 +306,26 @@ double weightedBlendedWeight(double alpha, Float32List v, ShaderBindings b) {
   return alpha * (10.0 / (1e-5 + near * near + far3 * far3)).clamp(1e-2, 3e3);
 }
 
-/// `WriteWeightedBlended` from `color.glsl` — `R8`: [colour] as it stands
+/// `WriteWeightedBlended` from `color.glsl` — `R8`: [color] as it stands
 /// unless `FogInfo.forward.w` asks for the accumulation target's share (1),
 /// the revealage target's (2), or both, the second into attachment one (3).
 Vector4 writeWeightedBlended(
   FragmentContext c,
   Float32List v,
   ShaderBindings b,
-  Vector4 colour,
+  Vector4 color,
 ) {
   final mode = b.vec4('FogInfo', 'forward', Vector4.zero()).w;
-  if (mode <= 0.5) return colour;
-  final alpha = colour.w;
+  if (mode <= 0.5) return color;
+  final alpha = color.w;
   final weight = weightedBlendedWeight(alpha, v, b);
   if (mode > 2.5) c.surface = Vector4.all(alpha);
   return mode > 1.5 && mode < 2.5
       ? Vector4.all(alpha)
       : Vector4(
-          colour.x * weight,
-          colour.y * weight,
-          colour.z * weight,
+          color.x * weight,
+          color.y * weight,
+          color.z * weight,
           alpha * weight,
         );
 }
@@ -334,15 +336,15 @@ Vector4 writeWeightedBlended(
 /// part of the chain that is pure arithmetic on a colour, so a Reinhard curve
 /// here would make every cell of the comparison differ for a reason that has
 /// nothing to do with the backend.
-Vector3 tonemapNeutral(Vector3 colour) {
+Vector3 tonemapNeutral(Vector3 color) {
   const startCompression = 0.8 - 0.04;
   const desaturation = 0.15;
 
-  final minChannel = math.min(colour.x, math.min(colour.y, colour.z));
+  final minChannel = math.min(color.x, math.min(color.y, color.z));
   final offset = minChannel < 0.08
       ? minChannel - 6.25 * minChannel * minChannel
       : 0.04;
-  final c = Vector3(colour.x - offset, colour.y - offset, colour.z - offset);
+  final c = Vector3(color.x - offset, color.y - offset, color.z - offset);
 
   final peak = math.max(c.x, math.max(c.y, c.z));
   if (peak < startCompression) return c;
@@ -360,7 +362,7 @@ Vector3 tonemapNeutral(Vector3 colour) {
 }
 
 /// `TonemapAces` from `composite.frag`: the Narkowicz fit.
-Vector3 tonemapAces(Vector3 colour) {
+Vector3 tonemapAces(Vector3 color) {
   const a = 2.51;
   const b = 0.03;
   const c = 2.43;
@@ -368,11 +370,11 @@ Vector3 tonemapAces(Vector3 colour) {
   const e = 0.14;
   double curve(double x) =>
       ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0);
-  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+  return Vector3(curve(color.x), curve(color.y), curve(color.z));
 }
 
 /// `AgxSigmoid` from `composite.frag`: the log sigmoid, display-encoded out.
-Vector3 agxSigmoid(Vector3 colour) {
+Vector3 agxSigmoid(Vector3 color) {
   const minEv = -12.47393;
   const maxEv = 4.026069;
 
@@ -395,12 +397,12 @@ Vector3 agxSigmoid(Vector3 colour) {
     return shaped.clamp(0.0, 1.0);
   }
 
-  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+  return Vector3(curve(color.x), curve(color.y), curve(color.z));
 }
 
 /// `TonemapAgxFull` from `composite.frag`: code 5, now the same transform as
 /// [tonemapAgx].
-Vector3 tonemapAgxFull(Vector3 colour) => tonemapAgx(colour);
+Vector3 tonemapAgxFull(Vector3 color) => tonemapAgx(color);
 
 /// `TonemapAgx` from `composite.frag`: inset, sigmoid, outset, linearise.
 ///
@@ -411,7 +413,7 @@ Vector3 tonemapAgxFull(Vector3 colour) => tonemapAgx(colour);
 /// visible instead of hiding it inside a constructor whose order has to be
 /// remembered — and `tonemap_curve_test.dart` checks the two backends against
 /// each other on a colour whose hue would drift if either were transposed.
-Vector3 tonemapAgx(Vector3 colour) {
+Vector3 tonemapAgx(Vector3 color) {
   Vector3 apply(Vector3 v, List<double> r0, List<double> r1, List<double> r2) =>
       Vector3(
         r0[0] * v.x + r0[1] * v.y + r0[2] * v.z,
@@ -453,9 +455,9 @@ Vector3 tonemapAgx(Vector3 colour) {
 
   final inset = apply(
     Vector3(
-      math.max(colour.x, 0.0),
-      math.max(colour.y, 0.0),
-      math.max(colour.z, 0.0),
+      math.max(color.x, 0.0),
+      math.max(color.y, 0.0),
+      math.max(color.z, 0.0),
     ),
     inset0,
     inset1,
@@ -471,11 +473,11 @@ Vector3 tonemapAgx(Vector3 colour) {
 }
 
 /// `TonemapReinhard` from `composite.frag`, extended so white reaches white.
-Vector3 tonemapReinhard(Vector3 colour) {
+Vector3 tonemapReinhard(Vector3 color) {
   const white = 4.0;
   double curve(double x) =>
       (x * (1.0 + x / (white * white)) / (1.0 + x)).clamp(0.0, 1.0);
-  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+  return Vector3(curve(color.x), curve(color.y), curve(color.z));
 }
 
 /// `TonemapBy` from `composite.frag`: whichever curve the number names.
@@ -487,27 +489,27 @@ Vector3 tonemapReinhard(Vector3 colour) {
 /// table to hand, this answers with the function the engine's own table is
 /// baked from — [tonemapAces2] — which the table approximates to its
 /// sampling.
-Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
-  1 => tonemapNeutral(colour),
-  2 => tonemapAces(colour),
-  3 => tonemapAgx(colour),
-  4 => tonemapReinhard(colour),
-  5 => tonemapAgxFull(colour),
-  6 => tonemapAces2(colour),
-  _ => colour,
+Vector3 tonemapBy(Vector3 color, int curve) => switch (curve) {
+  1 => tonemapNeutral(color),
+  2 => tonemapAces(color),
+  3 => tonemapAgx(color),
+  4 => tonemapReinhard(color),
+  5 => tonemapAgxFull(color),
+  6 => tonemapAces2(color),
+  _ => color,
 };
 
 /// The ACES 2.0 SDR tonescale (100 nits), hue held, with a path to white —
 /// what `make_tables.dart` bakes into `EngineTables.aces2Display` — `L2`.
-Vector3 tonemapAces2(Vector3 colour) {
-  final peak = math.max(colour.x, math.max(colour.y, colour.z));
+Vector3 tonemapAces2(Vector3 color) {
+  final peak = math.max(color.x, math.max(color.y, color.z));
   if (peak <= 0.0) return Vector3.zero();
   final mapped = _aces2Tonescale(peak) / 100.0;
   final scale = mapped / peak;
   final white = mapped * mapped * mapped;
   double channel(double c) =>
       (c * scale * (1.0 - white) + mapped * white).clamp(0.0, 1.0);
-  return Vector3(channel(colour.x), channel(colour.y), channel(colour.z));
+  return Vector3(channel(color.x), channel(color.y), channel(color.z));
 }
 
 /// `aces2Tonescale` in `make_tables.dart`, at a peak of 100 nits.

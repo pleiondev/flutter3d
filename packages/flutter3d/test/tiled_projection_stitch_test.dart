@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _fullWidth = 480;
 const int _fullHeight = 360;
@@ -26,15 +25,15 @@ const int _tileHeight = _fullHeight ~/ _tiles;
   final scene = Scene();
   scene.add(
     LightNode(type: LightType.directional, name: 'key')
-      ..intensity = 3.0
+      ..intensity = 3.0 * Photometric.legacyUnit
       ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
   );
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.4)).build()),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
       ),
       name: 'a',
     )..setPosition(0.6, 0.2, 0.0),
@@ -42,9 +41,9 @@ const int _tileHeight = _fullHeight ~/ _tiles;
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.9)).build()),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.2, 0.4, 0.9, 1.0),
+        baseColor: LinearColor.fromSrgb(0.2, 0.4, 0.9, 1.0),
       ),
       name: 'b',
     )..setPosition(-0.8, -0.3, 0.5),
@@ -52,7 +51,7 @@ const int _tileHeight = _fullHeight ~/ _tiles;
   final camera =
       CameraNode(
           name: 'eye',
-          projection: const PerspectiveProjection(fovYRadians: 0.9),
+          projection: const PerspectiveProjection(fovY: 0.9),
         )
         ..setPosition(2.2, 1.4, 3.4)
         ..lookAt(Vector3.zero());
@@ -81,9 +80,9 @@ Future<Uint8List> _render(
     // projection alone.
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await device.readPixels(result.frame);
+  final pixels = await device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Copies the [tileWidth] × [tileHeight] block at ([tileX], [tileY]) of

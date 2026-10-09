@@ -16,7 +16,7 @@ import 'cpu_shaders_ltc.dart';
 import 'cpu_shaders_surface.dart';
 
 /// `unlit.frag`: the albedo, written into the HDR target as light.
-final class UnlitShader implements CpuFragmentShader {
+final class UnlitShader extends CpuFragmentShader {
   const UnlitShader();
 
   @override
@@ -33,7 +33,7 @@ final class UnlitShader implements CpuFragmentShader {
       c,
       v,
       bindings,
-      colour: s.albedo,
+      color: s.albedo,
       alpha: s.alpha,
       normal: s.normal,
       roughness: 1.0,
@@ -56,7 +56,7 @@ final class UnlitShader implements CpuFragmentShader {
 /// so anything it wrote to the surface buffer would describe geometry that is
 /// not visible — and SSAO and reflections read that buffer as the nearest
 /// surface. See `renderer_xray_pass.dart`.
-final class XrayShader implements CpuFragmentShader {
+final class XrayShader extends CpuFragmentShader {
   const XrayShader();
 
   @override
@@ -80,7 +80,7 @@ final class XrayShader implements CpuFragmentShader {
 
 /// `lambert.frag`: pure diffuse, the cheapest model that still reads as
 /// three-dimensional.
-final class LambertShader implements CpuFragmentShader {
+final class LambertShader extends CpuFragmentShader {
   const LambertShader();
 
   @override
@@ -107,7 +107,7 @@ final class LambertShader implements CpuFragmentShader {
       c,
       v,
       b,
-      colour: total,
+      color: total,
       alpha: s.alpha,
       normal: s.normal,
       roughness: s.roughness,
@@ -116,7 +116,7 @@ final class LambertShader implements CpuFragmentShader {
 }
 
 /// `blinn_phong.frag`: a Phong highlight on top of the albedo.
-final class BlinnPhongShader implements CpuFragmentShader {
+final class BlinnPhongShader extends CpuFragmentShader {
   const BlinnPhongShader();
 
   @override
@@ -157,7 +157,7 @@ final class BlinnPhongShader implements CpuFragmentShader {
       c,
       v,
       b,
-      colour: total,
+      color: total,
       alpha: s.alpha,
       normal: s.normal,
       roughness: s.roughness,
@@ -167,7 +167,7 @@ final class BlinnPhongShader implements CpuFragmentShader {
 
 /// `pbr.frag`: Cook-Torrance with GGX, height-correlated Smith, Schlick.
 ///
-/// Formulations follow Filament, which is what the glTF spec describes, so an
+/// Formulations follow the BRDF the glTF specification describes, so an
 /// imported material lands on the same look. Image-based lighting is here when
 /// a scene supplies an environment: `frame_params.w` carries the cube's level
 /// count and is zero when there is none, and the flat hemispheric ambient
@@ -253,8 +253,8 @@ final class _Layers {
     }
     // Beer's law over the thickness, as `ReadLayers` takes it.
     final distance = transmission.z;
-    double through(double colour) => distance > 0.0
-        ? math.pow(math.max(colour, 1e-4), thickness / distance).toDouble()
+    double through(double color) => distance > 0.0
+        ? math.pow(math.max(color, 1e-4), thickness / distance).toDouble()
         : 1.0;
     // An index of nought is `KHR_materials_ior`'s infinity: a reflectance of
     // one head-on as at grazing — `IorInfinite`.
@@ -440,29 +440,49 @@ final class _Layers {
   }
 
   final Vector3 f0Dielectric;
+
+  /// The reflectance at a grazing angle, nought to one.
   final double f90;
+
+  /// How much clear coat there is, nought to one.
   final double coat;
+
+  /// The coat's perceptual roughness, nought to one.
   final double coatRoughness;
   final Vector3 coatNormal;
+
+  /// The cosine between the coat's normal and the view, with no unit.
   final double coatNDotV;
 
-  /// What the coat's Fresnel lets through to the layer beneath.
+  /// What the coat's Fresnel lets through to the layer beneath: a fraction,
+  /// nought to one.
   final double coatThrough;
 
   /// The sheen's colour, linear, and its roughness — `M2`.
   final Vector3 sheen;
+
+  /// The sheen's perceptual roughness, nought to one.
   final double sheenRoughness;
 
   /// The transmission — `M3`: how much passes, through how much medium,
-  /// and what of each colour survives it.
+  /// and what of each colour survives it. How much passes, nought to one.
   final double transmission;
+
+  /// How much medium the light passes through, in metres.
   final double thickness;
   final (double, double, double) transmittance;
 
-  /// The thin film: how much, spread and index — see `ReadIridescence`.
+  /// The thin film: how much, spread and index — see `ReadIridescence`. How
+  /// much, nought to one.
   final double iridescence;
+
+  /// The dispersion, glTF's 20 over the Abbe number: unitless.
   final double dispersion;
+
+  /// The film's index of refraction, a ratio with no unit.
   final double filmIor;
+
+  /// The film's thickness, in nanometres (billionths of a metre).
   final double filmThickness;
 
   /// The index `ReadLayers` took the dielectric's reflectance from, read back
@@ -478,14 +498,20 @@ final class _Layers {
 
   /// Filled by [readOnMaps].
   Vector3 iridFresnel = Vector3.all(0.04);
+
+  /// The sheen lobe's directional albedo at this view, nought to one.
   double sheenAlbedoAtView = 0.0;
+
+  /// What the sheen leaves of the layer beneath, a 0..1 multiplier.
   double sheenScale = 1.0;
+
+  /// How anisotropic the specular lobe is, nought to one.
   double anisotropy = 0.0;
   Vector3 anisotropyT = Vector3(1.0, 0.0, 0.0);
   Vector3 anisotropyB = Vector3(0.0, 1.0, 0.0);
 }
 
-final class PbrShader implements CpuFragmentShader {
+final class PbrShader extends CpuFragmentShader {
   const PbrShader() : layered = false;
 
   /// `pbr_layered.frag`: the same stage with `F3D_LAYERED` — `M1`.
@@ -499,7 +525,8 @@ final class PbrShader implements CpuFragmentShader {
   static const double _pi = 3.141592653589793;
 
   /// `kMinGgxRoughness`: the least perceptual roughness the GGX lobe is
-  /// evaluated at, which keeps its peak clear of [_dGgx]'s guard.
+  /// evaluated at, which keeps its peak clear of [_dGgx]'s guard. A
+  /// fraction, nought to one, as roughness is.
   static const double minGgxRoughness = 0.045;
 
   static double _dGgx(double nDotH, double alpha) {
@@ -1017,7 +1044,7 @@ final class PbrShader implements CpuFragmentShader {
       c,
       v,
       b,
-      colour: total,
+      color: total,
       alpha: s.alpha,
       normal: s.normal,
       roughness: s.roughness,
@@ -1123,7 +1150,7 @@ Vector3 _fresnelIridescence(
 }
 
 /// `toon.frag`: the diffuse response quantised into bands, plus a rim term.
-final class ToonShader implements CpuFragmentShader {
+final class ToonShader extends CpuFragmentShader {
   const ToonShader();
 
   @override
@@ -1167,7 +1194,7 @@ final class ToonShader implements CpuFragmentShader {
       c,
       v,
       b,
-      colour: total,
+      color: total,
       alpha: s.alpha,
       normal: s.normal,
       roughness: s.roughness,

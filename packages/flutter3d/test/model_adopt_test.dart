@@ -17,7 +17,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 32;
 
@@ -33,9 +32,9 @@ MeshData _quad(double half) => MeshData(
   indices: Uint32List.fromList(<int>[0, 1, 2, 0, 2, 3]),
 );
 
-/// A hull and, when [withFlag], a flag: one quad each, unlit in [colour].
+/// A hull and, when [withFlag], a flag: one quad each, unlit in [color].
 PlainModelDocument _ship(
-  Vector4 colour, {
+  Vector4 color, {
   bool withFlag = false,
   String hull = 'hull',
   String? partName,
@@ -44,7 +43,9 @@ PlainModelDocument _ship(
     ModelSurface(mesh: _quad(1.0), materialIndex: 0, name: partName),
     if (withFlag) ModelSurface(mesh: _quad(0.1), materialIndex: 0),
   ],
-  materials: <SurfaceMaterial>[SurfaceMaterial(baseColor: colour, unlit: true)],
+  materials: <SurfaceMaterial>[
+    SurfaceMaterial(baseColor: _fromSrgb(color), unlit: true),
+  ],
   nodes: <ModelNode>[
     ModelNode(name: hull, surfaces: <int>[0]),
     if (withFlag) ModelNode(name: 'flag', surfaces: <int>[1]),
@@ -62,14 +63,14 @@ PlainModelDocument _ship(
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[128, 128, 255, 255])),
-  )!;
+  );
   return (
     device: device,
     renderer: Renderer.create(device: device, fallbackNormal: flat),
   );
 }
 
-Future<List<int>> _centre(
+Future<List<int>> _center(
   ({CpuDevice device, Renderer renderer}) engine,
   Scene scene,
 ) async {
@@ -83,9 +84,9 @@ Future<List<int>> _centre(
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = (await engine.device.readPixels(
+  final pixels = (await engine.device.readback(
     frame.frame,
-  ))!.buffer.asUint8List();
+  )).buffer.asUint8List();
   final i = (_size ~/ 2 * _size + _size ~/ 2) * 4;
   return pixels.sublist(i, i + 4);
 }
@@ -105,12 +106,12 @@ void main() {
     final ship = red.instantiate(scene);
     final hull = ship.nodes.single..setPosition(0.0, 0.0, 0.5);
     final mesh = ship.meshes.single;
-    expect((await _centre(engine, scene))[0], greaterThan(200));
+    expect((await _center(engine, scene))[0], greaterThan(200));
 
     final swap = ship.adopt(blue);
 
     expect(swap.swapped, 1);
-    expect(swap.complete, isTrue);
+    expect(swap.isComplete, isTrue);
     expect(ship.nodes.single, same(hull));
     expect(ship.meshes.single, same(mesh));
     expect(
@@ -119,7 +120,7 @@ void main() {
       reason: 'where the game put it stays',
     );
     expect(mesh.mesh, same(blue.parts.single.mesh));
-    final pixel = await _centre(engine, scene);
+    final pixel = await _center(engine, scene);
     expect(pixel[2], greaterThan(200));
     // The tone map lifts the other channels as full blue nears white, so
     // red is held to a third of blue, as the variants test holds it.
@@ -160,7 +161,7 @@ void main() {
     expect(swap.swapped, 0);
     expect(swap.kept, <String>['hull/s0']);
     expect(swap.added, unorderedEquals(<String>['keel/s0', 'flag/s0']));
-    expect(swap.complete, isFalse);
+    expect(swap.isComplete, isFalse);
     expect(ship.meshes.single.mesh, same(old));
   });
 
@@ -180,7 +181,10 @@ void main() {
 
       final material = ship.meshes.single.material;
       expect(material, isNot(same(blue.parts.single.material)));
-      expect(material.baseColor.z, 1.0);
+      expect(material.baseColor.toSrgb().b, 1.0);
     },
   );
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

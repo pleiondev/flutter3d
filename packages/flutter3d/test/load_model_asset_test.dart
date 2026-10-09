@@ -23,7 +23,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 void main() {
   group('generatedAssetPathFor', () {
@@ -207,7 +207,7 @@ void main() {
       ]);
     });
 
-    test('the class picked for the application applies to every load, and '
+    test('the class a load is handed is the file it reads, and '
         'none reads exactly the file it always did', () async {
       final asked = <String>[];
       AssetSource serve(String path) {
@@ -219,9 +219,11 @@ void main() {
       expect(asked, <String>['flutter3d_generated/chair.f3d']);
 
       asked.clear();
-      assetDeviceClass = DeviceClass.desktop;
-      addTearDown(() => assetDeviceClass = null);
-      await loadModelByPath('assets_src/chair.glb', bundleSource: serve);
+      await loadModelByPath(
+        'assets_src/chair.glb',
+        bundleSource: serve,
+        deviceClass: DeviceClass.desktop,
+      );
       expect(asked, <String>['flutter3d_generated/chair.desktop.f3d']);
     });
   });

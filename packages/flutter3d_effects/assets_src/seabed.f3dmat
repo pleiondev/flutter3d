@@ -22,11 +22,12 @@ material Seabed {
   // Towards the sun, a unit vector, and the light it brings.
   uniform vec3 toSun = vec3(-0.35, 0.7, 0.6);
   uniform vec3 sunColor = vec3(2.0, 1.95, 1.85);
-  // What a metre of the water takes out of red, green and blue — clear
-  // tropical water's, mostly by the water itself — and the colour of the
-  // light it scatters back.
-  uniform vec3 absorb = vec3(0.45, 0.065, 0.025);
-  uniform vec3 scatter = vec3(0.05, 0.22, 0.30);
+  // What a metre of the water takes out of red, green and blue, 1/m, and
+  // the share of what it takes that it sends back, b_b / (a + b_b): pure
+  // water's, as the surface's (`liquid.f3dmat`), until the game says
+  // otherwise.
+  uniform vec3 absorb = vec3(0.264, 0.0565, 0.0106);
+  uniform vec3 scatter = vec3(0.0023, 0.0166, 0.151);
 
   // The sun, through the engine's own light loop: what is returned here
   // the engine multiplies by the light's radiance, n·l and shadow, so a
@@ -35,16 +36,24 @@ material Seabed {
   light {
     let here = world.xz;
     let depth = max(level - world.y, 0.0);
-    let bend = depth * 0.248;
+    // Water's index of refraction: light crossing the surface turns by it,
+    // so a slope moves the light a·∇η along the floor, a = d·(1 − 1/n).
+    let ior = 1.33;
+    let bend = depth * (1.0 - 1.0 / ior);
 
     // Where the light reaching here would have crossed a flat surface:
-    // back along the sun's refracted ray.
-    let sunDown = vec2(toSun.x, toSun.z) * (0.75 / max(toSun.y, 0.2));
+    // back along the sun's refracted ray, whose sideways part is the sun's
+    // divided by n (Snell) and whose downward part is cos θt =
+    // √(1 − (1 − cos²θi)/n²) — never below 0.66, the critical angle's, however
+    // low the sun is in the air.
+    let cosDown = sqrt(1.0 - (1.0 - toSun.y * toSun.y) / (ior * ior));
+    let sunDown = vec2(toSun.x, toSun.z) * ((1.0 / ior) / cosDown);
     let start = here + sunDown * depth;
     // The sun is half a degree wide, 0.007 radians in the water: each point
-    // of floor sees it blurred over 0.007·d, and a ripple of wavenumber k
-    // focuses its light that much less, by exp(−(k·w)²/2).
-    let blurWidth = 0.007 * depth;
+    // of floor sees it spread over w = 0.007·d. A uniform disc of width w
+    // blurs about as a Gaussian of σ = w/4 does, and a ripple of wavenumber
+    // k focuses its light that much less, by exp(−(k·σ)²/2).
+    let blurWidth = 0.25 * 0.007 * depth;
     // Gusts roughen the short ripples in patches that drift with the wind.
     let gust = 0.7 + 0.3 * sin(0.31 * start.x + 0.17 * start.y + 0.23 * time) *
                      sin(0.19 * start.y - 0.27 * start.x - 0.11 * time);
@@ -149,14 +158,18 @@ material Seabed {
     // width, half a degree, spreads it to a few times the mean.
     let focus = min(1.0 / max(abs(det), 0.12), 6.0);
 
-    // Down through the water to here, reddened on the way.
-    let throughDown = pow(vec3(0.3679), absorb * (depth / max(toSun.y, 0.2)));
+    // Down through the water to here along the refracted ray, d / cos θt,
+    // reddened on the way.
+    let throughDown = pow(vec3(0.3679), absorb * (depth / cosDown));
     return albedo * focus * throughDown;
   }
 
   fragment {
     let depth = max(level - world.y, 0.0);
-    let throughDown = pow(vec3(0.3679), absorb * (depth / max(toSun.y, 0.2)));
+    // The sun's path down is the refracted one, as in the light block.
+    let ior = 1.33;
+    let cosDown = sqrt(1.0 - (1.0 - toSun.y * toSun.y) / (ior * ior));
+    let throughDown = pow(vec3(0.3679), absorb * (depth / cosDown));
     // From here back to the eye: all of the way when the eye is under the
     // surface, and only the part below the surface when it is above.
     let toEye = length(eye - world);

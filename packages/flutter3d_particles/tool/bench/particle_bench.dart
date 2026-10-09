@@ -21,6 +21,7 @@
 //
 //   dart compile exe tool/bench/particle_bench.dart -o /tmp/pbench && /tmp/pbench
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -55,7 +56,10 @@ void bench(
 /// The dungeon's flame, which is the effect that actually runs continuously.
 ParticleEffect flame() => ParticleEffect(
   count: 1,
-  emitter: const ConeEmitter(speed: Range(0.22, 0.55), halfAngleDegrees: 10.0),
+  emitter: const ConeEmitter(
+    speed: Range(0.22, 0.55),
+    halfAngle: 10.0 * math.pi / 180.0,
+  ),
   lifetime: const Range(0.20, 0.40),
   size: const Range(0.10, 0.19),
   color: Vector4(2.4, 1.1, 0.35, 1.0),

@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 void main() {
   late FakeBackend device;

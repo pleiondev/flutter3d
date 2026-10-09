@@ -1,5 +1,5 @@
 /// A masked material's edge as multisample coverage — `P7`,
-/// `Material.alphaToCoverage`.
+/// `RenderMaterial.alphaToCoverage`.
 ///
 ///     flutter test test/alpha_to_coverage_test.dart
 ///
@@ -28,7 +28,7 @@ import 'package:vector_math/vector_math.dart';
 /// A frame of one cube of [material] on a device that [supported] says can
 /// or cannot, and what came of it.
 ({FrameResult result, FakePass scenePass}) _frame(
-  Material material, {
+  RenderMaterial material, {
   bool supported = true,
 }) {
   final device = FakeBackend(supportsAlphaToCoverage: supported);
@@ -37,7 +37,7 @@ import 'package:vector_math/vector_math.dart';
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(4),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel,
@@ -70,7 +70,7 @@ import 'package:vector_math/vector_math.dart';
   return (result: result, scenePass: scenePass);
 }
 
-Material _leaf({bool coverage = true}) => Material(
+RenderMaterial _leaf({bool coverage = true}) => RenderMaterial(
   name: 'leaf',
   alphaMode: MaterialAlphaMode.mask,
   alphaCutoff: 0.4,

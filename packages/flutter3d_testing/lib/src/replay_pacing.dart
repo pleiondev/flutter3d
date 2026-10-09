@@ -10,13 +10,16 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// sixty can still stop for a tenth of a second every few seconds; that stop
 /// is what a player notices and what costs them the shot. So the numbers kept
 /// are the median, the 99th percentile, the worst frame and which frame it
-/// was, and every frame over [limitMillis] — fifty milliseconds by default,
+/// was, and every frame over [limit] — fifty milliseconds by default,
 /// three frames of a 60 Hz display — by its index, so a spike can be found
 /// again by replaying the tape to it.
-final class FramePacing {
-  const FramePacing._({
-    required this.millis,
-    required this.limitMillis,
+///
+/// Every time here is in seconds, as the units contract has it; [toJson]
+/// writes milliseconds, which is what a person reads in a report.
+final class PacingReport {
+  const PacingReport._({
+    required this.seconds,
+    required this.limit,
     required this.p50,
     required this.p99,
     required this.max,
@@ -24,64 +27,71 @@ final class FramePacing {
     required this.overLimit,
   });
 
-  /// The statistics of [millis], one entry a frame in the order they ran.
-  factory FramePacing.of(List<double> millis, {double limitMillis = 50.0}) {
-    final sorted = List<double>.of(millis)..sort();
+  /// The statistics of [seconds], one entry a frame in the order they ran.
+  factory PacingReport.of(List<double> seconds, {double limit = 0.05}) {
+    final sorted = List<double>.of(seconds)..sort();
     // Nearest rank: the smallest frame time at least that share of the
     // frames did not exceed. No interpolation, so every number reported is a
     // frame that actually happened.
     double rank(double share) => sorted.isEmpty
         ? 0.0
         : sorted[math.max(0, (share * sorted.length).ceil() - 1)];
-    final worst = millis.isEmpty
+    final worst = seconds.isEmpty
         ? -1
-        : millis.indexOf(sorted.isEmpty ? 0.0 : sorted.last);
-    return FramePacing._(
-      millis: List<double>.unmodifiable(millis),
-      limitMillis: limitMillis,
+        : seconds.indexOf(sorted.isEmpty ? 0.0 : sorted.last);
+    return PacingReport._(
+      seconds: List<double>.unmodifiable(seconds),
+      limit: limit,
       p50: rank(0.5),
       p99: rank(0.99),
       max: sorted.isEmpty ? 0.0 : sorted.last,
       worstFrame: worst,
       overLimit: List<int>.unmodifiable(<int>[
-        for (var i = 0; i < millis.length; i++)
-          if (millis[i] > limitMillis) i,
+        for (var i = 0; i < seconds.length; i++)
+          if (seconds[i] > limit) i,
       ]),
     );
   }
 
-  /// Every frame's time, in milliseconds.
-  final List<double> millis;
+  /// Every frame's time, in seconds.
+  final List<double> seconds;
 
-  /// A frame longer than this is a spike.
-  final double limitMillis;
+  /// A frame longer than this, in seconds, is a spike.
+  final double limit;
 
+  /// The median frame, the 99th percentile and the worst, in seconds.
   final double p50;
+
+  /// The 99th-percentile frame, in seconds.
   final double p99;
+
+  /// The worst frame, in seconds.
   final double max;
 
   /// The index of the longest frame; -1 for no frames.
   final int worstFrame;
 
-  /// The index of every frame longer than [limitMillis], in order.
+  /// The index of every frame longer than [limit], in order.
   final List<int> overLimit;
 
-  int get frames => millis.length;
+  int get frames => seconds.length;
 
-  /// No frame over [limitMillis].
-  bool get even => overLimit.isEmpty;
+  /// No frame over [limit].
+  bool get isEven => overLimit.isEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'frames': frames,
-    'limitMillis': limitMillis,
-    'p50': _round(p50),
-    'p99': _round(p99),
-    'max': _round(max),
+    'limitMillis': limit * 1000.0,
+    'p50': _millis(p50),
+    'p99': _millis(p99),
+    'max': _millis(max),
     'worstFrame': worstFrame,
     'overLimit': overLimit,
   };
 
-  static double _round(double ms) => (ms * 1000.0).roundToDouble() / 1000.0;
+  /// Seconds as the report's milliseconds, to a microsecond.
+  static double _millis(double seconds) =>
+      (seconds * 1e6).roundToDouble() / 1000.0;
 }
 
 /// Closes the frame being encoded on [device] and completes once the GPU has
@@ -112,7 +122,7 @@ Future<void> gpuSettled(GraphicsDevice device) {
 /// the time includes the GPU's share of it. Frames run back to back rather
 /// than on a display's clock: what is measured is what a frame costs, not
 /// how long it waited for vsync, and a frame that costs more than
-/// [limitMillis] is one no display rate hides.
+/// [limit] seconds is one no display rate hides.
 ///
 /// Serialising the CPU and GPU halves makes each frame look longer than it
 /// would in a game, where the GPU draws one frame while the CPU prepares the
@@ -125,7 +135,7 @@ Future<void> gpuSettled(GraphicsDevice device) {
 /// the numbers of a running level rather than of its first frame.
 /// [clock] reads microseconds, and is a [Stopwatch] unless a test supplies
 /// one.
-Future<FramePacing> replayPacing({
+Future<PacingReport> replayPacing({
   required Demo demo,
   required InputState input,
   required void Function(double dt) onStep,
@@ -133,15 +143,19 @@ Future<FramePacing> replayPacing({
   void Function()? rewind,
   int repeats = 1,
   int warmUpFrames = 0,
+
+  /// The step handed to [onStep], in seconds.
   double dt = 1.0 / 60.0,
-  double limitMillis = 50.0,
+
+  /// A frame longer than this, in seconds, is a spike.
+  double limit = 0.05,
   int Function()? clock,
 }) async {
   if (repeats < 1) {
     throw ArgumentError.value(repeats, 'repeats', 'at least one pass');
   }
   final now = clock ?? _stopwatch();
-  final millis = <double>[];
+  final seconds = <double>[];
   var frame = 0;
   for (var pass = 0; pass < repeats; pass++) {
     rewind?.call();
@@ -152,12 +166,12 @@ Future<FramePacing> replayPacing({
       onStep(dt);
       input.endStep();
       await drawFrame(frame);
-      final took = (now() - start) / 1000.0;
-      if (frame >= warmUpFrames) millis.add(took);
+      final took = (now() - start) / 1e6;
+      if (frame >= warmUpFrames) seconds.add(took);
       frame++;
     }
   }
-  return FramePacing.of(millis, limitMillis: limitMillis);
+  return PacingReport.of(seconds, limit: limit);
 }
 
 int Function() _stopwatch() {

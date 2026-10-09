@@ -27,7 +27,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 128;
 const int _height = 96;
@@ -51,7 +50,10 @@ Future<_Shot> _shot({required double viewDistance}) async {
         device,
         const PlaneShape(width: 600.0, depth: 600.0).build(),
       ),
-      Material(name: 'ground', baseColor: Vector4(0.7, 0.7, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'ground',
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
+      ),
       name: 'ground',
     ),
   );
@@ -67,13 +69,19 @@ Future<_Shot> _shot({required double viewDistance}) async {
           device,
           CuboidShape(size: Vector3(1.0, 6.0, 1.0)).build(),
         ),
-        Material(name: name, baseColor: Vector4(0.9, 0.85, 0.8, 1.0)),
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(0.9, 0.85, 0.8, 1.0),
+        ),
         name: name,
       )..setPosition(0.0, 3.0, z),
     );
   }
 
-  final sun = LightNode(intensity: 2.0, castsShadow: true);
+  final sun = LightNode(
+    intensity: 2.0 * Photometric.legacyUnit,
+    castsShadow: true,
+  );
   sun.lookAt(Vector3(0.4, -1.0, -0.35));
   scene.add(sun);
 
@@ -86,7 +94,7 @@ Future<_Shot> _shot({required double viewDistance}) async {
         camera: CameraNode()
           ..setPosition(0.0, 5.0, 8.0)
           ..lookAt(Vector3(0.0, 1.5, -60.0)),
-        clearColor: Vector4(0.05, 0.06, 0.08, 1.0),
+        clearColorSrgb: Vector4(0.05, 0.06, 0.08, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -100,7 +108,7 @@ Future<_Shot> _shot({required double viewDistance}) async {
     (FramePass p) => p.name == 'directional shadows',
   );
   return (
-    pixels: (await device.readPixels(frame.frame))!.buffer.asUint8List(),
+    pixels: (await device.readback(frame.frame)).buffer.asUint8List(),
     shadowMicros: shadow.micros,
     shadowDraws: shadow.drawCalls,
   );

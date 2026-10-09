@@ -25,6 +25,20 @@ There is no Flutter in it. The contributors draw through `flutter3d_core`'s
 The same `seed` and the same sequence of `advance` calls give byte-identical
 particles. The bake relies on that; it does not add it.
 
+An effect can also be a file. A `.f3dfx` document says in JSON what the Dart
+says: the emitter, the lifetime, size and colour, the affectors in order, how
+it is drawn, and the bus events it goes off on.
+
+```dart
+final effects = ParticleEffects(particles);
+effects.addDocument(EffectDocument.parse(text), events: loop.events);
+effects.burst('explosionEmbers', at);
+```
+
+A document's effect and the same effect in Dart are one simulation, particle
+for particle, and the dungeon demo's effects are tested both ways. A
+`.f3dplugin` can carry these documents too.
+
 ---
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent

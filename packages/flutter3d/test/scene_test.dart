@@ -220,10 +220,10 @@ void main() {
       final child = SceneNode();
       parent.add(child);
 
-      expect(child.visibleInHierarchy, isTrue);
-      parent.visible = false;
-      expect(child.visible, isTrue, reason: 'own flag is untouched');
-      expect(child.visibleInHierarchy, isFalse);
+      expect(child.isVisibleInHierarchy, isTrue);
+      parent.isVisible = false;
+      expect(child.isVisible, isTrue, reason: 'own flag is untouched');
+      expect(child.isVisibleInHierarchy, isFalse);
     });
 
     test('findByName searches the subtree', () {

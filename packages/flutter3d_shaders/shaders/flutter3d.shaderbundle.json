@@ -35,6 +35,34 @@
     "type": "fragment",
     "file": "shaders/lighting/toon.frag"
   },
+  "UnlitOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/unlit_opaque.frag"
+  },
+  "LambertOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/lambert_opaque.frag"
+  },
+  "BlinnPhongOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/blinn_phong_opaque.frag"
+  },
+  "PbrOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr_opaque.frag"
+  },
+  "PbrLayeredOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr_layered_opaque.frag"
+  },
+  "ToonOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/toon_opaque.frag"
+  },
+  "DepthPredraw": {
+    "type": "fragment",
+    "file": "shaders/lighting/depth_predraw.frag"
+  },
   "Normals": {
     "type": "fragment",
     "file": "shaders/lighting/normals.frag"

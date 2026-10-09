@@ -19,7 +19,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -30,19 +29,19 @@ const int _height = 48;
 /// The slab is what the test reads: nothing reaches its camera-facing side
 /// directly, so whatever colour it has came off the walls.
 ({Scene scene, CameraNode camera}) _room({required bool redWall}) {
-  final scene = Scene()..ambientIntensity = 1.0;
+  final scene = Scene()..ambientIntensity = 1.0 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
 
-  MeshNode slab(Vector3 size, Vector3 at, Vector4 colour, String name) =>
+  MeshNode slab(Vector3 size, Vector3 at, Vector4 color, String name) =>
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        Material(
+        RenderMaterial(
           name: name,
-          baseColor: colour,
+          baseColor: _fromSrgb(color),
           lighting: LightingModel.lambert,
         ),
         name: name,
@@ -75,8 +74,11 @@ const int _height = 48;
       ),
     )
     ..add(
-      LightNode(type: LightType.point, intensity: 24.0, name: 'lamp')
-        ..setPosition(0.0, 1.6, -1.2),
+      LightNode(
+        type: LightType.point,
+        intensity: 24.0 * Photometric.legacyUnit,
+        name: 'lamp',
+      )..setPosition(0.0, 1.6, -1.2),
     );
 
   final camera = CameraNode()
@@ -113,9 +115,9 @@ Future<Uint8List> _draw({required bool field, required bool redWall}) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await it.device.readPixels(frame.frame);
+  final pixels = await it.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// The average red-minus-blue over the middle of the frame, which is the
@@ -171,3 +173,6 @@ void main() {
     expect(changed, greaterThan(64), reason: 'the field moved $changed pixels');
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

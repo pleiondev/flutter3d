@@ -18,7 +18,7 @@ extension _ScenePasses on Renderer {
   ///
   /// Views share a single render pass and clear: viewports do not overlap in the
   /// split-screen case, and one pass is both cheaper and simpler than a pass per
-  /// view. Views are drawn in ascending priority, as in PlayCanvas.
+  /// view. Views are drawn in ascending priority.
   ///
   /// The body of [_SceneNode], extracted before the node existed so that the
   /// move was verifiable on its own: it changed no behaviour, so the goldens had
@@ -55,7 +55,7 @@ extension _ScenePasses on Renderer {
   /// the one the migration keeps running into: a contributor draws *into* this
   /// pass, so it takes the pass as an argument, while a node *owns* one and
   /// therefore cannot be handed one. That is why there are two contexts:
-  /// `ContributorFrame` carries a pass and `NodeFrame` does not.
+  /// `ContributorFrame` carries a pass and `RenderFrame` does not.
   _ScenePass _encodeScene({
     required Scene scene,
     required List<RenderView> ordered,
@@ -102,7 +102,12 @@ extension _ScenePasses on Renderer {
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
     // encode twice and wash the background out.
-    final clear = Renderer._srgbToLinear(ordered.first.clearColor);
+    final clear = Renderer._srgbToLinear(ordered.first.clearColorSrgb);
+    // `A2.8`: one convention for the frame's depth, which every pass that
+    // loads it after this one reads back from the field.
+    final reversed = _reversedFor(settings);
+    _depthReversed = reversed;
+    final farDepth = _DepthConvention._farDepth(reversed: reversed);
 
     final colorAttachment = msaa == null
         ? ColorTarget(texture: hdr, clearValue: clear)
@@ -129,33 +134,42 @@ extension _ScenePasses on Renderer {
                   clearValue: vm.Vector4.zero(),
                 ));
 
-    final pass = device.beginRenderPass(
-      RenderPassDescriptor(
-        label: _passLabel,
-        colors: <ColorTarget>[
-          colorAttachment,
-          ?surfaceAttachment,
-          // `L5`: the albedo buffer, beside the surface buffer and only with
-          // it, so the attachments stay consecutive.
-          if (albedoIsRead && surfaceAttachment != null)
-            ColorTarget(texture: _albedoColor!, clearValue: vm.Vector4.zero()),
-        ],
-        // Standard depth: clear to the far plane, nearer fragments win.
-        // Stored for the transparent layers when they are drawn apart, and
-        // for the transparent pass when the scene is split.
-        depth: keeps
-            ? DepthTarget(
-                texture: orderIndependent
-                    ? _weightedBlendedTargets().depth
-                    : _storedSceneDepth(),
-                storeAction: StoreAction.store,
-              )
-            : DepthTarget(
-                texture: msaa == null
-                    ? (_depthStencilSingle ?? _depthStencil!)
-                    : _depthStencil!,
+    final pass = _turnDepth(
+      device.beginRenderPass(
+        RenderPassDescriptor(
+          label: _passLabel,
+          colors: <ColorTarget>[
+            colorAttachment,
+            ?surfaceAttachment,
+            // `L5`: the albedo buffer, beside the surface buffer and only with
+            // it, so the attachments stay consecutive.
+            if (albedoIsRead && surfaceAttachment != null)
+              ColorTarget(
+                texture: _albedoColor!,
+                clearValue: vm.Vector4.zero(),
               ),
+          ],
+          // Clear to the far plane, nearer fragments win — one the ordinary
+          // way round, nought reversed, and the encoder turns every test the
+          // draws below name. Stored for the transparent layers when they are
+          // drawn apart, and for the transparent pass when the scene is split.
+          depth: keeps
+              ? DepthTarget(
+                  texture: orderIndependent
+                      ? _weightedBlendedTargets().depth
+                      : _storedSceneDepth(),
+                  clearValue: farDepth,
+                  storeAction: StoreAction.store,
+                )
+              : DepthTarget(
+                  texture: msaa == null
+                      ? (_depthStencilSingle ?? _depthStencil!)
+                      : _depthStencil!,
+                  clearValue: farDepth,
+                ),
+        ),
       ),
+      reversed: reversed,
     );
 
     _targetOrigin[0] = _rowsFromBottom(hdr);
@@ -165,7 +179,8 @@ extension _ScenePasses on Renderer {
     // sixteen jittered reads and would soften a map read at its own level.
     // Nought otherwise, which is exactly what every map was read with before.
     final temporal =
-        settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
+        settings.antiAlias.temporal.enabled &&
+        device.limits.maxColorAttachments > 1;
     _targetOrigin[1] = temporal
         ? math.log(settings.renderScale.clamp(0.1, 1.0)) / math.ln2 - 0.5
         : 0.0;
@@ -175,16 +190,11 @@ extension _ScenePasses on Renderer {
     // shadow's taps anew each frame for the history to average; minus one
     // otherwise, and the turn stays put.
     _targetOrigin[3] = temporal ? (_frameIndex % 32).toDouble() : -1.0;
-    // `P6`: the channel a debug view shows in place of the light, and the
-    // column it starts at — the share of the width times the width of the
-    // target the materials draw into, which is the scene's and not the
-    // output's under a render scale.
-    final debug = settings.debugView;
-    _fragInfo.debugView
-      ..[0] = debug.active ? debug.view.code : 0.0
-      ..[1] = debug.split.clamp(0.0, 1.0)
-      ..[2] = hdr.width.toDouble()
-      ..[3] = 0.0;
+    // `P6`, `A5.22`: the channels a debug view shows in place of the light
+    // either side of the wipe, and the column between them — the share of
+    // the width times the width of the target the materials draw into,
+    // which is the scene's and not the output's under a render scale.
+    _beginDebugViews(settings, hdr.width);
     final cameraPosition = vm.Vector3.zero();
 
     for (var viewNumber = 0; viewNumber < ordered.length; viewNumber++) {
@@ -200,7 +210,8 @@ extension _ScenePasses on Renderer {
       // and a refusal mid-frame is a crash where a declined setting is a
       // picture. Wireframe there needs line primitives from an index buffer
       // built for it, which is geometry work and not a backend's to invent.
-      final wireframe = settings.wireframe && device.supportsWireframe;
+      final wireframe =
+          settings.wireframe && device.features.has(DeviceFeature.wireframe);
 
       final viewRect = Renderer._viewportPixels(
         view.viewportFraction,
@@ -222,7 +233,7 @@ extension _ScenePasses on Renderer {
       // `P7`: the meshes of a multisampled pass on a device that can may
       // turn alpha into coverage.
       passState.coverageAvailable =
-          msaa != null && device.supportsAlphaToCoverage;
+          msaa != null && device.features.has(DeviceFeature.alphaToCoverage);
 
       final camera = view.camera;
       final viewMatrix = camera.viewMatrix;
@@ -232,14 +243,14 @@ extension _ScenePasses on Renderer {
       // finds its cell the way the builder placed the lights.
       _clustersActive =
           settings.clusteredLights &&
-          !lights.anyChannelled &&
-          lights.candidates.length > LightBuffer.maxLights;
+          !_frameLights.anyChannelled &&
+          _frameLights.candidates.length > LightBuffer.maxLights;
       if (_clustersActive) {
         _lightClusters.build(
-          lights,
+          _frameLights,
           viewProjection,
           near: camera.projection.near,
-          far: camera.projection.far,
+          far: _DepthConvention._finiteFar(camera.projection),
         );
       }
 
@@ -257,7 +268,7 @@ extension _ScenePasses on Renderer {
         group.select(camera, viewportHeight: viewRect.height.toDouble());
       }
       developer.Timeline.finishSync();
-      final frustum = vm.Frustum.matrix(viewProjection);
+      final frustum = _DepthConvention._viewFrustum(viewProjection);
 
       final visibleBefore = scene.meshes.length;
       developer.Timeline.startSync('Renderer.occlusion');
@@ -284,6 +295,21 @@ extension _ScenePasses on Renderer {
       _renderList.sort(view);
       developer.Timeline.finishSync();
       culled += visibleBefore - _renderList.length;
+
+      // `A2.8`, `A2.9`: what the view's depth is drawn through — the near
+      // plane moved out to the nearest thing the list holds, and the depth
+      // reversed where the frame is. [viewProjection] stays the camera's
+      // own, for the culling above and the cells, which compare nothing
+      // with the depth buffer.
+      final drawMatrix = _rasterViewProjection(
+        camera,
+        viewRect,
+        settings,
+        reversed: reversed,
+        near: settings.reversedDepth
+            ? _fittedNear(view, contributors)
+            : camera.projection.near,
+      );
 
       // `C9`: a split mesh's clusters are culled against what its node was,
       // at the draw, with the matrix the draw uses.
@@ -322,10 +348,10 @@ extension _ScenePasses on Renderer {
         node: node,
         scene: scene,
         settings: settings,
-        viewProjection: viewProjection,
+        viewProjection: drawMatrix,
         shadows: shadows,
         probes: probes,
-        lights: lights,
+        lights: _frameLights,
         shadowSlots: _shadowSlots,
         state: passState,
       );
@@ -345,10 +371,14 @@ extension _ScenePasses on Renderer {
           _renderList.itemAt(index).requireNode.material,
         );
         transmissive = _renderList.opaque.where(glass).toList();
-        opaque = _renderList.opaque.where((i) => !glass(i)).toList();
+        opaque = _layeredLast(
+          _renderList.opaque.where((i) => !glass(i)).toList(),
+        );
       } else {
         transmissive = const <int>[];
-        opaque = _renderList.opaque;
+        // `RenderMaterial.depthLayer`: layered surfaces after the rest, so the
+        // later of two coplanar faces wins where no bias separates them.
+        opaque = _layeredLast(_renderList.opaque);
       }
       if (settings.batchIdenticalDraws) {
         _encodeBatchedOpaque(
@@ -370,7 +400,7 @@ extension _ScenePasses on Renderer {
         rect: viewRect,
         frustum: frustum,
         settings: settings,
-        viewProjection: viewProjection,
+        viewProjection: drawMatrix,
         shadows: shadows,
         state: passState,
       );
@@ -385,6 +415,7 @@ extension _ScenePasses on Renderer {
         settings: settings,
         viewProjection: viewProjection,
         state: passState,
+        reversed: reversed,
       );
       if (keeps) {
         // Kept rather than drawn, with what the passes after this one need
@@ -392,7 +423,7 @@ extension _ScenePasses on Renderer {
         deferred.add((
           view: view,
           rect: viewRect,
-          viewProjection: viewProjection.clone(),
+          viewProjection: drawMatrix.clone(),
           wireframe: wireframe,
           clustered: _clustersActive,
           eye: cameraPosition.clone(),
@@ -418,9 +449,9 @@ extension _ScenePasses on Renderer {
         encoder: pass,
         scene: scene,
         settings: settings,
-        viewProjection: viewProjection,
+        viewProjection: drawMatrix,
         shadows: shadows,
-        lights: lights,
+        lights: _frameLights,
         shadowSlots: _shadowSlots,
         state: passState,
       );
@@ -434,33 +465,43 @@ extension _ScenePasses on Renderer {
       // Off before the contributors and the next view: a particle drawn with
       // a leaf's coverage still on would be speckled by its own alpha.
       if (passState.alphaToCoverage) {
-        pass.setAlphaToCoverage(false);
+        pass.setAlphaToCoverage(enabled: false);
         passState.alphaToCoverage = false;
       }
       passState.coverageAvailable = false;
 
       // `N6`: this view's lights, cells and all, for a contributor that
       // binds them. One that does not never asks, and nothing is built for it.
-      _contributorLights.begin(lights, settings);
+      _contributorLights.begin(_frameLights, settings);
       // After the resolve instead, when there is one — `R8` — or in the
       // transparent pass, when the scene is split — `M3`.
       for (final plugin in keeps ? const <PassContributor>[] : contributors) {
+        // `A5.22`: an overlay draws on its side of the wipe, and the next
+        // contributor gets the view's scissor back.
+        final narrowed =
+            plugin.isOverlay &&
+            settings.debugView.overlays != DebugWipeSide.both;
+        if (narrowed) {
+          pass.setScissor(_overlayScissor(settings.debugView, viewRect, width));
+        }
         plugin.encode(
           ContributorFrame(
             encoder: pass,
             device: device,
             services: this,
-            state: passState,
             settings: settings,
             width: width,
             height: height,
             view: view,
-            viewProjection: viewProjection,
+            viewProjection: drawMatrix,
             frameIndex: _frameIndex,
+            time: _seconds,
             temporal: temporal,
             lights: _contributorLights,
-          ),
+            reversedDepth: reversed,
+          )..state = passState,
         );
+        if (narrowed) pass.setScissor(viewRect);
       }
       _contributorLights.end();
 
@@ -482,7 +523,7 @@ extension _ScenePasses on Renderer {
     // and looked up with that same matrix, so they stay consistent; a point
     // off that view's screen reads an edge cell.
     final fogCells = settings.volumetricFog.enabled && _clustersActive
-        ? _buildLightList(lights)
+        ? _buildLightList(_frameLights)
         : null;
     _fogCells = _clustersActive ? fogCells : null;
     _fogCellRows = _lightListRows;
@@ -529,7 +570,7 @@ extension _ScenePasses on Renderer {
       // multisampling was available and this frame gave it up.
       msaaDeclined: msaa != null
           ? null
-          : (!device.supportsOffscreenMsaa
+          : (!device.features.has(DeviceFeature.offscreenMultisample)
                 ? 'this device has no multisampled offscreen target'
                 : (surfaceIsRead
                       ? 'a pass in this frame reads the surface buffer, and '
@@ -577,7 +618,7 @@ extension _ScenePasses on Renderer {
       case OcclusionMode.software:
         return (_softwareOcclusion ??= SoftwareOcclusion()).prepare(
           meshes: scene.meshes,
-          viewProjection: camera.viewProjection(aspect),
+          viewProjection: _finiteViewProjection(camera, aspect),
           frustum: frustum,
           eye: camera.readViewOrigin(),
           layerMask: view.layerMask,
@@ -589,11 +630,14 @@ extension _ScenePasses on Renderer {
         // second view there is no reading to have; see `_DepthPyramidNode`.
         if (views != 1) return null;
         return hiZ.prepare(
-          camera.viewProjection(aspect),
+          _finiteViewProjection(camera, aspect),
           eye: camera.readViewOrigin(),
           forward: camera.readForward(),
           camera: camera,
         );
     }
+    // A mode a later version names and this one does not know culls
+    // nothing, which is the answer that cannot hide what is visible.
+    return null;
   }
 }

@@ -21,12 +21,16 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -57,9 +61,9 @@ const int _height = 72;
 
   MeshNode block(Vector3 size, Vector3 at, {String name = 'block'}) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       lighting: LightingModel.pbr,
     ),
     name: name,
@@ -86,7 +90,7 @@ const int _height = 72;
       // Low enough that the lit floor is not saturated: a floor at the top of
       // the tone curve is a floor whose shadow cannot be seen, which is what
       // made the first version of these tests pass with no shadow in shot.
-      intensity: 1.1,
+      intensity: 1.1 * Photometric.legacyUnit,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),
@@ -113,9 +117,9 @@ Future<List<int>> _grid(
       bloom: const BloomSettings(enabled: false),
     ),
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return parityGrid(pixels!.buffer.asUint8List(), _width, _height);
+  return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 
 /// The cells that are floor lying in shadow: darker than lit floor, and
@@ -137,7 +141,7 @@ Scene _postYard() {
   );
   MeshNode block(Vector3 size, Vector3 at) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+    RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
   )..setPositionFrom(at);
   scene.add(block(Vector3(200.0, 1.0, 200.0), Vector3(0.0, -0.5, 0.0)));
   for (var x = -24.0; x <= 24.0; x += 6.0) {
@@ -146,8 +150,11 @@ Scene _postYard() {
     }
   }
   scene.add(
-    LightNode(type: LightType.directional, intensity: 1.1, castsShadow: true)
-      ..setLocalForward(Vector3(-0.5, -0.8, 0.3)),
+    LightNode(
+      type: LightType.directional,
+      intensity: 1.1 * Photometric.legacyUnit,
+      castsShadow: true,
+    )..setLocalForward(Vector3(-0.5, -0.8, 0.3)),
   );
   return scene;
 }
@@ -277,7 +284,7 @@ void main() {
         shadows.depthPadding /
         shadows.resolution;
 
-    String centre() {
+    String center() {
       final near = engine.renderer.debugCascadeCentres.first;
       return '${near.x.toStringAsFixed(5)},${near.y.toStringAsFixed(5)},'
           '${near.z.toStringAsFixed(5)}';
@@ -287,7 +294,7 @@ void main() {
     for (var step = 0; step < 6; step++) {
       room.camera.setPosition(step * texel / 10.0, 3.0, -8.0);
       await _grid(engine, room, shadows);
-      creeping.add(centre());
+      creeping.add(center());
     }
 
     // At most two: half a texel of travel crosses a texel boundary at most
@@ -302,11 +309,11 @@ void main() {
 
     // And the other half of the claim, without which the above passes on a
     // centre that never moves at all: a whole texel of travel does move it.
-    final before = centre();
+    final before = center();
     room.camera.setPosition(4.0 * texel, 3.0, -8.0);
     await _grid(engine, room, shadows);
     expect(
-      centre(),
+      center(),
       isNot(before),
       reason: 'four texels of travel and the cascade did not follow',
     );
@@ -439,9 +446,9 @@ void main() {
             device,
             CuboidShape(size: Vector3(3.0, 20.0, 3.0)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'tower',
-            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
             lighting: LightingModel.pbr,
           ),
           name: 'tower',
@@ -493,7 +500,7 @@ void main() {
     // scaled bias alone.
     final device = FakeBackend();
     TextureHandle texel() => device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -502,7 +509,7 @@ void main() {
     final scene = Scene();
     MeshNode block(Vector3 size, Vector3 at) => MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: size).build()),
-      Material(name: 'block', lighting: LightingModel.pbr),
+      RenderMaterial(name: 'block', lighting: LightingModel.pbr),
     )..setPosition(at.x, at.y, at.z);
     scene
       ..add(block(Vector3(40.0, 1.0, 400.0), Vector3(0.0, -0.5, 190.0)))
@@ -560,7 +567,7 @@ void main() {
         final engine = _engine();
         await _grid(engine, room, const ShadowSettings(cascades: 3));
         final radii = engine.renderer.debugCascadeRadii;
-        final centres = engine.renderer.debugCascadeCentres;
+        final centers = engine.renderer.debugCascadeCentres;
         expect(radii, hasLength(3));
 
         // Every near slab is at least as wide as the frame's half-diagonal,
@@ -574,8 +581,8 @@ void main() {
         // And they stand one after the other along the view axis.
         final forward = room.camera.readForward();
         final eye = room.camera.readWorldPosition();
-        final depth0 = (centres[0] - eye).dot(forward);
-        final depth1 = (centres[1] - eye).dot(forward);
+        final depth0 = (centers[0] - eye).dot(forward);
+        final depth1 = (centers[1] - eye).dot(forward);
         expect(depth0, greaterThan(0.0));
         expect(depth1, greaterThan(depth0));
       },
@@ -620,9 +627,7 @@ void main() {
             bloom: BloomSettings(enabled: false),
           ),
         );
-        return (await engine.device.readPixels(
-          frame.frame,
-        ))!.buffer.asUint8List();
+        return (await engine.device.readback(frame.frame)).buffer.asUint8List();
       }
 
       final near = await from(0.0);

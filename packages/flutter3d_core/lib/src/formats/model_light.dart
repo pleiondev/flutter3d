@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 
 /// The shape a light's falloff takes — `KHR_lights_punctual`'s own three,
 /// and no others, since the extension defines exactly these three and a
@@ -18,21 +19,19 @@ enum ModelLightType { directional, point, spot }
 final class ModelLight {
   ModelLight({
     required this.type,
-    Vector3? color,
+    this.color = LinearColor.white,
     this.intensity = 1.0,
     this.range,
     this.innerConeAngle = 0.0,
     double? outerConeAngle,
     this.name,
-  }) : color = color ?? Vector3(1.0, 1.0, 1.0),
-       outerConeAngle = outerConeAngle ?? math.pi / 4;
+  }) : outerConeAngle = outerConeAngle ?? math.pi / 4;
 
   final ModelLightType type;
 
-  /// Linear RGB, the same convention every other colour in this package
-  /// (`SurfaceMaterial.baseColor` excepted, which is non-linear as authored)
-  /// already uses for a light or a material factor.
-  final Vector3 color;
+  /// Linear RGB, the same convention every other colour in the engine uses.
+  /// Alpha is not read.
+  final LinearColor color;
 
   /// Lux for [ModelLightType.directional], candela otherwise. The
   /// specification's own default when a file omits the key.
@@ -43,6 +42,7 @@ final class ModelLight {
   /// absent, kept as `null` rather than folded into a number so a writer
   /// can tell "the file said no limit" from "the file said a very large
   /// number" and omit the key again rather than inventing one.
+  /// In metres.
   final double? range;
 
   /// Spot-only: the angle, in radians, inside which a spot is at full

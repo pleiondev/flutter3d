@@ -19,9 +19,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final stages = <String, ({WebGpuStage stage, bool fragment})>{
-    for (final entry in engineShaders.vertex.entries)
+    for (final entry in webGpuEngineShaders.vertex.entries)
       entry.key: (stage: entry.value, fragment: false),
-    for (final entry in engineShaders.fragment.entries)
+    for (final entry in webGpuEngineShaders.fragment.entries)
       entry.key: (stage: entry.value, fragment: true),
   };
 
@@ -53,17 +53,17 @@ void main() {
     // still those numbers with 46 stages in the table: every shader added since
     // left the assertion stale, and nothing noticed, because a literal count
     // rots the moment somebody adds a pass and rots silently. `gfx-76n` is the
-    // row that found it, by adding the forty-seventh. `kRequiredShaders` is the
+    // row that found it, by adding the forty-seventh. `requiredShaders` is the
     // list the manifest is generated from and the one the engine actually asks
     // against, so a table that matches it matches by name as well as by count
     // and needs no editing when the next row adds a stage.
     Set<String> namesOf({bool? fragment}) => <String>{
-      for (final shader in kRequiredShaders)
+      for (final shader in requiredShaders)
         if (fragment == null || shader.fragment == fragment) shader.name,
     };
     expect(stages.keys.toSet(), namesOf());
-    expect(engineShaders.vertex.keys.toSet(), namesOf(fragment: false));
-    expect(engineShaders.fragment.keys.toSet(), namesOf(fragment: true));
+    expect(webGpuEngineShaders.vertex.keys.toSet(), namesOf(fragment: false));
+    expect(webGpuEngineShaders.fragment.keys.toSet(), namesOf(fragment: true));
   });
 
   test('every stage carries WGSL with an entry point of its kind', () {
@@ -81,13 +81,13 @@ void main() {
     // `--keep-coordinate-space` is in `wgsl_compiler.dart` rather than in
     // somebody's memory. Checked here as well as at generation time because
     // this is the table that ships.
-    engineShaders.vertex.forEach((name, stage) {
+    webGpuEngineShaders.vertex.forEach((name, stage) {
       expect(stage.wgsl, isNot(contains('gl_Position.y = -(')), reason: name);
     });
   });
 
   test('a fragment stage declares no vertex inputs', () {
-    engineShaders.fragment.forEach((name, stage) {
+    webGpuEngineShaders.fragment.forEach((name, stage) {
       expect(stage.attributes, isEmpty, reason: name);
     });
   });
@@ -175,14 +175,14 @@ void main() {
     // `pbr.frag` includes the same header without the define and has all
     // three, which is what makes this a measurement of the guard rather than of
     // the file.
-    final unlit = engineShaders.fragment['Unlit']!;
+    final unlit = webGpuEngineShaders.fragment['Unlit']!;
     expect(unlit.blocks.map((b) => b.name), isNot(contains('PointShadow')));
     expect(
       unlit.samplers.map((s) => s.name),
       isNot(contains('point_shadow_texture')),
     );
 
-    final pbr = engineShaders.fragment['Pbr']!;
+    final pbr = webGpuEngineShaders.fragment['Pbr']!;
     expect(pbr.blocks.map((b) => b.name), contains('PointShadow'));
     expect(pbr.samplers.map((s) => s.name), contains('point_shadow_texture'));
     expect(
@@ -230,7 +230,7 @@ void main() {
     // `contributor_eye.glsl` now, and their contributors bind all four.
     expect(offsets['FogInfo']!['projection']!.$2, 48);
     expect(
-      engineShaders.fragment['Particle']!.blocks.single.members.length,
+      webGpuEngineShaders.fragment['Particle']!.blocks.single.members.length,
       4,
       reason: 'the particle FogInfo is the lit stages\' block, all of it',
     );

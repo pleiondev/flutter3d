@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_core/src/engine/render/light_clusters.dart';
+import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 

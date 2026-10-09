@@ -27,13 +27,19 @@
 // ---------------------------------------------------------------------------
 //
 // **The depth.** A post pass writes `gl_Position.z = 0.0`, which is the *near*
-// plane; the sky belongs at the far one. This writes 0.999999 — the far plane,
-// less a hair. Strictly less than 1.0 so that the ordinary `less` test passes
-// against a buffer cleared to 1.0, which is what lets the sky be drawn with the
-// pass's own depth state and no `setDepthCompare` at all. With depth writes off
-// it never occludes anything, and because it is drawn after the opaque half,
-// every pixel already covered by geometry fails the test before the fragment
-// stage runs.
+// plane; the sky belongs at the far one. The ordinary way round that is
+// 0.999999 — the far plane, less a hair. Strictly less than 1.0 so that the
+// ordinary `less` test passes against a buffer cleared to 1.0, which is what
+// lets the sky be drawn with the pass's own depth state and no
+// `setDepthCompare` at all. With depth writes off it never occludes anything,
+// and because it is drawn after the opaque half, every pixel already covered
+// by geometry fails the test before the fragment stage runs.
+//
+// **The depth rides on the vertices with the corner** — `A2.8` — because it
+// is not one number any more. Under `RenderSettings.reversedDepth` the far
+// plane is nought, and the sky is drawn there, tested `lessEqual` against a
+// buffer cleared to nought; `Renderer._encodeSky` says why not a hair in
+// front of it. A constant here would have needed a second stage per sky.
 //
 // **The ray.** One direction per corner, computed on the CPU from the inverse
 // view-projection and interpolated across the triangle — which for a
@@ -41,7 +47,10 @@
 // position. The renderer builds them; see `Renderer._skyCornerRay`.
 precision highp float;
 
-layout(location = 0) in vec2 position;
+// xy: the corner in clip space. z: the depth the triangle is drawn at — the
+// far plane less a hair the ordinary way round, nought reversed. See the
+// note on depth in `sky.vert`.
+layout(location = 0) in vec3 position;
 
 // The world-space view ray at this corner.
 layout(location = 1) in vec3 corner_ray;
@@ -76,5 +85,5 @@ void main() {
   v_glow = glow;
   v_disc = disc;
 
-  gl_Position = vec4(position, 0.999999, 1.0);
+  gl_Position = vec4(position, 1.0);
 }

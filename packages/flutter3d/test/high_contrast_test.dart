@@ -19,13 +19,15 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
 
 /// Orange, Okabe and Ito's — what a game might ring its monsters in.
-final Vector3 _orange = Vector3(0.902, 0.624, 0.0);
+final LinearColor _orange = LinearColor.fromSrgb(0.902, 0.624, 0.0);
+
+/// [_orange] as the finished picture shows it.
+final Vector3 _orangeShown = Vector3(0.902, 0.624, 0.0);
 
 /// Every part of the look switched off but the one a test is about: tone
 /// left alone, colour kept, no flattening, no lines, no rings.
@@ -61,34 +63,40 @@ const HighContrastSettings _neutral = HighContrastSettings(
     height: size,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(stripes),
-  )!;
+  );
   final floor = MeshNode(
     DeviceMesh.upload(device, const PlaneShape(width: 6.0, depth: 6.0).build()),
-    Material(
+    RenderMaterial(
       name: 'floor',
       lighting: LightingModel.lambert,
       albedo: texture,
-      albedoSampler: SamplerOptions.nearestClamp,
+      albedoSampler: SamplerDescriptor.nearestClamp,
     ),
     name: 'floor',
   );
   final box = MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.8)).build()),
-    Material(name: 'box', baseColor: Vector4(0.8, 0.15, 0.1, 1.0)),
+    RenderMaterial(
+      name: 'box',
+      baseColor: LinearColor.fromSrgb(0.8, 0.15, 0.1, 1.0),
+    ),
     name: 'box',
   )..setPosition(-0.6, 0.4, 0.0);
   final ball = MeshNode(
     DeviceMesh.upload(device, SphereShape(radius: 0.4).build()),
-    Material(name: 'ball', baseColor: Vector4(0.15, 0.3, 0.85, 1.0)),
+    RenderMaterial(
+      name: 'ball',
+      baseColor: LinearColor.fromSrgb(0.15, 0.3, 0.85, 1.0),
+    ),
     name: 'ball',
   )..setPosition(0.7, 0.4, 0.2);
   final scene = Scene()
-    ..ambientIntensity = 0.3
+    ..ambientIntensity = 0.3 * Photometric.legacyUnit
     ..add(floor)
     ..add(box)
     ..add(ball)
     ..add(
-      LightNode(intensity: 3.0)
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.5, -1.0, -0.4).normalized()),
     )
     ..add(
@@ -122,7 +130,7 @@ Future<({Uint8List pixels, List<String> passes})> _frame(
     views: <RenderView>[
       RenderView(
         camera: stage.scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -132,21 +140,21 @@ Future<({Uint8List pixels, List<String> passes})> _frame(
       bloom: const BloomSettings(enabled: false),
     ),
   );
-  final bytes = await device.readPixels(result.frame);
+  final bytes = await device.readback(result.frame);
   return (
     pixels: Uint8List.fromList(<int>[
-      for (var i = 0; i < _width * _height * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _width * _height * 4; i++) bytes.getUint8(i),
     ]),
     passes: <String>[for (final pass in result.passes) pass.name],
   );
 }
 
-/// How many pixels of [pixels] are [colour] to within a step or two of
+/// How many pixels of [pixels] are [color] to within a step or two of
 /// rounding.
-int _countOf(Uint8List pixels, Vector3 colour) {
-  final r = (colour.x * 255).round();
-  final g = (colour.y * 255).round();
-  final b = (colour.z * 255).round();
+int _countOf(Uint8List pixels, Vector3 color) {
+  final r = (color.x * 255).round();
+  final g = (color.y * 255).round();
+  final b = (color.z * 255).round();
   var count = 0;
   for (var i = 0; i < pixels.length; i += 4) {
     if ((pixels[i] - r).abs() <= 2 &&
@@ -315,13 +323,13 @@ void main() {
       // line. Mutation: never call an edge in the CPU shader and there are
       // none; take the reach to nought and there are none either, which is
       // what keeps the first half of this from passing on anything magenta.
-      final magenta = Vector3(1.0, 0.0, 1.0);
+      const magenta = LinearColor(1.0, 0.0, 1.0);
       final lined = await _frame(
         _neutral.copyWith(outlineWidth: 1.0, outlineColor: magenta),
       );
       final none = await _frame(_neutral.copyWith(outlineColor: magenta));
-      expect(_countOf(lined.pixels, magenta), greaterThan(40));
-      expect(_countOf(none.pixels, magenta), 0);
+      expect(_countOf(lined.pixels, Vector3(1.0, 0.0, 1.0)), greaterThan(40));
+      expect(_countOf(none.pixels, Vector3(1.0, 0.0, 1.0)), 0);
     });
 
     test('a receding floor is not an edge, however its depth steps', () async {
@@ -334,7 +342,7 @@ void main() {
       // line. Mutation: keep the vertical pair on the frame's last row, where
       // its lower tap is clamped back onto the centre, and that row is one
       // line — which this test found before the shaders knew about it.
-      final magenta = Vector3(1.0, 0.0, 1.0);
+      const magenta = LinearColor(1.0, 0.0, 1.0);
       final lined = await _frame(
         _neutral.copyWith(
           outlineWidth: 1.0,
@@ -346,8 +354,12 @@ void main() {
         lined.pixels,
         (_height - 8) * _width * 4,
       );
-      expect(_countOf(lined.pixels, magenta), greaterThan(40));
-      expect(_countOf(floor, magenta), 0, reason: 'a plane bends nowhere');
+      expect(_countOf(lined.pixels, Vector3(1.0, 0.0, 1.0)), greaterThan(40));
+      expect(
+        _countOf(floor, Vector3(1.0, 0.0, 1.0)),
+        0,
+        reason: 'a plane bends nowhere',
+      );
     });
   });
 
@@ -358,8 +370,8 @@ void main() {
         arrange: (box, ball) => box.outlineColor = _orange,
       );
       final unmarked = await _frame(_neutral.copyWith(roleWidth: 2.0));
-      expect(_countOf(ringed.pixels, _orange), greaterThan(40));
-      expect(_countOf(unmarked.pixels, _orange), 0);
+      expect(_countOf(ringed.pixels, _orangeShown), greaterThan(40));
+      expect(_countOf(unmarked.pixels, _orangeShown), 0);
     });
 
     test('and filled with a share of it, which can be nought', () async {
@@ -376,7 +388,7 @@ void main() {
         _neutral.copyWith(roleFill: 1.0),
         arrange: (box, ball) => box.outlineColor = _orange,
       );
-      expect(_countOf(filled.pixels, _orange), greaterThan(100));
+      expect(_countOf(filled.pixels, _orangeShown), greaterThan(100));
     });
 
     test('a marked node the scene hides gets no ring', () async {
@@ -392,7 +404,7 @@ void main() {
           ..setPosition(0.7, -1.0, 0.2),
       );
       expect(hidden.passes, contains('outline mask'));
-      expect(_countOf(hidden.pixels, _orange), 0);
+      expect(_countOf(hidden.pixels, _orangeShown), 0);
     });
   });
 }

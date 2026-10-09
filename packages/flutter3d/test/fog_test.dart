@@ -22,11 +22,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
@@ -49,7 +48,7 @@ const int _height = 64;
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -65,9 +64,9 @@ const int _height = 64;
         device,
         CuboidShape(size: Vector3(away * 4, away * 4, 0.5)).build(),
       ),
-      engine.Material(
+      engine.RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         lighting: LightingModel.unlit,
       ),
       name: 'wall',
@@ -75,11 +74,7 @@ const int _height = 64;
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.3,
-      far: 2000.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.3, far: 2000.0),
   )..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(camera);
 
@@ -97,7 +92,10 @@ Future<double> _mean(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     // Tone mapping off: it is a curve between the fog and the pixel, and this
     // test is about the fog.
@@ -107,9 +105,9 @@ Future<double> _mean(
       bloom: BloomSettings(enabled: false),
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final bytes = pixels.buffer.asUint8List();
 
   var total = 0;
   var count = 0;
@@ -126,7 +124,7 @@ void main() {
     // it did. Both distances come back the same white and this fails on the
     // first expectation — which is the whole of what was wrong.
     final fog = FogSettings(
-      color: Vector3(0.0, 0.0, 0.0),
+      color: LinearColor(0.0, 0.0, 0.0),
       density: 0.02,
       heightFalloff: 0.0,
     );
@@ -151,12 +149,12 @@ void main() {
     // colour. Distance would then always darken, and a car disappearing into a
     // pale morning would go black rather than white.
     final white = FogSettings(
-      color: Vector3(1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0),
       density: 0.02,
       heightFalloff: 0.0,
     );
     final black = FogSettings(
-      color: Vector3(0.0, 0.0, 0.0),
+      color: LinearColor(0.0, 0.0, 0.0),
       density: 0.02,
       heightFalloff: 0.0,
     );
@@ -174,7 +172,7 @@ void main() {
     // lets them stay recorded.
     final none = FogSettings();
     final explicitlyOff = FogSettings(
-      color: Vector3(1.0, 0.0, 0.0),
+      color: LinearColor(1.0, 0.0, 0.0),
       density: 0.0,
     );
 
@@ -187,12 +185,12 @@ void main() {
 
   test('density decides how far the view carries', () async {
     final thin = FogSettings(
-      color: Vector3(0.0, 0.0, 0.0),
+      color: LinearColor(0.0, 0.0, 0.0),
       density: 0.002,
       heightFalloff: 0.0,
     );
     final thick = FogSettings(
-      color: Vector3(0.0, 0.0, 0.0),
+      color: LinearColor(0.0, 0.0, 0.0),
       density: 0.02,
       heightFalloff: 0.0,
     );

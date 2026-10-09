@@ -18,7 +18,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -26,7 +25,7 @@ const int _height = 48;
 ({Scene scene, CameraNode camera}) _room(CpuDevice device) {
   MeshNode block(Vector3 size, Vector3 at) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+    RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
   )..setPosition(at.x, at.y, at.z);
 
   final scene = Scene()
@@ -39,7 +38,7 @@ const int _height = 48;
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0,
+        intensity: 60.0 * Photometric.legacyUnit,
         range: 20.0,
         castsShadow: true,
       )..setPosition(0.0, 5.0, 0.0),
@@ -83,8 +82,8 @@ Future<Uint8List> _frame(_Engine it, int allowance) async {
       frameWorkBudget: allowance,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 void main() {

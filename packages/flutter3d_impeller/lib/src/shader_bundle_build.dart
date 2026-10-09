@@ -12,18 +12,9 @@ import 'dart:io';
 
 import 'package:meta/meta.dart';
 
-/// Thrown on any failure here — `hook/build.dart` wraps it as a
-/// [BuildError][], `bin/build_shader_bundle.dart` prints it and exits
-/// non-zero. Plain rather than a `package:hooks` type, because this file
-/// has no reason to depend on hooks at all.
-///
-/// [BuildError]: https://pub.dev/documentation/hooks/latest/hooks/BuildError-class.html
-final class ShaderBundleBuildException implements Exception {
-  const ShaderBundleBuildException(this.message);
-  final String message;
-  @override
-  String toString() => message;
-}
+import 'shader_bundle_build_exception.dart';
+
+export 'shader_bundle_build_exception.dart';
 
 /// Where the compiled bundle lives inside this package, relative to its own
 /// root — the path `pubspec.yaml` lists under `flutter.assets` and the path

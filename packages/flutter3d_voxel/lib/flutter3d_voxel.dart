@@ -16,7 +16,7 @@
 ///
 /// ```dart
 /// world.edit(x, y, z, Voxels.empty);
-/// final changes = world.takeChanges();
+/// final changes = world.drainChanges();
 /// collision.refresh(changes.chunks);
 /// navigation.follow(changes);
 /// for (final chunk in changes.surfaces) {
@@ -34,6 +34,7 @@ import 'src/voxel_world.dart';
 
 export 'src/voxel_boxes.dart';
 export 'src/voxel_collision.dart';
+export 'src/voxel_format_exception.dart';
 export 'src/voxel_mesher.dart';
 export 'src/voxel_navigation.dart';
 export 'src/voxel_ray.dart';

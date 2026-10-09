@@ -61,9 +61,9 @@ const int _height = 128;
         device,
         const PlaneShape(width: 10.0, depth: 10.0).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'floor',
-        baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'floor',
@@ -78,9 +78,9 @@ const int _height = 128;
               layout: skinned ? VertexLayout.skinned : VertexLayout.standard,
             ),
           ),
-          Material(
+          RenderMaterial(
             name: 'box',
-            baseColor: Vector4(0.9, 0.3, 0.2, 1.0),
+            baseColor: LinearColor.fromSrgb(0.9, 0.3, 0.2, 1.0),
             lighting: LightingModel.lambert,
           ),
           name: 'box',
@@ -101,7 +101,7 @@ const int _height = 128;
 
   scene.root.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 14.0
+      ..intensity = 14.0 * Photometric.legacyUnit
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),
@@ -123,7 +123,6 @@ Renderer _renderer(WebGlDevice device) {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
     );
-    if (made == null) fail('the device would not make a 1x1 texture');
     return made;
   }
 
@@ -158,9 +157,9 @@ Future<int> _recorded(
     ),
   );
 
-  final pixels = await device.readPixels(result.frame);
+  final pixels = await device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final bytes = pixels.buffer.asUint8List();
   expect(bytes.length, _width * _height * 4);
 
   var count = 0;
@@ -174,12 +173,11 @@ void main() {
   late WebGlDevice device;
 
   setUp(() {
-    final made = WebGlDevice.create(
+    final made = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (made == null) fail('no WebGL2 context in this browser');
     device = made;
   });
 

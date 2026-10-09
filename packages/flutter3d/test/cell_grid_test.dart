@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('a shield from its picture, worn away a shot at a time', () {

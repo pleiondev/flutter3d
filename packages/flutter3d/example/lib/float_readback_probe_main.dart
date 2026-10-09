@@ -9,7 +9,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import 'float_readback_probe.dart';
 

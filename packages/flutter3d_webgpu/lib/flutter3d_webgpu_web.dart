@@ -9,33 +9,17 @@
 /// the barrel that loads everywhere, and this one carries what only a browser
 /// can run.
 ///
-/// An application opens a device through [openWebGpu] and never touches
-/// anything else here. The rest is exported because a backend is a package
-/// somebody may have to debug from outside: the encoder's signature, the frame
-/// arenas' counts and `WebGpuDevice.debugDrainErrors` are how a wrong picture
-/// is turned into a sentence.
+/// An application opens a device through [WebGpuDevice.open] — or lets an
+/// engine's `DeviceRegistry` do it — and never touches anything else here.
 library;
 
-/// The one call an application makes.
-export 'src/open.dart';
-
-/// The device.
-export 'src/webgpu_device.dart';
-
-/// One pass, accumulated and resolved at the draw.
-export 'src/webgpu_encoder.dart';
+/// The device, and `WebGpuDevice.open`, the one call an application makes.
+export 'src/webgpu_device.dart' show WebGpuDevice;
 
 /// The widget `presentFrame` in `flutter3d_app` returns for this device.
 export 'src/webgpu_frame_presenter.dart';
 
-/// The bindings under all of it, hand-written because `package:web` stops at
-/// WebGPU's flag constants.
-export 'src/webgpu_interop.dart';
-
-/// Allocation, teardown, and the frame arenas that decide this backend's buffer
-/// lifetimes. See the file's own header, which is where the argument for the
-/// scheme is.
-export 'src/webgpu_resources.dart';
-
-/// The value types a handle carries here.
-export 'src/webgpu_types.dart';
+// The encoder, the JavaScript bindings (`GPU*`), the allocators and the
+// handle types are not exported since 1.0: they are this backend's own
+// business, and a browser API in a signature here would make every change
+// to it a major release. The package's tests import them from `src/`.

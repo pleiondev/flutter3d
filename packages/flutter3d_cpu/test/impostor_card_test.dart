@@ -86,10 +86,10 @@ ModelProject cardProject({
   required ImpostorBake bake,
   required ImpostorCard card,
   required double yaw,
-  required double centreY,
+  required double centerY,
 }) {
   final ImpostorView view = bake.atlas.viewAt(bake.atlas.pick(yaw).view);
-  final List<Vector3> corners = card.cornersAt(Vector3(0, centreY, 0), yaw);
+  final List<Vector3> corners = card.cornersAt(Vector3(0, centerY, 0), yaw);
   final AtlasCell cell = view.cell;
 
   // `VertexLayout.standard`, because that is what the mesh vertex shader
@@ -178,8 +178,8 @@ ModelProject cardProject({
 /// "the two pictures are both pictures" — which is exactly what the first
 /// version of this file did, and passed.
 List<bool> coverage(Uint8List png, Uint8List empty) {
-  final DecodedImage image = decodePng(png)!;
-  final DecodedImage bare = decodePng(empty)!;
+  final DecodedImage image = decodePng(png);
+  final DecodedImage bare = decodePng(empty);
   return <bool>[
     for (var i = 0; i < image.width * image.height; i++)
       (image.rgba[i * 4] - bare.rgba[i * 4]).abs() +
@@ -205,7 +205,7 @@ List<bool> coverage(Uint8List png, Uint8List empty) {
 Future<Uint8List> shot(
   ModelProject project, {
   required double yaw,
-  required double centreY,
+  required double centerY,
   required int side,
   required double frame,
   ImpostorBake? texture,
@@ -220,7 +220,7 @@ Future<Uint8List> shot(
       pixels: ByteData.sublistView(
         Uint8List.fromList(<int>[128, 128, 255, 255]),
       ),
-    )!,
+    ),
   );
   final Scene scene = sceneFromProject(project, device);
 
@@ -230,7 +230,7 @@ Future<Uint8List> shot(
       height: texture.size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(texture.rgba),
-    )!;
+    );
     for (final MeshNode node in scene.meshes) {
       node.material
         ..albedo = atlas
@@ -247,23 +247,23 @@ Future<Uint8List> shot(
     // [kFar] — the subject is a few dozen pixels, which is the size an
     // impostor is actually looked at.
     projection: PerspectiveProjection(
-      fovYRadians: 2 * math.atan(frame / (2 * kFar)),
+      fovY: 2 * math.atan(frame / (2 * kFar)),
       near: 1,
       far: kFar * 4,
     ),
-  )..setPosition(math.sin(yaw) * kFar, centreY, math.cos(yaw) * kFar);
-  camera.lookAt(Vector3(0, centreY, 0));
+  )..setPosition(math.sin(yaw) * kFar, centerY, math.cos(yaw) * kFar);
+  camera.lookAt(Vector3(0, centerY, 0));
   scene.add(camera);
 
   final result = renderer.render(
     width: side,
     height: side,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera, clearColor: kBackdrop)],
+    views: <RenderView>[RenderView(camera: camera, clearColorSrgb: kBackdrop)],
     settings: const RenderSettings(),
   );
   return encodePng(
-    (await device.readPixels(result.frame))!.buffer.asUint8List(),
+    (await device.readback(result.frame)).buffer.asUint8List(),
     side,
     side,
   );
@@ -280,7 +280,7 @@ void main() {
   const double bakeDistance = kFar;
   const double bakeFrame = 3;
   final double bakeFov = 2 * math.atan(bakeFrame / (2 * bakeDistance));
-  const double centreY = 1.1;
+  const double centerY = 1.1;
 
   late ImpostorBake bake;
   late ImpostorCard card;
@@ -299,16 +299,16 @@ void main() {
       // an outline that is only a hundred-odd pixels long. An impostor is
       // baked for the size it is shown at.
       atlas: ImpostorAtlas(size: 192),
-      centre: Vector3(0, centreY, 0),
+      center: Vector3(0, centerY, 0),
       distance: bakeDistance,
-      fovYRadians: bakeFov,
+      fovY: bakeFov,
       tileDevice: cpuDevice,
     );
-    card = ImpostorCard.framing(distance: bakeDistance, fovYRadians: bakeFov);
+    card = ImpostorCard.framing(distance: bakeDistance, fovY: bakeFov);
     empty = await shot(
       const ModelProject(),
       yaw: 0,
-      centreY: centreY,
+      centerY: centerY,
       side: 256,
       frame: 12,
     );
@@ -348,7 +348,7 @@ void main() {
         await shot(
           subject(),
           yaw: yaw,
-          centreY: centreY,
+          centerY: centerY,
           side: side,
           frame: frame,
         ),
@@ -356,9 +356,9 @@ void main() {
       );
       final List<bool> impostor = coverage(
         await shot(
-          cardProject(bake: bake, card: card, yaw: yaw, centreY: centreY),
+          cardProject(bake: bake, card: card, yaw: yaw, centerY: centerY),
           yaw: yaw,
-          centreY: centreY,
+          centerY: centerY,
           side: side,
           frame: frame,
           texture: bake,
@@ -395,7 +395,7 @@ void main() {
     const double frame = 12;
 
     final List<bool> mesh = coverage(
-      await shot(subject(), yaw: 0, centreY: centreY, side: side, frame: frame),
+      await shot(subject(), yaw: 0, centerY: centerY, side: side, frame: frame),
       empty,
     );
     final List<bool> naive = coverage(
@@ -405,10 +405,10 @@ void main() {
           // The subject's own bounds: 1.4 across at the base, 2.05 tall.
           card: const ImpostorCard(width: 1.4, height: 2.05),
           yaw: 0,
-          centreY: centreY,
+          centerY: centerY,
         ),
         yaw: 0,
-        centreY: centreY,
+        centerY: centerY,
         side: side,
         frame: frame,
         texture: bake,

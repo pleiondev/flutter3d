@@ -14,13 +14,12 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_example/src/spike/control_panel.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// Two mesh nodes over one mesh with two shapes, the way one split glTF mesh
 /// arrives.
@@ -51,11 +50,11 @@ import 'package:vector_math/vector_math.dart' show Vector3;
     height: packed.height,
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
-  )!;
+  );
 
   final nodes = <MeshNode>[
     for (var i = 0; i < 2; i++)
-      MeshNode(mesh, engine.Material(name: 'm$i'), name: 'part$i')
+      MeshNode(mesh, engine.RenderMaterial(name: 'm$i'), name: 'part$i')
         ..morph = MorphState(texture: texture, targetCount: 2),
   ];
 

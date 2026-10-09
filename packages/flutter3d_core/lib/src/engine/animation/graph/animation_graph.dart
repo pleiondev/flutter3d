@@ -43,7 +43,7 @@ final class AnimationGraph {
   factory AnimationGraph({
     required AnimationStateMachine machine,
     required List<AnimationClip> clips,
-    required Pose pose,
+    required AnimationPose pose,
   }) {
     final problems = machine.problems(clips);
     if (problems.isNotEmpty) {
@@ -108,7 +108,7 @@ final class AnimationGraph {
   final AnimationParameters parameters;
 
   /// What [evaluate] writes into and returns.
-  final Pose pose;
+  final AnimationPose pose;
 
   /// The markers the last [evaluate] passed in the state the graph is in:
   /// each with its state's name, in the order they came. A footstep, a blow
@@ -168,13 +168,13 @@ final class AnimationGraph {
   final List<List<_Transition>> _outgoing;
 
   /// Where the outgoing state is sampled during a crossfade.
-  final Pose _from;
+  final AnimationPose _from;
 
   /// Where a blend's second clip is sampled before it is mixed in.
-  final Pose _scratch;
+  final AnimationPose _scratch;
 
   /// The pose at rest, never written: where a root's x and z are held.
-  final Pose _rest;
+  final AnimationPose _rest;
 
   /// Each state's markers, as shares of its cycle, earliest first: its own
   /// and, for a state that plays one clip, the clip's.
@@ -197,6 +197,7 @@ final class AnimationGraph {
       _previous < 0 ? null : machine.states[_previous].name;
 
   /// How much of [state] the pose holds: 1 unless a crossfade is under way.
+  /// A 0..1 fraction.
   double get fadeWeight => _previous < 0 ? 1.0 : _fadeElapsed / _fadeDuration;
 
   /// The playhead in [state]'s clip, in seconds; in a blend state, the share
@@ -205,6 +206,7 @@ final class AnimationGraph {
 
   /// How far into [state] the graph is, in lengths of its clip — what an exit
   /// time is compared against.
+  /// A unitless count of clip lengths.
   double get normalizedTime => _normalized(_current, _head);
 
   /// Advances by [dt] seconds, takes at most one transition, and returns
@@ -214,7 +216,7 @@ final class AnimationGraph {
   /// `FixedStep.advance` treats a clock that went backwards; transitions are
   /// still tested, so a parameter written between steps is seen on the next
   /// one whatever the clock did.
-  Pose evaluate(double dt) {
+  AnimationPose evaluate(double dt) {
     final step = dt.isFinite && dt > 0.0 ? dt : 0.0;
     _passed.clear();
     final root = rootNode;
@@ -623,7 +625,7 @@ final class AnimationGraph {
   }
 
   /// [state] at [head] into [into]: its clip, or its blend's two.
-  void _sampleState(int state, _Playhead head, Pose into) {
+  void _sampleState(int state, _Playhead head, AnimationPose into) {
     final plays = _clips[state];
     if (!plays.blend) {
       into.sampleClip(plays.clips.first, head.time);
@@ -712,7 +714,7 @@ final class AnimationGraphLayer {
   double _weight;
   double _target;
   double _rate = 0.0;
-  Pose? _rest;
+  AnimationPose? _rest;
 
   /// How much of this layer is laid on, nought to one.
   double get weight => _weight;
@@ -745,7 +747,7 @@ final class AnimationGraphLayer {
   }
 
   /// This layer's pose into [base], where its mask covers, by [weight].
-  void _layOnto(Pose base) {
+  void _layOnto(AnimationPose base) {
     final over = graph.pose;
     final w = _weight;
     final additive = blend == AnimationBlend.additive;
@@ -857,7 +859,12 @@ final class _Playhead {
 
   static const _Playhead start = _Playhead(0.0, 0.0, false);
 
+  /// The playhead in the clip, in seconds; in a blend state the 0..1 share of
+  /// the cycle.
   final double time;
+
+  /// Clip time since the state was entered, in seconds, counting the whole
+  /// cycles; in a blend state, a count of cycles.
   final double elapsed;
   final bool reversing;
 }
@@ -872,7 +879,12 @@ final class _Transition {
   });
 
   final int to;
+
+  /// The crossfade, in seconds.
   final double duration;
+
+  /// A count of the source state's clip lengths, as
+  /// [AnimationGraph.normalizedTime] is.
   final double? exitTime;
   final List<_Check> checks;
 }

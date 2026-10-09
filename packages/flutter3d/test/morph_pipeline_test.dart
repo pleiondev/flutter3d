@@ -21,7 +21,7 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kCube = '$kSamplesPath/AnimatedMorphCube.glb';
+const String kCube = '$samplesPath/AnimatedMorphCube.glb';
 
 Future<({ModelDocument document, ModelAsset asset})> loadCube() async {
   final document = await GltfLoader().load(File(kCube).readAsBytesSync());

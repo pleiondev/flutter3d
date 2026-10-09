@@ -1,30 +1,26 @@
-/// Registers this backend with `flutter3d_hardware`'s device registry — see
-/// `flutter3d_impeller/src/gpu_backend_registration.dart` for why this is a
-/// guarded function rather than code that runs at library load.
+/// WebGL2 as a backend an engine can open.
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import 'open.dart';
 import 'webgl_device.dart';
 import 'webgl_frame_presenter.dart';
 
-bool _registered = false;
-
-/// Registers [WebGlDevice] as the web fallback opener and a frame presenter,
-/// once.
-///
-/// A fallback rather than a preferred opener: WebGL2 is what an ordinary web
-/// build draws through, and the one browser backend the engine has a
-/// recorded reference set for — whatever else is registered ahead of it
-/// (WebGPU, tried only when a build asks), this is the backend still
-/// standing when nothing else starts.
-void ensureWebGlBackendRegistered() {
-  if (_registered) return;
-  _registered = true;
-  registerBackendOpener('WebGL2', openWebGl, asFallback: true);
-  registerDevicePresenter<WebGlDevice>(
+/// Adds WebGL2 to [registry] as its fallback — what a browser without
+/// WebGPU still draws with — with the presenter that shows its frames. The
+/// registration takes both out again. Since 1.0 it is added to the engine's
+/// own registry rather than to a global one (it was
+/// `ensureWebGlBackendRegistered`).
+Registration registerWebGlBackend(DeviceRegistry registry) {
+  final opener = registry.addBackend(
+    'WebGL2',
+    ({required int width, required int height}) async =>
+        WebGlDevice.open(width: width, height: height),
+    asFallback: true,
+  );
+  final presenter = registry.addPresenter<WebGlDevice>(
     (
       GraphicsDevice device,
       TextureHandle frame, {
@@ -37,4 +33,8 @@ void ensureWebGlBackendRegistered() {
       quality: quality,
     ),
   );
+  return Registration(() {
+    opener.cancel();
+    presenter.cancel();
+  });
 }

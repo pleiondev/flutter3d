@@ -61,7 +61,7 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
 
   Future<List<int>> centreWith({required bool lineLast}) async {
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: size,
         height: size,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -122,10 +122,9 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
     }
     pass.submit();
 
-    final pixels = await device.readPixels(target);
-    require(pixels != null, 'the target could not be read back');
+    final pixels = await device.readback(target);
     final at = ((size ~/ 2) * size + size ~/ 2) * 4;
-    return pixels!.buffer.asUint8List().sublist(at, at + 3);
+    return pixels.buffer.asUint8List().sublist(at, at + 3);
   }
 
   final line = await centreWith(lineLast: true);

@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
@@ -32,7 +33,7 @@ typedef _Railing = ({
   Renderer renderer,
   Scene scene,
   RenderView view,
-  Material wall,
+  RenderMaterial wall,
 });
 
 _Railing _railing() {
@@ -42,13 +43,13 @@ _Railing _railing() {
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final camera = CameraNode();
-  final wall = Material(
+  final wall = RenderMaterial(
     lighting: LightingModel.unlit,
-    baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+    baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
   );
-  final bar = Material(
+  final bar = RenderMaterial(
     lighting: LightingModel.unlit,
-    baseColor: Vector4(0.0, 0.0, 1.0, 1.0),
+    baseColor: LinearColor.fromSrgb(0.0, 0.0, 1.0, 1.0),
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
   // Near enough behind the bars (under a tenth of the depth) that the
@@ -73,7 +74,10 @@ _Railing _railing() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    view: RenderView(
+      camera: camera,
+      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+    ),
     wall: wall,
   );
 }
@@ -116,7 +120,7 @@ double _red(List<double> pixels) {
   for (var i = 0; i < 32; i++) {
     _draw(it, clip);
   }
-  it.wall.baseColor.setValues(0.0, 1.0, 0.0, 1.0);
+  it.wall.baseColor = LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0);
   final after = _draw(it, clip);
   for (var i = 0; i < 48; i++) {
     _draw(it, clip);

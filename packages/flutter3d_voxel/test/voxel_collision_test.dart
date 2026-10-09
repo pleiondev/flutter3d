@@ -11,7 +11,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -92,7 +92,7 @@ void main() {
     }
 
     world.edit(3, top, 3, Voxels.empty);
-    collision.refresh(world.takeChanges().chunks);
+    collision.refresh(world.drainChanges().chunks);
 
     // Mutation: refreshing without removing the old boxes leaves the dug
     // voxel solid, and the count grows.
@@ -109,7 +109,7 @@ void main() {
     for (var y = 0; y < top; y++) {
       world.edit(3, y, 3, Voxels.empty);
     }
-    collision.refresh(world.takeChanges().chunks);
+    collision.refresh(world.drainChanges().chunks);
     expect(
       physics.raycast(Vector3(3.5, 40, 3.5), Vector3(0, -1, 0), 80, hit),
       isFalse,
@@ -149,7 +149,7 @@ void main() {
         world.edit(x, y, z, Voxels.empty);
       }
     }
-    collision.refresh(world.takeChanges().chunks);
+    collision.refresh(world.drainChanges().chunks);
     settle(90);
     // Mutation: refreshing nothing after the edit leaves it standing.
     expect(body.isGrounded, isTrue);

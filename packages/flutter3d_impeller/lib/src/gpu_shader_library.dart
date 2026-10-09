@@ -1,9 +1,15 @@
 /// A bundle's stages, wrapped so nothing above names `gpu.Shader`.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 /// Handles are cached per name so that two lookups of the same stage give the
@@ -24,7 +30,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 /// takes GLSL at runtime, so on both an application can simply hand its stage
 /// over — and on Impeller it could not, at all, which made "write your own post
 /// effect" a thing that worked on two backends out of three.
-final class GpuShaderLibrary implements ShaderLibrary {
+final class GpuShaderLibrary with ShaderLibrary {
   GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]]);
 
   final gpu.ShaderLibrary _library;
@@ -35,16 +41,23 @@ final class GpuShaderLibrary implements ShaderLibrary {
   ShaderHandle? operator [](String name) => _handles.putIfAbsent(name, () {
     for (final library in _extra) {
       final shader = library[name];
-      if (shader != null) return ShaderHandle(backend: shader, name: name);
+      if (shader != null) {
+        return wrapShader(backend: shader, name: name, release: _forget);
+      }
     }
     final shader = _library[name];
     return shader == null
         ? null
-        : ShaderHandle(
+        : wrapShader(
             backend: shader,
             name: name,
             kept: stageBindings[name],
             layouts: uniformBlocks[name],
+            release: _forget,
           );
   });
+
+  /// A disposed handle's release: the library forgets it, and flutter_gpu's
+  /// library keeps the stage it owns, which the next lookup wraps again.
+  void _forget(ShaderHandle handle) => forgetShader(_handles, handle);
 }

@@ -14,6 +14,7 @@ const double _tau = math.pi * 2.0;
 final class SphereShape extends DerivedShape {
   const SphereShape({this.radius = 0.5, this.segments = 32, this.rings = 16});
 
+  /// In metres.
   final double radius;
   final int segments;
   final int rings;
@@ -59,8 +60,13 @@ final class CylinderShape extends DerivedShape {
     this.capped = true,
   });
 
+  /// Radius of the top end, in metres.
   final double radiusTop;
+
+  /// Radius of the bottom end, in metres.
   final double radiusBottom;
+
+  /// In metres.
   final double height;
   final int segments;
   final bool capped;
@@ -104,7 +110,10 @@ final class ConeShape extends DerivedShape {
     this.capped = true,
   });
 
+  /// In metres.
   final double radius;
+
+  /// In metres.
   final double height;
   final int segments;
   final bool capped;
@@ -132,9 +141,11 @@ final class TorusShape extends DerivedShape {
   });
 
   /// Distance from the origin to the tube centre.
+  /// In metres.
   final double radius;
 
   /// The tube's own radius.
+  /// In metres.
   final double tubeRadius;
 
   final int segments;
@@ -181,7 +192,10 @@ final class CapsuleShape extends DerivedShape {
     this.rings = 8,
   });
 
+  /// In metres.
   final double radius;
+
+  /// In metres.
   final double height;
   final int segments;
   final int rings;
@@ -197,10 +211,10 @@ final class CapsuleShape extends DerivedShape {
     final profile = <Vector2>[];
     final normals = <Vector2>[];
 
-    void addHemisphereRow(double phi, double centreY) {
+    void addHemisphereRow(double phi, double centerY) {
       final cosPhi = math.cos(phi);
       final sinPhi = math.sin(phi);
-      profile.add(Vector2(radius * cosPhi, centreY + radius * sinPhi));
+      profile.add(Vector2(radius * cosPhi, centerY + radius * sinPhi));
       // Normals are radial about the corresponding hemisphere centre, which is
       // also correct along the cylindrical middle where phi is 0.
       normals.add(Vector2(cosPhi, sinPhi));
@@ -237,7 +251,10 @@ final class DiscShape extends DerivedShape {
     this.segments = 32,
   });
 
+  /// Outer radius, in metres.
   final double radius;
+
+  /// In metres; nought is a full disc.
   final double innerRadius;
   final int segments;
 

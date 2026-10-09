@@ -467,14 +467,14 @@ void main() {
       // Mutation: read it anyway — fails here.
       expect(
         () => readFmat(_bytes('{"fmat": 99, "metallic": 1.0}')),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<FmatFormatException>()),
       );
     });
 
     test('and one that never said it was a material', () {
       expect(
         () => readFmat(_bytes('{"metallic": 1.0}')),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<FmatFormatException>()),
       );
       expect(
         isFmat(_bytes('{"metallic": 1.0}')),

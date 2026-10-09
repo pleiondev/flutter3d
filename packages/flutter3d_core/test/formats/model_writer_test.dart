@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -25,7 +26,7 @@ PlainModelDocument _triangle() {
       normal: Vector3(0.0, 0.0, 1.0),
       texcoord: Vector2(0.0, 0.0),
       tangent: Vector4(1.0, 0.0, 0.0, 1.0),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor.white,
     );
   }
   builder.addTriangle(0, 1, 2);
@@ -44,7 +45,7 @@ PlainModelDocument _triangle() {
 }
 
 /// A format this package does not ship, the way an application adds one.
-final class _Ply implements ModelWriter {
+final class _Ply extends ModelWriter {
   const _Ply();
 
   @override

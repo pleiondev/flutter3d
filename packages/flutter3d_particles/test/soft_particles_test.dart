@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -23,7 +25,7 @@ enum _Stage { disc, sprite, sixWay }
 /// One particle two metres across, five metres ahead, over a black wall [_gap]
 /// behind it — or over nothing, without [wall] — drawn with [softness]; the
 /// red of the middle pixel, linear.
-double _centre({
+double _center({
   required _Stage stage,
   required double softness,
   bool wall = true,
@@ -40,7 +42,7 @@ double _centre({
         height: height,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(bytes),
-      )!;
+      );
 
   final particles = ParticleSystem(capacity: 1)
     ..burst(
@@ -64,9 +66,9 @@ double _centre({
           device,
           CuboidShape(size: Vector3(20.0, 20.0, 1.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),
       )..setPosition(0.0, 0.0, -5.0 - _gap - 0.5),
     );
@@ -77,7 +79,7 @@ double _centre({
       ? bakeSixWay(density: smokePuff(), frames: 1, columns: 1, cell: 16)
       : null;
   final renderer = Renderer.create(device: device)
-    ..addContributor(
+    ..renderSteps.addContributor(
       ParticleContributor(
         particles,
         texture: stage == _Stage.sprite ? upload(4, 4, white) : null,
@@ -96,7 +98,7 @@ double _centre({
     height: _size,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: settings.copyWith(
       tonemap: false,
@@ -115,8 +117,8 @@ void main() {
   for (final stage in _Stage.values) {
     group('soft-particles, ${stage.name}', () {
       test('fades by how far the wall lies behind, over the softness', () {
-        final hard = _centre(stage: stage, softness: 0.0);
-        final soft = _centre(stage: stage, softness: 1.0);
+        final hard = _center(stage: stage, softness: 0.0);
+        final soft = _center(stage: stage, softness: 1.0);
         expect(hard, greaterThan(0.05), reason: 'the particle is drawn');
         // The quad faces the camera, so every fragment of it is five metres
         // along the axis and the wall a quarter of a metre behind: a softness
@@ -126,16 +128,16 @@ void main() {
 
       test('is untouched a softness or more in front of the scene', () {
         expect(
-          _centre(stage: stage, softness: 0.2),
-          _centre(stage: stage, softness: 0.0),
+          _center(stage: stage, softness: 0.2),
+          _center(stage: stage, softness: 0.0),
           reason: 'the fade saturates at one',
         );
       });
 
       test('is untouched where nothing was drawn behind it', () {
         expect(
-          _centre(stage: stage, softness: 1.0, wall: false),
-          _centre(stage: stage, softness: 0.0, wall: false),
+          _center(stage: stage, softness: 1.0, wall: false),
+          _center(stage: stage, softness: 0.0, wall: false),
           reason: 'the sky is infinitely far, and a zero depth says so',
         );
       });
@@ -146,16 +148,18 @@ void main() {
     const settings = RenderSettings(
       transparency: TransparencyMode.weightedBlended,
     );
-    final hard = _centre(stage: _Stage.disc, softness: 0.0, settings: settings);
-    final soft = _centre(stage: _Stage.disc, softness: 1.0, settings: settings);
+    final hard = _center(stage: _Stage.disc, softness: 0.0, settings: settings);
+    final soft = _center(stage: _Stage.disc, softness: 1.0, settings: settings);
     expect(soft / hard, closeTo(_gap, 0.02));
   });
 
   test('soft-particles: drawn hard when the transparent pass is off', () {
-    const settings = RenderSettings(disabledPasses: <String>{'transparent'});
+    final off = const RenderSettings().without(<RenderStep>{
+      RenderStep.transparent,
+    });
     expect(
-      _centre(stage: _Stage.disc, softness: 1.0, settings: settings),
-      _centre(stage: _Stage.disc, softness: 0.0, settings: settings),
+      _center(stage: _Stage.disc, softness: 1.0, settings: off),
+      _center(stage: _Stage.disc, softness: 0.0, settings: off),
       reason:
           'with no pass to draw it where the depth is readable, it is '
           'drawn in the scene pass with none, as at nought',

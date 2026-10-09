@@ -33,8 +33,9 @@ void main() {
   // would alias a one-pixel specular highlight in and out of existence as the
   // camera moves, which reads as flickering rather than as bloom.
   //
-  // **Weighted by Karis's `1 / (1 + luma)`**, as Jimenez's Call of Duty chain
-  // does on its first step down and nowhere after. A plain average lets one
+  // **Weighted by Karis's `1 / (1 + luma)`**, as Jimenez's bloom chain does
+  // on its first step down and nowhere after (Jimenez, "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare", SIGGRAPH 2014). A plain average lets one
   // texel of a glossy floor's highlight, a hundred times brighter than its
   // neighbours, own the whole quad, and it flickers as it crosses texels —
   // "fireflies". The weight takes the energy of a lone outlier down to about

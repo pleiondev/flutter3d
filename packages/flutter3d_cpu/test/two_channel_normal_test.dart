@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
@@ -33,7 +34,7 @@ TextureHandle _twoChannel(CpuDevice device) => device.createTextureFromPixels(
   pixels: ByteData.sublistView(
     Uint8List.fromList(<int>[for (final lean in _leans) ...lean]),
   ),
-)!;
+);
 
 TextureHandle _threeChannel(CpuDevice device) => device.createTextureFromPixels(
   width: 2,
@@ -44,7 +45,7 @@ TextureHandle _threeChannel(CpuDevice device) => device.createTextureFromPixels(
       for (final [x, y] in _leans) ...<int>[x, y, _zByte(x, y), 255],
     ]),
   ),
-)!;
+);
 
 /// The blue byte a three-channel map stores for the unit normal whose x and
 /// y are the bytes [x] and [y].
@@ -73,16 +74,19 @@ Float32List _render(TextureHandle Function(CpuDevice device) normal) {
           device,
           const PlaneShape(width: 2.0, depth: 2.0).build(),
         ),
-        Material(
+        RenderMaterial(
           normal: normal(device),
-          normalSampler: SamplerOptions.nearestClamp,
+          normalSampler: SamplerDescriptor.nearestClamp,
           roughness: 0.7,
         ),
       ),
     )
     ..add(camera)
-    ..add(LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.4, -1.0, 0.0))
-    ..ambientIntensity = 0.25;
+    ..add(
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.4, -1.0, 0.0),
+    )
+    ..ambientIntensity = 0.25 * Photometric.legacyUnit;
   final result = Renderer.create(device: device).render(
     width: _size,
     height: _size,
@@ -117,7 +121,7 @@ void main() {
         pixels: ByteData.sublistView(
           Uint8List.fromList(<int>[128, 128, 255, 255]),
         ),
-      )!,
+      ),
     );
 
     // Mutation: leave `emissive.w` at zero in the encoder, or read

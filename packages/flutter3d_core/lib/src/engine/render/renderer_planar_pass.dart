@@ -43,7 +43,7 @@ extension _PlanarPasses on Renderer {
     });
   }
 
-  /// Draws [scene] into [colour] through [viewProjection], as a camera at
+  /// Draws [scene] into [color] through [viewProjection], as a camera at
   /// [eye] sees it.
   ///
   /// [skyViewProjection] is the same view without anything done to its depth,
@@ -53,7 +53,7 @@ extension _PlanarPasses on Renderer {
   void _captureView({
     required FrameResources resources,
     required Scene scene,
-    required TextureHandle colour,
+    required TextureHandle color,
     required vm.Matrix4 viewProjection,
     required vm.Matrix4 skyViewProjection,
     required vm.Vector3 eye,
@@ -65,9 +65,9 @@ extension _PlanarPasses on Renderer {
     required FramePassState passState,
     required vm.Vector4 clearColor,
   }) {
-    final rect = ScreenRect.of(colour);
+    final rect = ScreenRect.of(color);
     final depth = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: rect.width,
         height: rect.height,
         format: device.defaultDepthStencilFormat,
@@ -79,7 +79,7 @@ extension _PlanarPasses on Renderer {
         label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
-            texture: colour,
+            texture: color,
             clearValue: Renderer._srgbToLinear(clearColor),
           ),
         ],
@@ -89,13 +89,13 @@ extension _PlanarPasses on Renderer {
     // Every lane the scene pass sets, set here too: the capture runs before
     // it, and a lane left as the last frame's scene pass wrote it is a
     // picture that depends on what was drawn a frame ago.
-    _targetOrigin[0] = _rowsFromBottom(colour);
+    _targetOrigin[0] = _rowsFromBottom(color);
     _targetOrigin[1] = 0.0;
     _targetOrigin[2] = settings.energyCompensation ? 1.0 : 0.0;
     _targetOrigin[3] = -1.0;
     // A reflection shows the light, whatever the frame's debug view: the
     // mirror is part of the picture being debugged, not a material in it.
-    _fragInfo.debugView.fillRange(0, 4, 0.0);
+    _suppressDebugViews();
     pass.setState(
       Renderer._kSceneViewState.copyWith(
         viewport: rect,
@@ -117,10 +117,10 @@ extension _PlanarPasses on Renderer {
     // A mirror of an orthographic view is orthographic too.
     _fogInfo.projection[0] = isOrthographic(skyViewProjection) ? 1.0 : 0.0;
 
-    final frustum = vm.Frustum.matrix(viewProjection);
+    final frustum = _DepthConvention._viewFrustum(viewProjection);
     void encodeHalf({required bool blended}) {
       for (final node in scene.meshes) {
-        if (!node.visibleInHierarchy || !node.shadowCasting.drawsColour) {
+        if (!node.isVisibleInHierarchy || !node.shadowCasting.drawsColor) {
           continue;
         }
         if (node.drawsTransparent != blended) continue;
@@ -139,7 +139,7 @@ extension _PlanarPasses on Renderer {
           settings: settings,
           viewProjection: viewProjection,
           shadows: shadows,
-          lights: lights,
+          lights: _frameLights,
           shadowSlots: _shadowSlots,
           state: passState,
           mirrored: mirrored,
@@ -165,13 +165,13 @@ extension _PlanarPasses on Renderer {
   void _drawRenderTexture({
     required FrameResources resources,
     required Scene scene,
-    required RenderTexture texture,
+    required RenderView texture,
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
   }) {
     final light = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: texture.width,
         height: texture.height,
         format: hdrFormat,
@@ -186,7 +186,7 @@ extension _PlanarPasses on Renderer {
     _captureView(
       resources: resources,
       scene: scene,
-      colour: light,
+      color: light,
       viewProjection: viewProjection,
       skyViewProjection: viewProjection,
       eye: eye,
@@ -196,24 +196,24 @@ extension _PlanarPasses on Renderer {
       settings: settings,
       shadows: shadows,
       passState: passState,
-      clearColor: texture.clearColor,
+      clearColor: texture.clearColorSrgb,
     );
     final encode = shaders['RenderTextureEncode'];
     if (encode == null) {
       throw StateError(
-        'the scene holds a RenderTexture but the bundle has no '
+        'the scene holds a texture view but the bundle has no '
         '"RenderTextureEncode" entry. Rebuild the backend\'s shader bundle — '
         'for the web backends that means re-running tool/generate_shaders.dart.',
       );
     }
     _renderTextureInfo.params
-      ..[0] = texture.exposure
+      ..[0] = texture.options.exposure
       ..[1] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
           ? 1.0
           : 0.0;
     drawFullscreen(
       FullscreenDraw(
-        target: texture.texture,
+        target: texture.texture!,
         fragment: encode,
         textures: <String, TextureHandle>{'source_texture': light},
         uniforms: <String, Map<String, Float32List>>{
@@ -285,7 +285,7 @@ extension _PlanarPasses on Renderer {
       } else {
         _destroyAfterFrame(kept);
         picture = device.createTexture(
-          RenderTargetSpec(
+          RenderTargetDescriptor(
             width: pictureWidth,
             height: pictureHeight,
             format: hdrFormat,
@@ -295,7 +295,19 @@ extension _PlanarPasses on Renderer {
       }
 
       final vm.Matrix4 mirroredView = camera.viewMatrix * mirror;
-      final projection = camera.projection.toMatrix(rect.width / rect.height);
+      // A finite far plane for the mirror, whatever the camera's: the oblique
+      // near plane leans the far one through the frustum's far corner, and an
+      // infinite projection has no corner there to lean it through.
+      final lens = camera.projection;
+      final aspect = rect.width / rect.height;
+      final projection = lens.far.isFinite
+          ? lens.toMatrix(aspect)
+          : (withDepthPlanes(
+                  lens.toMatrix(aspect),
+                  near: lens.near,
+                  far: _DepthConvention._finiteFar(lens),
+                ) ??
+                lens.toMatrix(aspect));
       final clipped =
           obliqueNearPlane(
             projection,
@@ -310,7 +322,7 @@ extension _PlanarPasses on Renderer {
       _captureView(
         resources: resources,
         scene: scene,
-        colour: picture,
+        color: picture,
         viewProjection: toDepthRange(clipped * mirroredView, device.depthRange),
         skyViewProjection: toDepthRange(
           projection * mirroredView,
@@ -323,7 +335,7 @@ extension _PlanarPasses on Renderer {
         settings: settings,
         shadows: shadows,
         passState: passState,
-        clearColor: view.clearColor,
+        clearColor: view.clearColorSrgb,
       );
       state.drawn[i] = true;
     }
@@ -370,13 +382,13 @@ extension _PlanarPasses on Renderer {
         // The rows the scene pass set for its own target, which is this one.
         ..[2] = _targetOrigin[0];
       _planarInfo.tint
-        ..[0] = reflector.tint.x
-        ..[1] = reflector.tint.y
-        ..[2] = reflector.tint.z;
+        ..[0] = reflector.tint.r
+        ..[1] = reflector.tint.g
+        ..[2] = reflector.tint.b;
       _planarMaterial.extraTextures['reflection_texture'] = picture;
       for (final surface in reflector.surfaces) {
-        if (!surface.visibleInHierarchy ||
-            !surface.shadowCasting.drawsColour ||
+        if (!surface.isVisibleInHierarchy ||
+            !surface.shadowCasting.drawsColor ||
             (surface.layerMask & view.layerMask) == 0) {
           continue;
         }
@@ -396,7 +408,7 @@ extension _PlanarPasses on Renderer {
           settings: settings,
           viewProjection: viewProjection,
           shadows: shadows,
-          lights: lights,
+          lights: _frameLights,
           shadowSlots: _shadowSlots,
           state: state,
           override: _DrawOverride(

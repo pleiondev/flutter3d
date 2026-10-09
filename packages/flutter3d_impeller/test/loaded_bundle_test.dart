@@ -9,7 +9,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_impeller/src/gpu_loaded_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ShaderBundle _bundle({String sdk = '3.13.0', bool withSection = true}) =>
@@ -47,7 +47,7 @@ void main() {
     expect(
       () => impellerSectionOf(_bundle(sdk: '3.9.9'), running: '3.13.0'),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('"3.9.9"'))
             .having((r) => r.reason, 'reason', contains('"3.13.0"')),
@@ -58,7 +58,7 @@ void main() {
   test('a bundle that does not say what compiled it is refused', () {
     expect(
       () => impellerSectionOf(_bundle(sdk: ''), running: '3.13.0'),
-      throwsA(isA<ShaderBundleRefused>()),
+      throwsA(isA<ShaderBundleException>()),
     );
   });
 
@@ -69,7 +69,7 @@ void main() {
         running: '3.13.0',
       ),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('impeller')),
       ),

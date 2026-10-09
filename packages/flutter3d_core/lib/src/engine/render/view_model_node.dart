@@ -42,7 +42,7 @@ final class ViewModelNode extends RenderNode {
   /// Reads the finished scene and draws over it, which is a read and a write of
   /// the same resource — a link in the chain rather than a consumer of one.
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   /// No shadow maps, directional or point. This scene is lit by its own
   /// lights — `encodeScene` gathers them from the scene it is handed — and
@@ -59,7 +59,7 @@ final class ViewModelNode extends RenderNode {
   List<ResourceId> get optionalReads => const <ResourceId>[];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   bool get isActive => scene.meshes.isNotEmpty;
@@ -76,7 +76,7 @@ final class ViewModelNode extends RenderNode {
   );
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final hdr = frame.sceneColor;
     if (hdr == null) return;
     developer.Timeline.startSync('ViewModelNode.encode');
@@ -156,7 +156,7 @@ final class ViewModelNode extends RenderNode {
       _retired.add((previous, _executions + _kFramesInFlight));
     }
     _depth = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: width,
         height: height,
         format: device.defaultDepthStencilFormat,

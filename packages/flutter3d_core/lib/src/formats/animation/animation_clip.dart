@@ -5,6 +5,7 @@ import 'animation_track.dart';
 final class AnimationMarker {
   const AnimationMarker(this.at, this.name);
 
+  /// Seconds into a clip, or a 0..1 share of a state's cycle.
   final double at;
   final String name;
 

@@ -112,6 +112,8 @@ final class ColorVision {
       assert(severity >= 0.0 && severity <= 1.0, 'severity is nought to one');
 
   final ColorVisionDeficiency deficiency;
+
+  /// A 0..1 fraction.
   final double severity;
 
   /// Whether this corrects for the deficiency rather than showing it.
@@ -198,7 +200,7 @@ final class ColorVision {
     pixels: ByteData.sublistView(toStrip(size: size, grade: grade)),
   );
 
-  /// Of [colours] — sRGB encoded, nought to one, by name — the pairs that
+  /// Of [colors] — sRGB encoded, nought to one, by name — the pairs that
   /// someone missing a cone runs together: [within] or further apart to
   /// normal eyes, and nearer than it to the deficiency's.
   ///
@@ -211,16 +213,16 @@ final class ColorVision {
   /// of twenty is what still reads at a glance on a small mark.
   static List<({String a, String b, ColorVisionDeficiency by, double distance})>
   confusions(
-    Map<String, (double, double, double)> colours, {
+    Map<String, (double, double, double)> colors, {
     double within = 20.0,
   }) {
-    final names = colours.keys.toList()..sort();
+    final names = colors.keys.toList()..sort();
     final found =
         <({String a, String b, ColorVisionDeficiency by, double distance})>[];
     for (var i = 0; i < names.length; i++) {
       for (var j = i + 1; j < names.length; j++) {
-        final first = colours[names[i]]!;
-        final second = colours[names[j]]!;
+        final first = colors[names[i]]!;
+        final second = colors[names[j]]!;
         if (difference(first, second) < within) continue;
         for (final kind in ColorVisionDeficiency.values) {
           final sees = ColorVision.simulate(kind);

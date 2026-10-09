@@ -1,6 +1,6 @@
 name: flutter3d_core
 description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model/material loading down to the one call each still needs an injected reader or decoder for."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -25,14 +25,17 @@ platforms:
   windows:
 
 dependencies:
-  flutter3d_hardware: ^0.9.0
+  # `WorldPosition`, `LinearColor` and their crossings into `vector_math`,
+  # which a scene's origin and every material colour speak.
+  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_hardware: ^1.0.0-rc.1
   # The typed uniform blocks the renderer fills, generated from the compiled
   # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
-  flutter3d_shaders: ^0.9.0
-  # What a liquid, a stream or a puddle is, as data — the meshes that draw
-  # them are built here, from it (`geometry/liquid_shapes.dart`). Plain Dart
-  # like this package, so neither gains Flutter by it.
-  flutter3d_physics: ^0.9.0
+  flutter3d_shaders: ^1.0.0-rc.1
+  # The plugin API, for the render anchors and the registry slot the renderer
+  # fills (`RendererSteps`). Only the foundation beneath it, which this
+  # package depends on anyway.
+  flutter3d_plugin_api: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
 dev_dependencies:

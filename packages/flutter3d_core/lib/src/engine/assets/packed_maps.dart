@@ -57,7 +57,7 @@ Rgba8Image? packLanes(List<PackedLane> lanes) {
 
 /// A packed map on [device], as [uploadCoatMap] and [uploadSheenMap] share
 /// it.
-typedef PackedMap = ({TextureHandle texture, SamplerOptions sampler});
+typedef PackedMap = ({TextureHandle texture, SamplerDescriptor sampler});
 
 /// [layers]' coat map on [device]: red the clear coat, green its roughness,
 /// blue the transmission and alpha the thickness — `M3`. Null when no such

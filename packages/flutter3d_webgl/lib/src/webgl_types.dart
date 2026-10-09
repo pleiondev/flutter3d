@@ -11,6 +11,10 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
+/// The name every refusal from this backend gives it —
+/// `UnsupportedCapability.backend`.
+const String webglBackendName = 'WebGL2';
+
 /// What a [TextureHandle] carries on this backend.
 ///
 /// Either a texture or a renderbuffer: WebGL2 cannot sample a multisampled
@@ -53,12 +57,52 @@ final class WebGlTexture {
   final int target;
 
   bool get isSampleable => texture != null;
+
+  /// Whether the last bind set a comparison or a level-of-detail clamp on
+  /// this texture — state of the texture in GL, not of the bind.
+  ///
+  /// **State, so mutable.** A bind with a plain sampler puts the defaults
+  /// back only when this says something else is there, so the samplers every
+  /// pass before 1.0 bound issue exactly the calls they always did.
+  bool extendedSampling = false;
 }
 
-/// A sampler of a linked program: the texture unit it owns, and whether it
-/// samples a cube, which is the target a draw clears it on when it was left
-/// unbound.
-typedef WebGlSampler = ({int unit, bool cube});
+/// A sampler of a linked program: the texture unit it owns, and the texture
+/// target its GLSL type samples — `TEXTURE_2D`, `TEXTURE_CUBE_MAP`,
+/// `TEXTURE_2D_ARRAY` or `TEXTURE_3D` — which is the target a draw clears it
+/// on when it was left unbound.
+typedef WebGlSampler = ({int unit, int target});
+
+/// What a `StorageBuffer` made by `GraphicsDevice.createBuffer` carries on
+/// this backend.
+///
+/// **WebGL2 types a buffer at its first binding, for life**: one first bound
+/// to `ELEMENT_ARRAY_BUFFER` holds indices and may be bound nowhere else but
+/// the two copy targets, and one bound anywhere else never becomes an index
+/// buffer. [elementArray] is which of the two this one is, decided from its
+/// usage when it was made, so every later binding can be checked before the
+/// driver refuses it with an `INVALID_OPERATION` nobody reads.
+final class WebGlBuffer {
+  WebGlBuffer(this.buffer, {required this.elementArray});
+
+  final web.WebGLBuffer buffer;
+  final bool elementArray;
+
+  /// Whether a `mapBuffer` mapping of it is outstanding. State: every copy
+  /// and write refuses a mapped buffer, as the contract says a pass must.
+  bool mapped = false;
+}
+
+/// What a `QuerySet` carries on this backend: one GL query object per
+/// index, and which of them a pass has actually written — an unwritten
+/// query reads zero, and asking GL for the result of one that never began
+/// is `INVALID_OPERATION`.
+final class WebGlQuerySet {
+  WebGlQuerySet(this.queries);
+
+  final List<web.WebGLQuery?> queries;
+  final Set<int> written = <int>{};
+}
 
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
@@ -77,7 +121,7 @@ final class WebGlProgram {
 
   /// What the pipeline was built with, or null to keep guessing from the
   /// shader. See `WebGlDevice.createPipeline` and `WebGlEncoder._describeVertices`.
-  final VertexLayoutSpec? layout;
+  final VertexLayoutDescriptor? layout;
 
   /// Vertex attributes in location order, with their float component counts.
   ///

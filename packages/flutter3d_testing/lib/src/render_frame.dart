@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'draw.dart';
 
@@ -62,7 +61,7 @@ Future<RenderedFrame> renderFrame({
   required int height,
   required FrameBuilder build,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColor,
+  Vector4? clearColorSrgb,
 }) async {
   final kit = cpuTestDevice(width: width, height: height);
   final subject = build(FrameRequest(kit.device));
@@ -85,6 +84,6 @@ Future<RenderedFrame> renderFrame({
     width: width,
     height: height,
     settings: settings,
-    clearColor: clearColor,
+    clearColorSrgb: clearColorSrgb,
   );
 }

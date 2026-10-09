@@ -8,6 +8,5 @@
 library;
 
 export 'src/gpu_backend_registration.dart';
-export 'src/gpu_device.dart';
-export 'src/gpu_formats.dart';
-export 'src/gpu_texture.dart';
+export 'src/gpu_device.dart' hide GpuRenderBackendInternals;
+export 'src/shader_bundle_build_exception.dart';

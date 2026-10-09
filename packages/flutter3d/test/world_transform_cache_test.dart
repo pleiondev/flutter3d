@@ -5,11 +5,11 @@
 /// **What it cost.** `SceneNode.worldMatrix` walked its ancestors on every
 /// read with no early-out, and the inverse world matrix, the world bounds and
 /// the normal matrix all route through it, so every drawable paid a full walk
-/// per pass — and `visibleInHierarchy`, read from seventeen call sites, walked
+/// per pass — and `isVisibleInHierarchy`, read from seventeen call sites, walked
 /// again. A comparison that priced the write side called this a win; a frame is
 /// made of reads.
 ///
-/// **The mechanism, and its limit.** `SceneNode.changeEpoch` advances when
+/// **The mechanism, and its limit.** `sceneChangeEpoch` advances when
 /// something is touched and never when a matrix is merely recomputed, so a node
 /// that verified itself at the current epoch has an ancestor chain nobody has
 /// touched since. What it cannot do is tell one subtree's change from
@@ -42,9 +42,9 @@ import 'package:vector_math/vector_math.dart';
 
 /// How many ancestor walks [body] costs.
 int walksIn(void Function() body) {
-  final before = SceneNode.ancestorWalks;
+  final before = sceneAncestorWalks;
   body();
-  return SceneNode.ancestorWalks - before;
+  return sceneAncestorWalks - before;
 }
 
 void main() {
@@ -97,11 +97,11 @@ void main() {
     // anybody walking down.
     final built = _chain(8);
 
-    expect(built.leaf.visibleInHierarchy, isTrue);
-    built.chain[2].visible = false;
-    expect(built.leaf.visibleInHierarchy, isFalse);
-    built.chain[2].visible = true;
-    expect(built.leaf.visibleInHierarchy, isTrue);
+    expect(built.leaf.isVisibleInHierarchy, isTrue);
+    built.chain[2].isVisible = false;
+    expect(built.leaf.isVisibleInHierarchy, isFalse);
+    built.chain[2].isVisible = true;
+    expect(built.leaf.isVisibleInHierarchy, isTrue);
   });
 
   test('setting a flag to what it already was changes nothing', () async {
@@ -113,7 +113,7 @@ void main() {
 
     built.leaf.worldMatrix;
     // ignore: no_self_assignments — the point of the test is the self-write.
-    built.chain[2].visible = built.chain[2].visible;
+    built.chain[2].isVisible = built.chain[2].isVisible;
     expect(walksIn(() => built.leaf.worldMatrix), 0);
   });
 

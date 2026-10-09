@@ -1,6 +1,6 @@
 name: flutter3d_voxel
 description: "A world of blocks: chunks, a seeded terrain, edits kept as deltas, greedy meshes to draw, greedy boxes to collide with and the navigation mesh baked again where an edit landed."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -28,15 +28,21 @@ platforms:
 dependencies:
   # `MeshData` and `VertexLayout` — the geometry a chunk's faces become —
   # through `geometry.dart` alone, which names no device and no renderer.
-  flutter3d_core: ^0.9.0
+  flutter3d_core: ^1.0.0-rc.1
 
   # The level's vocabulary the navigation mesh is baked from (`Brush`,
   # `NavMesh`), the seeded `GameRandom` the terrain is drawn with, and,
   # re-exported from `flutter3d_physics`, the `CollisionWorld` the chunks'
   # boxes are added to.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
 
 dev_dependencies:
   test: ^1.25.0

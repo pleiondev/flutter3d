@@ -12,6 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,10 +33,10 @@ IrradianceField _field({double wall = 100.0}) {
     for (var y = 0; y < 2; y++) {
       for (var x = 0; x < 2; x++) {
         final probe = field.probeIndex(x, y, z);
-        final colour = x == 0 ? Vector3(1.0, 0.1, 0.1) : Vector3(1.0, 1.0, 1.0);
+        final color = x == 0 ? Vector3(1.0, 0.1, 0.1) : Vector3(1.0, 1.0, 1.0);
         for (var ty = 0; ty < field.tile; ty++) {
           for (var tx = 0; tx < field.tile; tx++) {
-            field.writeIrradianceTexel(probe, tx, ty, colour);
+            field.writeIrradianceTexel(probe, tx, ty, color);
           }
         }
         // Far walls by default: nothing between any probe and any point.
@@ -59,16 +60,16 @@ Float32List _frame({required bool withField, double wall = 100.0}) {
   );
   final floor = MeshNode(
     DeviceMesh.upload(device, CuboidShape().build()),
-    Material(
+    RenderMaterial(
       lighting: LightingModel.lambert,
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     ),
   )..setScale(3.6, 0.1, 3.6);
   final camera = CameraNode()
     ..setPosition(0.0, 3.0, 0.01)
     ..lookAt(Vector3.zero());
   final scene = Scene()
-    ..ambientIntensity = 1.0
+    ..ambientIntensity = 1.0 * Photometric.legacyUnit
     ..add(floor)
     ..add(camera);
   if (withField) scene.irradianceField = _field(wall: wall);

@@ -5,28 +5,27 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Atmosphere _noon() => Atmosphere(
-  sky: Vector3(0.4, 0.6, 0.9),
-  sunColor: Vector3(1.0, 1.0, 0.9),
-  sunIntensity: 3.0,
-  ambientIntensity: 0.4,
+  sky: LinearColor(0.4, 0.6, 0.9),
+  sunColor: LinearColor(1.0, 1.0, 0.9),
+  sunIntensity: 3.0 * Photometric.legacyUnit,
+  ambientIntensity: 0.4 * Photometric.legacyUnit,
 );
 
 Atmosphere _night() => Atmosphere(
-  sky: Vector3(0.0, 0.0, 0.1),
+  sky: LinearColor(0.0, 0.0, 0.1),
   fogDensity: 0.02,
-  sunColor: Vector3(0.2, 0.2, 0.4),
-  sunIntensity: 0.2,
-  ambientIntensity: 0.05,
+  sunColor: LinearColor(0.2, 0.2, 0.4),
+  sunIntensity: 0.2 * Photometric.legacyUnit,
+  ambientIntensity: 0.05 * Photometric.legacyUnit,
 );
 
 void main() {
   test('a blend moves every part of the air by the same amount', () {
     // Mutation: blend the sun by the amount and the sky by another.
     final dusk = Atmosphere.lerp(_noon(), _night(), 0.5);
-    expect(dusk.sky.z, closeTo(0.5, 1e-6));
+    expect(dusk.sky.b, closeTo(0.5, 1e-6));
     expect(dusk.sunIntensity, closeTo(1.6, 1e-6));
     expect(dusk.fogDensity, closeTo(0.01, 1e-6));
     expect(dusk.fog.density, closeTo(0.01, 1e-6));
@@ -37,11 +36,11 @@ void main() {
     // `fog` getter. A morning mist that is meant to lift through the day
     // either never lifts or never lies on the ground at all.
     final mist = Atmosphere(
-      sky: Vector3(0.6, 0.6, 0.6),
+      sky: LinearColor(0.6, 0.6, 0.6),
       fogDensity: 0.05,
       fogHeightFalloff: 0.2,
       fogBaseHeight: 2.0,
-      sunColor: Vector3(1.0, 1.0, 1.0),
+      sunColor: LinearColor(1.0, 1.0, 1.0),
     );
     final half = Atmosphere.lerp(_noon(), mist, 0.5);
     expect(half.fogHeightFalloff, closeTo(0.1, 1e-9));
@@ -64,18 +63,26 @@ void main() {
 
   test('the air goes onto a scene, its sun and its sky', () {
     final scene = Scene();
-    final sun = LightNode(type: LightType.directional, intensity: 1.0);
+    final sun = LightNode(
+      type: LightType.directional,
+      intensity: 1.0 * Photometric.legacyUnit,
+    );
     final clear = Vector4.zero();
-    _night().applyTo(scene, sun: sun, clearColor: clear);
-    expect(scene.ambientIntensity, closeTo(0.05, 1e-6));
+    _night().applyTo(scene, sun: sun, clearColorSrgb: clear);
+    expect(
+      scene.ambientIntensity,
+      closeTo(0.05 * Photometric.legacyUnit, 1e-6),
+    );
     expect(sun.intensity, closeTo(0.2, 1e-6));
-    expect(clear.z, closeTo(0.1, 1e-6));
+    // The sky is linear light; the clear colour is the same colour encoded.
+    // Mutation: write the linear channel into the sRGB slot as it is.
+    expect(clear.z, closeTo(LinearColor.linearToSrgb(0.1), 1e-6));
   });
 
   test('a group of lights dims together and comes back as it was', () {
     // Mutation: write the level into each light as its intensity.
-    final low = LightNode(intensity: 2.0);
-    final high = LightNode(intensity: 8.0);
+    final low = LightNode(intensity: 2.0 * Photometric.legacyUnit);
+    final high = LightNode(intensity: 8.0 * Photometric.legacyUnit);
     final lamps = LightGroup(<LightNode>[low, high])..level = 0.0;
     expect(low.intensity, 0.0);
     lamps.level = 0.5;
@@ -97,8 +104,8 @@ void main() {
           it.device,
           CuboidShape(size: Vector3.all(20.0)).build(),
         ),
-        Material(
-          baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
           lighting: LightingModel.unlit,
           fogged: fogged,
         ),
@@ -119,11 +126,11 @@ void main() {
             views: <RenderView>[RenderView(camera: camera)],
             settings: RenderSettings(
               tonemap: false,
-              fog: FogSettings(color: Vector3(0.0, 0.0, 1.0), density: 0.2),
+              fog: FogSettings(color: LinearColor(0.0, 0.0, 1.0), density: 0.2),
             ),
           );
-      final pixels = await it.device.readPixels(frame.frame);
-      return pixels!.buffer.asUint8List()[(8 * 16 + 8) * 4];
+      final pixels = await it.device.readback(frame.frame);
+      return pixels.buffer.asUint8List()[(8 * 16 + 8) * 4];
     }
 
     expect(await red(fogged: true), lessThan(40));

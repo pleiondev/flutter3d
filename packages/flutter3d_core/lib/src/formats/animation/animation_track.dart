@@ -146,6 +146,7 @@ final class AnimationTrack {
   /// on a timeline, where a track starting late is a gap somebody has to see.
   double get startTime => times.first;
 
+  /// When the last keyframe is, in seconds.
   double get endTime => times.last;
 
   int get keyCount => times.length;

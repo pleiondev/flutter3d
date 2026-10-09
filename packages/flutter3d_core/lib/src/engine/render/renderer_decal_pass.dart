@@ -86,7 +86,7 @@ extension _DecalPass on Renderer {
 
   /// Trilinear and clamped: a decal's picture is minified as a material's
   /// is, and its edge must not wrap the opposite edge in.
-  static const SamplerOptions _pictureSampler = SamplerOptions(
+  static const SamplerDescriptor _pictureSampler = SamplerDescriptor(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
     mipFilter: MipFilter.linear,
@@ -106,7 +106,7 @@ extension _DecalPass on Renderer {
     final visible =
         <(int, DecalNode)>[
           for (var i = 0; i < decals.length; i++)
-            if (decals[i].visibleInHierarchy) (i, decals[i]),
+            if (decals[i].isVisibleInHierarchy) (i, decals[i]),
         ]..sort((a, b) {
           final byOrder = a.$2.order.compareTo(b.$2.order);
           return byOrder != 0 ? byOrder : a.$1.compareTo(b.$1);
@@ -125,24 +125,24 @@ extension _DecalPass on Renderer {
     );
     pass
       ..bindPipeline(
-        _fullscreenPipelines[decalShader] ??= device.createPipeline(
-          fullscreenVertexShader,
-          decalShader,
+        _fullscreenPipelines[_decalShader] ??= device.createPipeline(
+          _fullscreenVertexShader,
+          _decalShader,
         ),
       )
       ..bindVertexBuffer(_fullscreenTriangle, 3)
       ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
       ..bindTexture(
-        decalShader,
+        _decalShader,
         'surface_texture',
         surface,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..bindTexture(
-        decalShader,
+        _decalShader,
         'albedo_texture',
         albedo,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
     passState.invalidatePipeline();
 
@@ -162,7 +162,7 @@ extension _DecalPass on Renderer {
       // gives: the stage unprojects both ends of a pixel's ray at clip depths
       // nought and one. Adjusted for the framebuffer origin, so the texture
       // coordinates it derives land on the rows the buffer was written in.
-      final viewProjection = view.camera.viewProjection(aspect);
+      final viewProjection = _finiteViewProjection(view.camera, aspect);
       final inverse = vm.Matrix4.copy(
         toFramebufferOrigin(viewProjection, device.framebufferOrigin),
       )..invert();
@@ -188,7 +188,7 @@ extension _DecalPass on Renderer {
         _fillDecalBatch(batch);
         for (var i = 0; i < _DecalBatch.maxSlots; i++) {
           pass.bindTexture(
-            decalShader,
+            _decalShader,
             'decal_texture_$i',
             i < batch.slots.length ? batch.slots[i] : fallbackAlbedo,
             sampler: _pictureSampler,
@@ -214,7 +214,7 @@ extension _DecalPass on Renderer {
                 blend: term == 0.0 ? _multiply : _add,
               ),
             )
-            ..bindBlock(decalShader, info)
+            ..bindBlock(_decalShader, info)
             ..draw();
           _frameCounters?.drawCalls++;
         }
@@ -330,14 +330,13 @@ extension _DecalPass on Renderer {
         ..[i * 4 + 1] = region.y
         ..[i * 4 + 2] = region.z
         ..[i * 4 + 3] = region.w;
-      // Linear here rather than in the stage: one conversion, in doubles,
-      // that every backend then reads as the same float.
-      final tint = Renderer._srgbToLinear(decal.color);
+      // Linear, as the stage reads it: the colour is linear already.
+      final tint = decal.color;
       info.color
-        ..[i * 4] = tint.x
-        ..[i * 4 + 1] = tint.y
-        ..[i * 4 + 2] = tint.z
-        ..[i * 4 + 3] = tint.w.clamp(0.0, 1.0);
+        ..[i * 4] = tint.r
+        ..[i * 4 + 1] = tint.g
+        ..[i * 4 + 2] = tint.b
+        ..[i * 4 + 3] = tint.a.clamp(0.0, 1.0);
       final limit = decal.angleLimit.clamp(0.0, math.pi);
       final gone = math.cos(limit);
       final whole = math.cos(math.max(limit - decal.angleFade, 0.0));
@@ -348,9 +347,9 @@ extension _DecalPass on Renderer {
         ..[i * 4 + 3] = decal.depthFade.clamp(0.0, 1.0);
       final emissive = decal.emissive;
       info.emissive
-        ..[i * 4] = emissive.x
-        ..[i * 4 + 1] = emissive.y
-        ..[i * 4 + 2] = emissive.z;
+        ..[i * 4] = emissive.r
+        ..[i * 4 + 1] = emissive.g
+        ..[i * 4 + 2] = emissive.b;
     }
   }
 }

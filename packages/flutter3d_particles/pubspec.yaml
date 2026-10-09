@@ -3,7 +3,7 @@ description: >-
   A pooled CPU particle simulation for flutter3d, and the contributor that
   draws it. Its particles can be a light source, which is the part no other
   engine on this platform has.
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,13 +16,35 @@ topics:
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   # For PassContributor and ContributorFrame — a contributor is defined by the
   # engine and implemented here, which is what makes this an extension rather
   # than a fork. The Flutter-free core, not `flutter3d`: a contributor is handed
   # a pass encoder, never a widget.
-  flutter3d_core: ^0.9.0
-  flutter3d_hardware: ^0.9.0
+  flutter3d_core: ^1.0.0-rc.1
+  # `PlacedEvent`, the shape of an event that says where an effect goes off:
+  # the simulation's events implement it without depending on the particles.
+  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_hardware: ^1.0.0-rc.1
+  # `WorldProperties` and `standardGravity`: what a system's particles fall
+  # by and drift on until a game hands it its world's. What a world is made
+  # of, with nothing that steps a body.
+  flutter3d_matter: ^1.0.0-rc.1
+  # For `ParticleEffects`: a registry a plugin installs effect documents
+  # into, and the bus their triggers listen on. Only the foundation beneath
+  # it, and the core depends on it already.
+  flutter3d_plugin_api: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
 dev_dependencies:
@@ -31,7 +53,7 @@ dev_dependencies:
   # For `smoke_six_way_test.dart` alone: the software backend draws the
   # six-way stage through a real renderer, and the package's own baker makes
   # the sheet it draws, so the test needs no asset.
-  flutter3d_cpu: ^0.9.0
+  flutter3d_cpu: ^1.0.0-rc.1
   flutter_lints: ^6.0.0
 
 resolution: workspace

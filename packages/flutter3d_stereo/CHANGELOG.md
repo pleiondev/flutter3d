@@ -1,10 +1,45 @@
-## 0.9.0
+## 1.0.0-rc.1
 
-**Moves with the stack to 0.9.0**, whose `flutter3d_hardware` gives
+- **Docs**: `StereoRig.interpupillaryDistance` says its default, 64 mm.
+- **`StereoSurface.onListenerMoved` is handed a `ListenerPose`**, as
+  `Flutter3dView`'s is: position, forward, up and the scene's origin.
+- **Breaking: `StereoSurface` is a `Flutter3dView`.** It draws the rig's
+  two views through the view, which owns the frame clock, focus and the
+  pause a route change brings, so the pair redraws every frame without the
+  caller rebuilding it; `onBeforeFrame` runs each frame before it is drawn,
+  and `onListenerMoved` follows the left eye. The renderer is borrowed, as
+  before. `verticalFieldOfView` is `fovY` on `StereoSurface`, on
+  `StereoRig.fitToViewport` and on `StereoRig` itself. `dart fix` carries
+  the renames. `LessonStereoView`'s step buttons read their tooltips from
+  `Flutter3dAppLocalizations`.
+- **Breaking: `headRotationFromSensor(displayRotationDegrees:)` is
+  `displayRotation:`**, a `double` in radians (docs/CONTRACTS.md).
+  `decodeSensorEvent` converts the platform's degrees where it reads them.
+- **Each eye keeps its own past.** The rig's two `RenderView`s are kept for
+  its life, and since 1.0 a view, not a camera, holds the reprojection's last
+  frame; `StereoRig.dispose` gives back what renderers kept for them.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `HeadTracker` is an `abstract base class`**, extended rather
+  than implemented, so a member added in a minor release can arrive with a
+  body. `start` and `stop` do nothing by default; a tracker says where the
+  head is. `SensorHeadTracker` extends it.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
 `PassEncoder.draw` a window of the bound indices and every `PassEncoder`
 `setAlphaToCoverage`. Nothing in this package changed.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.0
 

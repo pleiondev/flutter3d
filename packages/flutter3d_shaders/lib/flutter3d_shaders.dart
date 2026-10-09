@@ -28,7 +28,7 @@ typedef RequiredShader = ({String name, bool fragment});
 /// computing backend may leave them out: the software rasteriser does, so
 /// its clouds take the CPU sort they are held to, and a consumer asks for
 /// each by name before it dispatches.
-const List<String> kComputeShaders = <String>[
+const List<String> computeShaders = <String>[
   'PrefixSum',
   'SplatSortCount',
   'SplatSortScan',
@@ -40,7 +40,7 @@ const List<String> kComputeShaders = <String>[
 /// Generated from `shaders/flutter3d.shaderbundle.json` and checked against it
 /// by `test/manifest_test.dart`, which fails if a shader is added to one and
 /// not the other.
-const List<RequiredShader> kRequiredShaders = <RequiredShader>[
+const List<RequiredShader> requiredShaders = <RequiredShader>[
   (name: 'BlinnPhong', fragment: true),
   (name: 'BloomDownsample', fragment: true),
   (name: 'BloomThreshold', fragment: true),
@@ -130,6 +130,13 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'SkyPhysical', fragment: true),
   (name: 'SkyPhysicalVertex', fragment: false),
   (name: 'Toon', fragment: true),
+  (name: 'UnlitOpaque', fragment: true),
+  (name: 'LambertOpaque', fragment: true),
+  (name: 'BlinnPhongOpaque', fragment: true),
+  (name: 'PbrOpaque', fragment: true),
+  (name: 'PbrLayeredOpaque', fragment: true),
+  (name: 'ToonOpaque', fragment: true),
+  (name: 'DepthPredraw', fragment: true),
   (name: 'Unlit', fragment: true),
   (name: 'VertexTextureProbe', fragment: true),
   (name: 'VertexTextureProbeVertex', fragment: false),

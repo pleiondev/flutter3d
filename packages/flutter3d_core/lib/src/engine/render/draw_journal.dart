@@ -21,6 +21,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'capture_json.dart';
+
 /// One draw, as the encoder saw it.
 final class DrawRecord {
   const DrawRecord({
@@ -96,6 +98,72 @@ final class DrawRecord {
     'state': state,
     'uniforms': uniforms,
   };
+
+  /// [uniforms] decoded by shape — `A5.23`: each one's type (`mat4`,
+  /// `vec4`, `float[n]`, a guess from its length, which is all the journal
+  /// keeps), its values, and a matrix's columns, with a NaN or an infinity
+  /// written as the string `"NaN"`, `"Infinity"` or `"-Infinity"` so the
+  /// whole map goes through `jsonEncode`.
+  Map<String, Map<String, Object?>> get decodedUniforms =>
+      <String, Map<String, Object?>>{
+        for (final MapEntry(:key, :value) in uniforms.entries)
+          key: decodeUniform(value),
+      };
+
+  /// What a capture file holds for this draw: [toJson] with the uniforms
+  /// [decodedUniforms] and every number in [state] safe for `jsonEncode`.
+  /// [node] is not written: it is an object of the running game.
+  Map<String, Object?> toCaptureJson() => <String, Object?>{
+    ...toSummaryJson(),
+    'lighting': lighting,
+    'triangles': triangles,
+    'state': captureValue(state),
+    'uniforms': decodedUniforms,
+  };
+
+  /// A draw read back from [toJson] or [toCaptureJson] — `A5.23` — or null
+  /// when [json] lacks what every draw has: its index, its pass and its
+  /// kind.
+  ///
+  /// Uniforms are taken in either form, decoded or as bare lists. [node] is
+  /// null: a draw from a file belongs to no running scene.
+  static DrawRecord? fromJson(Map<String, Object?> json) {
+    final index = json['index'];
+    final pass = json['pass'];
+    final kind = json['kind'];
+    if (index is! int || pass is! String || kind is! String) return null;
+    int whole(String key) => switch (json[key]) {
+      final int n => n,
+      _ => 0,
+    };
+    String? text(String key) => switch (json[key]) {
+      final String s => s,
+      _ => null,
+    };
+    final state = json['state'];
+    final uniforms = json['uniforms'];
+    return DrawRecord(
+      index: index,
+      passIndex: whole('passIndex'),
+      pass: pass,
+      kind: kind,
+      mesh: text('mesh'),
+      material: text('material'),
+      lighting: text('lighting') ?? '',
+      vertices: whole('vertices'),
+      indices: whole('indices'),
+      instances: whole('instances'),
+      triangles: whole('triangles'),
+      state: Map<String, Object?>.unmodifiable(
+        state is Map<String, Object?> ? state : const <String, Object?>{},
+      ),
+      uniforms: Map<String, List<double>>.unmodifiable(<String, List<double>>{
+        if (uniforms is Map<String, Object?>)
+          for (final MapEntry(:key, :value) in uniforms.entries)
+            if (readUniform(value) case final List<double> read) key: read,
+      }),
+    );
+  }
 }
 
 /// Collects [DrawRecord]s while one frame runs.

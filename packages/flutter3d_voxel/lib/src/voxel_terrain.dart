@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_sim/flutter3d_sim.dart' show GameRandom;
 
+import 'voxel_format_exception.dart';
+
 /// The material ids the terrain lays down, and the one that means nothing is
 /// there.
 ///
@@ -55,11 +57,29 @@ final class VoxelTerrain {
       scale = 16;
 
   /// Reads what [toJson] wrote.
+  ///
+  /// Throws a [VoxelFormatException] for a missing number, and for terrain
+  /// drawn by a newer [generatorVersion]: the seed alone does not say what
+  /// ground a later drawing made, so its edits would land on other blocks.
+  /// Terrain saved before the number existed reads as version 1.
   factory VoxelTerrain.fromJson(Map<String, Object?> json) {
     int read(String key) => switch (json[key]) {
       final num value => value.toInt(),
-      _ => throw FormatException('a terrain with no "$key"'),
+      _ => throw VoxelFormatException('a terrain with no "$key"'),
     };
+    final drawnBy = switch (json['generatorVersion']) {
+      null => 1,
+      final num value => value.toInt(),
+      final other => throw VoxelFormatException(
+        'a terrain whose "generatorVersion" is $other, not a number',
+      ),
+    };
+    if (drawnBy > generatorVersion) {
+      throw VoxelFormatException(
+        'terrain drawn by generator version $drawnBy, and this build draws '
+        'version $generatorVersion: update flutter3d_voxel to open it',
+      );
+    }
     return VoxelTerrain(
       seed: read('seed'),
       groundLevel: read('groundLevel'),
@@ -67,6 +87,16 @@ final class VoxelTerrain {
       scale: read('scale'),
     );
   }
+
+  /// The version of the drawing [heights] does, saved beside the seed.
+  ///
+  /// **The seed is half of what a save keeps; this is the other half.** Two
+  /// machines draw the same ground from one seed only while they run the
+  /// same drawing, and a save keeps the edits as deltas against that ground.
+  /// A change to [heights], [materialAt] or the lattice that moves a single
+  /// block is a new version, and the old drawing stays reachable for the
+  /// saves that name it.
+  static const int generatorVersion = 1;
 
   /// What the heights are drawn from.
   final int seed;
@@ -86,6 +116,7 @@ final class VoxelTerrain {
 
   /// The parameters, for a save — the blocks are drawn again from them.
   Map<String, Object?> toJson() => <String, Object?>{
+    'generatorVersion': generatorVersion,
     'seed': seed,
     'groundLevel': groundLevel,
     'amplitude': amplitude,

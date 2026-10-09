@@ -16,8 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
 import 'package:flutter3d_cpu/src/cpu_shader_stage.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_color.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_ssao.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
@@ -59,8 +58,8 @@ Vector4 _shade({
 
   final cx = width ~/ 2;
   final cy = height ~/ 2;
-  final wall = encodeOctahedral(Vector3(0.0, 0.0, 1.0));
-  final strip = encodeOctahedral(stripNormal ?? Vector3(0.0, 0.0, 1.0));
+  final wall = encodeSurfaceNormal(Vector3(0.0, 0.0, 1.0));
+  final strip = encodeSurfaceNormal(stripNormal ?? Vector3(0.0, 0.0, 1.0));
   final surface = CpuTexture(width, height, TextureFormat.r32g32b32a32Float);
   final scene = CpuTexture(width, height, TextureFormat.r32g32b32a32Float);
   for (var y = 0; y < height; y++) {
@@ -96,8 +95,8 @@ Vector4 _shade({
       },
     },
     <String, BoundTexture>{
-      'surface_texture': BoundTexture(surface, SamplerOptions.nearestClamp),
-      'scene_texture': BoundTexture(scene, SamplerOptions.nearestClamp),
+      'surface_texture': BoundTexture(surface, SamplerDescriptor.nearestClamp),
+      'scene_texture': BoundTexture(scene, SamplerDescriptor.nearestClamp),
     },
   );
   return const SsaoShader().run(
