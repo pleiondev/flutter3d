@@ -12,7 +12,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A solver that counts what it is asked to step and steps it on the
 /// reference.
-final class _Counting implements FluidSolver {
+final class _Counting extends FluidSolver {
   int particles = 0;
   int parcels = 0;
   int modes = 0;
@@ -51,22 +51,12 @@ final class _Counting implements FluidSolver {
 }
 
 /// A backend with a fluid of its own.
-final class _Backend implements PhysicsBackend, FluidPhysics {
+final class _Backend extends PhysicsBackend {
   @override
   final _Counting fluid = _Counting();
 
   @override
   String get name => 'counting';
-
-  @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      const DartPhysics().dynamics(world, gravity: gravity);
-
-  @override
-  void attach(CollisionWorld world) {}
-
-  @override
-  void release(CollisionWorld world) {}
 }
 
 RevolvedVessel _tube(double r, double h) =>
@@ -131,18 +121,16 @@ void main() {
 
   test('a backend with a fluid of its own is asked for it', () {
     final backend = _Backend();
-    // Through the extension, as code that holds only a PhysicsBackend
-    // asks. Mutation: the extension always answering the reference.
+    // Through the base type, as code that holds only a PhysicsBackend
+    // asks. Mutation: the base always answering the reference.
     final PhysicsBackend current = backend;
     expect(current.fluid, same(backend.fluid));
   });
 
-  test('a world is made on the run\'s backend, and steps everything on it', () {
-    final before = PhysicsBackend.current;
+  test('a world is made on its backend, and steps everything on it', () {
     final backend = _Backend();
-    PhysicsBackend.current = backend;
-    try {
-      final world = FluidWorld(gravity: Vector3(0, -9.81, 0));
+    {
+      final world = FluidWorld(gravity: Vector3(0, -9.81, 0), backend: backend);
       expect(world.solver, same(backend.fluid));
       _pour(world);
       // Mutations: a stream made with no solver, particles made with
@@ -153,8 +141,6 @@ void main() {
       expect(backend.fluid.modes, greaterThan(0));
       expect(backend.fluid.pipes, greaterThan(0));
       expect(backend.fluid.pushes, greaterThan(0));
-    } finally {
-      PhysicsBackend.current = before;
     }
   });
 }

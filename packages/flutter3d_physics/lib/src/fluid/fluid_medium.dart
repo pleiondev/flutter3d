@@ -1,12 +1,16 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+
 /// A liquid, by the properties that decide how it moves: how heavy it is,
 /// how thick, how strongly its surface pulls, and how it meets a wall.
 ///
-/// All in SI. The presets are at 20 °C and against clean glass, from the
-/// usual handbook values; a liquid on another wall material differs only in
-/// [contactAngle], which is a property of the pair, not of the liquid, and
-/// so is a field a caller can change with [copyWith].
+/// All in SI. **A view of a material in the catalogue** ([FluidMedium.of]):
+/// the presets are the built-ins' entries ([Materials]) at 20 °C, against
+/// clean glass as the catalogue's `MaterialPair`s with `f3d.glass` measure
+/// it; a liquid on another wall material differs only in [contactAngle],
+/// which is a property of the pair, not of the liquid, and so is a field a
+/// caller can change with [copyWith].
 final class FluidMedium {
   const FluidMedium({
     required this.name,
@@ -16,50 +20,65 @@ final class FluidMedium {
     this.contactAngle = 0.0,
   });
 
-  /// Water: 998 kg/m³, 1.0 mPa·s, 72.8 mN/m, wetting glass at about 20°.
-  static const FluidMedium water = FluidMedium(
-    name: 'water',
-    density: 998.2,
-    viscosity: 1.002e-3,
-    surfaceTension: 0.0728,
-    contactAngle: 0.35,
-  );
+  /// [material]'s density, viscosity and surface tension, meeting a wall at
+  /// [contactAngle], radians — by default the angle the built-in pairs give
+  /// it on glass ([Materials.pairs]), or nought. Throws an [ArgumentError]
+  /// for a material that does not say all three.
+  factory FluidMedium.of(PhysicalMaterial material, {double? contactAngle}) {
+    final density = material.density;
+    final viscosity = material.fluid?.viscosity;
+    final tension = material.fluid?.surfaceTension;
+    if (density == null || viscosity == null || tension == null) {
+      throw ArgumentError.value(
+        material.id,
+        'material',
+        'says no density, viscosity or surface tension',
+      );
+    }
+    return FluidMedium(
+      name: material.name,
+      density: density,
+      viscosity: viscosity,
+      surfaceTension: tension,
+      contactAngle: contactAngle ?? _onGlass(material.id) ?? 0.0,
+    );
+  }
 
-  /// Glycerol: heavy and fourteen hundred times as viscous as water.
-  static const FluidMedium glycerol = FluidMedium(
-    name: 'glycerol',
-    density: 1261.0,
-    viscosity: 1.412,
-    surfaceTension: 0.0634,
-    contactAngle: 0.45,
-  );
+  /// The angle the built-in pairs give [id] on glass, or null.
+  static double? _onGlass(String id) {
+    final key = MaterialPair.keyOf(id, Materials.glass.id);
+    for (final pair in Materials.pairs) {
+      if (pair.key == key) return pair.contactAngle;
+    }
+    return null;
+  }
 
-  /// Olive oil: lighter than water, which it floats on.
-  static const FluidMedium oil = FluidMedium(
-    name: 'oil',
-    density: 911.0,
-    viscosity: 0.084,
-    surfaceTension: 0.032,
-    contactAngle: 0.2,
-  );
+  /// Water ([Materials.water]): 998.2 kg/m³, 1.002 mPa·s, 72.8 mN/m, wetting
+  /// glass at about 20°.
+  static final FluidMedium water = FluidMedium.of(Materials.water);
 
-  /// Ethanol: wets glass completely and pulls weakly.
-  static const FluidMedium ethanol = FluidMedium(
-    name: 'ethanol',
-    density: 789.0,
-    viscosity: 1.2e-3,
-    surfaceTension: 0.0223,
-  );
+  /// Glycerol ([Materials.glycerol]): heavy and fourteen hundred times as
+  /// viscous as water.
+  static final FluidMedium glycerol = FluidMedium.of(Materials.glycerol);
 
-  /// Mercury: does not wet glass, so its meniscus bulges and it sinks in a
-  /// capillary rather than climbing it.
-  static const FluidMedium mercury = FluidMedium(
-    name: 'mercury',
-    density: 13534.0,
-    viscosity: 1.526e-3,
-    surfaceTension: 0.485,
-    contactAngle: 2.44,
-  );
+  /// Olive oil ([Materials.oliveOil]): lighter than water, which it floats
+  /// on.
+  static final FluidMedium oliveOil = FluidMedium.of(Materials.oliveOil);
+
+  /// [oliveOil], by the name it had.
+  @Deprecated(
+    'Use FluidMedium.oliveOil, the catalogue\'s f3d.oliveOil. '
+    'Deprecated in 1.0.0, removed in 2.0.0.',
+  )
+  static FluidMedium get oil => oliveOil;
+
+  /// Ethanol ([Materials.ethanol]): wets glass completely and pulls weakly.
+  static final FluidMedium ethanol = FluidMedium.of(Materials.ethanol);
+
+  /// Mercury at 20 °C ([Materials.mercury]): 13 546 kg/m³, 1.55 mPa·s. It
+  /// does not wet glass, so its meniscus bulges and it sinks in a capillary
+  /// rather than climbing it.
+  static final FluidMedium mercury = FluidMedium.of(Materials.mercury);
 
   final String name;
 

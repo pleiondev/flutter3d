@@ -860,7 +860,9 @@ void f3d_liquid_pipes(f3d_real *pipes, uint32_t count, f3d_real dt_real) {
 
 /* ------------------------------------------------------------- floats */
 
-/* White's drag coefficient of a sphere at Reynolds number [re]. */
+/* A sphere's drag coefficient at Reynolds number [re]: White's fit,
+ * 24/Re + 6/(1 + √Re) + 0.4, good to about ten per cent from creeping flow
+ * to Re 2·10⁵ (White, Viscous Fluid Flow, 2nd ed., 1991, ch. 3). */
 static double sphere_drag(double re) {
   if (re <= 0.0) return 0.0;
   return 24.0 / re + 6.0 / (1.0 + dsqrt(re)) + 0.4;

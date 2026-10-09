@@ -172,9 +172,9 @@ void main() {
     Level two({required bool open}) => Level(
       name: 'two rooms',
       brushes: <Brush>[
-        Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 6.0)),
+        Brush(center: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 6.0)),
         Brush(
-          centre: Vector3(0.0, 1.5, open ? -2.5 : 0.0),
+          center: Vector3(0.0, 1.5, open ? -2.5 : 0.0),
           size: Vector3(0.5, 3.0, open ? 1.0 : 6.0),
         ),
       ],

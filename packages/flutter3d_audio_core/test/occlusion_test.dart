@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const SoundDef _torch = SoundDef(

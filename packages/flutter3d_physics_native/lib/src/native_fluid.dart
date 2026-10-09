@@ -3,21 +3,49 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/core.dart' as c;
+import 'native_world.dart';
 
 /// How fluid moves, inside the tank from [tankMin] to [tankMax].
+///
+/// Its gravity is its [world]'s, read when the settings are made, or
+/// [standardGravityVector] without one — see `ClothSettings`, which is made
+/// the same way.
 final class FluidSettings {
   FluidSettings({
     required this.tankMin,
     required this.tankMax,
+    NativeWorld? world,
     Vector3? gravity,
     this.viscosity = 0.01,
     this.relaxation = 10.0,
     this.substeps = 2,
     this.iterations = 4,
-  }) : gravity = gravity ?? Vector3(0.0, -9.81, 0.0);
+  }) : gravity = gravity ?? world?.gravity ?? standardGravityVector;
+
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  FluidSettings copyWith({
+    Vector3? tankMin,
+    Vector3? tankMax,
+    Vector3? gravity,
+    double? viscosity,
+    double? relaxation,
+    int? substeps,
+    int? iterations,
+    bool clearGravity = false,
+  }) => FluidSettings(
+    tankMin: tankMin ?? this.tankMin,
+    tankMax: tankMax ?? this.tankMax,
+    gravity: clearGravity ? null : (gravity ?? this.gravity),
+    viscosity: viscosity ?? this.viscosity,
+    relaxation: relaxation ?? this.relaxation,
+    substeps: substeps ?? this.substeps,
+    iterations: iterations ?? this.iterations,
+  );
 
   final Vector3 gravity;
 
@@ -27,10 +55,11 @@ final class FluidSettings {
   final Vector3 tankMax;
 
   /// XSPH: how far a particle's velocity goes to its neighbours' a
-  /// substep.
+  /// substep: a unitless fraction, 0..1.
   final double viscosity;
 
-  /// Softens the density constraint; larger is softer and steadier.
+  /// Softens the density constraint; larger is softer and steadier. Added
+  /// to the constraint's squared gradient, so per square metre.
   final double relaxation;
   final int substeps;
   final int iterations;
@@ -45,7 +74,11 @@ typedef FluidFrame = ({int step, Float32List particles});
 
 /// Water as particles: on the CPU ([NativeFluid]) or the GPU
 /// ([GpuFluid]), the same passes. Visual, not the game's state.
-abstract interface class FluidSystem {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class FluidSystem {
   int get capacity;
 
   /// Particles in the tank so far, up to [capacity].
@@ -59,8 +92,8 @@ abstract interface class FluidSystem {
 
   void step(FluidSettings settings, double dt);
 
-  /// The latest step's particles not read yet, or null when there is
-  /// none. On the GPU, without [wait], a frame late.
+  /// The latest step's particles not read yet; null when there is
+  /// none (absent, not an error). On the GPU, without [wait], a frame late.
   FluidFrame? read({bool wait = true});
 
   void dispose();
@@ -135,6 +168,7 @@ final class NativeFluid implements FluidSystem {
   @override
   int get count => _count;
 
+  /// The density at rest, particles of mass one per cubic metre.
   @override
   double get restDensity => c.f3d_fluid_rest_density(_live);
 

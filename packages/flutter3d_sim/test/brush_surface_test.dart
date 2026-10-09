@@ -11,12 +11,13 @@
 /// decides what `ice` means, exactly as it decides what a `crate` is.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _brush({String? surface, int? layer, String material = 'stone'}) => Brush(
-  centre: Vector3(0.0, -0.5, 0.0),
+  center: Vector3(0.0, -0.5, 0.0),
   size: Vector3(8.0, 1.0, 8.0),
   material: material,
   surface: surface,
@@ -148,13 +149,13 @@ void main() {
       // grows a line saying the obvious, and two hundred and fifty of them is
       // a diff nobody reads.
       final fence = Brush(
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         size: Vector3.all(1.0),
         castsShadow: false,
       );
       expect(fence.toJson()['castsShadow'], false);
 
-      final wall = Brush(centre: Vector3.zero(), size: Vector3.all(1.0));
+      final wall = Brush(center: Vector3.zero(), size: Vector3.all(1.0));
       expect(wall.toJson().containsKey('castsShadow'), isFalse);
       expect(wall.castsShadow, isTrue, reason: 'the default moved');
     });
@@ -180,9 +181,9 @@ void main() {
       // single surface and the fence starts casting again, along with the wall.
       final level = Level(
         brushes: <Brush>[
-          Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+          Brush(center: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
           Brush(
-            centre: Vector3(8.0, 0.0, 0.0),
+            center: Vector3(8.0, 0.0, 0.0),
             size: Vector3.all(2.0),
             castsShadow: false,
           ),
@@ -209,8 +210,8 @@ void main() {
       // that does not use it.
       final level = Level(
         brushes: <Brush>[
-          Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
-          Brush(centre: Vector3(8.0, 0.0, 0.0), size: Vector3.all(2.0)),
+          Brush(center: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+          Brush(center: Vector3(8.0, 0.0, 0.0), size: Vector3.all(2.0)),
         ],
       );
 

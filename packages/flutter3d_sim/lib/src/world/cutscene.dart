@@ -5,7 +5,6 @@ library;
 import '../actors/actor_system.dart';
 import '../cinema/sequence.dart';
 import '../cinema/sequence_player.dart';
-import '../loop/game_event.dart';
 import 'mechanism.dart';
 
 /// A cutscene waiting in a level to be played.
@@ -25,9 +24,11 @@ final class Cutscene extends Mechanism {
     required Sequence sequence,
     required this.actors,
     this.once = true,
-  }) : player = SequencePlayer(sequence, events: GameEvents());
+  }) : player = SequencePlayer(sequence);
 
-  /// Where it plays: its step, its picture, its signals.
+  /// Where it plays: its step, its picture, its signals. The signals are
+  /// published onto `player.events` as they fire, which the simulation that
+  /// steps the level sets to its bus.
   final SequencePlayer player;
 
   /// The actors it directs.
@@ -42,12 +43,9 @@ final class Cutscene extends Mechanism {
   /// Whether it is playing now.
   bool get isPlaying => _playing;
 
-  /// Whether it has been played, to the end or not.
-  bool get played => _played;
-
-  /// The signals it fired since they were last drained, for the game to
-  /// answer: a sound, a clip, a light.
-  GameEvents get signals => player.events!;
+  /// Whether it has been played, to the end or not — for a game whose own
+  /// trigger should run a cutscene only once.
+  bool get wasPlayed => _played;
 
   @override
   ActivationOutcome activate(Activation by) {
@@ -63,7 +61,7 @@ final class Cutscene extends Mechanism {
   void step(double dt) {
     if (!_playing) return;
     player.advance();
-    if (player.finished) _stop();
+    if (player.isFinished) _stop();
   }
 
   void _stop() {

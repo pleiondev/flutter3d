@@ -1,15 +1,17 @@
 import 'dart:async';
 
-import 'package:flame_multiplayer/flame_multiplayer.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationVersion;
 
-import 'net_transport_wire.dart';
+import 'peer_wire.dart';
 import 'websocket_transport.dart';
+import 'wire_hello.dart';
 
 /// A machine's place in a relay's party: its wire, the slot the relay gave
 /// it, the party's [code] — the one to send a friend — and [full], which
 /// completes once every player's slot is taken.
 typedef PartySeat = ({
-  PartyWire wire,
+  PeerWire wire,
   int slot,
   int size,
   String code,
@@ -30,12 +32,19 @@ typedef PartySeat = ({
 /// [terms] is what every machine in the party has to share, the physics
 /// backend for one: the first to ask sets them, and the relay turns away a
 /// machine asking with others — the future fails with the relay's reason.
+///
+/// [simulation] is the game's ([SimulationVersion], as `WireHello` carries
+/// it), held the same way: a party runs one, and a machine on another is
+/// turned away with a reason naming both. Null names none, which meets only
+/// another that names none. The protocol this build speaks
+/// always goes with it, and a relay of another major turns the machine away.
 Future<PartySeat> joinParty(
   Uri relay,
   String code, {
   int size = 4,
   bool watching = false,
   String terms = '',
+  SimulationVersion? simulation,
   void Function(int slot)? left,
   Duration timeout = const Duration(seconds: 10),
 }) => _seat(
@@ -44,6 +53,7 @@ Future<PartySeat> joinParty(
     queryParameters: <String, String>{
       if (!watching) 'size': '$size',
       if (terms.isNotEmpty) 'terms': terms,
+      ..._versions(simulation),
     },
   ),
   code: code,
@@ -58,13 +68,15 @@ Future<PartySeat> joinParty(
 /// player arrives, which is when a game should start.
 ///
 /// [game] keeps games apart: two games on one relay, or one game's
-/// circuits, never match each other's players. So do [terms], as
-/// [joinParty] reads them.
+/// circuits, never match each other's players. So do [terms] and
+/// [simulation], as [joinParty] reads them: a match forms only between
+/// builds on the same simulation.
 Future<PartySeat> findParty(
   Uri relay, {
   required String game,
   int size = 4,
   String terms = '',
+  SimulationVersion? simulation,
   void Function(int slot)? left,
   Duration timeout = const Duration(seconds: 10),
 }) => _seat(
@@ -74,11 +86,39 @@ Future<PartySeat> findParty(
       'size': '$size',
       'game': game,
       if (terms.isNotEmpty) 'terms': terms,
+      ..._versions(simulation),
     },
   ),
   left: left,
   timeout: timeout,
 );
+
+/// The address of the two-player room [code] on the relay at [relay] —
+/// `ws://host:port/` — for [WebSocketTransport.connect], asking with
+/// [terms], this build's protocol and the game's [simulation], as
+/// [joinParty] does: a machine on another simulation is closed with
+/// the relay's reason, which [WebSocketTransport.closed] answers.
+Uri relayRoom(
+  Uri relay,
+  String code, {
+  String terms = '',
+  SimulationVersion? simulation,
+}) => relay.replace(
+  pathSegments: <String>['room', code],
+  queryParameters: <String, String>{
+    if (terms.isNotEmpty) 'terms': terms,
+    ..._versions(simulation),
+  },
+);
+
+/// The versions a relay is asked with: this build's protocol, and the
+/// game's [simulation] when it names one.
+Map<String, String> _versions(SimulationVersion? simulation) =>
+    <String, String>{
+      'protocol':
+          '${WireHello.currentProtocolMajor}.${WireHello.currentProtocolMinor}',
+      'simulation': ?simulation?.describe(),
+    };
 
 Future<PartySeat> _seat(
   Uri at, {
@@ -89,7 +129,6 @@ Future<PartySeat> _seat(
   final socket = await WebSocketTransport.connect(at);
   final welcomed = Completer<({int slot, int size, String code})>();
   final full = Completer<void>();
-  final peer = NetTransportWire(socket);
   void Function(Map<String, Object?>)? onward;
   socket.listen((Map<String, Object?> message) {
     switch (message) {
@@ -122,8 +161,8 @@ Future<PartySeat> _seat(
     }),
   );
   final seat = await welcomed.future.timeout(timeout);
-  final wire = PartyWire.over(
-    _Forwarding(peer, (listener) => onward = listener),
+  final wire = PeerWire.party(
+    _Forwarding(socket, (listener) => onward = listener),
     slot: seat.slot,
   );
   return (
@@ -136,10 +175,18 @@ Future<PartySeat> _seat(
   );
 }
 
-/// [inner]'s sending, and a listener [attach] puts behind the relay's own
-/// messages.
-final class _Forwarding implements PeerWire {
-  _Forwarding(this.inner, this.attach);
+/// [inner]'s sending, and what [attach] hands on from behind the relay's
+/// own messages delivered to whoever listens.
+final class _Forwarding extends PeerWire {
+  _Forwarding(this.inner, this.attach) {
+    attach(deliver);
+  }
+
+  @override
+  WireState get state => inner.state;
+
+  @override
+  Future<void> close() => inner.close();
 
   final PeerWire inner;
   final void Function(void Function(Map<String, Object?>) listener) attach;
@@ -147,8 +194,4 @@ final class _Forwarding implements PeerWire {
   @override
   void send(Map<String, Object?> message, {bool reliable = true}) =>
       inner.send(message, reliable: reliable);
-
-  @override
-  void listen(void Function(Map<String, Object?> message) onMessage) =>
-      attach(onMessage);
 }

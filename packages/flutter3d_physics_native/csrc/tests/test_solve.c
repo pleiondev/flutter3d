@@ -26,7 +26,7 @@ static F3dQuat turn_about(F3dVec3 axis, double angle) {
  * origin. */
 static F3dWorld *with_floor(F3dQuat q, F3dBody *floor) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   const F3dMat3 m = f3d_mat_of(q);
   const F3dVec3 at = f3d_scale(m.c[1], F3D_R(-0.5));
   *floor = f3d_body_create(w, F3D_BODY_FIXED, at.x, at.y, at.z, 0);
@@ -73,7 +73,7 @@ static void test_crate_comes_to_rest(void) {
       held += w->manifolds[i].points[k].normal_impulse;
     }
   }
-  CHECK_NEAR(held, 9.81 / 240.0, 2e-2);
+  CHECK_NEAR(held, STANDARD_G / 240.0, 2e-2);
   f3d_world_destroy(w);
 }
 
@@ -126,7 +126,7 @@ static void test_bounce(void) {
     if (v[1] < -fastest_down) fastest_down = -v[1];
     if (v[1] > fastest_up) fastest_up = v[1];
   }
-  CHECK_NEAR(fastest_down, sqrt(2 * 9.81 * 2), 0.03);
+  CHECK_NEAR(fastest_down, sqrt(2 * STANDARD_G * 2), 0.03);
   CHECK_NEAR(fastest_up, 0.5 * fastest_down, 0.03);
   f3d_world_destroy(w);
 }
@@ -159,7 +159,7 @@ static void test_slope(void) {
     if (grip) {
       CHECK(fabs(along1) < 1e-2);
     } else {
-      const double a = 9.81 * (sin(theta) - 0.3 * cos(theta));
+      const double a = STANDARD_G * (sin(theta) - 0.3 * cos(theta));
       CHECK_NEAR(along1 - along0, a, 0.03);
     }
     f3d_world_destroy(w);
@@ -189,7 +189,7 @@ static void test_rolling(void) {
   f3d_body_get_velocity(w, ball, v1);
   f3d_body_get_angular_velocity(w, ball, spin);
   const double a = length(v1) - length(v0);
-  CHECK_NEAR(a, 5.0 / 7.0 * 9.81 * sin(theta), 0.03);
+  CHECK_NEAR(a, 5.0 / 7.0 * STANDARD_G * sin(theta), 0.03);
   CHECK_NEAR(length(spin) * (double)r / length(v1), 1, 0.02);
   f3d_world_destroy(w);
 }
@@ -226,7 +226,7 @@ static void test_thin_rod_stays_sane(void) {
    * off at hundreds of millions of radians a second. */
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   const F3dBody wall = f3d_body_create(w, F3D_BODY_FIXED, F3D_R(0.5), 0, 0, 0);
   f3d_body_set_shape(w, wall, F3D_SHAPE_BOX, F3D_R(0.05), 2, 2);
@@ -258,7 +258,7 @@ static void test_collision_keeps_momentum(void) {
   for (int elastic = 0; elastic < 2; elastic++) {
     F3dWorld *w = f3d_world_create();
     f3d_world_set_gravity(w, 0, 0, 0);
-    f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+    f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
     const F3dBody a = f3d_body_create(w, F3D_BODY_DYNAMIC, -1, 0, 0, 1);
     const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 1, 0, 0, 1);
     f3d_body_set_shape(w, a, F3D_SHAPE_SPHERE, F3D_R(0.25), 0, 0);

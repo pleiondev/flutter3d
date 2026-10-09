@@ -5,7 +5,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart'
-    show CollisionWorld, PhysicsBackend;
+    show CollisionWorld, DartPhysics, PhysicsBackend;
 
 import '../input/input_state.dart';
 import '../input/input_tape.dart';
@@ -42,7 +42,7 @@ final class ResimulationOnOtherPhysics extends Resimulation {
   /// `Demo.physics`.
   final String recorded;
 
-  /// `PhysicsBackend.current.name`.
+  /// The name of the physics backend the replay runs on.
   final String running;
 }
 
@@ -109,23 +109,26 @@ Resimulation resimulate({
   required Level level,
   required Demo demo,
   int sampleEvery = 10,
+
+  /// The fixed step, in seconds.
   double dt = 1.0 / 60.0,
+  PhysicsBackend physics = const DartPhysics(),
 }) {
   assert(sampleEvery > 0, 'a sample every no steps is no trail');
   final found = level.digestHex;
   if (found != demo.levelHash) {
     return ResimulationLevelChanged(found: found, recorded: demo.levelHash);
   }
-  final running = PhysicsBackend.current.name;
+  final running = physics.name;
   if (demo.physics case final String recorded when recorded != running) {
     return ResimulationOnOtherPhysics(recorded: recorded, running: running);
   }
 
-  final world = CollisionWorld();
+  final world = CollisionWorld(backend: physics);
   level.addTo(world);
-  // On the physics it was recorded on, which is the run's now; a game that
-  // stages dynamics of its own takes the world over.
-  PhysicsBackend.current.attach(world);
+  // On the physics it was recorded on, [physics]; a game that stages
+  // dynamics of its own takes the world over.
+  physics.attach(world);
   final input = InputState();
   final run = game.start(level, world, input);
   world.update();

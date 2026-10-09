@@ -1,3 +1,6 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show orderByConstraints;
+
 /// A named point inside a fixed step, which a game announces as it reaches it.
 ///
 /// **A value class over a string, for the same reason `GameAction` is one.** The
@@ -44,7 +47,7 @@ final class StepPhase {
 final class StepContext {
   StepContext._();
 
-  /// Seconds this step advances the world by. Fixed; see [FixedStep].
+  /// Seconds this step advances the world by. Fixed; see `EngineLoop.stepSeconds`.
   double dt = 0.0;
 
   /// Which phase is running. A system registered for two phases can tell them
@@ -73,59 +76,79 @@ typedef StepSystem = void Function(StepContext step);
 ///
 /// ## The order is the whole of the contract
 ///
-/// A step reaches for no clock and no loose dice (ARCHITECTURE.md §9.3), and a system added
-/// here is part of the step: two runs of the same tape must call the same
-/// systems in the same order or the determinism the tape rests on is gone. So
-/// systems run by [SystemRegistration.order] and then by the order they were
-/// added — never by whatever order a hash map happens to hand back, which Dart
-/// does not promise is the same from one run to the next.
+/// A step reaches for no clock and no loose dice (ARCHITECTURE.md §9.3), and a
+/// system added here is part of the step: two runs of the same tape must call
+/// the same systems in the same order or the determinism the tape rests on is
+/// gone. So systems run in the order they were added, moved only by named
+/// `after` and `before` constraints — **the same rule the engine's loop
+/// orders its own systems by** (`LoopRegistry.addSystem`), sorted by the same
+/// `orderByConstraints` — and never by whatever order a hash map happens to
+/// hand back.
 ///
-/// [order] exists because "added first" is not always the answer: a system that
-/// must observe what every other system did cannot be registered before code it
-/// does not know about. Ties are broken by registration, so the common case
-/// needs no numbers at all.
+/// A constraint names another system's [SystemRegistration.label] in the same
+/// phase. One naming a system that is not registered is ignored, so "before
+/// the fire rule" from a rule that works with or without it needs no check; a
+/// cycle is an error naming every member of it.
 final class StepSystems {
   final Map<String, List<SystemRegistration>> _byPhase =
+      <String, List<SystemRegistration>>{};
+  final Map<String, List<SystemRegistration>> _ordered =
       <String, List<SystemRegistration>>{};
   int _added = 0;
 
   /// Whether anything is registered. A genre checks this to skip announcing.
-  bool get isEmpty => _byPhase.isEmpty;
+  bool get isEmpty => _byPhase.values.every((list) => list.isEmpty);
 
   /// Adds [system] to [phase], returning the handle that removes it again.
   ///
-  /// Lower [order] runs first; equal orders run in the order they were added.
+  /// [label] names it, for a constraint in another system and a diagnostic
+  /// overlay; unique among [phase]'s systems when given. [after] and
+  /// [before] name the systems of [phase] it runs after and before; where
+  /// they leave a choice, the order of adding decides.
+  ///
+  /// Throws an [ArgumentError] for a [label] [phase] already has.
   SystemRegistration add(
     StepPhase phase,
     StepSystem system, {
-    int order = 0,
     String? label,
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
   }) {
+    final list = _byPhase.putIfAbsent(phase.name, () => <SystemRegistration>[]);
+    if (label != null && list.any((r) => r.label == label)) {
+      throw ArgumentError.value(
+        label,
+        'label',
+        'a system labelled "$label" is already in ${phase.name}',
+      );
+    }
     final registration = SystemRegistration._(
       phase: phase,
       system: system,
-      order: order,
       sequence: _added++,
       label: label,
+      after: List<String>.unmodifiable(after),
+      before: List<String>.unmodifiable(before),
     );
-    final list = _byPhase.putIfAbsent(phase.name, () => <SystemRegistration>[]);
-    // Inserted in place rather than sorted on every run: a step runs sixty
+    list.add(registration);
+    // Sorted when the phase next runs rather than here: a step runs sixty
     // times a second and registration happens when a level loads.
-    var at = list.length;
-    while (at > 0 && _before(registration, list[at - 1])) {
-      at--;
-    }
-    list.insert(at, registration);
+    _ordered.remove(phase.name);
     return registration;
   }
 
   /// Removes a system added earlier. Removing one that is already gone is not
   /// an error — a level torn down twice should not be.
   void remove(SystemRegistration registration) {
-    _byPhase[registration.phase.name]?.remove(registration);
+    final list = _byPhase[registration.phase.name];
+    if (list == null || !list.remove(registration)) return;
+    _ordered.remove(registration.phase.name);
   }
 
-  void clear() => _byPhase.clear();
+  void clear() {
+    _byPhase.clear();
+    _ordered.clear();
+  }
 
   /// Runs everything registered for [phase]. Called by the genre's `step`.
   ///
@@ -135,10 +158,11 @@ final class StepSystems {
   void run(StepPhase phase, double dt) {
     final list = _byPhase[phase.name];
     if (list == null || list.isEmpty) return;
+    final ordered = _orderOf(phase.name, list);
     _context
       ..dt = dt
       ..phase = phase;
-    for (final registration in List<SystemRegistration>.of(list)) {
+    for (final registration in List<SystemRegistration>.of(ordered)) {
       registration.system(_context);
     }
   }
@@ -148,13 +172,22 @@ final class StepSystems {
 
   /// What is registered for [phase], in the order it will run. For tests and
   /// for a diagnostic overlay that answers "what is running in this step".
-  List<SystemRegistration> forPhase(StepPhase phase) =>
-      List<SystemRegistration>.unmodifiable(
-        _byPhase[phase.name] ?? const <SystemRegistration>[],
-      );
+  List<SystemRegistration> forPhase(StepPhase phase) {
+    final list = _byPhase[phase.name];
+    if (list == null || list.isEmpty) return const <SystemRegistration>[];
+    return List<SystemRegistration>.unmodifiable(_orderOf(phase.name, list));
+  }
 
-  static bool _before(SystemRegistration a, SystemRegistration b) =>
-      a.order != b.order ? a.order < b.order : a.sequence < b.sequence;
+  List<SystemRegistration> _orderOf(
+    String phase,
+    List<SystemRegistration> list,
+  ) => _ordered[phase] ??= orderByConstraints<SystemRegistration>(
+    List<SystemRegistration>.of(list),
+    nameOf: (r) => r.label ?? '#${r.sequence}',
+    after: (r) => r.after,
+    before: (r) => r.before,
+    what: 'systems in step phase $phase',
+  );
 }
 
 /// One registered system, and the handle that removes it.
@@ -162,23 +195,29 @@ final class SystemRegistration {
   const SystemRegistration._({
     required this.phase,
     required this.system,
-    required this.order,
     required this.sequence,
+    required this.after,
+    required this.before,
     this.label,
   });
 
   final StepPhase phase;
   final StepSystem system;
-  final int order;
 
-  /// When this was added, used only to break ties in [order].
+  /// When this was added, which decides where the constraints leave a
+  /// choice.
   final int sequence;
 
-  /// A name for a diagnostic overlay. Nothing depends on it.
+  /// The systems of [phase] this runs after, by label.
+  final List<String> after;
+
+  /// The systems of [phase] this runs before, by label.
+  final List<String> before;
+
+  /// The name a constraint and a diagnostic overlay know it by.
   final String? label;
 
   @override
   String toString() =>
-      'SystemRegistration(${label ?? 'unnamed'} '
-      'in ${phase.name}, order $order)';
+      'SystemRegistration(${label ?? 'unnamed'} in ${phase.name})';
 }

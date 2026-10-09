@@ -99,10 +99,8 @@ double _lowest(ClothMesh m) => <double>[
 void main() {
   test('the run\'s backend makes its cloth: the core\'s, or the '
       'reference\'s when the build asks for it', () async {
-    final was = PhysicsBackend.current;
-    addTearDown(() => PhysicsBackend.current = was);
-    await startPhysics();
-    final cloth = PhysicsBackend.current.cloth(_sheet());
+    final backend = (await startPhysics()).backend;
+    final cloth = backend.cloth(_sheet());
     addTearDown(cloth.dispose);
     expect(
       cloth,

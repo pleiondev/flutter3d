@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
+
 /// `net-02`'s relay: one process, rooms named by a code in the URL path,
 /// no accounts.
 ///
@@ -10,9 +12,9 @@ import 'dart:math' as math;
 /// `/room/<code>` — the first two sockets to ask for a given code are
 /// joined, and everything one of them sends is forwarded to the other,
 /// verbatim and unparsed. A third asking for a code already holding two is
-/// refused rather than queued: `net-01`'s own `NetSession` is a two-player
-/// design, and a relay that queued a third would be promising something
-/// nothing on the other end can use.
+/// refused rather than queued: a room is two machines, and a relay that
+/// queued a third would be promising something nothing on the other end can
+/// use. A party is `/party`, below.
 ///
 /// **Doubles as either half of `net-02`'s two transports, and does not
 /// need to know which.** For [WebSocketTransport] this *is* the data path,
@@ -25,7 +27,8 @@ import 'dart:math' as math;
 /// is the whole reason one relay serves both.
 ///
 /// `/party/<code>?size=N` — a party of up to N (two to thirty-two), for
-/// `flame_multiplayer`'s `PartyRollback` and `AuthorityServer`: everything
+/// this package's `RollbackSession` and `flame_multiplayer`'s
+/// `AuthorityServer`: everything
 /// one sends goes to every other, and each is told its slot first, in a
 /// message of the relay's own — `{"relay": "welcome", "slot": k, "size":
 /// N}` — since a party's slots have to be the same numbers on every
@@ -49,16 +52,34 @@ import 'dart:math' as math;
 /// Matchmaking keys on them, so strangers on different terms are never put
 /// together. No `terms` is the empty text, and is held to like any other.
 ///
+/// `simulation=<text>` on any of the three — the game's simulation
+/// (`SimulationVersion.describe`, as `WireHello.simulation` carries it),
+/// held like terms: the first machine sets it, one on another is closed with
+/// a reason naming both, and matchmaking keys on it, so a match forms only
+/// between builds that compute the same step. No `simulation` is one of its
+/// own, "none", met only by another that names none.
+///
+/// `protocol=<major>.<minor>` — the protocol the machine speaks. One whose
+/// major is not this relay's is closed with a reason naming the major to
+/// update to; a lower or higher minor is let in, since within a major the
+/// protocol only grows. A machine that names no protocol is let in as
+/// before: the relay forwards what it cannot read, and the machines' own
+/// hello (`PeerRoom`) judges each other. A party's welcome names the
+/// relay's protocol as `"protocol": [major, minor]`.
+///
 /// [port] defaults to `0`, which asks the system for whichever port is
 /// free — the line this prints on startup is how a caller that bound to
 /// `0` (a test, most often) reads back which one it actually got.
 /// One party: its players by slot, nobody in a slot that was left, and its
 /// spectators.
 final class _Party {
-  _Party(this.size, this.terms);
+  _Party(this.size, this.terms, this.simulation);
 
   final int size;
   final String terms;
+
+  /// The simulation version its first machine named, "none" for none.
+  final String simulation;
   final List<WebSocket?> players = <WebSocket?>[];
   final List<WebSocket> watchers = <WebSocket>[];
 
@@ -77,8 +98,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('flutter3d_net relay listening on ${server.port}');
 
   final rooms = <String, List<WebSocket>>{};
-  // What the first socket of each room asked for.
+  // What the first socket of each room asked for: terms and simulation.
   final roomTerms = <String, String>{};
+  final roomSimulation = <String, String>{};
   final parties = <String, _Party>{};
   // The party still filling for each game and size, by its code.
   final filling = <String, String>{};
@@ -96,7 +118,9 @@ Future<void> main(List<String> args) async {
     if (segments.length == 1 && segments[0] == 'match') {
       final query = request.uri.queryParameters;
       final size = (int.tryParse(query['size'] ?? '') ?? 4).clamp(2, 32);
-      final key = '${query['game'] ?? ''}/$size/${_termsOf(request)}';
+      final key =
+          '${query['game'] ?? ''}/$size/${_termsOf(request)}'
+          '/${_simulationOf(request)}';
       final open = filling[key];
       final code = open != null && parties.containsKey(open)
           ? open
@@ -129,6 +153,7 @@ Future<void> main(List<String> args) async {
     }
     final code = segments[1];
     final socket = await WebSocketTransformer.upgrade(request);
+    if (await _refusedProtocol(socket, request)) continue;
     final room = rooms.putIfAbsent(code, () => <WebSocket>[]);
     if (room.length >= 2) {
       await socket.close(
@@ -146,6 +171,15 @@ Future<void> main(List<String> args) async {
       );
       continue;
     }
+    final simulation = _simulationOf(request);
+    final heldSimulation = roomSimulation.putIfAbsent(code, () => simulation);
+    if (heldSimulation != simulation) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        _otherSimulation('room $code', heldSimulation, simulation),
+      );
+      continue;
+    }
     room.add(socket);
     socket.listen(
       (message) {
@@ -158,6 +192,7 @@ Future<void> main(List<String> args) async {
         if (room.isEmpty) {
           rooms.remove(code);
           roomTerms.remove(code);
+          roomSimulation.remove(code);
         }
       },
     );
@@ -184,13 +219,17 @@ Future<void> _joinParty(
     return;
   }
   final terms = _termsOf(request);
-  final room = parties[code] ??= _Party(asked.clamp(2, 32), terms);
+  final simulation = _simulationOf(request);
   final socket = await WebSocketTransformer.upgrade(request);
-  if (room.terms != terms) {
-    await socket.close(
-      WebSocketStatus.policyViolation,
-      _otherTerms('party $code', room.terms, terms),
-    );
+  if (await _refusedProtocol(socket, request)) return;
+  final room = parties[code] ??= _Party(asked.clamp(2, 32), terms, simulation);
+  final refusal = room.terms != terms
+      ? _otherTerms('party $code', room.terms, terms)
+      : room.simulation != simulation
+      ? _otherSimulation('party $code', room.simulation, simulation)
+      : null;
+  if (refusal != null) {
+    await socket.close(WebSocketStatus.policyViolation, refusal);
     if (room.everyone.isEmpty) parties.remove(code);
     return;
   }
@@ -221,6 +260,10 @@ Future<void> _joinParty(
       'size': room.size,
       'watching': watching,
       'code': code,
+      'protocol': <int>[
+        WireHello.currentProtocolMajor,
+        WireHello.currentProtocolMinor,
+      ],
     }),
   );
   if (!watching && room.players.nonNulls.length == room.size) {
@@ -255,12 +298,49 @@ Future<void> _joinParty(
 String _termsOf(HttpRequest request) =>
     request.uri.queryParameters['terms'] ?? '';
 
+/// The simulation version [request] named, "none" when it named none.
+String _simulationOf(HttpRequest request) =>
+    request.uri.queryParameters['simulation'] ?? 'none';
+
+/// Closes [socket] when [request] names a protocol whose major is not this
+/// relay's, with a reason naming the major to update to; whether it did.
+/// A request naming no protocol, or one this relay cannot read, is let in.
+Future<bool> _refusedProtocol(WebSocket socket, HttpRequest request) async {
+  final named = request.uri.queryParameters['protocol'];
+  final major = int.tryParse(named?.split('.').first ?? '');
+  const ours = WireHello.currentProtocolMajor;
+  if (major == null || major == ours) return false;
+  await socket.close(
+    WebSocketStatus.policyViolation,
+    _cut(
+      major < ours
+          ? 'this relay speaks protocol $ours and this machine $named: '
+                'update to protocol $ours'
+          : 'this relay speaks protocol $ours and this machine $named: '
+                'the relay has to update to protocol $major',
+    ),
+  );
+  return true;
+}
+
+/// Why a machine on simulation version [asked] was turned away from
+/// [what], which runs [held]: which side has to update, and to what.
+String _otherSimulation(String what, String held, String asked) {
+  final (h, a) = (int.tryParse(held), int.tryParse(asked));
+  final update = h != null && a != null && a > h
+      ? 'its players have to update to simulation $asked'
+      : 'update to simulation $held';
+  return _cut('$what runs simulation $held and this machine $asked: $update');
+}
+
 /// Why a machine asking with [asked] was turned away from [what], held to
 /// [held]. The close reason a client shows, cut to the 123 bytes a close
 /// frame carries.
-String _otherTerms(String what, String held, String asked) {
-  final reason =
-      '$what plays under "$held", and this machine asked for "$asked"';
+String _otherTerms(String what, String held, String asked) =>
+    _cut('$what plays under "$held", and this machine asked for "$asked"');
+
+/// [reason] cut to the 123 bytes a close frame carries.
+String _cut(String reason) {
   final bytes = utf8.encode(reason);
   return bytes.length <= 123
       ? reason

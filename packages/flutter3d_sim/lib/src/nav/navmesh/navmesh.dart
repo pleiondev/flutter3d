@@ -58,7 +58,7 @@ final class NavMesh {
     required this._tileContours,
     required this._vertices,
     required this._polygons,
-    required this._neighbours,
+    required this._neighbors,
     required this._areas,
     required this._columnStart,
     required this._floors,
@@ -66,14 +66,18 @@ final class NavMesh {
   });
 
   /// What the mesh was baked to. Part of [digest].
-  final NavMeshConfig config;
+  final NavMeshSettings config;
 
   /// The cells the mesh was baked on, which a part baked again keeps.
   final NavLattice lattice;
 
-  /// The world position of lattice point `(0, 0, 0)`.
+  /// The world position of lattice point `(0, 0, 0)`: its X, in metres.
   double get originX => lattice.originX;
+
+  /// Lattice point `(0, 0, 0)`'s Y, in metres.
   double get originY => lattice.originY;
+
+  /// Lattice point `(0, 0, 0)`'s Z, in metres.
   double get originZ => lattice.originZ;
 
   /// The outlines the polygons were cut from, tile by tile, in tile order:
@@ -82,7 +86,7 @@ final class NavMesh {
 
   final Int32List _vertices;
   final Int32List _polygons;
-  final Int32List _neighbours;
+  final Int32List _neighbors;
   final Uint8List _areas;
 
   /// The floors a body may stand on, column by column of the lattice, in
@@ -149,8 +153,8 @@ final class NavMesh {
 
   /// The polygon across edge [k] of [polygon] — the edge from corner `k` to
   /// corner `k + 1` — or −1 where the edge is a wall or a drop.
-  int neighbourAt(int polygon, int k) =>
-      _neighbours[polygon * maxVerticesPerPolygon + k];
+  int neighborAt(int polygon, int k) =>
+      _neighbors[polygon * maxVerticesPerPolygon + k];
 
   /// The surface [polygon] is, from the bake's `areaOf`. Never [NavArea.none].
   int areaOf(int polygon) => _areas[polygon];
@@ -376,7 +380,7 @@ final class NavMesh {
       ..add(<double>[originX, originY, originZ])
       ..add(_vertices)
       ..add(_polygons)
-      ..add(_neighbours)
+      ..add(_neighbors)
       ..add(_areas)
       ..add(_columnStart)
       ..add(_floors);
@@ -408,7 +412,7 @@ final class NavMesh {
   /// `expandRecipes`.
   static NavMesh bakeLevel(
     Level level, {
-    NavMeshConfig config = const NavMeshConfig(),
+    NavMeshSettings config = const NavMeshSettings(),
     int Function(Brush brush)? areaOf,
     int groundArea = NavArea.ground,
     JumpReach? jumps,
@@ -433,7 +437,7 @@ final class NavMesh {
   static List<NavMesh> bakeLevelFor(
     Level level,
     Iterable<(double radius, double height)> bodies, {
-    NavMeshConfig config = const NavMeshConfig(),
+    NavMeshSettings config = const NavMeshSettings(),
     int Function(Brush brush)? areaOf,
     JumpReach? jumps,
     double maxFall = 2.0,
@@ -480,7 +484,7 @@ final class NavMesh {
   static NavMesh bake(
     Iterable<Brush> brushes, {
     Heightfield? ground,
-    NavMeshConfig config = const NavMeshConfig(),
+    NavMeshSettings config = const NavMeshSettings(),
     int Function(Brush brush)? areaOf,
     int groundArea = NavArea.ground,
     JumpReach? jumps,
@@ -543,8 +547,8 @@ final class NavMesh {
   /// erosion around them are rasterised for that, a fixed amount whatever
   /// the size of the level.
   ///
-  /// Refused for a mesh baked without tiles ([NavMeshConfig.tileSize]),
-  /// with jumps, or with [NavMeshConfig.minIslandArea]: an island is a fact
+  /// Refused for a mesh baked without tiles ([NavMeshSettings.tileSize]),
+  /// with jumps, or with [NavMeshSettings.minIslandArea]: an island is a fact
   /// about all of a floor, and a jump about everything within a flight.
   /// The level may not grow past the lattice: what is outside it is not
   /// baked.
@@ -663,7 +667,7 @@ final class NavMesh {
 
   /// How many tiles across and down [lattice] is cut into: one by one when
   /// it is not tiled.
-  static (int, int) _tileCounts(NavMeshConfig config, NavLattice lattice) {
+  static (int, int) _tileCounts(NavMeshSettings config, NavLattice lattice) {
     final size = config.tileSize;
     if (size == 0) return (1, 1);
     return (
@@ -679,7 +683,7 @@ final class NavMesh {
   _bakeWindow(
     Iterable<Brush> brushes, {
     required Heightfield? ground,
-    required NavMeshConfig config,
+    required NavMeshSettings config,
     required int Function(Brush brush) areaOf,
     required int groundArea,
     required NavLattice lattice,
@@ -747,7 +751,7 @@ final class NavMesh {
 
   /// The mesh cut from [tileContours], every tile's in tile order.
   static NavMesh _assemble(
-    NavMeshConfig config,
+    NavMeshSettings config,
     NavLattice lattice,
     List<List<Contour>> tileContours,
     Int32List columnStart,
@@ -763,7 +767,7 @@ final class NavMesh {
       tileContours: tileContours,
       vertices: parts.vertices,
       polygons: parts.polygons,
-      neighbours: parts.neighbours,
+      neighbors: parts.neighbors,
       areas: parts.areas,
       columnStart: columnStart,
       floors: floors,

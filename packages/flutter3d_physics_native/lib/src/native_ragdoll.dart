@@ -19,7 +19,7 @@
 /// back as its body times that offset.
 library;
 
-import 'package:flutter3d_physics/flutter3d_physics.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
 import 'native_dynamics.dart';
@@ -104,8 +104,19 @@ typedef BonePose = ({Vector3 position, Quaternion orientation});
 final class NativeRagdoll {
   /// Made in [world] from [rest], the bones at rest, then moved to [pose],
   /// one pose a bone, moving as [velocity] and [spin] say when they are
-  /// given. Every joint resists turning with [friction] N m, or the ragdoll
-  /// never comes to rest. When the world is a [NativeDynamics]', [dynamics]
+  /// given. Every joint resists turning with [friction] N·m, or the ragdoll
+  /// never comes to rest.
+  ///
+  /// **[friction] is a torque, not a coefficient**: the most a joint's
+  /// friction holds against, 2 N·m by default. A tuned value rather than a
+  /// measurement — enough that a limp body's limbs stop swinging once it
+  /// lies, little enough that a limb still falls under its own weight (an
+  /// adult forearm and hand, 1.6 kg with its centre 0.15 m out, weighs
+  /// 2.4 N·m on the elbow) — and of the order of the passive moments
+  /// measured at a relaxed human knee and hip near the middle of their range,
+  /// a few newton metres (Riener and Edrich, "Identification of passive
+  /// elastic joint moments in the lower extremities", J. Biomechanics 32,
+  /// 1999). When the world is a [NativeDynamics]', [dynamics]
   /// keeps these bodies through its restores.
   ///
   /// [layer] and [mask] are its bodies' collision filter. A ragdoll in the
@@ -137,8 +148,8 @@ final class NativeRagdoll {
       final along = bone.tail - bone.head;
       final length = along.length;
       final turn = _alongY(along);
-      final centre = (bone.head + bone.tail) * 0.5;
-      final body = world.addBody(position: centre, mass: bone.mass);
+      final center = (bone.head + bone.tail) * 0.5;
+      final body = world.addBody(position: center, mass: bone.mass);
       world
         ..setShape(
           body,
@@ -153,7 +164,7 @@ final class NativeRagdoll {
       // The bone's frame from the body's: inverse(body) · bone.
       final inverse = turn.conjugated();
       _offsetTurn.add(inverse * bone.orientation);
-      _offsetAt.add(turnBy(inverse, bone.head - centre));
+      _offsetAt.add(turnBy(inverse, bone.head - center));
       dynamics?.keep(body);
     }
     for (var i = 0; i < rest.length; i++) {
@@ -249,7 +260,8 @@ final class NativeRagdoll {
     final turn = world.orientationOf(_bodies[index]);
     return (
       position:
-          world.positionOf(_bodies[index]) + turnBy(turn, _offsetAt[index]),
+          world.localPositionOf(_bodies[index]) +
+          turnBy(turn, _offsetAt[index]),
       orientation: turn * _offsetTurn[index],
     );
   }

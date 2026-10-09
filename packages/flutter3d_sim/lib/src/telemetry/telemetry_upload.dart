@@ -3,13 +3,17 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show FormatDocument, FormatMigration, FormatSpec, Flutter3dFormatException;
+
 import '../save/demo.dart';
 import 'telemetry_consent.dart';
 
 /// Thrown when an upload cannot be read.
-final class TelemetryUploadFormatException implements Exception {
+final class TelemetryUploadFormatException extends Flutter3dFormatException {
   const TelemetryUploadFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -26,16 +30,37 @@ final class TelemetryUploadFormatException implements Exception {
 /// **Anonymous by construction.** [Demo.recordedBy] is dropped on the way in:
 /// where a level is hard needs no name, and a field that is never sent is a
 /// field nobody has to promise to delete.
-final class TelemetryUpload {
+final class TelemetryUpload extends FormatDocument {
   TelemetryUpload._({
     required this.game,
     required this.demo,
     required this.policy,
     required this.consentedAt,
+    super.unknown,
   });
 
-  /// Bumped when an existing field changes meaning.
+  /// Bumped when an existing field changes meaning, with a step in
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   static const int formatVersion = 1;
+
+  /// Entry `i` lifts an upload from version `i + 1` to `i + 2`; empty while
+  /// version 1 is the only one, so reading it is the identity.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
+  /// The telemetry upload in the registry: `f3d.telemetry`. The envelope is
+  /// additive at version 1, so a server from before it reads one.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.telemetry',
+    version: formatVersion,
+    suffixes: <String>['.upload.json'],
+    fixture: 'test/fixtures/v<N>/upload.json',
+    migrations: _migrations,
+  );
+
+  @override
+  FormatSpec get spec => format;
+
+  static const Set<String> _known = <String>{'game', 'consent', 'run'};
 
   /// An upload of [demo], or a sentence saying why there is none.
   ///
@@ -50,7 +75,7 @@ final class TelemetryUpload {
     if (!consent.allows(policy)) {
       return (
         upload: null,
-        says: switch ((consent.asked, consent.granted)) {
+        says: switch ((consent.wasAsked, consent.isGranted)) {
           (false, _) =>
             'not sent: the player has not been asked whether runs may be '
                 'sent — ask, and send once they say yes',
@@ -88,16 +113,23 @@ final class TelemetryUpload {
 
   /// Reads an upload, or throws a [TelemetryUploadFormatException] that says
   /// why not — a server's side of [toJson].
-  factory TelemetryUpload.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
-    if (version is! num) {
+  factory TelemetryUpload.fromJson(Map<String, Object?> json) =>
+      TelemetryUpload._read(json);
+
+  factory TelemetryUpload._read(Map<String, Object?> document) {
+    final version = document['version'];
+    if (version is! num || version < 1) {
       throw const TelemetryUploadFormatException('the upload has no version');
     }
-    if (version > formatVersion) {
-      throw TelemetryUploadFormatException(
-        'the upload is format $version and this reads $formatVersion',
-      );
-    }
+
+    // A server reads every upload any 1.x game sent (decision 8 of
+    // `tasks/1.0-stability.md`): older formats are lifted step by step.
+    // Mutation: skip the chain and an old upload reads with new meanings.
+    // A newer one is refused by the spec, naming both versions.
+    final json = format.open(
+      document,
+      refuse: TelemetryUploadFormatException.new,
+    );
     final game = json['game'];
     if (game is! String || game.isEmpty) {
       throw const TelemetryUploadFormatException('the upload names no game');
@@ -127,6 +159,7 @@ final class TelemetryUpload {
       demo: demo,
       policy: policy,
       consentedAt: at,
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
   }
 
@@ -135,15 +168,14 @@ final class TelemetryUpload {
   final String policy;
   final DateTime consentedAt;
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+  Map<String, Object?> toJson() => write(<String, Object?>{
     'game': game,
     'consent': <String, Object?>{
       'policy': policy,
       'at': consentedAt.toUtc().toIso8601String(),
     },
     'run': demo.toJson(),
-  };
+  });
 }
 
 /// What a server gave back for an accepted run: its number there, and the key
@@ -164,7 +196,13 @@ typedef TelemetrySent = ({bool did, String says, TelemetryReceipt? receipt});
 
 /// Where uploads go. The HTTP one is [HttpTelemetrySink]; a test hands in its
 /// own.
-abstract interface class TelemetrySink {
+///
+/// **Extended outside this package: an `abstract base class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every sink keeps compiling.
+abstract base class TelemetrySink {
+  const TelemetrySink();
+
   Future<TelemetrySent> deliver(TelemetryUpload upload);
 }
 
@@ -178,7 +216,7 @@ typedef JsonPost =
 
 /// Sends uploads to a server's `POST /api/telemetry/runs`, which the
 /// reference server in `cloud/` answers.
-final class HttpTelemetrySink implements TelemetrySink {
+final class HttpTelemetrySink extends TelemetrySink {
   const HttpTelemetrySink({required this.endpoint, required this.post});
 
   /// The server's runs endpoint, in full.

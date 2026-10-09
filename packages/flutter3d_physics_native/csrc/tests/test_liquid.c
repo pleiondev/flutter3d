@@ -23,7 +23,7 @@ static const double PI_D = 3.14159265358979323846;
 static F3dLiquidParticleSettings particle_settings(double spacing, double dt) {
   F3dLiquidParticleSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.spacing = (f3d_real)spacing;
   s.density = F3D_R(998.2);
   s.kinematic_viscosity = F3D_R(1.0e-6);
@@ -73,8 +73,8 @@ static void lone_particle(void) {
   s.substeps = 100;
   f3d_real p[6] = {0, 0, 0, 0, 0, 0};
   CHECK(f3d_liquid_particles(p, 1, NULL, 0, &s) == 1);
-  CHECK_NEAR(p[1], -9.81 * 1e-6 * 100 * 101 / 2, 1e-6);
-  CHECK_NEAR(p[4], -9.81 * 0.1, 1e-4);
+  CHECK_NEAR(p[1], -STANDARD_G * 1e-6 * 100 * 101 / 2, 1e-6);
+  CHECK_NEAR(p[4], -STANDARD_G * 0.1, 1e-4);
   CHECK(p[0] == F3D_R(0.0) && p[2] == F3D_R(0.0));
 
   /* On a floor it stays on it: never through, never thrown off. Alone,
@@ -205,7 +205,7 @@ static void parcel(f3d_real *r, const f3d_real x[3], const f3d_real v[3]) {
 static F3dLiquidStreamSettings stream_settings(void) {
   F3dLiquidStreamSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.dt = F3D_R(1.0 / 240.0);
   s.cling = (f3d_real)(0.0728 * (1.0 + cos(0.35)) / 998.2);
   return s;
@@ -220,11 +220,11 @@ static void parcels(void) {
   for (int i = 0; i < 24; i++) CHECK(f3d_liquid_parcels(r, 1, NULL, 0, &s) == 1);
   const double t = 0.1, h = 1.0 / 240.0;
   CHECK_NEAR(r[0], t, 1e-5);
-  CHECK_NEAR(r[1], 1.0 - 9.81 * h * h * 24 * 25 / 2, 1e-5);
+  CHECK_NEAR(r[1], 1.0 - STANDARD_G * h * h * 24 * 25 / 2, 1e-5);
   CHECK_NEAR(r[11], t, 1e-5);
   CHECK(r[12] > F3D_R(0.0));
   CHECK(r[13] == F3D_R(0.0));
-  CHECK_NEAR(r[7], r[1] + 9.81 * h * 24 * h, 1e-5);
+  CHECK_NEAR(r[7], r[1] + STANDARD_G * h * 24 * h, 1e-5);
 
   /* Thrown down at a floor, it runs along it at its sideways speed, the
    * downward part gone, and on a wall its ripples do not grow. */
@@ -257,13 +257,13 @@ static void modes(void) {
   F3dLiquidWaveSettings s;
   memset(&s, 0, sizeof s);
   s.dt = F3D_R(0.01);
-  s.g = F3D_R(9.81);
+  s.g = F3D_R(STANDARD_G);
   s.depth = F3D_R(1.0);
   s.area = F3D_R(1.0);
   const double k = 50.0;
   f3d_real m[F3D_LIQUID_MODE_FLOATS] = {(f3d_real)(k * k), 1, F3D_R(1e-4), 0, 0, 0};
   f3d_liquid_modes(m, 1, &s);
-  const double w = sqrt(9.81 * k);
+  const double w = sqrt(STANDARD_G * k);
   CHECK_NEAR(m[4], w * w, 1e-5 * w * w);
   CHECK_NEAR(m[5], 0.0, 1e-12);
   CHECK_NEAR(m[2] * 1e4, cos(w * 0.01), 1e-5);
@@ -326,7 +326,7 @@ static void floats(void) {
    * the push lifts it and drags it. */
   F3dLiquidFloatSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.dt = F3D_R(1.0 / 2000.0);
   const double radius = 0.001, volume = 4.0 / 3.0 * PI_D * radius * radius * radius;
   f3d_real body[F3D_LIQUID_BODY_FLOATS] = {0, 0, 0, (f3d_real)(1.0 / (7800.0 * volume))};
@@ -340,7 +340,7 @@ static void floats(void) {
   }
   /* Read, as a world reads it, after the body's own step. */
   body[1] += s.gravity[1] * s.dt;
-  const double stokes = 2.0 * (7800.0 - 1261.0) * 9.81 * radius * radius / (9.0 * 1.412);
+  const double stokes = 2.0 * (7800.0 - 1261.0) * STANDARD_G * radius * radius / (9.0 * 1.412);
   CHECK_NEAR(-body[1] * 100.0, stokes * 100.0, 0.01 * stokes * 100.0);
   CHECK(body[0] == F3D_R(0.0) && body[2] == F3D_R(0.0));
   /* Nothing under: nothing lifts or drags it. */

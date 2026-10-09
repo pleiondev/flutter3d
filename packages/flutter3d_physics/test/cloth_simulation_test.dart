@@ -9,7 +9,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A backend with a cloth of its own, which only counts the meshes it was
 /// given.
-final class _Counting implements PhysicsBackend, ClothPhysics {
+final class _Counting extends PhysicsBackend {
   final List<ClothMesh> given = <ClothMesh>[];
 
   @override
@@ -20,16 +20,6 @@ final class _Counting implements PhysicsBackend, ClothPhysics {
     given.add(mesh);
     return DartCloth(mesh);
   }
-
-  @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      const DartPhysics().dynamics(world, gravity: gravity);
-
-  @override
-  void attach(CollisionWorld world) {}
-
-  @override
-  void release(CollisionWorld world) {}
 }
 
 void main() {
@@ -55,8 +45,8 @@ void main() {
     final backend = _Counting();
     final mesh = ClothMesh.grid(cols: 4, rows: 4);
     backend.cloth(mesh);
-    // Through the extension too, as code that holds only a PhysicsBackend
-    // asks. Mutation: the extension always answering the reference.
+    // Through the base type too, as code that holds only a PhysicsBackend
+    // asks. Mutation: the base answering the reference.
     final PhysicsBackend current = backend;
     current.cloth(mesh);
     expect(backend.given, <ClothMesh>[mesh, mesh]);

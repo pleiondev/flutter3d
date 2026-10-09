@@ -13,6 +13,7 @@ final class SurfaceBuilder {
     this.material, {
     required this.shadowCasting,
     this.drawOrder = 0,
+    this.depthLayer = 0,
     this.lightmapped = false,
     this.brush,
   });
@@ -22,6 +23,10 @@ final class SurfaceBuilder {
 
   /// [Brush.drawOrder] of every brush these triangles came from.
   final int drawOrder;
+
+  /// The depth layer of every brush these triangles came from — see
+  /// [Brush.depthLayer].
+  final int depthLayer;
 
   /// The one brush these triangles belong to, when every brush is its own
   /// surface. See [BrushSurface.brush].
@@ -84,6 +89,7 @@ final class SurfaceBuilder {
     material: material,
     shadowCasting: shadowCasting,
     drawOrder: drawOrder,
+    depthLayer: depthLayer,
     positions: Float32List.fromList(_positions),
     normals: Float32List.fromList(_normals),
     texcoords: Float32List.fromList(_texcoords),

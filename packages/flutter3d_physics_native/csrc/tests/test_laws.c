@@ -12,12 +12,13 @@
 
 #include "check.h"
 
-static const double G = 9.81;
+/* Water's density as a pool starts, kg/m³: the catalogue's. */
+static const double WATER = (double)F3D_MAT_WATER_DENSITY;
 
 static F3dWorld *vacuum(void) {
   F3dWorld *w = f3d_world_create();
   /* Air too thin to slow anything; not nought, which the world refuses. */
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   return w;
 }
@@ -36,8 +37,8 @@ static void test_free_fall(void) {
   f3d_real v[3], p[3];
   f3d_body_get_velocity(w, b, v);
   f3d_body_get_position(w, b, p);
-  CHECK_NEAR(-v[1], G, 1e-4);
-  CHECK_NEAR(100 - p[1], 0.5 * G, 0.01);
+  CHECK_NEAR(-v[1], world_gravity(w), 1e-4);
+  CHECK_NEAR(100 - p[1], 0.5 * world_gravity(w), 0.01);
   f3d_world_destroy(w);
 }
 
@@ -57,7 +58,7 @@ static void test_sum_of_forces(void) {
   f3d_body_get_velocity(w, b, v);
   /* One second: (8, 30 − 4g, 8) / 4. */
   CHECK_NEAR(v[0], 8.0 / 4, 1e-4);
-  CHECK_NEAR(v[1], (30 - 4 * G) / 4, 1e-4);
+  CHECK_NEAR(v[1], (30 - 4 * world_gravity(w)) / 4, 1e-4);
   CHECK_NEAR(v[2], 8.0 / 4, 1e-4);
   f3d_world_destroy(w);
 }
@@ -189,7 +190,7 @@ static void test_archimedes_under_water(void) {
   f3d_world_step(w, dt);
   f3d_real v[3];
   f3d_body_get_velocity(w, b, v);
-  const double a = (mass - 1000 * volume) * G / (mass + 0.5 * 1000 * volume);
+  const double a = (mass - WATER * volume) * world_gravity(w) / (mass + 0.5 * WATER * volume);
   CHECK_NEAR(-v[1], a * (double)dt, 0.03 * a * (double)dt);
   f3d_world_destroy(w);
 }
@@ -204,7 +205,7 @@ static void test_archimedes_afloat(void) {
   const F3dShallow water = pool(w, 4);
   const double r = 0.3, volume = 4.0 / 3.0 * M_PI * r * r * r;
   const F3dBody b =
-      f3d_body_create(w, F3D_BODY_DYNAMIC, 6, F3D_R(4.05), 6, F3D_R(500 * volume));
+      f3d_body_create(w, F3D_BODY_DYNAMIC, 6, F3D_R(4.05), 6, F3D_R(0.5 * WATER * volume));
   f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, F3D_R(r), 0, 0);
   run(w, 60 * 20, F3D_R(1.0) / 60);
   f3d_real p[3], v[3], here[8];
@@ -242,7 +243,7 @@ static void test_coulomb_on_a_slope(void) {
     const double speed0 = sqrt(v0[0] * v0[0] + v0[1] * v0[1]);
     const double speed1 = sqrt(v1[0] * v1[0] + v1[1] * v1[1]);
     if (steep) {
-      const double a = G * (sin(theta) - mu * cos(theta));
+      const double a = world_gravity(w) * (sin(theta) - mu * cos(theta));
       CHECK_NEAR(speed1 - speed0, a * 1.0, 0.04 * a);
     } else {
       CHECK(speed1 < 0.01);
@@ -283,7 +284,7 @@ static void test_pendulum_period(void) {
     was[0] = p[0];
   }
   CHECK(found == 3);
-  const double period = 2.0 * M_PI * sqrt(len / G);
+  const double period = 2.0 * M_PI * sqrt(len / world_gravity(w));
   /* Within a part in two hundred: the small-angle formula itself is off
    * by 0.05% at five degrees. */
   CHECK_NEAR((crossings[2] - crossings[0]) / 2.0, period, 0.005 * period);

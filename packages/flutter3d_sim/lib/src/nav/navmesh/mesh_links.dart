@@ -88,7 +88,7 @@ const List<(int, int)> _directions = <(int, int)>[
 List<NavMeshLink> bakeMeshLinks(
   OpenField open,
   SpanField solid, {
-  required NavMeshConfig config,
+  required NavMeshSettings config,
   required JumpReach reach,
   required double maxFall,
   required int Function(Vector3 at) polygonAt,
@@ -113,7 +113,7 @@ List<NavMeshLink> bakeMeshLinks(
   bool solidIn(int c, int low, int high) =>
       solid.spans[c].any((s) => s.min < high && s.max > low);
 
-  void centre(int c, int floor, Vector3 out) => out.setValues(
+  void center(int c, int floor, Vector3 out) => out.setValues(
     solid.originX + (c % columns + 0.5) * config.cellSize,
     solid.originY + floor * config.cellHeight,
     solid.originZ + (c ~/ columns + 0.5) * config.cellSize,
@@ -124,8 +124,8 @@ List<NavMeshLink> bakeMeshLinks(
     if (!reach.takes(rise: rise, gap: gap)) return;
     final start = Vector3.zero();
     final end = Vector3.zero();
-    centre(c, open.floor[s], start);
-    centre(tc, open.floor[t], end);
+    center(c, open.floor[s], start);
+    center(tc, open.floor[t], end);
     final from = polygonAt(start);
     final to = polygonAt(end);
     if (from < 0 || to < 0 || from == to) return;

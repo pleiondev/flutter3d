@@ -96,7 +96,7 @@ static void test_building(void) {
 
 static void test_resting(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   F3dBody ground;
   grid(w, 10, 10, identity, &ground);
   const f3d_real pts[24] = {-.4f, -.4f, -.4f, .4f, -.4f, -.4f, -.4f, .4f, -.4f, .4f, .4f, -.4f,
@@ -148,7 +148,7 @@ static void test_resting(void) {
  * contacts land on seams. */
 static double slide(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   F3dBody ground;
   grid(w, 100, 10, identity, &ground);
@@ -268,7 +268,7 @@ static void test_one_sided(void) {
    * of a wall. */
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   F3dBody ground;
   grid(w, 4, 4, identity, &ground);
   const F3dBody ball = f3d_body_create(w, F3D_BODY_DYNAMIC, F3D_R(0.3), -1, F3D_R(0.3), 1);
@@ -302,7 +302,7 @@ static void test_rolling_down_a_mesh(void) {
   const F3dQuat q = turn_about(f3d_v3(0, 0, 1), theta);
   const F3dMat3 m = f3d_mat_of(q);
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   F3dBody ground;
   grid(w, 40, 20, q, &ground);
@@ -319,7 +319,7 @@ static void test_rolling_down_a_mesh(void) {
   f3d_body_get_velocity(w, ball, v1);
   const double s0 = sqrt((double)v0[0] * v0[0] + (double)v0[1] * v0[1] + (double)v0[2] * v0[2]);
   const double s1 = sqrt((double)v1[0] * v1[0] + (double)v1[1] * v1[1] + (double)v1[2] * v1[2]);
-  CHECK_NEAR(s1 - s0, 5.0 / 7.0 * 9.81 * sin(theta), 0.03);
+  CHECK_NEAR(s1 - s0, 5.0 / 7.0 * STANDARD_G * sin(theta), 0.03);
   f3d_world_destroy(w);
 }
 

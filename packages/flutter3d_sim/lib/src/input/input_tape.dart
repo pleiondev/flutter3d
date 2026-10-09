@@ -1,3 +1,7 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show FormatDocument, FormatSpec, Flutter3dFormatException;
+
+import 'action_set.dart';
 import 'game_action.dart';
 import 'input_state.dart';
 
@@ -13,6 +17,16 @@ import 'input_state.dart';
 /// every step: a stick at three quarters is neither a press nor a release, and a
 /// tape that recorded only transitions would replay the run with the accelerator
 /// off.
+///
+/// ## Action values, not keys
+///
+/// Everything here is named by action — a [GameAction] pressed, an
+/// [AxisAction]'s number in [axes], a [DualAxisAction]'s pair in [dualAxes],
+/// and the two every game has, [DualAxisAction.move] and
+/// [DualAxisAction.look], in [stickX]/[stickY] and [lookX]/[lookY]. No key, no
+/// pad button and no finger is ever written down, so a tape plays back the
+/// same whatever the player who watches it has bound — and whatever the
+/// player who recorded it had.
 final class InputFrame {
   const InputFrame({
     this.pressed = const <String>[],
@@ -24,6 +38,8 @@ final class InputFrame {
     this.values = const <String, double>{},
     this.slot,
     this.tunes = const <String, double>{},
+    this.axes = const <String, double>{},
+    this.dualAxes = const <String, ({double x, double y})>{},
   });
 
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
@@ -55,6 +71,25 @@ final class InputFrame {
               .entries)
         entry.key! as String: (entry.value! as num).toDouble(),
     },
+    axes: <String, double>{
+      for (final entry
+          in (json['axes'] as Map<Object?, Object?>? ??
+                  const <Object?, Object?>{})
+              .entries)
+        entry.key! as String: (entry.value! as num).toDouble(),
+    },
+    dualAxes: <String, ({double x, double y})>{
+      for (final entry
+          in (json['dual'] as Map<Object?, Object?>? ??
+                  const <Object?, Object?>{})
+              .entries)
+        entry.key! as String: switch (entry.value) {
+          [final num x, final num y] => (x: x.toDouble(), y: y.toDouble()),
+          final other => throw InputTapeFormatException(
+            'the dual axis ${entry.key} is $other, not a pair of numbers',
+          ),
+        },
+    },
   );
 
   /// Action names rather than the actions themselves.
@@ -65,9 +100,20 @@ final class InputFrame {
   final List<String> pressed;
   final List<String> released;
 
+  /// [InputState.moveAxis]'s `x`, strafing right: a unitless fraction of
+  /// full deflection, the pair never longer than 1.
   final double stickX;
+
+  /// [InputState.moveAxis]'s `y`, forward: a unitless fraction of full
+  /// deflection, as [stickX].
   final double stickY;
+
+  /// [InputState.lookDelta]'s `x` this step, in the units the device
+  /// reports; the camera applies sensitivity.
   final double lookX;
+
+  /// [InputState.lookDelta]'s `y` this step, in the device's units, as
+  /// [lookX].
   final double lookY;
   final Map<String, double> values;
 
@@ -84,6 +130,33 @@ final class InputFrame {
   /// Tunables set by this step, by name — `InputState.tune`.
   final Map<String, double> tunes;
 
+  /// Each [AxisAction] with a value this step, by name; an axis absent here
+  /// read nought. Written from [InputTape.version] 2.
+  final Map<String, double> axes;
+
+  /// Each [DualAxisAction] with a value this step, by name, other than
+  /// [DualAxisAction.move] and [DualAxisAction.look] — [stickX]/[stickY] and
+  /// [lookX]/[lookY] are those two. Written from [InputTape.version] 2.
+  final Map<String, ({double x, double y})> dualAxes;
+
+  /// Whether this frame says anything a version-1 reader would drop.
+  bool get needsVersion2 => axes.isNotEmpty || dualAxes.isNotEmpty;
+
+  /// This frame with [axes] in place of its own.
+  InputFrame withAxes(Map<String, double> axes) => InputFrame(
+    pressed: pressed,
+    released: released,
+    stickX: stickX,
+    stickY: stickY,
+    lookX: lookX,
+    lookY: lookY,
+    values: values,
+    slot: slot,
+    tunes: tunes,
+    axes: axes,
+    dualAxes: dualAxes,
+  );
+
   /// Whether this step is worth writing down at all.
   bool get isIdle =>
       pressed.isEmpty &&
@@ -91,6 +164,8 @@ final class InputFrame {
       values.isEmpty &&
       slot == null &&
       tunes.isEmpty &&
+      axes.isEmpty &&
+      dualAxes.isEmpty &&
       stickX == 0.0 &&
       stickY == 0.0 &&
       lookX == 0.0 &&
@@ -106,6 +181,12 @@ final class InputFrame {
     if (values.isNotEmpty) 'values': values,
     if (slot != null) 'slot': slot,
     if (tunes.isNotEmpty) 'tunes': tunes,
+    if (axes.isNotEmpty) 'axes': axes,
+    if (dualAxes.isNotEmpty)
+      'dual': <String, List<double>>{
+        for (final MapEntry(key: name, value: (:x, :y)) in dualAxes.entries)
+          name: <double>[x, y],
+      },
   };
 }
 
@@ -129,19 +210,86 @@ final class InputFrame {
 /// against, and it survives the simulation changing underneath it. This does
 /// not, and must not — a tape that still produced the old ending after the
 /// physics changed would be a recording of nothing.
-final class InputTape {
-  InputTape({required this.seed, List<InputFrame>? frames})
-    : frames = frames ?? <InputFrame>[];
+///
+/// ## Versions
+///
+/// 1 recorded buttons, the move and look actions, button magnitudes, slots
+/// and tunables. 2 adds [InputFrame.axes] and [InputFrame.dualAxes]: a
+/// version-1 reader would drop them and replay a crane with its neck still,
+/// so a tape that has them says 2 and a `.f3drun` holding it is written at a
+/// version the old reader refuses. A tape without them is still written as 1.
+///
+/// A version-1 tape of a game whose axes used to be button pairs is
+/// upgraded by `ActionSet.upgradeTape`, which [InputTapePlayback] calls
+/// when it is given the game's set.
+final class InputTape extends FormatDocument {
+  InputTape({
+    required this.seed,
+    List<InputFrame>? frames,
+    this.version = formatVersion,
+    super.unknown,
+  }) : frames = frames ?? <InputFrame>[];
 
-  factory InputTape.fromJson(Map<String, Object?> json) => InputTape(
-    seed: (json['seed'] as num?)?.toInt() ?? 0,
-    frames: <InputFrame>[
-      for (final frame in json['frames'] as List<Object?>? ?? const <Object?>[])
-        InputFrame.fromJson(
-          (frame! as Map<Object?, Object?>).cast<String, Object?>(),
-        ),
-    ],
+  /// The input tape in the registry: `f3d.inputTape`, also what a `.f3drun`
+  /// holds under `tape`.
+  ///
+  /// **The envelope is additive, and the version is now always written.** A
+  /// version-1 tape used to leave it out; a build from before reads a
+  /// missing version and a `1` the same, and ignores the other three keys.
+  ///
+  /// `f3d.input-tape`, the id a tape was written under before the ids took
+  /// one style (dotted lowerCamel), is read as this one.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.inputTape',
+    aliases: <String>['f3d.input-tape'],
+    version: formatVersion,
+    suffixes: <String>['.tape.json'],
+    fixture: 'test/fixtures/v<N>/input.tape.json',
   );
+
+  @override
+  FormatSpec get spec => format;
+
+  static const Set<String> _known = <String>{'seed', 'frames'};
+
+  /// Reads what [toJson] wrote, at any version up to [formatVersion].
+  ///
+  /// A tape with no version was written before tapes had one, and is 1.
+  factory InputTape.fromJson(Map<String, Object?> json) {
+    final version = switch (json['version']) {
+      null => 1,
+      final num number when number == number.truncate() && number >= 1 =>
+        number.toInt(),
+      final other => throw InputTapeFormatException(
+        'the tape names version $other',
+      ),
+    };
+    // A newer tape, another format's document or a `requires` this build does
+    // not know is refused here, with the reason.
+    final lifted = format.open(json, refuse: InputTapeFormatException.new);
+    return InputTape(
+      unknown: FormatDocument.unknownIn(lifted, known: _known),
+      seed: (json['seed'] as num?)?.toInt() ?? 0,
+      version: version,
+      frames: <InputFrame>[
+        for (final frame
+            in json['frames'] as List<Object?>? ?? const <Object?>[])
+          InputFrame.fromJson(
+            (frame! as Map<Object?, Object?>).cast<String, Object?>(),
+          ),
+      ],
+    );
+  }
+
+  /// The newest tape version this build reads and writes.
+  static const int formatVersion = 2;
+
+  /// The version this tape was read at — [formatVersion] for one recorded
+  /// by this build. Below 2 it may need `ActionSet.upgradeTape`.
+  final int version;
+
+  /// The version [toJson] writes: the lowest that says what the frames hold.
+  int get writtenVersion => frames.any((frame) => frame.needsVersion2) ? 2 : 1;
 
   /// The generator state the run started from.
   ///
@@ -156,10 +304,13 @@ final class InputTape {
   int get steps => frames.length;
 
   Map<String, Object?> toJson() => <String, Object?>{
+    ...format.envelope(version: writtenVersion, requires: requires),
     'seed': seed,
     'frames': <Map<String, Object?>>[
       for (final frame in frames) frame.toJson(),
     ],
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!_known.contains(key)) key: value,
   };
 }
 
@@ -196,11 +347,23 @@ final class InputTapeRecorder {
         lookX: input.lookDelta.x,
         lookY: input.lookDelta.y,
         values: <String, double>{
-          for (final entry in input.analogueValues.entries)
+          for (final entry in input.analogValues.entries)
             entry.key.name: entry.value,
         },
         slot: input.slotRequest,
         tunes: input.tunesThisStep,
+        // Nought is not written: an axis absent reads nought, and a tape of a
+        // game with an axis nobody touched stays a version-1 tape.
+        axes: <String, double>{
+          for (final MapEntry(key: axis, :value) in input.axisValues.entries)
+            if (value != 0.0) axis.name: value,
+        },
+        dualAxes: <String, ({double x, double y})>{
+          for (final MapEntry(key: axis, :value)
+              in input.dualAxisValues.entries)
+            if (value.x != 0.0 || value.y != 0.0)
+              axis.name: (x: value.x, y: value.y),
+        },
       ),
     );
   }
@@ -216,12 +379,22 @@ final class InputTapeRecorder {
 /// being played leaves the input untouched from [isFinished] onwards, so a
 /// player who takes over from a replay finds the controls in the state the
 /// recording left them rather than jammed on the last frame's keys.
+///
+/// Given the game's [ActionSet], a version-1 tape is upgraded first — see
+/// `ActionSet.upgradeTape` — so a simulation that reads an axis where it once
+/// read two buttons replays an old run as it was played.
 final class InputTapePlayback {
-  InputTapePlayback(this.tape);
+  InputTapePlayback(InputTape tape, {ActionSet? actions})
+    : tape = actions == null ? tape : actions.upgradeTape(tape);
 
   final InputTape tape;
 
   int _step = 0;
+
+  /// The axes the last frame gave a value to, so the next can let go of the
+  /// ones it is silent about.
+  final Set<String> _axesSpoken = <String>{};
+  final Set<String> _dualAxesSpoken = <String>{};
   int get step => _step;
   bool get isFinished => _step >= tape.frames.length;
 
@@ -248,16 +421,61 @@ final class InputTapePlayback {
       input.release(GameAction(name));
     }
     input.setStickAxis(frame.stickX, frame.stickY);
+    // The stick part, and then the answer: the tape holds what the step read
+    // as the move action, which the stick and the directions pressed above
+    // would otherwise be summed into again. See [InputState.replayMoveAxis].
+    input.replayMoveAxis(frame.stickX, frame.stickY);
     // Added rather than set, because that is the only way in and because a look
     // delta is a delta: the recording holds what the mouse moved that step.
     input.addLook(frame.lookX, frame.lookY);
     for (final entry in frame.values.entries) {
       input.setActionValue(GameAction(entry.key), entry.value);
     }
+    // Every axis is written every step, nought where the frame is silent:
+    // the recorder leaves nought out, and an axis the tape let go of must
+    // not go on reading the last number it had.
+    for (final axis in _axesSpoken) {
+      if (!frame.axes.containsKey(axis)) input.clearAxis(AxisAction(axis));
+    }
+    for (final MapEntry(key: name, :value) in frame.axes.entries) {
+      input.setAxis(AxisAction(name), value);
+    }
+    _axesSpoken
+      ..clear()
+      ..addAll(frame.axes.keys);
+    for (final axis in _dualAxesSpoken) {
+      if (!frame.dualAxes.containsKey(axis)) {
+        input.clearDualAxis(DualAxisAction(axis));
+      }
+    }
+    for (final MapEntry(key: name, value: (:x, :y)) in frame.dualAxes.entries) {
+      // Cleared and added, as a delta: the action's own kind is not on the
+      // tape, and adding to nothing writes the recorded pair exactly, where
+      // setting would clamp a delta that was larger than one. The entry goes
+      // at [InputState.endStep] and the next frame writes it again.
+      final action = DualAxisAction(name, isDelta: true);
+      input
+        ..clearDualAxis(action)
+        ..setDualAxis(action, x, y);
+    }
+    _dualAxesSpoken
+      ..clear()
+      ..addAll(frame.dualAxes.keys);
     final slot = frame.slot;
     if (slot != null) input.requestSlot(slot);
     for (final MapEntry(key: name, :value) in frame.tunes.entries) {
       input.tune(name, value);
     }
   }
+}
+
+/// Thrown when an input tape cannot be read.
+final class InputTapeFormatException extends Flutter3dFormatException {
+  const InputTapeFormatException(this.message);
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'InputTapeFormatException: $message';
 }

@@ -1,25 +1,27 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../portable_math.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 import 'jet.dart';
 
 /// A flat surface particles rest on — a bench, a floor: the points with
 /// `normal · p ≥ offset` are clear of it.
-final class PlaneObstacle implements JetObstacle {
+final class PlaneObstacle with JetObstacle {
   PlaneObstacle({required Vector3 normal, required this.offset})
     : normal = normal.normalized();
 
   final Vector3 normal;
+
+  /// The plane's distance from the origin along [normal], in metres.
   final double offset;
 
   @override
-  bool reaches(Vector3 centre, double distance) =>
-      normal.dot(centre) - offset < distance;
+  bool reaches(Vector3 center, double distance) =>
+      normal.dot(center) - offset < distance;
 
   @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
@@ -117,7 +119,7 @@ final class ParticleFluid {
         )
       : double.infinity;
 
-  /// The kernel's reach.
+  /// The kernel's reach, in metres: twice [spacing].
   final double h;
 
   late final double _gamma;
@@ -135,7 +137,7 @@ final class ParticleFluid {
   double _bank = 0.0;
   double _received = 0.0;
 
-  /// How much liquid one particle is.
+  /// How much liquid one particle is, in cubic metres.
   double get particleVolume => spacing * spacing * spacing;
   double get _mass => medium.density * particleVolume;
 
@@ -378,6 +380,7 @@ void moveParticlesInDart(ParticleMotion motion) {
 final class _Kernels {
   _Kernels(this.h);
 
+  /// The kernels' reach, in metres.
   final double h;
 
   double poly6(double r2) {
@@ -416,9 +419,12 @@ final class _Solve {
   final ParticleMotion motion;
   final List<_V> x;
   final List<_V> v;
+
+  /// The kernel's reach, in metres.
   final double h;
   final _Kernels kernels;
 
+  /// The particles' spacing at rest, in metres.
   double get spacing => motion.spacing;
   double get _mass => motion.medium.density * spacing * spacing * spacing;
   List<JetObstacle> get obstacles => motion.walls;
@@ -455,24 +461,24 @@ final class _Solve {
     final norm = 1.0 / motion.latticeSum;
     // Forces first: gravity, cohesion and curvature, on the velocities.
     final grid = _Grid(h, x);
-    final neighbours = [for (var i = 0; i < n; i++) grid.near(i, x)];
+    final neighbors = [for (var i = 0; i < n; i++) grid.near(i, x)];
     final density = List<double>.filled(n, 0.0);
     for (var i = 0; i < n; i++) {
       var w = _poly6(0.0);
-      for (final j in neighbours[i]) {
+      for (final j in neighbors[i]) {
         w += _poly6(x[i].distance2(x[j]));
       }
       density[i] = rho0 * w * norm;
     }
     final normal = List<_V>.generate(n, (_) => _V(0, 0, 0));
     for (var i = 0; i < n; i++) {
-      for (final j in neighbours[i]) {
+      for (final j in neighbors[i]) {
         normal[i].addScaled(_spikyGradient(x[i] - x[j]), h * m / density[j]);
       }
     }
     for (var i = 0; i < n; i++) {
       final a = gravity.copy();
-      for (final j in neighbours[i]) {
+      for (final j in neighbors[i]) {
         final d = x[i] - x[j];
         final r = d.length;
         if (r < 1e-12) continue;
@@ -644,6 +650,7 @@ final class _Grid {
     }
   }
 
+  /// A cell's side, in metres.
   final double cell;
   final Map<int, List<int>> _cells = {};
 
@@ -690,8 +697,14 @@ final class _Grid {
 final class _V {
   _V(this.x, this.y, this.z);
 
+  /// The x component: metres for a position, metres per second for a
+  /// velocity.
   double x;
+
+  /// The y component, in the unit of [x].
   double y;
+
+  /// The z component, in the unit of [x].
   double z;
 
   _V copy() => _V(x, y, z);
@@ -713,7 +726,10 @@ final class _V {
     z += o.z * k;
   }
 
+  /// The squared length, in the square of the unit of [x].
   double get length2 => x * x + y * y + z * z;
+
+  /// The length, in the unit of [x].
   double get length => math.sqrt(length2);
 
   double distance2(_V o) {

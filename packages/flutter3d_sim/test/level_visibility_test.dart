@@ -15,7 +15,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 /// Three rooms in a row along X, each 8 m square and 4 m high, floors and
 /// ceilings included. Room A (x 0..8) and room B (x 10..18) share a wall with

@@ -43,16 +43,16 @@ final class Contact {
   /// what the first version did, once every sixteen steps.
   double depth = 0.0;
 
-  bool touching = false;
+  bool isTouching = false;
 
-  /// How close counts as a contact. See [depth].
+  /// How close counts as a contact, in metres. See [depth].
   double margin = 0.02;
 
   void _set(double nx, double ny, double nz, double depth) {
     if (depth <= -margin) return;
     normal.setValues(nx, ny, nz);
     this.depth = depth;
-    touching = true;
+    isTouching = true;
   }
 }
 
@@ -76,9 +76,11 @@ void contactBetween(
   CollisionShape b,
   Vector3 bAt,
   Contact out, {
+
+  /// How close counts as a contact, in metres: [Contact.margin].
   double margin = 0.02,
 }) {
-  out.touching = false;
+  out.isTouching = false;
   out.margin = margin;
 
   if (a is CollisionHeightfield) {

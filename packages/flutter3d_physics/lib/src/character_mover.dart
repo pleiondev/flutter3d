@@ -38,7 +38,13 @@ typedef CharacterMoved = ({
 /// on a world as `CollisionWorld.characterMover`, it moves every character
 /// in it, except one whose `solidFilter` asks about each contact, which a
 /// mover cannot answer and the controller's own sweeps can.
-abstract interface class CharacterMover {
+///
+/// **Extended outside this package: an `abstract base class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every implementation keeps compiling.
+abstract base class CharacterMover {
+  const CharacterMover();
+
   /// Moves [body] from where it is by [delta], sliding along what it meets
   /// and taking the speed into it out of the body's velocity; standing on
   /// ground whose normal's height is at least [walkableNormalY]; and, when

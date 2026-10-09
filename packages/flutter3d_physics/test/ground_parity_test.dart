@@ -45,6 +45,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -145,24 +146,32 @@ CollisionWorld _world() {
           0.02 * ((column * 3 + row * 11) % 5);
     }
   }
-  final world = CollisionWorld()
-    ..add(
-      Collider(
-        shape: CollisionHeightfield(
-          columns: n,
-          rows: n,
-          cellSize: 1.0,
-          heights: heights,
-        ),
-        position: Vector3.zero(),
-      ),
-    );
+  // The world the digests below were recorded in: the crates falling at the
+  // 22 m/s² `Dynamics` had of its own, the walker at the 24 its
+  // `MovementSettings` did — both said outright now that each falls by its
+  // world's unless told.
+  final world =
+      CollisionWorld(properties: WorldProperties(gravity: Vector3(0, -22, 0)))
+        ..add(
+          Collider(
+            shape: CollisionHeightfield(
+              columns: n,
+              rows: n,
+              cellSize: 1.0,
+              heights: heights,
+            ),
+            position: Vector3.zero(),
+          ),
+        );
   world.update();
   return world;
 }
 
-CharacterController _walker(CollisionWorld world) =>
-    CharacterController(world: world, position: Vector3(-2.0, 2.0, -2.0));
+CharacterController _walker(CollisionWorld world) => CharacterController(
+  world: world,
+  position: Vector3(-2.0, 2.0, -2.0),
+  tuning: const MovementSettings(gravity: 24.0),
+);
 
 /// Four crates, so the solver's own path over the ground is in the trace too.
 Dynamics _crates(CollisionWorld world) {

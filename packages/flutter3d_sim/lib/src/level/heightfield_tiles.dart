@@ -118,7 +118,7 @@ final class HeightfieldTiles {
     int tileZ, {
     required int level,
     required String material,
-    double metresPerTexture = 8.0,
+    double metersPerTexture = 8.0,
     bool skirts = true,
     ShadowCasting shadowCasting = ShadowCasting.on,
   }) {
@@ -148,8 +148,8 @@ final class HeightfieldTiles {
         ..[v * 3 + 2] = z;
       _shade(column, row, normals, tangents, v);
       texcoords
-        ..[v * 2] = x / metresPerTexture
-        ..[v * 2 + 1] = z / metresPerTexture;
+        ..[v * 2] = x / metersPerTexture
+        ..[v * 2 + 1] = z / metersPerTexture;
     }
 
     for (var j = 0; j < side; j++) {

@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -12,31 +13,31 @@ const double _dt = 1.0 / 60.0;
 
 /// Adds one to [key] every tick and succeeds — a leaf a game would register,
 /// here to count how often a node was really ticked.
-final class _Count extends BehaviourLeaf {
+final class _Count extends BehaviorLeaf {
   const _Count(this.key);
   final String key;
 
   @override
-  BehaviourStatus tick(BehaviourContext context) {
+  BehaviorStatus tick(BehaviorContext context) {
     context.board.set(key, (context.board.number(key) ?? 0.0) + 1.0);
-    return BehaviourStatus.success;
+    return BehaviorStatus.success;
   }
 }
 
 /// Runs for ever.
-final class _Hold extends BehaviourLeaf {
+final class _Hold extends BehaviorLeaf {
   const _Hold();
 
   @override
-  BehaviourStatus tick(BehaviourContext context) => BehaviourStatus.running;
+  BehaviorStatus tick(BehaviorContext context) => BehaviorStatus.running;
 }
 
-BehaviourKinds _kinds() => BehaviourKinds()
+BehaviorKinds _kinds() => BehaviorKinds()
   ..leaf('count', (p) => _Count(p.text('key')))
   ..leaf('hold', (p) => const _Hold());
 
-BehaviourTree _tree(Map<String, Object?> json) {
-  final read = BehaviourTree.read(json, _kinds());
+BehaviorTree _tree(Map<String, Object?> json) {
+  final read = BehaviorTree.read(json, _kinds());
   expect(read.problems, isEmpty);
   return read.tree!;
 }
@@ -44,9 +45,9 @@ BehaviourTree _tree(Map<String, Object?> json) {
 /// One actor with no body, thinking every step: the focus is at the origin
 /// and so is it, which keeps it inside the close range.
 final class _Rig {
-  _Rig(BehaviourTree tree, {Map<String, Object?>? board})
+  _Rig(BehaviorTree tree, {Map<String, Object?>? board})
     : system = ActorSystem(world: CollisionWorld(), random: GameRandom(1)) {
-    actor = system.spawn(brain: BehaviourBrain(tree));
+    actor = system.spawn(brain: BehaviorBrain(tree));
     if (board != null) {
       system.entities.set(actor.entity, Blackboard(values: board));
     }
@@ -58,7 +59,7 @@ final class _Rig {
   Blackboard get board => system.entities.get<Blackboard>(actor.entity)!;
 
   List<String> get path => <String>[
-    for (final step in BehaviourBrain.pathOf(actor))
+    for (final step in BehaviorBrain.pathOf(actor))
       '${step.label}:${step.status.name}',
   ];
 
@@ -74,7 +75,7 @@ final class _Rig {
 void main() {
   group('reading a document', () {
     test('lists every problem with where it is, and the kinds it knows', () {
-      final read = BehaviourTree.read(<String, Object?>{
+      final read = BehaviorTree.read(<String, Object?>{
         'kind': 'selector',
         'children': <Object?>[
           <String, Object?>{'kind': 'fly'},
@@ -82,7 +83,7 @@ void main() {
           <String, Object?>{'kind': 'utility'},
           <String, Object?>{'kind': 'sequence'},
         ],
-      }, BehaviourKinds());
+      }, BehaviorKinds());
 
       // Mutation: stopping at the first problem leaves three of these out.
       expect(read.tree, isNull);
@@ -107,7 +108,7 @@ void main() {
     });
 
     test('an unknown consideration is refused with the ones that exist', () {
-      final read = BehaviourTree.read(<String, Object?>{
+      final read = BehaviorTree.read(<String, Object?>{
         'kind': 'utility',
         'options': <Object?>[
           <String, Object?>{
@@ -130,15 +131,15 @@ void main() {
 
     test('a leaf may not take a composite\'s name', () {
       expect(
-        () => BehaviourKinds().leaf('sequence', (p) => const _Hold()),
+        () => BehaviorKinds().leaf('sequence', (p) => const _Hold()),
         throwsArgumentError,
       );
       expect(
-        () => BehaviourKinds().leaf('wait', (p) => const _Hold()),
+        () => BehaviorKinds().leaf('wait', (p) => const _Hold()),
         throwsArgumentError,
       );
       // Replacing on purpose is the way a game swaps a standard kind.
-      BehaviourKinds().leaf('wait', (p) => const _Hold(), replace: true);
+      BehaviorKinds().leaf('wait', (p) => const _Hold(), replace: true);
     });
   });
 
@@ -184,7 +185,7 @@ void main() {
       );
       rig.step(5);
       expect(rig.path.last, 'idle:running');
-      final waitNode = BehaviourBrain.pathOf(rig.actor).last.node;
+      final waitNode = BehaviorBrain.pathOf(rig.actor).last.node;
       expect(rig.board.memory, contains(waitNode));
 
       rig.board.set('alarm', true);
@@ -351,7 +352,7 @@ void main() {
         ],
       });
       rig.system.entities.get<Thinking>(rig.actor.entity)!.brain =
-          BehaviourBrain(second);
+          BehaviorBrain(second);
       rig.step();
       // Mutation: a board that trusted its node numbers would resume at the
       // hold and never count again.
@@ -369,25 +370,25 @@ void main() {
       final actor = system.spawn(
         body: CharacterController(world: world, position: Vector3(0, 0.9, 0)),
         health: Health(10.0),
-        brain: BehaviourBrain(_tree(<String, Object?>{'kind': 'hold'})),
+        brain: BehaviorBrain(_tree(<String, Object?>{'kind': 'hold'})),
       );
       for (var i = 0; i < 6; i++) {
         system
           ..beginStep()
           ..step(_dt, focus: Vector3(0.0, 0.9, 5.0));
       }
-      final board = BehaviourBrain.boardOf(actor);
+      final board = BehaviorBrain.boardOf(actor);
 
       system.hear(Vector3(1.0, 0.0, 0.0), radius: 1000.0);
       // Mutation: an onNoise left at Brain's default writes nothing here.
-      expect(board.number(BehaviourBrain.heardAt), closeTo(0.1, 1e-12));
+      expect(board.number(BehaviorBrain.heardAt), closeTo(0.1, 1e-12));
       final at = Vector3.zero();
-      expect(board.point(BehaviourBrain.heard, at), isTrue);
+      expect(board.point(BehaviorBrain.heard, at), isTrue);
       expect(at.x, 1.0);
 
       system.beginStep();
       actor.applyDamage(1.0);
-      expect(board.number(BehaviourBrain.hurtAt), closeTo(0.1, 1e-12));
+      expect(board.number(BehaviorBrain.hurtAt), closeTo(0.1, 1e-12));
     });
   });
 
@@ -400,7 +401,7 @@ void main() {
         run.step(step);
         trace.observe(step, run.state());
         for (final actor in run.system.actors) {
-          final path = BehaviourBrain.pathOf(actor);
+          final path = BehaviorBrain.pathOf(actor);
           if (path.length > 1) chosen.add(path[1].label);
         }
       }
@@ -481,7 +482,7 @@ final class _Arena {
           position: Vector3(x, 0.9, -3.0 - i),
         ),
         health: Health(30.0),
-        brain: BehaviourBrain(_arenaTree),
+        brain: BehaviorBrain(_arenaTree),
         facing: Facing(),
         name: 'a$i',
       );
@@ -503,9 +504,9 @@ final class _Arena {
     random: GameRandom(7),
   );
 
-  static final BehaviourTree _arenaTree = BehaviourTree.read(
+  static final BehaviorTree _arenaTree = BehaviorTree.read(
     _arenaJson,
-    BehaviourKinds(),
+    BehaviorKinds(),
   ).tree!;
 
   /// The focus walks a square of side twelve, once every twenty seconds.
@@ -535,7 +536,7 @@ final class _Arena {
 
   /// Whether any actor is in a wait right now.
   bool get waiting => system.actors.any(
-    (actor) => BehaviourBrain.pathOf(actor).any((s) => s.kind == 'wait'),
+    (actor) => BehaviorBrain.pathOf(actor).any((s) => s.kind == 'wait'),
   );
 
   Map<String, Object?> state() => <String, Object?>{

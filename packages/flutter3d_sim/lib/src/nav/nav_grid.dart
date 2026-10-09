@@ -56,12 +56,12 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../level/heightfield.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
-import '../math/portable_math.dart';
 import '../math/tolerances.dart';
 import 'jump_links.dart';
 
@@ -84,10 +84,13 @@ final class NavGrid {
        _headroom = headroom,
        _clearance = clearance;
 
-  /// The world position of the corner of cell `(0, 0)`.
+  /// The world position of the corner of cell `(0, 0)`: its X, in metres.
   final double originX;
+
+  /// The corner of cell `(0, 0)`'s Z, in metres.
   final double originZ;
 
+  /// A cell's side, in metres.
   final double cellSize;
   final int columns;
   final int rows;
@@ -174,15 +177,15 @@ final class NavGrid {
   bool isWalkable(int index) => _headroom[index] > 0.0;
 
   /// The centre of a cell, at its floor height, as a fresh vector. For a
-  /// test or a bake; a step uses [centreOf] and its own scratch.
-  Vector3 centreOfCell(int index) {
+  /// test or a bake; a step uses [centerOf] and its own scratch.
+  Vector3 centerOfCell(int index) {
     final out = Vector3.zero();
-    centreOf(index, out);
+    centerOf(index, out);
     return out;
   }
 
   /// The centre of a cell, at its floor height.
-  void centreOf(int index, Vector3 out) {
+  void centerOf(int index, Vector3 out) {
     final cx = index % columns;
     final cz = index ~/ columns;
     out.setValues(
@@ -211,7 +214,7 @@ final class NavGrid {
     return true;
   }
 
-  /// Open sky, and the largest number [headroomAt] will report.
+  /// Open sky, and the largest number [headroomAt] will report, in metres.
   static const double maxHeadroom = 8.0;
 
   /// Rasterises a [Heightfield] into a lattice of standing places.

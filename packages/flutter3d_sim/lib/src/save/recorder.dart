@@ -12,6 +12,7 @@ import 'tape.dart';
 final class Recorder {
   Recorder({this.hz = 15.0});
 
+  /// Poses written per second of the run, in hertz.
   final double hz;
 
   final List<Pose> _poses = <Pose>[];

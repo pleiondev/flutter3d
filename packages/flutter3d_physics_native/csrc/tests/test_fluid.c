@@ -15,7 +15,7 @@
 static F3dFluidSettings settings(void) {
   F3dFluidSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.tank_min[0] = F3D_R(-0.5);
   s.tank_min[2] = F3D_R(-0.25);
   s.tank_max[0] = F3D_R(0.5);
@@ -80,7 +80,7 @@ static void test_lone_particle(void) {
   CHECK(f3d_fluid_read(f, out, 1) == 1);
   const double h = 1.0 / 120.0;
   CHECK_NEAR(out[0], 0.5 * 60 * h, 1e-5);
-  CHECK_NEAR(out[1], 5 - 9.81 * h * h * 60 * 61 / 2, 1e-4);
+  CHECK_NEAR(out[1], 5 - STANDARD_G * h * h * 60 * 61 / 2, 1e-4);
   CHECK(out[3] > 0 && out[3] < 0.5);
   f3d_fluid_destroy(f);
 }

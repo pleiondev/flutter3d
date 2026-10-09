@@ -1,10 +1,11 @@
 /// `flutter3d_physics`'s liquids stepped by the core: the [FluidSolver] a
-/// run on [NativePhysics] gets from `PhysicsBackend.current.fluid`.
+/// world made on [NativePhysics] gets from `backend.fluid`.
 library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -26,7 +27,7 @@ import 'native_physics.dart';
 /// inside and outside of a `RevolvedVessel` — and the inside of any other
 /// vessel, which has none. A caller's own `JetObstacle` is Dart code the
 /// core cannot ask, so a step that meets one is the reference's.
-final class NativeLiquid implements FluidSolver {
+final class NativeLiquid extends FluidSolver {
   const NativeLiquid();
 
   @override

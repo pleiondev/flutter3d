@@ -22,15 +22,16 @@
 /// identity scheme, not a wrapper this file could add around it.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Level _withWallAt(double? wallX) => Level(
   brushes: <Brush>[
-    Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(40.0, 1.0, 4.0)),
+    Brush(center: Vector3(0.0, -0.5, 0.0), size: Vector3(40.0, 1.0, 4.0)),
     if (wallX != null)
-      Brush(centre: Vector3(wallX, 2.0, 0.0), size: Vector3(1.0, 6.0, 4.0)),
+      Brush(center: Vector3(wallX, 2.0, 0.0), size: Vector3(1.0, 6.0, 4.0)),
   ],
 );
 

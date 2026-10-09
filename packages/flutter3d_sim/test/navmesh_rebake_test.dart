@@ -16,12 +16,12 @@ import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 
 /// Four-metre tiles on the half-metre lattice.
-const NavMeshConfig _tiled = NavMeshConfig(tileSize: 8, maxEdgeError: 0.45);
+const NavMeshSettings _tiled = NavMeshSettings(tileSize: 8, maxEdgeError: 0.45);
 
 /// Twenty-four metres by sixteen, a wall across it at x from 0 to 0.5 with
 /// no way through.
@@ -44,7 +44,7 @@ Set<int> _reachable(NavMesh mesh, int start) {
   for (var i = 0; i < queue.length; i++) {
     final p = queue[i];
     for (var k = 0; k < mesh.polygonVertexCount(p); k++) {
-      final q = mesh.neighbourAt(p, k);
+      final q = mesh.neighborAt(p, k);
       if (q >= 0 && seen.add(q)) queue.add(q);
     }
   }
@@ -126,7 +126,7 @@ void main() {
     // where the floor ends two cells into the tile before it. Mutation:
     // widening the change by one cell rather than by the erosion misses
     // that tile.
-    const wide = NavMeshConfig(
+    const wide = NavMeshSettings(
       tileSize: 8,
       maxEdgeError: 0.45,
       agentRadius: 0.9,
@@ -143,7 +143,7 @@ void main() {
     // One-metre tiles and a three-cell erosion: the edge of the window is
     // within the erosion of the ring outlined again. Mutation: rasterising
     // the window to the tiles' edge, with no erosion's width round it.
-    const small = NavMeshConfig(
+    const small = NavMeshSettings(
       tileSize: 2,
       maxEdgeError: 0.45,
       agentRadius: 0.9,

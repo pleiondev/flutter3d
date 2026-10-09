@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import '../portable_math.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
 import 'fluid_medium.dart';
 
 /// Surface tension at a wall: how high liquid climbs it, and the shape of
@@ -43,15 +44,20 @@ final class TubeMeniscus {
   }
 
   final FluidMedium medium;
+
+  /// The tube's inner radius, in metres.
   final double radius;
+
+  /// Gravity's pull, in metres per second squared.
   final double g;
   final int samples;
 
   /// The curvature at the middle, per metre.
   late final double apexCurvature;
 
-  /// How far the surface stands at the wall above its middle: positive for a
-  /// liquid that wets the wall, negative for one that does not.
+  /// How far the surface stands at the wall above its middle, in metres:
+  /// positive for a liquid that wets the wall, negative for one that does
+  /// not.
   late final double wallRise;
 
   /// How far the middle of the surface stands above the level of a wide bath
@@ -83,7 +89,7 @@ final class TubeMeniscus {
   late final double meanHeight = _meanHeight();
 
   /// The highest the meniscus stands above its mean: at the wall when the
-  /// liquid wets it, in the middle when it does not.
+  /// liquid wets it, in the middle when it does not. In metres.
   late final double peak = math.max(
     heightAt(radius) - meanHeight,
     heightAt(0.0) - meanHeight,

@@ -31,6 +31,11 @@ abstract final class EntityTypes {
   /// because a level telling its own story is not one genre's idea.
   static const String cutscene = 'cutscene';
 
+  /// An instance of one of the level's prefabs — see `PrefabInstance`. The
+  /// format's word, and one no game spawns: [expandPrefabs] replaces every
+  /// instance with the entities it stands for before anything reads them.
+  static const String prefab = 'prefab';
+
   /// A picture projected onto what stands in a box — see `DecalKind`.
   static const String decal = 'decal';
 

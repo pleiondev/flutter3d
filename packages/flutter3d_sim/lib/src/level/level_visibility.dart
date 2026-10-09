@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatDocument, FormatSpec;
 import 'package:vector_math/vector_math.dart';
 
 import 'level.dart';
@@ -47,7 +49,7 @@ import 'level_collision.dart';
 /// sidecar, `<level>.visibility.json`, carrying a hash of the brushes it was
 /// baked from; a table whose hash no longer matches the level is ignored with
 /// a word, and the level draws everything, as it did before there was one.
-final class LevelVisibility {
+final class LevelVisibility extends FormatDocument {
   LevelVisibility._({
     required this.cellSize,
     required this.origin,
@@ -57,6 +59,7 @@ final class LevelVisibility {
     required Int32List cells,
     required List<Uint32List> pvs,
     required this.brushHash,
+    super.unknown,
   }) : // Private fields cannot be named initialising formals.
        // ignore: prefer_initializing_formals
        _cells = cells,
@@ -65,6 +68,29 @@ final class LevelVisibility {
 
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
+
+  /// The visibility table as a format: `f3d.visibility`, a sidecar named
+  /// `<level>.visibility.json`. A table written before the envelope — a bare
+  /// `{"version": 1}` — reads as version 1.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.visibility',
+    version: formatVersion,
+    suffixes: <String>['.visibility.json'],
+    fixture: 'test/fixtures/v<N>/deep.visibility.json',
+  );
+
+  /// The keys this reader takes; anything else is kept in [unknown].
+  static const Set<String> _known = <String>{
+    'cellSize',
+    'origin',
+    'counts',
+    'brushHash',
+    'cells',
+    'pvs',
+  };
+
+  @override
+  FormatSpec get spec => format;
 
   /// The edge of one cell, in metres.
   final double cellSize;
@@ -221,9 +247,9 @@ final class LevelVisibility {
 
     for (final brush in level.brushes) {
       if (!brush.solid) continue;
-      mix(brush.centre.x.toStringAsFixed(4));
-      mix(brush.centre.y.toStringAsFixed(4));
-      mix(brush.centre.z.toStringAsFixed(4));
+      mix(brush.center.x.toStringAsFixed(4));
+      mix(brush.center.y.toStringAsFixed(4));
+      mix(brush.center.z.toStringAsFixed(4));
       mix(brush.size.x.toStringAsFixed(4));
       mix(brush.size.y.toStringAsFixed(4));
       mix(brush.size.z.toStringAsFixed(4));
@@ -239,35 +265,28 @@ final class LevelVisibility {
     for (var i = 0; i < _pvs.length; i++) {
       all.setRange(i * words, (i + 1) * words, _pvs[i]);
     }
-    return <String, Object?>{
-      'version': formatVersion,
+    return write(<String, Object?>{
       'cellSize': cellSize,
       'origin': <double>[origin.x, origin.y, origin.z],
       'counts': <int>[countX, countY, countZ],
       'brushHash': brushHash,
       'cells': base64Encode(_cells.buffer.asUint8List()),
       'pvs': base64Encode(all.buffer.asUint8List()),
-    };
+    });
   }
 
   /// Reads a table, or throws a [VisibilityFormatException] that says why not.
+  ///
+  /// The envelope is checked first: another format's document, or a table
+  /// from a newer build, is refused with both version numbers.
   factory LevelVisibility.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
-    if (version is! num) {
-      throw const VisibilityFormatException('the table has no version in it');
-    }
-    if (version > formatVersion) {
-      throw VisibilityFormatException(
-        'the table was written by a newer build (format $version, this build '
-        'reads $formatVersion)',
-      );
-    }
-    final cellSize = json['cellSize'];
-    final origin = json['origin'];
-    final counts = json['counts'];
-    final hash = json['brushHash'];
-    final cells = json['cells'];
-    final pvs = json['pvs'];
+    final document = format.open(json, refuse: VisibilityFormatException.new);
+    final cellSize = document['cellSize'];
+    final origin = document['origin'];
+    final counts = document['counts'];
+    final hash = document['brushHash'];
+    final cells = document['cells'];
+    final pvs = document['pvs'];
     if (cellSize is! num ||
         origin is! List<Object?> ||
         origin.length != 3 ||
@@ -315,6 +334,7 @@ final class LevelVisibility {
           pvsWords.sublist(i * words, (i + 1) * words),
       ],
       brushHash: hash.toInt(),
+      unknown: FormatDocument.unknownIn(document, known: _known, spec: format),
     );
   }
 
@@ -508,9 +528,10 @@ final class LevelVisibility {
 }
 
 /// Thrown when a visibility table cannot be read at all.
-final class VisibilityFormatException implements Exception {
+final class VisibilityFormatException extends Flutter3dFormatException {
   const VisibilityFormatException(this.message);
 
+  @override
   final String message;
 
   @override

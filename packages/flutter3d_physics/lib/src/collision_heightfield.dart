@@ -111,11 +111,16 @@ final class CollisionHeightfield extends CollisionShape {
   final Float32List _heights;
 
   /// The lowest and highest sample, which are what the bounds are made of.
+  /// A height, in metres.
   final double lowest;
+
+  /// The highest sample, in metres; see [lowest].
   final double highest;
 
   /// How far the field reaches along +X and +Z, in metres.
   double get width => (columns - 1) * cellSize;
+
+  /// How far the field reaches along +Z, in metres.
   double get depth => (rows - 1) * cellSize;
 
   /// The height at sample [column], [row], in the field's own numbers.

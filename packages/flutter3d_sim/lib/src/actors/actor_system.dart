@@ -42,12 +42,13 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Entity, EventRegistry;
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
-import '../ecs/entity.dart';
-import '../loop/game_event.dart';
 import '../math/motion.dart';
 import '../math/tolerances.dart';
 import '../nav/avoidance.dart';
@@ -79,6 +80,16 @@ final class ActorSystem {
 
   /// Where actors live. Shared with everything else that has moved across, so
   /// that one `save()` covers the lot.
+  ///
+  /// **The run's world, which the engine sees.** A genre's run keeps its
+  /// actors in a world of its own per level — its tapes' checkpoints are
+  /// digests of it, and an edit of a level is built beside the one still
+  /// playing — and the genre hands that world to the loop: its run is a part
+  /// of the loop's snapshots, and the world is one of its `PublishedWorlds`,
+  /// so the view reads where each actor is from published state
+  /// ([PublishedActor]) rather than from the actor. A game that wants its
+  /// actors in the loop's own world passes `loop.world` here instead. Left
+  /// out, the system makes a world of its own.
   final EcsWorld entities;
 
   /// Randomness, shared so that a snapshot can carry where the dice were.
@@ -159,18 +170,19 @@ final class ActorSystem {
   /// invisible, and without this thirty actors are thirty rays every step.
   int thinkInterval = 4;
 
-  /// Beyond this, an actor is on the slow schedule.
+  /// Beyond this, an actor is on the slow schedule. In metres from the
+  /// focus.
   double closeRange = 18.0;
 
-  /// Where this system reports what happened, or null for a caller that does
-  /// not listen.
+  /// The bus this system publishes what happened onto, or null for a caller
+  /// that does not listen.
   ///
-  /// Set by whoever owns the step, usually to the genre simulation's own
-  /// buffer, so that a death recorded here lands in the same ordered sequence
-  /// as the shot that caused it. That ordering is the reason this is a sink
-  /// handed down rather than a list collected up: a list says what happened, a
-  /// shared buffer says what happened when.
-  GameEvents? events;
+  /// Set by whoever owns the step, usually by the genre simulation to its own
+  /// bus (its `publishTo`), so that a death published here lands in the same
+  /// ordered sequence as the shot that caused it. That ordering is the reason
+  /// this is a bus handed down rather than a list collected up: a list says
+  /// what happened, the step channel says what happened when.
+  EventRegistry? events;
 
   /// What walks an actor's body in place of its brain's wish, or null for
   /// a game whose bodies go where their brains want.
@@ -202,12 +214,6 @@ final class ActorSystem {
   /// [step], the first.
   Vector3 get focus => _foci[_focusIndex];
   Collider? get focusBody => _fociBodies[_focusIndex];
-
-  /// For code written against 0.8.0, where this was a field: [step] names
-  /// the body, as `focusBody:` or in `foci:`, and overwrites whatever was
-  /// set here on its next call, as it always did.
-  @Deprecated('Name the body in step(focusBody:) or step(foci:).')
-  set focusBody(Collider? body) => _fociBodies[_focusIndex] = body;
 
   /// Which focus the actor being thought about attends to, by its index in
   /// the list [step] was given. Zero with one focus, and outside [step].
@@ -253,6 +259,8 @@ final class ActorSystem {
 
   /// From the actor currently being thought about to the focus.
   Vector3 get toFocus => _toFocus;
+
+  /// The length of [toFocus], in metres.
   double get distanceToFocus => _distance;
 
   int _tick = 0;
@@ -298,7 +306,11 @@ final class ActorSystem {
       throw ArgumentError.value(entity, 'entity', 'is not a vacant slot');
     }
     final made = entity ?? entities.spawn();
-    if (body != null) entities.set(made, Body(body));
+    if (body != null) {
+      entities
+        ..set(made, Body(body))
+        ..set(made, Gait(body));
+    }
     if (health != null) entities.set(made, Vitality(health));
     if (facing != null) entities.set(made, facing);
     if (brain != null) entities.set(made, Thinking(brain));
@@ -562,7 +574,9 @@ final class ActorSystem {
         body.position,
         radius: body.halfExtents.x,
         height: body.halfExtents.y * 2.0,
-        jump: routes.grid.jumpLinks.isEmpty ? null : JumpReach.of(body.tuning),
+        jump: routes.grid.jumpLinks.isEmpty
+            ? null
+            : JumpReach.of(body.tuning, world: body.world.properties),
       );
       if (target >= 0) return target;
     }
@@ -616,17 +630,17 @@ final class ActorSystem {
       // you have killed turns a corridor into a maze of your own making.
       actor.body?.collider.kind = ColliderKind.trigger;
       died.add(actor);
-      events?.add(ActorDied(actor, from: from));
+      events?.publish(ActorDied(actor, from: from));
       actor.brain?.onDeath(_mind);
       return true;
     }
 
     // One object in both places while the lists are still here; when they go
-    // it is only in the buffer. Never two, which is the whole reason ActorHurt
+    // it is only on the bus. Never two, which is the whole reason ActorHurt
     // is the event rather than something copied into one.
     final hurt = ActorHurt(actor, amount, from: from);
     hurtThisStep.add(hurt);
-    events?.add(hurt);
+    events?.publish(hurt);
     actor.brain?.onHurt(_mind, amount);
     _mind.hurtBy = null;
     return false;
@@ -741,7 +755,9 @@ final class ActorSystem {
                 0
         ? _onMesh
         : _feet;
-    final reach = mesh.links.isEmpty ? null : JumpReach.of(body.tuning);
+    final reach = mesh.links.isEmpty
+        ? null
+        : JumpReach.of(body.tuning, world: body.world.properties);
     final route = mesh.route(start, _goalFeet, jumps: reach);
     if (route == null) return false;
     final within = mesh.config.cellSize * 0.5;
@@ -810,8 +826,8 @@ final class ActorSystem {
   /// Turns [_wish] into the velocity [avoidance] picks for [actor].
   ///
   /// The neighbours are the living actors with bodies within
-  /// [Avoidance.neighbourDistance], nearest first and by spawn order where
-  /// two are as near, at most [Avoidance.maxNeighbours] of them.
+  /// [Avoidance.neighborDistance], nearest first and by spawn order where
+  /// two are as near, at most [Avoidance.maxNeighbors] of them.
   void _avoid(
     Actor actor,
     CharacterController body,
@@ -819,8 +835,8 @@ final class ActorSystem {
     double dt,
   ) {
     final here = body.position;
-    final reach = avoid.neighbourDistance * avoid.neighbourDistance;
-    final near = <(double, int, AvoidanceNeighbour)>[];
+    final reach = avoid.neighborDistance * avoid.neighborDistance;
+    final near = <(double, int, AvoidanceNeighbor)>[];
     for (final other in actors) {
       final them = other.body;
       if (identical(other, actor) || them == null || !other.isAlive) continue;
@@ -852,8 +868,8 @@ final class ActorSystem {
       maxSpeed: speed,
       prefX: _wish.x * speed,
       prefZ: _wish.z * speed,
-      neighbours: <AvoidanceNeighbour>[
-        for (final n in near.take(avoid.maxNeighbours)) n.$3,
+      neighbors: <AvoidanceNeighbor>[
+        for (final n in near.take(avoid.maxNeighbors)) n.$3,
       ],
       dt: dt,
     );
@@ -901,7 +917,7 @@ final class ActorSystem {
       // makes the reach a number nobody reads.
       final reach = routes.grid.jumpLinks.isEmpty
           ? null
-          : JumpReach.of(body.tuning);
+          : JumpReach.of(body.tuning, world: body.world.properties);
       final routed = routes.steer(
         body.position,
         _wish,
@@ -942,7 +958,7 @@ final class ActorSystem {
       jump: reach,
     );
     if (link == null) return;
-    routes.grid.centreOf(link.from, _takeOff);
+    routes.grid.centerOf(link.from, _takeOff);
     final dx = _takeOff.x - body.position.x;
     final dz = _takeOff.z - body.position.z;
     final within = routes.grid.cellSize * 0.5;
@@ -1064,7 +1080,11 @@ final class ActorSystem {
 
 /// Something that takes actors out of their brains' hands for a while — a
 /// cutscene's director. See [ActorSystem.director].
-abstract interface class ActorDirector {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ActorDirector {
   /// Whether it directs [actor] this step. When it does, the actor's brain
   /// is not asked, and [steer] is.
   bool directs(Actor actor);

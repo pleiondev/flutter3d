@@ -1,12 +1,10 @@
-import '../physics_backend.dart';
 import 'cloth_collision.dart';
 import 'cloth_mesh.dart';
 import 'cloth_settings.dart';
 import 'xpbd_solver.dart';
 
-/// A [ClothMesh] stepped by the run's physics: `PhysicsBackend.current
-/// .cloth(mesh)`, the core where the run is on it and [stepCloth] where it
-/// is on the reference.
+/// A [ClothMesh] stepped by a world's physics: `backend.cloth(mesh)`, the
+/// core where the run is on it and [stepCloth] where it is on the reference.
 ///
 /// **The mesh stays the cloth.** Its positions, velocities and inverse
 /// masses are read at the start of every [step] and its positions and
@@ -21,7 +19,13 @@ import 'xpbd_solver.dart';
 /// where the reference would put it to within the rounding of single
 /// precision and the order the constraints are solved in, and each agrees
 /// with itself from run to run.
-abstract interface class ClothSimulation {
+///
+/// **Extended outside this package: an `abstract base class` with defaults**
+/// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
+/// arrives with a default body and every implementation keeps compiling.
+abstract base class ClothSimulation {
+  const ClothSimulation();
+
   /// The sheet this steps, in place.
   ClothMesh get mesh;
 
@@ -34,33 +38,12 @@ abstract interface class ClothSimulation {
   });
 
   /// Lets go of what the backend holds for [mesh]. The mesh itself stays
-  /// as the last step left it.
-  void dispose();
-}
-
-/// A backend with a cloth of its own: what [PhysicsBackendCloth.cloth]
-/// asks a backend for before it falls back to the reference.
-///
-/// **An interface beside [PhysicsBackend], not a member of it.** A backend
-/// a test writes to count what it was given has no cloth to offer, and
-/// should not have to say so.
-abstract interface class ClothPhysics {
-  /// A simulation of [mesh] on this backend.
-  ClothSimulation cloth(ClothMesh mesh);
-}
-
-/// Cloth from whatever backend the run is on.
-extension PhysicsBackendCloth on PhysicsBackend {
-  /// A simulation of [mesh] on this backend if it has a cloth of its own
-  /// ([ClothPhysics]), on the reference ([DartCloth]) if not.
-  ClothSimulation cloth(ClothMesh mesh) => switch (this) {
-    final ClothPhysics own => own.cloth(mesh),
-    _ => DartCloth(mesh),
-  };
+  /// as the last step left it. Nothing, by default.
+  void dispose() {}
 }
 
 /// The reference: [stepCloth] on [mesh], nothing held besides.
-final class DartCloth implements ClothSimulation {
+final class DartCloth extends ClothSimulation {
   DartCloth(this.mesh);
 
   @override

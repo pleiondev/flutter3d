@@ -44,10 +44,10 @@ final class TelemetryConsent {
   final bool? _yes;
 
   /// Whether the player was asked at all.
-  bool get asked => _yes != null;
+  bool get wasAsked => _yes != null;
 
   /// Whether they said yes — to [policy], which may not be today's.
-  bool get granted => _yes ?? false;
+  bool get isGranted => _yes ?? false;
 
   /// The wording the player answered, by the name the game gives it —
   /// `'2026-10'`, `'v2'`.
@@ -57,7 +57,7 @@ final class TelemetryConsent {
   final DateTime? at;
 
   /// Whether a run may be sent under [currentPolicy].
-  bool allows(String currentPolicy) => granted && policy == currentPolicy;
+  bool allows(String currentPolicy) => isGranted && policy == currentPolicy;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'answer': switch (_yes) {

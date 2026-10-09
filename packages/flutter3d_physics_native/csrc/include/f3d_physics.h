@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 32u
+#define F3D_ABI_VERSION 37u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -83,6 +83,22 @@ typedef uint32_t F3dMultibody;
  * of the road under it. */
 #define F3D_WHEEL_FLOATS 8u
 
+/* Every real a wheel can be given in f3d_vehicle_add_wheel_with: the
+ * F3D_WHEEL_FLOATS above, then the tyre's width, m, nought for
+ * F3D_WHEEL_WIDTH_SHARE of its radius; and its rolling resistance
+ * coefficient, what share of the load on it holds it from rolling.
+ * A wheel given fewer takes the rest at their defaults. */
+#define F3D_WHEEL_FLOATS_ALL 10u
+
+/* A tyre's width as a share of its radius, when it is not given: a road
+ * car's tyre, 205 mm wide on a 315 mm radius, is about this shape. */
+#define F3D_WHEEL_WIDTH_SHARE 0.6
+
+/* A tyre's rolling resistance coefficient, when it is not given: a car's
+ * tyre on asphalt, 0.010 to 0.015 (Gillespie, Fundamentals of Vehicle
+ * Dynamics, 1992, ch. 4). */
+#define F3D_WHEEL_ROLLING_DEFAULT 0.015
+
 /* Reals one wheel takes in f3d_vehicle_read_wheels: one while it touches,
  * nought while it hangs; the suspension's length now; the steering angle;
  * how far the wheel has turned about its axle, radians, and how fast,
@@ -114,6 +130,11 @@ typedef enum F3dBodyType {
   F3D_BODY_DYNAMIC = 0,
   /* Never moves; infinite mass. It still heats, cools and burns. */
   F3D_BODY_FIXED = 1,
+  /* Moves at the velocity and spin it is given, and nothing else: no
+   * gravity, force or contact moves it; infinite mass, so it pushes what it
+   * meets and wakes what sleeps there. A game object the world follows —
+   * a wheel through a ford, a door, a lift, a boat steered by its game. */
+  F3D_BODY_KINEMATIC = 2,
 } F3dBodyType;
 
 /* What a body is shaped like: what it collides as, and its inertia, its
@@ -162,12 +183,15 @@ typedef struct F3dMaterial {
   f3d_real ignition_temperature;
   /* J released per kilogram burnt. */
   f3d_real heat_of_combustion;
-  /* kg burnt per second per square metre of surface while alight. */
+  /* kg burnt per second per square metre of surface while alight, as
+   * measured for the material. Checked, no longer read: the step burns at
+   * the rate its heat balance gives, ṁ'' = q''_net / heat_of_gasification. */
   f3d_real burn_rate;
   /* The share of the mass that can burn, nought to one. */
   f3d_real fuel_fraction;
-  /* The share of the fire's heat that goes back into the body, nought to
-   * one; the rest leaves as the hot gas a smoke grid takes. */
+  /* Checked, no longer read: what a flame gives back to its own surface
+   * follows from the flame (flame_temperature, flame_convection,
+   * flame_absorption) and the size of what burns. */
   f3d_real flame_feedback;
   /* W / (m K): how readily heat crosses into what it touches. */
   f3d_real conductivity;
@@ -180,6 +204,57 @@ typedef struct F3dMaterial {
   f3d_real flame_convection;
   f3d_real flame_radiant;
   f3d_real flame_absorption;
+  /* J/kg a burning surface spends turning a kilogram of itself to fuel
+   * gas, warming it from the room's temperature included, so it burns at
+   * ṁ'' = q''_net / L (Tewarson's heat of gasification). Nought takes
+   * 1.81 MJ/kg, Douglas fir's. */
+  f3d_real heat_of_gasification;
+  /* kg / (m² s): the least a surface must give off for a flame to stand on
+   * it (Rasbash's firepoint); a patch whose heat balance gives less goes
+   * out. Nought takes 2.5 g / (m² s), wood's. */
+  f3d_real critical_mass_flux;
+  /* Φ, W²/m³: the flame spread parameter of the LIFT test, so a flame's
+   * edge creeps over a surface at T_s at Φ / (kρc (T_ig − T_s)²)
+   * (Quintiere and Harkleroad). Nought takes 12.9 kW²/m³, plywood's. */
+  f3d_real flame_spread;
+  /* Young's modulus, Pa, and Poisson's ratio: how two curved bodies
+   * pressed together flatten into a contact (Hertz). A modulus of nought
+   * takes 0.91 GPa, pine across its grain. */
+  f3d_real modulus;
+  f3d_real poisson_ratio;
+  /* K: the soot that glows in its flame, which gives the flame's light —
+   * hotter than the flame's mean gas, flame_temperature, that heats what
+   * stands in it. Nought takes flame_temperature. */
+  f3d_real soot_temperature;
+  /* The share of what burns of it left as char, nought to below one: under
+   * its fire a char layer grows that insulates the wood beneath and glows
+   * hotter than the wood catches at, and the wood under it gives off gas in
+   * depth as well as at the front. Nought for a material that does not
+   * char, which burns at its surface alone. */
+  f3d_real char_yield;
+  /* K: the coolest a surface a flame's edge can creep over sideways or
+   * down (the LIFT test's T_s,min, Quintiere and Harkleroad); colder, the
+   * edge stands. Nought for none. */
+  f3d_real spread_minimum;
+  /* kρc, J² / (m⁴ K² s), as the LIFT test measures it with the ignition
+   * temperature and the spread parameter: what how soon a surface catches
+   * under a flux, and how fast a flame's edge creeps, answer to. Wood's in
+   * these tests is several times what its own k, ρ and c multiply to.
+   * Nought takes conductivity × density × specific heat. */
+  f3d_real ignition_inertia;
+  /* A porous bed of fine fuel — straw, grass, needles — rather than a
+   * solid: σ, 1/m, its elements' surface over their volume, and ρ_p,
+   * kg/m³, their own density (Rothermel's fuel bed, 1972). A body made of
+   * it is a bed packed at β = its density over ρ_p; heat reaches in as far
+   * as radiation passes between the elements, 4/(βσ), and heats them
+   * through there; under its fire nothing draws heat into a cold solid and
+   * no crust of char closes over it. Nought σ for a solid. */
+  f3d_real element_surface;
+  f3d_real element_density;
+  /* kg of soot its fire makes per kg of it burnt, nought to one: what
+   * darkens the smoke over it. Read by what draws the smoke, through
+   * f3d_world_read_fires; nought for none. */
+  f3d_real soot_yield;
 } F3dMaterial;
 
 typedef enum F3dMaterialKind {
@@ -189,6 +264,18 @@ typedef enum F3dMaterialKind {
   F3D_MATERIAL_RUBBER = 3,
   F3D_MATERIAL_STEEL = 4,
   F3D_MATERIAL_STONE = 5,
+  /* Red oak, as boards or beams. */
+  F3D_MATERIAL_OAK = 6,
+  /* Southern pine, as boards. */
+  F3D_MATERIAL_PINE = 7,
+  /* Corrugated board, as boxes are made of. */
+  F3D_MATERIAL_CARDBOARD = 8,
+  /* A porous bed of dry straw: a thatched roof, a stack, a bale. */
+  F3D_MATERIAL_THATCH = 9,
+  /* Wood charcoal, which glows rather than flames. */
+  F3D_MATERIAL_CHARCOAL = 10,
+  /* Paraffin wax: a candle's, as a burner's fuel. */
+  F3D_MATERIAL_PARAFFIN = 11,
 } F3dMaterialKind;
 
 /* What a step can say happened to a body. */
@@ -206,6 +293,12 @@ typedef enum F3dEventKind {
   /* A joint held past what f3d_joint_set_break allows it and let go: the
    * event names its two bodies, the joint is gone. */
   F3D_EVENT_JOINT_BROKEN = 7,
+  /* A body came into a liquid: the water's step found some of it under a
+   * surface where the step before found none. */
+  F3D_EVENT_WETTED = 8,
+  /* A burner's flame went out: the body it burns on went wholly under a
+   * liquid, and its feed is off. */
+  F3D_EVENT_BURNER_OUT = 9,
 } F3dEventKind;
 
 /* Reals one body takes in f3d_world_read_transforms: position xyz, then the
@@ -216,8 +309,15 @@ typedef enum F3dEventKind {
  * gives off as hot gas, how far its flame reaches from that position, m —
  * Heskestad's length over a base as wide as what burns, from its middle —
  * and the unit axis xyz the flame stands along, up and leaning with the
- * wind by the speed of its own buoyancy. */
-#define F3D_FIRE_FLOATS 8u
+ * wind by the speed of its own buoyancy; then the width of the patch
+ * alight, m, as the diameter of a ball of its area — the flame's base;
+ * the share of the body's (or the part's) surface alight, nought to one;
+ * the temperature of the soot that glows in its flame, K, what its light
+ * is a blackbody of; the share of the fire's heat that leaves as
+ * radiation, nought to one; and the soot it makes per joule of that heat,
+ * kg/J — its fuel's soot yield over its heat of combustion, so the watts
+ * times it are the kg/s of soot its smoke carries. */
+#define F3D_FIRE_FLOATS 13u
 
 /* Reals one contact point takes in f3d_world_read_contacts: the normal
  * xyz, out of the second body into the first, the point xyz halfway
@@ -481,9 +581,15 @@ F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);
  * down, it steers about the up and rolls along the forward. Each step,
  * after the contacts and before the solver, every wheel that touches
  * pushes the chassis up by its spring and damper, along the road by its
- * drive and brake, and across it to hold it from sliding sideways, as much
- * as the grip times the spring's force allows together; what it stands on
- * is pushed back, when that moves. A chassis asleep stays so until it is
+ * drive, its brake and its rolling resistance, and across it to hold it
+ * from sliding sideways, as much as the grip times the spring's force
+ * allows together; what it stands on is pushed back, when that moves. The
+ * springs and dampers are solved together and implicitly, so the chassis
+ * on them is a damped oscillator of its own mass at any step, however
+ * light it is or stiff they are. Rolling resistance holds as a brake of
+ * the coefficient times the load does: a car left on a slope gentler than
+ * the coefficient stays, on a steeper one rolls, and coasting slows at
+ * the coefficient times g. A chassis asleep stays so until it is
  * given a wheel's input. Nought for a chassis not in the world or not
  * dynamic, axes not finite, nought long or not square to each other, or no
  * memory. In a snapshot. */
@@ -499,9 +605,18 @@ F3D_API int f3d_vehicle_is_valid(const F3dWorld *world, F3dVehicle vehicle);
 /* Adds a wheel of F3D_WHEEL_FLOATS reals; returns its index from nought,
  * or -1 for a vehicle not in the world, one with F3D_VEHICLE_MOST_WHEELS
  * already, or a value not finite, a length negative, or a radius, a
- * stiffness or a grip not positive, or a damping negative. */
+ * stiffness or a grip not positive, or a damping negative. Its tyre is
+ * F3D_WHEEL_WIDTH_SHARE of its radius wide, its rolling resistance
+ * F3D_WHEEL_ROLLING_DEFAULT. */
 F3D_API int f3d_vehicle_add_wheel(F3dWorld *world, F3dVehicle vehicle,
                                   const f3d_real *wheel);
+
+/* f3d_vehicle_add_wheel with [count] reals, from F3D_WHEEL_FLOATS to
+ * F3D_WHEEL_FLOATS_ALL: those past [count] take their defaults. -1 as
+ * f3d_vehicle_add_wheel, and for a count out of that range, a width
+ * negative or a rolling resistance negative. */
+F3D_API int f3d_vehicle_add_wheel_with(F3dWorld *world, F3dVehicle vehicle,
+                                       const f3d_real *wheel, uint32_t count);
 
 /* What the driver asks of wheel [wheel]: its steering angle, radians about
  * the up, positive to the left of forward; the force its drive pushes
@@ -532,6 +647,29 @@ typedef uint32_t F3dShallow;
 #define F3D_SHALLOW_MOST_SOURCES 16u
 #define F3D_SHALLOW_MOST_SPRAY 16384u
 #define F3D_SHALLOW_MOST_BUBBLES 16384u
+
+/* The most outlets a water has. */
+#define F3D_SHALLOW_MOST_OUTLETS 8u
+
+/* What an edge of a water's grid is, f3d_shallow_set_edge. */
+/* A wall: nothing crosses it. */
+#define F3D_EDGE_WALL 0u
+/* Open: what reaches it runs off, and nothing comes in. */
+#define F3D_EDGE_OPEN 1u
+/* A discharge, m³/s over the whole edge: in where positive, out where
+ * negative. */
+#define F3D_EDGE_FLOW 2u
+/* A stage: water outside the edge stands at a height above oy, and flows
+ * in or out as the surface inside is below or above it. */
+#define F3D_EDGE_LEVEL 3u
+
+/* Reals f3d_shallow_info gives: the substeps the last step was cut into;
+ * how many steps since the water was made wanted more than the most a step
+ * is cut into, F3D_SHALLOW_MOST_SUBSTEPS, and so held the flow to what that
+ * allows; one while it rests; and the most energy any cell held at the end
+ * of the last step, J/m². */
+#define F3D_SHALLOW_INFO_FLOATS 4u
+#define F3D_SHALLOW_MOST_SUBSTEPS 64u
 
 /* What a piece of falling water is: a stretch of the sheet that left a
  * cliff's lip in one step, or drops — what a sheet broke into, or a
@@ -587,6 +725,20 @@ F3D_API int f3d_shallow_fill(F3dWorld *world, F3dShallow water, f3d_real x0,
                            f3d_real z0, f3d_real x1, f3d_real z1,
                            f3d_real level);
 
+/* The basin the cell (x, z) is in filled to [level] above oy: that cell
+ * and every one reached from it, side by side, over ground below [level]
+ * and through no wall — a lagoon filled to its rim, not the sea beyond
+ * the ridge. How many cells it filled; nought for (x, z) off the grid, on
+ * ground above [level], a wall, or a value not finite. */
+F3D_API uint32_t f3d_shallow_fill_basin(F3dWorld *world, F3dShallow water,
+                                        f3d_real x, f3d_real z, f3d_real level);
+
+/* Each cell's depth, nx × nz, x fastest, m, nought or more: the water as a
+ * game saved it, or made it. A wall keeps what it holds. 0 for a depth not
+ * finite or below nought. */
+F3D_API int f3d_shallow_set_depth(F3dWorld *world, F3dShallow water,
+                                  const f3d_real *depth);
+
 /* [volume] m³ poured in at (x, z) over a disc of [radius], or taken out
  * where it is negative, as far as there is water to take. */
 F3D_API int f3d_shallow_pour(F3dWorld *world, F3dShallow water, f3d_real x,
@@ -608,8 +760,67 @@ F3D_API int f3d_shallow_set_source(F3dWorld *world, F3dShallow water,
 F3D_API int f3d_shallow_set_bed(F3dWorld *world, F3dShallow water,
                               f3d_real roughness, int open_edges);
 
+/* Edge [side] of the grid — 0 at x = 0, 1 at the far x, 2 at z = 0, 3 at
+ * the far z — made an F3D_EDGE_ [kind] with [value]: a discharge in m³/s
+ * for F3D_EDGE_FLOW, shared over the edge's wet cells by their conveyance
+ * h^(5/3) (Manning's, at one slope and roughness), or over all of them
+ * while it is dry; a height above oy for F3D_EDGE_LEVEL; unread for the
+ * others. f3d_shallow_set_bed sets all four to wall or open. What crosses
+ * an edge counts in f3d_shallow_volume's [lost], out less in. 0 for a side
+ * past 3, a kind past F3D_EDGE_LEVEL or a value not finite. */
+F3D_API int f3d_shallow_set_edge(F3dWorld *world, F3dShallow water,
+                                 uint32_t side, uint32_t kind, f3d_real value);
+
+/* Outlet [index]: a sharp-crested weir [width] m long, its crest [crest]
+ * above oy, at the cell (x, z) is in. Where the surface there stands a head
+ * H over the crest it takes Q = ⅔·C_d·√(2g)·width·H^1.5 out of the water
+ * (Poleni's weir law), C_d Rehbock's 0.611 + 0.075·H/P with P the crest's
+ * height over the cell's ground, or [coefficient] where it is above
+ * nought; never more than would bring the surface below the crest. What it
+ * takes counts in [lost]. A width of nought stops it. 0 for an index past
+ * F3D_SHALLOW_MOST_OUTLETS or a value not finite, or a width below nought. */
+F3D_API int f3d_shallow_set_outlet(F3dWorld *world, F3dShallow water,
+                                   uint32_t index, f3d_real x, f3d_real z,
+                                   f3d_real crest, f3d_real width,
+                                   f3d_real coefficient);
+
+/* Outlet [index] made a drain instead: an opening of [area] m², its invert
+ * [invert] above oy, at the cell (x, z) is in — a culvert's mouth, a grate,
+ * a sluice. Where the surface stands a head H over the invert it takes
+ * Q = C_d·A·√(2gH) (Torricelli), C_d a sharp-edged orifice's 0.61 or
+ * [coefficient] where it is above nought; never more than would bring the
+ * surface below the invert. 0 as f3d_shallow_set_outlet. */
+F3D_API int f3d_shallow_set_drain(F3dWorld *world, F3dShallow water,
+                                  uint32_t index, f3d_real x, f3d_real z,
+                                  f3d_real invert, f3d_real area,
+                                  f3d_real coefficient);
+
+/* Each cell's own Manning roughness, nx × nz, x fastest, negative for the
+ * water's own (f3d_shallow_set_bed); and which cells are walls, nonzero
+ * for a wall: no water crosses into or out of a wall, nothing lands in it,
+ * and what it held when it was made one stays in it. Either may be null to
+ * leave it as it is. 0 for a roughness not finite. */
+F3D_API int f3d_shallow_set_cells(F3dWorld *world, F3dShallow water,
+                                  const f3d_real *roughness,
+                                  const uint32_t *walls);
+
+/* F3D_SHALLOW_INFO_FLOATS reals about the last step into [out]. */
+F3D_API int f3d_shallow_info(const F3dWorld *world, F3dShallow water,
+                             f3d_real *out);
+
+/* When the world's waters rest — stop being stepped until something
+ * stirs them: once no cell has held more than [energy] J/m² of motion and
+ * of surface standing off its neighbours', ½ρh|u|² + ½ρg(η − η̄)², for
+ * [seconds], with nothing feeding, draining or moving in it. A [seconds]
+ * of nought keeps them always stepped. Defaults 5e-4 J/m² — a metre of
+ * water moving a millimetre a second — and one second. 0 for a value
+ * negative or not finite. */
+F3D_API int f3d_world_set_water_rest(F3dWorld *world, f3d_real energy,
+                                     f3d_real seconds);
+
 /* What the water is: its density, kg/m³, its viscosity, Pa·s, and its
- * surface tension, N/m — 1000, 0.001 and 0.072 for water, as it starts.
+ * surface tension, N/m — 998.2, 1.002e-3 and 0.0728 for water at 20 °C, as
+ * it starts (flutter3d_physics' catalogue, f3d.water).
  * The density is what a body in it is held up by and pushes against; the
  * viscosity is what its drag answers to at a body's Reynolds number, what
  * mixes its flow, and the ground's laminar hold on it where it runs thin
@@ -619,6 +830,25 @@ F3D_API int f3d_shallow_set_bed(F3dWorld *world, F3dShallow water,
 F3D_API int f3d_shallow_set_fluid(F3dWorld *world, F3dShallow water,
                                 f3d_real density, f3d_real viscosity,
                                 f3d_real tension);
+
+/* What heat sees of the water: its [temperature], K; its [specific_heat],
+ * J/(kg K), [conductivity], W/(m K), and volumetric [expansion], 1/K —
+ * water's at 20 °C as it starts, 4182, 0.598 and 2.07e-4, at the air's
+ * temperature; and [boils] nonzero for a liquid that boils as water does
+ * at one atmosphere. The share of a body under its surface gives it heat
+ * by forced and free convection with these and the water's density and
+ * viscosity; a body hotter than 373.15 K in water that boils, by boiling —
+ * nucleate (Rohsenow) up to the critical flux (Zuber), film (Bromley) past
+ * Leidenfrost's point and the two joined between — or by convection,
+ * whichever carries more. A body's surface under water does not burn: its
+ * fire is held to what stands above, and goes out under. The water is a
+ * reservoir: what it takes neither warms it nor boils it away. 0 for a
+ * value not finite, a temperature, specific heat or conductivity not above
+ * nought, or an expansion below nought. */
+F3D_API int f3d_shallow_set_heat(F3dWorld *world, F3dShallow water,
+                                 f3d_real temperature, f3d_real specific_heat,
+                                 f3d_real conductivity, f3d_real expansion,
+                                 int boils);
 
 /* The surface at (x, z): its height above oy, the depth there, and the
  * flow's velocity x and z, into out[0..3]; 0 outside the grid. */
@@ -711,12 +941,29 @@ F3D_API int f3d_multibody_set_limits(F3dWorld *world, F3dMultibody multibody,
                                      uint32_t link, int enabled,
                                      f3d_real lower, f3d_real upper);
 
-/* A motor on a revolute or prismatic link: it drives the joint's speed
- * towards [speed], rad/s or m/s, with at most [force], N m or N.
- * [enabled] nought takes it off. */
+/* A motor on a revolute or prismatic link: it drives the joint at
+ * [speed], rad/s or m/s, through each step, with at most [force], N m or
+ * N. A motor of speed nought strong enough for its load holds the joint
+ * where it is. It knows no place: what moves the joint past its force is
+ * not taken back — that is a servo's. [enabled] nought takes it off. */
 F3D_API int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
                                     uint32_t link, int enabled,
                                     f3d_real speed, f3d_real force);
+
+/* A servo on a revolute or prismatic link: a spring of [stiffness], N m
+ * per radian or N/m, above nought, pulling the joint to its mark, and a
+ * damper of [damping] times critical, nought or more, on its speed
+ * against the mark's — critical for the inertia the joint moves through
+ * the whole tree. The mark starts at [target], radians or m, and moves at
+ * the link's motor's speed; the motor's force bounds the servo's, and
+ * without a motor it is unbounded. A load L held still deflects the joint
+ * L / stiffness from its mark. Solved implicitly, stable however stiff.
+ * [enabled] nought takes it off, leaving the motor. 0 for another kind of
+ * link, or a value out of range. */
+F3D_API int f3d_multibody_set_servo(F3dWorld *world, F3dMultibody multibody,
+                                    uint32_t link, int enabled,
+                                    f3d_real target, f3d_real stiffness,
+                                    f3d_real damping);
 
 /* A cone on a spherical link: its axis — the one given when it was added —
  * swings at most [swing] from where the parent holds it, in (0, π], and the
@@ -1417,13 +1664,16 @@ F3D_API uint32_t f3d_world_snapshot_size(const F3dWorld *world);
 
 /* Writes the world's whole state into [buffer] and returns the bytes
  * written, or nought when [size] is too small. A world restored from it
- * steps to the same bits the original does. */
+ * steps to the same bits the original does. The format is versioned field
+ * by field (f3d_snapshot.c says how): a snapshot from 1.0.0 on is read by
+ * every later 1.x core, one from before 1.0.0 by none. */
 F3D_API uint32_t f3d_world_snapshot_write(const F3dWorld *world,
                                           uint8_t *buffer, uint32_t size);
 
 /* Puts the world back as [buffer] says. 1, or 0 and the world unchanged for
- * a buffer that is not a snapshot from this build of the core. Handles kept
- * from before name what they named when the snapshot was taken. */
+ * a buffer that is not a snapshot this core reads: not a snapshot, damaged,
+ * from before 1.0.0, or from a later major. Handles kept from before name
+ * what they named when the snapshot was taken. */
 F3D_API int f3d_world_restore(F3dWorld *world, const uint8_t *buffer,
                               uint32_t size);
 
@@ -1447,6 +1697,16 @@ F3D_API int f3d_body_is_valid(const F3dWorld *world, F3dBody body);
 /* Every accessor below: 1 and the value written, or 0 for a handle that is
  * not valid or a value that is not finite. Setting a body's motion wakes
  * it. */
+/* A kinematic body sent to (x, y, z) turned to (qx, qy, qz, qw) over the
+ * next [dt] seconds: its velocity and spin set to carry it there, so what it
+ * meets on the way is pushed as by anything moving that fast. 0 for a body
+ * not kinematic, a value not finite, a turn of nought length or a [dt] not
+ * above nought. */
+F3D_API int f3d_body_move_kinematic(F3dWorld *world, F3dBody body, f3d_real x,
+                                    f3d_real y, f3d_real z, f3d_real qx,
+                                    f3d_real qy, f3d_real qz, f3d_real qw,
+                                    f3d_real dt);
+
 F3D_API int f3d_body_set_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                                   f3d_real y, f3d_real z);
 F3D_API int f3d_body_get_velocity(const F3dWorld *world, F3dBody body,
@@ -1623,6 +1883,19 @@ F3D_API int f3d_body_set_part_temperature(F3dWorld *world, F3dBody body,
 F3D_API int f3d_body_is_part_burning(F3dWorld *world, F3dBody body,
                                      uint32_t part, int *out);
 
+/* A flame held to the body at (x, y, z) through the next step: [flux],
+ * W/m², over [area], m², from gas at [temperature], K — a match, a pilot
+ * flame, a blowtorch held to a crate. It heats the part nearest the point
+ * by flux times area, and that spot catches as any spot heated harder than
+ * the rest does: in the time a thick solid takes to reach its ignition
+ * temperature under that flux, never if the flux is below what its surface
+ * loses there or the gas is cooler than it catches at. Held again each
+ * step while it is held; a later hold in the same step replaces it. 0 for
+ * a value not finite or below nought, or a temperature not above nought. */
+F3D_API int f3d_body_hold_flame(F3dWorld *world, F3dBody body, f3d_real x,
+                                f3d_real y, f3d_real z, f3d_real flux,
+                                f3d_real area, f3d_real temperature);
+
 /* [joules] into the body where (x, y, z) is: into the part of a compound
  * whose centre is nearest it, into any other body whole. A torch held to
  * one end. */
@@ -1644,9 +1917,50 @@ F3D_API int f3d_body_get_fuel(const F3dWorld *world, F3dBody body,
 /* 1 while the body burns, into *out. */
 F3D_API int f3d_body_is_burning(const F3dWorld *world, F3dBody body, int *out);
 
-/* Watts the fire gave off as hot gas over the last step. */
+/* Watts the fire gave off over the last step, past what its flame gave
+ * back to the body: the flame's radiant share of it leaves as radiation,
+ * the rest as the hot gas of its plume. */
 F3D_API int f3d_body_get_heat_release(const F3dWorld *world, F3dBody body,
                                       f3d_real *out);
+
+/* What of the body stands in a liquid, as the water's last step measured
+ * it: the m³ under the surface into [volume], which water into [water] —
+ * nought for none, when [volume] is nought too. The water holds it up by
+ * that volume times its density and gravity. Either may be null. */
+F3D_API int f3d_body_get_submerged(const F3dWorld *world, F3dBody body,
+                                   f3d_real *volume, F3dShallow *water);
+
+/* The char a fire has left on the body: the share of its surface under
+ * char, nought to one, into [share]; how deep the char has grown, at its
+ * deepest, m, into [depth]; and the char's surface temperature, K, into
+ * [temperature] — over its fire what the burning patch's heat balance
+ * gives it, elsewhere its surface's. Char stays when the fire goes out.
+ * Any may be null. */
+F3D_API int f3d_body_get_char(const F3dWorld *world, F3dBody body,
+                              f3d_real *share, f3d_real *depth,
+                              f3d_real *temperature);
+
+/* A burner: [kg_per_second] of [fuel] fed to the body and burnt on it — a
+ * torch, a brazier, a fire someone tends — giving off that times the
+ * fuel's heat of combustion with its flame, whatever the body is made of
+ * and whether or not it has fuel of its own. The flame stands over the
+ * whole body (a compound's first part) and heats it as its own fire would.
+ * Null [fuel] burns the body's own material; nought turns it off. 0 for a
+ * rate out of range or a fuel that does not burn. */
+F3D_API int f3d_body_set_burner(F3dWorld *world, F3dBody body,
+                                f3d_real kg_per_second,
+                                const F3dMaterial *fuel);
+
+/* An explosion of [joules] at (x, y, z), from a charge of [kg]; nought kg
+ * takes the TNT equivalent, a kilogram per 4.184 MJ. Its products carry
+ * TNT's Gurney share of the energy, 0.69, outwards as momentum √(2·E_G·m),
+ * and each body in their way takes the share of it its solid angle is, as
+ * an impulse away from the centre — the area it shows over 4πr² far off;
+ * the rest of the energy is heat, of which each body takes its solid
+ * angle's share as much as its emissivity does. Neither passes what
+ * stands between. How many bodies it reached. */
+F3D_API uint32_t f3d_world_explode(F3dWorld *world, f3d_real x, f3d_real y,
+                                   f3d_real z, f3d_real joules, f3d_real kg);
 
 #ifdef __cplusplus
 }

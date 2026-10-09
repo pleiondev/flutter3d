@@ -25,6 +25,7 @@ enum {
   LINK_LIMIT = 1u << 0,
   LINK_MOTOR = 1u << 1,
   LINK_CONE = 1u << 2,
+  LINK_SERVO = 1u << 3,
 };
 
 static F3dQuat qmul(F3dQuat a, F3dQuat b) {
@@ -216,10 +217,31 @@ int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
     }
     l->motor_speed = speed;
     l->motor_force = force;
-    if (!(l->flags & LINK_MOTOR)) l->motor_q = l->q;
     l->flags |= LINK_MOTOR;
   } else {
     l->flags &= ~(uint32_t)LINK_MOTOR;
+  }
+  F3dSlot *s = f3d_slot_of(world, l->body);
+  if (s != NULL) f3d_wake(world, s);
+  return 1;
+}
+
+int f3d_multibody_set_servo(F3dWorld *world, F3dMultibody multibody,
+                            uint32_t link, int enabled, f3d_real target,
+                            f3d_real stiffness, f3d_real damping) {
+  F3dLink *l = joint_link(world, multibody, link);
+  if (l == NULL) return 0;
+  if (enabled) {
+    if (!(f3d_finite(target) && f3d_finite(stiffness) && f3d_finite(damping) &&
+          stiffness > F3D_R(0.0) && damping >= F3D_R(0.0))) {
+      return 0;
+    }
+    l->motor_q = target;
+    l->servo_stiffness = stiffness;
+    l->servo_damping = damping;
+    l->flags |= LINK_SERVO;
+  } else {
+    l->flags &= ~(uint32_t)LINK_SERVO;
   }
   F3dSlot *s = f3d_slot_of(world, l->body);
   if (s != NULL) f3d_wake(world, s);
@@ -516,6 +538,24 @@ static f3d_real response(const f3d_real *l, uint32_t n, uint32_t d,
   return u[d];
 }
 
+/* e^y − 1 for y of nought or more, from a series on y halved until it is
+ * small and doubled back as e^2y − 1 = (e^y − 1)(e^y + 1): plain
+ * arithmetic, the same bits everywhere, as f3d_atan2. */
+static f3d_real grown(f3d_real y) {
+  uint32_t halved = 0;
+  while (y > F3D_R(0.125) && halved < 64u) {
+    y *= F3D_R(0.5);
+    halved++;
+  }
+  f3d_real term = y, sum = y;
+  for (uint32_t i = 2; i <= 8u; i++) {
+    term *= y / (f3d_real)i;
+    sum += term;
+  }
+  while (halved-- > 0) sum *= sum + F3D_R(2.0);
+  return sum;
+}
+
 static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
   const uint32_t n = m->link_count;
   F3dSlot *slots[F3D_MULTIBODY_MOST_LINKS];
@@ -550,6 +590,7 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
     if ((l->flags & LINK_LIMIT) && l->dofs == 1) {
       l->q = f3d_clamp(l->q, l->lower, l->upper);
     }
+    if (l->dofs == 1) l->drift = (l->q - l->left_q) / dt - l->qd;
     if (l->flags & LINK_CONE) hold_cone(l);
     placed[k] = place(l, placed[l->parent]);
     slots[k]->position = placed[k].at;
@@ -595,22 +636,38 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
   }
   if (!cholesky(a, dn)) return;
   solve(a, dn, x);
-  /* Motors and limits, each a push on its own degree of freedom that the
-   * whole tree answers, and so each moving the others' speeds: solved
-   * together, a pass over them all repeated until they agree (projected
-   * Gauss–Seidel), each push accumulated over the passes and held to what
-   * its motor can give in a step, or to pushing only away from its limit.
-   * One pass alone left a chain's motors undoing each other, and a neck of
-   * four links held still by its motors sagged to its limits. */
+  /* Motors, servos and limits, each a push on its own degree of freedom
+   * that the whole tree answers, and so each moving the others' speeds:
+   * solved together, a pass over them all repeated until they agree
+   * (projected Gauss–Seidel), each push accumulated over the passes and
+   * held to what its motor can give in a step, or to pushing only away
+   * from its limit. One pass alone left a chain's motors undoing each
+   * other, and a neck of four links held still by its motors sagged to its
+   * limits.
+   *
+   * The speeds set here are the next step's start, and the next step's
+   * substeps add to them what gravity and the contacts do before the
+   * joints are read again — how much depends on the joint: a hinge is read
+   * off the links' turns, which gravity does not touch, a slider off their
+   * places, which it does. So it is measured, not foretold: how much
+   * further than its speed the last step carried each joint, taken as what
+   * the next will. A motor's speed and a servo's spring are held on the
+   * speed the joint moves at through the step, not the one it starts it
+   * at: a motor of speed nought under a load then holds the joint where it
+   * is, rather than letting it fall a little further each step. */
   {
-    enum { PASSES = 16 };
+    /* What the passes may spend, and the change in a joint's speed, rad/s
+     * or m/s, under which they agree. */
+    enum { PASSES = 64 };
+    const f3d_real agreed = F3D_R(1e-6);
     /* Each constraint's degree of freedom, its response column and its
-     * inverse inertia, its target and bounds, and what it has pushed. */
+     * inverse inertia, its target, its give and bounds, and what it has
+     * pushed. */
     uint32_t cd[2u * F3D_MULTIBODY_MOST_LINKS];
     f3d_real cinv[2u * F3D_MULTIBODY_MOST_LINKS];
-    f3d_real cwant[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cwant[2u * F3D_MULTIBODY_MOST_LINKS], cgive[2u * F3D_MULTIBODY_MOST_LINKS];
     f3d_real clo[2u * F3D_MULTIBODY_MOST_LINKS], chi[2u * F3D_MULTIBODY_MOST_LINKS];
-    f3d_real cdone[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cdone[2u * F3D_MULTIBODY_MOST_LINKS], cahead[2u * F3D_MULTIBODY_MOST_LINKS];
     uint32_t clink[2u * F3D_MULTIBODY_MOST_LINKS];
     int csign[2u * F3D_MULTIBODY_MOST_LINKS];
     f3d_real cu[2u * F3D_MULTIBODY_MOST_LINKS][MOST_DOFS];
@@ -619,17 +676,48 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
       const F3dLink *l = &m->links[k];
       if (l->dofs != 1) continue;
       const uint32_t d = l->first_dof;
-      if (l->flags & LINK_MOTOR) {
+      if (l->flags & (LINK_MOTOR | LINK_SERVO)) {
         const f3d_real inv = response(a, dn, d, cu[cn]);
         if (inv > F3D_R(0.0)) {
+          const f3d_real speed =
+              (l->flags & LINK_MOTOR) ? l->motor_speed : F3D_R(0.0);
+          /* What the next step's substeps will add to the speed this one
+           * ends on, as they move it. */
+          const f3d_real ahead = l->drift;
           cd[cn] = d;
           cinv[cn] = inv;
-          /* A servo: the motor's speed, and what brings the joint back to
-           * where the motor means it to be — the step's free fall under
-           * the solver would otherwise sag a held arm a little each step. */
-          cwant[cn] = l->motor_speed + (l->motor_q - l->q) / dt;
+          cahead[cn] = ahead;
+          if (l->flags & LINK_SERVO) {
+            /* A spring of k to the servo's mark and a damper on the speed
+             * against the mark's, I the inertia the joint moves through
+             * the tree, both at the step's end: τ = k (mark − q) + c
+             * (speed − x' − ahead), with x' the speed the joint is left
+             * at. Solved for x' as a soft constraint, it gives nothing to
+             * a load but k (mark − q) at rest, and is stable however
+             * stiff. Taken at the step's end, a swing shrinks each step
+             * to √(I / (I + c dt)) of itself, so c is what makes that
+             * e^(−ζ ω dt), ω = √(k / I): c = I (e^(2ζω dt) − 1) / dt. No
+             * less than k dt, the spring's own share — a ζ under about
+             * ω dt / 2 is more ringing than a step at the end can hold —
+             * and no more than 2ζ √(k I) + k dt, the damper itself taken
+             * at the step's end: past that the swing no longer rings, and
+             * matching its shrinking would only slow how it settles. */
+            const f3d_real k = l->servo_stiffness;
+            const f3d_real omega = f3d_sqrt(k * inv);
+            const f3d_real damper = F3D_R(2.0) * l->servo_damping * omega / inv + k * dt;
+            const f3d_real c = f3d_max(
+                f3d_min(grown(F3D_R(2.0) * l->servo_damping * omega * dt) / (inv * dt), damper),
+                k * dt);
+            cwant[cn] = speed - ahead + k * (l->motor_q - l->q) / c;
+            cgive[cn] = F3D_R(1.0) / (c * dt);
+          } else {
+            /* A motor: the speed the joint moves at through the step. */
+            cwant[cn] = speed - ahead;
+            cgive[cn] = F3D_R(0.0);
+          }
           clink[cn] = k;
-          chi[cn] = l->motor_force * dt;
+          /* A servo with no motor has no bound on what it gives. */
+          chi[cn] = (l->flags & LINK_MOTOR) ? l->motor_force * dt : F3D_R(1e30);
           clo[cn] = -chi[cn];
           csign[cn] = 0;
           cdone[cn] = F3D_R(0.0);
@@ -646,16 +734,51 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
           cinv[cn] = inv;
           clink[cn] = k;
           cwant[cn] = ((side < 0 ? l->lower : l->upper) - l->q) / dt;
+          cgive[cn] = F3D_R(0.0);
+          cahead[cn] = F3D_R(0.0);
           csign[cn] = side;
           cdone[cn] = F3D_R(0.0);
           cn++;
         }
       }
     }
+    /* The motors and servos first, solved at once: each answers the others
+     * through the tree, and a stiff chain's passes alone, started from
+     * nought each step, stop short of agreeing — what they leave undone
+     * lets a held neck creep and a servo's neck bend further than its
+     * load asks. Their pushes λ satisfy (B + G) λ = want − x, B the
+     * responses of each to each, G each servo's give; held to their
+     * motors' bounds, they are where the passes below start. */
+    {
+      enum { MOST = F3D_MULTIBODY_MOST_LINKS };
+      uint32_t rows[MOST];
+      uint32_t nr = 0;
+      for (uint32_t c = 0; c < cn && nr < MOST; c++) {
+        if (csign[c] == 0) rows[nr++] = c;
+      }
+      f3d_real b[MOST * MOST], r[MOST];
+      for (uint32_t i = 0; i < nr; i++) {
+        const uint32_t ci = rows[i];
+        for (uint32_t j = 0; j < nr; j++) b[i * nr + j] = cu[rows[j]][cd[ci]];
+        b[i * nr + i] += cgive[ci];
+        r[i] = cwant[ci] - x[cd[ci]];
+      }
+      if (nr > 0 && cholesky(b, nr)) {
+        solve(b, nr, r);
+        for (uint32_t i = 0; i < nr; i++) {
+          const uint32_t ci = rows[i];
+          const f3d_real done = f3d_clamp(r[i], clo[ci], chi[ci]);
+          cdone[ci] = done;
+          for (uint32_t k = 0; k < dn; k++) x[k] += cu[ci][k] * done;
+        }
+      }
+    }
     for (int pass = 0; pass < PASSES; pass++) {
+      f3d_real most = F3D_R(0.0);
       for (uint32_t c = 0; c < cn; c++) {
         const uint32_t d = cd[c];
-        f3d_real want = (cwant[c] - x[d]) / cinv[c];
+        f3d_real want =
+            (cwant[c] - x[d] - cgive[c] * cdone[c]) / (cinv[c] + cgive[c]);
         f3d_real done;
         if (csign[c] == 0) {
           done = f3d_clamp(cdone[c] + want, clo[c], chi[c]);
@@ -668,16 +791,21 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
         want = done - cdone[c];
         cdone[c] = done;
         for (uint32_t i = 0; i < dn; i++) x[i] += cu[c][i] * want;
+        most = f3d_max(most, f3d_abs(want * cinv[c]));
       }
+      if (most <= agreed) break;
     }
-    /* Each motor's mark carried on at its speed — or, where it could not
-     * hold the joint, brought to where the joint goes, so a motor too weak
-     * for its load does not wind up a debt it pays back with a lurch. */
+    /* Each servo's mark carried on at its motor's speed — or, where the
+     * motor could not hold the joint, brought to where the joint goes, so
+     * a motor too weak for its load does not wind up a debt it pays back
+     * with a lurch. */
     for (uint32_t c = 0; c < cn; c++) {
       if (csign[c] != 0) continue;
       F3dLink *l = &m->links[clink[c]];
+      if (!(l->flags & LINK_SERVO)) continue;
       const int held = f3d_abs(cdone[c]) < chi[c];
-      l->motor_q = held ? l->motor_q + l->motor_speed * dt : l->q + x[cd[c]] * dt;
+      const f3d_real speed = (l->flags & LINK_MOTOR) ? l->motor_speed : F3D_R(0.0);
+      l->motor_q = held ? l->motor_q + speed * dt : l->q + (x[cd[c]] + cahead[c]) * dt;
       if (l->flags & LINK_LIMIT) l->motor_q = f3d_clamp(l->motor_q, l->lower, l->upper);
     }
   }
@@ -728,7 +856,10 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
   /* The joints' speeds kept, and every link moving as they say. */
   for (uint32_t k = 1; k < n; k++) {
     F3dLink *l = &m->links[k];
-    if (l->dofs == 1) l->qd = x[l->first_dof];
+    if (l->dofs == 1) {
+      l->qd = x[l->first_dof];
+      l->left_q = l->q;
+    }
     if (l->type == F3D_JOINT_SPHERICAL) {
       const Pose parent = placed[l->parent];
       l->spin = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));

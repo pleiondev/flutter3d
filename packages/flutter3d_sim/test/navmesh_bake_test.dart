@@ -17,13 +17,14 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 
@@ -58,7 +59,7 @@ List<Brush> _shortSteps() => <Brush>[
 List<Brush> _ramp() => <Brush>[
   _box(-2, -1, -4, 2, 0, 0),
   Brush(
-    centre: Vector3(0, 0.75, 3),
+    center: Vector3(0, 0.75, 3),
     size: Vector3(4, 1.5, 6),
     ramp: WedgeUphill.positiveZ,
   ),
@@ -70,7 +71,7 @@ List<Brush> _pillar() => <Brush>[..._floor(), _box(0, 0, 0, 1, 3, 1)];
 
 /// Twenty degrees of slope and the default step: ground steeper than the one
 /// and gentler than the other exists, which is the point of [_hillside].
-const NavMeshConfig _hills = NavMeshConfig(maxSlope: 0.35);
+const NavMeshSettings _hills = NavMeshSettings(maxSlope: 0.35);
 
 /// Terrain: flat for eight metres, then a hillside rising one in five, then
 /// a bank rising three in five, then flat again at the top.
@@ -141,14 +142,14 @@ void _expectWellFormed(NavMesh mesh) {
     // Mutation: recording a match on one side only — `out[slot] = …` without
     // `out[other] = p` — leaves every second polygon blind to the first.
     for (var k = 0; k < n; k++) {
-      final q = mesh.neighbourAt(p, k);
+      final q = mesh.neighborAt(p, k);
       if (q < 0) continue;
       final a = mesh.polygonVertex(p, k);
       final b = mesh.polygonVertex(p, (k + 1) % n);
       final m = mesh.polygonVertexCount(q);
       final back = Iterable<int>.generate(m).where(
         (j) =>
-            mesh.neighbourAt(q, j) == p &&
+            mesh.neighborAt(q, j) == p &&
             mesh.polygonVertex(q, j) == b &&
             mesh.polygonVertex(q, (j + 1) % m) == a,
       );
@@ -164,7 +165,7 @@ Set<int> _reachable(NavMesh mesh, int start) {
   for (var i = 0; i < queue.length; i++) {
     final p = queue[i];
     for (var k = 0; k < mesh.polygonVertexCount(p); k++) {
-      final q = mesh.neighbourAt(p, k);
+      final q = mesh.neighborAt(p, k);
       if (q >= 0 && seen.add(q)) queue.add(q);
     }
   }
@@ -185,11 +186,11 @@ Set<int> _reachable(NavMesh mesh, int start) {
 
 /// The polygon a body stands on at the centre of grid cell [cell], or −1.
 int _standingOn(NavMesh mesh, NavGrid grid, int cell) {
-  final centre = grid.centreOfCell(cell);
-  return mesh.polygonsAt(centre.x, centre.z).firstWhere((p) {
+  final center = grid.centerOfCell(cell);
+  return mesh.polygonsAt(center.x, center.z).firstWhere((p) {
     final (low, high) = _heights(mesh, p);
-    return low - grid.stepHeight <= centre.y &&
-        centre.y <= high + grid.stepHeight;
+    return low - grid.stepHeight <= center.y &&
+        center.y <= high + grid.stepHeight;
   }, orElse: () => -1);
 }
 
@@ -209,7 +210,7 @@ void _expectCoverageMatches(NavMesh mesh, NavGrid grid, double radius) {
 }
 
 void main() {
-  const config = NavMeshConfig();
+  const config = NavMeshSettings();
 
   group('a flat floor', () {
     final mesh = NavMesh.bake(_floor());
@@ -255,7 +256,7 @@ void main() {
     });
 
     test('and two for a body too wide for it', () {
-      const wide = NavMeshConfig(agentRadius: 0.8);
+      const wide = NavMeshSettings(agentRadius: 0.8);
       final mesh = NavMesh.bake(_rooms(), config: wide);
       _expectWellFormed(mesh);
       final west = _standingOnPoint(mesh, -4.0, 0.0);
@@ -297,7 +298,7 @@ void main() {
       // either side of a riser is gone before anything links across it, so
       // the claim above holds whether or not the link is right. Here there
       // is no erosion and the link is all that keeps the floors apart.
-      const thin = NavMeshConfig(agentRadius: 0.0);
+      const thin = NavMeshSettings(agentRadius: 0.0);
       final mesh = NavMesh.bake(_tallSteps(), config: thin);
       _expectWellFormed(mesh);
       final bottom = _standingOnPoint(mesh, 0.0, -2.0);
@@ -396,7 +397,7 @@ void main() {
   group('in tiles', () {
     // Two-metre tiles, small enough that every scene here is cut by several
     // edges, and floors reach one cell into a tile all over.
-    const tiled = NavMeshConfig(tileSize: 4, maxEdgeError: 0.45);
+    const tiled = NavMeshSettings(tileSize: 4, maxEdgeError: 0.45);
     final scenes = <(String, List<Brush>)>[
       ('a flat floor', _floor()),
       ('two rooms and a doorway', _rooms()),
@@ -422,7 +423,7 @@ void main() {
     });
 
     test('the hillside covers what the grid covers', () {
-      const hills = NavMeshConfig(
+      const hills = NavMeshSettings(
         maxSlope: 0.35,
         tileSize: 4,
         maxEdgeError: 0.45,

@@ -76,7 +76,7 @@ final class FlowField {
   /// How wide the body is, in cells. See [NavGrid.clearanceForRadius].
   final int minClearance;
 
-  /// How tall the body is. Zero accepts anything the grid baked.
+  /// How tall the body is, in metres. Zero accepts anything the grid baked.
   final double minHeadroom;
 
   /// How far the body jumps, or null for one that never leaves the ground.
@@ -148,7 +148,7 @@ final class FlowField {
   final List<int> _resolved = <int>[];
   final List<Vector3> _single = <Vector3>[Vector3.zero()];
 
-  final Vector3 _centre = Vector3.zero();
+  final Vector3 _center = Vector3.zero();
   final CellHeap _heap = CellHeap();
 
   bool fits(int index) =>
@@ -351,8 +351,8 @@ final class FlowField {
     if (linked >= 0) {
       // Downhill from here is through the air: aim at the landing, and let
       // [jumpAt] tell the caller that walking there will not do.
-      grid.centreOf(grid.jumpLinks[linked].to, _centre);
-      out.setValues(_centre.x - from.x, 0.0, _centre.z - from.z);
+      grid.centerOf(grid.jumpLinks[linked].to, _center);
+      out.setValues(_center.x - from.x, 0.0, _center.z - from.z);
       if (out.length2 < 1e-8) return false;
       out.normalize();
       return true;
@@ -370,11 +370,11 @@ final class FlowField {
     if (dx == 0 && dz == 0) return false;
 
     final next = (grid.cellZ(cell) + dz) * grid.columns + grid.cellX(cell) + dx;
-    grid.centreOf(next, _centre);
+    grid.centerOf(next, _center);
     // Towards the next cell's centre rather than along the raw eight-way
     // offset: an agent that walks the offsets moves in staircases, and one
     // that aims at centres moves in a line whenever the cells are in one.
-    out.setValues(_centre.x - from.x, 0.0, _centre.z - from.z);
+    out.setValues(_center.x - from.x, 0.0, _center.z - from.z);
     if (out.length2 < 1e-8) return false;
     out.normalize();
     return true;

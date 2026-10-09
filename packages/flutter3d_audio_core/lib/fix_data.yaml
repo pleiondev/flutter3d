@@ -1,0 +1,44 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: audio_core-SoundEmitter'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart', 'package:flutter3d_audio_core/flutter3d_audio_core.dart']
+      class: 'SoundEmitter'
+    changes:
+      - kind: 'rename'
+        newName: 'AudioEmitter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-audio_core-LoopBand-LoopBand'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart', 'package:flutter3d_audio_core/flutter3d_audio_core.dart']
+      constructor: ''
+      inClass: 'LoopBand'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-audio_core-LoopBand-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart', 'package:flutter3d_audio_core/flutter3d_audio_core.dart']
+      field: 'centre'
+      inClass: 'LoopBand'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-audio_core-SilentVoice-alive'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart', 'package:flutter3d_audio_core/flutter3d_audio_core.dart']
+      field: 'alive'
+      inClass: 'SilentVoice'
+    changes:
+      - kind: 'rename'
+        newName: 'isAlive'

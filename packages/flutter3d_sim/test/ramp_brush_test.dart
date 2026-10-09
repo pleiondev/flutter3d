@@ -14,6 +14,7 @@
 /// an author reads it off the numbers already typed.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -26,7 +27,7 @@ Level _level(List<Brush> brushes) => Level(
 );
 
 Brush _ramp({WedgeUphill uphill = WedgeUphill.positiveZ}) => Brush(
-  centre: Vector3(0.0, 1.0, 4.0),
+  center: Vector3(0.0, 1.0, 4.0),
   size: Vector3(6.0, 2.0, 8.0),
   material: 'stone',
   ramp: uphill,
@@ -35,7 +36,7 @@ Brush _ramp({WedgeUphill uphill = WedgeUphill.positiveZ}) => Brush(
 void main() {
   group('in the document', () {
     test('a brush with no ramp is a block, as every level ever saved is', () {
-      final brush = Brush(centre: Vector3.zero(), size: Vector3.all(2.0));
+      final brush = Brush(center: Vector3.zero(), size: Vector3.all(2.0));
 
       expect(brush.isRamp, isFalse);
       expect(brush.ramp, isNull);
@@ -52,7 +53,7 @@ void main() {
 
       expect(brush.toJson()['ramp'], '-x');
       expect(back.ramp, WedgeUphill.negativeX);
-      expect(back.centre, brush.centre);
+      expect(back.center, brush.center);
       expect(back.size, brush.size);
     });
 
@@ -91,7 +92,7 @@ void main() {
       // slope nobody can climb that still loads, still draws, and still looks
       // like a ramp from a distance.
       final steep = Brush(
-        centre: Vector3(0.0, 2.0, 0.0),
+        center: Vector3(0.0, 2.0, 0.0),
         size: Vector3(4.0, 4.0, 1.0),
         material: 'stone',
         ramp: WedgeUphill.positiveZ,
@@ -105,7 +106,7 @@ void main() {
 
     test('and one flat enough to be a block is named too', () {
       final flat = Brush(
-        centre: Vector3(0.0, 0.05, 0.0),
+        center: Vector3(0.0, 0.05, 0.0),
         size: Vector3(4.0, 0.1, 20.0),
         material: 'stone',
         ramp: WedgeUphill.positiveZ,
@@ -122,7 +123,7 @@ void main() {
       // outside of a roof is — and refusing to load a level over one would be
       // the validator deciding what a game means by its own geometry.
       final steep = Brush(
-        centre: Vector3(0.0, 2.0, 0.0),
+        center: Vector3(0.0, 2.0, 0.0),
         size: Vector3(4.0, 4.0, 1.0),
         material: 'stone',
         ramp: WedgeUphill.positiveZ,
@@ -141,7 +142,7 @@ void main() {
     test('a ramp becomes a wedge and a block becomes a box', () {
       final world = CollisionWorld();
       _level(<Brush>[
-        Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0)),
+        Brush(center: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0)),
         _ramp(),
       ]).addTo(world);
 
@@ -169,7 +170,7 @@ void main() {
       // the climb. The one at the thin end is gone entirely, which is the
       // corner being cut, and the sides become triangles.
       final block = surfaces(<Brush>[
-        Brush(centre: Vector3(0.0, 1.0, 4.0), size: Vector3(6.0, 2.0, 8.0)),
+        Brush(center: Vector3(0.0, 1.0, 4.0), size: Vector3(6.0, 2.0, 8.0)),
       ]).single;
       final ramp = surfaces(<Brush>[_ramp()]).single;
 
@@ -251,7 +252,7 @@ void main() {
             ramp.positions[i * 3 + 2] + ramp.normals[i * 3 + 2] * 0.05,
           );
           expect(
-            wedge.containsPoint(brush.centre, outward),
+            wedge.containsPoint(brush.center, outward),
             isFalse,
             reason: '$uphill: vertex $i faces into the ramp',
           );
@@ -265,7 +266,7 @@ void main() {
       // air above the slope, and a hole in a wall is far worse than a triangle
       // nobody sees.
       final wall = Brush(
-        centre: Vector3(0.0, 1.0, 4.0),
+        center: Vector3(0.0, 1.0, 4.0),
         size: Vector3(1.0, 2.0, 8.0),
         material: 'stone',
       );

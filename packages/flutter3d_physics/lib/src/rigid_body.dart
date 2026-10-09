@@ -36,6 +36,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
@@ -50,15 +51,21 @@ final class RigidBody {
     required CollisionShape shape,
     required Vector3 position,
     this.mass = 1.0,
-    this.restitution = 0.0,
-    this.friction = 0.6,
+    double? restitution,
+    double? friction,
+    PhysicalMaterial? material,
     this.canRotate = false,
     Quaternion? orientation,
     this.angularDamping = 0.0,
     int layer = 1 << 0,
     int mask = Layers.all,
     Object? userData,
-  }) : inverseMass = mass <= 0.0 ? 0.0 : 1.0 / mass,
+  }) : restitution = restitution ?? material?.mechanical?.restitution ?? 0.0,
+       friction =
+           friction ??
+           material?.mechanical?.friction ??
+           MaterialCatalog.defaultFriction,
+       inverseMass = mass <= 0.0 ? 0.0 : 1.0 / mass,
        inertiaLocal = inertiaFor(shape, mass),
        inverseInertiaLocal = _inverted(
          inertiaFor(shape, mass),
@@ -74,6 +81,7 @@ final class RigidBody {
         layer: layer,
         mask: mask,
         userData: userData,
+        material: material,
       ),
     );
   }
@@ -99,10 +107,16 @@ final class RigidBody {
   final double inverseMass;
 
   /// How much of the approach speed comes back. Zero is a crate, which is what
-  /// most things are.
+  /// most things are; the material's (`Collider.material`) when the body was
+  /// made with one and no number of its own.
   double restitution;
 
-  /// Coulomb friction, roughly. One is grippy, zero is ice.
+  /// Coulomb friction, roughly. One is grippy, zero is ice. A unitless
+  /// coefficient: the tangential impulse it allows over the normal one. The
+  /// engine's one μ, not a static and a kinetic (docs/CONTRACTS.md); the
+  /// material's (`MechanicalProperties.friction`) when the body was made
+  /// with one and no number of its own, [MaterialCatalog.defaultFriction]
+  /// otherwise.
   double friction;
 
   /// Whether anything may turn this body. Fixed at construction, because the

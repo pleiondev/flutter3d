@@ -1,0 +1,11 @@
+{
+  "level": "assets/levels/crypt.json",
+  "schema": 0,
+  "step": 120,
+  "run": {
+    "version": 1,
+    "player": {"x": 1.5, "y": 0.0, "z": -2.0, "health": 3},
+    "doors": [{"id": 4, "open": true}],
+    "keptForANewerBuild": "a field this build never wrote"
+  }
+}

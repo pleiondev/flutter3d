@@ -38,7 +38,7 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
     if (x1 - x0 <= 1e-3 || y1 - y0 <= 1e-3 || z1 - z0 <= 1e-3) return;
     out.add(
       Brush(
-        centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+        center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
         size: Vector3(x1 - x0, y1 - y0, z1 - z0),
         material: brush.material,
         solid: brush.solid,
@@ -206,7 +206,7 @@ final class Breaches {
     const skin = 0.1;
     final near = at + normal * skin;
     final far = at - normal * depth;
-    final centre = (near + far) * 0.5;
+    final center = (near + far) * 0.5;
     final along = (far - near).length / 2;
     if (ay >= ax && ay >= az) {
       half.y = along;
@@ -215,7 +215,7 @@ final class Breaches {
     } else {
       half.z = along;
     }
-    hole(Aabb3.minMax(centre - half, centre + half));
+    hole(Aabb3.minMax(center - half, center + half));
   }
 
   /// Takes [box] out of every breakable brush it overlaps.
@@ -244,7 +244,7 @@ final class Breaches {
         _colliders[piece] = world.add(
           Collider(
             shape: CollisionBox(piece.halfExtents),
-            position: piece.centre,
+            position: piece.center,
             layer: piece.layer ?? CollisionLayers.world,
             userData: piece,
           ),
@@ -290,7 +290,7 @@ final class Breaches {
           shape: ramp == null
               ? CollisionBox(brush.halfExtents)
               : CollisionWedge(brush.halfExtents, uphill: ramp),
-          position: brush.centre,
+          position: brush.center,
           layer: brush.layer ?? CollisionLayers.world,
           userData: brush,
         ),

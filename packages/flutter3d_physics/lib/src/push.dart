@@ -69,7 +69,7 @@ final class Pusher {
         _contact,
         margin: margin,
       );
-      if (!_contact.touching) continue;
+      if (!_contact.isTouching) continue;
 
       // Which way the crate would go, flattened: the normal points out of the
       // walker, which is exactly the direction to shove.

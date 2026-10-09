@@ -123,6 +123,10 @@ F3D_API int f3d_body_is_valid__w(void * world, uint32_t body_low, uint32_t body_
   return f3d_body_is_valid((void *)world, ((uint64_t)body_high << 32) | body_low);
 }
 
+F3D_API int f3d_body_move_kinematic__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real x, f3d_real y, f3d_real z, f3d_real qx, f3d_real qy, f3d_real qz, f3d_real qw, f3d_real dt) {
+  return f3d_body_move_kinematic((void *)world, ((uint64_t)body_high << 32) | body_low, x, y, z, qx, qy, qz, qw, dt);
+}
+
 F3D_API int f3d_body_set_velocity__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real x, f3d_real y, f3d_real z) {
   return f3d_body_set_velocity((void *)world, ((uint64_t)body_high << 32) | body_low, x, y, z);
 }
@@ -275,6 +279,10 @@ F3D_API int f3d_body_is_part_burning__w(void * world, uint32_t body_low, uint32_
   return f3d_body_is_part_burning((void *)world, ((uint64_t)body_high << 32) | body_low, part, (void *)out);
 }
 
+F3D_API int f3d_body_hold_flame__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real x, f3d_real y, f3d_real z, f3d_real flux, f3d_real area, f3d_real temperature) {
+  return f3d_body_hold_flame((void *)world, ((uint64_t)body_high << 32) | body_low, x, y, z, flux, area, temperature);
+}
+
 F3D_API int f3d_body_add_heat_at__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real x, f3d_real y, f3d_real z, f3d_real joules) {
   return f3d_body_add_heat_at((void *)world, ((uint64_t)body_high << 32) | body_low, x, y, z, joules);
 }
@@ -297,4 +305,16 @@ F3D_API int f3d_body_is_burning__w(void * world, uint32_t body_low, uint32_t bod
 
 F3D_API int f3d_body_get_heat_release__w(void * world, uint32_t body_low, uint32_t body_high, void * out) {
   return f3d_body_get_heat_release((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)out);
+}
+
+F3D_API int f3d_body_get_submerged__w(void * world, uint32_t body_low, uint32_t body_high, void * volume, void * water) {
+  return f3d_body_get_submerged((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)volume, (void *)water);
+}
+
+F3D_API int f3d_body_get_char__w(void * world, uint32_t body_low, uint32_t body_high, void * share, void * depth, void * temperature) {
+  return f3d_body_get_char((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)share, (void *)depth, (void *)temperature);
+}
+
+F3D_API int f3d_body_set_burner__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real kg_per_second, void * fuel) {
+  return f3d_body_set_burner((void *)world, ((uint64_t)body_high << 32) | body_low, kg_per_second, (void *)fuel);
 }

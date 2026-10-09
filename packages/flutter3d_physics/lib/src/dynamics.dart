@@ -34,6 +34,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
@@ -48,6 +49,8 @@ import 'tolerances.dart';
 /// What a contact needed last step.
 final class _Held {
   _Held(this.normal);
+
+  /// The normal impulse it ended with, in newton-seconds.
   final double normal;
 }
 
@@ -66,6 +69,8 @@ final class _Pair {
   Collider? against;
 
   final Vector3 normal = Vector3.zero();
+
+  /// How far the pair overlaps along [normal], in metres.
   double depth = 0.0;
 
   /// Identifies this contact between steps, so its impulses can be carried
@@ -74,10 +79,14 @@ final class _Pair {
 
   /// The running total, so the clamp is on the sum rather than on each
   /// increment. This is the difference between a stack that stands and a stack
-  /// that is pulled into the floor.
+  /// that is pulled into the floor. In newton-seconds.
   double normalImpulse = 0.0;
+
+  /// The friction impulse so far, in newton-seconds.
   double tangentImpulse = 0.0;
 
+  /// The pair's friction coefficient, a unitless ratio of tangential to
+  /// normal impulse.
   double friction = 0.0;
 
   /// The speed the solver is aiming to *end* with, from restitution.
@@ -91,18 +100,33 @@ final class _Pair {
 }
 
 /// The reference [RigidDynamics]: sequential impulses in Dart doubles.
-final class Dynamics implements RigidDynamics {
-  Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
-    : gravity = gravity ?? Vector3(0.0, -22.0, 0.0);
+final class Dynamics extends RigidDynamics {
+  /// Steps [world]'s bodies under [world]'s gravity
+  /// (`CollisionWorld.properties`).
+  ///
+  /// [gravity], when given, is the world's from now on: it sets
+  /// `world.properties` to the same world with that gravity, as a game
+  /// setting its world would. A convenience for a world made only to drop
+  /// something in; a game sets its world where it stages it.
+  Dynamics({required this.world, Vector3? gravity, this.iterations = 20}) {
+    if (gravity != null) {
+      world.properties = world.properties.copyWith(gravity: gravity);
+    }
+  }
 
   @override
   final CollisionWorld world;
 
-  /// Metres per second squared. The default matches the character controller's,
-  /// because a crate that falls slower than the player who dropped it reads as
-  /// a bug in the crate.
+  /// Metres per second squared: the world's (`world.properties.gravity`),
+  /// read every step, so a level set on the Moon drops its crates as it
+  /// drops its runner. A fresh vector each call; a world's gravity is
+  /// changed through `world.properties`, never by scaling this in place.
+  ///
+  /// It was a field of its own, 22 down when nobody said, under characters
+  /// falling at 24 and sparks at 9.81: three gravities in one game. One
+  /// gravity per game now (decision 1 of `tasks/1.0-physics-audit.md`).
   @override
-  final Vector3 gravity;
+  Vector3 get gravity => world.properties.gravity;
 
   /// How many times the velocity solver goes round.
   final int iterations;
@@ -119,11 +143,14 @@ final class Dynamics implements RigidDynamics {
   final List<RigidBody> bodies = <RigidBody>[];
 
   /// Below this speed for [sleepAfter] seconds, a body stops being simulated.
+  /// In metres per second.
   double sleepSpeed = 0.08;
+
+  /// How long a body must stay below [sleepSpeed] to sleep, in seconds.
   double sleepAfter = 0.5;
 
-  /// How much overlap is tolerated before it is corrected. Correcting the last
-  /// millimetre is what makes a resting box hum.
+  /// How much overlap is tolerated before it is corrected, in metres.
+  /// Correcting the last millimetre is what makes a resting box hum.
   double slop = 0.005;
 
   /// What fraction of the excess penetration is corrected per step.
@@ -138,6 +165,7 @@ final class Dynamics implements RigidDynamics {
 
   /// Below this approach speed, a bounce is not a bounce. Without it a crate
   /// resting on the floor re-bounces on its own settling velocity for ever.
+  /// In metres per second.
   double restitutionThreshold = 1.0;
 
   final List<_Pair> _pairs = <_Pair>[];
@@ -212,6 +240,7 @@ final class Dynamics implements RigidDynamics {
       if (body.isAsleep && body.isMovable && _shouldWake(body)) body.wake();
     }
 
+    final gravity = world.properties.gravity;
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
       body.velocity.addScaled(gravity, dt);
@@ -251,14 +280,22 @@ final class Dynamics implements RigidDynamics {
 
   late final Pusher _pusher = Pusher(this);
 
-  /// Nothing beyond the bodies: the warm starts held between steps were
-  /// never part of a save, and the runs' digests are what they are without
-  /// them.
+  /// The world it steps in, `world.properties`, as JSON: the warm starts
+  /// held between steps were never part of a save, and the runs' digests are
+  /// what they are without them — but the world's gravity and air are part
+  /// of what the next step computes, so a run rewound across a change of
+  /// gravity steps on under the gravity it was saved with.
   @override
-  Object? saveState() => null;
+  Object? saveState() => <String, Object?>{'world': world.properties.toJson()};
 
+  /// Puts the world's properties back as [saveState] wrote them; a save from
+  /// before they were saved (null) leaves the world as it is.
   @override
-  void restoreState(Object? saved) {}
+  void restoreState(Object? saved) {
+    if (saved case {'world': final Map<String, Object?> properties}) {
+      world.properties = WorldProperties.fromJson(properties);
+    }
+  }
 
   /// Everything overlapping, as pairs the solver can work on.
   void _collect() {
@@ -306,7 +343,7 @@ final class Dynamics implements RigidDynamics {
             other.position,
             _contact,
           );
-          if (!_contact.touching) continue;
+          if (!_contact.isTouching) continue;
           _pairs.add(
             _Pair(body, null)
               ..key = _keyOf(body.collider, other)
@@ -314,10 +351,11 @@ final class Dynamics implements RigidDynamics {
               ..normal.setFrom(_contact.normal)
               ..depth = _contact.depth
               ..bounce = _bounceFor(
-                body.restitution,
+                _pairOf(body.collider, other)?.restitution ?? body.restitution,
                 body.velocity.dot(_contact.normal),
               )
-              ..friction = body.friction,
+              ..friction =
+                  _pairOf(body.collider, other)?.friction ?? body.friction,
           );
         }
       }
@@ -337,7 +375,7 @@ final class Dynamics implements RigidDynamics {
           _contact,
           margin: margin,
         );
-        if (!_contact.touching) continue;
+        if (!_contact.isTouching) continue;
         // Something actually *moving* wakes what it hits, or a crate shoved
         // into a sleeping pile passes straight through it. Something merely
         // settling does not, or nothing in a stack ever sleeps: each crate
@@ -356,13 +394,31 @@ final class Dynamics implements RigidDynamics {
             ..normal.setFrom(_contact.normal)
             ..depth = _contact.depth
             ..bounce = _bounceFor(
-              math.max(body.restitution, other.restitution),
+              _pairOf(body.collider, other.collider)?.restitution ??
+                  math.max(body.restitution, other.restitution),
               approach,
             )
-            ..friction = math.sqrt(body.friction * other.friction),
+            ..friction =
+                _pairOf(body.collider, other.collider)?.friction ??
+                math.sqrt(body.friction * other.friction),
         );
       }
     }
+  }
+
+  /// The pair measured between [a]'s and [b]'s materials in the world's
+  /// catalogue, or null — and null without asking when either has none, so a
+  /// world of bodies without materials steps to the bits it always did.
+  ///
+  /// **Only a measured pair overrides the bodies' own numbers.** Without one,
+  /// a body made of a material already holds the material's friction and
+  /// restitution, and the solver combines them by the catalogue's rule
+  /// (`MaterialCatalog.contact`: the geometric mean of μ, the larger e), so
+  /// a number a game set on the body itself still counts.
+  MaterialPair? _pairOf(Collider a, Collider b) {
+    final ma = a.material, mb = b.material;
+    if (ma == null || mb == null) return null;
+    return world.materials.pairOf(ma.id, mb.id);
   }
 
   /// Whether a sleeping body has any business waking up.
@@ -563,7 +619,7 @@ final class Dynamics implements RigidDynamics {
         _contact,
         margin: margin,
       );
-      if (!_contact.touching) continue;
+      if (!_contact.isTouching) continue;
 
       final excess = _contact.depth - slop;
       if (excess <= 0.0) continue;

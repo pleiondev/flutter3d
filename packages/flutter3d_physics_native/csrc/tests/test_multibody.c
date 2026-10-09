@@ -18,7 +18,7 @@ static void run(F3dWorld *w, int steps) {
 
 static F3dWorld *still_air(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   return w;
 }
@@ -85,7 +85,7 @@ static void test_pendulum(void) {
     last = at[0];
   }
   CHECK(found == 3);
-  const double half = M_PI * sqrt(1.0 / 9.81);
+  const double half = M_PI * sqrt(1.0 / world_gravity(w));
   CHECK_NEAR(crossings[2] - crossings[0], 2 * half, 0.01);
   /* It reads as the angle it swings through. */
   f3d_multibody_read_joint(w, m, 1, joint);
@@ -240,30 +240,113 @@ static void test_motor_moves_the_tree(void) {
   f3d_world_destroy(w);
 }
 
-static void test_motors_hold_a_chain_together(void) {
-  /* A neck of four links of 200 kg, 1.3 m each, held out level by a motor
-   * of speed nought on every hinge: the motors answer each other through
-   * the chain, and solved together they hold it, the tip sagging less than
-   * two centimetres in two seconds. Solved one after the other in a single
-   * pass, each undid the last and the neck sagged to its limits; held to a
-   * speed and not to where they mean the joint to be, the step's free fall
-   * sagged it a metre and a half. */
-  F3dWorld *w = still_air();
+/* A neck of four links of 200 kg, 1.3 m each, laid out level from a post,
+ * every hinge limited to half a radian either way. */
+static F3dMultibody neck(F3dWorld *w, F3dBody *tip) {
   const F3dBody base = post(w, 0, 3);
   const F3dMultibody m = f3d_multibody_create(w, base);
-  F3dBody tip = 0;
   for (uint32_t k = 0; k < 4u; k++) {
     const f3d_real x = F3D_R(1.3) * (f3d_real)k;
-    tip = f3d_body_create(w, F3D_BODY_DYNAMIC, x + F3D_R(0.65), 3, 0, 200);
-    f3d_body_set_shape(w, tip, F3D_SHAPE_BOX, F3D_R(0.65), F3D_R(0.15), F3D_R(0.15));
-    f3d_multibody_add_link(w, m, k, tip, F3D_JOINT_REVOLUTE, x, 3, 0, 0, 0, 1);
+    *tip = f3d_body_create(w, F3D_BODY_DYNAMIC, x + F3D_R(0.65), 3, 0, 200);
+    f3d_body_set_shape(w, *tip, F3D_SHAPE_BOX, F3D_R(0.65), F3D_R(0.15), F3D_R(0.15));
+    f3d_multibody_add_link(w, m, k, *tip, F3D_JOINT_REVOLUTE, x, 3, 0, 0, 0, 1);
     f3d_multibody_set_limits(w, m, k + 1u, 1, F3D_R(-0.5), F3D_R(0.5));
-    f3d_multibody_set_motor(w, m, k + 1u, 1, 0, F3D_R(4e5));
   }
+  return m;
+}
+
+static void test_motors_hold_a_chain_together(void) {
+  /* The neck held out by a motor of speed nought on every hinge, each
+   * strong enough for what it carries: the joints move at nought through
+   * every step, so after the first they do not move at all. The motors
+   * answer each other through the chain; solved one after the other in a
+   * single pass, each undid the last and the neck sagged to its limits,
+   * and held to the speed a step ends on rather than the one it moves at,
+   * the step's free fall sagged it a little each step. */
+  F3dWorld *w = still_air();
+  F3dBody tip = 0;
+  const F3dMultibody m = neck(w, &tip);
+  for (uint32_t k = 1; k <= 4u; k++) f3d_multibody_set_motor(w, m, k, 1, 0, F3D_R(4e5));
+  run(w, 2);
+  f3d_real from[4][8], to[4][8];
+  for (uint32_t k = 0; k < 4u; k++) f3d_multibody_read_joint(w, m, k + 1u, from[k]);
   run(w, 120);
+  for (uint32_t k = 0; k < 4u; k++) {
+    f3d_multibody_read_joint(w, m, k + 1u, to[k]);
+    CHECK(fabs((double)(to[k][0] - from[k][0])) < 1e-5);
+  }
   f3d_real p[3];
   f3d_body_get_position(w, tip, p);
-  CHECK(p[1] > F3D_R(2.98));
+  CHECK(p[1] > F3D_R(2.999));
+  f3d_world_destroy(w);
+}
+
+static void test_servos_deflect_by_load_over_stiffness(void) {
+  /* The neck on servos of 10⁷ N m a radian, held at nought: each hinge
+   * gives under what hangs beyond it, τ = Σ m g (x_i − x_hinge), as far as
+   * τ / k and no further. The hinge at the post carries 20.4 kN m, two
+   * thousandths of a radian; each further one less. The deflection is
+   * small, so the arms are those of the level neck to a part in a
+   * thousand; and the bends add, so each is measured from its parent. */
+  F3dWorld *w = still_air();
+  F3dBody tip = 0;
+  const F3dMultibody m = neck(w, &tip);
+  const double k = 1e7;
+  for (uint32_t j = 1; j <= 4u; j++) {
+    CHECK(f3d_multibody_set_servo(w, m, j, 1, 0, F3D_R(1e7), 1) == 1);
+  }
+  CHECK(f3d_multibody_set_servo(w, m, 1, 1, 0, 0, 1) == 0);
+  CHECK(f3d_multibody_set_servo(w, m, 1, 1, 0, 1, -1) == 0);
+  run(w, 240);
+  for (uint32_t j = 0; j < 4u; j++) {
+    double load = 0;
+    for (uint32_t i = j; i < 4u; i++) load += 200 * world_gravity(w) * (1.3 * (i - j) + 0.65);
+    f3d_real joint[8];
+    f3d_multibody_read_joint(w, m, j + 1u, joint);
+    /* Bent down, about +z: a negative angle. */
+    CHECK_NEAR(-joint[0] * 1e3, load / k * 1e3, 0.01);
+  }
+  f3d_world_destroy(w);
+}
+
+static void test_servo_rings_as_the_closed_form(void) {
+  /* A wheel of a quarter kilogram square metre on an upright axle, on a
+   * servo of 4 N m a radian at a fifth of critical, its mark set a tenth
+   * of a radian away: it rings about the mark at ω_n √(1 − ζ²), ω_n =
+   * √(k / I), each swing smaller by e^(−πζ / √(1 − ζ²)). */
+  F3dWorld *w = still_air();
+  const F3dBody axle = post(w, 0, 3);
+  const F3dBody wheel = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 3, 0, 2);
+  f3d_body_set_shape(w, wheel, F3D_SHAPE_CYLINDER, F3D_R(0.5), F3D_R(0.05), 0);
+  const F3dMultibody m = f3d_multibody_create(w, axle);
+  f3d_multibody_add_link(w, m, 0, wheel, F3D_JOINT_REVOLUTE, 0, 3, 0, 0, 1, 0);
+  const double k = 4, zeta = 0.2, inertia = 0.25;
+  CHECK(f3d_multibody_set_servo(w, m, 1, 1, F3D_R(0.1), F3D_R(4), F3D_R(0.2)) == 1);
+  double x[600];
+  for (int i = 0; i < 600; i++) {
+    run(w, 1);
+    f3d_real joint[8];
+    f3d_multibody_read_joint(w, m, 1, joint);
+    x[i] = (double)joint[0] - 0.1;
+  }
+  double crossing[3], swing[2];
+  int crossings = 0, swings = 0;
+  for (int i = 1; i < 599 && (crossings < 3 || swings < 2); i++) {
+    if (crossings < 3 && (x[i - 1] < 0) != (x[i] < 0)) {
+      crossing[crossings++] = (i - 1 + x[i - 1] / (x[i - 1] - x[i])) / 60.0;
+    }
+    const double a = x[i - 1], b = x[i], c = x[i + 1];
+    if (crossings > 0 && swings < 2 && fabs(b) >= fabs(a) && fabs(b) > fabs(c)) {
+      swing[swings++] = fabs(b - (a - c) * (a - c) / (8 * (a - 2 * b + c)));
+    }
+  }
+  CHECK(crossings == 3 && swings == 2);
+  const double natural = sqrt(k / inertia);
+  CHECK_NEAR(2 * M_PI / (crossing[2] - crossing[0]), natural * sqrt(1 - zeta * zeta), 0.02);
+  const double d = log(swing[0] / swing[1]);
+  CHECK(fabs(d / sqrt(M_PI * M_PI + d * d) - zeta) < 0.1 * zeta);
+  /* And it comes to rest on the mark. */
+  CHECK(fabs(x[599]) < 1e-4);
   f3d_world_destroy(w);
 }
 
@@ -392,6 +475,8 @@ int main(void) {
   test_limits_and_motor();
   test_motor_moves_the_tree();
   test_motors_hold_a_chain_together();
+  test_servos_deflect_by_load_over_stiffness();
+  test_servo_rings_as_the_closed_form();
   test_cone();
   test_snapshot();
   return finish();

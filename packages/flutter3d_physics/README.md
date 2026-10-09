@@ -37,6 +37,19 @@ shape names those faces and the world refuses to contact them.
 `heightfield_test.dart` holds the two measurements that catch it going wrong,
 and `tool/ground_cost.dart` measures what the whole thing costs.
 
+## Friction is one number
+
+A body has one coefficient of friction, `RigidBody.friction`, and no static
+and kinetic pair. The solver limits the sideways impulse at a contact to μ
+times the normal one, whether the body is sliding or at rest, so a crate on
+a slope starts to slide at the same angle it keeps sliding at. Two bodies
+meeting take the geometric mean of their two μ, √(μ_a μ_b), and the larger
+restitution; the C core combines them the same way. A material in the
+catalogue may record both a static and a kinetic coefficient, and the one
+the engine uses is the kinetic (`MechanicalProperties.friction`), or the
+static where that is all it says. A pair measured on its own (`MaterialPair`)
+replaces the mean.
+
 ## Tolerances
 
 `Nearly` names the four magnitudes this package compares against, because the

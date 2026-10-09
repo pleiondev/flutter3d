@@ -1,0 +1,32 @@
+{
+  "seed": 3,
+  "frames": [
+    {
+      "pressed": [
+        "moveForward",
+        "liftUp"
+      ],
+      "sy": 1.0
+    },
+    {
+      "sy": 1.0,
+      "sx": 0.5,
+      "lx": 4.0
+    },
+    {
+      "released": [
+        "liftUp"
+      ],
+      "pressed": [
+        "liftDown"
+      ],
+      "sy": 1.0
+    },
+    {
+      "released": [
+        "moveForward",
+        "liftDown"
+      ]
+    }
+  ]
+}

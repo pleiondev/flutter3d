@@ -1,4 +1,55 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: `Registration`, `SimulationVersion` and `firstDifferingPath` are
+  not re-exported.** They are `flutter3d_foundation`'s,
+  `flutter3d_plugin_api`'s and `flutter3d_sim`'s.
+
+- **A wire carries bytes**: `PeerWire.sendBytes`, `listenBytes` and
+  `deliverBytes`. By default the bytes go as base64 inside a JSON frame
+  (`{"f3d": "bytes", "b": …}`), so every wire carries them; `LoopbackWire`,
+  `LoopbackParty` and `WebSocketTransport` (a binary frame) carry them as
+  they are. A byte message never reaches `listen`, nor a message
+  `listenBytes`. Still protocol 3.
+- **Breaking: the network core lives here.** `PeerWire`, `WireState`,
+  `LoopbackWire`, `LoopbackParty`, `PeerRoom`, `WireHello` and
+  `RollbackSession` moved from `flame_multiplayer`, a 0.x package, to this
+  one, on the 1.0 line; this package no longer depends on
+  `flame_multiplayer`, which is built on it now. The names were already
+  exported from here, so an import of `flutter3d_net` is unchanged, and
+  `flame_multiplayer` re-exports them, so an import of it compiles too.
+- **Breaking: a wire has several listeners.** `PeerWire.listen` and
+  `listenFrom` add a listener and return the `Registration` that takes it
+  away, where a second call replaced the first — so a `RollbackSession`
+  silently took the wire over from the `PeerRoom` on it. An adapter no
+  longer writes `listen`: it calls `deliver` with each message that
+  arrives. `PeerWire`'s constructor is no longer `const`.
+  `PeerRoom.channel` hands back the same channel for a tag every time.
+- **Breaking: protocol 3, and the engine's messages carry a reserved key.**
+  A rollback's frames are `{"f3d": "rollback", "frames": …}`
+  (`PeerWire.engineKey`, `RollbackSession.messageKind`), where they were
+  told apart by a bare `frames` field a game's own message could carry — a
+  spectator's tape did. `WireHello.currentProtocolMajor` is 3, so a
+  protocol-2 machine is refused with the version to update to.
+  `RollbackSession.dispose` and `PeerRoom.leave` stop hearing the wire.
+- **Breaking: one transport and one rollback.** `NetTransport`,
+  `NetTransportWire`, `LoopbackTransport` and `NetSession` are gone: every
+  transport is a `flame_multiplayer` `PeerWire` (`WebSocketTransport` is
+  one), a test's is `LoopbackWire`, and the rollback is `RollbackSession`
+  for two machines or a party. `EngineRollback` runs it over an
+  `EngineLoop`'s snapshots and steps.
+- **Breaking: `joinParty`, `findParty` and `relayRoom` take a
+  `SimulationVersion simulation`**, not an `int`, and the relay holds its
+  description.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
 
 - **The relay holds parties.** `/party/<code>?size=N` hands out the slots
   and says who left, and `/watch/<code>` admits spectators. `joinParty` is
@@ -19,10 +70,21 @@
   reason as soon as it closes them, not at the timeout.
   `WebSocketTransport.closed` answers that reason.
 
+- **A match forms only between builds on one simulation version.**
+  `simulation=<n>` on a room, a party or a match is held like terms: the
+  first machine sets it, one on another version is closed with a reason
+  that names the version to update to, and matchmaking keys on it.
+  `joinParty` and `findParty` take `simulationVersion`, and `relayRoom`
+  builds a room's address with it for `WebSocketTransport.connect`. Each
+  also sends `protocol=<major>.<minor>`: the relay turns away another
+  major with the major to update to and lets any minor of its own in,
+  since within a major the protocol only grows. A party's welcome names
+  the relay's protocol.
+
 - `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
   it from there, so imports of it keep working.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`, and it asks for `flame_multiplayer` `^0.2.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`, and it asks for `flame_multiplayer` `^0.2.0`.
 
 ## 0.8.1
 

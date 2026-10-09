@@ -81,7 +81,7 @@ void main() {
         ..step(1e-9);
       final reference = Contact();
       contactBetween(sa, at, sb, bt, reference);
-      expect(reference.touching, isTrue);
+      expect(reference.isTouching, isTrue);
       final contacts = w.readContacts();
       expect(contacts, isNotEmpty, reason: '$sa at $at on $sb');
       for (final c in contacts) {
@@ -424,7 +424,7 @@ void main() {
       expect(met, greaterThan(10));
       // A cast and an overlap through the binding.
       final first = pairs.keys.first;
-      final at = world.positionOf(first);
+      final at = world.localPositionOf(first);
       expect(
         world.overlapShape(const NativeShape.sphere(0.01), at),
         contains(first),

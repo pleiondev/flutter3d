@@ -46,12 +46,12 @@ void main() {
       players,
       (_) => <int, List<int>>{},
     );
-    final machines = <PartyRollback<List<int>>>[];
+    final machines = <RollbackSession<List<int>>>[];
     for (var slot = 0; slot < players; slot++) {
       var at = List<int>.filled(players, 0);
       var captures = 0;
       machines.add(
-        PartyRollback<List<int>>(
+        RollbackSession<List<int>>(
           wire: party.wire(slot),
           players: players,
           inputDelay: delay,
@@ -100,12 +100,12 @@ void main() {
         wire: party.wire(0),
         encode: (state) => state,
       );
-      final machines = <PartyRollback<List<int>>>[];
+      final machines = <RollbackSession<List<int>>>[];
       for (var slot = 0; slot < players; slot++) {
         var at = List<int>.filled(players, 0);
         var captures = 0;
         machines.add(
-          PartyRollback<List<int>>(
+          RollbackSession<List<int>>(
             wire: slot == 0 ? party.wire(0) : party.wire(slot),
             players: players,
             inputDelay: delay,

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import '../portable_math.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
 import 'fluid_medium.dart';
 
 /// How liquid leaves a vessel, from Bernoulli's equation.
@@ -22,6 +23,9 @@ const double sharpEdgeDischarge = 0.62;
   required double area,
   required double head,
   required double g,
+
+  /// The discharge coefficient C_d: a unitless ratio of the flow passed to
+  /// the opening's area times Torricelli's speed.
   double discharge = sharpEdgeDischarge,
 }) {
   if (head <= 0.0 || area <= 0.0) return (flow: 0.0, speed: 0.0);
@@ -46,6 +50,8 @@ const double sharpEdgeDischarge = 0.62;
   required double radius,
   required double tilt,
   required double g,
+
+  /// The discharge coefficient C_d, a unitless ratio; see [orificeFlow].
   double discharge = sharpEdgeDischarge,
   int steps = 360,
 }) {

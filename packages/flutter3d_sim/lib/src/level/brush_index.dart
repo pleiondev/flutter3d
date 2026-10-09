@@ -35,6 +35,8 @@ final class BrushIndex {
   }
 
   final Level level;
+
+  /// A bucket's side across the ground, in metres.
   final double cellSize;
   final Map<int, List<int>> _cells = <int, List<int>>{};
 

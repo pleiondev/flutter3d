@@ -1,15 +1,15 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../math/motion.dart';
-import '../math/portable_math.dart';
 
 /// A position the simulation writes at a fixed rate and the renderer reads at
 /// the display's rate.
 ///
 /// Holds the previous and the current simulated value and blends between them by
-/// [FixedStep.alpha]. Without this the renderer shows the newest state on every
+/// `EngineLoop.alpha`. Without this the renderer shows the newest state on every
 /// frame, which on a display faster than the simulation means several frames in
 /// a row show the same position and then one jumps — the classic 60-on-120
 /// stutter.
@@ -107,7 +107,7 @@ final class InterpolatedVector3 {
     _currentHidden = 0.0;
   }
 
-  /// Blends into [out] by [alpha], which [FixedStep] supplies.
+  /// Blends into [out] by [alpha], which `EngineLoop.alpha` supplies.
   void read(double alpha, Vector3 out) {
     final t = alpha.clamp(0.0, 1.0);
     // Written out rather than through a helper: `vector_math` 2.2.0 has no
@@ -137,6 +137,7 @@ final class InterpolatedAngle {
   double _previous;
   double _current;
 
+  /// The latest pushed angle, in radians.
   double get current => _current;
 
   void push(double value) {

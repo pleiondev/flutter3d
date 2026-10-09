@@ -1,6 +1,6 @@
 # flutter3d_net_webrtc
 
-A [flutter3d_net](https://pub.dev/packages/flutter3d_net) `NetTransport` over
+A [flutter3d_net](https://pub.dev/packages/flutter3d_net) `PeerWire` over
 a real WebRTC data channel, part of [flutter3d](https://flutter3d.pleion.dev).
 It is `net-02`'s primary transport. Traffic goes peer to peer, and the relay
 carries only the SDP/ICE handshake, not every game frame.
@@ -15,7 +15,7 @@ import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_net_webrtc/flutter3d_net_webrtc.dart';
 
 // Whoever created the room offers; the one who joined answers — both take
-// the signalling transport (net-02's relay) that carries the handshake.
-final transport = await WebRtcTransport.createOffer(signallingTransport);
-final session = NetSession(transport: transport, /* captureLocalFrame, ... */);
+// the signaling transport (net-02's relay) that carries the handshake.
+final transport = await WebRtcTransport.openOffering(signallingTransport);
+final session = RollbackSession(wire: transport, /* captureLocalFrame, ... */);
 ```

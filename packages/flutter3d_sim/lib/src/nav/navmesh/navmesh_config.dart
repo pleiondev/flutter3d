@@ -9,8 +9,8 @@ import '../../math/tolerances.dart';
 /// many voxels tall. Two platforms that agree on the conversion therefore agree
 /// on everything downstream, and the conversion is one division and one
 /// rounding apiece — operations IEEE 754 pins — so they do agree.
-final class NavMeshConfig {
-  const NavMeshConfig({
+final class NavMeshSettings {
+  const NavMeshSettings({
     this.cellSize = 0.5,
     this.cellHeight = 0.1,
     this.agentHeight = 1.7,
@@ -37,6 +37,31 @@ final class NavMeshConfig {
          'a polygon has three corners at least',
        );
 
+  /// A copy with the given fields replaced.
+  NavMeshSettings copyWith({
+    double? cellSize,
+    double? cellHeight,
+    double? agentHeight,
+    double? stepHeight,
+    double? agentRadius,
+    double? maxSlope,
+    double? maxEdgeError,
+    int? maxVerticesPerPolygon,
+    double? minIslandArea,
+    int? tileSize,
+  }) => NavMeshSettings(
+    cellSize: cellSize ?? this.cellSize,
+    cellHeight: cellHeight ?? this.cellHeight,
+    agentHeight: agentHeight ?? this.agentHeight,
+    stepHeight: stepHeight ?? this.stepHeight,
+    agentRadius: agentRadius ?? this.agentRadius,
+    maxSlope: maxSlope ?? this.maxSlope,
+    maxEdgeError: maxEdgeError ?? this.maxEdgeError,
+    maxVerticesPerPolygon: maxVerticesPerPolygon ?? this.maxVerticesPerPolygon,
+    minIslandArea: minIslandArea ?? this.minIslandArea,
+    tileSize: tileSize ?? this.tileSize,
+  );
+
   /// The horizontal lattice, in metres. Half a metre by default, the same as
   /// `NavGrid`, so the two bakes of one level stand on the same cells and a
   /// test can hold one against the other.
@@ -60,7 +85,7 @@ final class NavMeshConfig {
   final double stepHeight;
 
   /// How far the mesh keeps away from walls and edges. A body of this radius
-  /// standing anywhere on the mesh does not overlap anything.
+  /// standing anywhere on the mesh does not overlap anything. In metres.
   final double agentRadius;
 
   /// The steepest ground that is still ground, in radians from flat. Forty
@@ -82,8 +107,8 @@ final class NavMeshConfig {
   final double minIslandArea;
 
   /// This config for a body of [radius] and [height].
-  NavMeshConfig withBody({required double radius, required double height}) =>
-      NavMeshConfig(
+  NavMeshSettings withBody({required double radius, required double height}) =>
+      NavMeshSettings(
         cellSize: cellSize,
         cellHeight: cellHeight,
         agentHeight: height,

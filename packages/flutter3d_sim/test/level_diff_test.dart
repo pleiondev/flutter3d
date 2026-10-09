@@ -8,6 +8,9 @@
 /// is missed.
 library;
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -56,7 +59,7 @@ void main() {
   test('the same document is no change', () {
     final diff = diffLevel(before, Level.fromJson(_document()));
     expect(diff.isEmpty, isTrue);
-    expect(diff.presentationOnly, isTrue);
+    expect(diff.isPresentationOnly, isTrue);
   });
 
   test('a recoloured lamp, a material and the fog patch in place', () {
@@ -85,7 +88,7 @@ void main() {
     expect(diff.materials, unorderedEquals(<String>['stone', 'moss']));
     expect(diff.fog, isTrue);
     expect(diff.music, isFalse);
-    expect(diff.presentationOnly, isTrue);
+    expect(diff.isPresentationOnly, isTrue);
   });
 
   test('a lamp added is a count change, not a patch of index one', () {
@@ -100,7 +103,7 @@ void main() {
 
     expect(diff.lightCountChanged, isTrue);
     expect(diff.lights, isEmpty);
-    expect(diff.presentationOnly, isTrue);
+    expect(diff.isPresentationOnly, isTrue);
   });
 
   test('a moved crate and a wider floor go through the timeline', () {
@@ -122,7 +125,7 @@ void main() {
     final diff = diffLevel(before, after);
 
     expect(diff.simulation, <String>['brushes', 'entities']);
-    expect(diff.presentationOnly, isFalse);
+    expect(diff.isPresentationOnly, isFalse);
   });
 
   test('a brush that only changes material is still the simulation\'s', () {
@@ -134,6 +137,24 @@ void main() {
     });
 
     expect(diffLevel(before, after).simulation, <String>['brushes']);
+  });
+
+  test('a version 2 level written again as version 3 is no change', () {
+    // The same level from both fixtures: version 3 gave every row an id of
+    // its own and moved the properties under `props`; this build derives
+    // ids for the version 2 file. Mutation: compare rows with their ids, or
+    // overrides by id path, and the rewrite replays the run.
+    Level read(int version) => Level.fromJson(
+      jsonDecode(
+            File('test/fixtures/v$version/first.level.json').readAsStringSync(),
+          )
+          as Map<String, Object?>,
+    );
+
+    final diff = diffLevel(read(2), read(3));
+
+    expect(diff.simulation, isEmpty);
+    expect(diff.isEmpty, isTrue);
   });
 
   test('the next level is the run\'s, the music the picture\'s', () {

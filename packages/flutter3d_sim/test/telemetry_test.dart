@@ -6,6 +6,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -14,7 +16,7 @@ const String _policy = '2026-10';
 
 /// A body that walks along x as the stick says: past x = 4 the run is won,
 /// below x = -2 it is lost.
-final class _Walk implements HeadlessRun {
+final class _Walk extends HeadlessRun {
   _Walk(this.input, {required this.start});
 
   final InputState input;
@@ -42,10 +44,10 @@ final class _Walk implements HeadlessRun {
   });
 
   @override
-  Vector3 get position => _at;
+  WorldPosition get position => _at.toWorldPosition();
 
   @override
-  void eye(Vector3 out) => out.setFrom(_at);
+  WorldPosition get eye => _at.toWorldPosition();
 
   @override
   void aim(Vector3 out) => out.setValues(1.0, 0.0, 0.0);
@@ -57,7 +59,7 @@ final class _Walk implements HeadlessRun {
   Map<String, Object?> get reading => <String, Object?>{'x': _at.x};
 }
 
-final class _WalkGame implements HeadlessGame {
+final class _WalkGame extends HeadlessGame {
   const _WalkGame({this.from = 0.0});
 
   final double from;
@@ -81,7 +83,7 @@ Level _level({double width = 20.0}) => Level(
   materials: <String, LevelMaterial>{'stone': LevelMaterial()},
   brushes: <Brush>[
     Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
+      center: Vector3(0.0, -0.5, 0.0),
       size: Vector3(width, 1.0, 4.0),
       material: 'stone',
     ),
@@ -121,7 +123,7 @@ Demo _record(Level level, {required double stick, int steps = 120}) {
 TelemetryConsent _granted([String policy = _policy]) =>
     TelemetryConsent.granted(policy: policy, at: DateTime.utc(2026, 10, 1));
 
-final class _Sink implements TelemetrySink {
+final class _Sink extends TelemetrySink {
   final List<TelemetryUpload> delivered = <TelemetryUpload>[];
 
   @override
@@ -190,7 +192,7 @@ void main() {
         <String, Object?>{'answer': 'maybe', 'policy': _policy, 'at': '2026'},
       ]) {
         expect(
-          TelemetryConsent.fromJson(damaged).asked,
+          TelemetryConsent.fromJson(damaged).wasAsked,
           isFalse,
           reason: '$damaged',
         );
@@ -210,7 +212,7 @@ void main() {
           ),
         ),
       );
-      expect((no.asked, no.granted), (true, false));
+      expect((no.wasAsked, no.isGranted), (true, false));
     });
   });
 
@@ -350,7 +352,7 @@ void main() {
       // Mutation: playing it on whatever this process runs, which diverges
       // with nothing to say why.
       final level = _level();
-      final other = PhysicsBackend.current.name == 'dart' ? 'native' : 'dart';
+      final other = const DartPhysics().name == 'dart' ? 'native' : 'dart';
       final found = resimulate(
         game: const _WalkGame(),
         level: level,
@@ -360,7 +362,7 @@ void main() {
       );
       final refused = found as ResimulationOnOtherPhysics;
       expect(refused.recorded, other);
-      expect(refused.running, PhysicsBackend.current.name);
+      expect(refused.running, const DartPhysics().name);
     });
 
     test('a run that does not start where the recording did is refused', () {

@@ -1,6 +1,6 @@
 name: flame_multiplayer
-description: "Two players on two machines for a game: a room with a handshake and separate channels, rollback play in step, turns with a replay for the one watching, and a ghost's latest word in a race."
-version: 0.2.0
+description: "Two or more machines for a game, over flutter3d_net's wire and rollback: turns with a replay for the one watching, a ghost's latest word, and a party's spectator."
+version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,13 +14,35 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # The network core on the 1.0 line: `PeerWire`, `PeerRoom`, `WireHello`
+  # and `RollbackSession`, which the turns, the feed and the party here are
+  # built on and re-export. Flat Dart, over the simulation and the plugin
+  # API, so this stays apart from any renderer.
+  flutter3d_net: ^1.0.0-rc.1
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
-# **No dependencies, and apart from any engine.** A game calls these from its
-# own fixed step, so the order within a step stays the game's; nothing here
-# needs a component tree, a renderer or a socket. The wire to a real network
-# is an adapter in the package that owns that network — `flutter3d_net` for
-# its relay and WebRTC, `flame_multiplayer_dashwire` for dashwire — so a game
-# carries only the one it uses.
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+# **One dependency, and apart from any renderer**: `flutter3d_net`, the network
+# core on the 1.0 line, plain Dart over the simulation and the plugin API. A
+# game calls these from its own fixed step, so the order within a step stays
+# the game's; nothing here needs a component tree, a renderer or a socket. The
+# wire to a real network is an adapter in the package that owns that network —
+# `flutter3d_net` for its relay and WebRTC, `flame_multiplayer_dashwire` for
+# dashwire — so a game carries only the one it uses.

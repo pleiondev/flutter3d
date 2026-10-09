@@ -5,13 +5,13 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 32;
+const int abiVersion = 37;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
 
 /// `F3D_FIRE_FLOATS`.
-const int fireFloats = 8;
+const int fireFloats = 13;
 
 /// `F3D_CONTACT_FLOATS`.
 const int contactFloats = 7;
@@ -37,6 +37,7 @@ const int eventCapacity = 65536;
 abstract final class BodyType {
   static const int dynamic = 0;
   static const int fixed = 1;
+  static const int kinematic = 2;
 }
 
 /// `F3dShapeKind`.
@@ -58,10 +59,11 @@ const int compoundPartFloats = 11;
 /// `F3D_COMPOUND_MOST_PARTS`.
 const int compoundMostParts = 64;
 
-/// `F3D_VEHICLE_MOST_WHEELS`, `F3D_WHEEL_FLOATS` and
-/// `F3D_WHEEL_STATE_FLOATS`.
+/// `F3D_VEHICLE_MOST_WHEELS`, `F3D_WHEEL_FLOATS`, `F3D_WHEEL_FLOATS_ALL`
+/// and `F3D_WHEEL_STATE_FLOATS`.
 const int vehicleMostWheels = 8;
 const int wheelFloats = 8;
+const int wheelFloatsAll = 10;
 const int wheelStateFloats = 14;
 
 /// `F3D_MULTIBODY_MOST_LINKS` and `F3D_MULTIBODY_MOST_DOFS`.
@@ -72,6 +74,20 @@ const int multibodyMostDofs = 64;
 const int shallowMostSources = 16;
 const int shallowMostSpray = 16384;
 const int sprayFloats = 11;
+
+/// `F3D_SHALLOW_MOST_OUTLETS`, `F3D_SHALLOW_INFO_FLOATS` and
+/// `F3D_SHALLOW_MOST_SUBSTEPS`.
+const int shallowMostOutlets = 8;
+const int shallowInfoFloats = 4;
+const int shallowMostSubsteps = 64;
+
+/// `F3D_EDGE_WALL`, `F3D_EDGE_OPEN`, `F3D_EDGE_FLOW` and `F3D_EDGE_LEVEL`.
+abstract final class EdgeKind {
+  static const int wall = 0;
+  static const int open = 1;
+  static const int flow = 2;
+  static const int level = 3;
+}
 
 /// `F3D_SHALLOW_MOST_BUBBLES` and `F3D_BUBBLE_FLOATS`.
 const int shallowMostBubbles = 16384;
@@ -98,6 +114,12 @@ abstract final class MaterialKind {
   static const int rubber = 3;
   static const int steel = 4;
   static const int stone = 5;
+  static const int oak = 6;
+  static const int pine = 7;
+  static const int cardboard = 8;
+  static const int thatch = 9;
+  static const int charcoal = 10;
+  static const int paraffin = 11;
 }
 
 /// `F3dEventKind`.
@@ -110,6 +132,8 @@ abstract final class EventKind {
   static const int contactBegan = 5;
   static const int contactEnded = 6;
   static const int jointBroken = 7;
+  static const int wetted = 8;
+  static const int burnerOut = 9;
 }
 
 /// `F3D_PARTICLE_FLOATS`.

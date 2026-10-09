@@ -817,7 +817,10 @@ static void fast_walk(void *context, uint32_t w, uint32_t begin_unused, uint32_t
     contact_stage(f, w, &sense, SOLVE);
     for (uint32_t i = begin; i < end; i++) {
       F3dSlot *s = &world->slots[i];
-      if (!moves(s)) continue;
+      if (!moves(s)) {
+        if (f3d_carried(s)) f3d_carry(s, f->h);
+        continue;
+      }
       f3d_integrate_position(s, f->h);
       if (f->bodies[i].bullet >= 0) {
         const size_t at = (size_t)f->bodies[i].bullet * f->row + step + 1u;
@@ -1046,7 +1049,10 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     solve(world, contacts, count, bodies, motion, softness, h, 1);
     for (uint32_t i = 0; i < used; i++) {
       F3dSlot *s = &world->slots[i];
-      if (!moves(s)) continue;
+      if (!moves(s)) {
+        if (f3d_carried(s)) f3d_carry(s, h);
+        continue;
+      }
       f3d_integrate_position(s, h);
       if (bodies[i].bullet >= 0) {
         const size_t at = (size_t)bodies[i].bullet * row + step + 1u;

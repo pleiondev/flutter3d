@@ -15,6 +15,7 @@
 /// surfaces the cut made, which nothing ever baked, take the neutral texel.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -29,8 +30,8 @@ import 'package:vector_math/vector_math.dart';
 /// that matters here would pass against a build that had learnt nothing.
 Level _walls() => Level(
   brushes: <Brush>[
-    Brush(centre: Vector3(6.0, 2.0, 0.0), size: Vector3(4.0, 4.0, 1.0)),
-    Brush(centre: Vector3(-6.0, 2.0, 0.0), size: Vector3(4.0, 4.0, 1.0)),
+    Brush(center: Vector3(6.0, 2.0, 0.0), size: Vector3(4.0, 4.0, 1.0)),
+    Brush(center: Vector3(-6.0, 2.0, 0.0), size: Vector3(4.0, 4.0, 1.0)),
   ],
 );
 
@@ -261,7 +262,7 @@ void main() {
       // piece comes back as an ordinary caster and the breached wall starts
       // leaking light along the seam the whole wall did not.
       final wall = Brush(
-        centre: Vector3(6.0, 2.0, 0.0),
+        center: Vector3(6.0, 2.0, 0.0),
         size: Vector3(4.0, 4.0, 1.0),
         shadowCasting: ShadowCasting.doubleSided,
       );

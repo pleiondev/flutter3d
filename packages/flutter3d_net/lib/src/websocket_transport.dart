@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import 'net_transport.dart';
+import 'peer_wire.dart';
 
-/// [NetTransport] over a plain `WebSocket`, through `net-02`'s relay —
+/// A [PeerWire] over a plain `WebSocket`, through `net-02`'s relay —
 /// `doc/tooling-plan.md`'s named fallback for whatever a WebRTC data channel
 /// could not reach: a platform it has not been wired into yet, or a network
 /// whose NAT neither side's ICE candidates got through.
@@ -21,16 +22,37 @@ import 'net_transport.dart';
 /// half of `net-02` has to compile for the web too — a browser has no
 /// `dart:io`, and this is meant to be the same class whether the caller is
 /// a native build or one running in a tab.
-final class WebSocketTransport implements NetTransport {
+///
+/// **Reliable throughout**: a WebSocket delivers every message once and in
+/// order, so both kinds of [send] go the same road.
+///
+/// **Bytes go as a binary frame** ([sendBytes]), and the relay forwards one
+/// as it forwards text: a message is a text frame of JSON, bytes are a
+/// binary frame, and a frame of either kind from a machine that sent bytes
+/// as base64 inside JSON is delivered as bytes all the same.
+final class WebSocketTransport extends PeerWire {
   WebSocketTransport(this._channel) {
     _channel.stream.listen((raw) {
-      final decoded = jsonDecode(raw as String);
-      if (decoded is Map<String, Object?>) _listener?.call(decoded);
+      switch (raw) {
+        case final String text:
+          final Object? decoded;
+          try {
+            decoded = jsonDecode(text);
+          } on FormatException {
+            return;
+          }
+          if (decoded is Map<String, Object?>) deliver(decoded);
+        case final List<int> bytes:
+          deliverBytes(bytes is Uint8List ? bytes : Uint8List.fromList(bytes));
+      }
     }, onDone: () => _closed.complete(_channel.closeReason));
   }
 
+  @override
+  WireState get state =>
+      _closed.isCompleted ? WireState.closed : WireState.open;
+
   final WebSocketChannel _channel;
-  void Function(Map<String, Object?> message)? _listener;
   final Completer<String?> _closed = Completer<String?>();
 
   /// Completes when the socket closes, from either end, with the reason the
@@ -49,13 +71,14 @@ final class WebSocketTransport implements NetTransport {
   }
 
   @override
-  void send(Map<String, Object?> message) =>
+  void send(Map<String, Object?> message, {bool reliable = true}) =>
       _channel.sink.add(jsonEncode(message));
 
   @override
-  void listen(void Function(Map<String, Object?> message) onMessage) =>
-      _listener = onMessage;
+  void sendBytes(Uint8List bytes, {bool reliable = true}) =>
+      _channel.sink.add(bytes);
 
   /// Closes the underlying socket. Safe to call more than once.
+  @override
   Future<void> close() => _channel.sink.close();
 }

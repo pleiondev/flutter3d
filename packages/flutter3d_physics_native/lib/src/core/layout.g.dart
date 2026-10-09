@@ -18,7 +18,19 @@ abstract final class F3dMaterialLayout {
   static const int flameConvection = 36;
   static const int flameRadiant = 40;
   static const int flameAbsorption = 44;
-  static const int size = 48;
+  static const int heatOfGasification = 48;
+  static const int criticalMassFlux = 52;
+  static const int flameSpread = 56;
+  static const int modulus = 60;
+  static const int poissonRatio = 64;
+  static const int sootTemperature = 68;
+  static const int charYield = 72;
+  static const int spreadMinimum = 76;
+  static const int ignitionInertia = 80;
+  static const int elementSurface = 84;
+  static const int elementDensity = 88;
+  static const int sootYield = 92;
+  static const int size = 96;
 }
 
 /// `F3dParticleForces`.

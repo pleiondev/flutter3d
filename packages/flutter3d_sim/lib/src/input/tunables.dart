@@ -5,7 +5,7 @@ import 'input_state.dart';
 ///
 /// **Changed through the input, read by the step.** Somebody drags a value in
 /// an inspector; the editor calls `ext.flutter3d.cvar.set`, which calls
-/// `InputState.tune`; the next step calls [take] before it simulates and
+/// `InputState.tune`; the next step calls [readFrom] before it simulates and
 /// reads the new value through `[]`. The change is on the tape with that step,
 /// so a replay changes it at the same moment, and a run tuned while it was
 /// played reproduces like any other.
@@ -40,7 +40,7 @@ final class Tunables {
   /// Takes the tunables [input] set this step. Call once per step, before
   /// anything reads a value, the same place a step reads the rest of its
   /// input.
-  void take(InputState input) {
+  void readFrom(InputState input) {
     for (final MapEntry(key: name, :value) in input.tunesThisStep.entries) {
       if (_values.containsKey(name)) _values[name] = value;
     }

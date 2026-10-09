@@ -3,8 +3,9 @@
  * at rest over a bumpy bed, a dam breaking with not a drop made or lost, a
  * spring feeding a stream off a cliff into a pond, the spray only at the
  * cliff, a stone's waves, a ball floating as deep as Archimedes says, the
- * flow carrying a float, a jet mixing into a pool, an open edge letting water go, and water through
- * a snapshot.
+ * flow carrying a float, a jet mixing into a pool, an open edge letting water go, a weir
+ * holding a pool at the head Poleni's law gives, a current let in at one edge and out at
+ * another, a wall of cells holding a dam, and water through a snapshot.
  */
 #include <math.h>
 #include <stdlib.h>
@@ -193,13 +194,18 @@ static void test_no_spray_on_level_ground(void) {
   f3d_world_destroy(w);
 }
 
-/* A pond [n] cells of [cell] across, a metre deep, centred on the origin. */
+/* A pond [n] cells of [cell] across, a metre deep, centred on the origin,
+ * with a floor under it: what reaches the bottom stops there, as the
+ * water's ground is only where the water stands on. */
 static F3dShallow pond(F3dWorld *w, int n, f3d_real cell) {
   f3d_real *ground = (f3d_real *)calloc((size_t)n * n, sizeof(f3d_real));
   const F3dShallow water =
       f3d_shallow_create(w, (uint32_t)n, (uint32_t)n, cell, -n * cell / 2, 0, -n * cell / 2, ground);
   free(ground);
   f3d_shallow_fill(w, water, -99, -99, 99, 99, 1);
+  const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
+  f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, (f3d_real)n * cell, F3D_R(0.5),
+                     (f3d_real)n * cell);
   return water;
 }
 
@@ -240,6 +246,93 @@ static void test_stone_makes_waves(void) {
     if (w->s.spray_count > splash) splash = w->s.spray_count;
   }
   CHECK(splash == 0);
+  f3d_world_destroy(w);
+}
+
+/* The first drops a body dropped into the pond throws, and how fast it came
+ * in: a box or a ball [shape] of 0.1 m, turned [tilt] about x, let go a
+ * metre above the water. */
+static void first_crown(int shape, f3d_real tilt, f3d_real *in, f3d_real *up,
+                        f3d_real *out) {
+  F3dWorld *w = f3d_world_create();
+  pond(w, 48, F3D_R(0.1));
+  const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(2.1), 0, 4);
+  f3d_body_set_shape(w, b, (uint32_t)shape, F3D_R(0.1), F3D_R(0.1), F3D_R(0.1));
+  f3d_real sn = (f3d_real)sin(0.5 * tilt), cs = (f3d_real)cos(0.5 * tilt);
+  f3d_body_set_orientation(w, b, sn, 0, 0, cs);
+  *in = *up = *out = 0;
+  f3d_real spray[F3D_SPRAY_FLOATS * 256];
+  for (int i = 0; i < 120 && *in == 0; i++) {
+    f3d_real v[3];
+    f3d_body_get_velocity(w, b, v);
+    run(w, 1);
+    const uint32_t n = f3d_world_read_spray(w, spray, NULL, 256);
+    for (uint32_t k = 0; k < n; k++) {
+      const f3d_real *d = &spray[k * F3D_SPRAY_FLOATS];
+      *in = -v[1];
+      *up += d[4] / (f3d_real)n;
+      *out += (f3d_real)sqrt((double)(d[3] * d[3] + d[5] * d[5])) / (f3d_real)n;
+    }
+  }
+  f3d_world_destroy(w);
+}
+
+static void test_a_splash_by_what_strikes(void) {
+  /* A box falling flat on its face throws its crown out and up alike, one
+   * in one, at 1.6 times the speed it came in at (Peters and colleagues'
+   * disc); a ball throws a curtain straight up at a quarter of it
+   * (Aristoff and Bush). A step of gravity on the drops is within the
+   * tolerance. */
+  f3d_real in, up, out;
+  first_crown(F3D_SHAPE_BOX, 0, &in, &up, &out);
+  CHECK(in > 4);
+  CHECK_NEAR(out, 1.6 * 0.70710678 * in, 0.1 * in);
+  CHECK_NEAR(up, 1.6 * 0.70710678 * in, 0.1 * in);
+  first_crown(F3D_SHAPE_SPHERE, 0, &in, &up, &out);
+  CHECK(in > 4);
+  CHECK_NEAR(up, 0.25 * in, 0.05 * in);
+  CHECK(out < 0.01 * in);
+  /* Tilted ten degrees, its edge goes in well before the air under its
+   * face is out, and it splashes as a rounded body does. */
+  first_crown(F3D_SHAPE_BOX, (f3d_real)(10 * M_PI / 180), &in, &up, &out);
+  CHECK(in > 4);
+  CHECK_NEAR(up, 0.25 * in, 0.05 * in);
+}
+
+static void test_a_drop_splashes_into_drops_of_its_weber_number(void) {
+  /* A drop of 3 mm striking a pond at 10 m/s, We = ρv²D/σ ≈ 4100, far
+   * past the 77 < K < 180 Mundo measured over: its crown breaks into drops
+   * of 2.54·We^(−3/5) of its diameter, about 52 µm
+   * (doc/derivations/splash_drops.md), thrown up off the surface. With no
+   * gravity, so it lands at the speed it was given. Mutations: Mundo's
+   * min(8.72·e^(−0.0281K'), 1) back in land() — its drops come out a
+   * millionth of a micrometre; the drops thrown from where the drop's
+   * last piece of flight carried it under — they land again at once and
+   * none is left. */
+  F3dWorld *w = f3d_world_create();
+  const F3dShallow water = pond(w, 32, F3D_R(0.25));
+  f3d_world_set_gravity(w, 0, 0, 0);
+  const double d0 = 0.003, v = 10.0;
+  w->spray = (F3dSpray *)f3d_alloc(F3D_SHALLOW_MOST_SPRAY * sizeof(F3dSpray));
+  CHECK(w->spray != NULL);
+  F3dSpray drop;
+  f3d_zero(&drop, sizeof drop);
+  drop.at = f3d_v3(F3D_R(0.3), F3D_R(1.05), F3D_R(0.3));
+  drop.velocity = f3d_v3(0, (f3d_real)-v, 0);
+  drop.volume = (f3d_real)(M_PI / 6 * d0 * d0 * d0);
+  drop.water = water;
+  drop.kind = F3D_SPRAY_DROPS;
+  drop.width = (f3d_real)d0;
+  w->spray[w->s.spray_count++] = drop;
+  run(w, 1);
+  const F3dShallowSlot *ws = &w->shallows[water - 1u];
+  const double we = (double)ws->density * v * v * d0 / (double)ws->tension;
+  f3d_real spray[F3D_SPRAY_FLOATS * 16];
+  const uint32_t n = f3d_world_read_spray(w, spray, NULL, 16);
+  CHECK(n == 8);
+  for (uint32_t k = 0; k < n; k++) {
+    CHECK_NEAR(spray[k * F3D_SPRAY_FLOATS + 7] / (2.54 * pow(we, -0.6) * d0), 1.0, 0.01);
+  }
   f3d_world_destroy(w);
 }
 
@@ -382,7 +475,7 @@ static void test_ball_settles_through_honey(void) {
   run(w, 120);
   f3d_real v[3];
   f3d_body_get_velocity(w, b, v);
-  const double stokes = 2.0 * (7800.0 - 1420.0) * 9.81 * 1e-4 / (9.0 * 10.0);
+  const double stokes = 2.0 * (7800.0 - 1420.0) * STANDARD_G * 1e-4 / (9.0 * 10.0);
   const double re = 1420.0 * stokes * 0.02 / 10.0;
   const double expected = stokes / (1.0 + 0.15 * pow(re, 0.687));
   CHECK_NEAR(-v[1], expected, 0.02 * expected);
@@ -400,7 +493,7 @@ static void test_ball_falls_through_water_at_newtons_speed(void) {
   run(w, 120);
   f3d_real v[3];
   f3d_body_get_velocity(w, b, v);
-  const double newton = sqrt(8.0 * 9.81 * 0.1 * (2.0 - 1.0) / (3.0 * 0.44));
+  const double newton = sqrt(8.0 * STANDARD_G * 0.1 * (2.0 - 1.0) / (3.0 * 0.44));
   /* CHECK_NEAR scales its tolerance by what it wants past one. */
   CHECK_NEAR(-v[1], newton, 0.03);
   f3d_world_destroy(w);
@@ -419,7 +512,7 @@ static void test_a_light_ball_carries_water_with_it(void) {
   f3d_real v[3];
   f3d_body_get_velocity(w, b, v);
   const double volume = 4.0 / 3.0 * M_PI * 0.02 * 0.02 * 0.02;
-  const double up = ((1000.0 * volume - 0.0027) * 9.81) / (0.0027 + 0.5 * 1000.0 * volume);
+  const double up = ((1000.0 * volume - 0.0027) * STANDARD_G) / (0.0027 + 0.5 * 1000.0 * volume);
   CHECK_NEAR(v[1], up * (double)dt, 0.05 * up * (double)dt);
   f3d_world_destroy(w);
 }
@@ -541,7 +634,7 @@ static void test_a_float_slides_down_the_surface(void) {
   f3d_world_step(w, dt);
   f3d_real v[3];
   f3d_body_get_velocity(w, b, v);
-  const double expected = 2.0 / 3.0 * 9.81 * 0.02 * (double)dt;
+  const double expected = 2.0 / 3.0 * STANDARD_G * 0.02 * (double)dt;
   CHECK_NEAR(v[0], expected, 0.1 * expected);
   CHECK_NEAR(v[2], 0.0, 0.05 * expected);
   f3d_world_destroy(w);
@@ -567,7 +660,7 @@ static void test_a_thick_film_runs_as_nusselt_says(void) {
   f3d_real at[4];
   f3d_shallow_sample(w, water, F3D_R(3.2), F3D_R(0.2), at);
   const double h = (double)at[1];
-  const double nusselt = 9.81 * 0.01 * h * h / (3.0 * 0.001);
+  const double nusselt = STANDARD_G * 0.01 * h * h / (3.0 * 0.001);
   CHECK(h > 0.015 && h < 0.025);
   CHECK_NEAR(at[2], nusselt, 0.1 * nusselt);
   f3d_world_destroy(w);
@@ -705,20 +798,142 @@ static void test_a_resting_pond_wakes_for_a_stone(void) {
   double most = 0;
   for (int c = 0; c < 64 * 64; c++) most = fmax(most, fabs((double)(moved[c] - still[c])));
   CHECK(most > 1e-3);
-  double sum = 0;
+  /* Both over the same ten seconds: the waves its splash made still run
+   * round the closed pond, a centimetre either way. */
+  double sum = 0, level = 0;
   for (int i = 0; i < 600; i++) {
     run(w, 1);
-    f3d_real p[3];
+    f3d_real p[3], s[4];
     f3d_body_get_position(w, ball, p);
+    f3d_shallow_sample(w, water, 2, 0, s);
     sum += p[1];
+    level += s[0];
   }
-  f3d_real s[4];
-  f3d_shallow_sample(w, water, 2, 0, s);
-  CHECK_NEAR(sum / 600 - s[0], -0.027, 0.01);
+  CHECK_NEAR((sum - level) / 600, -0.027, 0.01);
+  f3d_world_destroy(w);
+}
+
+static void test_a_weir_holds_a_pool_at_poleni_head(void) {
+  /* A basin forty metres by eight, its bed two metres down, fed 0.6 m³/s
+   * by a spring and let out over a weir three metres long, its crest 0.6 m
+   * above the datum. Come to rest, it lets out what the spring brings, and
+   * the pool stands over the crest by the head Poleni's law gives that
+   * flow, Q = ⅔ C_d √(2g) b H^1.5, C_d = 0.611 + 0.075 H/P (Rehbock), P the
+   * crest's height over the bed — 0.17 m, found here by fixed point. */
+  F3dWorld *w = f3d_world_create();
+  enum { NX = 40, NZ = 8 };
+  f3d_real ground[NX * NZ];
+  for (int i = 0; i < NX * NZ; i++) ground[i] = -2;
+  const F3dShallow water = f3d_shallow_create(w, NX, NZ, 1, 0, 0, 0, ground);
+  f3d_shallow_set_bed(w, water, F3D_R(0.02), 0);
+  f3d_shallow_fill(w, water, 0, 0, NX, NZ, F3D_R(0.6));
+  CHECK(f3d_shallow_set_outlet(w, water, F3D_SHALLOW_MOST_OUTLETS, 38, 4, F3D_R(0.6), 3, 0) == 0);
+  CHECK(f3d_shallow_set_outlet(w, water, 0, 38, 4, F3D_R(0.6), -1, 0) == 0);
+  CHECK(f3d_shallow_set_outlet(w, water, 0, 38, 4, F3D_R(0.6), 3, 0) == 1);
+  CHECK(f3d_shallow_set_source(w, water, 0, 2, 4, 2, F3D_R(0.6)) == 1);
+  /* It fills over a time of A / (dQ/dH), some seventy seconds: ten minutes
+   * brings it to rest. */
+  run(w, 60 * 600);
+  double head = 0.2;
+  for (int i = 0; i < 50; i++) {
+    const double cd = 0.611 + 0.075 * head / 2.6;
+    head = pow(0.6 / (2.0 / 3.0 * cd * sqrt(2 * STANDARD_G) * 3), 2.0 / 3.0);
+  }
+  f3d_real out[8];
+  double level = 0;
+  f3d_real lost0, held;
+  f3d_shallow_volume(w, water, &held, &lost0);
+  for (int i = 0; i < 60 * 20; i++) {
+    run(w, 1);
+    f3d_shallow_sample(w, water, 30, 4, out);
+    level += out[0] / (60 * 20);
+  }
+  f3d_real lost1;
+  f3d_shallow_volume(w, water, &held, &lost1);
+  CHECK_NEAR(level - 0.6, head, 0.05 * head);
+  CHECK_NEAR(((double)lost1 - (double)lost0) / 20, 0.6, 0.03 * 0.6);
+  f3d_world_destroy(w);
+}
+
+static void test_edges_carry_a_current_through(void) {
+  /* The same basin with no spring: half a cubic metre a second let in over
+   * its west edge, its east edge held at the datum's level. The current
+   * through its section of eight metres by two is three centimetres a
+   * second, the level stays at the datum, and what it holds and what has
+   * crossed its edges add up to what it started with. */
+  F3dWorld *w = f3d_world_create();
+  enum { NX = 40, NZ = 8 };
+  f3d_real ground[NX * NZ];
+  for (int i = 0; i < NX * NZ; i++) ground[i] = -2;
+  const F3dShallow water = f3d_shallow_create(w, NX, NZ, 1, 0, 0, 0, ground);
+  f3d_shallow_set_bed(w, water, F3D_R(0.02), 0);
+  f3d_shallow_fill(w, water, 0, 0, NX, NZ, 0);
+  const double before = total(w, water);
+  CHECK(f3d_shallow_set_edge(w, water, 4, F3D_EDGE_FLOW, 1) == 0);
+  CHECK(f3d_shallow_set_edge(w, water, 0, F3D_EDGE_LEVEL + 1u, 1) == 0);
+  CHECK(f3d_shallow_set_edge(w, water, 0, F3D_EDGE_FLOW, F3D_R(0.5)) == 1);
+  CHECK(f3d_shallow_set_edge(w, water, 1, F3D_EDGE_LEVEL, 0) == 1);
+  /* The held edge reflects what reaches it, so the basin rings as a pipe
+   * open at one end, a seiche of 4L/√(gh), some thirty-six seconds, that
+   * its bed's friction damps only slowly: the current is its mean over ten
+   * minutes. */
+  run(w, 60 * 60);
+  f3d_real out[8];
+  double level = 0, flow = 0;
+  for (int i = 0; i < 60 * 600; i++) {
+    run(w, 1);
+    f3d_shallow_sample(w, water, 20, 4, out);
+    level += out[0] / (60 * 600);
+    flow += out[2] / (60 * 600);
+  }
+  CHECK_NEAR(level, 0.0, 0.01);
+  CHECK_NEAR(flow, 0.5 / (8 * 2), 0.1 * 0.5 / (8 * 2));
+  CHECK_NEAR(total(w, water), before, 1e-3 * before);
+  f3d_real info[F3D_SHALLOW_INFO_FLOATS];
+  CHECK(f3d_shallow_info(w, water, info) == 1);
+  CHECK(info[0] >= 1 && info[1] == 0 && info[2] == 0);
+  f3d_world_destroy(w);
+}
+
+static void test_walls_hold_a_dam(void) {
+  /* A metre of water on the left half of a channel and none on the right,
+   * with a wall of cells between them: nothing crosses, and the left half
+   * stays at rest as full as it was. Each cell's own roughness and the
+   * splash it throws are refused when they are not numbers. */
+  F3dWorld *w = f3d_world_create();
+  enum { NX = 32, NZ = 4 };
+  f3d_real ground[NX * NZ];
+  uint32_t walls[NX * NZ];
+  for (int i = 0; i < NX * NZ; i++) {
+    ground[i] = 0;
+    walls[i] = (i % NX) == NX / 2;
+  }
+  const F3dShallow water = f3d_shallow_create(w, NX, NZ, F3D_R(0.25), 0, 0, 0, ground);
+  CHECK(f3d_shallow_set_cells(w, water, NULL, walls) == 1);
+  f3d_shallow_fill(w, water, 0, 0, F3D_R(0.125) * NX, F3D_R(0.25) * NZ, 1);
+  const double before = total(w, water);
+  run(w, 600);
+  f3d_real depth[NX * NZ];
+  f3d_shallow_read(w, water, NULL, depth);
+  double right = 0;
+  for (int z = 0; z < NZ; z++) {
+    for (int x = NX / 2 + 1; x < NX; x++) right += depth[z * NX + x];
+  }
+  CHECK(right == 0);
+  CHECK_NEAR(total(w, water), before, 1e-6 * before);
+  f3d_real rough[NX * NZ];
+  for (int i = 0; i < NX * NZ; i++) rough[i] = -1;
+  rough[3] = (f3d_real)NAN;
+  CHECK(f3d_shallow_set_cells(w, water, rough, NULL) == 0);
+  CHECK(f3d_world_set_water_rest(w, -1, 1) == 0);
+  CHECK(f3d_world_set_water_rest(w, F3D_R(5e-4), 1) == 1);
   f3d_world_destroy(w);
 }
 
 int main(void) {
+  test_a_weir_holds_a_pool_at_poleni_head();
+  test_edges_carry_a_current_through();
+  test_walls_hold_a_dam();
   test_refusals();
   test_a_resting_pond_wakes_for_a_stone();
   test_spring_and_drain_make_a_current();
@@ -728,6 +943,8 @@ int main(void) {
   test_waterfall();
   test_no_spray_on_level_ground();
   test_stone_makes_waves();
+  test_a_splash_by_what_strikes();
+  test_a_drop_splashes_into_drops_of_its_weber_number();
   test_floats_as_deep_as_it_weighs();
   test_flow_carries_a_float();
   test_column_spreads();

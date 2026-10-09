@@ -1,6 +1,6 @@
 name: flutter3d_net
-description: "Rollback netcode over `sim`: input frames per step, prediction, correction, and the transport behind an interface so a game never names WebRTC or a socket."
-version: 0.9.0
+description: "The network core over `sim`: one peer wire, rooms and rollback for two machines or a party, the relay's WebSocket transport, and parties found by code."
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,16 +14,26 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
-  # `PeerWire`, which `NetTransportWire` makes any transport here into: the
-  # room, the turns and the ghost of `flame_multiplayer` over the relay and
-  # WebRTC. That package depends on nothing; this is the adapter's side.
-  flame_multiplayer: ^0.2.0
+  # `Registration`, which `PeerWire.listen` hands back, and the
+  # `SimulationVersion` a hello carries whole.
+  flutter3d_plugin_api: ^1.0.0-rc.1
 
   # `Snapshot`, `GameRandom` for the test transport's loss, nothing that
   # draws or reads a device — the same reason `net-01`'s own row gives for
   # sitting on this package and not on `flutter3d_game`.
-  flutter3d_sim: ^0.9.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   # `WebSocketTransport` — net-02's fallback transport, and the one client
   # class in this package that has to compile for the web as well as

@@ -15,7 +15,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _wall(double x, {int drawOrder = 0}) => Brush(
-  centre: Vector3(x, 2.0, 0.0),
+  center: Vector3(x, 2.0, 0.0),
   size: Vector3(4.0, 4.0, 1.0),
   material: 'wall',
   drawOrder: drawOrder,

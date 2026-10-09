@@ -1,27 +1,35 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../portable_math.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 
 /// When something thrown at [velocity] from [height] reaches [floor] under
 /// gravity [g] pointing down: the later root of height + v_y·t − g t²/2 =
-/// floor. For aiming a stream: how far it is carried while it falls.
+/// floor. For aiming a stream: how far it is carried while it falls. [g] is
+/// the world's; [standardGravity] when the caller has none to give.
 double fallTime(
   Vector3 velocity,
   double height,
   double floor, {
-  double g = 9.81,
+
+  /// Gravity's pull, in metres per second squared.
+  double g = standardGravity,
 }) {
   final drop = math.max(height - floor, 0.0);
   return (velocity.y + math.sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g;
 }
 
 /// Something a stream can land in — a vessel's liquid.
-abstract interface class JetReceiver {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class JetReceiver {
   /// Whether a parcel of [radius] at [point] (world) has reached this
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
@@ -38,26 +46,30 @@ abstract interface class JetReceiver {
 }
 
 /// Something a stream can run into and along — a wall.
-abstract interface class JetObstacle {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class JetObstacle {
   /// Where a parcel of [radius] at [point] (world) is into this obstacle:
   /// the way out and how far, or null when it is clear of it.
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius);
 
-  /// Whether anything within [distance] of [centre] (world) could touch
+  /// Whether anything within [distance] of [center] (world) could touch
   /// this obstacle: false only when it certainly cannot. Asked once a step
   /// for everything in flight together, so the walls far from it are not
   /// asked again for each parcel, piece and pass.
-  bool reaches(Vector3 centre, double distance);
+  bool reaches(Vector3 center, double distance);
 }
 
-/// [obstacles] that something within [distance] of [centre] could touch.
+/// [obstacles] that something within [distance] of [center] could touch.
 List<JetObstacle> obstaclesNear(
   List<JetObstacle> obstacles,
-  Vector3 centre,
+  Vector3 center,
   double distance,
 ) => [
   for (final o in obstacles)
-    if (o.reaches(centre, distance)) o,
+    if (o.reaches(center, distance)) o,
 ];
 
 /// A drop a stream broke into, leaving it: where, how fast, how much.
@@ -120,7 +132,7 @@ final class Jet {
   /// [clingSpeed] answers for.
   final FluidMedium medium;
 
-  /// How many e-foldings of growth part the stream.
+  /// How many e-foldings of growth part the stream: a unitless count.
   final double breakupGrowth;
 
   /// What flies the parcels each step: the reference unless told
@@ -164,20 +176,23 @@ final class Jet {
   }
 
   /// How much has left the lip, and how much of it receivers have taken.
+  /// In cubic metres.
   double get emitted => _emitted;
   double _emitted = 0.0;
+
+  /// How much of [emitted] receivers have taken, in cubic metres.
   double get landed => _landed;
   double _landed = 0.0;
 
-  /// How much has left as drops.
+  /// How much has left as drops, in cubic metres.
   double get dropped => _dropped;
   double _dropped = 0.0;
 
-  /// How much is in the air.
+  /// How much is in the air, in cubic metres.
   double get inFlight => _parcels.fold(0.0, (s, p) => s + p.volume);
 
   /// Whether any of it is in the air.
-  bool get flowing => _parcels.isNotEmpty;
+  bool get isFlowing => _parcels.isNotEmpty;
 
   /// Liquid leaving a lip at [point] at [velocity] for [dt] seconds at
   /// [flow] cubic metres a second, as a sheet [width] wide across [across].
@@ -523,18 +538,26 @@ final class _Parcel {
 
   final Vector3 position;
   final Vector3 velocity;
+
+  /// How much liquid it is, in cubic metres.
   final double volume;
 
   /// The step it left in: its length along the stream is its speed times
   /// this, so its section is its volume over that.
   final double dt;
 
-  /// How wide and thick a sheet it left as, and which way across.
+  /// How wide and thick a sheet it left as, and which way across. In
+  /// metres.
   final double width;
+
+  /// How thick a sheet it left as, in metres.
   final double sheet;
   final Vector3 across;
 
+  /// How long it has been in the air, in seconds.
   double age = 0.0;
+
+  /// How far its ripples have grown: a unitless count of e-foldings.
   double growth = 0.0;
   bool onWall = false;
 
@@ -545,5 +568,6 @@ final class _Parcel {
   /// have left the lip.
   bool endsRun = false;
 
+  /// Its cross-section along the stream, in square metres.
   double get section => volume / (math.max(velocity.length, 1e-6) * dt);
 }

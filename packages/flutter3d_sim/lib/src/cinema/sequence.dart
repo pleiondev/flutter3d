@@ -20,6 +20,8 @@
 /// the subtitles say, how dark the screen is.
 library;
 
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 import '../math/spline.dart';
@@ -28,7 +30,7 @@ import '../math/spline.dart';
 /// the vertical field of view in degrees, forty-five unless the document
 /// says, which is the engine's own lens, so a cutscene that names none cuts
 /// to it without the picture changing size.
-typedef CameraKey = ({int step, Vector3 at, Vector3 look, double fov});
+typedef CameraKey = ({int step, Vector3 at, Vector3 look, double fovY});
 
 /// One subtitle: shown from step [from] up to, not including, step [to].
 typedef SubtitleCue = ({int from, int to, String text});
@@ -146,7 +148,7 @@ final class Sequence {
   /// Reads [json] for a game stepping [stepsPerSecond] times a second, or
   /// refuses it with every problem and where it is.
   ///
-  /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fov"}],
+  /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fovY"}],
   /// "ease": true}, "subtitles": [{"from", "to", "text"}], "fade": [{"t",
   /// "value"}], "signals": [{"t", "name", "data"}], "actors": [{"t",
   /// "actor", "do", "at", "clip"}]}` — every part but
@@ -229,15 +231,20 @@ final class Sequence {
           final step = moment(row, 't', where);
           final at = vector(row, 'at', where);
           final look = vector(row, 'look', where);
-          final fov = row.containsKey('fov') ? number(row, 'fov', where) : 45.0;
-          if (step == null || at == null || look == null || fov == null) {
+          // The file writes degrees under `fovY`; the engine takes radians,
+          // converted here, at the reader.
+          final degrees = row.containsKey('fov')
+              ? number(row, 'fov', where)
+              : 45.0;
+          if (step == null || at == null || look == null || degrees == null) {
             continue;
           }
+          final fovY = degrees * math.pi / 180.0;
           if (cameraKeys.isNotEmpty && step <= cameraKeys.last.step) {
             problems.add('$where.t: after the key before it');
             continue;
           }
-          cameraKeys.add((step: step, at: at, look: look, fov: fov));
+          cameraKeys.add((step: step, at: at, look: look, fovY: fovY));
         }
       }
     }
@@ -382,7 +389,7 @@ final class Sequence {
   bool get hasCamera => cameraKeys.isNotEmpty;
 
   /// Where the camera is at [step]: the eye into [at], what it looks at into
-  /// [look], and its field of view, in degrees, returned. Before the first
+  /// [look], and its vertical field of view, in radians, returned. Before the first
   /// key it holds the first, after the last the last.
   ///
   /// **On the path, at the keys' times.** The eye and the point it looks at
@@ -396,12 +403,12 @@ final class Sequence {
     if (keys.length == 1 || step <= keys.first.step) {
       at.setFrom(keys.first.at);
       look.setFrom(keys.first.look);
-      return keys.first.fov;
+      return keys.first.fovY;
     }
     if (step >= keys.last.step) {
       at.setFrom(keys.last.at);
       look.setFrom(keys.last.look);
-      return keys.last.fov;
+      return keys.last.fovY;
     }
     var i = 0;
     while (keys[i + 1].step <= step) {
@@ -418,7 +425,7 @@ final class Sequence {
 
     _path!.sampleAt(along(_path), at);
     _looks!.sampleAt(along(_looks), look);
-    return a.fov + (b.fov - a.fov) * f;
+    return a.fovY + (b.fovY - a.fovY) * f;
   }
 
   /// What the subtitles say at [step], or null: the one that started last

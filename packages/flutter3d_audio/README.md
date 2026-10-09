@@ -44,6 +44,33 @@ scene.update(listener);
 `play` returns an emitter so whatever owns a moving source can move it. The
 mixer updates that voice instead of restarting it.
 
+## Opening the speakers, and where the ears are
+
+`openSpeakers` opens the device and hands back `Speakers`: the backend, to
+pause, resume and dispose, and the scene, to play through. When there is no
+device it throws `AudioDeviceException`, and a game catches it and plays
+silent. What the backend could not play it reports as an `Issue`, the same
+type `flutter3d_app` reports in.
+
+Positions are metres from an origin the game names, as float32 offsets: the
+scene's origin, which a scene graph keeps near the camera. A place in the
+world, a `WorldPosition` in doubles, comes in through `placeAt` with that
+origin. `Flutter3dView` says where the camera is after every frame, so the
+listener is one line:
+
+```dart
+Flutter3dView(
+  onListenerMoved: (ears) => listener.placeAt(
+    ears.position,
+    ears.forward,
+    origin: ears.origin,
+    up: ears.up,
+  ),
+  onPausedChanged: (paused) =>
+      paused ? speakers.pause() : speakers.resume(),
+)
+```
+
 ## What the mixer decides
 
 - Attenuation is `InverseRolloff` by default, the only one of the three that

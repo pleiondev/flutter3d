@@ -8,6 +8,9 @@
 /// other's reader.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// The path of one run across a level, as [Heatmap.bin] takes it.
 final class HeatmapTrail {
   const HeatmapTrail({
@@ -69,14 +72,19 @@ final class HeatmapEnd {
 
   final int run;
   final int step;
+
+  /// Where the run was last, across, in metres in the level's frame.
   final double x;
+
+  /// Where the run was last, along Z, in metres, as [x].
   final double z;
 }
 
 /// Thrown when a heatmap document cannot be read.
-final class HeatmapFormatException implements Exception {
+final class HeatmapFormatException extends Flutter3dFormatException {
   const HeatmapFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -186,6 +194,7 @@ final class Heatmap {
     }
   }
 
+  /// A cell's side, in metres.
   final double cellSize;
   final List<HeatmapCell> cells;
   final List<HeatmapEnd> ends;

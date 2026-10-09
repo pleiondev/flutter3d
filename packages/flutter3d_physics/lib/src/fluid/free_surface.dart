@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../portable_math.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 import 'vessel_shape.dart';
@@ -60,6 +60,8 @@ final class FreeSurface {
   /// The plane the surface settles to, in the vessel's frame: its normal and
   /// height along it, as last laid out.
   Vector3 get up => _grid?.up ?? Vector3(0, 1, 0);
+
+  /// The plane's height along [up], in metres.
   double get height => _grid?.height ?? 0.0;
 
   /// The surface's area, square metres.
@@ -310,7 +312,7 @@ final class FreeSurface {
 
   /// Whether nothing moves that the eye would see: every mode under a tenth
   /// of a millimetre, and slower than that a radian.
-  bool get settled {
+  bool get isSettled {
     for (var n = 0; n < _amplitude.length; n++) {
       if (_amplitude[n].abs() * _norm(n) > 1e-4) return false;
       if (_rate[n].abs() * _norm(n) > 1e-3) return false;
@@ -325,7 +327,7 @@ final class FreeSurface {
   /// Whether the waves are too small to see or to matter: no mode stands a
   /// tenth of a micrometre off the plane or moves a micrometre a second,
   /// and nothing waits to land.
-  bool get quiet {
+  bool get isQuiet {
     if (_pendingHeap != null || _pendingPhi != null) return false;
     for (var n = 0; n < _amplitude.length; n++) {
       if (_amplitude[n].abs() * _norm(n) > 1e-7) return false;
@@ -375,7 +377,7 @@ final class FreeSurface {
   Float64List _norms = Float64List(0);
 
   /// The most the waves can stand off the plane anywhere just now: no more
-  /// than every mode at its peak at once.
+  /// than every mode at its peak at once. In metres.
   double get reach {
     var sum = 0.0;
     for (var n = 0; n < _amplitude.length; n++) {
@@ -430,7 +432,7 @@ final class FreeSurface {
       final y = Float64List(n);
       for (var i = 0; i < n; i++) {
         var sum = 0.0;
-        for (final j in grid.neighbours[i]) {
+        for (final j in grid.neighbors[i]) {
           sum += x[i] - x[j];
         }
         y[i] = sum * inv;
@@ -478,7 +480,7 @@ final class FreeSurface {
       q[i] = Portable.sin(1.0 + 0.7 * i) + 0.3 * Portable.cos(0.31 * i * i);
     }
     _removeMean(q);
-    _normalise(q);
+    _normalize(q);
     var previous = Float64List(n);
     var b = 0.0;
     for (var m = 0; m < steps; m++) {
@@ -531,7 +533,7 @@ final class FreeSurface {
           shape[i] += weight * v[i];
         }
       }
-      _normalise(shape);
+      _normalize(shape);
       for (var i = 0; i < n; i++) {
         shape[i] *= scale;
       }
@@ -550,7 +552,7 @@ final class FreeSurface {
     return s;
   }
 
-  static void _normalise(Float64List a) {
+  static void _normalize(Float64List a) {
     final l = math.sqrt(_dot(a, a));
     if (l == 0.0) return;
     for (var i = 0; i < a.length; i++) {
@@ -716,7 +718,7 @@ final class _Grid {
     required this.index,
     required this.cellsU,
     required this.cellsV,
-    required this.neighbours,
+    required this.neighbors,
   });
 
   factory _Grid.cut(VesselShape shape, Vector3 up, double height, int cells) {
@@ -744,11 +746,11 @@ final class _Grid {
         }
       }
     }
-    final neighbours = <List<int>>[];
+    final neighbors = <List<int>>[];
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < columns; c++) {
         if (index[r * columns + c] < 0) continue;
-        neighbours.add([
+        neighbors.add([
           for (final (dc, dr) in const [(1, 0), (-1, 0), (0, 1), (0, -1)])
             if (c + dc >= 0 &&
                 c + dc < columns &&
@@ -773,24 +775,32 @@ final class _Grid {
       index: index,
       cellsU: Float64List.fromList(us),
       cellsV: Float64List.fromList(vs),
-      neighbours: neighbours,
+      neighbors: neighbors,
     );
   }
 
   final Vector3 up;
+
+  /// The plane's height along [up], in metres.
   final double height;
   final Vector3 origin;
   final Vector3 e1;
   final Vector3 e2;
+
+  /// A cell's side, in metres.
   final double cell;
+
+  /// Where the grid starts along [e1], in metres from [origin].
   final double u0;
+
+  /// Where the grid starts along [e2], in metres from [origin].
   final double v0;
   final int columns;
   final int rows;
   final Int32List index;
   final Float64List cellsU;
   final Float64List cellsV;
-  final List<List<int>> neighbours;
+  final List<List<int>> neighbors;
 
   int get count => cellsU.length;
 
@@ -814,10 +824,11 @@ final class _Grid {
       index: index,
       cellsU: cellsU,
       cellsV: cellsV,
-      neighbours: neighbours,
+      neighbors: neighbors,
     );
   }
 
+  /// A cell's area, in square metres.
   double get cell2 => cell * cell;
 
   /// The middle of cell [i], on the plane.

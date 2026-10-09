@@ -19,7 +19,7 @@ import 'contours.dart';
 typedef PolyMeshParts = ({
   Int32List vertices,
   Int32List polygons,
-  Int32List neighbours,
+  Int32List neighbors,
   Uint8List areas,
 });
 
@@ -98,7 +98,7 @@ PolyMeshParts buildPolyMesh(List<Contour> contours, {required int maxCorners}) {
   return (
     vertices: Int32List.fromList(vertices),
     polygons: polyArray,
-    neighbours: _adjacency(polygons, maxCorners),
+    neighbors: _adjacency(polygons, maxCorners),
     areas: Uint8List.fromList(areas),
   );
 }

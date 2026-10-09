@@ -22,7 +22,7 @@
 
 static F3dWorld *still_world(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   return w;
 }
@@ -90,7 +90,7 @@ static void test_pendulum(void) {
   }
   const double period = (last - first) / (crossings - 1);
   const double want =
-      2 * M_PI * sqrt((length * length + 0.4 * r * r) / (9.81 * length));
+      2 * M_PI * sqrt((length * length + 0.4 * r * r) / (STANDARD_G * length));
   CHECK_NEAR(period, want, 0.01);
   /* Its angle is the hinge's: about the axis, from where it started. */
   f3d_real angle;
@@ -147,7 +147,7 @@ static void test_rod_and_rope(void) {
   run(w, 240);
   f3d_real force[3];
   CHECK(f3d_joint_get_force(w, rod, force) == 1);
-  CHECK_NEAR(force[1], 9.81, 0.02);
+  CHECK_NEAR(force[1], STANDARD_G, 0.02);
   /* The rod holding the weight made a rope a metre longer: what it held
    * as a rod lets go, and the weight falls the metre. */
   CHECK(f3d_joint_set_length(w, rod, 3, 0, 3) == 1);
@@ -167,7 +167,7 @@ static void test_rod_and_rope(void) {
   run(w, 20);
   f3d_real v[3];
   f3d_body_get_velocity(w, load, v);
-  CHECK_NEAR(v[1], -9.81 * 20.0 / 60.0, 1e-3);
+  CHECK_NEAR(v[1], -STANDARD_G * 20.0 / 60.0, 1e-3);
   run(w, 240);
   f3d_real len;
   f3d_joint_get_value(w, rope, &len);
@@ -294,7 +294,7 @@ static void test_slider(void) {
   /* Down the axis by g sin θ h² n(n + 1)/2 after n substeps of h:
    * semi-implicit Euler's ½ a t², taken a substep at a time. */
   const double h = 1.0 / 240.0, n = 120.0;
-  CHECK_NEAR(travel, -9.81 * sin(theta) * h * h * n * (n + 1) / 2, 1e-4);
+  CHECK_NEAR(travel, -STANDARD_G * sin(theta) * h * h * n * (n + 1) / 2, 1e-4);
   f3d_real p[3], q[4];
   f3d_body_get_position(w, block, p);
   const double off = fabs(-(double)p[0] * uy + (double)p[1] * ux);
@@ -346,7 +346,7 @@ static void test_chain(void) {
    * straight, its links a link apart, and sleeps as one island; a tug on
    * the last wakes the first. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   const F3dBody hook = anchor(w, 0, 10, 0);
   F3dBody links[10];
   F3dBody above = hook;

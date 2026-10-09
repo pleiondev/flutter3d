@@ -40,6 +40,23 @@ static int g_checks = 0;
     }                                                                     \
   } while (0)
 
+/* The gravity a world is made with, m/s², as a double: the standard world's
+ * from the generated header (f3d_materials.g.h), for a test that gives its
+ * own settings the standard gravity and checks against it. */
+#define STANDARD_G ((double)F3D_STANDARD_GRAVITY)
+
+/* How hard [w] pulls, m/s², read from the world rather than written beside
+ * it, so a law checked against it holds for whatever gravity the world has. */
+static inline double world_gravity(const F3dWorld *w) {
+  f3d_real g[3];
+  f3d_world_get_gravity(w, g);
+  const double x = (double)g[0], y = (double)g[1], z = (double)g[2];
+  double s = x * x + y * y + z * z, r = s > 1 ? s : 1;
+  /* No <math.h> here: Newton's square root, to the last bit a check sees. */
+  for (int i = 0; i < 60; i++) r = 0.5 * (r + s / r);
+  return r;
+}
+
 static inline f3d_real nan_value(void) {
   volatile f3d_real zero = 0;
   return zero / zero;

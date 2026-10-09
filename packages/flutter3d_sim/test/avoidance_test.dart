@@ -11,6 +11,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -58,7 +59,7 @@ double _closest(
   maxSpeed: _speed,
   prefX: want.$1,
   prefZ: want.$2,
-  neighbours: <AvoidanceNeighbour>[
+  neighbors: <AvoidanceNeighbor>[
     (x: other.$1, z: other.$2, vx: ov.$1, vz: ov.$2, radius: _radius),
   ],
   dt: 1 / 60,
@@ -76,7 +77,7 @@ void main() {
         maxSpeed: _speed,
         prefX: 3,
         prefZ: -4,
-        neighbours: const <AvoidanceNeighbour>[],
+        neighbors: const <AvoidanceNeighbor>[],
         dt: 1 / 60,
       );
       expect(v, (3.0, -4.0));
@@ -128,18 +129,18 @@ void main() {
         ..update();
       final system = ActorSystem(world: world, random: GameRandom(5))
         ..avoidance = avoidance;
-      final tree = BehaviourTree.read(const <String, Object?>{
+      final tree = BehaviorTree.read(const <String, Object?>{
         'kind': 'goTo',
         'key': 'post',
         'within': 0.3,
-      }, BehaviourKinds()).tree!;
+      }, BehaviorKinds()).tree!;
       const places = <(double, double)>[(-4, 0), (0, -4), (4, 0), (0, 4)];
       for (var i = 0; i < 4; i++) {
         final (x, z) = places[i];
         final (px, pz) = places[(i + 2) % 4];
         final actor = system.spawn(
           body: CharacterController(world: world, position: Vector3(x, 0.9, z)),
-          brain: BehaviourBrain(tree),
+          brain: BehaviorBrain(tree),
           facing: Facing(),
           name: 'a$i',
         );

@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A thousand particles thrown every way from a grid above a floor.
-List<Particle> _spray() => <Particle>[
+List<NativeParticle> _spray() => <NativeParticle>[
   for (var i = 0; i < 1000; i++)
     (
       position: Vector3(
@@ -37,7 +37,7 @@ void main() {
   test('a spark flies as semi-implicit Euler sums, and dies', () {
     final p = NativeParticles(2);
     addTearDown(p.dispose);
-    p.emit(<Particle>[
+    p.emit(<NativeParticle>[
       (position: Vector3.zero(), velocity: Vector3(3.0, 4.0, 0.0), life: 0.49),
     ]);
     // It lives thirty steps of a sixtieth, then stays where it died.
@@ -70,7 +70,7 @@ void main() {
     expect(() => NativeParticles(0), throwsArgumentError);
   });
 
-  final gpu = NativeGpu.open();
+  final gpu = _openGpu();
   group(
     'on the GPU',
     skip: gpu == null ? 'no GPU adapter, or no GPU library' : null,
@@ -112,12 +112,12 @@ void main() {
       test('emits round and round, as the CPU does', () {
         final onGpu = gpu!.particles(3);
         addTearDown(onGpu.dispose);
-        Particle at(double x) => (
+        NativeParticle at(double x) => (
           position: Vector3(x, 0.0, 0.0),
           velocity: Vector3.zero(),
           life: 1.0,
         );
-        onGpu.emit(<Particle>[at(1), at(2), at(3), at(4)]);
+        onGpu.emit(<NativeParticle>[at(1), at(2), at(3), at(4)]);
         final out = onGpu.read();
         expect(<double>[out[0], out[4], out[8]], <double>[4, 2, 3]);
         onGpu.dispose();
@@ -125,4 +125,13 @@ void main() {
       });
     },
   );
+}
+
+/// The machine's GPU, or null when it has none for the passes to run on.
+NativeGpu? _openGpu() {
+  try {
+    return NativeGpu.open();
+  } on GpuUnavailable {
+    return null;
+  }
 }

@@ -8,16 +8,16 @@ import '../level/level_rule.dart';
 import 'behaviour_tree.dart';
 
 /// A [LevelRule] a game brings with its own [kinds]: every tree in
-/// `Level.behaviours` reads, and every entity's [property] names one of them.
+/// `Level.behaviors` reads, and every entity's [property] names one of them.
 ///
 /// **The game's, not the validator's**, because what a leaf kind means is
 /// the game's: a tree with an `attack` leaf is a good tree in a game that
 /// registers one and a broken one in a game that does not, and only the game
 /// knows which it is.
-final class BehavioursRead extends LevelRule {
-  const BehavioursRead(this.kinds, {this.property = 'behaviour'});
+final class BehaviorsRead extends LevelRule {
+  const BehaviorsRead(this.kinds, {this.property = 'behaviour'});
 
-  final BehaviourKinds kinds;
+  final BehaviorKinds kinds;
 
   /// The entity property that names a tree.
   final String property;
@@ -25,8 +25,8 @@ final class BehavioursRead extends LevelRule {
   @override
   void check(Level level, List<LevelIssue> out) {
     for (final MapEntry(key: name, value: document)
-        in level.behaviours.entries) {
-      for (final problem in BehaviourTree.read(document, kinds).problems) {
+        in level.behaviors.entries) {
+      for (final problem in BehaviorTree.read(document, kinds).problems) {
         out.add(
           LevelIssue(LevelIssueSeverity.error, 'behaviour "$name": $problem'),
         );
@@ -35,7 +35,7 @@ final class BehavioursRead extends LevelRule {
     for (final entity in level.entities) {
       final named = entity.properties[property];
       if (named == null) continue;
-      if (named is! String || !level.behaviours.containsKey(named)) {
+      if (named is! String || !level.behaviors.containsKey(named)) {
         out.add(
           LevelIssue(
             LevelIssueSeverity.error,

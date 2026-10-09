@@ -1,6 +1,6 @@
 name: flutter3d_audio_core
 description: "Positional audio for flutter3d without a backend: attenuation, panning, occlusion, voice limiting and the mixer's buses."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -12,17 +12,36 @@ topics:
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
-  flutter: '>=3.44.0'
 
 resolution: workspace
 
+# Declared rather than left to pub.dev's detector: plain Dart with nothing in
+# reach of its libraries that a browser lacks, so every platform. It names no
+# Flutter: a mix is arithmetic, and the backend that makes the noise is
+# `flutter3d_audio`'s.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
-  flutter:
-    sdk: flutter
   vector_math: ^2.2.0
 
-dev_dependencies:
+  # `AudioPlugin`: the mix as a system in the loop's `audio` phase. Plain
+  # Dart over the foundation, so it brings nothing else with it.
+  flutter3d_plugin_api: ^1.0.0-rc.1
 
-  flutter_test:
-    sdk: flutter
+  # `WorldProperties` and `standardSpeedOfSound`: the world's air, which
+  # doppler is reckoned against. What a world is made of, with nothing that
+  # steps a body, so the mix needs no collision world.
+  flutter3d_matter: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
   flutter_lints: ^6.0.0
+
+  # An `EngineLoop` to install `AudioPlugin` into.
+  flutter3d_sim: ^1.0.0-rc.1

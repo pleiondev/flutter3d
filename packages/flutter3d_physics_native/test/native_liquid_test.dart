@@ -125,14 +125,17 @@ void main() {
       // Mutation: NativePhysics without FluidPhysics, and the run's liquids
       // fall back to the reference.
       expect(
-        PhysicsBackend.current.fluid,
+        start.backend.fluid,
         askedPhysics == 'dart' ? isA<DartFluid>() : isA<NativeLiquid>(),
       );
       expect(start.fallbackBecause, isNull);
       // A world made now is on it.
       expect(
-        FluidWorld(gravity: Vector3(0, -9.81, 0)).solver,
-        same(PhysicsBackend.current.fluid),
+        FluidWorld(
+          gravity: Vector3(0, -9.81, 0),
+          backend: start.backend,
+        ).solver,
+        same(start.backend.fluid),
       );
     },
   );
@@ -563,9 +566,9 @@ void main() {
 }
 
 /// A floor the core has no record for.
-final class _Floor implements JetObstacle {
+final class _Floor with JetObstacle {
   @override
-  bool reaches(Vector3 centre, double distance) => true;
+  bool reaches(Vector3 center, double distance) => true;
 
   @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {

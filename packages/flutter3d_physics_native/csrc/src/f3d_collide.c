@@ -161,7 +161,8 @@ static void sort_keyed(Keyed *items, Keyed *spare, uint32_t count) {
 /* --------------------------------------------------------------- stage */
 
 static int active(const F3dSlot *s) {
-  return s->type == F3D_BODY_DYNAMIC && !(s->flags & F3D_FLAG_ASLEEP);
+  return (s->type == F3D_BODY_DYNAMIC && !(s->flags & F3D_FLAG_ASLEEP)) ||
+         f3d_carried(s);
 }
 
 static uint64_t pair_key(uint32_t a, uint32_t b) {
@@ -339,7 +340,7 @@ static f3d_real speculative(const F3dWorld *world, const F3dSlot *a,
   const F3dSlot *both[2] = {a, b};
   for (int k = 0; k < 2; k++) {
     const F3dSlot *s = both[k];
-    if (s->type != F3D_BODY_DYNAMIC || (s->flags & F3D_FLAG_ASLEEP)) continue;
+    if (!active(s)) continue;
     reach += f3d_sqrt(f3d_dot(s->velocity, s->velocity)) * dt +
              f3d_sqrt(f3d_dot(s->spin, s->spin)) * dt * f3d_reach_of(world, s);
   }
@@ -494,6 +495,9 @@ static void candidate_share(void *context, uint32_t worker, uint32_t begin, uint
     const uint32_t b = (uint32_t)(world->pairs[k] & 0xffffffffu);
     const F3dSlot *sa = &world->slots[a], *sb = &world->slots[b];
     if (!active(sa) && !active(sb)) continue;
+    /* Nothing can move the other: a kinematic body passes through walls
+     * and its kind as its game moves it. */
+    if (sa->type != F3D_BODY_DYNAMIC && sb->type != F3D_BODY_DYNAMIC) continue;
     if (!(sa->layer & sb->mask) || !(sb->layer & sa->mask)) continue;
     if (f3d_joined(world, a, b)) continue;
     if (!f3d_box_overlap(world->swept[a], world->swept[b])) continue;
@@ -540,7 +544,9 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   for (uint32_t i = 0; i < world->s.manifold_count; i++) {
     const F3dManifold *m = &world->manifolds[i];
     F3dSlot *sa = f3d_slot_of(world, m->a), *sb = f3d_slot_of(world, m->b);
-    if (!moved(sa) && !moved(sb)) continue;
+    /* Moved by hand, or a kinematic body moving against it. */
+    const int pushed = (sa != NULL && f3d_carried(sa)) || (sb != NULL && f3d_carried(sb));
+    if (!moved(sa) && !moved(sb) && !pushed) continue;
     if (sa != NULL) f3d_wake(world, sa);
     if (sb != NULL) f3d_wake(world, sb);
   }

@@ -104,7 +104,7 @@ static void make(F3dWorld *w, Ragdoll *r, f3d_real ox, f3d_real oy, f3d_real oz)
 
 static F3dWorld *floor_world(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
   /* Eight substeps, as a ragdoll wants: at four an arm struck on a stair

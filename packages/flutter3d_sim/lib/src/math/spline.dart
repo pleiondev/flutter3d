@@ -59,7 +59,8 @@ final class CatmullRom {
 
   /// How hard the curve pulls towards each control point. The classical
   /// Catmull-Rom value is `0.5`; lower slackens the curve towards straight lines
-  /// between the points, higher overshoots them.
+  /// between the points, higher overshoots them. A unitless multiplier on
+  /// each point's tangent.
   final double tension;
 
   /// How finely the curve is measured, per segment.
@@ -314,10 +315,10 @@ final class CatmullRom {
   /// Narrows the answer from the nearest measured sample to the nearest point on
   /// the curve itself, by ternary search between its neighbours.
   double _refine(Vector3 point, int sampleIndex) {
-    final centre = sampleIndex / _samplesPerSegment;
+    final center = sampleIndex / _samplesPerSegment;
     final step = 1.0 / _samplesPerSegment;
-    var low = centre - step;
-    var high = centre + step;
+    var low = center - step;
+    var high = center + step;
     if (!closed) {
       low = low.clamp(0.0, segmentCount.toDouble());
       high = high.clamp(0.0, segmentCount.toDouble());

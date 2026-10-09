@@ -86,7 +86,7 @@ void main() {
       Vector3(0.0, -1.0, 0.0),
       ignore: floor,
     );
-    expect(missed.hit, isFalse);
+    expect(missed.didHit, isFalse);
   });
 
   test('a door moved this step is met where it is, and masked away', () {
@@ -117,7 +117,7 @@ void main() {
     expect(hit.collider, same(sensor));
     final solid = RayHit();
     world.raycast(Vector3(0.0, 1.0, 0.0), Vector3(-1.0, 0.0, 0.0), 2.0, solid);
-    expect(solid.hit, isFalse, reason: 'the core holds no trigger');
+    expect(solid.didHit, isFalse, reason: 'the core holds no trigger');
   });
 
   test('rays between steps leave the simulation as it was, to the byte', () {

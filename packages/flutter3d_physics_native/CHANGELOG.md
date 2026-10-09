@@ -1,10 +1,277 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: the particles' `Particle` record is `NativeParticle`**, so
+  it is not taken for `flutter3d_particles`' `Particle`, which a game
+  imports beside this.
+- **The native core names no renderer.** `SkeletonRagdoll`,
+  `RagdollProfile`, `RagdollPart`, `RagdollLying` and `RagdollGetUp`, the
+  ragdoll a scene skeleton goes limp into, are in `flutter3d_game_physics`
+  (`package:flutter3d_game_physics/ragdoll.dart`) now, and this package no
+  longer depends on `flutter3d_core`. `NativeRagdoll`, its bones, joints and
+  `BonePose` stay here: they are bodies, and name no scene.
+- **`tool/gen_materials.dart` writes the C header from `flutter3d_matter`'s
+  catalogue**, where the materials, the standard world and the constants
+  live now; `WorldPosition`, `Portable` and the exceptions come from
+  `flutter3d_foundation`.
+
+- **The core reads its substances from the catalogue.** A generated header,
+  `csrc/src/f3d_materials.g.h`, written by `tool/gen_materials.dart` from
+  `flutter3d_physics`' `Materials`, constants and standard world, gives the
+  core water, air, σ, the standard world and every heat preset's catalogued
+  numbers; a structure rule holds it current. Water is 998.2 kg/m³, 1.002
+  mPa·s, 72.8 mN/m and 4182 J/(kg·K) everywhere now (the shallow water had
+  1000, 1e-3 and 0.072, the heat model 4186), steel and granite are
+  Incropera's, and the generic wood's flame is the shared 1090 K.
+- **Breaking: `NativeLiquidProperties.water`, `seawater`, `honey` and
+  `moltenBasalt` are `static final` views of the catalogue**, and
+  `NativeLiquidProperties.oil` is `oliveOil` (911 kg/m³, 84 mPa·s; the old
+  name deprecated). `NativeLiquidProperties.of`, `NativeLiquidHeat.of` and
+  `NativeMaterial.of` make one of any material, a plugin's included.
+- **Breaking: `NativeLiquidHeat.water` is a factory**, the catalogue's
+  water, so it is no longer `const`.
+- **Breaking: `NativeDynamics.gravity` is the world's**, a getter on its
+  `CollisionWorld.properties`; it defaulted to 22 m/s². It no longer writes
+  gravity into the core every step, nor makes a vacuum of the air: the
+  world's gravity, air and wind reach the core when they change, its saved
+  state carries the world, and `NativeWorld.snapshot` keeps a non-standard
+  `airPressure`. `NativeWorld.applyProperties` writes a `WorldProperties`.
+- **Breaking: `SkeletonRagdoll(mass:)` defaults to `referenceBodyMass`**, 73
+  kg, shared out by de Leva's segment shares (the thigh was 30 % light).
+- **One origin call per world.** `NativeWorld.shiftOrigin(dx, dy, dz)` is
+  gone; `moveOriginTo(WorldPosition)` is the one, as on `CollisionWorld`.
+  Every `Vector3` position the world takes is documented as origin-local.
+- **`NativePhysics.constrain` returns a `Registration`**: cancel it to take
+  the constraint off.
+
+- **Breaking: the particle slots are `NativeParticleCloud`.** The mixin
+  that `NativeParticles` and `GpuParticles` share was `ParticleSystem`,
+  the name of `flutter3d_particles`' emitter, so a file that drew one and
+  stepped the other had to hide a name. New in 1.0, so no 0.8 code calls
+  it.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `NativeWheelSpec` is `NativeWheelSettings`. Every settings class
+  is `final` with a `const` constructor and a `copyWith` over every field;
+  a nullable field is reset with `copyWith(clearX: true)`. `dart fix`
+  carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `NativeSpring.broken` is `isBroken`; `NativeWorld.fast` is `isFast`.
+  `dart fix` carries the renames.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`, `colourCount` is `colorCount`. Only the
+  Dart names changed: a file keeps the keys it was written with, and `dart
+  fix` carries the renames.
+- **Breaking: `NativeWorld.positionOf` is a `WorldPosition`**, the origin
+  added, in doubles; the single-precision offset the core holds is
+  `localPositionOf`. `worldPositionOf` and `WorldPoint` are gone, and
+  `origin` is a `WorldPosition` (`moveOriginTo` takes one).
+- **Breaking: `NativeGpu.open` throws `GpuUnavailable`** (a
+  `CapabilityException`) saying why there is no GPU, instead of answering
+  null.
+- **`NativePhysics` mixes in `JointPhysics`, `ConstraintPhysics` and
+  `ShapePhysics`**, and builds a hull for a `CustomShape` from its support
+  points. `usePhysics` no longer sets a process-wide backend: it answers the
+  one to make worlds with.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **A plugin names its own event kinds.** `NativeEventKind.plugin` makes a
+  kind at a code from `NativeEventKind.firstPluginCode` up, which the core
+  never raises, and `isPlugin` tells the two apart. The core's own kinds
+  stay a closed set.
+
+- **Forces and constraints of a game's own, computed in Dart each step.**
+  A `NativeForceField` is a law over the world: once a step, before the
+  core steps, it reads bodies through a `NativeForceContext` and adds forces
+  and torques the step then spends. `NativeForceFields` holds a world's
+  fields in the order they were added and steps them with it, and
+  `NativeDynamics.forceFields` applies them after the bodies are mirrored
+  in. A field reads no clock and no random number, uses `Portable` for
+  anything transcendental, and saves what it remembers as JSON, which a
+  `NativeDynamics` save carries under `fields`. With no field added nothing
+  changes, the save included. `NativeSpring`, a damped spring between two
+  bodies that can snap, is the example. `NativeJointType` stays closed: its
+  four joints are the C core's, and a fifth kind of joint is a field.
+
+- **Breaking: `ClothSystem`, `DebrisSystem`, `FluidSystem` and
+  `ParticleSystem` can no longer be implemented outside their own library:
+  each is an `abstract base mixin class` now, so a game or a test mixes it in
+  (`with`) and its class is `final` or `base`. A member added to one in a 1.x
+  release arrives with a body, which an `implements` could not have taken
+  without breaking somebody.
+
+- **Gravity and the air are the world's, and what lives in it reads them
+  there.** `ClothSettings`, `FluidSettings`, `ParticleForces` and
+  `DebrisSettings` take a `world:` and fall by its gravity, read when they
+  are made (they are handed to every step, so a game that changes its
+  world's gravity makes them again); with neither a world nor a gravity
+  they fall by `standardGravityVector`. `NativeWorld.gravityMagnitude` is
+  the strength a depth, a weir or an ember reads — `standardGravity` to the
+  bit for a world that kept its gravity, because the core holds it in f32
+  and 9.81 read back through f32 is 9.8100004…, which would have moved
+  every number a consumer used to compute from 9.81. `airPressure` is new,
+  Dart's rather than the core's, since nothing the core steps is pressed by
+  the air: it is for whoever adds up the weight above a point. Water poured
+  at the air's temperature takes the world's through
+  `NativeLiquidHeat.at`, and `NativeLiquidHeat.water` defaults to
+  `standardAirTemperature`. `NativeDynamics` keeps the world's air
+  temperature when it takes the air away.
 
 - **The first publication, and the number skips from 0.1.0.** That number
   was carried inside the workspace and never reached pub.dev, so nobody
   outside saw the ones passed over. The shelf goes out on one number so
-  that one number names one tree, and `^0.9.0` on any `flutter3d_*`
+  that one number names one tree, and `^1.0.0` on any `flutter3d_*`
   package resolves against every other.
+
+- **A saved world survives updates of the core.** `NativeWorld.snapshot()`
+  used to be the core's structs as they lay in memory, and only a build
+  with exactly the same layouts would restore it. Now it is a format:
+  little-endian fields, each at an explicit width, in sections per
+  subsystem, each section with its own version and length. A snapshot taken
+  by 1.0.0 or later is restored by every later 1.x release. Sections a
+  reader does not know are skipped, and an older section version is
+  migrated. Snapshots from before 1.0.0 are refused, not migrated: re-take
+  them. The signatures stay the same, the simulation is unchanged, and a
+  restored world steps to the bits of the original. The snapshot format is
+  1.0 and `F3D_ABI_VERSION` is 37. The shared scene's snapshot hashes to
+  `b6d54c68`, a new number only because its bytes are now encoded
+  differently.
+
+- **Oak, pine, cardboard, thatch, charcoal and paraffin, each from what
+  was measured of it.** `NativeMaterial.oak`, `pine`, `cardboard`,
+  `thatch`, `charcoal` and `paraffin` are new presets in the core, every
+  value sourced; where no open source gave one, it is derived in
+  `doc/derivations/`: the heats of gasification of the dry solids
+  (`heat_of_gasification.md`), the least burning on cardboard and straw
+  (`firepoint.md`), the flame's creep over each and cardboard's kρc from
+  its times to catch (`flame_spread.md`), and how charcoal glows in the
+  core's terms (`charcoal_glow.md`). WOOD stays as it was, plain plywood
+  1.27 cm's LIFT row, and now says so.
+
+- **A fire says how much soot it makes.** `F3dMaterial.soot_yield` and
+  `NativeMaterial.sootYield`, kg of soot per kg burnt, set for every preset
+  (`doc/derivations/soot_yield.md`, a tyre's derived from its open-burning
+  particulate). Each fire carries its fuel's soot per joule, one more float
+  (`F3D_FIRE_FLOATS` 13, `NativeFire.sootYield`); the ABI is 36 and the
+  snapshot version 25.
+
+- **Burners as they were measured.** `NativeBurner.candle` burns paraffin
+  at a candle's 1.75 mg/s; `kindling`, `brazier`, `campfire` and `bonfire`
+  burn pine at the rates Gross's cross piles lost; `charcoal` burns coals at
+  the rate oxygen reaches them (`doc/derivations/burners.md`).
+
+- **What a fire does to a person, written once.** `FireExposure` holds the
+  two laws every game here burns by: the flux each `NativeFire` throws onto
+  a point, Modak's point source from the middle of its flame capped at its
+  soot's σT⁴ (`fluxAt`, `fluxFrom`, `flux`), and the share of a person's
+  tolerance it uses up a second, ISO 13571:2012's 1/(6.9·q^−1.56 min) over
+  2.5 kW/m² (`burnDoseRate`, `harmlessFlux`). The effects layer, the crypt,
+  the strategy map and the platformer each carried a copy of their own.
+
+- **A splash breaks into drops its speed can make.** A drop's crown throws
+  drops of 2.54·We^(−3/5) of its size, from the count, volume and spread
+  of the drops computed off crowns, where Mundo's fit, made for drops under
+  150 µm at under 18 m/s, threw a game's drops out at a ten-billionth of
+  their size (`doc/derivations/splash_drops.md`). The drops leave from the
+  surface struck, not from below it where they landed again at once.
+
+- **A kinematic body goes where its game sends it.**
+  `NativeBodyType.kinematic` moves at the velocity and spin it is given and
+  nothing else; with infinite mass it pushes what it meets and wakes what
+  sleeps there, and passes through fixed bodies and its own kind.
+  `moveKinematic` sets the speeds that carry it to a pose over the next
+  step, so a wheel, a door or a boat the game moves pushes the world as
+  anything moving that fast would.
+
+- **A fire burns at the rate its heat balance gives.** A burning patch
+  gives off fuel at ṁ'' = q''_net / L — its flame's flux and what reaches
+  it, less its radiation and what the wood under it draws, over the heat of
+  gasification — and goes out below the firepoint. `NativeMaterial` gains
+  `heatOfGasification`, `criticalMassFlux`, `flameSpread`, `modulus` and
+  `poissonRatio`, and `copyWith`. What a flame gives back to its own
+  surface is never more than it makes, the two settled together; and what
+  is hot where something touches it catches at the spot the two
+  effusivities weigh it to.
+
+- **Wood chars as it burns.** Under its fire a char layer grows, χ of what
+  burns left at its contraction, that insulates the wood beneath and glows
+  at the temperature its heat balance gives, with char's own conductivity,
+  heat capacity and emissivity of one. The wood under the front gives off
+  gas in depth by pine's pyrolysis kinetics as well as at the front, paid
+  for from its heat. A lone block with nothing more to heat it burns near
+  its firepoint and goes out with wood left under its char; a splash on a
+  fire boils off the hot char and it burns on, and only water past that
+  puts it out. `charOf` says how much of a body char covers, how deep and
+  how hot, and the char stays when the fire goes out. `NativeMaterial`
+  gains `charYield`, `spreadMinimum`, `ignitionInertia` and
+  `sootTemperature`.
+
+- **Thatch burns as a bed of fine fuel.** `NativeMaterial` gains
+  `elementSurface` σ and `elementDensity` ρ_p: a body of such a material is
+  a porous bed packed at its density over ρ_p (Rothermel's fuel bed). Heat
+  reaches in as far as radiation passes between its elements, 4/(βσ), and
+  heats them through there; they catch in a thin element's time,
+  ρ_p c ΔT/(σq''); and under the bed's fire nothing draws heat into a cold
+  solid and no crust of char closes over it. A red-hot stone on a straw
+  roof — Anderson's tall grass, σ = 4921 m⁻¹, ρ_p = 513 kg/m³ — sets it
+  burning on, where the same mass as a solid slab goes out under its own
+  char. `F3D_ABI_VERSION` is 35.
+
+- **A surface catches when it can hold a flame.** Reaching its ignition
+  temperature is not enough: the patch must give off the firepoint's
+  least with its own flame, what heats it and what lies in its heated
+  layer (Rasbash), or it flashes and does not catch. Wood's ignition
+  temperature, kρc and the coolest surface a flame's edge creeps over are
+  the LIFT test's set for pine, taken together, so a torch held to a block
+  lights it in the tens of seconds a cone calorimeter takes. `holdFlame`
+  holds a flame of a given flux, area and temperature to a spot.
+
+- **Liquids take heat, and what is in them knows it.** `setShallowHeat`
+  gives a pool its temperature and thermal properties; a body in it is
+  cooled by the liquid's own convection or by boiling, nucleate to film,
+  whichever carries more. `submergedOf` says how much of a body is under
+  which liquid, a body that goes in says so with `NativeEventKind.wetted`,
+  and a doused burner with `burnerOut`. `fillShallowBasin` floods a basin
+  from a point, `setShallowDepth` sets a cell, and `NativeOutlet.drain`
+  empties a pool through an orifice at Torricelli's rate.
+
+- **Splashes by what strikes the water.** A body that comes down on a
+  flat face throws its crown out at 1.6 times the speed it came in at,
+  one in one, and breaks it into drops only past an impact Weber number
+  of 140 (Peters, van der Meer and Gordillo); a rounded one throws a
+  curtain straight up at a quarter of it, while the curtain holds against
+  surface tension (Aristoff and Bush). Falling water that splashes off a
+  film leaves at the speeds Marengo and Tropea measured for drops on
+  films, in drops of Mundo's size. `setShallowSplash` and its picked speed
+  and angle are gone.
+
+- **Fires can be fed, and charges go off.** `NativeBurner` burns a rate of
+  a fuel on a body — a torch, a brazier — whatever the body is made of;
+  `explode` pushes each body by the share of a charge's momentum its solid
+  angle is, and warms it by the same share of the rest.
+
+- **Water has edges, weirs and walls.** `setShallowEdge` makes each side of
+  a grid a wall, free, an inflow of so many cubic metres a second, or a
+  level the sea stands at; `NativeOutlet.weir` holds a pool at the head
+  Poleni's law gives; `setShallowWalls` and `setShallowRoughness` set them
+  cell by cell; `shallowInfoOf` says what a step cost.
+
+- **Still air cools by buoyancy.** Convection is Churchill's for a body in
+  still air and Whitaker's in moving air, with the air's properties at the
+  film's temperature, in place of the one figure wind chill was built on;
+  without gravity, only conduction is left.
+
+- **A servo holds by its stiffness.** `setLinkServo` pulls a joint to its
+  mark with a spring and a damper solved implicitly; a held neck deflects
+  its load over its stiffness, a servo rings and settles as the closed form
+  says, and a chain's motors and servos are solved together at once.
 
 - **Fire spreads from one body to the next.** Every body gives the room
   εσA(T⁴ − Tₐ⁴) above what it would at the air's temperature, and each body
@@ -899,4 +1166,4 @@
   `tool/build_wasm.dart`, from the same sources and flags. The two step the
   same scenario to the same bits.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.

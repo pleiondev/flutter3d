@@ -56,13 +56,13 @@ void main() {
     // Each link's far end is its neighbour's near end.
     for (var k = 1; k < links.length; k++) {
       final a =
-          world.positionOf(links[k - 1]) +
+          world.localPositionOf(links[k - 1]) +
           world
               .orientationOf(links[k - 1])
               .asRotationMatrix()
               .transformed(Vector3(0.2, 0.0, 0.0));
       final b =
-          world.positionOf(links[k]) +
+          world.localPositionOf(links[k]) +
           world
               .orientationOf(links[k])
               .asRotationMatrix()
@@ -160,7 +160,7 @@ void main() {
     for (var i = 0; i < 60; i++) {
       world.step(1.0 / 60.0);
       // How far the rod is from straight down.
-      final rod = world.positionOf(bob) - Vector3(0.0, 3.0, 0.0);
+      final rod = world.localPositionOf(bob) - Vector3(0.0, 3.0, 0.0);
       most = math.max(most, math.acos(-rod.y / rod.length));
     }
     // Mutation: the cone not passed to the core — it swings past a radian.

@@ -31,17 +31,17 @@
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
-import '../ecs/entity.dart';
 import '../world/rider.dart';
 import 'actor_components.dart';
 import 'brain.dart';
 import 'damageable.dart';
 import 'health.dart';
 
-final class Actor implements Damageable, Rider {
+final class Actor with Damageable, Rider {
   /// Made by [ActorSystem.spawn] and nowhere else.
   ///
   /// One handle per entity, kept by the system, because [onDamage] is on it: a
@@ -71,7 +71,7 @@ final class Actor implements Damageable, Rider {
   /// the same game, and nobody has to remember to assign it.
   int get ordinal => entity.index;
 
-  bool get exists => entities.alive(entity);
+  bool get exists => entities.isAlive(entity);
 
   /// The capsule that walks, or null for something that does not.
   ///
@@ -98,9 +98,11 @@ final class Actor implements Damageable, Rider {
     }
   }
 
+  /// Which way it faces, in radians about Y; zero looks along −Z.
   double get yaw => facing?.yaw ?? 0.0;
   set yaw(double value) => facing?.yaw = value;
 
+  /// How fast it turns, in radians per second.
   double get turnRate => facing?.turnRate ?? 0.0;
 
   /// Installed by the system, so that being hurt goes through the system that

@@ -35,13 +35,14 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_physics/flutter3d_physics.dart' show MovementTuning;
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart' show MovementSettings;
 
 import 'nav_grid.dart';
 
 /// How far a body can jump, from the three numbers that decide it.
 ///
-/// A value class rather than the whole `MovementTuning`, because this package
+/// A value class rather than the whole `MovementSettings`, because this package
 /// is asked by a field that keys its cache on it, and two bodies that jump
 /// alike should share a field however else they differ.
 final class JumpReach {
@@ -51,12 +52,21 @@ final class JumpReach {
     required this.runSpeed,
   }) : assert(gravity > 0.0, 'a body that never comes down does not land');
 
-  /// The reach of a body that moves by [tuning], at its walking pace.
-  factory JumpReach.of(MovementTuning tuning) => JumpReach(
-    jumpSpeed: tuning.jumpSpeed,
-    gravity: tuning.gravity,
-    runSpeed: tuning.walkSpeed,
-  );
+  /// The reach of a body that moves by [tuning], at its walking pace, in
+  /// [world] — the standard world when none is given.
+  ///
+  /// **The world's gravity, unless the tuning has its own**, as the body
+  /// that jumps falls (`MovementSettings.gravity`): a level set on the Moon
+  /// bakes the Moon's arcs, so a chaser is handed the gaps it now clears.
+  /// Pass the world the level is played in (`CollisionWorld.properties`).
+  factory JumpReach.of(MovementSettings tuning, {WorldProperties? world}) =>
+      JumpReach(
+        jumpSpeed: tuning.jumpSpeed,
+        gravity:
+            tuning.gravity ??
+            (world ?? WorldProperties.standard).gravityMagnitude,
+        runSpeed: tuning.walkSpeed,
+      );
 
   /// Upward speed at take-off, metres per second.
   final double jumpSpeed;
@@ -65,10 +75,11 @@ final class JumpReach {
   final double gravity;
 
   /// Horizontal speed carried through the air. Air control is not modelled:
-  /// the body leaves the ground at this speed and keeps it.
+  /// the body leaves the ground at this speed and keeps it. In metres per
+  /// second.
   final double runSpeed;
 
-  /// The highest ledge this reach lands on: `v² / 2g`.
+  /// The highest ledge this reach lands on: `v² / 2g`, in metres.
   double get maxRise => jumpSpeed * jumpSpeed / (2.0 * gravity);
 
   /// The horizontal distance covered while landing [rise] metres above the
@@ -120,7 +131,8 @@ final class JumpLink {
   final int from;
   final int to;
 
-  /// Floor height of [to] less floor height of [from]. Positive is up.
+  /// Floor height of [to] less floor height of [from], in metres. Positive
+  /// is up.
   final double rise;
 
   /// Horizontal metres between the two cells' centres.

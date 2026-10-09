@@ -22,11 +22,23 @@ import 'sweep_hit.dart';
 /// character — and a run that drew frames saved other bytes than one that
 /// did not. Brought in place here, inside the step, it is in place in every
 /// run before anything saves or asks.
-abstract interface class WorldMirror {
+///
+/// **Extended outside this package: an `abstract base mixin class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every implementation keeps compiling.
+///
+/// A mixin class, so a backend's dynamics that also mirrors the world
+/// extends `RigidDynamics` and mixes this in.
+abstract base mixin class WorldMirror {
   void mirror();
 }
 
-abstract interface class WorldRays {
+/// **Extended outside this package: an `abstract base class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every implementation keeps compiling.
+abstract base class WorldRays {
+  const WorldRays();
+
   /// The nearest solid thing a ray from [origin] along [direction] meets
   /// within [maxDistance], on a layer in [mask], not [ignore], into [out].
   bool raycast(
@@ -50,7 +62,13 @@ abstract interface class WorldRays {
 /// As the reference sweeps it: the shape's bounding box, and a shape that
 /// starts inside something meets nothing — getting out is
 /// `CollisionWorld.depenetrate`'s job.
-abstract interface class WorldSweeps {
+///
+/// **Extended outside this package: an `abstract base class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every implementation keeps compiling.
+abstract base class WorldSweeps {
+  const WorldSweeps();
+
   /// The first solid thing [shape] meets moved from [origin] by [delta], on
   /// a layer in [mask], not [ignore], into [out]; whether it met one.
   bool sweep(

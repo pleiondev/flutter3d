@@ -22,7 +22,7 @@ String? surfaceUnder(Collider? collider) {
 /// What this game thinks a level's surface words are worth.
 ///
 /// **The same class twice, with a different value.** The platformer's
-/// `Surfaces` maps a word to a whole `MovementTuning` — ice is low friction
+/// `Surfaces` maps a word to a whole `MovementSettings` — ice is low friction
 /// *and* low acceleration *and* a different jump — and the racing game's
 /// `GripTable` maps it to one number, because on a loose surface there is only
 /// one idea and it is "less grip". Everything either of them did around that

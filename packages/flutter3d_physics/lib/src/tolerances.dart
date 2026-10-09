@@ -32,7 +32,8 @@ abstract final class Nearly {
   ///
   /// Not a distance anybody can see: a nanometre is beneath the precision of
   /// the arithmetic that produced it. What it stops is `a > b` answering
-  /// differently on either side of a rounding.
+  /// differently on either side of a rounding. In the unit of the two numbers
+  /// compared: a nanometre when they are metres.
   static const double same = 1e-9;
 
   /// A denominator that must not be divided by.
@@ -40,6 +41,7 @@ abstract final class Nearly {
   /// Squared lengths and dot products live here, which is why it is so much
   /// smaller than the others: a length of a micrometre is a squared length of
   /// `1e-12`, so a guard on the square has to be squared too or it rejects
-  /// vectors that are perfectly usable.
+  /// vectors that are perfectly usable. In square metres for a squared length,
+  /// unitless for a dot product.
   static const double parallel = 1e-12;
 }

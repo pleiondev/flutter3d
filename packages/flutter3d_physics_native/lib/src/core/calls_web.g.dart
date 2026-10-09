@@ -220,6 +220,13 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber vehicle,
     JSNumber wheel,
   );
+  @JS('f3d_vehicle_add_wheel_with')
+  external JSNumber f3d_vehicle_add_wheel_with(
+    JSNumber world,
+    JSNumber vehicle,
+    JSNumber wheel,
+    JSNumber count,
+  );
   @JS('f3d_vehicle_set_wheel')
   external JSNumber f3d_vehicle_set_wheel(
     JSNumber world,
@@ -269,6 +276,20 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber z1,
     JSNumber level,
   );
+  @JS('f3d_shallow_fill_basin')
+  external JSNumber f3d_shallow_fill_basin(
+    JSNumber world,
+    JSNumber water,
+    JSNumber x,
+    JSNumber z,
+    JSNumber level,
+  );
+  @JS('f3d_shallow_set_depth')
+  external JSNumber f3d_shallow_set_depth(
+    JSNumber world,
+    JSNumber water,
+    JSNumber depth,
+  );
   @JS('f3d_shallow_pour')
   external JSNumber f3d_shallow_pour(
     JSNumber world,
@@ -295,6 +316,55 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber roughness,
     JSNumber openEdges,
   );
+  @JS('f3d_shallow_set_edge')
+  external JSNumber f3d_shallow_set_edge(
+    JSNumber world,
+    JSNumber water,
+    JSNumber side,
+    JSNumber kind,
+    JSNumber value,
+  );
+  @JS('f3d_shallow_set_outlet')
+  external JSNumber f3d_shallow_set_outlet(
+    JSNumber world,
+    JSNumber water,
+    JSNumber index,
+    JSNumber x,
+    JSNumber z,
+    JSNumber crest,
+    JSNumber width,
+    JSNumber coefficient,
+  );
+  @JS('f3d_shallow_set_drain')
+  external JSNumber f3d_shallow_set_drain(
+    JSNumber world,
+    JSNumber water,
+    JSNumber index,
+    JSNumber x,
+    JSNumber z,
+    JSNumber invert,
+    JSNumber area,
+    JSNumber coefficient,
+  );
+  @JS('f3d_shallow_set_cells')
+  external JSNumber f3d_shallow_set_cells(
+    JSNumber world,
+    JSNumber water,
+    JSNumber roughness,
+    JSNumber walls,
+  );
+  @JS('f3d_shallow_info')
+  external JSNumber f3d_shallow_info(
+    JSNumber world,
+    JSNumber water,
+    JSNumber out,
+  );
+  @JS('f3d_world_set_water_rest')
+  external JSNumber f3d_world_set_water_rest(
+    JSNumber world,
+    JSNumber energy,
+    JSNumber seconds,
+  );
   @JS('f3d_shallow_set_fluid')
   external JSNumber f3d_shallow_set_fluid(
     JSNumber world,
@@ -302,6 +372,16 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber density,
     JSNumber viscosity,
     JSNumber tension,
+  );
+  @JS('f3d_shallow_set_heat')
+  external JSNumber f3d_shallow_set_heat(
+    JSNumber world,
+    JSNumber water,
+    JSNumber temperature,
+    JSNumber specificHeat,
+    JSNumber conductivity,
+    JSNumber expansion,
+    JSNumber boils,
   );
   @JS('f3d_shallow_sample')
   external JSNumber f3d_shallow_sample(
@@ -387,6 +467,16 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber enabled,
     JSNumber speed,
     JSNumber force,
+  );
+  @JS('f3d_multibody_set_servo')
+  external JSNumber f3d_multibody_set_servo(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber link,
+    JSNumber enabled,
+    JSNumber target,
+    JSNumber stiffness,
+    JSNumber damping,
   );
   @JS('f3d_multibody_set_cone')
   external JSNumber f3d_multibody_set_cone(
@@ -863,6 +953,20 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyLow,
     JSNumber bodyHigh,
   );
+  @JS('f3d_body_move_kinematic__w')
+  external JSNumber f3d_body_move_kinematic(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber x,
+    JSNumber y,
+    JSNumber z,
+    JSNumber qx,
+    JSNumber qy,
+    JSNumber qz,
+    JSNumber qw,
+    JSNumber dt,
+  );
   @JS('f3d_body_set_velocity__w')
   external JSNumber f3d_body_set_velocity(
     JSNumber world,
@@ -1157,6 +1261,18 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber part,
     JSNumber out,
   );
+  @JS('f3d_body_hold_flame__w')
+  external JSNumber f3d_body_hold_flame(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber x,
+    JSNumber y,
+    JSNumber z,
+    JSNumber flux,
+    JSNumber area,
+    JSNumber temperature,
+  );
   @JS('f3d_body_add_heat_at__w')
   external JSNumber f3d_body_add_heat_at(
     JSNumber world,
@@ -1201,6 +1317,40 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyLow,
     JSNumber bodyHigh,
     JSNumber out,
+  );
+  @JS('f3d_body_get_submerged__w')
+  external JSNumber f3d_body_get_submerged(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber volume,
+    JSNumber water,
+  );
+  @JS('f3d_body_get_char__w')
+  external JSNumber f3d_body_get_char(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber share,
+    JSNumber depth,
+    JSNumber temperature,
+  );
+  @JS('f3d_body_set_burner__w')
+  external JSNumber f3d_body_set_burner(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber kgPerSecond,
+    JSNumber fuel,
+  );
+  @JS('f3d_world_explode')
+  external JSNumber f3d_world_explode(
+    JSNumber world,
+    JSNumber x,
+    JSNumber y,
+    JSNumber z,
+    JSNumber joules,
+    JSNumber kg,
   );
 }
 
@@ -1428,6 +1578,15 @@ int f3d_vehicle_is_valid(int world, int vehicle) =>
     _x.f3d_vehicle_is_valid(world.toJS, vehicle.toJS).toDartInt;
 int f3d_vehicle_add_wheel(int world, int vehicle, int wheel) =>
     _x.f3d_vehicle_add_wheel(world.toJS, vehicle.toJS, wheel.toJS).toDartInt;
+int f3d_vehicle_add_wheel_with(int world, int vehicle, int wheel, int count) =>
+    _x
+        .f3d_vehicle_add_wheel_with(
+          world.toJS,
+          vehicle.toJS,
+          wheel.toJS,
+          count.toJS,
+        )
+        .toDartInt;
 int f3d_vehicle_set_wheel(
   int world,
   int vehicle,
@@ -1500,6 +1659,18 @@ int f3d_shallow_fill(
       level.toJS,
     )
     .toDartInt;
+int f3d_shallow_fill_basin(
+  int world,
+  int water,
+  double x,
+  double z,
+  double level,
+) => _x
+    .f3d_shallow_fill_basin(world.toJS, water.toJS, x.toJS, z.toJS, level.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_shallow_set_depth(int world, int water, int depth) =>
+    _x.f3d_shallow_set_depth(world.toJS, water.toJS, depth.toJS).toDartInt;
 int f3d_shallow_pour(
   int world,
   int water,
@@ -1544,6 +1715,71 @@ int f3d_shallow_set_bed(
 ) => _x
     .f3d_shallow_set_bed(world.toJS, water.toJS, roughness.toJS, openEdges.toJS)
     .toDartInt;
+int f3d_shallow_set_edge(
+  int world,
+  int water,
+  int side,
+  int kind,
+  double value,
+) => _x
+    .f3d_shallow_set_edge(
+      world.toJS,
+      water.toJS,
+      side.toJS,
+      kind.toJS,
+      value.toJS,
+    )
+    .toDartInt;
+int f3d_shallow_set_outlet(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double crest,
+  double width,
+  double coefficient,
+) => _x
+    .f3d_shallow_set_outlet(
+      world.toJS,
+      water.toJS,
+      index.toJS,
+      x.toJS,
+      z.toJS,
+      crest.toJS,
+      width.toJS,
+      coefficient.toJS,
+    )
+    .toDartInt;
+int f3d_shallow_set_drain(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double invert,
+  double area,
+  double coefficient,
+) => _x
+    .f3d_shallow_set_drain(
+      world.toJS,
+      water.toJS,
+      index.toJS,
+      x.toJS,
+      z.toJS,
+      invert.toJS,
+      area.toJS,
+      coefficient.toJS,
+    )
+    .toDartInt;
+int f3d_shallow_set_cells(int world, int water, int roughness, int walls) => _x
+    .f3d_shallow_set_cells(world.toJS, water.toJS, roughness.toJS, walls.toJS)
+    .toDartInt;
+int f3d_shallow_info(int world, int water, int out) =>
+    _x.f3d_shallow_info(world.toJS, water.toJS, out.toJS).toDartInt;
+int f3d_world_set_water_rest(int world, double energy, double seconds) => _x
+    .f3d_world_set_water_rest(world.toJS, energy.toJS, seconds.toJS)
+    .toDartInt;
 int f3d_shallow_set_fluid(
   int world,
   int water,
@@ -1557,6 +1793,25 @@ int f3d_shallow_set_fluid(
       density.toJS,
       viscosity.toJS,
       tension.toJS,
+    )
+    .toDartInt;
+int f3d_shallow_set_heat(
+  int world,
+  int water,
+  double temperature,
+  double specificHeat,
+  double conductivity,
+  double expansion,
+  int boils,
+) => _x
+    .f3d_shallow_set_heat(
+      world.toJS,
+      water.toJS,
+      temperature.toJS,
+      specificHeat.toJS,
+      conductivity.toJS,
+      expansion.toJS,
+      boils.toJS,
     )
     .toDartInt;
 int f3d_shallow_sample(int world, int water, double x, double z, int out) => _x
@@ -1652,6 +1907,25 @@ int f3d_multibody_set_motor(
       enabled.toJS,
       speed.toJS,
       force.toJS,
+    )
+    .toDartInt;
+int f3d_multibody_set_servo(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double target,
+  double stiffness,
+  double damping,
+) => _x
+    .f3d_multibody_set_servo(
+      world.toJS,
+      multibody.toJS,
+      link.toJS,
+      enabled.toJS,
+      target.toJS,
+      stiffness.toJS,
+      damping.toJS,
     )
     .toDartInt;
 int f3d_multibody_set_cone(
@@ -2270,6 +2544,32 @@ int f3d_body_destroy(int world, int body) => _x
 int f3d_body_is_valid(int world, int body) => _x
     .f3d_body_is_valid(world.toJS, lowHalf(body).toJS, highHalf(body).toJS)
     .toDartInt;
+int f3d_body_move_kinematic(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double dt,
+) => _x
+    .f3d_body_move_kinematic(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      x.toJS,
+      y.toJS,
+      z.toJS,
+      qx.toJS,
+      qy.toJS,
+      qz.toJS,
+      qw.toJS,
+      dt.toJS,
+    )
+    .toDartInt;
 int f3d_body_set_velocity(int world, int body, double x, double y, double z) =>
     _x
         .f3d_body_set_velocity(
@@ -2633,6 +2933,28 @@ int f3d_body_is_part_burning(int world, int body, int part, int out) => _x
       out.toJS,
     )
     .toDartInt;
+int f3d_body_hold_flame(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double flux,
+  double area,
+  double temperature,
+) => _x
+    .f3d_body_hold_flame(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      x.toJS,
+      y.toJS,
+      z.toJS,
+      flux.toJS,
+      area.toJS,
+      temperature.toJS,
+    )
+    .toDartInt;
 int f3d_body_add_heat_at(
   int world,
   int body,
@@ -2691,3 +3013,48 @@ int f3d_body_get_heat_release(int world, int body, int out) => _x
       out.toJS,
     )
     .toDartInt;
+int f3d_body_get_submerged(int world, int body, int volume, int water) => _x
+    .f3d_body_get_submerged(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      volume.toJS,
+      water.toJS,
+    )
+    .toDartInt;
+int f3d_body_get_char(
+  int world,
+  int body,
+  int share,
+  int depth,
+  int temperature,
+) => _x
+    .f3d_body_get_char(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      share.toJS,
+      depth.toJS,
+      temperature.toJS,
+    )
+    .toDartInt;
+int f3d_body_set_burner(int world, int body, double kgPerSecond, int fuel) => _x
+    .f3d_body_set_burner(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      kgPerSecond.toJS,
+      fuel.toJS,
+    )
+    .toDartInt;
+int f3d_world_explode(
+  int world,
+  double x,
+  double y,
+  double z,
+  double joules,
+  double kg,
+) => _x
+    .f3d_world_explode(world.toJS, x.toJS, y.toJS, z.toJS, joules.toJS, kg.toJS)
+    .toDartInt
+    .toUnsigned(32);

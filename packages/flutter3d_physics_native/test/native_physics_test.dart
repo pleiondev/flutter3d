@@ -10,8 +10,6 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 void main() {
-  tearDown(() => PhysicsBackend.current = const DartPhysics());
-
   test(
     'by default the run is on the core, and a world made is on it',
     () async {
@@ -23,9 +21,9 @@ void main() {
       }
       final start = await startPhysics();
       expect(start.fallbackBecause, isNull);
-      expect(PhysicsBackend.current.name, 'native');
-      final world = CollisionWorld();
-      expect(PhysicsBackend.current.dynamics(world), isA<NativeDynamics>());
+      expect(start.backend.name, 'native');
+      final world = CollisionWorld(backend: start.backend);
+      expect(world.backend.dynamics(world), isA<NativeDynamics>());
       // Its characters and rays as well as its bodies.
       expect(world.characterMover, isA<NativeCharacterMover>());
       expect(world.rays, isA<NativeWorldRays>());
@@ -35,8 +33,8 @@ void main() {
   test('asked for the reference, the run is on Dart', () async {
     final start = await startPhysics(asked: 'dart');
     expect(start.backend, isA<DartPhysics>());
-    final world = CollisionWorld();
-    expect(PhysicsBackend.current.dynamics(world), isA<Dynamics>());
+    final world = CollisionWorld(backend: start.backend);
+    expect(world.backend.dynamics(world), isA<Dynamics>());
     expect(world.characterMover, isNull);
   });
 
@@ -47,16 +45,15 @@ void main() {
       probe: () => throw StateError('the core is ABI 1 and these are 2'),
     );
     expect(start.backend, isA<DartPhysics>());
-    expect(PhysicsBackend.current, isA<DartPhysics>());
     expect(start.fallbackBecause, contains('ABI 1'));
   });
 
   test('a world attached casts its rays on the core, and released, on its '
       'own again', () async {
-    await startPhysics(asked: 'native');
-    final world = CollisionWorld()
+    final backend = (await startPhysics(asked: 'native')).backend;
+    final world = CollisionWorld(backend: backend)
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(10.0, 1.0, 10.0));
-    PhysicsBackend.current.attach(world);
+    world.backend.attach(world);
     expect(world.rays, isA<NativeWorldRays>());
     world.update();
     final hit = RayHit();
@@ -65,7 +62,7 @@ void main() {
       isTrue,
     );
     expect(hit.distance, closeTo(3.0, 1e-4));
-    PhysicsBackend.current.release(world);
+    world.backend.release(world);
     expect(world.rays, isNull);
     expect(world.characterMover, isNull);
     expect(world.mirrors, isEmpty);
@@ -84,10 +81,10 @@ void main() {
   test(
     'dynamics made for an attached world take it over: one core world',
     () async {
-      await startPhysics(asked: 'native');
-      final world = CollisionWorld();
-      PhysicsBackend.current.attach(world);
-      final dynamics = PhysicsBackend.current.dynamics(world) as NativeDynamics;
+      final backend = (await startPhysics(asked: 'native')).backend;
+      final world = CollisionWorld(backend: backend);
+      backend.attach(world);
+      final dynamics = backend.dynamics(world) as NativeDynamics;
       // Mutation: leaving the attached one in place, whose mirror would be
       // brought up to date every step for nobody.
       expect(world.mirrors, <Object>[dynamics]);

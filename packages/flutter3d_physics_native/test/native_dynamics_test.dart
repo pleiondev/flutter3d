@@ -18,6 +18,10 @@ typedef Backend = RigidDynamics Function(CollisionWorld world);
 final Map<String, Backend> backends = <String, Backend>{
   'Dynamics': (world) => Dynamics(world: world),
   'NativeDynamics': (world) {
+    // In a vacuum, as the reference is: the reference has no air, and a
+    // scene held equal across the two cannot have it on one side. (The core
+    // used to take its air away itself; it steps in its world's air now.)
+    world.properties = world.properties.copyWith(airDensity: 1e-30);
     final dynamics = NativeDynamics(world: world);
     addTearDown(dynamics.dispose);
     return dynamics;
@@ -104,7 +108,7 @@ void main() {
             mass: 2.0,
           ),
         );
-        dynamics.gravity.setZero();
+        world.properties = world.properties.copyWith(gravity: Vector3.zero());
         ball.applyImpulse(Vector3(4.0, 0.0, 0.0));
         run(dynamics, 60);
         expect(ball.velocity.x, closeTo(2.0, 1e-6));

@@ -66,15 +66,26 @@ Sequence _read([Map<String, Object?> json = _scene]) {
 
 /// The signals [player] fires playing to its end, with the step each fired
 /// on.
-List<String> _playOut(SequencePlayer player, GameEvents events) {
+List<String> _playOut(SequencePlayer player) {
   final fired = <String>[];
-  while (!player.finished) {
+  final bus = DirectBus()
+    ..onStep<SequenceSignal>(
+      'test.signals',
+      (d) => fired.add('${player.step}:${d.event.signal}'),
+    );
+  player.events = bus;
+  while (!player.isFinished) {
     player.advance();
-    fired.addAll(<String>[
-      for (final event in events.drain()) '${player.step}:${event.name}',
-    ]);
   }
   return fired;
+}
+
+/// A bus that keeps the signals published onto it.
+(DirectBus, List<String>) _heard() {
+  final fired = <String>[];
+  final bus = DirectBus()
+    ..onStep<SequenceSignal>('test.signals', (d) => fired.add(d.event.signal));
+  return (bus, fired);
 }
 
 void main() {
@@ -163,53 +174,52 @@ void main() {
 
   group('playing', () {
     test('fires every signal once, on the step its moment falls on', () {
-      final events = GameEvents();
-      final player = SequencePlayer(_read(), events: events);
+      final player = SequencePlayer(_read());
       // Mutation: firing on `<` the step rather than `<=` puts each a step
       // late, and the last one never.
-      expect(_playOut(player, events), <String>[
+      expect(_playOut(player), <String>[
         '1:music',
         '120:door',
         '120:creak',
         '240:end',
       ]);
-      expect(player.finished, isTrue);
-      player.advance();
-      expect(events.isEmpty, isTrue, reason: 'nothing after the end');
+      expect(player.isFinished, isTrue);
+      final (bus, after) = _heard();
+      player
+        ..events = bus
+        ..advance();
+      expect(after, isEmpty, reason: 'nothing after the end');
     });
 
     test('a restore carries on without firing anything twice', () {
-      final events = GameEvents();
-      final first = SequencePlayer(_read(), events: events);
+      final first = SequencePlayer(_read(), events: DirectBus());
       for (var i = 0; i < 120; i++) {
         first.advance();
       }
-      events.drain();
       final saved = first.save();
 
-      final again = GameEvents();
-      final restored = SequencePlayer(_read(), events: again)..restore(saved);
+      final restored = SequencePlayer(_read())..restore(saved);
       // Mutation: restoring the step and not which signals it has passed
       // fires the music and the door again.
-      expect(_playOut(restored, again), <String>['240:end']);
+      expect(_playOut(restored), <String>['240:end']);
     });
 
     test('a skip, the rest stepped undrawn, ends where watching ends', () {
       List<String> run({required bool skip}) {
-        final events = GameEvents();
-        final player = SequencePlayer(_read(), events: events);
+        final (bus, heard) = _heard();
+        final player = SequencePlayer(_read(), events: bus);
         final fired = <String>[];
         for (var i = 0; i < 50; i++) {
           player.advance();
-          fired.addAll(events.drain().map((e) => e.name));
         }
+        fired.addAll(heard);
         if (skip) {
           for (var left = player.remaining; left > 0; left--) {
             player.advance();
           }
-          fired.addAll(events.drain().map((e) => e.name));
+          fired.addAll(heard.skip(fired.length));
         } else {
-          fired.addAll(_playOut(player, events).map((e) => e.split(':')[1]));
+          fired.addAll(_playOut(player).map((e) => e.split(':')[1]));
         }
         return <String>[...fired, '${player.save()}'];
       }
@@ -226,10 +236,10 @@ void main() {
 
     test('the camera is on each key on its step', () {
       for (final key in sequence.cameraKeys) {
-        final fov = sequence.cameraAt(key.step.toDouble(), at, look);
+        final fovY = sequence.cameraAt(key.step.toDouble(), at, look);
         expect(at.distanceTo(key.at), lessThan(1e-9));
         expect(look.distanceTo(key.look), lessThan(1e-9));
-        expect(fov, key.fov);
+        expect(fovY, key.fovY);
       }
     });
 
@@ -237,13 +247,13 @@ void main() {
       // Halfway from (0, 10) to (10, 0), the chord passes 7.07 from the
       // middle; the curve through the three keys bows out past it, to 7.96.
       // Mutation: moving the camera in a straight line between keys.
-      final fov = sequence.cameraAt(60, at, look);
+      final fovY = sequence.cameraAt(60, at, look);
       expect(at.x, greaterThan(5.0));
       expect(at.z, greaterThan(5.0));
       expect(Vector2(at.x, at.z).length, greaterThan(7.5));
       // Mutation: interpolating the field of view by the next key's step
       // rather than the fraction between the two.
-      expect(fov, closeTo(42.5, 1e-9));
+      expect(fovY, closeTo(42.5, 1e-9));
     });
 
     test('the subtitles read the one that started last', () {

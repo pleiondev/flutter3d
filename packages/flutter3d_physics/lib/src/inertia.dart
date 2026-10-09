@@ -43,6 +43,7 @@ Vector3 inertiaFor(CollisionShape shape, double mass) {
     ),
     CollisionWedge(:final halfExtents) => _box(halfExtents, mass),
     CollisionHeightfield() => _box(shape.boundsHalfExtents, mass),
+    final CustomShape custom => custom.inertia(mass),
   };
 }
 

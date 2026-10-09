@@ -1,9 +1,12 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Registration;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/load.dart';
 import 'native_cloth_simulation.dart';
 import 'native_dynamics.dart';
+import 'native_force_fields.dart';
 import 'native_liquid.dart';
 import 'native_world.dart';
 
@@ -19,9 +22,84 @@ const String askedPhysics = String.fromEnvironment(
 /// moves and rays on it, through a [NativeDynamics] per world, every
 /// cloth through a [NativeClothSimulation], and every liquid's waves,
 /// streams and spilt particles through [NativeLiquid].
-final class NativePhysics
-    implements PhysicsBackend, ClothPhysics, FluidPhysics {
+///
+/// **With joints, constraints and shapes of a game's own**: it mixes in
+/// [JointPhysics] (the core's fixed, spherical, revolute and prismatic
+/// joints), [ConstraintPhysics] (a constraint applied as a
+/// [NativeForceField] before each step) and [ShapePhysics] (a
+/// `CustomShape` as the hull of its support points).
+final class NativePhysics extends PhysicsBackend
+    with JointPhysics, ConstraintPhysics, ShapePhysics {
   NativePhysics();
+
+  @override
+  Set<JointType> get jointTypes => JointType.standard.toSet();
+
+  static NativeJointType? _nativeJoint(JointType type) => switch (type) {
+    JointType.fixed => NativeJointType.fixed,
+    JointType.ball => NativeJointType.spherical,
+    JointType.hinge => NativeJointType.revolute,
+    JointType.slider => NativeJointType.prismatic,
+    _ => null,
+  };
+
+  static NativeDynamics _native(RigidDynamics dynamics) => switch (dynamics) {
+    final NativeDynamics native => native,
+    _ => throw ArgumentError.value(
+      dynamics,
+      'dynamics',
+      'not made by NativePhysics, so the core holds none of its bodies',
+    ),
+  };
+
+  @override
+  JointHandle join(
+    RigidDynamics dynamics,
+    JointType type,
+    RigidBody a,
+    RigidBody b, {
+    required Vector3 anchor,
+    Vector3? axis,
+  }) {
+    final native = _native(dynamics);
+    final kind = _nativeJoint(type);
+    if (kind == null) {
+      throw ArgumentError.value(
+        type,
+        'type',
+        'the core solves ${jointTypes.map((t) => t.name).join(', ')}',
+      );
+    }
+    final ha = native.handleOf(a);
+    final hb = native.handleOf(b);
+    if (ha == null || hb == null) {
+      throw ArgumentError('both bodies have to be added to the dynamics');
+    }
+    final joint = native.native.createJoint(
+      kind,
+      ha,
+      hb,
+      anchor: anchor,
+      axis: axis,
+    );
+    return JointHandle(type, joint.raw);
+  }
+
+  @override
+  void unjoin(RigidDynamics dynamics, JointHandle joint) =>
+      _native(dynamics).native.removeJoint(NativeJoint(joint.id));
+
+  @override
+  Registration constrain(
+    RigidDynamics dynamics,
+    PhysicsConstraint constraint,
+    List<RigidBody> bodies,
+  ) {
+    final native = _native(dynamics);
+    final field = _ConstraintField(constraint, native, bodies);
+    native.forceFields.add(field);
+    return Registration(() => native.forceFields.remove(field));
+  }
 
   @override
   String get name => 'native';
@@ -113,7 +191,6 @@ PhysicsStart _choose(String asked, void Function() probe) {
       chosen = (backend: const DartPhysics(), fallbackBecause: '$e');
     }
   }
-  PhysicsBackend.current = chosen.backend;
   return _chosen = chosen;
 }
 
@@ -158,4 +235,28 @@ Future<PhysicsStart> startPhysics({
     }
   }
   return _choose(asked, probe ?? () => NativeWorld().dispose());
+}
+
+/// A [PhysicsConstraint] as a force field on the core's bodies.
+final class _ConstraintField extends NativeForceField {
+  _ConstraintField(this.constraint, this.dynamics, this.bodies);
+
+  final PhysicsConstraint constraint;
+  final NativeDynamics dynamics;
+  final List<RigidBody> bodies;
+  final Vector3 _force = Vector3.zero();
+
+  @override
+  String get name => 'constraint.${constraint.name}';
+
+  @override
+  void apply(NativeForceContext context) {
+    for (final body in bodies) {
+      final handle = dynamics.handleOf(body);
+      if (handle == null || !context.contains(handle)) continue;
+      _force.setZero();
+      constraint.forceOn(body, context.dt, _force);
+      context.addForce(handle, _force);
+    }
+  }
 }

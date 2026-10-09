@@ -15,7 +15,7 @@
 static F3dClothSettings settings(void) {
   F3dClothSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.floor_y = F3D_R(-1e9);
   s.substeps = 16;
   return s;
@@ -81,7 +81,7 @@ static void test_spring(void) {
   CHECK(f3d_cloth_read(c, out, 2) == 2);
   const double h = 1.0 / 960.0;
   const double keep = 1.0 / (1.0 + 5.0 * h);
-  CHECK_NEAR(-1.0 - out[5], 9.81 * (1e-3 + h * h) * keep, 5e-5);
+  CHECK_NEAR(-1.0 - out[5], STANDARD_G * (1e-3 + h * h) * keep, 5e-5);
   /* The pin did not move. */
   CHECK(out[0] == 0 && out[1] == 0 && out[3] == 0);
   CHECK(out[7] == 1);
@@ -110,7 +110,7 @@ static void test_pendulum(void) {
   }
   CHECK(worst_length < 1e-3);
   /* Five per cent: CHECK_NEAR scales its tolerance by values past one. */
-  CHECK_NEAR(fastest, sqrt(2 * 9.81), 0.05);
+  CHECK_NEAR(fastest, sqrt(2 * STANDARD_G), 0.05);
   f3d_cloth_destroy(c);
 }
 
@@ -265,7 +265,7 @@ static void test_refused(void) {
 static F3dClothSolveSettings solve_settings(void) {
   F3dClothSolveSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.damping = F3D_R(0.02);
   s.thickness = F3D_R(0.01);
   s.substeps = 8;
@@ -430,7 +430,7 @@ static void test_solve_settings_reach_it(void) {
   solve(c, &s, 300);
   f3d_real out[14];
   f3d_cloth_read_state(c, out);
-  CHECK_NEAR(-1.0 - out[8], 9.81e-3, 2e-5);
+  CHECK_NEAR(-1.0 - out[8], (STANDARD_G * 1e-3), 2e-5);
   CHECK(out[0] == 0 && out[1] == 0 && out[6] == 0);
   /* Bad records are refused and the last kept. */
   const f3d_real ball[5] = {F3D_CLOTH_BALL, 0, F3D_R(-1.3), 0, F3D_R(0.35)};

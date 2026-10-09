@@ -1,7 +1,8 @@
 /*
- * How bodies move, tested in C — P9: shapes as inertia, the turn that
- * keeps angular momentum, impulses and the force bus, damping, the wind's
- * drag, and sleep.
+ * How bodies move, tested in C — P9: a kinematic body that goes where it is
+ * sent and pushes what it meets, shapes as inertia, the turn that keeps
+ * angular momentum, impulses and the force bus, damping, the wind's drag,
+ * and sleep.
  */
 #include <math.h>
 
@@ -111,7 +112,7 @@ static void test_turning(void) {
 
 /* Air too thin to slow anything by a bit: what a test of the motion alone
  * wants. Not nought, which the world refuses. */
-static void vacuum(F3dWorld *w) { f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30)); }
+static void vacuum(F3dWorld *w) { f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30)); }
 
 static void test_impulses_and_forces(void) {
   F3dWorld *w = f3d_world_create();
@@ -202,7 +203,7 @@ static void test_drag(void) {
   f3d_real v[3];
   f3d_body_get_velocity(w, ball, v);
   const double terminal =
-      sqrt(2.0 * (double)m * 9.81 / (1.204 * 0.47 * 3.14159265358979 * (double)r * (double)r));
+      sqrt(2.0 * (double)m * STANDARD_G / ((double)F3D_STANDARD_AIR_DENSITY * 0.47 * 3.14159265358979 * (double)r * (double)r));
   CHECK_NEAR(-v[1], terminal, 1e-4);
   /* At a step far too long for an explicit drag — a leaf in a gale — it
    * still settles, at the same speed. */
@@ -251,7 +252,7 @@ static void test_wind_carries(void) {
     last = v[2];
   }
   CHECK(monotone);
-  const double c = 0.5 * 1.204 * 0.47 * 3.14159265358979 * 0.05 * 0.05 / 0.01;
+  const double c = 0.5 * (double)F3D_STANDARD_AIR_DENSITY * 0.47 * 3.14159265358979 * 0.05 * 0.05 / 0.01;
   const double t = 2000.0 / 60.0;
   CHECK_NEAR(v[2], 5.0 - 5.0 / (1.0 + c * 5.0 * t), 1e-3);
   f3d_world_destroy(w);
@@ -279,7 +280,7 @@ static void test_sleep(void) {
   CHECK(v[0] == 0);
   /* Asleep, it does not move, whatever gravity does. */
   f3d_body_get_position(w, b, p);
-  f3d_world_set_gravity(w, 0, -9.81f, 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   f3d_world_step(w, 1);
   f3d_body_get_position(w, b, q);
   CHECK(p[1] == q[1]);
@@ -309,7 +310,61 @@ static void test_sleep(void) {
   f3d_world_destroy(w);
 }
 
+/* A metre-wide paddle, kinematic, at [x] on a floor. */
+static F3dBody paddle(F3dWorld *w, f3d_real x) {
+  const F3dBody p = f3d_body_create(w, F3D_BODY_KINEMATIC, x, F3D_R(0.5), 0, 0);
+  f3d_body_set_shape(w, p, F3D_SHAPE_BOX, F3D_R(0.1), F3D_R(0.5), F3D_R(0.5));
+  return p;
+}
+
+static void test_kinematic(void) {
+  /* A kinematic body goes where it is sent, at the speed it is given:
+   * gravity does not pull it and nothing it meets holds it back. It pushes
+   * a box in its way along — waking it, though the box had gone to sleep —
+   * and passes through a wall, which nothing can move either. */
+  F3dWorld *w = f3d_world_create();
+  const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
+  f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
+  const F3dBody box = f3d_body_create(w, F3D_BODY_DYNAMIC, 2, F3D_R(0.25), 0, 5);
+  f3d_body_set_shape(w, box, F3D_SHAPE_BOX, F3D_R(0.25), F3D_R(0.25), F3D_R(0.25));
+  const F3dBody wall = f3d_body_create(w, F3D_BODY_FIXED, 6, F3D_R(0.5), 0, 0);
+  f3d_body_set_shape(w, wall, F3D_SHAPE_BOX, F3D_R(0.1), F3D_R(0.5), F3D_R(0.5));
+  const F3dBody p = paddle(w, 0);
+  for (int i = 0; i < 240; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  CHECK(f3d_body_is_asleep(w, box) == 1);
+  CHECK(f3d_body_set_velocity(w, p, 1, 0, 0) == 1);
+  for (int i = 0; i < 60 * 4; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  f3d_real at[3], v[3], b[3];
+  f3d_body_get_position(w, box, b);
+  /* The box went ahead of it, at least as far as the paddle's face. */
+  CHECK(f3d_body_is_asleep(w, box) == 0);
+  CHECK(b[0] > F3D_R(4.3));
+  /* Taken away before the wall would pin it there. */
+  f3d_body_destroy(w, box);
+  for (int i = 0; i < 60 * 4; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  f3d_body_get_position(w, p, at);
+  f3d_body_get_velocity(w, p, v);
+  CHECK_NEAR(at[0], 8, 1e-3);
+  CHECK_NEAR(at[1], 0.5, 1e-6);
+  CHECK(v[0] == 1 && v[1] == 0);
+  /* Sent to a pose: there after the step, turned a quarter about y. */
+  const f3d_real h = F3D_R(0.70710678);
+  CHECK(f3d_body_move_kinematic(w, floor, 0, 0, 0, 0, 0, 0, 1, 1) == 0);
+  CHECK(f3d_body_move_kinematic(w, p, 9, F3D_R(0.5), 3, 0, 0, 0, 0, 1) == 0);
+  CHECK(f3d_body_move_kinematic(w, p, 9, F3D_R(0.5), 3, 0, h, 0, h, F3D_R(0.5)) == 1);
+  for (int i = 0; i < 30; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  f3d_real q[4];
+  f3d_body_get_position(w, p, at);
+  f3d_body_get_orientation(w, p, q);
+  CHECK_NEAR(at[0], 9, 1e-3);
+  CHECK_NEAR(at[2], 3, 1e-3);
+  CHECK_NEAR(fabs((double)q[1]), h, 2e-3);
+  CHECK_NEAR(fabs((double)q[3]), h, 2e-3);
+  f3d_world_destroy(w);
+}
+
 int main(void) {
+  test_kinematic();
   test_inertia();
   test_turning();
   test_impulses_and_forces();

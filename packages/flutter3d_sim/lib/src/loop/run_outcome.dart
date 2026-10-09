@@ -23,24 +23,49 @@
 /// genre package depends on neither the renderer nor `flutter3d_game`, so
 /// anything it must implement has to be down here with it.
 ///
-/// Deliberately three values and not four. "Ended, and I am not saying how" is
-/// a state a screen cannot draw and a save cannot decide about, and every
-/// caller that had one grew a second flag beside it within a week.
-enum RunOutcome {
+/// Deliberately three values and not four today. "Ended, and I am not saying
+/// how" is a state a screen cannot draw and a save cannot decide about, and
+/// every caller that had one grew a second flag beside it within a week.
+///
+/// **An open class with constants, not an enum** (§A.2 of
+/// `tasks/1.0-api-review.md`): a later minor may add an outcome — a draw, a
+/// run abandoned — and a `switch` written against three values would stop
+/// compiling. A `switch` over this needs a default; ask [isOver] where the
+/// question is whether it ended. [name] is its word in a file.
+final class RunOutcome {
+  const RunOutcome._(this.name, {required this.isOver});
+
   /// Being played, whatever the genre's own word for it is.
-  playing,
+  static const RunOutcome playing = RunOutcome._('playing', isOver: false);
 
   /// Over, badly. The lives ran out, the health did, the time did.
-  lost,
+  static const RunOutcome lost = RunOutcome._('lost', isOver: true);
 
   /// Over, well. The exit was reached, the flag was taken, the race finished.
-  won;
+  static const RunOutcome won = RunOutcome._('won', isOver: true);
+
+  /// Every outcome this build knows, in the order the enum declared them.
+  static const List<RunOutcome> values = <RunOutcome>[playing, lost, won];
+
+  /// The outcome written as [name]; null for a word this build does not
+  /// know.
+  static RunOutcome? byName(String name) {
+    for (final outcome in values) {
+      if (outcome.name == name) return outcome;
+    }
+    return null;
+  }
+
+  /// Its word in a file and a message.
+  final String name;
 
   /// Whether the run has ended, either way.
   ///
   /// The question two thirds of the callers actually ask — a pause gate, a
   /// restart key, a save that must not be written — and the one that is wrong
-  /// to spell as `!= playing` in each of them, because that is the same
-  /// sentence written four times with one chance each of being inverted.
-  bool get isOver => this != RunOutcome.playing;
+  /// to spell as `!= playing` in each of them.
+  final bool isOver;
+
+  @override
+  String toString() => 'RunOutcome.$name';
 }

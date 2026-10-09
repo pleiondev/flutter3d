@@ -13,6 +13,7 @@ WORKDIR /workspace
 COPY pubspec.yaml pubspec.lock ./
 COPY packages/flutter3d_sim packages/flutter3d_sim
 COPY packages/flutter3d_physics packages/flutter3d_physics
+COPY packages/flame_multiplayer packages/flame_multiplayer
 COPY packages/flutter3d_net packages/flutter3d_net
 # Every other workspace member is unreached by `flutter3d_net`'s own
 # dependency graph and left out on purpose — a relay's image should not

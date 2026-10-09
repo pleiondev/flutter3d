@@ -100,7 +100,7 @@ void main() {
     final one = LevelPatch.between(before, recoloured).applyTo(before);
     expect((one as LevelPatched).diff.lights, <int>[1]);
     expect(one.diff.lightCountChanged, isFalse);
-    expect(one.diff.presentationOnly, isTrue);
+    expect(one.diff.isPresentationOnly, isTrue);
 
     final added = _edited(
       (json) => _list(json, 'lights').insert(1, <String, Object?>{
@@ -110,7 +110,7 @@ void main() {
     );
     final two = LevelPatch.between(before, added).applyTo(before);
     expect((two as LevelPatched).diff.lightCountChanged, isTrue);
-    expect(two.diff.presentationOnly, isTrue);
+    expect(two.diff.isPresentationOnly, isTrue);
   });
 
   test('materials go by name and the fog as a field', () {
@@ -129,7 +129,7 @@ void main() {
     final result = patch.applyTo(before) as LevelPatched;
     expect(result.diff.materials, <String>['moss']);
     expect(result.diff.fog, isTrue);
-    expect(result.diff.presentationOnly, isTrue);
+    expect(result.diff.isPresentationOnly, isTrue);
   });
 
   test('a list one side lacks goes whole, and is compared as a document', () {

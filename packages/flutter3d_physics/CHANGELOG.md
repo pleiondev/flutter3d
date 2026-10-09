@@ -1,4 +1,158 @@
-## 0.9.0
+## 1.0.0-rc.1
+
+- **Breaking: what a world is made of moved to `flutter3d_matter`**, which
+  this package does not re-export; a file that names it imports that
+  package: `WorldProperties`, the material catalogue
+  (`PhysicalMaterial`, its groups, `MaterialPair`, `MaterialCatalog`,
+  `Materials`), the standard world and the constants of nature. The audio
+  core and the particles read them from there without the collision world.
+  `WorldProperties` no longer carries a step rate, which nothing read: the
+  rate is the loop's `WorldTiming`, and `standardStepRate` is
+  `flutter3d_sim`'s.
+- **`Portable` and the crossings into `vector_math`** (`toVector3Relative`,
+  `toWorldPosition`, `toLinearColor`, `toVector3`, `toVector4`) are
+  `flutter3d_foundation`'s, beside `WorldPosition` and `LinearColor`; this
+  package no longer exports them, nor `WorldPosition`. `flutter3d_sim` and
+  `flutter3d_core` still hand them out.
+
+- **New: one catalogue of physical materials, the single source of every
+  substance's numbers.** `PhysicalMaterial` (an id, a name, a
+  `MaterialPhase`, the temperature and pressure its numbers are quoted at)
+  carries optional groups — `MechanicalProperties`, `FluidProperties`,
+  `ThermalProperties`, `AcousticProperties`, `OpticalProperties`,
+  `ElectricalProperties` — each in SI and each naming its `source`.
+  `Materials` holds the engine's own under `f3d.*`: water at 20 °C (998.2
+  kg/m³, 1.002 mPa·s, 72.8 mN/m, 4182 J/(kg·K)), seawater, glycerol,
+  ethanol, olive oil, honey, mercury at 20 °C (13 546 kg/m³, 1.55 mPa·s),
+  molten basalt, air, steel, aluminum, copper, gold, glass, concrete,
+  brick, granite, marble, ice, the woods and the fuels of the core's heat
+  presets, rubber, ABS, polyethylene, sand, soil and cotton.
+  `MaterialCatalog` is a `PluginRegistry`: one per engine, a plugin's
+  materials under `<pluginId>.<name>`, `MaterialPair` for a measured pair
+  (friction, restitution, rolling resistance, a liquid's contact angle),
+  `contact(a, b)` for the rule two materials meet by, and
+  `UnknownMaterialException` naming the plugin an unknown id needs. A
+  material has a versioned JSON codec, `f3d.physicalMaterial` version 1,
+  unknown keys kept.
+- **New: `WorldProperties`, what a world is made of** — gravity, the air's
+  temperature and pressure (its density derived by the ideal gas unless
+  set), wind and the medium (a material's id) — held by
+  `CollisionWorld.properties` and read there by everything in the world.
+  `speedOfSoundAt` and `airDensityAt` join the standard world, and `physical_constants.dart` has `stefanBoltzmann`,
+  `molarGasConstant` and their kin, written once.
+- **New: one reference body.** `referenceBodyMass` (73 kg, ICRP 89) and
+  `SegmentMassShares` (de Leva, 1996).
+- **New: `ClothSettings.inWorld`**, a cloth that falls by its world and
+  flaps in its wind.
+- **Breaking: `Dynamics.gravity` is the world's.** It was a field the
+  dynamics defaulted to 22 m/s² beside characters at 24; it is a getter on
+  `world.properties`, and `Dynamics(gravity:)` sets the world's. A game sets
+  its world's gravity where it stages. The saved state carries the world,
+  so a rewind restores the gravity it was saved under.
+- **Breaking: `MovementSettings.gravity` is `double?`**, null for the
+  world's gravity; it defaulted to 24. `CharacterController.gravity` is what
+  a character falls by.
+- **Breaking: `FluidMedium.water`, `glycerol`, `ethanol` and `mercury` are
+  `static final` views of the catalogue**, and `FluidMedium.oil` is
+  `oliveOil` (the old name deprecated). Mercury's numbers are its 20 °C ones.
+  `FluidMedium.of` makes one of any material.
+- **`Collider.material` and `RigidBody(material:)`**: a body made with a
+  material takes its friction and restitution unless it gives its own, and
+  two materials meet as the catalogue says in `Dynamics`. The constructor
+  of `Collider` and of `RigidBody` gained the parameter (`friction` and
+  `restitution` are now `double?`, defaulting as before).
+- **One origin call per world.** `CollisionWorld.origin` and
+  `moveOriginTo(WorldPosition)` replace `shiftOrigin(dx, dy, dz)`, the same
+  two the native core's world has, and `originPart` makes the origin a part
+  of the loop's snapshots, put back before the bodies written in it.
+- **`ConstraintPhysics.constrain` returns a `Registration`**, the engine's
+  one shape for "until taken back". `ShapePhysics` is documented as the
+  marker it is, and a joint's anchor as origin-local.
+
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `MovementTuning` is `MovementSettings`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `FreeSurface.quiet` is `isQuiet`; `FreeSurface.settled` is `isSettled`;
+  `Jet.flowing` is `isFlowing`; `RayHit.hit` is `didHit`; `SweepHit.hit` is
+  `didHit`; `Contact.touching` is `isTouching`. `dart fix` carries the
+  renames.
+- **Breaking: `LiquidLayer.take` is `withdraw`.**
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`. Only the Dart names changed: a file keeps
+  the keys it was written with, and `dart fix` carries the renames.
+- **Breaking: there is no `PhysicsBackend.current`.** The backend belongs to
+  the world: `CollisionWorld(backend:)`, read as `world.backend`; a
+  `FluidWorld` takes `backend:` for its solver.
+- **Breaking: `PhysicsBackend`, `RigidDynamics`, `CharacterMover`,
+  `WorldRays`, `WorldSweeps`, `ClothSimulation` and `FluidSolver` are
+  `abstract base class`es with defaults, and `WorldMirror` a base mixin.**
+  `PhysicsBackend` has `cloth` and `fluid` with the reference as default, so
+  `ClothPhysics`, `FluidPhysics` and their extensions are gone; a solver
+  overrides only what it does on its own.
+- **Capabilities a backend mixes in: `JointPhysics`, `ConstraintPhysics`,
+  `ShapePhysics`**, with an open `JointType`.
+- **Breaking: `CustomShape`, a shape of a game's own.** `CollisionShape`
+  stays sealed and gains this sixth case: a convex shape given by its support
+  function, overlapping every other shape through the GJK walk
+  (`convexOverlap`). A `switch` over the shapes names it.
+- **Breaking: `ColliderKind` is a class with constants** (`static`,
+  `kinematic`, `trigger`, and `blocks`); a `switch` over it needs a default.
+- **The origin can move.** `CollisionWorld.shiftOrigin` moves every collider
+  and every point registered with `shiftsWithOrigin` (a character's) the
+  other way.
+- **`WorldPosition` and `LinearColor` meet `vector_math`** in
+  `flutter3d_foundation`, beside the two types. `position.toVector3Relative(origin)` subtracts in
+  doubles before narrowing to float32, and `vector.toWorldPosition(origin: …)`
+  widens back; `LinearColor` converts to and from `Vector3` and `Vector4`.
+  Each crossing names its origin, because a silent narrowing would undo what
+  the double type is for.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The world's speed of sound has a home.** `standardSpeedOfSound`, 343 m/s
+  in dry air at `standardAirTemperature`, joins gravity and the air in
+  `standard_world.dart`. Audio reads it for doppler instead of writing the
+  number again.
+
+- **`Dynamics`' 22 m/s² is no longer said to be the character
+  controller's.** It never was: a `MovementSettings` falls at 24, and the
+  platformer demo's crates fell at 22 beside a runner falling at 24. The
+  demo now hands its dynamics the run's gravity, the level's or
+  `Runner.runGravity`, so crates and runner fall alike, **which moves the
+  platformer's tapes (`test/tapes/ascent.f3drun`, the site's
+  `platformer.f3drun`) and its goldens: they are re-recorded before the
+  release.** The default itself stays for the games that rely on it.
+
+- **Breaking: `JetObstacle` and `JetReceiver` can no longer be implemented
+  outside their own library: each is an `abstract base mixin class` now, so a
+  game or a test mixes it in (`with`) and its class is `final` or `base`. A
+  member added to one in a 1.x release arrives with a body, which an
+  `implements` could not have taken without breaking somebody. `VesselShape`
+  is an `abstract base class`. The backend interfaces (`PhysicsBackend`,
+  `RigidDynamics`, `CharacterMover`, `ClothPhysics`, `ClothSimulation`,
+  `FluidPhysics`, `FluidSolver`, `WorldRays`, `WorldSweeps`, `WorldMirror`)
+  stay implementable, and say so.
+
+- **A world's numbers are written once.** `standardGravity` (9.81 m/s²),
+  `standardGravityVector`, `standardAirTemperature` (293.15 K),
+  `standardAirDensity` (1.204 kg/m³) and `standardAtmosphere` (101 325 Pa)
+  are what a world is when nobody says otherwise, each with its source,
+  and the same numbers the C core's new world starts with. `ClothSettings`,
+  `LiquidBody` and `fallTime` default to `standardGravity` rather than a
+  9.81 of their own; a game hands them its world's. 9.81 rather than
+  9.806 65 because 9.81 is what every recorded run was made under, so
+  nothing recorded moves.
 
 - **Pipes and floating bodies are on the run's backend too.** `FluidSolver`
   gains `flowPipes(PipeFlow)`, the column in each pipe driven by the
@@ -124,10 +278,10 @@
 - **The step has trigonometry it may call.** `src/portable_math.dart`
   holds `sin`, `cos`, `sinCos`, `atan`, `atan2`, `asin` and `acos` built
   from fdlibm's kernels out of IEEE arithmetic alone, for the hinge
-  angles and cone limits that come next. It is not exported, because
-  `flutter3d_sim` re-exports this package beside its own `Portable`.
+  angles and cone limits that come next. It is not exported: `Portable`
+  is `flutter3d_foundation`'s, and a step imports it from there.
 
-Its `flutter3d_*` dependencies ask for `^0.9.0`.
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
 
 ## 0.8.2+1
 

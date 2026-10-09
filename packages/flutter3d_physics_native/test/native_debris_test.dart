@@ -106,7 +106,7 @@ void main() {
     expect(() => NativeDebris(0), throwsArgumentError);
   });
 
-  final gpu = NativeGpu.open();
+  final gpu = _openGpu();
   group(
     'on the GPU',
     skip: gpu == null ? 'no GPU adapter, or no GPU library' : null,
@@ -233,4 +233,13 @@ void main() {
       });
     },
   );
+}
+
+/// The machine's GPU, or null when it has none for the passes to run on.
+NativeGpu? _openGpu() {
+  try {
+    return NativeGpu.open();
+  } on GpuUnavailable {
+    return null;
+  }
 }

@@ -118,6 +118,11 @@ extension JsonObjectReader on Map<String, Object?> {
   }
 
   /// An enum value by its name, naming the alternatives when it is not one.
+  ///
+  /// **For a game's own documents, not the engine's.** The engine's formats
+  /// read explicit wire tables (`LevelLightType.fromWireName`), so a rename
+  /// in Dart never changes a file; a game reading a property it wrote with
+  /// its own enum's names reaches for this.
   T enumValue<T extends Enum>(
     String key,
     List<T> values,

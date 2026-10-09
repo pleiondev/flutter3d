@@ -3,7 +3,7 @@ library;
 
 import 'dart:collection' show ListQueue;
 
-import 'peer_wire.dart';
+import 'package:flutter3d_net/flutter3d_net.dart' show PeerWire;
 
 /// Turns across two machines: the one holding the baton runs the game, and
 /// the other replays what it is told.
@@ -40,12 +40,15 @@ import 'peer_wire.dart';
 final class BatonStream {
   BatonStream(
     this.transport, {
-    required this._holding,
+    required bool holding,
     required this.onFrame,
     required this.onEvent,
     required this.onBaton,
     this.catchUpAfter = 4,
-  }) {
+  }) : // A plain named parameter, not `this._holding`: the signature a user
+       // reads, and the API snapshot, then spell no private name.
+       // ignore: prefer_initializing_formals
+       _holding = holding {
     transport.listen(_arrive);
   }
 
@@ -64,7 +67,7 @@ final class BatonStream {
   final int catchUpAfter;
 
   /// Whether this machine is the one playing.
-  bool get holding => _holding;
+  bool get isHolding => _holding;
   bool _holding;
 
   /// What has arrived in order and not been handed on yet.
@@ -113,7 +116,7 @@ final class BatonStream {
 
   /// Takes the baton without it being passed: the first turn, or a new game,
   /// on the machine whose turn that is.
-  void take() => _holding = true;
+  void claim() => _holding = true;
 
   /// Hands on what arrived: every event while holding, and while watching
   /// the events and frames up to one frame — more when far behind. Once a

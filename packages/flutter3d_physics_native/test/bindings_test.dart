@@ -32,9 +32,30 @@ void main() {
     expect(c.transformFloats, define('F3D_TRANSFORM_FLOATS'));
   });
 
+  test('a fire\'s floats and the materials are the header\'s', () {
+    // Mutation: a fire of twelve floats here, or charcoal numbered nine.
+    expect(c.fireFloats, define('F3D_FIRE_FLOATS'));
+    expect(header, contains('F3D_MATERIAL_OAK = ${c.MaterialKind.oak},'));
+    expect(header, contains('F3D_MATERIAL_PINE = ${c.MaterialKind.pine},'));
+    expect(
+      header,
+      contains('F3D_MATERIAL_CARDBOARD = ${c.MaterialKind.cardboard},'),
+    );
+    expect(header, contains('F3D_MATERIAL_THATCH = ${c.MaterialKind.thatch},'));
+    expect(
+      header,
+      contains('F3D_MATERIAL_CHARCOAL = ${c.MaterialKind.charcoal},'),
+    );
+    expect(
+      header,
+      contains('F3D_MATERIAL_PARAFFIN = ${c.MaterialKind.paraffin},'),
+    );
+  });
+
   test('the body types are the header\'s numbers', () {
     expect(header, contains('F3D_BODY_DYNAMIC = ${c.BodyType.dynamic},'));
     expect(header, contains('F3D_BODY_FIXED = ${c.BodyType.fixed},'));
+    expect(header, contains('F3D_BODY_KINEMATIC = ${c.BodyType.kinematic},'));
   });
 
   test('a compound is the header\'s shape and parts', () {
@@ -47,7 +68,18 @@ void main() {
   test('a vehicle\'s wheels are as many floats as the header says', () {
     expect(c.vehicleMostWheels, define('F3D_VEHICLE_MOST_WHEELS'));
     expect(c.wheelFloats, define('F3D_WHEEL_FLOATS'));
+    expect(c.wheelFloatsAll, define('F3D_WHEEL_FLOATS_ALL'));
     expect(c.wheelStateFloats, define('F3D_WHEEL_STATE_FLOATS'));
+  });
+
+  test('water\'s outlets and edges are the header\'s', () {
+    expect(c.shallowMostOutlets, define('F3D_SHALLOW_MOST_OUTLETS'));
+    expect(c.shallowInfoFloats, define('F3D_SHALLOW_INFO_FLOATS'));
+    expect(c.shallowMostSubsteps, define('F3D_SHALLOW_MOST_SUBSTEPS'));
+    expect(c.EdgeKind.wall, define('F3D_EDGE_WALL'));
+    expect(c.EdgeKind.open, define('F3D_EDGE_OPEN'));
+    expect(c.EdgeKind.flow, define('F3D_EDGE_FLOW'));
+    expect(c.EdgeKind.level, define('F3D_EDGE_LEVEL'));
   });
 
   test('water holds as many springs and drops as the header says', () {

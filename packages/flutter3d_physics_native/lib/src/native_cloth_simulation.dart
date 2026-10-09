@@ -1,5 +1,5 @@
 /// A `flutter3d_physics` [ClothMesh] stepped by the core: the cloth a run
-/// on [NativePhysics] gets from `PhysicsBackend.current.cloth(mesh)`.
+/// on [NativePhysics] gets from `backend.cloth(mesh)`.
 library;
 
 import 'dart:math' as math;
@@ -19,7 +19,7 @@ import 'native_physics.dart';
 /// the settings, and writes the positions and velocities back. A pinned
 /// particle is not written back at all, so it stays at the double the mesh
 /// holds rather than the single-precision copy the core stepped.
-final class NativeClothSimulation implements ClothSimulation {
+final class NativeClothSimulation extends ClothSimulation {
   NativeClothSimulation(this.mesh)
     : _held = (cloth: _make(mesh), state: c.F32s.alloc(_stateLength(mesh))) {
     _finalizer.attach(this, _held, detach: this);
@@ -242,7 +242,9 @@ List<double> packClothObstacles(List<ClothObstacle> obstacles) => <double>[
         radius,
         halfHeight,
       ],
-      CollisionBox() || CollisionWedge() => _planes(shape, position),
+      CollisionBox() ||
+      CollisionWedge() ||
+      CustomShape() => _planes(shape, position),
       final CollisionHeightfield field => <double>[
         c.ClothObstacleKind.ground.toDouble(),
         position.x - field.width * 0.5,

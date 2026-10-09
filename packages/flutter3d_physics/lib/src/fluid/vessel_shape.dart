@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
-
-import '../portable_math.dart';
 
 /// The inside of a vessel, in its own frame, as far as liquid in it cares:
 /// how much it holds below any plane, and the edge of its mouth.
@@ -13,7 +12,11 @@ import '../portable_math.dart';
 /// of liquid; and liquid leaves over the mouth when the plane would have to
 /// stand above the mouth's lowest point. So a shape answers one question —
 /// the volume below the plane `up · p = height` — and names its [rim].
-abstract interface class VesselShape {
+///
+/// **Extended, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that
+/// extends it has to change.
+abstract base class VesselShape {
   /// The volume inside below the plane `up · p = height`; [up] is a unit
   /// vector in the vessel's frame.
   double volumeBelow(Vector3 up, double height);
@@ -112,7 +115,7 @@ extension VesselVolumes on VesselShape {
         : volumeBelow(up, edge.height);
   }
 
-  /// The most the vessel holds upright.
+  /// The most the vessel holds upright, in cubic metres.
   double get capacity => holds(Vector3(0, 1, 0));
 }
 
@@ -140,10 +143,13 @@ final class RevolvedVessel implements VesselShape {
   /// How many points the [rim] has.
   final int rimPoints;
 
+  /// The height of the inside's lowest point, in metres.
   late final double floor = wall.map((p) => p.y).reduce(math.min);
 
-  /// The widest the inside gets.
+  /// The widest the inside gets: a radius, in metres.
   late final double widest = wall.map((p) => p.x).reduce(math.max);
+
+  /// The height of the wall's highest point, in metres.
   late final double top = wall.map((p) => p.y).reduce(math.max);
 
   /// How far [point] (vessel frame) is from the wall, across it: negative

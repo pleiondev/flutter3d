@@ -1,6 +1,6 @@
 name: flutter3d_physics_native
 description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,6 +13,17 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: the C core through
+# `dart:ffi` on every native platform and as WebAssembly in the browser,
+# chosen by `if (dart.library.js_interop)`.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   # The build hook: `native_toolchain_c` compiles `csrc/` with the C compiler
@@ -32,11 +43,14 @@ dependencies:
   # What NativeDynamics stands under: its bodies, colliders and world. Also
   # the reference the tests hold a native world to, with a tolerance, since
   # that one is in doubles.
-  flutter3d_physics: ^0.9.0
-  # The scene's skeletons, for the ragdoll a skinned character goes limp
-  # into: its joints are scene nodes, its bind pose the skeleton's. Plain
-  # Dart, so this package gains no Flutter by it.
-  flutter3d_core: ^0.9.0
+  flutter3d_physics: ^1.0.0-rc.1
+  # `WorldPosition`: a body's place in the world in doubles, the origin
+  # added, which `NativeWorld.positionOf` answers with.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # The material catalogue and the standard world: what the core's heat and
+  # liquid presets are views of, and what `tool/gen_materials.dart` writes
+  # the C header from.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   test: ^1.25.0

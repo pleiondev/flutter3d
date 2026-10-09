@@ -1,5 +1,6 @@
 import '../input/input_state.dart';
 import '../input/input_tape.dart';
+import '../loop/engine_loop.dart';
 import 'entity_tracks.dart';
 import 'first_differing_path.dart';
 import 'snapshot.dart';
@@ -21,6 +22,14 @@ import 'state_digest.dart';
 /// would each find it where the other left it. Comparing two tapes on one
 /// build means two instances of the simulation, which is also what keeps
 /// the two runs from sharing anything by accident.
+///
+/// **Through a loop, where there is one** ([ReplaySide.loop]): the states
+/// are the loop's captures, put back with `EngineLoop.rewindTo` and played
+/// on by the loop's own tape playback, so every part of the state a plugin
+/// added is compared and restored, and the step count the systems read is
+/// the side's. A run that steps itself goes through a [RunLoop]. The
+/// constructor with three functions is the form for a simulation with no
+/// loop.
 final class ReplaySide {
   ReplaySide({
     required this.start,
@@ -29,7 +38,27 @@ final class ReplaySide {
     required this.step,
     required this.restore,
     required this.capture,
-  }) : _kept = <int, Snapshot>{0: start};
+  }) : loop = null,
+       _kept = <int, Snapshot>{0: start};
+
+  /// A side played through [loop], from [start] — a capture of [loop];
+  /// the loop as it is now when left out.
+  ///
+  /// The loop is this side's alone: nothing else steps it while the side is
+  /// asked questions, and it records nothing (its `recorders` are not
+  /// written while the side plays).
+  ReplaySide.loop(EngineLoop this.loop, {required this.tape, Snapshot? start})
+    : start = start ?? loop.capture(),
+      input = loop.input,
+      step = (() => loop.runSteps(1)),
+      restore = loop.restore,
+      capture = loop.capture,
+      _kept = <int, Snapshot>{} {
+    _kept[0] = this.start;
+  }
+
+  /// The loop this side plays through; null for a side made of functions.
+  final EngineLoop? loop;
 
   /// The state before the first step.
   final Snapshot start;
@@ -66,19 +95,36 @@ final class ReplaySide {
     final from = _kept.keys.where((k) => k <= steps).reduce(_max);
     final at = _at;
     final resume = at != null && at >= from && at <= steps ? at : from;
-    if (resume != at) restore(_kept[resume]!);
     final playback = InputTapePlayback(
       InputTape(seed: tape.seed, frames: tape.frames.sublist(resume, steps)),
     );
     final wasMuted = input.muted;
     input.muted = true;
     try {
-      while (!playback.isFinished) {
-        playback.applyTo(input);
-        input.beginStep();
-        step();
-        input.endStep();
-        stepsRun++;
+      if (loop case final loop?) {
+        if (resume != at) loop.rewindTo(resume, state: _kept[resume]);
+        final recorders = List.of(loop.recorders);
+        final previous = loop.playback;
+        loop
+          ..recorders.clear()
+          ..playback = playback;
+        try {
+          loop.runSteps(steps - resume);
+          stepsRun += steps - resume;
+        } finally {
+          loop
+            ..playback = previous
+            ..recorders.addAll(recorders);
+        }
+      } else {
+        if (resume != at) restore(_kept[resume]!);
+        while (!playback.isFinished) {
+          playback.applyTo(input);
+          input.beginStep();
+          step();
+          input.endStep();
+          stepsRun++;
+        }
       }
     } finally {
       input.muted = wasMuted;

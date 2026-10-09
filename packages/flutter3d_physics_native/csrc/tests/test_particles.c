@@ -11,7 +11,7 @@
 static F3dParticleForces calm(void) {
   F3dParticleForces f;
   memset(&f, 0, sizeof f);
-  f.gravity[1] = F3D_R(-9.81);
+  f.gravity[1] = -F3D_STANDARD_GRAVITY;
   f.floor_y = F3D_R(-1e9);
   return f;
 }
@@ -31,7 +31,7 @@ static void test_flight(void) {
   f3d_real out[16];
   CHECK(f3d_particles_read(p, out, 4) == 4);
   CHECK_NEAR(out[0], 3.0 * n * (double)h, 1e-5);
-  CHECK_NEAR(out[1], 4.0 * n * (double)h - 9.81 * (double)h * (double)h * n * (n + 1) / 2, 1e-4);
+  CHECK_NEAR(out[1], 4.0 * n * (double)h - STANDARD_G * (double)h * (double)h * n * (n + 1) / 2, 1e-4);
   CHECK_NEAR(out[3], 10 - n * (double)h, 1e-5);
   /* The other slots were never alive and did not move. */
   CHECK(out[4] == 0 && out[7] == 0);
@@ -68,7 +68,7 @@ static void test_drag_and_floor(void) {
   f3d_particles_step(p, &f, F3D_R(1.0 / 60.0));
   f3d_particles_read(p, out, 1);
   /* Up at (10 + g h)/2 less a step of gravity, for a sixtieth. */
-  const double up = (10 + 9.81 / 60.0) / 2 - 9.81 / 60.0;
+  const double up = (10 + STANDARD_G / 60.0) / 2 - STANDARD_G / 60.0;
   CHECK_NEAR(out[1], up / 60.0, 1e-5);
   CHECK_NEAR(out[0], 2.0 / 60.0 + 1.0 / 60.0, 1e-5);
   f3d_particles_destroy(p);

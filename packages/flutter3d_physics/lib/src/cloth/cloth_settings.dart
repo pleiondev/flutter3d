@@ -1,3 +1,5 @@
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+
 /// How a [ClothMesh] moves, as values rather than as solver internals.
 ///
 /// XPBD's own compliance is the inverse of stiffness — zero is a rigid,
@@ -8,7 +10,7 @@
 /// does — the whole reason the "X" is in XPBD.
 final class ClothSettings {
   const ClothSettings({
-    this.gravity = 9.81,
+    this.gravity = standardGravity,
     this.substeps = 8,
     this.iterations = 2,
     this.distanceCompliance = 0.0,
@@ -23,7 +25,60 @@ final class ClothSettings {
     this.selfCollisionFriction = 0.1,
   });
 
-  /// Downward acceleration, metres per second squared.
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  ClothSettings copyWith({
+    double? gravity,
+    int? substeps,
+    int? iterations,
+    double? distanceCompliance,
+    double? bendCompliance,
+    double? shearCompliance,
+    double? damping,
+    WindSettings? wind,
+    double? collisionThickness,
+    double? friction,
+    bool? selfCollision,
+    double? selfCollisionThickness,
+    double? selfCollisionFriction,
+    bool clearSelfCollisionThickness = false,
+  }) => ClothSettings(
+    gravity: gravity ?? this.gravity,
+    substeps: substeps ?? this.substeps,
+    iterations: iterations ?? this.iterations,
+    distanceCompliance: distanceCompliance ?? this.distanceCompliance,
+    bendCompliance: bendCompliance ?? this.bendCompliance,
+    shearCompliance: shearCompliance ?? this.shearCompliance,
+    damping: damping ?? this.damping,
+    wind: wind ?? this.wind,
+    collisionThickness: collisionThickness ?? this.collisionThickness,
+    friction: friction ?? this.friction,
+    selfCollision: selfCollision ?? this.selfCollision,
+    selfCollisionThickness: clearSelfCollisionThickness
+        ? null
+        : (selfCollisionThickness ?? this.selfCollisionThickness),
+    selfCollisionFriction: selfCollisionFriction ?? this.selfCollisionFriction,
+  );
+
+  /// These settings in [world]: its gravity, and its wind blowing through
+  /// the sheet at the [wind]'s own drag — what a cloth hung in that world
+  /// falls and flaps by. Everything else is kept.
+  ///
+  /// **How a game gives a sheet its world**: `settings.inWorld(
+  /// collision.properties)`, made again when the world changes, so a level
+  /// on the Moon drapes its banners at the Moon's gravity and its storm
+  /// blows them.
+  ClothSettings inWorld(WorldProperties world) {
+    final air = world.wind;
+    return copyWith(
+      gravity: world.gravityMagnitude,
+      wind: wind.copyWith(velocityX: air.x, velocityY: air.y, velocityZ: air.z),
+    );
+  }
+
+  /// Downward acceleration, metres per second squared: the world's the
+  /// cloth hangs in ([inWorld]); [standardGravity] when a game gives it
+  /// none.
   final double gravity;
 
   /// How many substeps one call to `stepCloth` divides its `dt` into.
@@ -91,7 +146,7 @@ final class ClothSettings {
   /// substep's iterations, so the answer does not depend on [iterations].
   /// Zero, the default, lets a sheet slide off a ball as it always has; 0.3
   /// slows the slide, and around 1 holds a sheet dropped off-centre where it
-  /// landed.
+  /// landed. A unitless coefficient.
   final double friction;
 
   /// Whether the sheet keeps its own layers apart.
@@ -147,8 +202,26 @@ final class WindSettings {
     this.drag = 0.3,
   });
 
+  /// A copy with the given fields replaced.
+  WindSettings copyWith({
+    double? velocityX,
+    double? velocityY,
+    double? velocityZ,
+    double? drag,
+  }) => WindSettings(
+    velocityX: velocityX ?? this.velocityX,
+    velocityY: velocityY ?? this.velocityY,
+    velocityZ: velocityZ ?? this.velocityZ,
+    drag: drag ?? this.drag,
+  );
+
+  /// The air's velocity along X, in metres per second.
   final double velocityX;
+
+  /// The air's velocity along Y, in metres per second.
   final double velocityY;
+
+  /// The air's velocity along Z, in metres per second.
   final double velocityZ;
 
   /// Newtons per square metre per metre-per-second of air moving through the

@@ -133,7 +133,7 @@ NavMeshRoute? findRoute(
     final perMetre = price(mesh.areaOf(p));
     final n = mesh.polygonVertexCount(p);
     for (var k = 0; k < n; k++) {
-      final q = mesh.neighbourAt(p, k);
+      final q = mesh.neighborAt(p, k);
       if (q < 0 || closed[q] != 0) continue;
       if (price(mesh.areaOf(q)).isInfinite) continue;
       mesh.vertexAt(mesh.polygonVertex(p, k), a);
@@ -248,7 +248,7 @@ List<Vector3> _pullString(
     final n = mesh.polygonVertexCount(p);
     final k = Iterable<int>.generate(
       n,
-    ).firstWhere((k) => mesh.neighbourAt(p, k) == corridor[i + 1]);
+    ).firstWhere((k) => mesh.neighborAt(p, k) == corridor[i + 1]);
     final left = Vector3.zero();
     final right = Vector3.zero();
     mesh.vertexAt(mesh.polygonVertex(p, (k + 1) % n), left);

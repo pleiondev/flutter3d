@@ -11,9 +11,10 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+
 import '../../level/brush.dart';
 import '../../level/heightfield.dart';
-import '../../math/portable_math.dart';
 import '../../math/tolerances.dart';
 import 'navmesh_config.dart';
 
@@ -56,9 +57,14 @@ final class NavLattice {
     rows: 0,
   );
 
-  /// The world position of voxel `(0, 0, 0)`'s lowest corner.
+  /// The world position of voxel `(0, 0, 0)`'s lowest corner: its X, in
+  /// metres.
   final double originX;
+
+  /// That corner's Y, in metres.
   final double originY;
+
+  /// That corner's Z, in metres.
   final double originZ;
 
   final int columns;
@@ -69,7 +75,7 @@ final class NavLattice {
   /// The lattice of [brushes]' solid ones and [ground] — `NavGrid.bake`'s.
   factory NavLattice.of(
     Iterable<Brush> brushes, {
-    required NavMeshConfig config,
+    required NavMeshSettings config,
     Heightfield? ground,
   }) {
     final solid = <Brush>[
@@ -148,12 +154,19 @@ final class SpanField {
 
   /// The world position of the lattice's voxel `(0, 0, 0)`'s lowest corner —
   /// the lattice's, not this field's first column's, when the field is a
-  /// window onto it.
+  /// window onto it. Its X, in metres.
   final double originX;
+
+  /// That corner's Y, in metres.
   final double originY;
+
+  /// That corner's Z, in metres.
   final double originZ;
 
+  /// A voxel's side across the ground, in metres.
   final double cellSize;
+
+  /// A voxel's height, in metres.
   final double cellHeight;
   final int columns;
   final int rows;
@@ -180,7 +193,7 @@ final class SpanField {
   /// part baked again agrees with the whole baked once.
   static SpanField rasterise(
     Iterable<Brush> brushes, {
-    required NavMeshConfig config,
+    required NavMeshSettings config,
     Heightfield? ground,
     required int Function(Brush brush) areaOf,
     required int groundArea,

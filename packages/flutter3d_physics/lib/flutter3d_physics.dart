@@ -27,6 +27,19 @@
 /// `pickup` and `projectile`, which is exactly the knowledge a collision world
 /// must not have. [Layers.all] is the only constant left, because "every bit"
 /// means the same thing in every game.
+///
+/// ## What is not here
+///
+/// `WorldPosition`, the crossings between it and `vector_math`
+/// (`toVector3Relative`, `toWorldPosition`) and `Portable` are
+/// `flutter3d_foundation`'s, the package under every other one. They were
+/// exported from here during the 1.0 work; a file that named them through
+/// this library imports the foundation.
+///
+/// What a world and its bodies are made of — `WorldProperties`, the
+/// material catalogue, the standard world and the constants — is
+/// `flutter3d_matter`'s, and is not re-exported: a file that names it
+/// depends on that package.
 library;
 
 export 'src/character_controller.dart';
@@ -54,9 +67,9 @@ export 'src/fluid/outflow.dart';
 export 'src/fluid/particle_fluid.dart' hide moveParticlesInDart;
 export 'src/fluid/pipe.dart' hide flowPipesInDart;
 export 'src/fluid/vessel_shape.dart';
+export 'src/human_body.dart';
 export 'src/inertia.dart';
 export 'src/physics_backend.dart';
-export 'src/portable_math.dart';
 export 'src/push.dart';
 export 'src/rigid_body.dart';
 export 'src/rigid_dynamics.dart';

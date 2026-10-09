@@ -14,6 +14,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'core/core.dart' as c;
 import 'gpu_bindings.dart' as g;
+import 'gpu_unavailable.dart';
 import 'native_cloth.dart';
 import 'native_debris.dart';
 import 'native_fluid.dart';
@@ -26,18 +27,32 @@ Pointer<T> _at<T extends NativeType>(int address) =>
 final class NativeGpu {
   NativeGpu._(this._gpu);
 
-  /// The best adapter there is, or null: no GPU, a driver wgpu cannot use,
-  /// or no GPU library in this build — wgpu-native could not be fetched
-  /// for the target, the platform has none, or this is the browser.
-  static NativeGpu? open() {
+  /// The best adapter there is. Throws [GpuUnavailable] saying why when
+  /// there is none: no GPU, a driver wgpu cannot use, or no GPU library in
+  /// this build — wgpu-native could not be fetched for the target, or the
+  /// platform has none.
+  static NativeGpu open() {
+    final int abi;
     try {
-      if (g.f3d_gpu_abi_version() != g.gpuAbiVersion) return null;
-      final gpu = g.f3d_gpu_create();
-      return gpu == nullptr ? null : NativeGpu._(gpu);
+      abi = g.f3d_gpu_abi_version();
     } on ArgumentError {
-      // The asset is not there: no GPU library in this build.
-      return null;
+      throw const GpuUnavailable(
+        'there is no GPU library in this build: wgpu-native was not fetched '
+        'for this target',
+      );
     }
+    if (abi != g.gpuAbiVersion) {
+      throw GpuUnavailable(
+        'the GPU library speaks ABI $abi and this build ${g.gpuAbiVersion}',
+      );
+    }
+    final gpu = g.f3d_gpu_create();
+    if (gpu == nullptr) {
+      throw const GpuUnavailable(
+        'wgpu-native found no adapter it can use on this machine',
+      );
+    }
+    return NativeGpu._(gpu);
   }
 
   Pointer<g.F3dGpu> _gpu;
@@ -85,7 +100,7 @@ String _gpuRefused(String what) =>
 
 /// Particles stepped by a compute shader that does what [NativeParticles]
 /// does, step for step: the same to a GPU's own rounding.
-final class GpuParticles implements ParticleSystem {
+final class GpuParticles with NativeParticleCloud {
   GpuParticles._(this._gpu, int capacity)
     : _capacity = capacity,
       _p = g.f3d_gpu_particles_create(_gpu._live, capacity) {
@@ -112,7 +127,7 @@ final class GpuParticles implements ParticleSystem {
   int get capacity => _capacity;
 
   @override
-  void emit(List<Particle> particles) {
+  void emit(List<NativeParticle> particles) {
     final data = packParticles(particles);
     try {
       g.f3d_gpu_particles_emit(_live, _at<Float>(data), particles.length);
@@ -159,7 +174,7 @@ final class GpuParticles implements ParticleSystem {
 /// Debris stepped on the GPU, read a frame late. The same passes as
 /// [NativeDebris]: the same to the GPU's rounding until bodies meet, and
 /// after that as a heap is — the same in what it does, not body for body.
-final class GpuDebris implements DebrisSystem {
+final class GpuDebris with DebrisSystem {
   GpuDebris._(this._gpu, int capacity)
     : _capacity = capacity,
       _d = g.f3d_gpu_debris_create(_gpu._live, capacity) {
@@ -244,7 +259,7 @@ final class GpuDebris implements DebrisSystem {
 /// constraints are coloured by the core, so it solves what [NativeCloth]
 /// solves in the same order of colours: the same to the GPU's rounding,
 /// until folds and wrinkles take the two their own ways.
-final class GpuCloth implements ClothSystem {
+final class GpuCloth with ClothSystem {
   GpuCloth._(this._gpu, ClothMesh mesh)
     : _points = mesh.points.length,
       _c = _upload(_gpu, mesh);
@@ -253,11 +268,11 @@ final class GpuCloth implements ClothSystem {
     final core = createCoreCloth(mesh);
     final packed = ClothPacked(mesh);
     final edges = c.f3d_cloth_edge_count(core);
-    final colours = c.f3d_cloth_colour_count(core);
+    final colors = c.f3d_cloth_colour_count(core);
     final pairs = c.U32s.alloc(edges == 0 ? 2 : edges * 2);
     final rest = c.F32s.alloc(edges == 0 ? 1 : edges);
     final compliance = c.F32s.alloc(edges == 0 ? 1 : edges);
-    final start = c.U32s.alloc(colours + 1);
+    final start = c.U32s.alloc(colors + 1);
     try {
       c.f3d_cloth_edges(core, pairs, rest, compliance, start);
       final cloth = g.f3d_gpu_cloth_create(
@@ -269,7 +284,7 @@ final class GpuCloth implements ClothSystem {
         _at<Float>(compliance),
         edges,
         _at<Uint32>(start),
-        colours,
+        colors,
       );
       if (cloth == nullptr) {
         throw ArgumentError.value(mesh, 'mesh', _gpuRefused('too large'));
@@ -299,7 +314,7 @@ final class GpuCloth implements ClothSystem {
   int get pointCount => _points;
 
   @override
-  void setBalls(List<({Vector3 centre, double radius})> balls) {
+  void setBalls(List<({Vector3 center, double radius})> balls) {
     final data = packClothBalls(balls);
     try {
       g.f3d_gpu_cloth_set_balls(_live, _at<Float>(data), balls.length);
@@ -351,7 +366,7 @@ final class GpuCloth implements ClothSystem {
 /// Fluid stepped on the GPU, read a frame late: the same passes as
 /// [NativeFluid] to the GPU's rounding, until its splashes go their own
 /// way.
-final class GpuFluid implements FluidSystem {
+final class GpuFluid with FluidSystem {
   GpuFluid._(this._gpu, int capacity, double spacing)
     : _capacity = capacity,
       _f = g.f3d_gpu_fluid_create(_gpu._live, capacity, spacing) {
@@ -377,6 +392,7 @@ final class GpuFluid implements FluidSystem {
   @override
   int get count => _count;
 
+  /// The density at rest, particles of mass one per cubic metre.
   @override
   double get restDensity => g.f3d_gpu_fluid_rest_density(_live);
 

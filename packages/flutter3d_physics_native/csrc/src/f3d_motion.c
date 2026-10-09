@@ -254,6 +254,13 @@ f3d_real f3d_shape_surface(const F3dWorld *world, uint32_t kind, F3dVec3 size,
   return surface_of(world, &s);
 }
 
+/* A shape's drag coefficient against the wind, at the high Reynolds numbers
+ * a game's bodies move at, each from Hoerner, Fluid-Dynamic Drag (1965),
+ * ch. 3: a sphere's 0.47 below the drag crisis; a cube face on, 1.05; a
+ * cylinder across its axis as long as it is wide, 0.82; a cone, apex
+ * first, 0.5. A capsule's 0.6 is an estimate, between a rounded body end on
+ * (about 0.4) and side on (about 0.8), as NativeWorld.setDrag's doc says;
+ * a hull's and a compound's 1.0, a bluff body's in general. */
 static f3d_real shape_drag_of(const F3dSlot *s) {
   switch (s->shape) {
     case F3D_SHAPE_SPHERE:
@@ -400,6 +407,26 @@ void f3d_integrate_position(F3dSlot *s, f3d_real h) {
    * what went in. */
   w2 = f3d_dot(s->spin, s->spin);
   if (w2 > most * most) s->spin = f3d_scale(s->spin, most / f3d_sqrt(w2));
+}
+
+void f3d_carry(F3dSlot *s, f3d_real h) {
+  s->position = f3d_madd(s->position, s->velocity, h);
+  const F3dVec3 w = s->spin;
+  if (w.x == F3D_R(0.0) && w.y == F3D_R(0.0) && w.z == F3D_R(0.0)) return;
+  /* Its spin is what it is given, not what momentum leaves it: the turn
+   * q += ½·h·(ω ⊗ q), normalised, and the spin kept. */
+  const F3dQuat q = s->orientation;
+  const f3d_real k = F3D_R(0.5) * h;
+  F3dQuat t;
+  t.x = q.x + k * (w.x * q.w + w.y * q.z - w.z * q.y);
+  t.y = q.y + k * (w.y * q.w + w.z * q.x - w.x * q.z);
+  t.z = q.z + k * (w.z * q.w + w.x * q.y - w.y * q.x);
+  t.w = q.w - k * (w.x * q.x + w.y * q.y + w.z * q.z);
+  const f3d_real len = f3d_sqrt(t.x * t.x + t.y * t.y + t.z * t.z + t.w * t.w);
+  s->orientation.x = t.x / len;
+  s->orientation.y = t.y / len;
+  s->orientation.z = t.z / len;
+  s->orientation.w = t.w / len;
 }
 
 void f3d_finish_motion(const F3dWorld *world, F3dSlot *s, f3d_real dt) {

@@ -1,3 +1,6 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// How long each step of a run cost, keyed the same way [DigestTrace] keys a
 /// run's state — by the step number, not by wall-clock time.
 ///
@@ -26,19 +29,29 @@ final class StepTimeTrace {
   final int every;
 
   final List<int> _steps = <int>[];
+
+  // Kept in milliseconds, the unit the written trace uses, so a trace read
+  // back is the trace that was written to the last digit; the API speaks
+  // seconds, as the units contract asks.
   final List<double> _millis = <double>[];
 
   /// The step numbers sampled, in order.
   List<int> get steps => List<int>.unmodifiable(_steps);
 
-  /// How long each of [steps] took, in milliseconds.
-  List<double> get millis => List<double>.unmodifiable(_millis);
+  /// How long each of [steps] took, in seconds.
+  List<double> get seconds => List<double>.unmodifiable(<double>[
+    for (final ms in _millis) ms / 1000.0,
+  ]);
 
   /// Whether anything has been recorded yet.
   bool get isEmpty => _steps.isEmpty;
 
-  /// Keeps [step]'s cost if it falls on [every], and drops it otherwise.
-  void observe(int step, double ms) {
+  /// Keeps [step]'s cost, in [seconds], if it falls on [every], and drops it
+  /// otherwise.
+  void observe(int step, double seconds) =>
+      _observeMillis(step, seconds * 1000.0);
+
+  void _observeMillis(int step, double ms) {
     if (step % every != 0) return;
     _steps.add(step);
     _millis.add(ms);
@@ -50,7 +63,7 @@ final class StepTimeTrace {
     final watch = Stopwatch()..start();
     final result = body();
     watch.stop();
-    observe(step, watch.elapsedMicroseconds / 1000.0);
+    _observeMillis(step, watch.elapsedMicroseconds / 1000.0);
     return result;
   }
 
@@ -65,27 +78,27 @@ final class StepTimeTrace {
     return _steps[worst];
   }
 
-  /// The cost at [worstStep], or null if nothing has been recorded.
-  double? get worstMillis {
+  /// The cost at [worstStep], in seconds, or null if nothing has been
+  /// recorded.
+  double? get worstSeconds {
     if (_millis.isEmpty) return null;
-    var worst = _millis[0];
-    for (final ms in _millis) {
-      if (ms > worst) worst = ms;
-    }
-    return worst;
+    final worst = _millis.fold(
+      _millis[0],
+      (double a, double b) => a > b ? a : b,
+    );
+    return worst / 1000.0;
   }
 
-  /// The mean cost across every sample, or null if nothing has been recorded.
-  double? get meanMillis {
+  /// The mean cost across every sample, in seconds, or null if nothing has
+  /// been recorded.
+  double? get meanSeconds {
     if (_millis.isEmpty) return null;
-    var total = 0.0;
-    for (final ms in _millis) {
-      total += ms;
-    }
-    return total / _millis.length;
+    final total = _millis.fold(0.0, (double a, double b) => a + b);
+    return total / _millis.length / 1000.0;
   }
 
-  /// Writes this trace down: `every`, the sampled steps and their costs.
+  /// Writes this trace down: `every`, the sampled steps and their costs, in
+  /// milliseconds under `millis`, as traces have always been written.
   Map<String, Object?> toJson() => <String, Object?>{
     'every': every,
     'steps': List<int>.of(_steps),
@@ -130,9 +143,10 @@ final class StepTimeTrace {
 }
 
 /// Thrown when a [StepTimeTrace] cannot be read back at all.
-final class StepTimeTraceFormatException implements Exception {
+final class StepTimeTraceFormatException extends Flutter3dFormatException {
   const StepTimeTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override

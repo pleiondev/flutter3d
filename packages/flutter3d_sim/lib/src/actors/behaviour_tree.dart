@@ -4,7 +4,7 @@
 /// ## Data, read once, shared
 ///
 /// A tree is a JSON document — `{"kind": "selector", "children": [...]}` —
-/// read by [BehaviourTree.read] against a [BehaviourKinds] that says what each
+/// read by [BehaviorTree.read] against a [BehaviorKinds] that says what each
 /// leaf kind is. A level, a mod or an agent can write one without compiling
 /// anything, and two actors running the same tree share it: everything that
 /// differs between them is on their [Blackboard], which is a component and is
@@ -27,6 +27,10 @@
 ///   until the patrol it interrupts happens to finish.
 /// * `utility` — scores every option and runs the best (see [_Utility]).
 /// * `invert`, `alwaysSucceed` and `cooldown` — one child each.
+/// * whatever a game or a plugin registers with [BehaviorKinds.composite]:
+///   a [BehaviorComposite] over `children`, or over one `child`. These six
+///   are the reader's own and cannot be replaced; a registered one is read
+///   after them and before the leaves.
 ///
 /// No `parallel`. An actor has one body and it walks one way: two running
 /// leaves would both steer and the last one would win, decided by the order of
@@ -50,8 +54,8 @@ export 'blackboard.dart';
 ///
 /// One per tree and reused, because a tick happens for every thinking actor
 /// on every thinking step and allocating one each time is garbage in the step.
-final class BehaviourContext {
-  BehaviourContext._();
+final class BehaviorContext {
+  BehaviorContext._();
 
   /// The actor's mind: its body, its focus, and what it may ask for.
   late Mind mind;
@@ -77,31 +81,65 @@ final class BehaviourContext {
 }
 
 /// What the overlay may look at outside a step, when there is no mind.
-typedef BehaviourView = ({Actor actor, ActorSystem system, Blackboard board});
+typedef BehaviorView = ({Actor actor, ActorSystem system, Blackboard board});
 
 /// One node on the running path, for whoever draws or prints it.
-typedef BehaviourPathStep = ({
+typedef BehaviorPathStep = ({
   int node,
   String kind,
   String label,
-  BehaviourStatus status,
+  BehaviorStatus status,
 });
 
-/// What [BehaviourTree.read] made of a document: a tree, or why not.
-final class BehaviourTreeRead {
-  const BehaviourTreeRead._(this.tree, this.problems);
+/// What [BehaviorTree.read] made of a document: a tree, or why not.
+final class BehaviorTreeRead {
+  const BehaviorTreeRead._(this.tree, this.problems);
 
   /// The tree, when the document had no problems.
-  final BehaviourTree? tree;
+  final BehaviorTree? tree;
 
   /// Every problem, each naming where in the document it is — all of them,
   /// rather than the first, so that a document is fixed in one pass.
   final List<String> problems;
 }
 
-final class BehaviourTree {
-  BehaviourTree._(this._root, this._nodes, this.digestHex, this.json)
-    : _statusOf = List<BehaviourStatus?>.filled(_nodes.length, null);
+/// The children of a registered [BehaviorComposite], as it may tick them.
+///
+/// One per composite node in a tree, made when the tree is read, so a tick
+/// allocates nothing.
+final class BehaviorChildren {
+  BehaviorChildren._(this._tree, this._node);
+
+  final BehaviorTree _tree;
+  final _Custom _node;
+
+  /// How many children the node has: its `children`, or one for a `child`.
+  int get length => _node.children.length;
+
+  /// The label of child [index] — its `name`, or its kind — for a composite
+  /// that reports which branch it chose.
+  String labelOf(int index) => _node.children[index].label;
+
+  /// Ticks child [index] and answers its status.
+  ///
+  /// Afterwards [context] addresses the composite again — its
+  /// [BehaviorContext.node] is the composite's — so the composite's own
+  /// [BehaviorContext.memory] is what it reads and writes next, whatever
+  /// the child below it did.
+  BehaviorStatus tick(BehaviorContext context, int index) {
+    final status = _tree._tick(_node.children[index], context);
+    context.node = _node.index;
+    return status;
+  }
+}
+
+final class BehaviorTree {
+  BehaviorTree._(this._root, this._nodes, this.digestHex, this.json)
+    : _statusOf = List<BehaviorStatus?>.filled(_nodes.length, null) {
+    for (final node in _nodes) {
+      if (node is _Custom) node.view = BehaviorChildren._(this, node);
+    }
+  }
 
   /// Reads [json] against [kinds].
   ///
@@ -109,23 +147,18 @@ final class BehaviourTree {
   /// from a file, an editor or an agent, and each of them wants every problem
   /// listed with where it is — `root.children[2]: no leaf kind "fly"; known:
   /// …` — rather than a stack trace about the first.
-  static BehaviourTreeRead read(Object? json, BehaviourKinds kinds) {
+  static BehaviorTreeRead read(Object? json, BehaviorKinds kinds) {
     final reader = _Reader(kinds);
     final root = reader.node(json, 'root');
     final digest = reader.digestOf(json);
     if (root == null || reader.problems.isNotEmpty || digest == null) {
-      return BehaviourTreeRead._(
+      return BehaviorTreeRead._(
         null,
         List<String>.unmodifiable(reader.problems),
       );
     }
-    return BehaviourTreeRead._(
-      BehaviourTree._(
-        root,
-        reader.nodes,
-        digest,
-        json! as Map<String, Object?>,
-      ),
+    return BehaviorTreeRead._(
+      BehaviorTree._(root, reader.nodes, digest, json! as Map<String, Object?>),
       const <String>[],
     );
   }
@@ -143,10 +176,10 @@ final class BehaviourTree {
   /// How many nodes there are.
   int get length => _nodes.length;
 
-  final BehaviourContext _context = BehaviourContext._();
+  final BehaviorContext _context = BehaviorContext._();
   final List<int> _stack = <int>[];
   final List<int> _lastPath = <int>[];
-  final List<BehaviourStatus?> _statusOf;
+  final List<BehaviorStatus?> _statusOf;
 
   /// Makes [board] belong to this tree, starting its decision again if it
   /// was ticked by another one.
@@ -159,7 +192,7 @@ final class BehaviourTree {
 
   /// Decides: runs the tree from the root, records the path it took on
   /// [board], and forgets the memory of every node that is no longer running.
-  BehaviourStatus tick(Mind mind, Blackboard board) {
+  BehaviorStatus tick(Mind mind, Blackboard board) {
     prepare(board);
     final context = _context
       ..mind = mind
@@ -175,10 +208,10 @@ final class BehaviourTree {
       ..addAll(_lastPath);
     board.statuses
       ..clear()
-      ..addAll(<BehaviourStatus>[
+      ..addAll(<BehaviorStatus>[
         for (final node in _lastPath) _statusOf[node]!,
       ]);
-    if (status == BehaviourStatus.running) {
+    if (status == BehaviorStatus.running) {
       board.memory.removeWhere((node, _) => !_lastPath.contains(node));
     } else {
       board.memory.clear();
@@ -186,7 +219,7 @@ final class BehaviourTree {
     return status;
   }
 
-  /// Moves: the running leaf's [BehaviourLeaf.act], every step, between the
+  /// Moves: the running leaf's [BehaviorLeaf.act], every step, between the
   /// decisions [tick] makes on the steps the system thinks on.
   void act(Mind mind, Blackboard board) {
     final leaf = _runningLeaf(board);
@@ -201,9 +234,9 @@ final class BehaviourTree {
 
   /// The path [board] last took through this tree, root first; empty when it
   /// was ticked by another tree or not yet at all.
-  List<BehaviourPathStep> pathOf(Blackboard board) => board.tree != digestHex
-      ? const <BehaviourPathStep>[]
-      : <BehaviourPathStep>[
+  List<BehaviorPathStep> pathOf(Blackboard board) => board.tree != digestHex
+      ? const <BehaviorPathStep>[]
+      : <BehaviorPathStep>[
           for (var i = 0; i < board.path.length; i++)
             if (board.path[i] case final int node when node < _nodes.length)
               (
@@ -216,18 +249,18 @@ final class BehaviourTree {
 
   /// Where the running leaf is taking the actor, for the overlay; null when
   /// nothing is running or the leaf is not going anywhere.
-  Vector3? goalOf(BehaviourView view) =>
+  Vector3? goalOf(BehaviorView view) =>
       _runningLeaf(view.board)?.leaf.goal(view);
 
   _Leaf? _runningLeaf(Blackboard board) {
-    if (board.tree != digestHex || !board.running) return null;
+    if (board.tree != digestHex || !board.isRunning) return null;
     return switch (_nodes.elementAtOrNull(board.path.last)) {
       final _Leaf leaf => leaf,
       _ => null,
     };
   }
 
-  BehaviourStatus _tick(_Node node, BehaviourContext context) {
+  BehaviorStatus _tick(_Node node, BehaviorContext context) {
     _stack.add(node.index);
     final status = switch (node) {
       _Leaf() => _leaf(node, context),
@@ -235,22 +268,23 @@ final class BehaviourTree {
       _Selector() => _selector(node, context),
       _Utility() => _utility(node, context),
       _Invert() => switch (_tick(node.child, context)) {
-        BehaviourStatus.success => BehaviourStatus.failure,
-        BehaviourStatus.failure => BehaviourStatus.success,
-        BehaviourStatus.running => BehaviourStatus.running,
+        BehaviorStatus.success => BehaviorStatus.failure,
+        BehaviorStatus.failure => BehaviorStatus.success,
+        BehaviorStatus.running => BehaviorStatus.running,
       },
       _AlwaysSucceed() => switch (_tick(node.child, context)) {
-        BehaviourStatus.running => BehaviourStatus.running,
-        _ => BehaviourStatus.success,
+        BehaviorStatus.running => BehaviorStatus.running,
+        _ => BehaviorStatus.success,
       },
       _Cooldown() => _cooldown(node, context),
+      _Custom() => node.composite.tick(context..node = node.index, node.view),
     };
     _stack.removeLast();
     _statusOf[node.index] = status;
     return status;
   }
 
-  BehaviourStatus _leaf(_Leaf node, BehaviourContext context) {
+  BehaviorStatus _leaf(_Leaf node, BehaviorContext context) {
     // The path is the stack at the last leaf ticked: whatever comes out
     // running returns at once, so no leaf is ticked after the running one.
     _lastPath
@@ -260,7 +294,7 @@ final class BehaviourTree {
     return node.leaf.tick(context);
   }
 
-  BehaviourStatus _sequence(_Sequence node, BehaviourContext context) {
+  BehaviorStatus _sequence(_Sequence node, BehaviorContext context) {
     context.node = node.index;
     final from = switch (context.memory) {
       final num at => at.toInt(),
@@ -268,25 +302,25 @@ final class BehaviourTree {
     };
     for (var i = from; i < node.children.length; i++) {
       final status = _tick(node.children[i], context);
-      if (status == BehaviourStatus.success) continue;
+      if (status == BehaviorStatus.success) continue;
       context.node = node.index;
-      context.memory = status == BehaviourStatus.running ? i : null;
+      context.memory = status == BehaviorStatus.running ? i : null;
       return status;
     }
     context.node = node.index;
     context.memory = null;
-    return BehaviourStatus.success;
+    return BehaviorStatus.success;
   }
 
-  BehaviourStatus _selector(_Selector node, BehaviourContext context) {
+  BehaviorStatus _selector(_Selector node, BehaviorContext context) {
     for (final child in node.children) {
       final status = _tick(child, context);
-      if (status != BehaviourStatus.failure) return status;
+      if (status != BehaviorStatus.failure) return status;
     }
-    return BehaviourStatus.failure;
+    return BehaviorStatus.failure;
   }
 
-  BehaviourStatus _utility(_Utility node, BehaviourContext context) {
+  BehaviorStatus _utility(_Utility node, BehaviorContext context) {
     context.node = node.index;
     final last = switch (context.memory) {
       final num at => at.toInt(),
@@ -295,22 +329,22 @@ final class BehaviourTree {
     final best = node.choose(context, last);
     if (best < 0) {
       context.memory = null;
-      return BehaviourStatus.failure;
+      return BehaviorStatus.failure;
     }
     final status = _tick(node.options[best].child, context);
     context.node = node.index;
-    context.memory = status == BehaviourStatus.running ? best : null;
+    context.memory = status == BehaviorStatus.running ? best : null;
     return status;
   }
 
-  BehaviourStatus _cooldown(_Cooldown node, BehaviourContext context) {
+  BehaviorStatus _cooldown(_Cooldown node, BehaviorContext context) {
     final board = context.board;
     final readyAt = board.readyAt[node.index];
     if (readyAt != null && board.clock < readyAt) {
-      return BehaviourStatus.failure;
+      return BehaviorStatus.failure;
     }
     final status = _tick(node.child, context);
-    if (status != BehaviourStatus.running) {
+    if (status != BehaviorStatus.running) {
       board.readyAt[node.index] = board.clock + node.seconds;
     }
     return status;
@@ -326,7 +360,7 @@ sealed class _Node {
 
 final class _Leaf extends _Node {
   _Leaf(super.index, super.kind, super.label, this.leaf);
-  final BehaviourLeaf leaf;
+  final BehaviorLeaf leaf;
 }
 
 final class _Sequence extends _Node {
@@ -351,8 +385,18 @@ final class _AlwaysSucceed extends _Node {
 
 final class _Cooldown extends _Node {
   _Cooldown(super.index, super.kind, super.label, this.seconds);
+
+  /// How long the child is refused after it finishes, in seconds.
   final double seconds;
   late final _Node child;
+}
+
+/// A composite a game or plugin registered.
+final class _Custom extends _Node {
+  _Custom(super.index, super.kind, super.label, this.composite);
+  final BehaviorComposite composite;
+  final List<_Node> children = <_Node>[];
+  late final BehaviorChildren view;
 }
 
 typedef _Option = ({
@@ -374,10 +418,13 @@ typedef _Option = ({
 /// the document's order is the tie-break and two runs agree on it.
 final class _Utility extends _Node {
   _Utility(super.index, super.kind, super.label, this.inertia);
+
+  /// The score added to the option already running, a unitless score in
+  /// the options' own scale.
   final double inertia;
   final List<_Option> options = <_Option>[];
 
-  int choose(BehaviourContext context, int last) {
+  int choose(BehaviorContext context, int last) {
     var best = -1;
     var bestScore = 0.0;
     for (var i = 0; i < options.length; i++) {
@@ -401,7 +448,7 @@ final class _Utility extends _Node {
 final class _Reader {
   _Reader(this.kinds);
 
-  final BehaviourKinds kinds;
+  final BehaviorKinds kinds;
   final List<_Node> nodes = <_Node>[];
   final List<String> problems = <String>[];
 
@@ -454,14 +501,14 @@ final class _Reader {
         if (child == null) return null;
         return made..child = child;
       case 'cooldown':
-        final params = BehaviourParams(row, where, problems);
+        final params = BehaviorParameters(row, where, problems);
         final made = _Cooldown(index, kind, label, params.number('seconds'));
         nodes.add(made);
         final child = node(row['child'], '$where.child');
         if (child == null) return null;
         return made..child = child;
       case 'utility':
-        final params = BehaviourParams(row, where, problems);
+        final params = BehaviorParameters(row, where, problems);
         final made = _Utility(
           index,
           kind,
@@ -471,6 +518,24 @@ final class _Reader {
         nodes.add(made);
         made.options.addAll(_options(row, where));
         return made;
+    }
+    if (kinds.compositeBuilder(kind) case final CompositeBuilder composite) {
+      final made = _Custom(
+        index,
+        kind,
+        label,
+        composite(BehaviorParameters(row, where, problems)),
+      );
+      nodes.add(made);
+      // A decorator names one `child`; anything else lists `children`.
+      if (row['child'] != null && row['children'] == null) {
+        final child = node(row['child'], '$where.child');
+        if (child == null) return null;
+        made.children.add(child);
+      } else {
+        made.children.addAll(_children(row, where));
+      }
+      return made;
     }
     final build = kinds.leafBuilder(kind);
     if (build == null) {
@@ -483,7 +548,7 @@ final class _Reader {
       index,
       kind,
       label,
-      build(BehaviourParams(row, where, problems)),
+      build(BehaviorParameters(row, where, problems)),
     );
     nodes.add(made);
     return made;
@@ -515,7 +580,7 @@ final class _Reader {
         problems.add('$at: an option is an object with "do"');
         continue;
       }
-      final params = BehaviourParams(option, at, problems);
+      final params = BehaviorParameters(option, at, problems);
       final weight = params.number('weight', 1.0);
       final considerations = _considerations(option['considerations'], at);
       // Named by the option when the child is not, so the overlay says
@@ -555,7 +620,7 @@ final class _Reader {
         );
         continue;
       }
-      read.add(build(BehaviourParams(row, at, problems)));
+      read.add(build(BehaviorParameters(row, at, problems)));
     }
     return read;
   }

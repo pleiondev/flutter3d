@@ -1,0 +1,24 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: f4-audio-AudioIssue'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart']
+      class: 'AudioIssue'
+    changes:
+      - kind: 'rename'
+        newName: 'Issue'
+  - title: 'flutter3d 1.0.0-rc.1: f4-audio-AudioIssueSink'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_audio/flutter3d_audio.dart']
+      typedef: 'AudioIssueSink'
+    changes:
+      - kind: 'rename'
+        newName: 'IssueSink'

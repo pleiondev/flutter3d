@@ -123,7 +123,7 @@ final class ReflectorKind extends _SurfaceKind {
 ///  * `material` — the level material whose surfaces show the picture, as
 ///    light they give off.
 ///  * `width`, `height` — the picture in pixels; 256 by 144.
-///  * `fov` — vertical degrees; sixty.
+///  * `fovY` — vertical degrees; sixty.
 ///  * `once` — true to take the picture once rather than every frame.
 final class CameraScreenKind extends _SurfaceKind {
   const CameraScreenKind() : super(EntityTypes.cameraScreen);

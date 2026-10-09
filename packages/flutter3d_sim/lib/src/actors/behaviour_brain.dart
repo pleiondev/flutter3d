@@ -26,20 +26,24 @@ import 'actor_system.dart';
 import 'behaviour_tree.dart';
 import 'brain.dart';
 
-/// A brain that runs a [BehaviourTree] over the actor's [Blackboard] —
-/// [BehaviourBrain], or a game's own that runs one for part of the time —
-/// so that [BehaviourBrain.pathOf] and [BehaviourBrain.goalOf] can read it
+/// A brain that runs a [BehaviorTree] over the actor's [Blackboard] —
+/// [BehaviorBrain], or a game's own that runs one for part of the time —
+/// so that [BehaviorBrain.pathOf] and [BehaviorBrain.goalOf] can read it
 /// whoever wrote the brain.
-abstract interface class HasBehaviourTree {
-  BehaviourTree get tree;
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class HasBehaviorTree {
+  BehaviorTree get tree;
 }
 
-final class BehaviourBrain extends Brain implements HasBehaviourTree {
-  BehaviourBrain(this.tree);
+final class BehaviorBrain extends Brain implements HasBehaviorTree {
+  BehaviorBrain(this.tree);
 
-  /// Shared by every actor that runs it; see [BehaviourTree].
+  /// Shared by every actor that runs it; see [BehaviorTree].
   @override
-  final BehaviourTree tree;
+  final BehaviorTree tree;
 
   /// Where the last noise this actor heard came from, as a point.
   static const String heard = 'heard';
@@ -91,18 +95,18 @@ final class BehaviourBrain extends Brain implements HasBehaviourTree {
   /// **Reads the board and never makes one**, unlike [boardOf]: this is what
   /// an overlay calls between frames, and an overlay that put a component on
   /// an entity would change the next snapshot by being switched on.
-  static List<BehaviourPathStep> pathOf(Actor actor) =>
+  static List<BehaviorPathStep> pathOf(Actor actor) =>
       switch ((actor.brain, actor.entities.get<Blackboard>(actor.entity))) {
-        (final HasBehaviourTree brain, final Blackboard board) =>
+        (final HasBehaviorTree brain, final Blackboard board) =>
           brain.tree.pathOf(board),
-        _ => const <BehaviourPathStep>[],
+        _ => const <BehaviorPathStep>[],
       };
 
   /// Where [actor]'s running leaf is taking it, or null. Reads, like
   /// [pathOf].
   static Vector3? goalOf(Actor actor, ActorSystem system) =>
       switch ((actor.brain, actor.entities.get<Blackboard>(actor.entity))) {
-        (final HasBehaviourTree brain, final Blackboard board) =>
+        (final HasBehaviorTree brain, final Blackboard board) =>
           brain.tree.goalOf((actor: actor, system: system, board: board)),
         _ => null,
       };

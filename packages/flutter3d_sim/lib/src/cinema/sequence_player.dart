@@ -1,6 +1,7 @@
 /// A cutscene played in the fixed step.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../actors/actor.dart';
@@ -14,11 +15,29 @@ import 'sequence.dart';
 final class SequenceSignal extends GameEvent {
   const SequenceSignal(this.signal, this.data);
 
+  /// The name it is declared and published under. Which signal it is, is
+  /// [signal].
+  static const String eventName = 'sequence.signal';
+
+  /// Its codec: the signal's name and its data, which the document wrote as
+  /// plain values and reads back as they were.
+  static final EventCodec<SequenceSignal> codec = EventCodec<SequenceSignal>.of(
+    encode: (SequenceSignal e) => <String, Object?>{
+      'signal': e.signal,
+      'data': e.data,
+    },
+    decode: (Object? data, int version) => switch (data) {
+      {'signal': final String signal, 'data': final Map<Object?, Object?> d} =>
+        SequenceSignal(signal, d.cast<String, Object?>()),
+      _ => null,
+    },
+  );
+
   final String signal;
   final Map<String, Object?> data;
 
   @override
-  String get name => signal;
+  String get name => eventName;
 }
 
 /// Where a [Sequence] has got to, stepped with the simulation.
@@ -41,7 +60,13 @@ final class SequenceSignal extends GameEvent {
 /// mark, turned or held, and handed back to its brain when it is released
 /// or the cutscene ends. Which cue an actor is under follows from the step
 /// as everything else does, so the directing is saved by saving the step.
-final class SequencePlayer implements ActorDirector {
+///
+/// **In `flutter3d_sim`, though a cutscene looks like the view's**, because
+/// it is played by the step: it directs actors through [ActorDirector],
+/// publishes [SequenceSignal] on the step channel, and a replay steps it as
+/// it steps everything else. What only draws a cutscene — the bars, the
+/// fade, the overlay — is the view's, in `flutter3d_game_ui`.
+final class SequencePlayer with ActorDirector {
   SequencePlayer(this.sequence, {this.events});
 
   /// How near its mark counts as on it, in metres, for an actor sent to one.
@@ -49,8 +74,10 @@ final class SequencePlayer implements ActorDirector {
 
   final Sequence sequence;
 
-  /// Where the signals go, or null for a caller that does not listen.
-  final GameEvents? events;
+  /// The bus the signals are published onto as they fire, or null for a
+  /// caller that does not listen. Set by whoever steps the player — a genre's
+  /// simulation sets its cutscenes' to its own bus.
+  EventRegistry? events;
 
   int _step = 0;
   int _nextSignal = 0;
@@ -58,7 +85,7 @@ final class SequencePlayer implements ActorDirector {
   /// The step the cutscene has reached.
   int get step => _step;
 
-  bool get finished => _step >= sequence.steps;
+  bool get isFinished => _step >= sequence.steps;
 
   /// How many steps are left: what a skip steps the game through.
   int get remaining => sequence.steps - _step;
@@ -66,12 +93,12 @@ final class SequencePlayer implements ActorDirector {
   /// Plays one step: every signal whose moment this step reaches fires, in
   /// order. Nothing, once it has finished.
   void advance() {
-    if (finished) return;
+    if (isFinished) return;
     _step++;
     final signals = sequence.signals;
     while (_nextSignal < signals.length && signals[_nextSignal].step <= _step) {
       final cue = signals[_nextSignal++];
-      events?.add(SequenceSignal(cue.name, cue.data));
+      events?.publish(SequenceSignal(cue.name, cue.data));
     }
   }
 
@@ -94,7 +121,7 @@ final class SequencePlayer implements ActorDirector {
   @override
   bool directs(Actor actor) {
     final name = actor.name;
-    if (name == null || finished || actor.position == null) return false;
+    if (name == null || isFinished || actor.position == null) return false;
     final cue = sequence.cueFor(name, _step);
     return cue != null && cue.kind != ActorCueKind.release;
   }

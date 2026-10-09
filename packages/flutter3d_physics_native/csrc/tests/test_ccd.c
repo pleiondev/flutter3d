@@ -14,7 +14,7 @@
 static F3dWorld *quiet(int speculative) {
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   f3d_world_set_speculative(w, speculative);
   return w;
@@ -194,7 +194,7 @@ static void test_bullet_rolls(void) {
   /* A bullet resting on a floor and pushed along it: it is not held at
    * where each step began. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 50, F3D_R(0.5), 50);
@@ -214,7 +214,7 @@ static void test_onto_a_mesh(void) {
   /* Dropped onto a one-triangle-thick mesh floor at a hundred metres a
    * second: it stops on it. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   const f3d_real v[12] = {-5, 0, -5, 5, 0, -5, 5, 0, 5, -5, 0, 5};
   const uint32_t t[6] = {0, 2, 1, 0, 3, 2};
   const uint32_t mesh = f3d_world_create_mesh(w, v, 4, t, 2);

@@ -10,13 +10,14 @@
 /// that is dearer than going round it.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 
@@ -52,7 +53,7 @@ List<Brush> _tallStep() => <Brush>[
 List<Brush> _ramp() => <Brush>[
   _box(-2, -1, -4, 2, 0, 0),
   Brush(
-    centre: Vector3(0, 0.75, 3),
+    center: Vector3(0, 0.75, 3),
     size: Vector3(4, 1.5, 6),
     ramp: WedgeUphill.positiveZ,
   ),
@@ -66,7 +67,7 @@ List<Brush> _mire() => <Brush>[
   _box(-5, -1, -5, -1, 0, 5),
   _box(1, -1, -5, 5, 0, 5),
   _box(-1, -1, 3, 1, 0, 5),
-  Brush(centre: Vector3(0, -0.5, -1), size: Vector3(2, 1, 8), material: 'mud'),
+  Brush(center: Vector3(0, -0.5, -1), size: Vector3(2, 1, 8), material: 'mud'),
 ];
 
 int _areaOf(Brush brush) => brush.material == 'mud' ? _mud : NavArea.ground;

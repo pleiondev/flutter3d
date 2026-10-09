@@ -22,9 +22,9 @@ typedef BrushFace = ({
   Vector3 normal,
   Vector3 u,
   Vector3 v,
-  double centreX,
-  double centreY,
-  double centreZ,
+  double centerX,
+  double centerY,
+  double centerZ,
   double halfU,
   double halfV,
 });
@@ -121,15 +121,20 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
       final own = perBrush ? '|#$index' : '';
+      final layer = brush.depthLayerIn(level.materialFor(brush));
+      // And by the depth layer, which a batch draws with as one: written
+      // only when it is not nought, so the keys of a level without layers
+      // are the keys they always were.
       final key =
           '${brush.material}|${brush.shadowCasting.name}|$slot$own'
-          '|${brush.drawOrder}';
+          '|${brush.drawOrder}${layer == 0 ? '' : '|L$layer'}';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
           shadowCasting: brush.shadowCasting,
           drawOrder: brush.drawOrder,
+          depthLayer: layer,
           lightmapped: lightmap != null,
           brush: perBrush ? index : null,
         ),
@@ -148,7 +153,7 @@ final class BrushGeometry {
       final planned = layout.faceOf(origins[face.brush], face.face);
       final kept =
           planned != null &&
-          layout.isOnPlane(planned, face.centreX, face.centreY, face.centreZ);
+          layout.isOnPlane(planned, face.centerX, face.centerY, face.centerZ);
       return (kept ? planned : null, true);
     }
 
@@ -158,7 +163,7 @@ final class BrushGeometry {
       _emitFace(
         face,
         level.materialFor(brush),
-        builderFor(face.brush, face.centreX, face.centreY, face.centreZ),
+        builderFor(face.brush, face.centerX, face.centerY, face.centerZ),
         lightmap,
         placed,
         measured: measured,
@@ -168,12 +173,12 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final ramp = brush.ramp;
       if (ramp == null) continue;
-      final centre = brush.centre;
+      final center = brush.center;
       _emitRamp(
         brush,
         ramp,
         level.materialFor(brush),
-        builderFor(index, centre.x, centre.y, centre.z),
+        builderFor(index, center.x, center.y, center.z),
         lightmap,
       );
     }
@@ -207,11 +212,11 @@ final class BrushGeometry {
             normal.x.abs() * half.x +
             normal.y.abs() * half.y +
             normal.z.abs() * half.z;
-        final centreX = brush.centre.x + normal.x * offset;
-        final centreY = brush.centre.y + normal.y * offset;
-        final centreZ = brush.centre.z + normal.z * offset;
+        final centerX = brush.center.x + normal.x * offset;
+        final centerY = brush.center.y + normal.y * offset;
+        final centerZ = brush.center.z + normal.z * offset;
         if (cullHiddenFaces &&
-            index.containsPoint(centreX, centreY, centreZ, brush)) {
+            index.containsPoint(centerX, centerY, centerZ, brush)) {
           continue;
         }
         yield (
@@ -220,9 +225,9 @@ final class BrushGeometry {
           normal: normal,
           u: u,
           v: v,
-          centreX: centreX,
-          centreY: centreY,
-          centreZ: centreZ,
+          centerX: centerX,
+          centerY: centerY,
+          centerZ: centerZ,
           // Half the face, measured along its own two axes.
           halfU: u.x.abs() * half.x + u.y.abs() * half.y + u.z.abs() * half.z,
           halfV: v.x.abs() * half.x + v.y.abs() * half.y + v.z.abs() * half.z,
@@ -239,13 +244,13 @@ final class BrushGeometry {
     LightmapFace? placed, {
     required bool measured,
   }) {
-    final scale = material.texelsPerMetre;
+    final scale = material.texelsPerMeter;
     final normal = face.normal;
     final u = face.u;
     final v = face.v;
-    final centreX = face.centreX;
-    final centreY = face.centreY;
-    final centreZ = face.centreZ;
+    final centerX = face.centerX;
+    final centerY = face.centerY;
+    final centerZ = face.centerZ;
     final halfU = face.halfU;
     final halfV = face.halfV;
 
@@ -256,9 +261,9 @@ final class BrushGeometry {
       (1.0, 1.0),
       (-1.0, 1.0),
     ]) {
-      final x = centreX + u.x * halfU * su + v.x * halfV * sv;
-      final y = centreY + u.y * halfU * su + v.y * halfV * sv;
-      final z = centreZ + u.z * halfU * su + v.z * halfV * sv;
+      final x = centerX + u.x * halfU * su + v.x * halfV * sv;
+      final y = centerY + u.y * halfU * su + v.y * halfV * sv;
+      final z = centerZ + u.z * halfU * su + v.z * halfV * sv;
       final (lu, lv) = switch ((lightmap, placed)) {
         (final layout?, final at?) =>
           measured ? layout.uvOfPoint(at, x, y, z) : layout.uvAt(at, su, sv),
@@ -310,8 +315,8 @@ final class BrushGeometry {
     LightmapLayout? lightmap,
   ) {
     final half = brush.halfExtents;
-    final centre = brush.centre;
-    final scale = material.texelsPerMetre;
+    final center = brush.center;
+    final scale = material.texelsPerMeter;
     final axis = uphill.axis;
     final side = axis == 0 ? 2 : 0;
     final (lightmapU, lightmapV) = lightmap?.neutralUv ?? (0.0, 0.0);
@@ -333,9 +338,9 @@ final class BrushGeometry {
       (1.0, 1.0),
       (-1.0, 1.0),
     ]) {
-      final x = centre.x + u.x * halfU * su + v.x * halfV * sv;
-      final y = centre.y + u.y * halfU * su + v.y * halfV * sv;
-      final z = centre.z + u.z * halfU * su + v.z * halfV * sv;
+      final x = center.x + u.x * halfU * su + v.x * halfV * sv;
+      final y = center.y + u.y * halfU * su + v.y * halfV * sv;
+      final z = center.z + u.z * halfU * su + v.z * halfV * sv;
       out.addVertex(
         x,
         y,
@@ -356,14 +361,14 @@ final class BrushGeometry {
 
     // The two ends, which are right-angled triangles: along the floor from the
     // thin edge to the tall end, and up the tall end to the top of the slope.
-    final thin = centre[axis] - uphill.sign * half[axis];
-    final tall = centre[axis] + uphill.sign * half[axis];
-    final bottom = centre.y - half.y;
-    final top = centre.y + half.y;
+    final thin = center[axis] - uphill.sign * half[axis];
+    final tall = center[axis] + uphill.sign * half[axis];
+    final bottom = center.y - half.y;
+    final top = center.y + half.y;
 
     for (final outward in <double>[-1.0, 1.0]) {
       final faceNormal = Vector3.zero()..[side] = outward;
-      final at = centre[side] + outward * half[side];
+      final at = center[side] + outward * half[side];
       final corners = <Vector3>[
         _at(axis, side, thin, bottom, at),
         _at(axis, side, tall, bottom, at),

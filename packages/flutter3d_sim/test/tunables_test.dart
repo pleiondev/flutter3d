@@ -18,7 +18,7 @@ final class _Walker {
   double x = 0.0;
 
   void step(InputState input) {
-    tunables.take(input);
+    tunables.readFrom(input);
     x += tunables['speed'] * 0.1;
   }
 }
@@ -88,18 +88,18 @@ void main() {
 
   test('a name the table does not declare is ignored', () {
     final tunables = Tunables(const <String, double>{'speed': 1.0});
-    tunables.take(InputState()..tune('gravity', 5.0));
+    tunables.readFrom(InputState()..tune('gravity', 5.0));
     expect(tunables.values.keys, <String>['speed']);
     expect(() => tunables['gravity'], throwsArgumentError);
   });
 
   test('a snapshot holds what was tuned, and a restore puts it back', () {
     final tunables = Tunables(const <String, double>{'speed': 1.0, 'jump': 2.0})
-      ..take(InputState()..tune('speed', 4.0));
+      ..readFrom(InputState()..tune('speed', 4.0));
     final saved = tunables.toJson();
     expect(saved, <String, Object?>{'speed': 4.0});
 
-    tunables.take(InputState()..tune('jump', 7.0));
+    tunables.readFrom(InputState()..tune('jump', 7.0));
     tunables.restore(saved);
     expect(tunables.values, <String, double>{'speed': 4.0, 'jump': 2.0});
   });

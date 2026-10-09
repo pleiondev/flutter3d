@@ -21,9 +21,11 @@ F3dWorld *f3d_world_create(void) {
   F3dWorld *world = (F3dWorld *)f3d_alloc(sizeof(F3dWorld));
   if (world == NULL) return NULL;
   f3d_zero(world, sizeof(F3dWorld));
-  world->s.gravity.y = F3D_R(-9.81);
-  world->s.air_temperature = F3D_R(293.15);
-  world->s.air_density = F3D_R(1.204);
+  /* The standard world's, as flutter3d_physics' standard_world.dart writes
+   * them (f3d_materials.g.h). */
+  world->s.gravity.y = -F3D_STANDARD_GRAVITY;
+  world->s.air_temperature = F3D_STANDARD_AIR_TEMPERATURE;
+  world->s.air_density = F3D_STANDARD_AIR_DENSITY;
   world->s.sleep_speed = F3D_R(0.05);
   world->s.sleep_time = F3D_R(0.5);
   world->s.contact_margin = F3D_R(0.02);
@@ -346,7 +348,10 @@ static uint32_t take_slot(F3dWorld *world) {
 
 F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
                         f3d_real py, f3d_real pz, f3d_real mass) {
-  if (type != F3D_BODY_DYNAMIC && type != F3D_BODY_FIXED) return 0;
+  if (type != F3D_BODY_DYNAMIC && type != F3D_BODY_FIXED &&
+      type != F3D_BODY_KINEMATIC) {
+    return 0;
+  }
   if (!f3d_finite(px) || !f3d_finite(py) || !f3d_finite(pz)) return 0;
   if (type == F3D_BODY_DYNAMIC && !(f3d_finite(mass) && mass > F3D_R(0.0))) {
     return 0;
@@ -418,6 +423,46 @@ void f3d_wake(F3dWorld *world, F3dSlot *s) {
 }
 
 
+int f3d_body_move_kinematic(F3dWorld *world, F3dBody body, f3d_real x,
+                            f3d_real y, f3d_real z, f3d_real qx, f3d_real qy,
+                            f3d_real qz, f3d_real qw, f3d_real dt) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || s->type != F3D_BODY_KINEMATIC || !finite3(x, y, z) ||
+      !finite3(qx, qy, qz) || !f3d_finite(qw) || !(f3d_finite(dt) && dt > F3D_R(0.0))) {
+    return 0;
+  }
+  const f3d_real len = f3d_sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
+  if (!(len > F3D_R(0.0))) return 0;
+  qx /= len;
+  qy /= len;
+  qz /= len;
+  qw /= len;
+  /* The turn from where it is to where it goes, the short way round:
+   * d = q_to · q_from⁻¹, its angle 2·atan2(|v|, w) about v / |v|. */
+  const F3dQuat q = s->orientation;
+  f3d_real dx = qw * -q.x + qx * q.w + qy * -q.z - qz * -q.y;
+  f3d_real dy = qw * -q.y - qx * -q.z + qy * q.w + qz * -q.x;
+  f3d_real dz = qw * -q.z + qx * -q.y - qy * -q.x + qz * q.w;
+  f3d_real dw = qw * q.w + qx * q.x + qy * q.y + qz * q.z;
+  if (dw < F3D_R(0.0)) {
+    dx = -dx;
+    dy = -dy;
+    dz = -dz;
+    dw = -dw;
+  }
+  const f3d_real sv = f3d_sqrt(dx * dx + dy * dy + dz * dz);
+  F3dVec3 spin = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  if (sv > F3D_R(0.0)) {
+    const f3d_real angle = F3D_R(2.0) * f3d_atan2(sv, dw);
+    spin = f3d_v3(dx * angle / (sv * dt), dy * angle / (sv * dt), dz * angle / (sv * dt));
+  }
+  s->velocity = f3d_v3((x - s->position.x) / dt, (y - s->position.y) / dt,
+                       (z - s->position.z) / dt);
+  s->spin = spin;
+  f3d_wake(world, s);
+  return 1;
+}
+
 int f3d_body_set_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                           f3d_real y, f3d_real z) {
   F3dSlot *s = f3d_slot_of(world, body);
@@ -465,7 +510,8 @@ int f3d_body_set_angular_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                                   f3d_real y, f3d_real z) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !finite3(x, y, z)) return 0;
-  if (!f3d_turns(s)) return 1;
+  /* A kinematic body turns as it is told, whatever its inertia. */
+  if (!f3d_turns(s) && s->type != F3D_BODY_KINEMATIC) return 1;
   set3(&s->spin, x, y, z);
   f3d_wake(world, s);
   return 1;
@@ -735,12 +781,15 @@ uint32_t f3d_world_read_transforms(const F3dWorld *world, f3d_real *transforms,
   return written;
 }
 
-/* One fire's reals: where, the watts, and its flame. */
+/* One fire's reals: where, the watts, its flame, its base, and what its
+ * flame, of [flame], is like. */
 static void write_fire(const F3dWorld *world, f3d_real *f, F3dVec3 at,
-                       f3d_real surface, f3d_real involved, f3d_real release) {
+                       f3d_real surface, f3d_real involved, f3d_real release,
+                       const F3dMaterial *flame) {
   F3dVec3 axis;
   const f3d_real reach =
       f3d_flame_of(world, at, surface, involved, release, &axis);
+  const f3d_real alight = f3d_min(involved, surface);
   f[0] = at.x;
   f[1] = at.y;
   f[2] = at.z;
@@ -749,6 +798,15 @@ static void write_fire(const F3dWorld *world, f3d_real *f, F3dVec3 at,
   f[5] = axis.x;
   f[6] = axis.y;
   f[7] = axis.z;
+  f[8] = F3D_R(2.0) * f3d_sqrt(f3d_max(alight, F3D_R(0.0)) / (F3D_R(4.0) * F3D_PI));
+  f[9] = surface > F3D_R(0.0) ? f3d_clamp(alight / surface, F3D_R(0.0), F3D_R(1.0))
+                              : F3D_R(0.0);
+  f[10] = flame->soot_temperature > F3D_R(0.0) ? flame->soot_temperature
+                                              : flame->flame_temperature;
+  f[11] = flame->flame_radiant;
+  f[12] = flame->heat_of_combustion > F3D_R(0.0)
+              ? flame->soot_yield / flame->heat_of_combustion
+              : F3D_R(0.0);
 }
 
 uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
@@ -768,14 +826,16 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
             &world->compound_parts[world->compounds[s->hull - 1u].first_part + k];
         write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, at,
                    f3d_shape_surface(world, p->kind, p->size, p->rounding, p->hull),
-                   l->involved, l->heat_release);
+                   l->involved, l->heat_release,
+                   (l->burning & F3D_LUMP_OWN) ? &s->material : &s->burner);
         if (handles != NULL) handles[written] = handle_of(i, s->generation);
         written++;
       }
       continue;
     }
     write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, s->position,
-               s->surface, s->involved, s->heat_release);
+               s->surface, s->involved, s->heat_release,
+               (s->flags & F3D_FLAG_OWN_FIRE) || !(s->feed > F3D_R(0.0)) ? &s->material : &s->burner);
     if (handles != NULL) handles[written] = handle_of(i, s->generation);
     written++;
   }

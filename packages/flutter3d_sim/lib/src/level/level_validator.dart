@@ -54,7 +54,9 @@ final class LevelValidator {
     } on LevelFormatException catch (e) {
       return <LevelIssue>[LevelIssue(LevelIssueSeverity.error, e.message)];
     }
-    final issues = <LevelIssue>[];
+    // Said about the document as written: an override addressed to an
+    // entity its template no longer has is invisible once expanded.
+    final issues = <LevelIssue>[...prefabIssues(authored)];
     final scope = LevelScope(level);
 
     _checkBrushes(level, issues);

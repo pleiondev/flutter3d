@@ -48,6 +48,9 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 import 'game_random.dart' show GameRandom;
 import 'snapshot.dart' show Snapshot;
 
@@ -257,9 +260,10 @@ String contentDigestHex(Map<String, Object?> json) =>
     StateDigest.of(json).toRadixString(16).padLeft(8, '0');
 
 /// Thrown when a [DigestTrace] cannot be read back at all.
-final class DigestTraceFormatException implements Exception {
+final class DigestTraceFormatException extends Flutter3dFormatException {
   const DigestTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override

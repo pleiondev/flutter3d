@@ -28,7 +28,7 @@ void main() {
   });
 
   test('oil floats on water, each its own layer, densest at the bottom', () {
-    final body = _tube(FluidMedium.oil, 1e-6);
+    final body = _tube(FluidMedium.oliveOil, 1e-6);
     body.pour(2e-6, medium: FluidMedium.water);
     expect(body.layers.map((l) => l.medium.name), ['water', 'oil']);
     expect(body.medium.name, 'oil');
@@ -46,7 +46,7 @@ void main() {
 
   test('a tipped glass pours its top layer first', () {
     final body = _tube(FluidMedium.water, 5e-5);
-    body.pour(2e-6, medium: FluidMedium.oil);
+    body.pour(2e-6, medium: FluidMedium.oliveOil);
     var oil = 0.0, water = 0.0;
     for (var i = 0; i < 3000; i++) {
       // Tipped far enough that the still surface lets more than the oil
@@ -67,7 +67,7 @@ void main() {
 
   test('a pipe at the floor draws the bottom layer', () {
     final a = _tube(FluidMedium.water, 1e-5);
-    a.pour(5e-6, medium: FluidMedium.oil);
+    a.pour(5e-6, medium: FluidMedium.oliveOil);
     final b = _tube(FluidMedium.water, 1e-6);
     final pipe = Pipe(
       from: a,
@@ -100,12 +100,12 @@ void main() {
       ..step(1e-4, gravity: Vector3(0, -9.81, 0));
     final water = body.meniscusAt(Vector3(0.01, 0, 0));
     body
-      ..pour(4e-6, medium: FluidMedium.oil)
+      ..pour(4e-6, medium: FluidMedium.oliveOil)
       ..place(Matrix3.identity(), Vector3.zero())
       ..step(1e-4, gravity: Vector3(0, -9.81, 0));
     final oil = body.meniscusAt(Vector3(0.01, 0, 0));
     final expected = TubeMeniscus(
-      medium: FluidMedium.oil,
+      medium: FluidMedium.oliveOil,
       radius: 0.01,
       g: 9.81,
     );

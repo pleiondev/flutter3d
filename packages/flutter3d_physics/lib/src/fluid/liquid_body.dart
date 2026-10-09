@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../portable_math.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
@@ -45,7 +46,7 @@ final class Spill {
   /// How it left: at the crest's speed, along the glass and outwards.
   final Vector3 velocity;
 
-  /// How wide the sheet over the lip is.
+  /// How wide the sheet over the lip is, in metres.
   final double width;
 }
 
@@ -67,7 +68,7 @@ final class Spill {
 /// volume below it. The waves and the meniscus are the top liquid's, what
 /// runs over the lip is the top layer, and a pipe draws on the layer at its
 /// opening.
-final class LiquidBody implements JetReceiver {
+final class LiquidBody with JetReceiver {
   LiquidBody({
     required this.shape,
     required FluidMedium medium,
@@ -120,7 +121,7 @@ final class LiquidBody implements JetReceiver {
       _layers.isEmpty ? surface.medium : _layers.last.medium;
 
   /// How thick the vessel's wall is, for a stream that runs down its
-  /// outside; nought for none.
+  /// outside, in metres; nought for none.
   final double wallThickness;
 
   /// The seconds this liquid has been stepped through: what [place] stamps
@@ -140,6 +141,8 @@ final class LiquidBody implements JetReceiver {
   /// and the height of the surface's plane along it.
   Vector3 get up => _up.clone();
   Vector3 _up = Vector3(0, 1, 0);
+
+  /// The height of the surface's plane along [up], in metres.
   double get height => surface.height;
 
   /// Puts the vessel at [at], turned by [turn], as it is at [time] seconds
@@ -228,9 +231,9 @@ final class LiquidBody implements JetReceiver {
     return Vector3(x, y, z);
   }
 
-  /// Whether anything within [distance] of [centre] (world) could be at
+  /// Whether anything within [distance] of [center] (world) could be at
   /// this vessel's walls: by the ball round its inside.
-  bool _reaches(Vector3 centre, double distance) {
+  bool _reaches(Vector3 center, double distance) {
     final shape = this.shape;
     if (shape is! RevolvedVessel) return true;
     final half = 0.5 * (shape.top - shape.floor);
@@ -239,7 +242,7 @@ final class LiquidBody implements JetReceiver {
         rotation.transformed(Vector3(0, 0.5 * (shape.top + shape.floor), 0));
     final ball =
         math.sqrt(shape.widest * shape.widest + half * half) + distance;
-    return centre.distanceToSquared(middle) < ball * ball;
+    return center.distanceToSquared(middle) < ball * ball;
   }
 
   Vector3 _toLocal(Vector3 point) =>
@@ -298,7 +301,7 @@ final class LiquidBody implements JetReceiver {
     final out = <LiquidLayer>[];
     var left = amount;
     for (var i = first; i < _layers.length && left > 0.0; i++) {
-      final taken = _layers[i].take(left);
+      final taken = _layers[i].withdraw(left);
       left -= taken.volume;
       if (taken.volume > 0.0) out.add(taken);
     }
@@ -382,7 +385,7 @@ final class LiquidBody implements JetReceiver {
   /// Falls asleep after a step in which it was still: placed where it was
   /// placed the last two times, running nothing over, its waves gone.
   void _maybeSleep(Vector3 gravity, Spill spill) {
-    if (spill.flow > 0.0 || !surface.quiet) return;
+    if (spill.flow > 0.0 || !surface.isQuiet) return;
     if (_history.length < 2) return;
     for (final h in _history) {
       if (h.at != position) return;
@@ -435,7 +438,7 @@ final class LiquidBody implements JetReceiver {
 
   /// The gravity the liquid felt on its last step, m/s².
   double get gravity => _g;
-  double _g = 9.81;
+  double _g = standardGravity;
 
   /// How far the meniscus stands over [point] (vessel frame) above the flat
   /// surface of the same volume — up at a wall the liquid wets, down at one
@@ -592,7 +595,7 @@ final class LiquidBody implements JetReceiver {
     final out = math.min(flow * dt, top.volume);
     final concentrations = top.concentrations;
     final what = top.medium;
-    top.take(out);
+    top.withdraw(out);
     if (top.volume <= 1e-15 && _layers.length > 1) _layers.removeLast();
     surface.medium = medium;
     flow = dt > 0.0 ? out / dt : 0.0;
@@ -615,14 +618,14 @@ final class LiquidBody implements JetReceiver {
 /// The inside of a [LiquidBody]'s vessel as a wall a stream runs along: for
 /// a [RevolvedVessel], the side and the floor; another shape has no walls
 /// yet, and a stream passes through it.
-final class InsideWalls implements JetObstacle {
+final class InsideWalls with JetObstacle {
   InsideWalls(this.body);
 
   final LiquidBody body;
 
   @override
-  bool reaches(Vector3 centre, double distance) =>
-      body._reaches(centre, distance + body.wallThickness);
+  bool reaches(Vector3 center, double distance) =>
+      body._reaches(center, distance + body.wallThickness);
 
   @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
@@ -656,15 +659,17 @@ final class InsideWalls implements JetObstacle {
 /// The outside of a [LiquidBody]'s vessel, [thickness] out from its inside,
 /// as a wall a stream runs along: what a slow pour clings to below the lip.
 /// For a [RevolvedVessel]; another shape has none yet.
-final class OutsideWalls implements JetObstacle {
+final class OutsideWalls with JetObstacle {
   OutsideWalls(this.body, {required this.thickness});
 
   final LiquidBody body;
+
+  /// How far out from the vessel's inside the outside is, in metres.
   final double thickness;
 
   @override
-  bool reaches(Vector3 centre, double distance) =>
-      body._reaches(centre, distance + thickness);
+  bool reaches(Vector3 center, double distance) =>
+      body._reaches(center, distance + thickness);
 
   @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {

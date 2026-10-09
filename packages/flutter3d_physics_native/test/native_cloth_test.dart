@@ -51,7 +51,7 @@ void main() {
     final cloth = NativeCloth(_sheet(12));
     addTearDown(cloth.dispose);
     expect(cloth.pointCount, 144);
-    expect(cloth.colourCount, inInclusiveRange(12, 24));
+    expect(cloth.colorCount, inInclusiveRange(12, 24));
     expect(cloth.read(), isNull);
     final settings = CoreClothSettings(damping: 1.0);
     for (var i = 0; i < 120; i++) {
@@ -82,7 +82,7 @@ void main() {
     final cloth = NativeCloth(_sheet(4));
     expect(
       () => cloth.setBalls(
-        List.filled(17, (centre: Vector3.zero(), radius: 1.0)),
+        List.filled(17, (center: Vector3.zero(), radius: 1.0)),
       ),
       throwsArgumentError,
     );
@@ -91,7 +91,7 @@ void main() {
     cloth.dispose();
   });
 
-  final gpu = NativeGpu.open();
+  final gpu = _openGpu();
   group(
     'on the GPU',
     skip: gpu == null ? 'no GPU adapter, or no GPU library' : null,
@@ -109,7 +109,7 @@ void main() {
               (
                 CoreClothMesh,
                 CoreClothSettings,
-                List<({Vector3 centre, double radius})>,
+                List<({Vector3 center, double radius})>,
               )
             >[
               (
@@ -120,7 +120,7 @@ void main() {
                   compliances: <double>[0.0],
                 ),
                 CoreClothSettings(damping: 0.0),
-                <({Vector3 centre, double radius})>[],
+                <({Vector3 center, double radius})>[],
               ),
               (
                 CoreClothMesh(
@@ -134,7 +134,7 @@ void main() {
                   wind: Vector3(3.0, 0.0, 0.0),
                   drag: 0.5,
                 ),
-                <({Vector3 centre, double radius})>[],
+                <({Vector3 center, double radius})>[],
               ),
               (
                 CoreClothMesh(
@@ -147,8 +147,8 @@ void main() {
                   compliances: <double>[1e-6],
                 ),
                 CoreClothSettings(floorY: 0.0, friction: 0.2),
-                <({Vector3 centre, double radius})>[
-                  (centre: Vector3(0.0, 0.3, 0.0), radius: 0.3),
+                <({Vector3 center, double radius})>[
+                  (center: Vector3(0.0, 0.3, 0.0), radius: 0.3),
                 ],
               ),
               (
@@ -168,7 +168,7 @@ void main() {
                   wind: Vector3(2.0, 0.0, 1.0),
                   drag: 1.0,
                 ),
-                <({Vector3 centre, double radius})>[],
+                <({Vector3 center, double radius})>[],
               ),
             ];
         for (final (mesh, settings, balls) in scenes) {
@@ -252,4 +252,13 @@ void main() {
       });
     },
   );
+}
+
+/// The machine's GPU, or null when it has none for the passes to run on.
+NativeGpu? _openGpu() {
+  try {
+    return NativeGpu.open();
+  } on GpuUnavailable {
+    return null;
+  }
 }

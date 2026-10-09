@@ -70,7 +70,7 @@ final class SpawnContext {
   final MechanismWorld mechanisms;
 
   /// The level being spawned — what an entity's names resolve against, a
-  /// monster's `behaviour` among them. Set by `spawnInto` for the length of
+  /// monster's `behavior` among them. Set by `spawnInto` for the length of
   /// the spawn; null for a context a caller drives by hand.
   Level? level;
 

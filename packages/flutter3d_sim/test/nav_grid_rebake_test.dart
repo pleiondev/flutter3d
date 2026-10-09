@@ -2,11 +2,15 @@
 /// whole bake of the broken level makes, cell for cell.
 ///
 ///     flutter test test/nav_grid_rebake_test.dart
+///
+/// The levels are read from the disk, which a browser has none of.
+@TestOn('vm')
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -53,10 +57,10 @@ void main() {
         name: 'walled',
         brushes: <Brush>[
           Brush(
-            centre: Vector3(0.0, -0.5, 0.0),
+            center: Vector3(0.0, -0.5, 0.0),
             size: Vector3(20.0, 1.0, 20.0),
           ),
-          Brush(centre: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
+          Brush(center: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
         ],
       );
       final hole = Aabb3.minMax(

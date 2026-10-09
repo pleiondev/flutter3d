@@ -6,6 +6,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -14,7 +16,7 @@ const double _dt = 1.0 / 60.0;
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 
@@ -27,11 +29,11 @@ List<Brush> _rooms() => <Brush>[
 ];
 
 /// The guard's own wish: stand at its post in the west room.
-final BehaviourTree _guarding = BehaviourTree.read(const <String, Object?>{
+final BehaviorTree _guarding = BehaviorTree.read(const <String, Object?>{
   'kind': 'goTo',
   'key': 'post',
   'within': 0.3,
-}, BehaviourKinds()).tree!;
+}, BehaviorKinds()).tree!;
 
 /// Four seconds: the guard sent through the doorway to the east room, made
 /// to look north there, and released a second before the end.
@@ -57,15 +59,15 @@ const Map<String, Object?> _scene = <String, Object?>{
 final class _Stage {
   _Stage({required bool directed}) {
     for (final brush in _rooms()) {
-      world.addBox(brush.centre, brush.size);
+      world.addBox(brush.center, brush.size);
     }
     world.update();
     system.navMeshes = <NavMesh>[
-      NavMesh.bake(_rooms(), config: const NavMeshConfig(agentRadius: 0.35)),
+      NavMesh.bake(_rooms(), config: const NavMeshSettings(agentRadius: 0.35)),
     ];
     final guard = system.spawn(
       body: CharacterController(world: world, position: Vector3(-4, 0.9, -2)),
-      brain: BehaviourBrain(_guarding),
+      brain: BehaviorBrain(_guarding),
       facing: Facing(),
       name: 'guard',
     );

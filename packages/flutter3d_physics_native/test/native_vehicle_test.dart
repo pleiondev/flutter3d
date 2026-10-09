@@ -33,14 +33,17 @@ void main() {
       (-0.8, -1.3),
       (0.8, -1.3),
     ]) {
-      world.addWheel(car, (
-        attach: Vector3(x, -0.2, z),
-        rest: 0.4,
-        radius: 0.35,
-        stiffness: 30000.0,
-        damping: 3000.0,
-        grip: 1.0,
-      ));
+      world.addWheel(
+        car,
+        NativeWheelSettings(
+          attach: Vector3(x, -0.2, z),
+          rest: 0.4,
+          radius: 0.35,
+          stiffness: 30000.0,
+          damping: 3000.0,
+          grip: 1.0,
+        ),
+      );
     }
     expect(world.wheelCount(car), 4);
     for (var i = 0; i < 180; i++) {
@@ -53,9 +56,10 @@ void main() {
     final standing = world.wheelsOf(car);
     expect(standing.every((w) => w.touching), isTrue);
     // The chassis falls asleep within a millimetre of rest, its springs
-    // read where it stopped: half a per cent off statics.
-    expect(standing.first.force, closeTo(1200.0 * 9.81 / 4.0, 15.0));
-    expect(standing.first.centre.y, closeTo(0.35, 2e-3));
+    // read where it stopped: a millimetre of a 30 kN/m spring is 30 N, about
+    // one per cent of statics.
+    expect(standing.first.force, closeTo(1200.0 * 9.81 / 4.0, 30.0));
+    expect(standing.first.center.y, closeTo(0.35, 2e-3));
     world
       ..setWheel(car, 2, drive: 1200.0)
       ..setWheel(car, 3, drive: 1200.0)

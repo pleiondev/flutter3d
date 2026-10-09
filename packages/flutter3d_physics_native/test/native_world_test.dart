@@ -7,6 +7,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -145,7 +146,7 @@ void main() {
     }
     for (final (dart, native) in bodies) {
       final a = dart.position;
-      final b = world.positionOf(native);
+      final b = world.localPositionOf(native);
       final scale = math.max(1.0, a.length);
       expect((a - b).length / scale, lessThan(1e-4), reason: '$a vs $b');
     }
@@ -293,14 +294,14 @@ void main() {
     // the world moved.
     world.gravity = Vector3.zero();
     final far = world.addBody(position: Vector3(10000.0, 0.0, 0.0));
-    world.shiftOrigin(10000.0, 0.0, 0.0);
-    expect(world.origin, (x: 10000.0, y: 0.0, z: 0.0));
-    expect(world.positionOf(far), Vector3.zero());
-    expect(world.worldPositionOf(far).x, 10000.0);
+    world.moveOriginTo(const WorldPosition(10000.0, 0.0, 0.0));
+    expect(world.origin, const WorldPosition(10000.0, 0.0, 0.0));
+    expect(world.localPositionOf(far), Vector3.zero());
+    expect(world.positionOf(far).x, 10000.0);
     world
       ..setVelocity(far, Vector3(1e-6, 0.0, 0.0))
       ..step(1.0);
-    expect(world.worldPositionOf(far).x - 10000.0, closeTo(1e-6, 1e-12));
+    expect(world.positionOf(far).x - 10000.0, closeTo(1e-6, 1e-12));
   });
 
   test('a world restored from a snapshot steps to the same bytes', () {
@@ -362,5 +363,44 @@ void main() {
       throwsArgumentError,
     );
     expect(other.snapshot(), before);
+  });
+
+  test('a kinematic body goes where it is sent and pushes what is there', () {
+    final floor = world.addBody(
+      position: Vector3(0.0, -0.5, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world.setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)));
+    final box = world.addBody(position: Vector3(2.0, 0.25, 0.0), mass: 5.0);
+    world.setShape(box, NativeShape.box(Vector3.all(0.25)));
+    final paddle = world.addBody(
+      position: Vector3(0.0, 0.5, 0.0),
+      type: NativeBodyType.kinematic,
+      mass: 0.0,
+    );
+    world.setShape(paddle, NativeShape.box(Vector3(0.1, 0.5, 0.5)));
+    final turned = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2);
+    // A second's walk: four metres along, a quarter turn, the box ahead.
+    for (var i = 1; i <= 60; i++) {
+      world
+        ..moveKinematic(
+          paddle,
+          Vector3(4.0 * i / 60, 0.5, 0.0),
+          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2 * i / 60),
+          1.0 / 60.0,
+        )
+        ..step(1.0 / 60.0);
+    }
+    expect(world.positionOf(paddle).x, closeTo(4.0, 1e-3));
+    expect(world.positionOf(paddle).y, closeTo(0.5, 1e-5));
+    final q = world.orientationOf(paddle);
+    expect((q.y * turned.y + q.w * turned.w).abs(), closeTo(1.0, 1e-3));
+    // Mutation: kinematic treated as fixed — the box never moves.
+    expect(world.positionOf(box).x, greaterThan(2.5));
+    expect(
+      () => world.moveKinematic(box, Vector3.zero(), Quaternion.identity(), 1),
+      throwsArgumentError,
+    );
   });
 }

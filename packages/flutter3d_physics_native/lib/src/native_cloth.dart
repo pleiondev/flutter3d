@@ -3,9 +3,11 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/core.dart' as c;
+import 'native_world.dart';
 
 /// The points of a cloth and the constraints between them, each held at
 /// the distance it starts at.
@@ -91,8 +93,17 @@ final class ClothMesh {
 }
 
 /// How cloth moves. Sixteen substeps hold a sheet to under 2% stretch.
+///
+/// **Its gravity and its wind are its world's.** Given a [world], a sheet
+/// falls as that world does and its air moves with that world's wind (at
+/// the world's origin — `NativeWorld.windAt`); given neither, it falls by
+/// [standardGravityVector] in still air. Read when the settings are made,
+/// and the settings are handed to every step — so a game that changes its
+/// world's gravity or wind mid-run makes them again and the cloth follows
+/// from that step on. The wind moves the cloth only with a [drag].
 final class ClothSettings {
   ClothSettings({
+    NativeWorld? world,
     Vector3? gravity,
     Vector3? wind,
     this.drag = 0.0,
@@ -101,23 +112,53 @@ final class ClothSettings {
     this.thickness = 0.01,
     this.friction = 0.3,
     this.substeps = 16,
-  }) : gravity = gravity ?? Vector3(0.0, -9.81, 0.0),
-       wind = wind ?? Vector3.zero();
+  }) : gravity = gravity ?? world?.gravity ?? standardGravityVector,
+       wind = wind ?? world?.windAt(Vector3.zero()) ?? Vector3.zero();
+
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  ClothSettings copyWith({
+    Vector3? gravity,
+    Vector3? wind,
+    double? drag,
+    double? damping,
+    double? floorY,
+    double? thickness,
+    double? friction,
+    int? substeps,
+    bool clearGravity = false,
+    bool clearWind = false,
+  }) => ClothSettings(
+    gravity: clearGravity ? null : (gravity ?? this.gravity),
+    wind: clearWind ? null : (wind ?? this.wind),
+    drag: drag ?? this.drag,
+    damping: damping ?? this.damping,
+    floorY: floorY ?? this.floorY,
+    thickness: thickness ?? this.thickness,
+    friction: friction ?? this.friction,
+    substeps: substeps ?? this.substeps,
+  );
 
   final Vector3 gravity;
 
   /// The air's velocity, and how fast a point drifts to it, per second.
   final Vector3 wind;
+
+  /// How fast a point drifts to the [wind], per second, as
+  /// v' = w + (v − w) / (1 + drag dt).
   final double drag;
 
   /// Per second, as v / (1 + c dt).
   final double damping;
+
+  /// The floor's height, in metres.
   final double floorY;
 
-  /// How far from a ball or the floor a point is held.
+  /// How far from a ball or the floor a point is held, in metres.
   final double thickness;
 
-  /// The part of a touching point's slide taken away each substep.
+  /// The part of a touching point's slide taken away each substep: a
+  /// fraction, 0..1.
   final double friction;
   final int substeps;
 }
@@ -136,19 +177,23 @@ typedef ClothFrame = ({int step, Float32List points});
 
 /// A cloth: on the CPU ([NativeCloth]) or the GPU ([GpuCloth]), the same
 /// passes. Visual, not the game's state.
-abstract interface class ClothSystem {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ClothSystem {
   int get pointCount;
 
   /// The balls the cloth falls on, replacing the last: at most 16.
-  void setBalls(List<({Vector3 centre, double radius})> balls);
+  void setBalls(List<({Vector3 center, double radius})> balls);
 
   /// Puts point [index] at [at], still: how a pinned point is carried.
   void movePoint(int index, Vector3 at);
 
   void step(ClothSettings settings, double dt);
 
-  /// The latest step's points not read yet, or null when there is none. On
-  /// the GPU, without [wait], a frame late.
+  /// The latest step's points not read yet; null when there is none
+  /// (absent, not an error). On the GPU, without [wait], a frame late.
   ClothFrame? read({bool wait = true});
 
   void dispose();
@@ -208,15 +253,15 @@ int createCoreCloth(ClothMesh mesh) {
   }
 }
 
-c.F32s packClothBalls(List<({Vector3 centre, double radius})> balls) {
+c.F32s packClothBalls(List<({Vector3 center, double radius})> balls) {
   if (balls.length > c.clothMaxBalls) {
     throw ArgumentError.value(balls.length, 'balls', 'more than 16');
   }
   final data = c.F32s.alloc(balls.isEmpty ? 4 : balls.length * 4);
   for (var i = 0; i < balls.length; i++) {
-    data[i * 4] = balls[i].centre.x;
-    data[i * 4 + 1] = balls[i].centre.y;
-    data[i * 4 + 2] = balls[i].centre.z;
+    data[i * 4] = balls[i].center.x;
+    data[i * 4 + 1] = balls[i].center.y;
+    data[i * 4 + 2] = balls[i].center.z;
     data[i * 4 + 3] = balls[i].radius;
   }
   return data;
@@ -264,10 +309,10 @@ final class NativeCloth implements ClothSystem {
   int get pointCount => c.f3d_cloth_point_count(_live);
 
   /// How many colours its constraints took.
-  int get colourCount => c.f3d_cloth_colour_count(_live);
+  int get colorCount => c.f3d_cloth_colour_count(_live);
 
   @override
-  void setBalls(List<({Vector3 centre, double radius})> balls) {
+  void setBalls(List<({Vector3 center, double radius})> balls) {
     final data = packClothBalls(balls);
     try {
       c.f3d_cloth_set_balls(_live, data, balls.length);

@@ -607,6 +607,24 @@ int f3d_vehicle_add_wheel(int world, int vehicle, int wheel) =>
       Pointer.fromAddress(wheel),
     );
 
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_vehicle_add_wheel_with',
+  isLeaf: true,
+)
+external int _f3d_vehicle_add_wheel_with(
+  Pointer<Void> world,
+  int vehicle,
+  Pointer<Void> wheel,
+  int count,
+);
+int f3d_vehicle_add_wheel_with(int world, int vehicle, int wheel, int count) =>
+    _f3d_vehicle_add_wheel_with(
+      Pointer.fromAddress(world),
+      vehicle,
+      Pointer.fromAddress(wheel),
+      count,
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Float, Float, Float)>(
   symbol: 'f3d_vehicle_set_wheel',
   isLeaf: true,
@@ -758,6 +776,41 @@ int f3d_shallow_fill(
 ) =>
     _f3d_shallow_fill(Pointer.fromAddress(world), water, x0, z0, x1, z1, level);
 
+@Native<Uint32 Function(Pointer<Void>, Uint32, Float, Float, Float)>(
+  symbol: 'f3d_shallow_fill_basin',
+  isLeaf: true,
+)
+external int _f3d_shallow_fill_basin(
+  Pointer<Void> world,
+  int water,
+  double x,
+  double z,
+  double level,
+);
+int f3d_shallow_fill_basin(
+  int world,
+  int water,
+  double x,
+  double z,
+  double level,
+) => _f3d_shallow_fill_basin(Pointer.fromAddress(world), water, x, z, level);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_shallow_set_depth',
+  isLeaf: true,
+)
+external int _f3d_shallow_set_depth(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> depth,
+);
+int f3d_shallow_set_depth(int world, int water, int depth) =>
+    _f3d_shallow_set_depth(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(depth),
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float)>(
   symbol: 'f3d_shallow_pour',
   isLeaf: true,
@@ -831,6 +884,155 @@ int f3d_shallow_set_bed(
   openEdges,
 );
 
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Uint32, Float)>(
+  symbol: 'f3d_shallow_set_edge',
+  isLeaf: true,
+)
+external int _f3d_shallow_set_edge(
+  Pointer<Void> world,
+  int water,
+  int side,
+  int kind,
+  double value,
+);
+int f3d_shallow_set_edge(
+  int world,
+  int water,
+  int side,
+  int kind,
+  double value,
+) =>
+    _f3d_shallow_set_edge(Pointer.fromAddress(world), water, side, kind, value);
+
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint32,
+    Uint32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_shallow_set_outlet', isLeaf: true)
+external int _f3d_shallow_set_outlet(
+  Pointer<Void> world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double crest,
+  double width,
+  double coefficient,
+);
+int f3d_shallow_set_outlet(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double crest,
+  double width,
+  double coefficient,
+) => _f3d_shallow_set_outlet(
+  Pointer.fromAddress(world),
+  water,
+  index,
+  x,
+  z,
+  crest,
+  width,
+  coefficient,
+);
+
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint32,
+    Uint32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_shallow_set_drain', isLeaf: true)
+external int _f3d_shallow_set_drain(
+  Pointer<Void> world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double invert,
+  double area,
+  double coefficient,
+);
+int f3d_shallow_set_drain(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double invert,
+  double area,
+  double coefficient,
+) => _f3d_shallow_set_drain(
+  Pointer.fromAddress(world),
+  water,
+  index,
+  x,
+  z,
+  invert,
+  area,
+  coefficient,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_shallow_set_cells',
+  isLeaf: true,
+)
+external int _f3d_shallow_set_cells(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> roughness,
+  Pointer<Void> walls,
+);
+int f3d_shallow_set_cells(int world, int water, int roughness, int walls) =>
+    _f3d_shallow_set_cells(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(roughness),
+      Pointer.fromAddress(walls),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_shallow_info',
+  isLeaf: true,
+)
+external int _f3d_shallow_info(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> out,
+);
+int f3d_shallow_info(int world, int water, int out) => _f3d_shallow_info(
+  Pointer.fromAddress(world),
+  water,
+  Pointer.fromAddress(out),
+);
+
+@Native<Int32 Function(Pointer<Void>, Float, Float)>(
+  symbol: 'f3d_world_set_water_rest',
+  isLeaf: true,
+)
+external int _f3d_world_set_water_rest(
+  Pointer<Void> world,
+  double energy,
+  double seconds,
+);
+int f3d_world_set_water_rest(int world, double energy, double seconds) =>
+    _f3d_world_set_water_rest(Pointer.fromAddress(world), energy, seconds);
+
 @Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Float)>(
   symbol: 'f3d_shallow_set_fluid',
   isLeaf: true,
@@ -854,6 +1056,36 @@ int f3d_shallow_set_fluid(
   density,
   viscosity,
   tension,
+);
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float, Int32)
+>(symbol: 'f3d_shallow_set_heat', isLeaf: true)
+external int _f3d_shallow_set_heat(
+  Pointer<Void> world,
+  int water,
+  double temperature,
+  double specificHeat,
+  double conductivity,
+  double expansion,
+  int boils,
+);
+int f3d_shallow_set_heat(
+  int world,
+  int water,
+  double temperature,
+  double specificHeat,
+  double conductivity,
+  double expansion,
+  int boils,
+) => _f3d_shallow_set_heat(
+  Pointer.fromAddress(world),
+  water,
+  temperature,
+  specificHeat,
+  conductivity,
+  expansion,
+  boils,
 );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Pointer<Void>)>(
@@ -1093,6 +1325,36 @@ int f3d_multibody_set_motor(
   enabled,
   speed,
   force,
+);
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Uint32, Int32, Float, Float, Float)
+>(symbol: 'f3d_multibody_set_servo', isLeaf: true)
+external int _f3d_multibody_set_servo(
+  Pointer<Void> world,
+  int multibody,
+  int link,
+  int enabled,
+  double target,
+  double stiffness,
+  double damping,
+);
+int f3d_multibody_set_servo(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double target,
+  double stiffness,
+  double damping,
+) => _f3d_multibody_set_servo(
+  Pointer.fromAddress(world),
+  multibody,
+  link,
+  enabled,
+  target,
+  stiffness,
+  damping,
 );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Int32, Float, Float)>(
@@ -2485,6 +2747,56 @@ external int _f3d_body_is_valid(Pointer<Void> world, int body);
 int f3d_body_is_valid(int world, int body) =>
     _f3d_body_is_valid(Pointer.fromAddress(world), body);
 
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_body_move_kinematic', isLeaf: true)
+external int _f3d_body_move_kinematic(
+  Pointer<Void> world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double dt,
+);
+int f3d_body_move_kinematic(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double dt,
+) => _f3d_body_move_kinematic(
+  Pointer.fromAddress(world),
+  body,
+  x,
+  y,
+  z,
+  qx,
+  qy,
+  qz,
+  qw,
+  dt,
+);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Float, Float, Float)>(
   symbol: 'f3d_body_set_velocity',
   isLeaf: true,
@@ -3057,6 +3369,48 @@ int f3d_body_is_part_burning(int world, int body, int part, int out) =>
       Pointer.fromAddress(out),
     );
 
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_body_hold_flame', isLeaf: true)
+external int _f3d_body_hold_flame(
+  Pointer<Void> world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double flux,
+  double area,
+  double temperature,
+);
+int f3d_body_hold_flame(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double flux,
+  double area,
+  double temperature,
+) => _f3d_body_hold_flame(
+  Pointer.fromAddress(world),
+  body,
+  x,
+  y,
+  z,
+  flux,
+  area,
+  temperature,
+);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Float, Float, Float, Float)>(
   symbol: 'f3d_body_add_heat_at',
   isLeaf: true,
@@ -3146,3 +3500,90 @@ int f3d_body_get_heat_release(int world, int body, int out) =>
       body,
       Pointer.fromAddress(out),
     );
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_body_get_submerged',
+  isLeaf: true,
+)
+external int _f3d_body_get_submerged(
+  Pointer<Void> world,
+  int body,
+  Pointer<Void> volume,
+  Pointer<Void> water,
+);
+int f3d_body_get_submerged(int world, int body, int volume, int water) =>
+    _f3d_body_get_submerged(
+      Pointer.fromAddress(world),
+      body,
+      Pointer.fromAddress(volume),
+      Pointer.fromAddress(water),
+    );
+
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+  )
+>(symbol: 'f3d_body_get_char', isLeaf: true)
+external int _f3d_body_get_char(
+  Pointer<Void> world,
+  int body,
+  Pointer<Void> share,
+  Pointer<Void> depth,
+  Pointer<Void> temperature,
+);
+int f3d_body_get_char(
+  int world,
+  int body,
+  int share,
+  int depth,
+  int temperature,
+) => _f3d_body_get_char(
+  Pointer.fromAddress(world),
+  body,
+  Pointer.fromAddress(share),
+  Pointer.fromAddress(depth),
+  Pointer.fromAddress(temperature),
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Float, Pointer<Void>)>(
+  symbol: 'f3d_body_set_burner',
+  isLeaf: true,
+)
+external int _f3d_body_set_burner(
+  Pointer<Void> world,
+  int body,
+  double kgPerSecond,
+  Pointer<Void> fuel,
+);
+int f3d_body_set_burner(int world, int body, double kgPerSecond, int fuel) =>
+    _f3d_body_set_burner(
+      Pointer.fromAddress(world),
+      body,
+      kgPerSecond,
+      Pointer.fromAddress(fuel),
+    );
+
+@Native<Uint32 Function(Pointer<Void>, Float, Float, Float, Float, Float)>(
+  symbol: 'f3d_world_explode',
+  isLeaf: true,
+)
+external int _f3d_world_explode(
+  Pointer<Void> world,
+  double x,
+  double y,
+  double z,
+  double joules,
+  double kg,
+);
+int f3d_world_explode(
+  int world,
+  double x,
+  double y,
+  double z,
+  double joules,
+  double kg,
+) => _f3d_world_explode(Pointer.fromAddress(world), x, y, z, joules, kg);

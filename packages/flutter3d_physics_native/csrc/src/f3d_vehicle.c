@@ -6,7 +6,8 @@
  * and goes into a snapshot as any other. The wheels are not bodies. Once a
  * step, after the contacts and before the solver, each wheel casts its ray,
  * and where the ray lands the spring and damper push the chassis up, the
- * drive and brake push it along the road, and the tyre pushes it across to
+ * drive, the brake and the tyre's rolling resistance push it along the
+ * road, and the tyre pushes it across to
  * hold it from sliding sideways. All three are forces on the bus at the
  * point the wheel stands on, held over every substep, as a game's own
  * forces are. What the wheel stands on is pushed back, when it moves.
@@ -124,17 +125,26 @@ int f3d_vehicle_is_valid(const F3dWorld *world, F3dVehicle vehicle) {
 
 int f3d_vehicle_add_wheel(F3dWorld *world, F3dVehicle vehicle,
                           const f3d_real *w) {
+  return f3d_vehicle_add_wheel_with(world, vehicle, w, F3D_WHEEL_FLOATS);
+}
+
+int f3d_vehicle_add_wheel_with(F3dWorld *world, F3dVehicle vehicle,
+                               const f3d_real *w, uint32_t count) {
   F3dVehicleSlot *v = vehicle_of(world, vehicle);
-  if (v == NULL || w == NULL || v->wheel_count >= F3D_VEHICLE_MOST_WHEELS) {
+  if (v == NULL || w == NULL || v->wheel_count >= F3D_VEHICLE_MOST_WHEELS ||
+      count < F3D_WHEEL_FLOATS || count > F3D_WHEEL_FLOATS_ALL) {
     return -1;
   }
-  for (uint32_t i = 0; i < F3D_WHEEL_FLOATS; i++) {
+  for (uint32_t i = 0; i < count; i++) {
     if (!f3d_finite(w[i])) return -1;
   }
   if (w[3] < F3D_R(0.0) || !(w[4] > F3D_R(0.0)) || !(w[5] > F3D_R(0.0)) ||
       w[6] < F3D_R(0.0) || !(w[7] > F3D_R(0.0))) {
     return -1;
   }
+  const f3d_real width = count > 8u ? w[8] : F3D_R(0.0);
+  const f3d_real rolling = count > 9u ? w[9] : F3D_R(F3D_WHEEL_ROLLING_DEFAULT);
+  if (width < F3D_R(0.0) || rolling < F3D_R(0.0)) return -1;
   F3dWheel *wheel = &v->wheels[v->wheel_count];
   f3d_zero(wheel, sizeof *wheel);
   wheel->attach = f3d_v3(w[0], w[1], w[2]);
@@ -143,6 +153,8 @@ int f3d_vehicle_add_wheel(F3dWorld *world, F3dVehicle vehicle,
   wheel->stiffness = w[5];
   wheel->damping = w[6];
   wheel->grip = w[7];
+  wheel->width = width > F3D_R(0.0) ? width : F3D_R(F3D_WHEEL_WIDTH_SHARE) * wheel->radius;
+  wheel->rolling = rolling;
   wheel->length = wheel->rest;
   return (int)v->wheel_count++;
 }
@@ -208,12 +220,23 @@ static F3dVec3 velocity_at(const F3dSlot *s, F3dVec3 point) {
 /* How many times the tyres are solved against each other a step. */
 #define F3D_TYRE_ITERATIONS 8
 
+/* The most passes the springs are solved together in a step, and the
+ * change in a spring's push, as a share of what it carries, under which
+ * they are taken to agree. */
+#define F3D_SPRING_PASSES 64
+#define F3D_SPRING_AGREED F3D_R(1e-5)
+
 /* A touching wheel, as the tyres' solver reads it. */
 typedef struct Tread {
-  F3dVec3 point, lever, along, across, ground_velocity;
+  F3dVec3 point, lever, along, across, up, normal, ground_velocity;
   F3dSlot *ground;
-  /* The spring's force, N, and the most the tyre holds, N s a step. */
-  f3d_real spring, most;
+  /* How far the spring is squeezed, m, and its stiffness and damping. */
+  f3d_real squeeze, stiffness, damping;
+  /* What the spring and damper push with over the step, N s, and the
+   * force that is, N. */
+  f3d_real lift, spring;
+  /* The most the tyre holds, N s a step. */
+  f3d_real most;
   /* The drive's and the brake's impulses a step, N s. */
   f3d_real drive, brake;
   /* What the tyre has pushed with along and across this step, N s; and how
@@ -233,17 +256,8 @@ static f3d_real mass_along(const F3dSlot *s, F3dSym3 inverse_inertia,
   return k > F3D_R(0.0) ? F3D_R(1.0) / k : F3D_R(0.0);
 }
 
-/* A wheel's half width, as a share of its radius: what its cast is as
- * wide as. A wheel has no width of its own here; a road tyre is about this
- * shape. */
-#define F3D_WHEEL_HALF_WIDTH F3D_R(0.3)
-
-/* How much higher than the ray the wheel's rim has to meet something, m,
- * for the rim to be what the wheel stands on. */
-#define F3D_WHEEL_RIM_LEAD F3D_R(0.005)
-
-/* Casts wheel [w] down its suspension and, when it lands, fills [t] and
- * puts its spring on the bus; 0 when it hangs.
+/* Casts wheel [w] down its suspension and, when it lands, fills [t]; 0
+ * when it hangs.
  *
  * Two casts: a ray down the wheel's middle, exact on a road, and the wheel
  * itself — a cylinder of its radius on its axle, from fully compressed down
@@ -251,7 +265,9 @@ static f3d_real mass_along(const F3dSlot *s, F3dSym3 inverse_inertia,
  * it met it, and one a few centimetres wide not at all when the car crossed
  * it between steps. Where the rim meets something higher than the ray
  * does, the wheel stands on that, along the normal of what it met; else on
- * what the ray found, so a car on a road runs as it would on the ray. */
+ * what the ray found, so a car on a road runs as it would on the ray.
+ * Higher means by more than F3D_LINEAR_SLOP, the overlap the solver
+ * leaves anything resting: under it, the two say the same of the road. */
 static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
                  F3dWheel *w, F3dMat3 frame, f3d_real dt, Tread *t) {
   const F3dVec3 up = turned(frame, v->up);
@@ -284,12 +300,12 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
   F3dBody rim_ground = 0;
   f3d_real rim[F3D_HIT_FLOATS];
   if (f3d_world_cast_shape(
-          world, F3D_SHAPE_CYLINDER, w->radius, F3D_WHEEL_HALF_WIDTH * w->radius,
+          world, F3D_SHAPE_CYLINDER, w->radius, F3D_R(0.5) * w->width,
           F3D_R(0.0), F3D_R(0.0), origin.x, origin.y, origin.z, turn.x, turn.y,
           turn.z, turn.w, down.x * w->rest, down.y * w->rest, down.z * w->rest,
           s->mask, f3d_handle_of(world, s), &rim_ground, rim)) {
     const f3d_real at = rim[6] * w->rest;
-    if (!touched || at < length - F3D_WHEEL_RIM_LEAD) {
+    if (!touched || at < length - F3D_LINEAR_SLOP) {
       touched = 1;
       ground = rim_ground;
       length = at;
@@ -326,36 +342,87 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
   t->ground_velocity = t->ground != NULL ? velocity_at(t->ground, point)
                                          : f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   const F3dVec3 rel = f3d_sub(velocity_at(s, point), t->ground_velocity);
-  /* The spring and the damper, along the suspension: never pulling. The
-   * damper is pushed in one go at the step's end, so it may take out of
-   * the closing no more than all of it: m / dt, of the mass the wheel
-   * carries — the chassis's as seen at its point, and no more than its
-   * share when every wheel pushes at once. A damper set for
-   * a loaded car would otherwise throw a light one — or one that has burnt
-   * down to a fifth of itself — further each step. */
-  const f3d_real squeeze = w->rest - w->length;
-  const f3d_real closing = -f3d_dot(rel, up);
-  const f3d_real carried =
-      f3d_min(mass_along(s, f3d_sym_turned(s->orientation, s->inverse_inertia),
-                         t->lever, up),
-              F3D_R(1.0) / (s->inverse_mass * (f3d_real)v->wheel_count));
-  const f3d_real held = carried / dt;
-  t->spring = f3d_max(w->stiffness * squeeze + f3d_min(w->damping, held) * closing,
-                      F3D_R(0.0));
-  w->force = t->spring;
-  push_at(s, f3d_scale(up, t->spring), point);
-  if (t->ground != NULL && t->ground->type == F3D_BODY_DYNAMIC) {
-    push_at(t->ground, f3d_scale(up, -t->spring), point);
-    f3d_wake(world, t->ground);
-  }
+  /* The spring and the damper, along the suspension: solved with the
+   * others' in solve_springs. */
+  t->up = up;
+  t->normal = normal;
+  t->squeeze = w->rest - w->length;
+  t->stiffness = w->stiffness;
+  t->damping = w->damping;
   /* The tyre, in the road's plane. */
   t->along = unit(f3d_sub(heading, f3d_scale(normal, f3d_dot(heading, normal))));
   t->across = f3d_cross(normal, t->along);
-  t->most = w->grip * t->spring * dt;
   t->drive = w->drive * dt;
-  t->brake = w->brake * dt;
   w->lateral = f3d_dot(rel, t->across);
   return 1;
+}
+
+/* The springs and dampers of every touching wheel, solved together and
+ * implicitly: each pushes with what it will at the step's end, where the
+ * chassis has moved under all of them.
+ *
+ * Spring k and damper c on a squeeze x closing at u, over a step of dt:
+ * the force is F = k x' + c u', at the squeeze x' and the closing u' the
+ * step ends on. The closing u' is u less what the pushes take out of it
+ * through the chassis's mass and inertia at each point — every wheel's
+ * push moves every other's point, which is what solves them together, and
+ * in a car on four wheels is what has each carry its share of the mass
+ * and not all of it. The squeeze the integrator reaches over its n
+ * substeps, from a force held through them, is x + dt (β u' + (1 − β) u)
+ * with β = (n + 1) / 2n; the share (1 − β) of the spring taken at the
+ * step's start is what the substeps take as the position they integrate
+ * already, so only the rest, α = (n − 1) / 2n of it, is taken at the end:
+ * F = k x + (c + α dt k) u'. That makes a spring with no damper keep its
+ * energy exactly, step after step, and the damper take out of each step
+ * e^(−2ζω dt) of it to first order, at any dt and any mass: a quarter of
+ * a tonne or forty kilograms on the same springs is a damped oscillator of
+ * its own frequency and damping ratio, and a damper far past critical on a
+ * light chassis is a slow creep back to rest at k / c, not a kick.
+ *
+ * Projected Gauss–Seidel, the pushes never pulling, until no push changes
+ * by F3D_SPRING_AGREED of what it carries, or F3D_SPRING_PASSES. The
+ * chassis's velocity is a copy, as the tyres'. */
+static void solve_springs(const F3dWorld *world, F3dSlot *s, Tread *treads,
+                          uint32_t n, f3d_real dt) {
+  const F3dSym3 inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
+  F3dVec3 v = f3d_madd(s->velocity,
+                       f3d_madd(world->s.gravity, s->force, s->inverse_mass), dt);
+  F3dVec3 w = f3d_madd(s->spin, f3d_sym_times(inverse_inertia, s->torque), dt);
+  const f3d_real substeps = (f3d_real)(world->s.substeps > 0 ? world->s.substeps : 1u);
+  const f3d_real alpha = (substeps - F3D_R(1.0)) / (F3D_R(2.0) * substeps);
+  f3d_real inverse[F3D_VEHICLE_MOST_WHEELS], soft[F3D_VEHICLE_MOST_WHEELS];
+  f3d_real scale = F3D_R(0.0);
+  for (uint32_t i = 0; i < n; i++) {
+    Tread *t = &treads[i];
+    const f3d_real m = mass_along(s, inverse_inertia, t->lever, t->up);
+    inverse[i] = m > F3D_R(0.0) ? F3D_R(1.0) / m : F3D_R(0.0);
+    soft[i] = dt * (t->damping + alpha * dt * t->stiffness);
+    t->lift = F3D_R(0.0);
+    scale = f3d_max(scale, m);
+  }
+  /* What a push of the step's weight on the heaviest point is, N s: the
+   * yardstick the passes agree to. */
+  const f3d_real agreed = F3D_SPRING_AGREED * scale *
+                          f3d_sqrt(f3d_dot(world->s.gravity, world->s.gravity)) * dt;
+  for (int pass = 0; pass < F3D_SPRING_PASSES; pass++) {
+    f3d_real most = F3D_R(0.0);
+    for (uint32_t i = 0; i < n; i++) {
+      Tread *t = &treads[i];
+      const F3dVec3 at = f3d_sub(f3d_add(v, f3d_cross(w, t->lever)), t->ground_velocity);
+      const f3d_real closing = -f3d_dot(at, t->up);
+      const f3d_real want =
+          (dt * t->stiffness * t->squeeze + soft[i] * closing - t->lift) /
+          (F3D_R(1.0) + soft[i] * inverse[i]);
+      const f3d_real lift = f3d_max(t->lift + want, F3D_R(0.0));
+      const f3d_real change = lift - t->lift;
+      t->lift = lift;
+      v = f3d_madd(v, t->up, change * s->inverse_mass);
+      w = f3d_add(w, f3d_sym_times(inverse_inertia,
+                                   f3d_cross(t->lever, f3d_scale(t->up, change))));
+      most = f3d_max(most, f3d_abs(change));
+    }
+    if (most <= agreed) break;
+  }
 }
 
 /* Gauss–Seidel over the tyres: each pass, every tyre takes out what is left
@@ -424,14 +491,49 @@ void f3d_step_vehicles(F3dWorld *world, f3d_real dt) {
         wheel_of[n++] = k;
       }
     }
+    solve_springs(world, s, treads, n, dt);
+    /* What the road pushes the wheel with, G, is what the wheel pushes the
+     * chassis with: the wheel has no mass to keep any of it. Its strut
+     * slides along the up, so the spring sets G's share along the up, and
+     * the strut, rigid every other way, passes the rest: G · up = spring.
+     * G is the road's load N along its normal n and the tyre's push T in
+     * the road's plane, so N = (spring − T · up) / (n · up). A chassis
+     * pitched on its springs over a slope is held along the slope's normal,
+     * not along its own up, which would lean it on the slope by its pitch;
+     * and a wheel meeting a kerb's edge is pushed back by it as well as up.
+     * The load first without T, for the tyres' grip; T's share once they
+     * have pushed. A road that faces away from the up holds nothing. */
+    f3d_real tilt[F3D_VEHICLE_MOST_WHEELS], load[F3D_VEHICLE_MOST_WHEELS];
+    for (uint32_t k = 0; k < n; k++) {
+      Tread *t = &treads[k];
+      const F3dWheel *w = &v->wheels[wheel_of[k]];
+      t->spring = t->lift / dt;
+      v->wheels[wheel_of[k]].force = t->spring;
+      tilt[k] = f3d_dot(t->normal, t->up);
+      load[k] = tilt[k] > F3D_R(0.0) ? t->spring / tilt[k] : F3D_R(0.0);
+      const F3dVec3 force = f3d_scale(t->normal, load[k]);
+      push_at(s, force, t->point);
+      if (t->ground != NULL && t->ground->type == F3D_BODY_DYNAMIC) {
+        push_at(t->ground, f3d_scale(force, F3D_R(-1.0)), t->point);
+        f3d_wake(world, t->ground);
+      }
+      t->most = w->grip * load[k] * dt;
+      /* Rolling resistance: the tyre's flexing under its load takes μ N
+       * from its roll, and holds it from rolling up to that, as a brake
+       * of μ N does. */
+      t->brake = (w->brake + w->rolling * load[k]) * dt;
+    }
     solve_tyres(world, s, treads, n, dt);
     for (uint32_t k = 0; k < n; k++) {
       const Tread *t = &treads[k];
       F3dWheel *w = &v->wheels[wheel_of[k]];
-      const F3dVec3 force = f3d_scale(
+      const F3dVec3 push = f3d_scale(
           f3d_add(f3d_scale(t->along, t->push_along),
                   f3d_scale(t->across, t->push_across)),
           F3D_R(1.0) / dt);
+      const f3d_real more =
+          tilt[k] > F3D_R(0.0) ? -f3d_dot(push, t->up) / tilt[k] : F3D_R(0.0);
+      const F3dVec3 force = f3d_madd(push, t->normal, more);
       push_at(s, force, t->point);
       if (t->ground != NULL && t->ground->type == F3D_BODY_DYNAMIC) {
         push_at(t->ground, f3d_scale(force, F3D_R(-1.0)), t->point);

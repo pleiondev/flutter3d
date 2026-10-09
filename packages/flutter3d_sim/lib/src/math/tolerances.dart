@@ -19,14 +19,16 @@ abstract final class Tolerance {
   ///
   /// Normalising below this divides by noise and gives a direction that is
   /// whatever the rounding was — which is why every caller checks first and
-  /// does something else instead.
+  /// does something else instead. In the vector's own units — metres for an
+  /// offset, none for a direction.
   static const double zeroLength = 1e-6;
 
   /// A denominator that must not be divided by.
   ///
   /// Smaller than [zeroLength] because what is guarded here is a span, a
   /// duration or a squared length rather than a distance — quantities that are
-  /// legitimately tiny without being degenerate.
+  /// legitimately tiny without being degenerate. In the denominator's own
+  /// units: seconds for a duration, metres for a span.
   static const double divisor = 1e-9;
 
   /// A tenth of a millimetre.

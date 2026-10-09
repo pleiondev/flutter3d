@@ -6,11 +6,12 @@
 #ifndef F3D_TEST_SCENE_H_
 #define F3D_TEST_SCENE_H_
 
+#include "f3d_internal.h"
 #include "f3d_physics.h"
 
 static F3dWorld *scene(void) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   /* Ground: a mesh of a gentle bowl, twelve metres across. */
   enum { SIDE = 13 };
   f3d_real v[SIDE * SIDE * 3];

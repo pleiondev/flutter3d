@@ -36,9 +36,11 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../math/portable_math.dart';
+import 'json_reader.dart';
+import 'level_format_exception.dart';
 
 /// Ground as a grid of sampled heights.
 final class Heightfield {
@@ -68,36 +70,40 @@ final class Heightfield {
   /// as JSON text is a megabyte of digits that nobody reads and every editor
   /// reformats. The rest of the section is plain, because the rest of it is
   /// four numbers a person might want to change by hand.
+  ///
+  /// Throws [LevelFormatException] for a section that is not one: a field of
+  /// the wrong type, fewer than two samples along an axis, heights that are
+  /// not base64, or a count of heights the size does not match.
   factory Heightfield.fromJson(Map<String, Object?> json) {
-    final int columns = (json['columns'] as num?)?.toInt() ?? 0;
-    final int rows = (json['rows'] as num?)?.toInt() ?? 0;
+    final int columns = json.integerOrNull('columns') ?? 0;
+    final int rows = json.integerOrNull('rows') ?? 0;
     final Object? heights = json['heights'];
     if (columns < 2 || rows < 2 || heights is! String) {
-      throw const FormatException(
+      throw const LevelFormatException(
         'a heightfield is columns, rows and base64 heights, and needs at '
         'least two samples along each axis to have a surface',
       );
     }
-    final Uint8List bytes = base64Decode(heights);
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(heights);
+    } on FormatException catch (error) {
+      throw LevelFormatException(
+        'the heightfield\'s "heights" are not base64: ${error.message}',
+      );
+    }
     if (bytes.length != columns * rows * 4) {
-      throw FormatException(
+      throw LevelFormatException(
         'the field says ${columns}x$rows samples and carries '
         '${bytes.length ~/ 4} of them',
       );
     }
-    final origin = json['origin'];
     return Heightfield(
       columns: columns,
       rows: rows,
-      cellSize: (json['cellSize'] as num?)?.toDouble() ?? 1.0,
+      cellSize: json.numberOr('cellSize', 1.0),
       heights: Float32List.view(Uint8List.fromList(bytes).buffer),
-      origin: origin is List && origin.length == 3
-          ? Vector3(
-              (origin[0] as num).toDouble(),
-              (origin[1] as num).toDouble(),
-              (origin[2] as num).toDouble(),
-            )
-          : null,
+      origin: json['origin'] == null ? null : json.vector3('origin'),
     );
   }
 
@@ -265,5 +271,7 @@ final class _Cell {
 
   /// Where across the cell the point is, from zero to one.
   final double u;
+
+  /// Where down the cell the point is, from zero to one.
   final double v;
 }

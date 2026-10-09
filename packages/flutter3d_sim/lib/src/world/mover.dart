@@ -13,18 +13,38 @@ import 'rider.dart';
 ///
 /// Derived from the numbers rather than stored beside them, so there is no way
 /// for the state and the position to disagree.
-enum MoverState {
+///
+/// **An open class with constants, not an enum** (§A.2): a later minor may
+/// add a state — held, jammed — and a `switch` written against four would
+/// stop compiling. A `switch` over this needs a default.
+final class MoverState {
+  const MoverState._(this.name);
+
   /// Sitting where it was authored.
-  closed,
+  static const MoverState closed = MoverState._('closed');
 
   /// On its way to the far end.
-  opening,
+  static const MoverState opening = MoverState._('opening');
 
   /// Sitting at the far end.
-  open,
+  static const MoverState open = MoverState._('open');
 
   /// On its way back.
-  closing,
+  static const MoverState closing = MoverState._('closing');
+
+  /// Every state this build knows, in the order the enum declared them.
+  static const List<MoverState> values = <MoverState>[
+    closed,
+    opening,
+    open,
+    closing,
+  ];
+
+  /// Its word in a file and a message.
+  final String name;
+
+  @override
+  String toString() => 'MoverState.$name';
 }
 
 /// A block of level geometry that travels between two places.
@@ -73,9 +93,12 @@ abstract base class Mover extends Mechanism {
 
   /// 0 at [rest], 1 at `rest + travel`.
   double _progress = 0.0;
+
+  /// The 0..1 fraction of [travel] it has covered: 0 at [rest], 1 at
+  /// `rest + travel`.
   double get progress => _progress;
 
-  /// Where the subclass wants it: 0 or 1.
+  /// Where the subclass wants it, as a fraction of [travel]: 0 or 1.
   double goal = 0.0;
 
   /// How long it has been sitting still at whichever end it is at.
@@ -121,7 +144,7 @@ abstract base class Mover extends Mechanism {
   /// kills them through no mistake of theirs. False for a platform, which
   /// should simply stall — a platform that reverses whenever a monster wanders
   /// under it never completes a circuit, and the level stops working.
-  bool get reverseWhenBlocked => true;
+  bool get reversesWhenBlocked => true;
 
   /// Decides where this mover wants to be. The one thing a subclass owes.
   void schedule(double dt);
@@ -143,7 +166,7 @@ abstract base class Mover extends Mechanism {
 
     _at(next, _candidate);
     if (_isBlocked(_candidate)) {
-      if (reverseWhenBlocked) {
+      if (reversesWhenBlocked) {
         goal = goal > _progress ? 0.0 : 1.0;
       }
       return;
@@ -241,8 +264,11 @@ final class Door extends Mover {
   });
 
   /// Read by the level reader when a document does not say, so the default
-  /// lives in one place rather than in the class and the reader both.
+  /// lives in one place rather than in the class and the reader both. In
+  /// metres per second.
   static const double defaultSpeed = 2.5;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 3.0;
 
   /// The key colour this door demands, or null when it opens for anyone.
@@ -287,7 +313,11 @@ final class Lift extends Mover {
     super.wait = defaultWait,
   });
 
+  /// The [Mover.speed] a document gets when it does not say, in metres per
+  /// second.
   static const double defaultSpeed = 1.6;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 4.0;
 
   @override
@@ -330,12 +360,16 @@ final class MovingPlatform extends Mover {
     goal = 1.0;
   }
 
+  /// The [Mover.speed] a document gets when it does not say, in metres per
+  /// second.
   static const double defaultSpeed = 1.5;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 1.5;
 
-  /// A platform stalls rather than reversing — see [Mover.reverseWhenBlocked].
+  /// A platform stalls rather than reversing — see [Mover.reversesWhenBlocked].
   @override
-  bool get reverseWhenBlocked => false;
+  bool get reversesWhenBlocked => false;
 
   @override
   ActivationOutcome activate(Activation by) => const NothingToDo();

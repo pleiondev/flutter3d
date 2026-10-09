@@ -10,6 +10,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -295,14 +296,15 @@ void main() {
       // where the mouse never moved.
       final input = InputState();
       final seen = <double>[];
-      final loop = GameLoop(
-        input: input,
-        onStep: (_) => seen.add(input.lookDelta.x),
-        drainLook: (out) => out.setValues(0.3, 0.0),
-      )..recorders.add(InputTapeRecorder(seed: 1));
+      final loop =
+          EngineLoop(input: input, drainLook: (out) => out.setValues(0.3, 0.0))
+            ..addSystem('look', LoopPhase.rules, (_) {
+              seen.add(input.lookDelta.x);
+            })
+            ..recorders.add(InputTapeRecorder(seed: 1));
 
       input.press(_fire);
-      final steps = loop.advance(3 / 60);
+      final steps = loop.frame(3 / 60);
 
       expect(steps, 3);
       final tape = loop.recorders.single.tape;
@@ -327,18 +329,21 @@ void main() {
       final fired = <bool>[];
       final looked = <double>[];
       final slots = <int?>[];
-      final loop = GameLoop(
-        input: input,
-        onStep: (_) {
-          fired.add(input.held(_fire));
-          looked.add(input.lookDelta.x);
-          slots.add(input.slotRequest);
-        },
-        // The mouse moves the whole time, and none of it may reach the run.
-        drainLook: (out) => out.setValues(9.0, 9.0),
-      )..playback = InputTapePlayback(tape);
+      final loop =
+          EngineLoop(
+              input: input,
+              // The mouse moves the whole time, and none of it may reach the
+              // run.
+              drainLook: (out) => out.setValues(9.0, 9.0),
+            )
+            ..addSystem('read', LoopPhase.rules, (_) {
+              fired.add(input.held(_fire));
+              looked.add(input.lookDelta.x);
+              slots.add(input.slotRequest);
+            })
+            ..playback = InputTapePlayback(tape);
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       expect(fired, <bool>[true, true]);
       expect(looked, <double>[0.5, 0.25]);
@@ -371,11 +376,10 @@ void main() {
       final input = InputState();
       final looked = <double>[];
       final loop =
-          GameLoop(
-              input: input,
-              onStep: (_) => looked.add(input.lookDelta.x),
-              drainLook: (out) => out.setValues(2.0, 0.0),
-            )
+          EngineLoop(input: input, drainLook: (out) => out.setValues(2.0, 0.0))
+            ..addSystem('look', LoopPhase.rules, (_) {
+              looked.add(input.lookDelta.x);
+            })
             ..playback = InputTapePlayback(
               InputTape(
                 seed: 1,
@@ -383,7 +387,7 @@ void main() {
               ),
             );
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       expect(looked, <double>[0.5, 1.0]);
     });
@@ -416,10 +420,10 @@ void main() {
       // entry has to say so or the replay stands still.
       final input = InputState()..press(GameAction.moveForward);
       input.endStep(); // the press is now history; only the hold remains
-      final loop = GameLoop(input: input, onStep: (_) {})
+      final loop = EngineLoop(input: input)
         ..recorders.add(InputTapeRecorder(seed: 1));
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       final frames = loop.recorders.single.tape.frames;
       expect(frames.first.pressed, contains('moveForward'));

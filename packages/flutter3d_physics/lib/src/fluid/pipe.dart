@@ -43,10 +43,12 @@ final class Pipe {
 
   /// The pipe's bore and length, metres.
   final double radius;
+
+  /// The pipe's length, in metres.
   final double length;
 
   /// The loss where it enters and leaves, in velocity heads: about 0.5 in
-  /// and 1 out for sharp ends.
+  /// and 1 out for sharp ends. A unitless coefficient.
   final double minorLoss;
 
   /// Cubic metres a second from [from] to [to]; negative the other way.

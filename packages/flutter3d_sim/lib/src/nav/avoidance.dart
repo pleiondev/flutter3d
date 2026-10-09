@@ -28,7 +28,7 @@ import 'dart:math' as math;
 
 /// One body another steers round: where it is, how it moves, how wide it is,
 /// all in plan.
-typedef AvoidanceNeighbour = ({
+typedef AvoidanceNeighbor = ({
   double x,
   double z,
   double vx,
@@ -40,9 +40,17 @@ typedef AvoidanceNeighbour = ({
 /// [px], [pz] along [dx], [dz] that is on its left.
 final class _Line {
   _Line(this.px, this.pz, this.dx, this.dz);
+
+  /// A point on the line, a velocity's X in metres per second.
   double px;
+
+  /// A point on the line, a velocity's Z in metres per second.
   double pz;
+
+  /// The line's direction, X; unitless, of a unit vector.
   double dx;
+
+  /// The line's direction, Z; unitless, of a unit vector.
   double dz;
 }
 
@@ -54,22 +62,23 @@ double _det(double ax, double az, double bx, double bz) => ax * bz - az * bx;
 final class Avoidance {
   const Avoidance({
     this.timeHorizon = 1.5,
-    this.neighbourDistance = 5.0,
-    this.maxNeighbours = 8,
+    this.neighborDistance = 5.0,
+    this.maxNeighbors = 8,
   }) : assert(timeHorizon > 0.0, 'a horizon of nought sees nothing coming');
 
   /// How far ahead, in seconds, a contact counts. Longer turns sooner and
   /// wider; shorter lets bodies brush past.
   final double timeHorizon;
 
-  /// Bodies further than this, centre to centre, are not looked at.
-  final double neighbourDistance;
+  /// Bodies further than this, centre to centre, are not looked at. In
+  /// metres.
+  final double neighborDistance;
 
   /// At most this many of the nearest are looked at.
-  final int maxNeighbours;
+  final int maxNeighbors;
 
   /// The velocity nearest `(prefX, prefZ)`, no faster than [maxSpeed], that
-  /// meets none of [neighbours] within [timeHorizon], for a body of
+  /// meets none of [neighbors] within [timeHorizon], for a body of
   /// [radius] at `(x, z)` moving at `(vx, vz)`. [dt] is the step, for a body
   /// that already overlaps one: it is asked to be out by the next.
   (double, double) velocity({
@@ -81,12 +90,12 @@ final class Avoidance {
     required double maxSpeed,
     required double prefX,
     required double prefZ,
-    required List<AvoidanceNeighbour> neighbours,
+    required List<AvoidanceNeighbor> neighbors,
     required double dt,
   }) {
     final invHorizon = 1.0 / timeHorizon;
     final lines = <_Line>[
-      for (final other in neighbours)
+      for (final other in neighbors)
         _lineFor(x, z, vx, vz, radius, other, invHorizon, dt),
     ];
     final result = _Line(prefX, prefZ, 0.0, 0.0);
@@ -101,7 +110,7 @@ final class Avoidance {
     double vx,
     double vz,
     double radius,
-    AvoidanceNeighbour other,
+    AvoidanceNeighbor other,
     double invHorizon,
     double dt,
   ) {

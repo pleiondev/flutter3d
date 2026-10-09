@@ -9,8 +9,10 @@
 /// planted at a known step stands in for a code change or another platform.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 const GameAction _fire = GameAction('fire');
 
@@ -30,15 +32,19 @@ final class _Health {
 final class _Toy {
   _Toy({this.defectAt}) {
     world
-      ..register<_Position>(
-        'Position',
-        encode: (p) => p.x,
-        decode: (d) => d is num ? _Position(d.toDouble()) : null,
+      ..components.register<_Position>(
+        ComponentCodec<_Position>.of(
+          id: 'Position',
+          encode: (p) => p.x,
+          decode: (d, _) => d is num ? _Position(d.toDouble()) : null,
+        ),
       )
-      ..register<_Health>(
-        'Health',
-        encode: (h) => h.hp,
-        decode: (d) => d is num ? _Health(d.toInt()) : null,
+      ..components.register<_Health>(
+        ComponentCodec<_Health>.of(
+          id: 'Health',
+          encode: (h) => h.hp,
+          decode: (d, _) => d is num ? _Health(d.toInt()) : null,
+        ),
       );
     entities = <Entity>[for (var i = 0; i < 3; i++) world.spawn()];
     for (final (i, entity) in entities.indexed) {
@@ -108,6 +114,66 @@ ReplaySide _side(_Toy toy, InputTape tape) {
 }
 
 final _layout = EntityLayout.ecs(const <String>['world']);
+
+/// The toy as a game's headless run, reading the input it was started with.
+base mixin _Toyish on HeadlessRun {
+  _Toy get toy;
+  InputState get input;
+
+  @override
+  void step(double dt) => toy.step(input);
+
+  @override
+  Snapshot save() => toy.save();
+
+  @override
+  RunOutcome get outcome => RunOutcome.playing;
+
+  @override
+  WorldPosition get position => WorldPosition.origin;
+
+  @override
+  void aim(Vector3 out) => out.setValues(0, 0, -1);
+
+  @override
+  String get summary => 'step ${toy.steps}';
+}
+
+/// A run that cannot be put back.
+final class _ToyRun extends HeadlessRun with _Toyish {
+  _ToyRun(this.toy, this.input);
+
+  @override
+  final _Toy toy;
+
+  @override
+  final InputState input;
+}
+
+/// The same, able to be put back.
+final class _RestorableToyRun extends RestorableRun with _Toyish {
+  _RestorableToyRun(this.toy, this.input);
+
+  @override
+  final _Toy toy;
+
+  @override
+  final InputState input;
+
+  @override
+  void restore(Snapshot snapshot) => toy.restore(snapshot);
+}
+
+/// A side played through a [RunLoop] of [toy], from where the toy is now.
+ReplaySide _loopSide(_Toy toy, InputTape tape) {
+  final input = InputState();
+  final stepped = RunLoop(_RestorableToyRun(toy, input), input: input);
+  return ReplaySide.loop(
+    stepped.loop,
+    tape: tape,
+    start: stepped.captureFrom(toy.save()),
+  );
+}
 
 void main() {
   test('names the step a defect was planted on, and the component', () {
@@ -243,5 +309,76 @@ void main() {
             as TapesDiverge;
     expect(diverge.step - 1, 613);
     expect(diverge.probes, lessThanOrEqualTo(7));
+  });
+
+  group('through a loop', () {
+    test('names the same step and component as the functions do', () {
+      // Mutation: play on from where the loop is without rewinding it to
+      // the kept state — a probe behind the last one reads a later state,
+      // and the step named is wrong.
+      final result = bisectTapes(
+        a: _loopSide(_Toy(), _tape(1000)),
+        b: _loopSide(_Toy(defectAt: 613), _tape(1000)),
+        layout: _layout.under(RunLoop.savePath),
+      );
+
+      final diverge = result as TapesDiverge;
+      expect(diverge.step - 1, 613);
+      expect(diverge.inputsDiffer, isFalse);
+      expect(diverge.component, EntityComponent('1', 'Health'));
+      expect((diverge.expected, diverge.found), (100, 99));
+    });
+
+    test('plays the tape through the loop, and says where input differs', () {
+      // Mutation: leave the loop's playback unset — the press at 250 is
+      // never seen and the runs agree.
+      final diverge =
+          bisectTapes(
+                a: _loopSide(_Toy(), _tape(400)),
+                b: _loopSide(_Toy(), _tape(400, fireAt: 250)),
+                layout: _layout.under(RunLoop.savePath),
+              )
+              as TapesDiverge;
+      expect(diverge.step - 1, 250);
+      expect(diverge.inputsDiffer, isTrue);
+      expect(diverge.component, EntityComponent('2', 'Health'));
+    });
+
+    test('steps no more than the functions do', () {
+      // Mutation: rewind to the start for every probe — the steps run are
+      // thousands.
+      final a = _loopSide(_Toy(), _tape(1000));
+      final b = _loopSide(_Toy(defectAt: 613), _tape(1000));
+      bisectTapes(a: a, b: b);
+      expect(a.stepsRun, lessThanOrEqualTo(2000));
+      expect(a.loop!.step, lessThanOrEqualTo(1000));
+    });
+
+    test('a capture holds the run\'s own save where the layout looks', () {
+      // Mutation: put the run's part under another id — `saveIn` finds
+      // nothing and the layout reads no entities.
+      final toy = _Toy();
+      final input = InputState();
+      final stepped = RunLoop(_RestorableToyRun(toy, input), input: input);
+      final captured = stepped.captureFrom(toy.save());
+      expect(RunLoop.saveIn(captured)?.data['steps'], 0);
+      expect(
+        _layout.under(RunLoop.savePath).entitiesOf(captured),
+        hasLength(3),
+      );
+    });
+
+    test('a run that cannot be put back cannot be rewound', () {
+      // Mutation: skip the part's restore for a plain run — the rewind
+      // reports success and the run stays where it was.
+      final toy = _Toy();
+      final input = InputState();
+      final stepped = RunLoop(_ToyRun(toy, input), input: input);
+      expect(stepped.isRestorable, isFalse);
+      final start = stepped.loop.capture();
+      stepped.loop.runSteps(3);
+      expect(toy.steps, 3);
+      expect(() => stepped.loop.rewindTo(0, state: start), throwsStateError);
+    });
   });
 }

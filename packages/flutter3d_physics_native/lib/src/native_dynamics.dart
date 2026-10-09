@@ -26,21 +26,33 @@
 /// rollback restores [snapshot]s, which carry the warm starts and the sleep
 /// a body's own `save()` does not; a body restored on its own is put where
 /// it was and moving as it was, and the core takes it from there.
+///
+/// The core steps in its world's air (`CollisionWorld.properties`), which
+/// drags what moves through it; the reference has no air. A scene held equal
+/// across the two is made in a vacuum: a world whose air's density is next
+/// to none.
 library;
 
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'native_force_fields.dart';
 import 'native_ragdoll.dart' show turnBy;
 import 'native_world.dart';
 
-final class NativeDynamics implements RigidDynamics, WorldMirror {
-  /// [gravity] as `Dynamics`' default, and its sleep: under 0.08 m/s for
-  /// half a second. The air is all but taken away, as the reference has
-  /// none; [native] can bring it back, with wind.
+final class NativeDynamics extends RigidDynamics with WorldMirror {
+  /// A core world for [world]'s bodies, in [world]'s properties
+  /// (`CollisionWorld.properties`: its gravity, its air and its wind), with
+  /// its sleep: under 0.08 m/s for half a second.
+  ///
+  /// [gravity], when given, is the world's from now on, as `Dynamics` says.
+  /// The air is the world's too: this used to take it all but away, a
+  /// vacuum to match the reference, and a crate and a spark in one game fell
+  /// through two different airs.
   NativeDynamics({
     required this.world,
     Vector3? gravity,
@@ -48,7 +60,10 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
     int threads = 1,
     bool movesCharacters = false,
     bool castsRays = false,
-  }) : gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {
+  }) {
+    if (gravity != null) {
+      world.properties = world.properties.copyWith(gravity: gravity);
+    }
     if (movesCharacters) world.characterMover = NativeCharacterMover(this);
     if (castsRays) {
       world
@@ -58,8 +73,8 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
     // Queried between steps, the copy is brought up to date inside each step
     // — see [WorldMirror] — so what is asked between steps changes nothing.
     if (movesCharacters || castsRays) world.mirrors.add(this);
+    _pushProperties();
     native
-      ..setAir(temperature: 293.15, density: 1e-30)
       ..setSleep(speed: 0.08, time: 0.5)
       ..substeps = substeps;
     if (threads != 1) native.threads = threads;
@@ -68,11 +83,42 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
   @override
   final CollisionWorld world;
 
+  /// Metres per second squared: the world's (`world.properties.gravity`), as
+  /// `Dynamics`' is. A fresh vector each call.
   @override
-  final Vector3 gravity;
+  Vector3 get gravity => world.properties.gravity;
+
+  /// The world's properties as the core was last given them.
+  WorldProperties? _pushed;
+
+  /// Gives the core what changed in `world.properties` since it was last
+  /// given them — and nothing when nothing did.
+  ///
+  /// **Not every step.** The step used to write its gravity into the core
+  /// each time, so a rewind that restored the core's gravity had it written
+  /// over by the next step with whatever Dart held, and a run rewound across
+  /// a change of gravity stepped on under the new one. The core's snapshot
+  /// and [saveState] carry the world now, and this only follows a change.
+  void _pushProperties() {
+    final now = world.properties;
+    if (now == _pushed) return;
+    native.applyProperties(now, previous: _pushed);
+    _pushed = now;
+  }
 
   /// The core's world: joints, bullets, the air, the fast mode.
   final NativeWorld native = NativeWorld();
+
+  /// The solver hook: forces computed in Dart, applied in [step] after the
+  /// bodies are mirrored in and before the core steps — a game's springs,
+  /// magnets and currents, and a plugin's (see [NativeForceField]).
+  ///
+  /// Empty until something is added, and then nothing changes: no force is
+  /// added and [saveState] writes what it always wrote. With a field in it,
+  /// the save carries the fields' state under `fields`. A field acting on a
+  /// body made in [native] by hand should [keep] it, or a [restore] takes
+  /// it out as nobody's.
+  late final NativeForceFields forceFields = NativeForceFields(native);
 
   @override
   final List<RigidBody> bodies = <RigidBody>[];
@@ -247,9 +293,9 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
     for (final body in bodies) {
       _mirrors[body]!.give(native, body);
     }
-    native
-      ..gravity = gravity
-      ..step(dt);
+    if (forceFields.isNotEmpty) forceFields.apply(dt);
+    _pushProperties();
+    native.step(dt);
     for (final body in bodies) {
       _mirrors[body]!.fetch(native, body);
     }
@@ -300,6 +346,14 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
             if (standing._moving) 1 else 0,
           ],
       ],
+      // Only with a field in it: a world without one saves what it always
+      // saved, to the byte.
+      if (forceFields.isNotEmpty) 'fields': forceFields.saveState(),
+      // The world it steps in. The core's bytes hold its gravity, air and
+      // wind already; these are what Dart reads them from, so a rewind puts
+      // back both and the next step does not write the new world over the
+      // old.
+      'world': world.properties.toJson(),
     };
   }
 
@@ -317,11 +371,21 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
   /// before its dynamics — and then this.
   @override
   void restoreState(Object? saved) {
+    // The world first: [restore] stands the level again, and a save made
+    // under another gravity is that gravity's from its first step.
+    if (saved case {'world': final Map<String, Object?> properties}) {
+      world.properties = WorldProperties.fromJson(properties);
+    }
     switch (saved) {
       case {'core': final String core, 'standing': final List<Object?> list}:
         restore(base64Decode(core), standing: list);
       case final String core:
         restore(base64Decode(core));
+    }
+    // A save from before any field was added has none, and the fields here
+    // start again from nothing, as they did then.
+    if (forceFields.isNotEmpty) {
+      forceFields.restoreState(saved is Map ? saved['fields'] : null);
     }
   }
 
@@ -341,6 +405,19 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
   /// for them.
   void restore(Uint8List bytes, {List<Object?>? standing}) {
     native.restore(bytes);
+    // The core now holds the gravity, air and wind it was saved with, which
+    // are the world's when [restoreState] put the world back. Its gravity
+    // and air are written again all the same — writing them changes nothing
+    // the core steps, and a save from before the world was in it is then
+    // stepped in the world as it is, as it always was; the wind is not,
+    // because writing it wakes whatever feels it, and the snapshot's sleep
+    // is part of what a rewind restores.
+    final now = world.properties;
+    native
+      ..gravity = now.gravity
+      ..setAir(temperature: now.airTemperature, density: now.airDensity)
+      ..airPressure = now.airPressure;
+    _pushed = now;
     _hulls.clear();
     _meshes.clear();
     if (standing != null) _restand(standing);
@@ -525,7 +602,26 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
       case CollisionHeightfield():
         final mesh = _meshes[shape] ??= _meshOf(shape);
         return ((b) => native.setMesh(b, mesh), Vector3.zero());
+      case CustomShape():
+        final (hull, offset) = _hulls[shape] ??= _hullOfCustom(shape);
+        return ((b) => native.setHull(b, hull), offset);
     }
+  }
+
+  /// A shape of a game's own as the hull of its support points, sampled in
+  /// [customShapeDirections] directions: the core holds convex hulls, and a
+  /// convex shape is the hull of its supports.
+  (NativeHull, Vector3) _hullOfCustom(CustomShape shape) {
+    final points = <Vector3>[
+      for (final (dx, dy, dz) in customShapeDirections)
+        () {
+          final out = Vector3.zero();
+          shape.support(dx, dy, dz, out);
+          return out;
+        }(),
+    ];
+    final hull = native.createHull(points);
+    return (hull, native.hullOffset(hull));
   }
 
   /// A wedge as six corners: the floor's four, and the top edge's two over
@@ -625,7 +721,7 @@ final class _Mirror {
     final turn = native.orientationOf(handle);
     if (body.canRotate) body.orientation = turn;
     body.collider.moveTo(
-      native.positionOf(handle) - _turned(body.orientation, offset),
+      native.localPositionOf(handle) - _turned(body.orientation, offset),
     );
     body.velocity.setFrom(native.velocityOf(handle));
     body.angularVelocity.setFrom(native.angularVelocityOf(handle));
@@ -703,7 +799,7 @@ final class _Standing {
     _mask = collider.mask;
     _at.setFrom(at);
     _moving = moving;
-    _inCore.setFrom(native.positionOf(handle) - offset);
+    _inCore.setFrom(native.localPositionOf(handle) - offset);
     _adopted = true;
   }
 
@@ -722,7 +818,7 @@ final class _Standing {
     _at.setFrom(collider.position);
     // Where the core has it, which a query compares with the collider: the
     // two differ when the collider was put back after the core was.
-    _inCore.setFrom(native.positionOf(handle) - offset);
+    _inCore.setFrom(native.localPositionOf(handle) - offset);
     _moving = native.velocityOf(handle).length2 != 0.0;
   }
 
@@ -755,7 +851,7 @@ final class _Standing {
 /// the core for everything else to meet: one volume. A capsule inside it
 /// rolled off a ledge's edge before the box would leave it, and a jump the
 /// platformer's route was built for fell short.
-final class NativeCharacterMover implements CharacterMover {
+final class NativeCharacterMover extends CharacterMover {
   NativeCharacterMover(this.dynamics);
 
   final NativeDynamics dynamics;
@@ -804,7 +900,7 @@ final class NativeCharacterMover implements CharacterMover {
 /// world [dynamics] mirrors, its movers put where they are first, the body
 /// met named back as its collider. A body made in the core by hand is met
 /// too, and named as nobody's.
-final class NativeWorldRays implements WorldRays {
+final class NativeWorldRays extends WorldRays {
   NativeWorldRays(this.dynamics);
 
   final NativeDynamics dynamics;
@@ -842,7 +938,7 @@ final class NativeWorldRays implements WorldRays {
 /// shape's bounding box moved without turning, the body met named back as
 /// its collider, and a shape that starts inside something meeting nothing,
 /// as the reference's does.
-final class NativeWorldSweeps implements WorldSweeps {
+final class NativeWorldSweeps extends WorldSweeps {
   NativeWorldSweeps(this.dynamics);
 
   final NativeDynamics dynamics;
@@ -873,3 +969,19 @@ final class NativeWorldSweeps implements WorldSweeps {
     return true;
   }
 }
+
+/// The directions a [CustomShape] is sampled in for the core's hull: the six
+/// axes, the twelve edge diagonals and the eight corner diagonals of a cube,
+/// and the sixteen between them on the two tilted belts — forty-two, the
+/// count `ShapePhysics.customShapeSamples` names.
+final List<(double, double, double)> customShapeDirections =
+    List<(double, double, double)>.unmodifiable(<(double, double, double)>[
+      for (final x in <double>[-1, 0, 1])
+        for (final y in <double>[-1, 0, 1])
+          for (final z in <double>[-1, 0, 1])
+            if (x != 0 || y != 0 || z != 0) (x, y, z),
+      for (final (a, b) in <(double, double)>[(2, 1), (1, 2), (2, -1), (1, -2)])
+        for (final s in <double>[-1, 1])
+          for (final axis in <int>[0, 1])
+            axis == 0 ? (s * a, b, 0.0) : (0.0, b, s * a),
+    ]);

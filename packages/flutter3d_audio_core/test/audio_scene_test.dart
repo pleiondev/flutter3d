@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const SoundDef _step = SoundDef(
@@ -191,7 +191,7 @@ void main() {
 
       expect(backend.live, hasLength(3));
       // The three nearest, which are the three loudest.
-      expect(scene.emitters.where((SoundEmitter e) => e.isAudible).length, 3);
+      expect(scene.emitters.where((AudioEmitter e) => e.isAudible).length, 3);
     });
 
     test('priority outranks loudness', () {

@@ -8,16 +8,13 @@ const List<String> patchedLists = <String>['brushes', 'lights', 'entities'];
 
 /// One row of one of [patchedLists] put in, taken out or replaced.
 ///
-/// **A row is named by where it stands and what it was**, [at] and [was],
-/// because the format gives a brush nothing else to be named by. Ids in the
-/// document were the alternative and were refused: every level ever saved
-/// would grow a key per row on its next save, recipes expand into brushes
-/// that have none, and the editor's undo puts back whole documents, so ids
-/// would have to be minted and kept stable across all of it. What a reference
-/// has to guarantee is narrower than identity — that a patch never edits a
-/// row other than the one it was made against — and the row's digest gives
-/// exactly that: the receiving end finds the row at [at], digests it, and
-/// refuses the patch when it is not the row [was] names.
+/// **A row is named by where it stands and what it was**, [at] and [was].
+/// Since level format 3 every row also carries an `id` (see [LevelIds]),
+/// and the digest covers it; what a patch has to guarantee is narrower than
+/// identity — that it never edits a row other than the one it was made
+/// against — and the row's digest gives exactly that: the receiving end finds
+/// the row at [at], digests it, and refuses the patch when it is not the row
+/// [was] names.
 final class RowEdit {
   const RowEdit({required this.list, required this.at, this.was, this.row});
 
@@ -290,7 +287,14 @@ final class LevelPatch {
       simulation: <String>[
         if (of('brushes').isNotEmpty) 'brushes',
         if (of('entities').isNotEmpty) 'entities',
-        for (final key in const <String>['heightfield', 'recipes', 'next'])
+        for (final key in const <String>[
+          'heightfield',
+          'recipes',
+          // A template's edit is an edit of every instance's entities.
+          'prefabs',
+          'next',
+          'world',
+        ])
           if (fields.containsKey(key)) key,
       ],
     );

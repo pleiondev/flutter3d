@@ -14,7 +14,13 @@ import 'actor.dart';
 /// state: `ActorSystem.save` writes [save] beside its own and `restore`
 /// hands it back with the actors as they now are, so a rewind or a replay
 /// steps on to the same strides. Nothing to save by default.
-abstract class ActorStrides {
+///
+/// **A base class**, extended rather than implemented, so a member added in
+/// a minor arrives with a default and a game's strides keep compiling.
+abstract base class ActorStrides {
+  /// Strides; `const` so a stateless one can be a constant.
+  const ActorStrides();
+
   /// [actor]'s travel along the floor for this step of [dt], or null for a
   /// body moved by its brain's [wish]. Called once a step for every actor,
   /// body or none, after its brain has acted, dead or alive.

@@ -18,14 +18,14 @@ static void test_abi_and_defaults(void) {
   CHECK(w != NULL);
   f3d_real g[3];
   f3d_world_get_gravity(w, g);
-  CHECK(g[0] == 0 && g[1] == F3D_R(-9.81) && g[2] == 0);
+  CHECK(g[0] == 0 && g[1] == -F3D_STANDARD_GRAVITY && g[2] == 0);
   CHECK(f3d_world_body_count(w) == 0);
   f3d_world_set_gravity(w, 1, 2, 3);
   f3d_world_get_gravity(w, g);
   CHECK(g[0] == 1 && g[1] == 2 && g[2] == 3);
   f3d_real air[2];
   f3d_world_get_air(w, air);
-  CHECK(air[0] == F3D_R(293.15) && air[1] == F3D_R(1.204));
+  CHECK(air[0] == F3D_STANDARD_AIR_TEMPERATURE && air[1] == F3D_STANDARD_AIR_DENSITY);
   CHECK(f3d_world_set_air(w, 0, 1) == 0);
   CHECK(f3d_world_set_air(w, 300, -1) == 0);
   CHECK(f3d_world_set_air(w, nan_value(), 1) == 0);

@@ -61,6 +61,10 @@ void main() {
     expect(out, contains('platform:   macos'));
     expect(out, contains('recordedBy: dmitrii'));
     expect(out, isNot(contains('levelSwap')));
+    // Mutation: print nothing for a run that names no simulation, and the
+    // reader cannot tell "version 1" from "the tool forgot to say".
+    expect(out, contains('simulation: (not recorded; read as 1)'));
+    expect(out, contains('poses:      (none)'));
   });
 
   test('a level swapped under the run is listed with its step', () {

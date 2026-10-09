@@ -15,7 +15,7 @@ import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 

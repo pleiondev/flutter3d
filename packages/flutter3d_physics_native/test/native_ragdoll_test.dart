@@ -3,6 +3,7 @@
 // mirror stands in the core, carried by the pose's momentum, held together
 // at every joint, asleep at the end; and kept through the dynamics'
 // restores.
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';

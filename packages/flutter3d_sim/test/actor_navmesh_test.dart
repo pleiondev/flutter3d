@@ -11,6 +11,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -19,11 +21,11 @@ const double _dt = 1.0 / 60.0;
 
 /// Meshes baked for the width of the bodies here, a default controller's
 /// 0.35: a body is not given a mesh baked for anything narrower.
-const NavMeshConfig _body = NavMeshConfig(agentRadius: 0.35);
+const NavMeshSettings _body = NavMeshSettings(agentRadius: 0.35);
 
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
-      centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+      center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
       size: Vector3(x1 - x0, y1 - y0, z1 - z0),
     );
 
@@ -42,11 +44,11 @@ List<Brush> _pit() => <Brush>[
   _box(0.75, -1, -2, 6, 0, 2),
 ];
 
-final BehaviourTree _toPost = BehaviourTree.read(const <String, Object?>{
+final BehaviorTree _toPost = BehaviorTree.read(const <String, Object?>{
   'kind': 'goTo',
   'key': 'post',
   'within': 0.5,
-}, BehaviourKinds()).tree!;
+}, BehaviorKinds()).tree!;
 
 /// One actor that walks to `post`, in a world built from [brushes].
 final class _Walk {
@@ -57,13 +59,13 @@ final class _Walk {
     NavMesh? mesh,
   }) {
     for (final brush in brushes) {
-      world.addBox(brush.centre, brush.size);
+      world.addBox(brush.center, brush.size);
     }
     world.update();
     if (mesh != null) system.navMeshes = <NavMesh>[mesh];
     final actor = system.spawn(
       body: CharacterController(world: world, position: from),
-      brain: BehaviourBrain(_toPost),
+      brain: BehaviorBrain(_toPost),
       facing: Facing(),
       name: 'walker',
     );
@@ -77,7 +79,7 @@ final class _Walk {
     );
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: _world);
   late final ActorSystem system = ActorSystem(
     world: world,
     random: GameRandom(3),
@@ -114,6 +116,12 @@ double _flat(Vector3 a, Vector3 b) {
   final dz = a.z - b.z;
   return dx * dx + dz * dz;
 }
+
+/// The world the walks are made in: falling at 24 m/s², the gravity the
+/// characters here were tuned under before they fell by their world's.
+final WorldProperties _world = WorldProperties(
+  gravity: Vector3(0.0, -24.0, 0.0),
+);
 
 void main() {
   group('a post in the next room', () {
@@ -163,7 +171,7 @@ void main() {
       final meshes = NavMesh.bakeLevelFor(
         Level(name: 'rooms', brushes: _rooms()),
         const <(double, double)>[(0.62, 2.4), (0.35, 1.7), (0.38, 1.8)],
-        config: const NavMeshConfig(cellSize: 0.25),
+        config: const NavMeshSettings(cellSize: 0.25),
       );
       expect(meshes.map((m) => m.config.agentRadius), <double>[0.35, 0.62]);
       // The 0.38 body is 1.8 tall and the 0.62 one 2.4: the mesh they share
@@ -177,7 +185,7 @@ void main() {
         ..navMeshes = NavMesh.bakeLevelFor(
           Level(name: 'rooms', brushes: _rooms()),
           const <(double, double)>[(0.62, 2.4), (0.35, 1.7)],
-          config: const NavMeshConfig(cellSize: 0.25),
+          config: const NavMeshSettings(cellSize: 0.25),
         ).reversed.toList();
       // Listed widest first. Mutation: taking the first mesh at least as
       // wide, not the narrowest, or one narrower than the body, gives the
@@ -194,12 +202,16 @@ void main() {
     final post = Vector3(4, 0.9, 0);
 
     test('is jumped to over a mesh baked with the body\'s reach', () {
-      const tuning = MovementTuning();
+      const tuning = MovementSettings();
       final walk = _Walk(
         _pit(),
         from: from,
         post: post,
-        mesh: NavMesh.bake(_pit(), config: _body, jumps: JumpReach.of(tuning)),
+        mesh: NavMesh.bake(
+          _pit(),
+          config: _body,
+          jumps: JumpReach.of(tuning, world: _world),
+        ),
       )..steps(300);
       // Mutation: never asking for the jump walks the body off the edge.
       expect(walk.position.y, greaterThan(0.5));

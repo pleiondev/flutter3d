@@ -544,10 +544,9 @@ static int found_one(void *context, int32_t leaf) {
 F3dBox f3d_swept_box(const F3dWorld *world, const F3dSlot *s, f3d_real margin,
                      f3d_real dt) {
   F3dBox b = f3d_box_of(world, s, margin);
-  if (!world->s.speculative || s->type != F3D_BODY_DYNAMIC ||
-      (s->flags & F3D_FLAG_ASLEEP)) {
-    return b;
-  }
+  const int awake = (s->type == F3D_BODY_DYNAMIC && !(s->flags & F3D_FLAG_ASLEEP)) ||
+                    f3d_carried(s);
+  if (!world->s.speculative || !awake) return b;
   const F3dVec3 move = f3d_scale(s->velocity, dt);
   b.lo = f3d_v3(f3d_min(b.lo.x, b.lo.x + move.x), f3d_min(b.lo.y, b.lo.y + move.y),
                 f3d_min(b.lo.z, b.lo.z + move.z));

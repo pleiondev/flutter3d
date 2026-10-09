@@ -431,33 +431,35 @@ static void test_islands(void) {
   f3d_world_destroy(w);
 }
 
+/* A steel cube of a kilogram, five centimetres a side, at [x], [y]. */
+static F3dBody steel_cube(F3dWorld *w, F3dBodyType type, f3d_real x, f3d_real y,
+                          const F3dMaterial *steel, f3d_real t) {
+  const F3dBody b = f3d_body_create(w, type, x, y, 0, 1);
+  f3d_body_set_shape(w, b, F3D_SHAPE_BOX, F3D_R(0.025), F3D_R(0.025), F3D_R(0.025));
+  f3d_body_set_material(w, b, steel);
+  f3d_body_set_temperature(w, b, t);
+  return b;
+}
+
 static void test_conduction(void) {
-  /* Two steel balls of a kilogram, r = 5 cm, pressed a millimetre into each
-   * other, one hot. Hertz's spot is √(Rδ) = 5 mm across with R = 2.5 cm,
-   * Holm's conductance 4a / (2/k) = 0.5 W/K, and in still air at their mean
-   * temperature the difference between them falls as
-   * e^(−(2G + hA) t / C), never crossing. */
+  /* A hot steel cube with a cold one resting on it under its own weight,
+   * and a pair alike standing apart. Face on face they touch over the
+   * 25 cm² of the faces, Holm's conductance 4a / (2/k) — 3.4 W/K for the
+   * preset's k — with a the radius of a circle that large; so the touching pair's difference
+   * falls faster than the apart pair's by e^(−2G t / C), the air cooling
+   * both alike, and never crosses. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, 0, 0);
-  f3d_world_set_air(w, 350, F3D_R(1.204));
+  f3d_world_set_air(w, 350, F3D_STANDARD_AIR_DENSITY);
   F3dMaterial steel;
   f3d_material_preset(F3D_MATERIAL_STEEL, &steel);
   steel.emissivity = 0;
-  const F3dBody hot = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(0, 0, 0), identity, 0.05);
-  const F3dBody cold = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(F3D_R(0.099), 0, 0), identity, 0.05);
-  const F3dBody apart = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(5, 0, 0), identity, 0.05);
-  const F3dBody apart2 = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(8, 0, 0), identity, 0.05);
-  f3d_body_set_material(w, hot, &steel);
-  f3d_body_set_material(w, cold, &steel);
-  f3d_body_set_material(w, apart, &steel);
-  f3d_body_set_material(w, apart2, &steel);
-  f3d_body_set_temperature(w, hot, 400);
-  f3d_body_set_temperature(w, cold, 300);
-  f3d_body_set_temperature(w, apart, 400);
-  f3d_body_set_temperature(w, apart2, 300);
+  const F3dBody hot = steel_cube(w, F3D_BODY_FIXED, 0, 0, &steel, 400);
+  const F3dBody cold = steel_cube(w, F3D_BODY_DYNAMIC, 0, F3D_R(0.0499), &steel, 300);
+  const F3dBody apart = steel_cube(w, F3D_BODY_FIXED, 5, 0, &steel, 400);
+  const F3dBody apart2 = steel_cube(w, F3D_BODY_FIXED, 8, 0, &steel, 300);
   f3d_real th = 0, tc = 0, ta = 0, tb = 0;
   int crossed = 0;
-  for (int i = 0; i < 6000; i++) {
+  for (int i = 0; i < 1000; i++) {
     f3d_world_step(w, F3D_R(0.1));
     f3d_body_get_temperature(w, hot, &th);
     f3d_body_get_temperature(w, cold, &tc);
@@ -466,11 +468,13 @@ static void test_conduction(void) {
   f3d_body_get_temperature(w, apart, &ta);
   f3d_body_get_temperature(w, apart2, &tb);
   CHECK(!crossed);
-  const double ha = 10.45 * 4 * 3.14159265358979 * 0.05 * 0.05;
-  CHECK_NEAR((th - tc) / 100.0, exp(-600.0 * (2 * 0.5 + ha) / 490.0), 1e-2);
-  CHECK_NEAR((ta - tb) / 100.0, exp(-600.0 * ha / 490.0), 1e-2);
-  /* The air is at their mean and they are alike, so the mean holds. */
-  CHECK_NEAR(0.5 * (th + tc), 350, 1e-3);
+  const double k = (double)steel.conductivity, c = (double)steel.specific_heat;
+  const double g = 4 * sqrt(0.05 * 0.05 / M_PI) / (2 / k);
+  CHECK_NEAR((th - tc) / (ta - tb), exp(-2 * g * 100.0 / c), 0.03);
+  /* The air is at their mean and they are alike, so the mean holds near
+   * enough: the hot one's air rises a little faster than the cold one's
+   * sinks. */
+  CHECK_NEAR(0.5 * (th + tc), 350, 0.5);
 
   /* A hot plate of no thermal mass is a reservoir: it warms the block on it
    * and stays as hot as it was. */
@@ -513,13 +517,21 @@ static void test_fire_warms_what_it_touches(void) {
     f3d_body_set_material(w, blocks[i], &wood);
   }
   f3d_body_set_temperature(w, blocks[0], 700);
-  for (int i = 0; i < 6000; i++) f3d_world_step(w, F3D_R(0.1));
+  /* Five minutes: the one it touches catches in seconds, at the face the
+   * two share, and burns beside it a while. */
   int burning = 0, near_burning = 0;
+  for (int i = 0; i < 3000; i++) {
+    f3d_world_step(w, F3D_R(0.1));
+    int on = 0;
+    f3d_body_is_burning(w, blocks[1], &on);
+    near_burning |= on;
+  }
   f3d_body_is_burning(w, blocks[0], &burning);
-  f3d_body_is_burning(w, blocks[1], &near_burning);
   f3d_real near, far;
-  f3d_body_get_temperature(w, blocks[1], &near);
-  f3d_body_get_temperature(w, blocks[2], &far);
+  /* Their surfaces: the near one is hot at its face while its middle has
+   * hardly warmed. */
+  f3d_body_get_surface_temperature(w, blocks[1], &near);
+  f3d_body_get_surface_temperature(w, blocks[2], &far);
   CHECK(burning);
   CHECK(near > far + 1);
   CHECK(far < F3D_R(293.15 + 0.5));

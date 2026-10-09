@@ -8,8 +8,9 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ComponentCodec, Entity;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
-import 'package:flutter3d_sim/src/ecs/entity.dart';
 import 'package:test/test.dart';
 
 final class _Position {
@@ -32,21 +33,25 @@ final class _Visual {
 
 EcsWorld _world() {
   return EcsWorld()
-    ..register<_Position>(
-      'position',
-      encode: (_Position p) => <double>[p.x, p.y],
-      decode: (Object? data) {
-        final row = data! as List;
-        return _Position(
-          (row[0] as num).toDouble(),
-          (row[1] as num).toDouble(),
-        );
-      },
+    ..components.register<_Position>(
+      ComponentCodec<_Position>.of(
+        id: 'position',
+        encode: (_Position p) => <double>[p.x, p.y],
+        decode: (Object? data, int _) {
+          final row = data! as List;
+          return _Position(
+            (row[0] as num).toDouble(),
+            (row[1] as num).toDouble(),
+          );
+        },
+      ),
     )
-    ..register<_Name>(
-      'name',
-      encode: (_Name n) => n.value,
-      decode: (Object? data) => _Name(data! as String),
+    ..components.register<_Name>(
+      ComponentCodec<_Name>.of(
+        id: 'name',
+        encode: (_Name n) => n.value,
+        decode: (Object? data, int _) => _Name(data! as String),
+      ),
     );
 }
 
@@ -75,7 +80,7 @@ void main() {
             'the index was reused, which '
             'is the whole point of the danger',
       );
-      expect(world.alive(first), isFalse);
+      expect(world.isAlive(first), isFalse);
       expect(world.get<_Name>(first), isNull);
       expect(world.get<_Name>(second)!.value, 'second');
     });
@@ -83,10 +88,10 @@ void main() {
     test('an entity is alive until it is not', () {
       final world = _world();
       final entity = world.spawn();
-      expect(world.alive(entity), isTrue);
+      expect(world.isAlive(entity), isTrue);
       expect(world.length, 1);
       world.despawn(entity);
-      expect(world.alive(entity), isFalse);
+      expect(world.isAlive(entity), isFalse);
       expect(world.length, 0);
     });
 
@@ -102,7 +107,7 @@ void main() {
     });
 
     test('nothing is not an entity', () {
-      expect(_world().alive(Entity.none), isFalse);
+      expect(_world().isAlive(Entity.none), isFalse);
     });
 
     test('despawning takes the components with it', () {
@@ -162,7 +167,7 @@ void main() {
         ..set(onlyName, _Name('name'));
 
       expect(world.query2<_Position, _Name>().toList(), <Entity>[both]);
-      expect(world.query<_Position>().length, 2);
+      expect(world.queryOf<_Position>().length, 2);
     });
 
     test('a query survives the loop despawning what it is walking', () {
@@ -174,7 +179,7 @@ void main() {
         world.set(world.spawn(), _Position(i.toDouble(), 0.0));
       }
 
-      for (final entity in world.query<_Position>()) {
+      for (final entity in world.queryOf<_Position>()) {
         if (world.get<_Position>(entity)!.x % 2 == 0) world.despawn(entity);
       }
 
@@ -182,7 +187,7 @@ void main() {
     });
 
     test('a query over a type nothing has is empty, not an error', () {
-      expect(_world().query<_Visual>(), isEmpty);
+      expect(_world().queryOf<_Visual>(), isEmpty);
     });
   });
 
@@ -223,7 +228,7 @@ void main() {
 
       final read = _world()..restore(world.save());
       expect(
-        read.alive(kept),
+        read.isAlive(kept),
         isFalse,
         reason: 'a handle that was stale before the save is stale after it',
       );
@@ -254,7 +259,9 @@ void main() {
 
     test('a component excluded on purpose is skipped in silence', () {
       final world = _world()
-        ..exclude<_Visual>('a mesh handle means nothing in another process');
+        ..components.exclude<_Visual>(
+          'a mesh handle means nothing in another process',
+        );
       world.set(world.spawn(), _Visual(Object()));
 
       final saved = world.save();
@@ -267,12 +274,14 @@ void main() {
       // the first sign of it would be a load that produced the wrong world.
       final world = _world();
       expect(
-        () => world.register<_Visual>(
-          'name',
-          encode: (_Visual v) => '',
-          decode: (Object? data) => _Visual(Object()),
+        () => world.components.register<_Visual>(
+          ComponentCodec<_Visual>.of(
+            id: 'name',
+            encode: (_Visual v) => '',
+            decode: (Object? data, int _) => _Visual(Object()),
+          ),
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
@@ -322,7 +331,7 @@ void main() {
       handle = world.spawn();
     }
 
-    expect(world.alive(handle), isTrue);
+    expect(world.isAlive(handle), isTrue);
     expect(handle.generation, 256, reason: 'one per recycle of the index');
     expect(handle.index, 0, reason: 'the freed index is the one reused');
   });

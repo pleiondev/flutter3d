@@ -66,7 +66,7 @@ static void test_same_bits(void) {
 static void test_still_physics(void) {
   /* A crate on a floor, and a stack of ten beside it, on four threads. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   CHECK(f3d_world_set_fast(w, 1) && f3d_world_set_threads(w, 4));
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
@@ -108,7 +108,7 @@ static F3dWorld *plank(uint32_t threads) {
   /* A plank four metres square, dynamic, on the floor, under a hundred
    * balls: more contacts than colours, so some go to the overflow. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   f3d_world_set_fast(w, 1);
   f3d_world_set_threads(w, threads);
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
@@ -153,7 +153,7 @@ static void test_overflow(void) {
  * how fast at the end, in [end]. */
 static f3d_real bounce(int fast, f3d_real *end) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   f3d_world_set_fast(w, fast);
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
@@ -191,7 +191,7 @@ static void test_bounce(void) {
  * velocity. */
 static void sunk(int fast, f3d_real height, f3d_real *end) {
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   f3d_world_set_fast(w, fast);
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
@@ -224,7 +224,7 @@ static void test_hinge(void) {
   /* A bob on a hinge a metre below its pivot, swung, on two threads: the
    * joints are solved on one thread between the colours, and hold. */
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_gravity(w, 0, -F3D_STANDARD_GRAVITY, 0);
   f3d_world_set_fast(w, 1);
   f3d_world_set_threads(w, 2);
   const F3dBody pivot = f3d_body_create(w, F3D_BODY_FIXED, 0, 3, 0, 0);

@@ -1,4 +1,4 @@
-/// A real WebRTC data channel behind `flutter3d_net`'s `NetTransport` —
+/// A real WebRTC data channel behind `flutter3d_net`'s `PeerWire` —
 /// `net-02`'s primary transport, with the relay carrying only the SDP/ICE
 /// handshake rather than every game frame.
 ///

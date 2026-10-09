@@ -327,7 +327,7 @@ void main() {
       );
       // The whole of the ledge, in one step, and never more than the limit.
       expect(climbed, closeTo(0.3, 0.02));
-      expect(climbed, lessThanOrEqualTo(const MovementTuning().stepHeight));
+      expect(climbed, lessThanOrEqualTo(const MovementSettings().stepHeight));
       // And it is this step's news, not a running total.
       _walk(player, 5, direction: Vector3(0.0, 0.0, -1.0));
       expect(player.steppedUp, 0.0);
@@ -654,7 +654,7 @@ void main() {
     /// ground.
     int airborneWalkingDown(
       CollisionWorld world,
-      MovementTuning tuning, {
+      MovementSettings tuning, {
       int steps = 600,
     }) {
       final player = CharacterController(
@@ -679,7 +679,7 @@ void main() {
       //
       // Mutation: default `floorSnapLength` to 0.3 and this reads zero.
       expect(
-        airborneWalkingDown(staircase(), const MovementTuning()),
+        airborneWalkingDown(staircase(), const MovementSettings()),
         greaterThan(100),
         reason:
             'eight centimetres of probe cannot hold a twenty centimetre '
@@ -693,7 +693,7 @@ void main() {
       // at `groundProbe`, which is the same thing said in the controller.
       final airborne = airborneWalkingDown(
         staircase(),
-        const MovementTuning(floorSnapLength: 0.3),
+        const MovementSettings(floorSnapLength: 0.3),
       );
 
       expect(airborne, 0, reason: 'a 0.3 m reach carries a 0.2 m step');
@@ -718,7 +718,7 @@ void main() {
           world: world,
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 3.9, 0.0),
-          tuning: MovementTuning(floorSnapLength: snap),
+          tuning: MovementSettings(floorSnapLength: snap),
         );
         var last = 0.0;
         for (var i = 0; i < 200; i++) {
@@ -764,9 +764,9 @@ void main() {
           return world;
         }
 
-        for (final tuning in <MovementTuning>[
-          const MovementTuning(),
-          const MovementTuning(floorSnapLength: 0.3),
+        for (final tuning in <MovementSettings>[
+          const MovementSettings(),
+          const MovementSettings(floorSnapLength: 0.3),
         ]) {
           final world = pit();
           final player = CharacterController(
@@ -835,7 +835,7 @@ void main() {
           world: world,
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 0.9, -3.0),
-          tuning: const MovementTuning(floorSnapLength: 0.5),
+          tuning: const MovementSettings(floorSnapLength: 0.5),
         )..solidFilter = (SweptContact c) => c.other != refused;
 
         var stoodOnIt = 0;
@@ -874,14 +874,14 @@ void main() {
         world: open,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.0),
-        tuning: const MovementTuning(floorSnapLength: 0.5),
+        tuning: const MovementSettings(floorSnapLength: 0.5),
       );
       _walk(thrown, 30);
       thrown.velocity.y = 15.0;
       thrown.suppressFloorSnap();
       thrown.step(_dt, wishDirection: Vector3.zero());
 
-      expect(thrown.velocity.y, closeTo(15.0 - 24.0 * _dt, 1e-6));
+      expect(thrown.velocity.y, closeTo(15.0 - thrown.gravity * _dt, 1e-6));
       expect(thrown.isGrounded, isFalse);
 
       // The half that does need it: a low ceiling takes the upward speed away
@@ -901,7 +901,7 @@ void main() {
         world: shaft,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.0),
-        tuning: const MovementTuning(floorSnapLength: 0.5),
+        tuning: const MovementSettings(floorSnapLength: 0.5),
       );
       _walk(bonked, 30);
       final pad = bonked.position.y;
@@ -933,7 +933,7 @@ void main() {
         world: world,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.5),
-        tuning: const MovementTuning(floorSnapLength: 0.3),
+        tuning: const MovementSettings(floorSnapLength: 0.3),
       );
 
       var airborne = 0;

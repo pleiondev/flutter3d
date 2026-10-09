@@ -16,7 +16,11 @@ import '../save/game_random.dart';
 /// was — a hill is reshaped, not worn away.
 Heightfield erodeThermally(
   Heightfield field, {
+
+  /// The steepest step between neighbours, in metres.
   double talus = 0.6,
+
+  /// The 0..1 share of the excess over [talus] that moves in a pass.
   double rate = 0.5,
   int passes = 30,
 }) {
@@ -83,11 +87,23 @@ Heightfield erodeHydraulically(
   required int seed,
   int droplets = 4000,
   int life = 40,
+
+  /// The 0..1 share of its old direction a drop keeps against the slope.
   double inertia = 0.05,
+
+  /// A unitless multiplier: a drop carries `capacity × speed × slope`.
   double capacity = 4.0,
+
+  /// The 0..1 share of what a drop could still carry that it takes.
   double erosion = 0.3,
+
+  /// The 0..1 share of what a drop carries over its limit that it sets down.
   double deposition = 0.3,
+
+  /// The 0..1 share of a drop's water that dries each step.
   double evaporation = 0.02,
+
+  /// A unitless multiplier on the fall a drop's squared speed grows by.
   double gravity = 4.0,
 }) {
   final w = field.columns;

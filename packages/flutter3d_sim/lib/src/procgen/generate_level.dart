@@ -65,15 +65,17 @@ final class LevelRules {
   final int columns;
   final int rows;
 
-  /// A cell's side, and a room's floor inside it; what is left between two
-  /// rooms is the corridor's length.
+  /// A cell's side, in metres; what is left between two rooms is the
+  /// corridor's length.
   final double cell;
+
+  /// A room's floor inside its cell, side to side, in metres.
   final double room;
 
-  /// Floor to ceiling, rooms and corridors alike.
+  /// Floor to ceiling, rooms and corridors alike, in metres.
   final double height;
 
-  /// A corridor's width, which is its doorways' too.
+  /// A corridor's width, which is its doorways' too, in metres.
   final double corridor;
 
   /// How likely a cell is to be a room rather than nothing, nought to one.
@@ -249,7 +251,7 @@ Level? _attempt(LevelRules rules, int seed) {
   final exitRoom = best.reduce((int a, int b) => seen[b] > seen[a] ? b : a);
 
   final inLevel = best.toSet();
-  List<num> centre(int cell) => <num>[
+  List<num> center(int cell) => <num>[
     (cell % rules.columns + 0.5) * rules.cell,
     0.0,
     (cell ~/ rules.columns + 0.5) * rules.cell,
@@ -265,7 +267,7 @@ Level? _attempt(LevelRules rules, int seed) {
   final lights = <Map<String, Object?>>[];
   final entities = <Map<String, Object?>>[];
   for (final cell in best) {
-    final at = centre(cell);
+    final at = center(cell);
     recipes.add(<String, Object?>{
       'kind': 'room',
       'seed': seed * 1000 + cell,
@@ -305,7 +307,7 @@ Level? _attempt(LevelRules rules, int seed) {
       if (next == null || !inLevel.contains(next)) continue;
       if (exits(cell) & (1 << side) == 0) continue;
       final half = rules.room / 2.0;
-      final there = centre(next);
+      final there = center(next);
       final (from, to) = side == 1
           ? (
               <num>[at[0] + half, 0.0, at[2]],

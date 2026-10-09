@@ -102,7 +102,7 @@ static uint64_t stepped_debris(void) {
   CHECK(f3d_debris_set_statics(d, statics, 5));
   F3dDebrisSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.friction = F3D_R(0.5);
   s.restitution = F3D_R(0.3);
   s.linear_damping = F3D_R(0.05);
@@ -155,7 +155,7 @@ static uint64_t stepped_cloth(void) {
   CHECK(f3d_cloth_set_balls(c, ball, 1));
   F3dClothSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.wind[0] = 2;
   s.drag = F3D_R(0.2);
   s.damping = F3D_R(0.1);
@@ -182,7 +182,7 @@ static uint64_t stepped_fluid(void) {
   f3d_fluid_add(f, in, 800);
   F3dFluidSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.tank_min[0] = F3D_R(-0.5);
   s.tank_min[2] = F3D_R(-0.25);
   s.tank_max[0] = F3D_R(0.5);
@@ -214,7 +214,7 @@ static uint64_t stepped_particles(void) {
     q[6] = 1 + F3D_R(0.005) * (f3d_real)i;
   }
   f3d_particles_emit(p, in, 400);
-  const F3dParticleForces forces = {{0, F3D_R(-9.81), 0}, {1, 0, F3D_R(0.5)}, F3D_R(0.3), 0, F3D_R(0.4), F3D_R(0.2)};
+  const F3dParticleForces forces = {{0, -F3D_STANDARD_GRAVITY, 0}, {1, 0, F3D_R(0.5)}, F3D_R(0.3), 0, F3D_R(0.4), F3D_R(0.2)};
   for (int step = 0; step < 150; step++) f3d_particles_step(p, &forces, F3D_R(1.0 / 60.0));
   static f3d_real out[400 * F3D_PARTICLE_FLOATS];
   const uint32_t n = f3d_particles_read(p, out, 400);

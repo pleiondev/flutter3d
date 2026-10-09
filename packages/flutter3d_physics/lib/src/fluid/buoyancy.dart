@@ -1,17 +1,17 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../collision_shape.dart';
-import '../portable_math.dart';
 import '../rigid_body.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 import 'liquid_body.dart';
 import 'vessel_shape.dart';
 
-/// How much of [shape], centred at [centre], is below the plane
+/// How much of [shape], centred at [center], is below the plane
 /// `up · p = height` (all in one frame): exactly, for the shapes a body can
 /// have that hold a volume — a sphere by its cap, π h²(3R − h)/3; a box by
 /// cutting it as a closed mesh; an upright capsule as a surface of
@@ -19,11 +19,11 @@ import 'vessel_shape.dart';
 /// ramp.
 double submergedVolume(
   CollisionShape shape,
-  Vector3 centre,
+  Vector3 center,
   Vector3 up,
   double height,
 ) {
-  final depth = height - up.dot(centre);
+  final depth = height - up.dot(center);
   switch (shape) {
     case CollisionSphere(:final radius):
       final h = (radius + depth).clamp(0.0, 2.0 * radius);
@@ -78,7 +78,28 @@ RevolvedVessel _capsule(double r, double half) => RevolvedVessel([
 
 /// The drag coefficient of a sphere at Reynolds number [re]: White's
 /// correlation, 24/Re + 6/(1 + √Re) + 0.4, which is Stokes's law when the
-/// flow is slow and the turbulent plateau when it is quick.
+/// flow is slow and the turbulent plateau when it is quick (White, Viscous
+/// Fluid Flow, 2nd ed., 1991, which puts it within 10 % of the measurements
+/// from Re 0 to 2·10⁵).
+///
+/// **The engine's sphere drag, and the one law where a body moves through a
+/// liquid at any speed** — this, and the core's vessels (`f3d_liquid.c`),
+/// which use the same correlation. Two solvers use another, each for a
+/// reason of its own:
+///
+/// * **a body in the core's shallow liquid** (`f3d_shallow.c`) takes
+///   Schiller and Naumann's 24/Re·(1 + 0.15 Re^0.687), Newton's 0.44 past
+///   Re 1000, for a ball, because every other shape there is Haider and
+///   Levenspiel's correlation by its sphericity (Powder Technology 58,
+///   1989), which is fitted to the same data and reduces to Schiller and
+///   Naumann's at a sphericity of one: a ball and a nearly round stone must
+///   not drag differently by the formula alone. The two laws are within
+///   about 10 % of each other, and of the measurements, over the range;
+/// * **a body in the wind** (`NativeWorld.setDrag`) and **an ember in a
+///   fire's gas** (`FireView`) take a constant, Newton's regime: in air they
+///   are at Reynolds numbers in the hundreds to thousands, where this
+///   correlation has all but reached its plateau (0.47 at Re 6 600), and a
+///   constant is what a wind field sampled once a step can afford.
 double sphereDrag(double re) {
   if (re <= 0.0) return 0.0;
   return 24.0 / re + 6.0 / (1.0 + math.sqrt(re)) + 0.4;
@@ -102,25 +123,25 @@ final class FloatingBody {
   /// The volume of it under the surface of [liquid] as it is now.
   double submergedIn(LiquidBody liquid) {
     final turnBack = liquid.rotation.clone()..transpose();
-    final centre = turnBack.transformed(body.position - liquid.position);
-    if (!liquid.shape.contains(centre) &&
-        !_overlaps(liquid.shape, centre, body.collider.shape)) {
+    final center = turnBack.transformed(body.position - liquid.position);
+    if (!liquid.shape.contains(center) &&
+        !_overlaps(liquid.shape, center, body.collider.shape)) {
       return 0.0;
     }
     return submergedVolume(
       body.collider.shape,
-      centre,
+      center,
       liquid.up,
       liquid.height,
     );
   }
 
-  bool _overlaps(VesselShape shape, Vector3 centre, CollisionShape s) {
+  bool _overlaps(VesselShape shape, Vector3 center, CollisionShape s) {
     final e = s.boundsHalfExtents;
     for (final dx in [-e.x, e.x]) {
       for (final dy in [-e.y, e.y]) {
         for (final dz in [-e.z, e.z]) {
-          if (shape.contains(centre + Vector3(dx, dy, dz))) return true;
+          if (shape.contains(center + Vector3(dx, dy, dz))) return true;
         }
       }
     }

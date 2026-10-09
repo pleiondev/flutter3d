@@ -37,7 +37,7 @@ final class LiquidLayer {
 
   /// Takes [amount] cubic metres out, with its share of every solute, and
   /// returns it as a layer of its own.
-  LiquidLayer take(double amount) {
+  LiquidLayer withdraw(double amount) {
     final part = amount.clamp(0.0, volume);
     final share = volume > 0.0 ? part / volume : 0.0;
     final out = LiquidLayer(

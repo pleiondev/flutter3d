@@ -23,7 +23,7 @@ final class CharacterController {
     required this.world,
     CollisionShape? shape,
     Vector3? position,
-    this.tuning = const MovementTuning(),
+    this.tuning = const MovementSettings(),
     // Bit one, which a game usually calls its player — a controller is what a
     // game drives an actor with. Named at the call site rather than here, for
     // the reason on [Layers].
@@ -41,6 +41,7 @@ final class CharacterController {
         layer: layer,
       ),
     );
+    world.shiftsWithOrigin(this.position);
   }
 
   final CollisionWorld world;
@@ -115,7 +116,7 @@ final class CharacterController {
   /// [save] does not carry it, deliberately: it is a reference to a constant
   /// the game owns, so the game saves *which* one it had and reassigns on
   /// restore. The same reasoning as [groundBody].
-  MovementTuning tuning;
+  MovementSettings tuning;
 
   /// Centre of the box. The eye sits above this.
   final Vector3 position;
@@ -185,7 +186,7 @@ final class CharacterController {
   /// How far the last step lifted the body onto a ledge, in metres.
   ///
   /// Climbing a stair is a *teleport*: [_moveHorizontally] raises the body by
-  /// [MovementTuning.stepHeight], carries it across and sets it down, and all
+  /// [MovementSettings.stepHeight], carries it across and sets it down, and all
   /// of that is one step of simulated time. The simulation wants it that way.
   /// A renderer does not — fifteen centimetres inside a sixtieth of a second is
   /// nine metres a second, which pitches the horizon on every riser — so it is
@@ -215,7 +216,7 @@ final class CharacterController {
   /// Says that the body is leaving the ground **on purpose**, so the next
   /// ground probe must not pull it back.
   ///
-  /// [MovementTuning.floorSnapLength] keeps the feet on a floor they already
+  /// [MovementSettings.floorSnapLength] keeps the feet on a floor they already
   /// had. That is what a stair edge wants and the opposite of what a spring, a
   /// bounce or a jump the game owns wants — and from in here the two look
   /// identical, because both are a body that was grounded last step with its
@@ -389,7 +390,7 @@ final class CharacterController {
   /// degrees is what *this controller* means by standing, and a game that wants
   /// a different limit for a tank and a scout is a game whose units have
   /// different rules — which belongs where those rules are, above this, reading
-  /// [groundNormal]. A number moved into [MovementTuning] would be one more
+  /// [groundNormal]. A number moved into [MovementSettings] would be one more
   /// dial that every genre has to have an opinion about, and thirteen is
   /// already the number that has to be explained to somebody starting a game.
   static const double _walkableNormalY = 0.5;
@@ -568,12 +569,17 @@ final class CharacterController {
     }
   }
 
+  /// What this character falls by, m/s² down y: its tuning's own, or the
+  /// world's (`CollisionWorld.properties`, its strength — a character stands
+  /// up y whatever way its world pulls).
+  double get gravity => tuning.gravity ?? world.properties.gravityMagnitude;
+
   void _applyGravity(double dt) {
     if (_grounded && velocity.y <= 0.0) {
       // A small downward bias keeps the box pressed against the floor, so the
       // ground probe below keeps finding it on the way down a staircase.
       //
-      // Kept even though [MovementTuning.floorSnapLength] now does that job
+      // Kept even though [MovementSettings.floorSnapLength] now does that job
       // properly, because it is also what the *default* has instead of a snap:
       // removing it would change how every existing game walks, which is a
       // re-baselining this change is not worth. A sixtieth of a second of it
@@ -581,10 +587,7 @@ final class CharacterController {
       velocity.y = -1.0;
       return;
     }
-    velocity.y = math.max(
-      -tuning.terminalVelocity,
-      velocity.y - tuning.gravity * dt,
-    );
+    velocity.y = math.max(-tuning.terminalVelocity, velocity.y - gravity * dt);
   }
 
   void _tryJump() {
@@ -780,7 +783,7 @@ final class CharacterController {
       return;
     }
 
-    // How far down to look. Past [MovementTuning.groundProbe] only to *keep* a
+    // How far down to look. Past [MovementSettings.groundProbe] only to *keep* a
     // floor: the feet must have been on something as of last step, and must
     // not have chosen to leave it. A body that was already airborne gets the
     // short probe, so the long reach can never find ground the body was not

@@ -4,6 +4,7 @@
 ///     flutter test test/entity_tracks_test.dart
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -13,10 +14,12 @@ final class _Health {
 }
 
 EcsWorld _world() => EcsWorld()
-  ..register<_Health>(
-    'Health',
-    encode: (h) => h.hp,
-    decode: (d) => d is num ? _Health(d.toInt()) : null,
+  ..components.register<_Health>(
+    ComponentCodec<_Health>.of(
+      id: 'Health',
+      encode: (h) => h.hp,
+      decode: (d, _) => d is num ? _Health(d.toInt()) : null,
+    ),
   );
 
 void main() {

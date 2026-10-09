@@ -179,7 +179,11 @@ void main() {
           origin: Vector3.zero(),
           ground: const <double>[0, 0, 0, 0],
         ),
-        const NativeLiquidProperties(density: 0.0, viscosity: 1.0, tension: 0.1),
+        const NativeLiquidProperties(
+          density: 0.0,
+          viscosity: 1.0,
+          tension: 0.1,
+        ),
       ),
       throwsArgumentError,
     );
@@ -202,5 +206,104 @@ void main() {
     // Ten kilograms in a ball of 33 litres: under three tenths of it is
     // under water, so it rides with its centre above the surface.
     expect(world.positionOf(ball).y, inInclusiveRange(1.0, 1.2));
+  });
+
+  test('a weir lets out what a spring brings, and walls hold', () {
+    // The C tests hold Poleni's head; this holds the binding: the outlet
+    // and the spring agree once the pool has filled, and a wall of cells
+    // keeps the dry half dry.
+    final basin = world.createShallowLiquid(
+      nx: 20,
+      nz: 4,
+      cell: 1.0,
+      origin: Vector3.zero(),
+      ground: List<double>.filled(80, -2.0),
+    );
+    world
+      ..setShallowBed(basin, roughness: 0.02)
+      ..fillShallowLiquid(basin, x0: 0, z0: 0, x1: 20, z1: 4, level: 0.5)
+      ..setShallowSource(basin, 0, x: 1.0, z: 2.0, radius: 1.0, rate: 0.2)
+      ..setShallowOutlet(
+        basin,
+        0,
+        const NativeOutlet.weir(x: 18.5, z: 2.0, crest: 0.5, width: 2.0),
+      );
+    expect(
+      () => world.setShallowOutlet(
+        basin,
+        8,
+        const NativeOutlet.weir(x: 0, z: 0, crest: 0, width: 1),
+      ),
+      throwsArgumentError,
+    );
+    for (var i = 0; i < 60 * 300; i++) {
+      world.step(1.0 / 60.0);
+    }
+    final lostBefore = world.shallowVolume(basin).lost;
+    for (var i = 0; i < 60 * 10; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(
+      (world.shallowVolume(basin).lost - lostBefore) / 10.0,
+      closeTo(0.2, 0.01),
+    );
+    final info = world.shallowInfoOf(basin);
+    expect(info.substeps, greaterThanOrEqualTo(1));
+    expect(info.overruns, 0);
+
+    final tank = world.createShallowLiquid(
+      nx: 16,
+      nz: 2,
+      cell: 0.25,
+      origin: Vector3(0.0, 0.0, 10.0),
+      ground: List<double>.filled(32, 0.0),
+    );
+    world
+      ..setShallowWalls(tank, [for (var i = 0; i < 32; i++) i % 16 == 8])
+      ..fillShallowLiquid(tank, x0: 0, z0: 10, x1: 2, z1: 10.5, level: 1.0);
+    for (var i = 0; i < 300; i++) {
+      world.step(1.0 / 60.0);
+    }
+    final depth = world.readShallowSurface(tank).depth;
+    expect(
+      [
+        for (var i = 0; i < 32; i++)
+          if (i % 16 > 8) depth[i],
+      ].every((d) => d == 0),
+      isTrue,
+    );
+    expect(
+      () => world.setShallowWalls(tank, const [true]),
+      throwsArgumentError,
+    );
+  });
+
+  test('a river comes in at one edge and leaves at the sea', () {
+    final reach = world.createShallowLiquid(
+      nx: 20,
+      nz: 4,
+      cell: 1.0,
+      origin: Vector3.zero(),
+      ground: List<double>.filled(80, -1.0),
+    );
+    world
+      ..setShallowBed(reach, roughness: 0.03)
+      ..fillShallowLiquid(reach, x0: 0, z0: 0, x1: 20, z1: 4, level: 0.0)
+      ..setShallowEdge(
+        reach,
+        GridSide.west,
+        const NativeEdgeFlow.inflow(discharge: 0.4),
+      )
+      ..setShallowEdge(reach, GridSide.east, const NativeEdgeFlow.level(0.0));
+    final before = world.shallowVolume(reach);
+    var flow = 0.0;
+    for (var i = 0; i < 60 * 300; i++) {
+      world.step(1.0 / 60.0);
+      if (i >= 60 * 60) flow += world.sampleShallow(reach, 10.0, 2.0)!.flowX;
+    }
+    final after = world.shallowVolume(reach);
+    // Downstream, at about Q over the section, 0.4 / (4 × 1).
+    expect(flow / (60 * 240), closeTo(0.1, 0.02));
+    expect(after.held + after.lost, closeTo(before.held + before.lost, 0.05));
   });
 }

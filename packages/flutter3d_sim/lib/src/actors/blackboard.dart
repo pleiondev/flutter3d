@@ -20,12 +20,14 @@
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart' show readVector;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ComponentCodec;
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
 
 /// How a node came out of its last tick.
-enum BehaviourStatus { success, failure, running }
+enum BehaviorStatus { success, failure, running }
 
 final class Blackboard {
   Blackboard({Map<String, Object?>? values}) : _values = <String, Object?>{} {
@@ -45,7 +47,7 @@ final class Blackboard {
   ///
   /// Node indices mean nothing under another tree, so a board restored under a
   /// tree that changed starts its decision again rather than resuming at an
-  /// index that now names something else. See `BehaviourTree.prepare`.
+  /// index that now names something else. See `BehaviorTree.prepare`.
   String tree = '';
 
   /// Per node, what it needs while it is running: a sequence's cursor, the
@@ -62,11 +64,11 @@ final class Blackboard {
   final List<int> path = <int>[];
 
   /// How each node on [path] came out, in the same order.
-  final List<BehaviourStatus> statuses = <BehaviourStatus>[];
+  final List<BehaviorStatus> statuses = <BehaviorStatus>[];
 
   /// Whether the last tick left something running, which is what `act` asks.
-  bool get running =>
-      statuses.isNotEmpty && statuses.first == BehaviourStatus.running;
+  bool get isRunning =>
+      statuses.isNotEmpty && statuses.first == BehaviorStatus.running;
 
   /// Every key with a value.
   Iterable<String> get keys => _values.keys;
@@ -139,6 +141,13 @@ final class Blackboard {
     'statuses': <String>[for (final status in statuses) status.name],
   };
 
+  /// How a board is written in a snapshot, under `'blackboard'`.
+  static final ComponentCodec<Blackboard> codec = ComponentCodec<Blackboard>.of(
+    id: 'blackboard',
+    encode: (value) => value.toJson(),
+    decode: (data, _) => fromJson(data),
+  );
+
   /// Reads a board back, or null when [data] is not one.
   ///
   /// Lenient about the parts: a row with the values and nothing else is a
@@ -181,13 +190,13 @@ final class Blackboard {
     final path = data['path'];
     final statuses = data['statuses'];
     if (path is List && statuses is List && path.length == statuses.length) {
-      final names = <String, BehaviourStatus>{
-        for (final status in BehaviourStatus.values) status.name: status,
+      final names = <String, BehaviorStatus>{
+        for (final status in BehaviorStatus.values) status.name: status,
       };
-      final read = <(int, BehaviourStatus)>[
+      final read = <(int, BehaviorStatus)>[
         for (var i = 0; i < path.length; i++)
           if (path[i] case final num index)
-            if (names[statuses[i]] case final BehaviourStatus status)
+            if (names[statuses[i]] case final BehaviorStatus status)
               (index.toInt(), status),
       ];
       // All or nothing: half a path would act on a leaf the tree never chose.
@@ -214,8 +223,5 @@ final class Blackboard {
 /// A value component, decoded rather than restored in place: a board owns
 /// nothing live, so a restore can build a new one, and an entity whose board
 /// the save did not have gets a fresh one the next time its brain thinks.
-void registerBlackboard(EcsWorld entities) => entities.register<Blackboard>(
-  'blackboard',
-  encode: (Blackboard value) => value.toJson(),
-  decode: Blackboard.fromJson,
-);
+void registerBlackboard(EcsWorld entities) =>
+    entities.components.register<Blackboard>(Blackboard.codec);

@@ -35,7 +35,8 @@ final class FluidWorld {
     this.particleSpacing = 0.002,
     this.floor,
     FluidSolver? solver,
-  }) : solver = solver ?? PhysicsBackend.current.fluid;
+    PhysicsBackend backend = const DartPhysics(),
+  }) : solver = solver ?? backend.fluid;
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
@@ -45,8 +46,8 @@ final class FluidWorld {
 
   /// What steps the waves, the streams, the particles, the pipes and what
   /// floats:
-  /// `PhysicsBackend.current.fluid` when the world was made, unless it was
-  /// given one.
+  /// the `backend`'s fluid when the world was made (the Dart reference
+  /// unless it was given another), unless it was given a solver.
   final FluidSolver solver;
 
   final List<LiquidBody> bodies = [];
@@ -62,7 +63,8 @@ final class FluidWorld {
   /// The stream from each vessel's lip, while there is one.
   final Map<LiquidBody, Jet> jets = {};
 
-  /// How far apart the particles drops and splashes become sit at rest.
+  /// How far apart the particles drops and splashes become sit at rest, in
+  /// metres.
   final double particleSpacing;
 
   /// What spilt liquid lands on, if anything: a bench, a floor.
@@ -168,7 +170,7 @@ final class FluidWorld {
               concentrations: drop.concentrations,
             );
       }
-      if (!jet.flowing) finished.add(source);
+      if (!jet.isFlowing) finished.add(source);
     });
     finished.forEach(jets.remove);
     final everywhere = <JetObstacle>[

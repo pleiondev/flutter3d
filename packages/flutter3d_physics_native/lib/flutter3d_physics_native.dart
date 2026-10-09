@@ -9,7 +9,9 @@
 library;
 
 export 'src/core/load.dart';
+export 'src/fire_exposure.dart';
 export 'src/gpu.dart';
+export 'src/gpu_unavailable.dart';
 // The core's own ClothMesh and ClothSettings by the names CoreClothMesh and
 // CoreClothSettings: flutter3d_physics, which a game imports beside this,
 // has the plain names for the cloth every backend steps.
@@ -26,9 +28,9 @@ export 'src/native_debris.dart'
     hide packDebrisBodies, packDebrisStatics, writeDebrisSettings;
 export 'src/native_dynamics.dart';
 export 'src/native_fluid.dart' hide packFluidParticles, writeFluidSettings;
+export 'src/native_force_fields.dart';
 export 'src/native_liquid.dart' hide liquidWalls;
 export 'src/native_particles.dart' hide packParticles, writeParticleForces;
 export 'src/native_physics.dart';
 export 'src/native_ragdoll.dart';
 export 'src/native_world.dart';
-export 'src/skeleton_ragdoll.dart';

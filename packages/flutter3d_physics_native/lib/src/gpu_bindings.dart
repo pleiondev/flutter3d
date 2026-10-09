@@ -194,7 +194,7 @@ external Pointer<F3dGpuCloth> f3d_gpu_cloth_create(
   Pointer<Float> compliance,
   int edgeCount,
   Pointer<Uint32> colourStart,
-  int colourCount,
+  int colorCount,
 );
 
 @Native<Void Function(Pointer<F3dGpuCloth>)>()

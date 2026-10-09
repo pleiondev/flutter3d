@@ -367,9 +367,9 @@ void main() {
       }
       // The fast mode: other bits, the same on four threads as on one.
       for (final w in <NativeWorld>[world, other]) {
-        expect(w.fast, isFalse);
-        w.fast = true;
-        expect(w.fast, isTrue);
+        expect(w.isFast, isFalse);
+        w.isFast = true;
+        expect(w.isFast, isTrue);
       }
       for (var step = 0; step < 60; step++) {
         world.step(1.0 / 60.0);

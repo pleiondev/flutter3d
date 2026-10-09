@@ -3,14 +3,20 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/core.dart' as c;
+import 'native_world.dart';
 
 /// How debris moves. Eight substeps of four impulse passes keep a heap of a
 /// thousand from sinking into itself by more than a tenth of a radius.
+///
+/// The gravity is the [world]'s, read when the settings are made, or
+/// [standardGravityVector] without one — see `ClothSettings`.
 final class DebrisSettings {
   DebrisSettings({
+    NativeWorld? world,
     Vector3? gravity,
     this.friction = 0.6,
     this.restitution = 0.2,
@@ -19,9 +25,35 @@ final class DebrisSettings {
     this.maxSpeed = 50.0,
     this.substeps = 8,
     this.iterations = 4,
-  }) : gravity = gravity ?? Vector3(0.0, -9.81, 0.0);
+  }) : gravity = gravity ?? world?.gravity ?? standardGravityVector;
+
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  DebrisSettings copyWith({
+    Vector3? gravity,
+    double? friction,
+    double? restitution,
+    double? linearDamping,
+    double? angularDamping,
+    double? maxSpeed,
+    int? substeps,
+    int? iterations,
+    bool clearGravity = false,
+  }) => DebrisSettings(
+    gravity: clearGravity ? null : (gravity ?? this.gravity),
+    friction: friction ?? this.friction,
+    restitution: restitution ?? this.restitution,
+    linearDamping: linearDamping ?? this.linearDamping,
+    angularDamping: angularDamping ?? this.angularDamping,
+    maxSpeed: maxSpeed ?? this.maxSpeed,
+    substeps: substeps ?? this.substeps,
+    iterations: iterations ?? this.iterations,
+  );
 
   final Vector3 gravity;
+
+  /// Coulomb friction, a unitless coefficient: the most tangential impulse
+  /// a contact takes, over its normal impulse.
   final double friction;
 
   /// Applied when two close faster than 1 m/s.
@@ -29,7 +61,11 @@ final class DebrisSettings {
 
   /// Per second, as v / (1 + c dt).
   final double linearDamping;
+
+  /// Per second, as ω / (1 + c dt), on the spin.
   final double angularDamping;
+
+  /// The fastest a ball may move, in metres per second.
   final double maxSpeed;
   final int substeps;
   final int iterations;
@@ -54,13 +90,15 @@ sealed class DebrisStatic {
 final class DebrisPlane extends DebrisStatic {
   const DebrisPlane(this.normal, this.offset);
   final Vector3 normal;
+
+  /// The plane's distance from the origin along a unit [normal], in metres.
   final double offset;
 }
 
 /// An unturned box.
 final class DebrisBox extends DebrisStatic {
-  const DebrisBox(this.centre, this.halfExtents);
-  final Vector3 centre;
+  const DebrisBox(this.center, this.halfExtents);
+  final Vector3 center;
   final Vector3 halfExtents;
 }
 
@@ -70,7 +108,11 @@ typedef DebrisFrame = ({int step, Float32List bodies});
 
 /// Debris slots, filled round and round: on the CPU ([NativeDebris]) or the
 /// GPU ([GpuDebris]), the same passes. Visual, not the game's state.
-abstract interface class DebrisSystem {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class DebrisSystem {
   int get capacity;
 
   /// Puts [bodies] into the next slots, the oldest going first, unturned.
@@ -81,9 +123,9 @@ abstract interface class DebrisSystem {
 
   void step(DebrisSettings settings, double dt);
 
-  /// The latest step's bodies not read yet, or null when there is none. On
-  /// the GPU, without [wait], a frame late: the step queued last is still
-  /// on its way.
+  /// The latest step's bodies not read yet; null when there is none
+  /// (absent, not an error). On the GPU, without [wait], a frame late: the
+  /// step queued last is still on its way.
   DebrisFrame? read({bool wait = true});
 
   void dispose();
@@ -118,10 +160,10 @@ c.F32s packDebrisStatics(List<DebrisStatic> statics) {
         data[o + 1] = normal.y;
         data[o + 2] = normal.z;
         data[o + 3] = offset;
-      case DebrisBox(:final centre, :final halfExtents):
-        data[o] = centre.x;
-        data[o + 1] = centre.y;
-        data[o + 2] = centre.z;
+      case DebrisBox(:final center, :final halfExtents):
+        data[o] = center.x;
+        data[o + 1] = center.y;
+        data[o + 2] = center.z;
         data[o + 4] = halfExtents.x;
         data[o + 5] = halfExtents.y;
         data[o + 6] = halfExtents.z;

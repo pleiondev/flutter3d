@@ -6,6 +6,8 @@ import 'package:vector_math/vector_math.dart';
 import 'json_reader.dart';
 import 'json_write_through.dart';
 import 'level_format_exception.dart';
+import 'level_ids.dart';
+import 'level_material.dart';
 
 /// How a brush takes part in the shadow passes, as a document says it.
 ///
@@ -43,6 +45,27 @@ enum ShadowCasting {
   /// The two finer modes are exactly the ones the boolean loses, so they are
   /// exactly the ones a document has to spell out. See [Brush.toJson].
   bool get needsWord => this != ShadowCasting.on && this != ShadowCasting.off;
+
+  /// The word a level document writes for this mode.
+  ///
+  /// **A table, not [name]**, so renaming the Dart identifier cannot change
+  /// what a saved level says.
+  String get wireName => _wireNames[this]!;
+
+  /// The mode a document's word names, or null for a word that is not one.
+  static ShadowCasting? fromWireName(String word) {
+    for (final MapEntry(:key, :value) in _wireNames.entries) {
+      if (value == word) return key;
+    }
+    return null;
+  }
+
+  static const Map<ShadowCasting, String> _wireNames = <ShadowCasting, String>{
+    ShadowCasting.on: 'on',
+    ShadowCasting.off: 'off',
+    ShadowCasting.doubleSided: 'doubleSided',
+    ShadowCasting.shadowsOnly: 'shadowsOnly',
+  };
 }
 
 /// One axis-aligned block of level geometry.
@@ -53,7 +76,8 @@ enum ShadowCasting {
 /// that there are no slopes, and vertical movement comes from stairs and lifts.
 final class Brush {
   Brush({
-    required Vector3 centre,
+    String? id,
+    required Vector3 center,
     required Vector3 size,
     this.material = 'default',
     this.solid = true,
@@ -63,8 +87,9 @@ final class Brush {
     this.layer,
     this.ramp,
     this.drawOrder = 0,
+    this.depthLayer,
     Map<String, Object?> source = const <String, Object?>{},
-  }) : centre = centre.clone(),
+  }) : center = center.clone(),
        size = size.clone(),
        // The boolean is the lossy view, here as everywhere else: it says
        // whether the brush casts, and the mode says how. Given both, the mode
@@ -75,7 +100,26 @@ final class Brush {
        // ignore: prefer_initializing_formals
        _source = source,
        // ignore: prefer_initializing_formals
-       _surface = surface;
+       _surface = surface,
+       id =
+           id ??
+           LevelIds.derive(<Object?>[
+             'brush',
+             center.x,
+             center.y,
+             center.z,
+             size.x,
+             size.y,
+             size.z,
+             material,
+           ]);
+
+  /// What this brush is called by the editor and by tools. See [LevelIds].
+  final String id;
+
+  /// This brush under another [id], everything else as it is.
+  Brush withId(String id) =>
+      Brush.fromJson(<String, Object?>{...toJson(), 'id': id});
 
   /// The document this brush was read from, or empty when it was built in code.
   ///
@@ -83,7 +127,7 @@ final class Brush {
   /// [writeThrough].
   final Map<String, Object?> _source;
 
-  final Vector3 centre;
+  final Vector3 center;
   final Vector3 size;
 
   /// Name of an entry in [Level.materials]. What this brush **looks** like.
@@ -119,6 +163,21 @@ final class Brush {
   /// under it. Brushes with different orders never share a batch, since a
   /// batch draws as one.
   final int drawOrder;
+
+  /// Which depth layer this brush's surface is drawn on, or null for its
+  /// material's [LevelMaterial.depthLayer].
+  ///
+  /// **For surfaces that share a plane**: road paint on a road, a sign on a
+  /// wall, a rug on a floor. A higher layer wins the depth test against a
+  /// lower one at the same depth, at any distance, where [drawOrder] only
+  /// says which of two draws comes first and leaves the depth test to decide
+  /// — and lose it, a pixel at a time, as the camera moves. Nought is the
+  /// layer everything is on unless something says otherwise. Format version
+  /// 2; the renderer's `RenderMaterial.depthLayer` draws it.
+  final int? depthLayer;
+
+  /// The layer this brush is drawn on: its own, else its material's.
+  int depthLayerIn(LevelMaterial material) => depthLayer ?? material.depthLayer;
 
   /// Whether this brush stops anything.
   ///
@@ -175,8 +234,8 @@ final class Brush {
   bool get isRamp => ramp != null;
 
   Vector3 get halfExtents => size / 2.0;
-  Vector3 get min => centre - halfExtents;
-  Vector3 get max => centre + halfExtents;
+  Vector3 get min => center - halfExtents;
+  Vector3 get max => center + halfExtents;
 
   /// How much volume this brush shares with [other]. Zero when they only
   /// touch.
@@ -194,7 +253,14 @@ final class Brush {
   }
 
   factory Brush.fromJson(Map<String, Object?> json) => Brush(
-    centre: json.vector3('at'),
+    id: switch (json['id']) {
+      null => null,
+      final String id when id.isNotEmpty => id,
+      final other => throw LevelFormatException(
+        'a brush\'s "id" must be text, not $other',
+      ),
+    },
+    center: json.vector3('at'),
     size: json.vector3('size'),
     material: json.textOrNull('material') ?? 'default',
     solid: json.flagOr('solid', fallback: true),
@@ -202,18 +268,23 @@ final class Brush {
     // has not — so every level ever authored means what it meant, and a
     // misspelt mode is a refusal with the four words in it rather than a wall
     // that quietly stops casting.
-    shadowCasting: json.enumValue(
-      'shadowCasting',
-      ShadowCasting.values,
-      json.flagOr('castsShadow', fallback: true)
-          ? ShadowCasting.on
-          : ShadowCasting.off,
-      describedAs: 'brush shadow mode',
-    ),
+    shadowCasting: switch (json.textOrNull('shadowCasting')) {
+      null =>
+        json.flagOr('castsShadow', fallback: true)
+            ? ShadowCasting.on
+            : ShadowCasting.off,
+      final String word =>
+        ShadowCasting.fromWireName(word) ??
+            (throw LevelFormatException(
+              'unknown brush shadow mode "$word"; expected one of '
+              '${ShadowCasting.values.map((ShadowCasting m) => m.wireName).join(', ')}',
+            )),
+    },
     surface: json.textOrNull('surface'),
     layer: json.integerOrNull('layer'),
     ramp: _rampFromName(json.textOrNull('ramp')),
     drawOrder: json.integerOrNull('drawOrder') ?? 0,
+    depthLayer: json.integerOrNull('depthLayer'),
     source: json,
   );
 
@@ -250,7 +321,8 @@ final class Brush {
     // not grow a boolean beside a word that already says more than it could.
     final spelledOut = _source.containsKey('shadowCasting');
     return writeThrough(_source, <WriteThroughField>[
-      WriteThroughField('at', centre.toJson()),
+      WriteThroughField('id', id),
+      WriteThroughField('at', center.toJson()),
       WriteThroughField('size', size.toJson()),
       WriteThroughField(
         'material',
@@ -265,7 +337,7 @@ final class Brush {
       ),
       WriteThroughField(
         'shadowCasting',
-        shadowCasting.name,
+        shadowCasting.wireName,
         whenAbsent: shadowCasting.needsWord,
       ),
       WriteThroughField('surface', _surface, whenAbsent: _surface != null),
@@ -276,6 +348,11 @@ final class Brush {
         whenAbsent: ramp != null,
       ),
       WriteThroughField('drawOrder', drawOrder, whenAbsent: drawOrder != 0),
+      WriteThroughField(
+        'depthLayer',
+        depthLayer,
+        whenAbsent: depthLayer != null,
+      ),
     ]);
   }
 }

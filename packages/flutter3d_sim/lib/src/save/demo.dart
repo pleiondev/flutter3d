@@ -1,6 +1,18 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show
+        Flutter3dFormatException,
+        FormatDocument,
+        FormatMigration,
+        FormatSpec,
+        SimulationVersion;
+
 import '../input/input_tape.dart';
 import '../level/level.dart';
+import '../loop/loop_change.dart';
 import 'data_source_trace.dart';
+import 'event_trace.dart';
+import 'pose_record.dart';
+import 'simulation_version.dart';
 import 'snapshot.dart';
 import 'state_digest.dart';
 
@@ -58,6 +70,21 @@ import 'state_digest.dart';
 /// was recorded, each with the whole document and the step it took effect
 /// before. Without them a run with an edit in it parts from its own replay at
 /// the edit, and the checkpoints say so without saying why.
+///
+/// ## Decision 9: the simulation, and the poses beside the tape
+///
+/// [simulation] says which simulation the tape was recorded in, and
+/// [refusalOn] compares it with the one a build runs: a tape of intents
+/// from another simulation is refused before a step is played, with the
+/// sentence that says so, rather than replayed into a divergence that reads
+/// like a bug. [poses] is the record written beside the tape — where the
+/// bodies were every few steps — which means the same thing on every build,
+/// so a viewer draws it whenever the tape cannot be replayed.
+///
+/// Both are additive, like [platform]: an older reader ignores them, and a
+/// run without [simulation] was written before simulations had numbers and
+/// is read as version 1, the simulation 1.0.0 shipped
+/// ([SimulationVersion.firstOf]).
 final class Demo {
   const Demo({
     required this.level,
@@ -71,6 +98,11 @@ final class Demo {
     this.dataSources,
     this.levelSwaps = const <DemoLevelSwap>[],
     this.physics,
+    this.loopChanges = const <LoopChange>[],
+    this.events,
+    this.simulation,
+    this.poses,
+    this.unknown = const <String, Object?>{},
   });
 
   /// Bumped when an existing field changes meaning.
@@ -81,12 +113,67 @@ final class Demo {
   /// is the honest answer. A run with no edit in it means exactly what it
   /// meant before, so it is still written as 1 and older builds still open
   /// it.
-  static const int formatVersion = 2;
+  ///
+  /// **3 is written only by a run with a [loopChanges] entry that changes
+  /// the simulation** — a simulation plugin switched mid-run, a step rate
+  /// changed — for the same reason: an older build would play through it
+  /// as if nothing had changed. A run whose loop changes only pace or
+  /// decorate it (a time scale, a view plugin), and a run with an [events]
+  /// trace, is written at the version it would have had without them; an
+  /// older build ignores the fields and plays it correctly.
+  ///
+  /// **4 is written only by a run whose [tape] is at version 2** — one that
+  /// recorded an [AxisAction] or a [DualAxisAction] beyond moving and
+  /// looking (`InputTape.writtenVersion`). An older build would drop those
+  /// values and replay the run with the axis at rest.
+  static const int formatVersion = 4;
 
   /// The extension a run is written under — `.f3drun`, wherever it becomes an
   /// actual file: attached to a bug report, downloaded from the cloud, or
   /// dropped on an editor window.
   static const String fileExtension = '.f3drun';
+
+  /// The run format in the registry: `f3d.run`.
+  ///
+  /// **The envelope is additive.** `format`, `requires` and `generator` are
+  /// keys a build from before them ignores, so a run is still written at
+  /// [writtenVersion] and opens wherever it opened before.
+  ///
+  /// The simulation the tape was recorded in is not this number: it is
+  /// [SimulationVersion.engineVersion] (and a genre's own), written in the
+  /// run's `simulation` field. This number is the file's shape; that one is
+  /// whether the tape still plays.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.run',
+    version: formatVersion,
+    suffixes: <String>[fileExtension],
+    fixture: 'test/fixtures/v<N>/run.f3drun',
+    migrations: <FormatMigration>[_identity, _identity, _identity],
+  );
+
+  /// The keys this reader takes; everything else in a run is [unknown].
+  static const Set<String> _known = <String>{
+    'level',
+    'levelHash',
+    'run',
+    'tape',
+    'buildStamp',
+    'checkpoints',
+    'platform',
+    'recordedBy',
+    'physics',
+    'dataSources',
+    'levelSwaps',
+    'loopChanges',
+    'events',
+    'simulation',
+    'poses',
+  };
+
+  /// The top-level keys of the file this run was read from that this build
+  /// did not understand, written back as they were — a run a later minor
+  /// wrote survives being opened and attached again here.
+  final Map<String, Object?> unknown;
 
   /// The asset path of the level the run was played in.
   ///
@@ -150,11 +237,54 @@ final class Demo {
   /// them.
   final List<DemoLevelSwap> levelSwaps;
 
+  /// What changed about the loop while the run was recorded — the time
+  /// scale, the step rate, plugins switched or reordered — each at the step
+  /// of this tape it was made before, in step order. A replay schedules them
+  /// (`EngineLoop.schedule`) and makes them at the same steps.
+  final List<LoopChange> loopChanges;
+
+  /// Each step's event digest, taken live. Null for a run recorded without
+  /// the bus. A replay compares its own and names the first step whose
+  /// events differ.
+  final EventTrace? events;
+
+  /// Which simulation the tape was recorded in, or null for a run written
+  /// before simulations had numbers — read as the first ([refusalOn]).
+  final SimulationVersion? simulation;
+
+  /// Where the run's bodies were every few steps, written beside [tape]: the
+  /// part of the file that plays on any build. Null for a run recorded
+  /// without one.
+  final PoseRecord? poses;
+
   /// How many fixed steps the run lasted.
   int get steps => tape.steps;
 
+  /// Why this run's tape will not be replayed on [running], or null when it
+  /// will. A run that names no simulation is taken as the first of
+  /// [running]'s genre.
+  String? refusalOn(SimulationVersion running) =>
+      (simulation ?? SimulationVersion.firstOf(running)).refusalOn(running);
+
+  /// Throws [ReplayException] — carrying [poses] for a viewer to show instead
+  /// — when this run's tape will not be replayed on [running].
+  void checkSimulation(SimulationVersion running) {
+    final reason = refusalOn(running);
+    if (reason != null) throw ReplayException(reason, poses: poses);
+  }
+
+  /// The version this run is written at: the lowest that says what it
+  /// holds, so an older build opens every run it can play correctly.
+  int get writtenVersion => tape.writtenVersion > 1
+      ? 4
+      : loopChanges.any((c) => c.affectsSimulation)
+      ? 3
+      : levelSwaps.isEmpty
+      ? 1
+      : 2;
+
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': levelSwaps.isEmpty ? 1 : formatVersion,
+    ...format.envelope(version: writtenVersion),
     'level': level,
     'levelHash': levelHash,
     'run': start.toJson(),
@@ -169,7 +299,29 @@ final class Demo {
       'levelSwaps': <Map<String, Object?>>[
         for (final swap in levelSwaps) swap.toJson(),
       ],
+    if (loopChanges.isNotEmpty)
+      'loopChanges': <Map<String, Object?>>[
+        for (final change in loopChanges) change.toJson(),
+      ],
+    if (events != null) 'events': events!.toJson(),
+    if (simulation != null) 'simulation': simulation!.toJson(),
+    if (poses != null) 'poses': poses!.toJson(),
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!_known.contains(key)) key: value,
   };
+
+  /// One step per version, each taking a document of that version to the
+  /// next: entry `n - 1` reads `n` and writes `n + 1`.
+  ///
+  /// **Identities, and kept as steps anyway.** 2 added the level swaps, 3
+  /// the loop changes that change the simulation and 4 is the tape's own
+  /// version 2, which the tape reads by itself; none changed what an older
+  /// field means, so an older document already is a newer one. The chain is
+  /// here so that the day a field does change meaning, its migration has a
+  /// place to go and every older version reaches it through the steps after
+  /// its own (decision 8).
+  static Map<String, Object?> _identity(Map<String, Object?> document) =>
+      document;
 
   /// Reads a demo, or throws a [DemoFormatException] that says why not.
   ///
@@ -177,17 +329,20 @@ final class Demo {
   /// sentence: a demo from a newer build can still be opened by the build that
   /// wrote it, and a file with no tape in it was cut short by whatever wrote
   /// it, and the player who attached it deserves to be told which.
-  factory Demo.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
+  factory Demo.fromJson(Map<String, Object?> json) =>
+      _read(json, json['version']);
+
+  static Demo _read(Map<String, Object?> written, Object? version) {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
     }
-    if (version > formatVersion) {
-      throw DemoFormatException(
-        'the demo was written by a newer build (format $version, this build '
-        'reads $formatVersion) — update flutter3d to open it',
-      );
+    if (version < 1 || version != version.truncate()) {
+      throw DemoFormatException('the demo names format $version');
     }
+    // Another format's document, a newer version or a `requires` this build
+    // does not know is refused by the spec with the reason; an older version
+    // is lifted through the chain.
+    final json = format.open(written, refuse: DemoFormatException.new);
     final level = json['level'];
     if (level is! String || level.isEmpty) {
       throw const DemoFormatException('the demo names no level');
@@ -243,7 +398,42 @@ final class Demo {
         throw DemoFormatException('the data sources: ${error.message}');
       }
     }
-    final readTape = InputTape.fromJson(tape);
+    final InputTape readTape;
+    try {
+      readTape = InputTape.fromJson(tape);
+    } on Flutter3dFormatException catch (error) {
+      throw DemoFormatException('the tape: ${error.message}');
+    }
+    final List<LoopChange> loopChanges;
+    final EventTrace? events;
+    final SimulationVersion? simulation;
+    final PoseRecord? poses;
+    try {
+      loopChanges = _readLoopChanges(json['loopChanges']);
+      events = switch (json['events']) {
+        null => null,
+        final Map<String, Object?> trace => EventTrace.fromJson(trace),
+        _ => throw const DemoFormatException(
+          'the event trace is not a document',
+        ),
+      };
+      simulation = switch (json['simulation']) {
+        null => null,
+        final Map<String, Object?> named => SimulationVersion.fromJson(named),
+        _ => throw const DemoFormatException(
+          'the simulation is not a document',
+        ),
+      };
+      poses = switch (json['poses']) {
+        null => null,
+        final Map<String, Object?> record => PoseRecord.fromJson(record),
+        _ => throw const DemoFormatException(
+          'the pose record is not a document',
+        ),
+      };
+    } on Flutter3dFormatException catch (error) {
+      throw DemoFormatException(error.message);
+    }
     return Demo(
       level: level,
       levelHash: levelHash,
@@ -256,7 +446,31 @@ final class Demo {
       physics: physics is String ? physics : null,
       dataSources: dataSources,
       levelSwaps: _readSwaps(json['levelSwaps'], steps: readTape.steps),
+      loopChanges: loopChanges,
+      events: events,
+      simulation: simulation,
+      poses: poses,
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
+  }
+
+  static List<LoopChange> _readLoopChanges(Object? raw) {
+    if (raw == null) return const <LoopChange>[];
+    if (raw is! List) {
+      throw const DemoFormatException('the loop changes are not a list');
+    }
+    final changes = <LoopChange>[
+      for (final entry in raw) LoopChange.fromJson(entry),
+    ];
+    for (var i = 1; i < changes.length; i++) {
+      if (changes[i].step < changes[i - 1].step) {
+        throw DemoFormatException(
+          'the loop change at step ${changes[i].step} comes after the one at '
+          'step ${changes[i - 1].step}; loop changes are written in step order',
+        );
+      }
+    }
+    return List<LoopChange>.unmodifiable(changes);
   }
 
   static List<DemoLevelSwap> _readSwaps(Object? raw, {required int steps}) {
@@ -343,9 +557,10 @@ final class DemoLevelSwap {
 }
 
 /// Thrown when a demo cannot be read at all.
-final class DemoFormatException implements Exception {
+final class DemoFormatException extends Flutter3dFormatException {
   const DemoFormatException(this.message);
 
+  @override
   final String message;
 
   @override

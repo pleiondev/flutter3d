@@ -15,6 +15,7 @@ part 'collision_sphere.dart';
 part 'collision_capsule.dart';
 part 'collision_wedge.dart';
 part 'collision_heightfield.dart';
+part 'custom_shape.dart';
 
 /// A collision volume, positioned by whatever owns it.
 ///
@@ -54,6 +55,14 @@ part 'collision_heightfield.dart';
 /// and the exact version is a swept Minkowski sum with rounded edges, which is
 /// a solver. A wedge does **not**, and cannot: its bounding box is a wall you
 /// can stand on top of, which is the whole reason this method is abstract.
+///
+/// ## A shape of your own
+///
+/// Sealed, so a `switch` over the shapes is checked — and the sixth case is
+/// [CustomShape], the one subtype open to extension: a convex shape given by
+/// its support function, overlapping every other shape through the GJK walk
+/// ([convexOverlap]). The pair methods below gained [overlapsCustom], which
+/// every built-in shape answers by handing the question to the custom shape.
 ///
 /// ## One solid, or several
 ///
@@ -111,6 +120,35 @@ sealed class CollisionShape {
     final half = boundsHalfExtents;
     return (nx * half.x).abs() + (ny * half.y).abs() + (nz * half.z).abs();
   }
+
+  /// Writes into [out] the point of this shape, centred on the origin,
+  /// furthest along (`dx`, `dy`, `dz`): its support point, what the GJK walk
+  /// against a [CustomShape] reads. A corner of the bounding box here, which
+  /// is exact for a box; the round shapes and the wedge answer their own.
+  void supportPoint(double dx, double dy, double dz, Vector3 out) {
+    final half = boundsHalfExtents;
+    out.setValues(
+      dx >= 0.0 ? half.x : -half.x,
+      dy >= 0.0 ? half.y : -half.y,
+      dz >= 0.0 ? half.z : -half.z,
+    );
+  }
+
+  /// Second half of the dispatch: this shape against a [CustomShape]. Every
+  /// built-in shape hands it to the custom shape, which knows its own
+  /// support; ground is answered by the field's prisms there.
+  bool overlapsCustom(
+    Vector3 position,
+    CustomShape custom,
+    Vector3 customPosition,
+  ) => switch (this) {
+    final CollisionHeightfield field => custom.overlapsHeightfield(
+      customPosition,
+      field,
+      position,
+    ),
+    _ => convexOverlap(custom, customPosition, this, position),
+  };
 
   // MARK: - Convex pieces
 
@@ -196,12 +234,12 @@ sealed class CollisionShape {
   /// How many planes [boundsExpandedPlanes] writes.
   static const int boundsPlaneCount = 6;
 
-  /// Writes the world bounds of this shape centred on [centre].
-  void computeBounds(Vector3 centre, Aabb3 out) {
+  /// Writes the world bounds of this shape centred on [center].
+  void computeBounds(Vector3 center, Aabb3 out) {
     final half = boundsHalfExtents;
     out
-      ..min.setValues(centre.x - half.x, centre.y - half.y, centre.z - half.z)
-      ..max.setValues(centre.x + half.x, centre.y + half.y, centre.z + half.z);
+      ..min.setValues(center.x - half.x, center.y - half.y, center.z - half.z)
+      ..max.setValues(center.x + half.x, center.y + half.y, center.z + half.z);
   }
 
   /// Whether this shape at [position] intersects [other] at [otherPosition].

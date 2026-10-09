@@ -23,7 +23,7 @@ void main() {
   test('loads once, and has no GPU', () async {
     expect(physicsCoreLoaded, isTrue);
     await loadPhysicsCore(url: 'nowhere');
-    expect(NativeGpu.open(), isNull);
+    expect(NativeGpu.open, throwsA(isA<GpuUnavailable>()));
   });
 
   test('a crate falls onto a floor and rests there', () {
@@ -99,7 +99,7 @@ void main() {
 
   test('particles, debris, cloth and water run on the CPU', () {
     final particles = NativeParticles(4)
-      ..emit(<Particle>[
+      ..emit(<NativeParticle>[
         (position: Vector3.zero(), velocity: Vector3(1.0, 0.0, 0.0), life: 1.0),
       ])
       ..step(ParticleForces(), 1 / 60, steps: 30);

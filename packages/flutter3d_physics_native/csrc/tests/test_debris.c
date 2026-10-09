@@ -16,7 +16,7 @@
 static F3dDebrisSettings settings(void) {
   F3dDebrisSettings s;
   memset(&s, 0, sizeof s);
-  s.gravity[1] = F3D_R(-9.81);
+  s.gravity[1] = -F3D_STANDARD_GRAVITY;
   s.friction = F3D_R(0.6);
   s.restitution = F3D_R(0.0);
   s.max_speed = F3D_R(50.0);
@@ -85,7 +85,7 @@ static void test_rest(void) {
 static void test_slope(void) {
   /* The floor tilted by tilting gravity: θ = 0.3. Rolling, a solid ball
    * goes 5/7 g sin θ; without friction it slides at g sin θ, unturned. */
-  const double theta = 0.3, g = 9.81;
+  const double theta = 0.3, g = STANDARD_G;
   for (int rolls = 1; rolls >= 0; rolls--) {
     F3dDebris *d = f3d_debris_create(1);
     f3d_debris_set_statics(d, kFloor, 1);

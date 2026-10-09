@@ -1,0 +1,35 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 3e8f601c8a71f112
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_multiplayer-BatonStream-take'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_multiplayer/flame_multiplayer.dart']
+      method: 'take'
+      inClass: 'BatonStream'
+    changes:
+      - kind: 'rename'
+        newName: 'claim'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_multiplayer-PeerRoom-met'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_multiplayer/flame_multiplayer.dart']
+      getter: 'met'
+      inClass: 'PeerRoom'
+    changes:
+      - kind: 'rename'
+        newName: 'hasMet'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_multiplayer-BatonStream-holding'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_multiplayer/flame_multiplayer.dart']
+      getter: 'holding'
+      inClass: 'BatonStream'
+    changes:
+      - kind: 'rename'
+        newName: 'isHolding'

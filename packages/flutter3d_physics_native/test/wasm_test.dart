@@ -17,6 +17,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+import 'package:flutter3d_physics_native/src/core/layout.g.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -45,7 +46,7 @@ const List<List<double>> _bodies = <List<double>>[
     2,
     0.5,
     0.25,
-    650,
+    690,
     0,
   ],
   <double>[
@@ -122,7 +123,7 @@ if (!isMainThread) {
 }
 (async () => {
 const [wasmPath, scenarioJson] = process.argv.slice(2);
-const { bodies, gravity, wind, grid, steps, dt, threads } = JSON.parse(scenarioJson);
+const { bodies, gravity, wind, grid, steps, dt, threads, materialBytes } = JSON.parse(scenarioJson);
 const module = new WebAssembly.Module(fs.readFileSync(wasmPath));
 let memory = null;
 let instance;
@@ -149,7 +150,7 @@ const gridPtr = f.f3d_buffer_alloc(grid.length * 4);
 new Float32Array(heap(), gridPtr, grid.length).set(grid);
 f.f3d_world_set_wind_grid(world, -5, 0, -5, 5, 2, 1, 2, gridPtr);
 f.f3d_buffer_free(gridPtr);
-const material = f.f3d_buffer_alloc(8 * 4);
+const material = f.f3d_buffer_alloc(materialBytes);
 f.f3d_material_preset(1, material);
 for (const b of bodies) {
   const h = f.f3d_body_create(world, 0, b[0], b[1], b[2], 1.0);
@@ -300,6 +301,7 @@ void _sameBits(String wasm, Directory scratch, {int threads = 1}) {
       'steps': _steps,
       'dt': _dt,
       'threads': threads,
+      'materialBytes': F3dMaterialLayout.size,
     }),
   ]);
   expect(ran.exitCode, 0, reason: '${ran.stderr}');

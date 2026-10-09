@@ -1,11 +1,15 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotPart, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
 import 'character_mover.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
+import 'physics_backend.dart';
 import 'ray_hit.dart';
 import 'spatial_grid.dart';
 import 'sweep_hit.dart';
@@ -37,9 +41,45 @@ export 'sweep_hit.dart';
 /// their lists between rebuilds, so after a few frames it allocates nothing and
 /// costs one integer append per collider per cell it covers.
 final class CollisionWorld {
-  CollisionWorld({double cellSize = 4.0})
-    : _staticGrid = SpatialGrid(cellSize: cellSize),
-      _moverGrid = SpatialGrid(cellSize: cellSize);
+  CollisionWorld({
+    double cellSize = 4.0,
+    this.backend = const DartPhysics(),
+    WorldProperties? properties,
+    MaterialCatalog? materials,
+  }) : properties = properties ?? WorldProperties.standard,
+       // Not an initializing formal: the parameter is public, the field is
+       // filled lazily when nobody gave one.
+       // ignore: prefer_initializing_formals
+       _materials = materials,
+       _staticGrid = SpatialGrid(cellSize: cellSize),
+       _moverGrid = SpatialGrid(cellSize: cellSize);
+
+  /// What this world is made of: its gravity, its air, its wind, its medium
+  /// and its step rate — [WorldProperties.standard] unless the world was made
+  /// with, or later given, another.
+  ///
+  /// **The one place everything in the world reads them.** A game sets its
+  /// own where it stages the world (the platformer's 24 m/s²), a level's
+  /// `world` overrides it on top, and the dynamics, the characters, the
+  /// navigation's jump arcs, the particles, the cloth and the liquids read
+  /// it here rather than carrying a number of their own. A change is a
+  /// change to the simulation: the dynamics' saved state carries it, so a
+  /// rewind puts back the world it was saved under.
+  WorldProperties properties;
+
+  /// The physical materials this world's colliders, liquids and medium are
+  /// named from: the engine's own (`MaterialCatalog.builtIn`) unless the
+  /// world was given the engine's catalogue, plugins' materials and all.
+  MaterialCatalog get materials => _materials ??= MaterialCatalog.builtIn();
+  set materials(MaterialCatalog value) => _materials = value;
+  MaterialCatalog? _materials;
+
+  /// What simulates this world's physics: its rigid bodies
+  /// (`backend.dynamics(world)`), its characters' moves and rays
+  /// (`backend.attach(world)`), its cloth and its liquids. The Dart reference
+  /// unless the world was made with another — the backend belongs to the
+  /// world, never to the process (see [PhysicsBackend]).
+  final PhysicsBackend backend;
 
   /// What moves the characters in this world, or null for their own
   /// sweeps — see [CharacterMover]. The physics core sets one for a world it
@@ -209,10 +249,10 @@ final class CollisionWorld {
   final List<Collider> _pendingRemoval = <Collider>[];
 
   /// Convenience for level geometry, which is authored as centre plus size.
-  Collider addBox(Vector3 centre, Vector3 size, {Object? userData}) => add(
+  Collider addBox(Vector3 center, Vector3 size, {Object? userData}) => add(
     Collider(
       shape: CollisionBox.size(size),
-      position: centre,
+      position: center,
       userData: userData,
     ),
   );
@@ -251,6 +291,67 @@ final class CollisionWorld {
     _pendingRemoval.clear();
     _nextId = 0;
   }
+
+  // MARK: - The floating origin
+
+  final List<WeakReference<Vector3>> _alsoShifted = <WeakReference<Vector3>>[];
+
+  /// Shifts [point] with this world's origin from now on: a position this
+  /// world's colliders do not hold themselves — a character controller's, a
+  /// camera rig's. Held weakly, so a point nobody else holds is let go.
+  void shiftsWithOrigin(Vector3 point) =>
+      _alsoShifted.add(WeakReference<Vector3>(point));
+
+  WorldPosition _origin = WorldPosition.origin;
+
+  /// The place in the world this world's float32 positions are relative to:
+  /// a collider at `(0, 0, 0)` is here. [WorldPosition.origin] until
+  /// [moveOriginTo] moves it.
+  WorldPosition get origin => _origin;
+
+  /// Moves the origin to [to]: every collider, and every point given to
+  /// [shiftsWithOrigin], moves the other way by the difference, taken in
+  /// doubles, so nothing moves in the world and what is near the new origin
+  /// gets float32's full precision back. Kinematic deltas are not touched —
+  /// this is not motion.
+  ///
+  /// **The one origin call of a physics world**, the same as the native
+  /// core's `NativeWorld.moveOriginTo`. The physics hook of item 18:
+  /// `EngineLoop.shiftsPhysics` calls it with `OriginShifted.to`. A backend's
+  /// own copy of the world is told through its [mirrors] at the next
+  /// [update]; a backend that holds an origin of its own (the native core)
+  /// is moved by its own hook.
+  void moveOriginTo(WorldPosition to) {
+    final by = to.relativeTo(_origin);
+    _origin = to;
+    final (:x, :y, :z) = by;
+    if (x == 0.0 && y == 0.0 && z == 0.0) return;
+    for (final collider in <Collider>[..._statics, ..._movers]) {
+      final p = collider.position;
+      p.setValues(p.x - x, p.y - y, p.z - z);
+      collider.refreshBounds();
+    }
+    _alsoShifted.removeWhere((weak) {
+      final point = weak.target;
+      if (point == null) return true;
+      point.setValues(point.x - x, point.y - y, point.z - z);
+      return false;
+    });
+    _reindexStatics();
+    _rebuildMoverGrid();
+  }
+
+  /// [origin] as a part of the loop's snapshots, restored before every
+  /// other part ([SnapshotPart.restoresFirst]).
+  ///
+  /// **Why the origin is state.** Every position this world and its
+  /// characters hold is relative to it, and a snapshot of a body is a snapshot
+  /// of a relative position: restored under another origin it lands
+  /// somewhere else. So the origin goes back first — [moveOriginTo] the one
+  /// captured, which carries the level's static colliders along — and the
+  /// bodies' own parts then write their positions over it in the frame they
+  /// were taken in. `EngineLoop.shiftsPhysics` registers it.
+  SnapshotPart get originPart => _CollisionOriginPart(this);
 
   /// Re-indexes everything that moves, without firing any callbacks.
   ///
@@ -451,7 +552,7 @@ final class CollisionWorld {
     _moverGrid.forEachInBox(_queryMin, _queryMax, (int i) {
       consider(_movers[i]);
     });
-    return out.hit;
+    return out.didHit;
   }
 
   void _sweepAgainst(
@@ -664,7 +765,7 @@ final class CollisionWorld {
     _moverGrid.forEachAlongRay(origin, direction, maxDistance, (int i) {
       consider(_movers[i]);
     });
-    return out.hit;
+    return out.didHit;
   }
 
   /// Collects everything [shape] at [position] currently overlaps.
@@ -720,7 +821,7 @@ final class CollisionWorld {
   /// player, a level can spawn them badly, and floating point can leave them a
   /// hair inside a wall after a slide.
   bool depenetrate(
-    Vector3 centre,
+    Vector3 center,
     Vector3 halfExtents,
     Vector3 out, {
     int mask = Layers.all,
@@ -731,14 +832,14 @@ final class CollisionWorld {
     var corrected = false;
 
     _queryMin.setValues(
-      centre.x - halfExtents.x,
-      centre.y - halfExtents.y,
-      centre.z - halfExtents.z,
+      center.x - halfExtents.x,
+      center.y - halfExtents.y,
+      center.z - halfExtents.z,
     );
     _queryMax.setValues(
-      centre.x + halfExtents.x,
-      centre.y + halfExtents.y,
-      centre.z + halfExtents.z,
+      center.x + halfExtents.x,
+      center.y + halfExtents.y,
+      center.z + halfExtents.z,
     );
 
     _asBox.halfExtents.setFrom(halfExtents);
@@ -753,7 +854,7 @@ final class CollisionWorld {
       // and each of them has its own way out.
       final parts = _partsOf(other, _queryMin, _queryMax);
       for (var p = 0; p < parts; p++) {
-        if (_pushOutOfPart(other, _parts[p], centre, allow)) corrected = true;
+        if (_pushOutOfPart(other, _parts[p], center, allow)) corrected = true;
       }
     }
 
@@ -788,14 +889,14 @@ final class CollisionWorld {
     return corrected;
   }
 
-  /// Pushes [centre] out of one convex part of [other], if it is inside it.
+  /// Pushes [center] out of one convex part of [other], if it is inside it.
   ///
   /// The shallowest face wins: that is the shortest way out, and therefore the
   /// one that does not fling the player across the room.
   bool _pushOutOfPart(
     Collider other,
     int part,
-    Vector3 centre,
+    Vector3 center,
     ContactFilter? allow,
   ) {
     // The same planes a sweep would use, asked the other question: not "when
@@ -810,9 +911,9 @@ final class CollisionWorld {
       // would have to travel along the normal to leave through it.
       final depth =
           _planes[base + 3] -
-          (_planes[base] * centre.x +
-              _planes[base + 1] * centre.y +
-              _planes[base + 2] * centre.z);
+          (_planes[base] * center.x +
+              _planes[base + 1] * center.y +
+              _planes[base + 2] * center.z);
       // Outside one face is outside the solid, whatever the other five say —
       // and a seam counts here, because a body past a seam really has left this
       // piece of the shape. It is only as a way *out* that a seam is refused.
@@ -902,4 +1003,31 @@ final class CollisionWorld {
       a.max.y > b.min.y &&
       a.min.z < b.max.z &&
       a.max.z > b.min.z;
+}
+
+final class _CollisionOriginPart extends SnapshotPart {
+  const _CollisionOriginPart(this.world);
+
+  final CollisionWorld world;
+
+  @override
+  String get id => 'flutter3d.physics.origin';
+
+  @override
+  bool get restoresFirst => true;
+
+  @override
+  Object? capture() {
+    final at = world.origin;
+    return <double>[at.x, at.y, at.z];
+  }
+
+  @override
+  void restore(Object? data, int version) {
+    if (data case [final num x, final num y, final num z]) {
+      world.moveOriginTo(
+        WorldPosition(x.toDouble(), y.toDouble(), z.toDouble()),
+      );
+    }
+  }
 }

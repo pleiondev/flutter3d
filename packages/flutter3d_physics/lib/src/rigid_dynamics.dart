@@ -22,11 +22,18 @@ import 'collision_world.dart';
 import 'dynamics.dart';
 import 'rigid_body.dart';
 
-abstract interface class RigidDynamics {
+/// **Extended outside this package: an `abstract base class`** (decision 5
+/// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
+/// default body and every implementation keeps compiling.
+abstract base class RigidDynamics {
+  const RigidDynamics();
+
   /// The world the bodies' colliders are in.
   CollisionWorld get world;
 
-  /// Metres per second squared.
+  /// Metres per second squared: the world's (`world.properties.gravity`),
+  /// which every backend reads rather than keeping one of its own. A fresh
+  /// vector; a world's gravity is changed through `world.properties`.
   Vector3 get gravity;
 
   /// Every body added, in the order it was.
@@ -46,15 +53,17 @@ abstract interface class RigidDynamics {
 
   /// Shoves whatever [by] is walking into, horizontally, at most at the speed
   /// it is walking into it: how a kinematic character pushes a crate.
-  void push(Collider by, Vector3 velocity, {double strength = 1.0});
+  /// Nothing by default: a backend without loose bodies pushes nothing.
+  void push(Collider by, Vector3 velocity, {double strength = 1.0}) {}
 
   /// What a save must carry beyond the bodies' own `save()` for a run
   /// restored from it to step on to the same bits: null when there is
   /// nothing, as for [Dynamics], whose state is its bodies'. A value JSON
-  /// can hold, so a simulation puts it in its snapshot as it is.
-  Object? saveState();
+  /// can hold, so a simulation puts it in its snapshot as it is. Null by
+  /// default.
+  Object? saveState() => null;
 
   /// Back to what [saveState] gave, after the bodies' own `restore`; null
-  /// changes nothing.
-  void restoreState(Object? saved);
+  /// changes nothing. Nothing by default.
+  void restoreState(Object? saved) {}
 }

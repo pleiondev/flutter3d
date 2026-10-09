@@ -8,15 +8,13 @@ import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_net_webrtc/flutter3d_net_webrtc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A [NetTransport] with no real channel behind it — enough to prove
-/// [WebRtcTransport.createOffer] reaches `flutter_webrtc`'s own API
+/// A [PeerWire] with no real channel behind it — enough to prove
+/// [WebRtcTransport.openOffering] reaches `flutter_webrtc`'s own API
 /// correctly and starts the handshake, without a peer on the other end to
 /// finish it.
-final class _NullSignalling implements NetTransport {
+final class _NullSignalling extends PeerWire {
   @override
-  void send(Map<String, Object?> message) {}
-  @override
-  void listen(void Function(Map<String, Object?> message) onMessage) {}
+  void send(Map<String, Object?> message, {bool reliable = true}) {}
 }
 
 void main() {
@@ -43,14 +41,14 @@ void main() {
     // wrong shape, while admitting plainly that a real connection is not
     // being tested here.
     await expectLater(
-      () => WebRtcTransport.createOffer(_NullSignalling()),
+      () => WebRtcTransport.openOffering(_NullSignalling()),
       throwsA(anything),
     );
   });
 
   test('the answering side hits the same wall, for the same reason', () async {
     await expectLater(
-      () => WebRtcTransport.awaitOffer(_NullSignalling()),
+      () => WebRtcTransport.openAnswering(_NullSignalling()),
       throwsA(anything),
     );
   });

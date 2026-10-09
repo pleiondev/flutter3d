@@ -124,7 +124,7 @@ final class Mind {
   /// From the actor to the focus. Live, and not to be kept.
   Vector3 get toFocus => system.toFocus;
 
-  /// How far away the focus is.
+  /// How far away the focus is, in metres.
   double get distance => system.distanceToFocus;
 
   /// Randomness that a snapshot can carry. See `GameRandom`.

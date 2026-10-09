@@ -221,7 +221,7 @@ static void test_turned_hull_has_products(void) {
     F3dWorld *v = f3d_world_create();
     f3d_world_set_gravity(v, 0, 0, 0);
     f3d_world_set_sleep(v, 0, 0);
-    f3d_world_set_air(v, F3D_R(293.15), F3D_R(1e-30));
+    f3d_world_set_air(v, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
     const uint32_t h2 = f3d_world_create_hull(v, pts, 8);
     const F3dBody spun = f3d_body_create(v, F3D_BODY_DYNAMIC, 0, 0, 0, 2);
     f3d_body_set_hull(v, spun, h2);
@@ -339,7 +339,7 @@ static void test_cylinder_rolls(void) {
   const F3dQuat slope = turn_about(f3d_v3(0, 0, 1), theta);
   const F3dMat3 m = f3d_mat_of(slope);
   F3dWorld *w = f3d_world_create();
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   f3d_world_set_sleep(w, 0, 0);
   const F3dVec3 at = f3d_scale(m.c[1], F3D_R(-0.5));
   const F3dBody ground = f3d_body_create(w, F3D_BODY_FIXED, at.x, at.y, at.z, 0);
@@ -367,7 +367,7 @@ static void test_cylinder_rolls(void) {
   f3d_body_get_angular_velocity(w, wheel, spin);
   const double s0 = sqrt((double)v0[0] * v0[0] + (double)v0[1] * v0[1] + (double)v0[2] * v0[2]);
   const double s1 = sqrt((double)v1[0] * v1[0] + (double)v1[1] * v1[1] + (double)v1[2] * v1[2]);
-  CHECK_NEAR(s1 - s0, 2.0 / 3.0 * 9.81 * sin(theta), 0.03);
+  CHECK_NEAR(s1 - s0, 2.0 / 3.0 * world_gravity(w) * sin(theta), 0.03);
   const double w1 = sqrt((double)spin[0] * spin[0] + (double)spin[1] * spin[1] + (double)spin[2] * spin[2]);
   CHECK_NEAR(w1 * (double)r / s1, 1, 0.03);
   f3d_world_destroy(w);
@@ -378,7 +378,7 @@ static void test_resting_shapes(void) {
    * centimetre onto a floor: each comes to rest standing, and sleeps. */
   uint32_t hull;
   F3dWorld *w = world_with_cube_hull(&hull, F3D_R(0.5));
-  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_air(w, F3D_STANDARD_AIR_TEMPERATURE, F3D_R(1e-30));
   const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
   f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
   const F3dBody cyl = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.01), 0, 1);

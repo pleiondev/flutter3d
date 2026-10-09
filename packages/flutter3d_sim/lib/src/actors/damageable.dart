@@ -20,7 +20,11 @@
 /// counted, the flinch would not be rolled, and nothing would appear in
 /// `MonsterSystem.died`. The delegation is the point — see `Monster`, which
 /// hands the call back to the system that spawned it.
-abstract interface class Damageable {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Damageable {
   /// Takes [amount] of damage and answers whether that killed it.
   ///
   /// Killing is worth reporting because a caller usually has something to do

@@ -1,3 +1,6 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show FormatDocument, FormatMigration, FormatSpec, Flutter3dFormatException;
+
 import '../save/demo.dart';
 import '../save/state_digest.dart';
 
@@ -21,9 +24,14 @@ import '../save/state_digest.dart';
 /// right for telling two states apart and wrong for naming a document among
 /// every document strangers upload, so the server takes a SHA-256 of the bytes
 /// [toJson] writes.
-final class ShareBundle {
-  ShareBundle({required this.game, required this.level, this.run, this.title})
-    : levelHash = contentDigestHex(level) {
+final class ShareBundle extends FormatDocument {
+  ShareBundle({
+    required this.game,
+    required this.level,
+    this.run,
+    this.title,
+    super.unknown,
+  }) : levelHash = contentDigestHex(level) {
     final run = this.run;
     if (run != null && run.levelHash != levelHash) {
       throw ShareFormatException(
@@ -34,8 +42,34 @@ final class ShareBundle {
     }
   }
 
-  /// Bumped when an existing field changes meaning.
+  /// Bumped when an existing field changes meaning, with a step in
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   static const int formatVersion = 1;
+
+  /// Entry `i` lifts a bundle from version `i + 1` to `i + 2`; empty while
+  /// version 1 is the only one, so reading it is the identity.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
+  /// The share bundle in the registry: `f3d.share`. The envelope is
+  /// additive at version 1 — a build from before it ignores the three keys.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.share',
+    version: formatVersion,
+    suffixes: <String>['.share.json'],
+    fixture: 'test/fixtures/v<N>/first.share.json',
+    migrations: _migrations,
+  );
+
+  @override
+  FormatSpec get spec => format;
+
+  static const Set<String> _known = <String>{
+    'game',
+    'title',
+    'levelHash',
+    'level',
+    'run',
+  };
 
   /// What the game calls itself, so that a viewer knows which game opens it.
   final String game;
@@ -52,30 +86,31 @@ final class ShareBundle {
   /// What the person sharing it called it, or null.
   final String? title;
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+  Map<String, Object?> toJson() => write(<String, Object?>{
     'game': game,
     if (title != null) 'title': title,
     'levelHash': levelHash,
     'level': level,
     if (run != null) 'run': run!.toJson(),
-  };
+  });
 
   /// Reads a bundle, or throws a [ShareFormatException] that says why not.
   ///
   /// [levelHash] is read and compared rather than trusted: a bundle edited by
   /// hand after it was written names a version of the level it does not hold.
-  factory ShareBundle.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
-    if (version is! num) {
+  factory ShareBundle.fromJson(Map<String, Object?> json) =>
+      ShareBundle._read(json);
+
+  factory ShareBundle._read(Map<String, Object?> document) {
+    final version = document['version'];
+    if (version is! num || version < 1) {
       throw const ShareFormatException('the bundle has no version in it');
     }
-    if (version > formatVersion) {
-      throw ShareFormatException(
-        'the bundle was written by a newer build (format $version, this build '
-        'reads $formatVersion) — update flutter3d to open it',
-      );
-    }
+    // A newer version, another format's document or a `requires` this build
+    // does not know is refused by the spec; every older format is lifted
+    // through [_migrations] before a field is read (decision 8 of
+    // `tasks/1.0-stability.md`).
+    final json = format.open(document, refuse: ShareFormatException.new);
     final game = json['game'];
     if (game is! String || game.isEmpty) {
       throw const ShareFormatException('the bundle names no game');
@@ -105,6 +140,7 @@ final class ShareBundle {
       level: level,
       run: run,
       title: title as String?,
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
     final claimed = json['levelHash'];
     if (claimed != bundle.levelHash) {
@@ -118,9 +154,10 @@ final class ShareBundle {
 }
 
 /// Thrown when a bundle cannot be read, or would not mean what it says.
-final class ShareFormatException implements Exception {
+final class ShareFormatException extends Flutter3dFormatException {
   const ShareFormatException(this.message);
 
+  @override
   final String message;
 
   @override

@@ -11,9 +11,9 @@ library;
 ///
 /// Starts `bin/relay.dart` as a real subprocess, reads back which port the
 /// system actually gave it, connects two real [WebSocketTransport]s to the
-/// same room over `ws://127.0.0.1`, and drives the exact `NetSession`
+/// same room over `ws://127.0.0.1`, and drives the exact `RollbackSession`
 /// convergence `net_session_test.dart` already proved over
-/// [LoopbackTransport] — this time end to end through a socket and a
+/// [LoopbackWire] — this time end to end through a socket and a
 /// process this test does not control the timing of.
 ///
 /// `@TestOn('vm')`: spawns a real process and opens real sockets, neither
@@ -22,8 +22,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -98,124 +98,76 @@ Future<({Process process, int port})> _startRelay() async {
 }
 
 void main() {
-  test('two NetSessions over a real relay and real sockets converge on the '
-      'same digests', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
+  test(
+    'two rollback sessions over a real relay and real sockets converge on the '
+    'same digests',
+    () async {
+      final relay = await _startRelay();
+      addTearDown(() => relay.process.kill());
 
-    final room = 'test-room-${DateTime.now().microsecondsSinceEpoch}';
-    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
-    final transportA = await WebSocketTransport.connect(roomUri);
-    final transportB = await WebSocketTransport.connect(roomUri);
-    addTearDown(transportA.close);
-    addTearDown(transportB.close);
+      final room = 'test-room-${DateTime.now().microsecondsSinceEpoch}';
+      final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+      final transportA = await WebSocketTransport.connect(roomUri);
+      final transportB = await WebSocketTransport.connect(roomUri);
+      addTearDown(transportA.close);
+      addTearDown(transportB.close);
 
-    final toyA = _Toy(1);
-    final toyB = _Toy(1);
-    final digestsA = DigestTrace();
-    final digestsB = DigestTrace();
-    late final NetSession sessionA;
-    late final NetSession sessionB;
-    sessionA = NetSession(
-      transport: transportA,
-      captureLocalFrame: () => _sideA(sessionA.step),
-      applyAndStep: (local, remote) => toyA.step(local, remote),
-      save: toyA.save,
-      restore: toyA.restore,
-      inputDelay: 2,
-      maxRollbackFrames: 16,
-      onSettled: (step, after) => digestsA.observe(step + 1, after.toJson()),
-    );
-    sessionB = NetSession(
-      transport: transportB,
-      captureLocalFrame: () => _sideB(sessionB.step),
-      applyAndStep: (local, remote) => toyB.step(remote, local),
-      save: toyB.save,
-      restore: toyB.restore,
-      inputDelay: 2,
-      maxRollbackFrames: 16,
-      onSettled: (step, after) => digestsB.observe(step + 1, after.toJson()),
-    );
+      final toyA = _Toy(1);
+      final toyB = _Toy(1);
+      final digestsA = DigestTrace();
+      final digestsB = DigestTrace();
+      late final RollbackSession<Snapshot> sessionA;
+      late final RollbackSession<Snapshot> sessionB;
+      sessionA = RollbackSession<Snapshot>(
+        wire: transportA,
+        localSlot: 0,
+        captureLocalFrame: () => _sideA(sessionA.step),
+        applyAndStep: (frames) => toyA.step(frames[0]!, frames[1]!),
+        save: toyA.save,
+        restore: toyA.restore,
+        inputDelay: 2,
+        maxRollbackFrames: 16,
+        onSettled: (step, after, _) =>
+            digestsA.observe(step + 1, after.toJson()),
+      );
+      sessionB = RollbackSession<Snapshot>(
+        wire: transportB,
+        localSlot: 1,
+        captureLocalFrame: () => _sideB(sessionB.step),
+        applyAndStep: (frames) => toyB.step(frames[0]!, frames[1]!),
+        save: toyB.save,
+        restore: toyB.restore,
+        inputDelay: 2,
+        maxRollbackFrames: 16,
+        onSettled: (step, after, _) =>
+            digestsB.observe(step + 1, after.toJson()),
+      );
 
-    // A real socket introduces real, if small, scheduling delay — steps
-    // are paced on a timer rather than driven back-to-back in a tight
-    // loop, so messages have an actual chance to round-trip through the
-    // relay between one side's step and the other's.
-    const steps = 200;
-    for (var i = 0; i < steps + 40; i++) {
-      sessionA.advance();
-      sessionB.advance();
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-    }
+      // A real socket introduces real, if small, scheduling delay — steps
+      // are paced on a timer rather than driven back-to-back in a tight
+      // loop, so messages have an actual chance to round-trip through the
+      // relay between one side's step and the other's.
+      const steps = 200;
+      for (var i = 0; i < steps + 40; i++) {
+        sessionA.advance();
+        sessionB.advance();
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+      }
 
-    final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
-    expect(
-      divergence,
-      isNull,
-      reason:
-          'the two sides should agree on every settled checkpoint through '
-          'the real relay: $divergence',
-    );
-    expect(digestsA.steps, isNotEmpty);
-    expect(sessionA.droppedCorrections, 0);
-    expect(sessionB.droppedCorrections, 0);
-  }, timeout: const Timeout(Duration(seconds: 30)));
-
-  test('flame_multiplayer\'s room and turns work over the relay through '
-      'NetTransportWire', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final room = 'turns-${DateTime.now().microsecondsSinceEpoch}';
-    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
-    final transportA = await WebSocketTransport.connect(roomUri);
-    final transportB = await WebSocketTransport.connect(roomUri);
-    addTearDown(transportA.close);
-    addTearDown(transportB.close);
-
-    final roomA = PeerRoom(
-      NetTransportWire(transportA),
-      slot: 0,
-      about: const <String, Object?>{'plays': 'jet'},
-    );
-    final roomB = PeerRoom(NetTransportWire(transportB), slot: 1);
-    final frames = <Object?>[];
-    Map<String, Object?>? handed;
-    final host = BatonStream(
-      roomA.channel('turns'),
-      holding: true,
-      onFrame: (_) {},
-      onEvent: (_) {},
-      onBaton: (_) {},
-    );
-    final guest = BatonStream(
-      roomB.channel('turns'),
-      holding: false,
-      onFrame: (f) => frames.add(f['n']),
-      onEvent: (_) {},
-      onBaton: (s) => handed = s,
-    );
-
-    for (var i = 0; i < 400 && !(roomA.met && roomB.met); i++) {
-      roomA.step(1 / 60);
-      roomB.step(1 / 60);
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-    }
-    expect(roomB.peer, <String, Object?>{'plays': 'jet'});
-
-    for (var n = 0; n < 30; n++) {
-      host.tellFrame(<String, Object?>{'n': n});
-      guest.step();
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-    }
-    host.pass(<String, Object?>{'player': 1});
-    for (var i = 0; i < 200 && handed == null; i++) {
-      guest.step();
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-    }
-    expect(frames, <int>[for (var n = 0; n < 30; n++) n]);
-    expect(handed, <String, Object?>{'player': 1});
-    expect(guest.holding, isTrue);
-  }, timeout: const Timeout(Duration(seconds: 30)));
+      final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
+      expect(
+        divergence,
+        isNull,
+        reason:
+            'the two sides should agree on every settled checkpoint through '
+            'the real relay: $divergence',
+      );
+      expect(digestsA.steps, isNotEmpty);
+      expect(sessionA.droppedCorrections, 0);
+      expect(sessionB.droppedCorrections, 0);
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 
   test(
     'a third socket asking for a room that already has two is refused',
@@ -275,4 +227,77 @@ void main() {
       <String, Object?>{'hello': 1},
     );
   }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('a room runs one simulation version, and a machine on another is '
+      'told which to update to', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final room = 'simulation-${DateTime.now().microsecondsSinceEpoch}';
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+
+    final first = await WebSocketTransport.connect(
+      relayRoom(base, room, simulation: _sim(7)),
+    );
+    addTearDown(first.close);
+    // Mutation: the simulation version not held — the older build is let
+    // in, and its rollback never agrees with the first one's.
+    final older = await WebSocketTransport.connect(
+      relayRoom(base, room, simulation: _sim(6)),
+    );
+    final reason = await older.closed.timeout(const Duration(seconds: 5));
+    expect(reason, contains('update to simulation engine 1, racing 7'));
+
+    final second = await WebSocketTransport.connect(
+      relayRoom(base, room, simulation: _sim(7)),
+    );
+    addTearDown(second.close);
+    final heard = Completer<Map<String, Object?>>();
+    second.listen(heard.complete);
+    first.send(<String, Object?>{'n': 1});
+    expect(
+      await heard.future.timeout(const Duration(seconds: 5)),
+      <String, Object?>{'n': 1},
+    );
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('the relay turns away another protocol major with the major to '
+      'update to, and lets a higher minor in', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final room = 'protocol-${DateTime.now().microsecondsSinceEpoch}';
+    Uri asking(String protocol) =>
+        Uri.parse('ws://127.0.0.1:${relay.port}/room/$room?protocol=$protocol');
+    const major = WireHello.currentProtocolMajor;
+
+    // Mutation: the protocol not read — a machine of the next major is
+    // let in to send messages this relay's peers cannot read.
+    final ahead = await WebSocketTransport.connect(asking('${major + 1}.0'));
+    expect(
+      await ahead.closed.timeout(const Duration(seconds: 5)),
+      contains('the relay has to update to protocol ${major + 1}'),
+    );
+    final behind = await WebSocketTransport.connect(asking('${major - 1}.4'));
+    expect(
+      await behind.closed.timeout(const Duration(seconds: 5)),
+      contains('update to protocol $major'),
+    );
+
+    // Mutation: minors compared — within a major the protocol only grows,
+    // so a build a few minors on still meets this relay's room.
+    final first = await WebSocketTransport.connect(asking('$major.9'));
+    addTearDown(first.close);
+    final second = await WebSocketTransport.connect(asking('$major.0'));
+    addTearDown(second.close);
+    final heard = Completer<Map<String, Object?>>();
+    second.listen(heard.complete);
+    first.send(<String, Object?>{'n': 2});
+    expect(
+      await heard.future.timeout(const Duration(seconds: 5)),
+      <String, Object?>{'n': 2},
+    );
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }
+
+/// A racing game's simulation at genre version [n], as the relay is asked.
+SimulationVersion _sim(int n) =>
+    SimulationVersion(genre: 'racing', genreVersion: n);

@@ -91,6 +91,18 @@ final class EntityLayout {
           (b?.containsKey(component) ?? false) ||
       firstDifferingPath(a?[component], b?[component]) != null;
 
+  /// This layout, reading the document found under [path] in a snapshot
+  /// rather than the snapshot itself: a loop's capture holds each part
+  /// under its id, so a run's own save stepped through a `RunLoop` is
+  /// `layout.under(RunLoop.savePath)`. A snapshot with nothing there has no
+  /// entities.
+  EntityLayout under(List<String> path) => EntityLayout._((data) {
+    final inner = _descend(data, path);
+    return inner is Map
+        ? _read(inner.cast<String, Object?>())
+        : const <String, Map<String, Object?>>{};
+  });
+
   static Object? _descend(Object? value, List<String> path) =>
       path.fold(value, (node, key) => node is Map ? node[key] : null);
 }

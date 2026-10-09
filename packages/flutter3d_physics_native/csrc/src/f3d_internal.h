@@ -35,13 +35,14 @@ void f3d_copy(void *to, const void *from, size_t bytes);
  * as the solver brings a body it holds. */
 #define F3D_LINEAR_SLOP F3D_R(0.005)
 
-/* Stefan–Boltzmann, W / (m² K⁴). */
-#define F3D_STEFAN_BOLTZMANN F3D_R(5.670374419e-8)
-
-/* Water: J / (kg K), J / kg to boil it, and K at which it boils. */
-#define F3D_WATER_HEAT F3D_R(4186.0)
-#define F3D_WATER_LATENT F3D_R(2.257e6)
-#define F3D_WATER_BOILS F3D_R(373.15)
+/* The constants of nature, the standard world's defaults and every built-in
+ * material's numbers — F3D_STEFAN_BOLTZMANN, F3D_STANDARD_GRAVITY,
+ * F3D_MAT_WATER_DENSITY and the rest — written by
+ * tool/gen_materials.dart from flutter3d_physics' catalogue, the one place
+ * they are written. Water's heat, the heat that boils it and where it boils
+ * are F3D_MAT_WATER_SPECIFIC_HEAT, _LATENT_HEAT_OF_VAPORIZATION and
+ * _BOILING_POINT. */
+#include "f3d_materials.g.h"
 
 /* 32-bit x86 does its arithmetic on the x87 by default, in registers
  * wider than an f32 or an f64 and rounded when they are stored, so the
@@ -175,8 +176,8 @@ typedef struct F3dContactPoint {
   f3d_real tangent_impulse[2];
 } F3dContactPoint;
 
-/* Everything two bodies' shapes touch at. Plain data: a snapshot copies it
- * whole. */
+/* Everything two bodies' shapes touch at. Plain data, in a snapshot field
+ * by field: a field added here goes into f3d_snapshot.c too. */
 typedef struct F3dManifold {
   /* The lower slot is a, the higher b. */
   F3dBody a;
@@ -260,6 +261,9 @@ enum {
   /* Swept for its time of impact after the solve: a bullet does not pass
    * through a wall however thin, at any speed. */
   F3D_FLAG_BULLET = 1u << 4,
+  /* Its own fuel alight, apart from a burner's flame: F3D_FLAG_BURNING is
+   * either. */
+  F3D_FLAG_OWN_FIRE = 1u << 5,
 };
 
 /* ----------------------------------------------------------------- tree */
@@ -324,8 +328,10 @@ static inline int f3d_box_overlap(F3dBox a, F3dBox b) {
 /* One arena slot. A free slot keeps its generation, so the next body it
  * holds gets a new one, and links to the next free slot.
  *
- * Plain data, zeroed when taken, so a snapshot copies it whole and its
- * padding is the same bytes every time. */
+ * Plain data, zeroed when taken. A snapshot writes it field by field, so a
+ * field added here goes into f3d_snapshot.c too, at the end of the
+ * section it belongs to; csrc/tests/test_snapshot.c compares restored
+ * worlds byte for byte and catches one left out that its scene sets. */
 typedef struct F3dSlot {
   uint32_t generation;
   /* Next free slot plus one, or nought; meaningful while free. */
@@ -379,9 +385,32 @@ typedef struct F3dSlot {
   f3d_real heat_release;
   /* m² of its surface the flame has spread over since it caught. */
   f3d_real involved;
+  /* Its burning patch, as a lump's: how far its edge has crept sideways and
+   * how much further it has climbed, m; how deep heat has reached under
+   * it, squared, m²; and how far a local heating has brought it towards
+   * catching, nought to one. */
+  f3d_real spread, rise, patch, exposure;
+  /* The char layer over its burning patch, m, and that char's surface
+   * temperature, K; and the m² of its surface char covers, which stays
+   * when the fire goes out. */
+  f3d_real char_depth, char_skin, charred;
+  /* A burner's kg/s of the fuel [burner], nought for none. */
+  f3d_real feed;
+  F3dMaterial burner;
+  /* A flame held to it through the next step: where, W/m², over m², and
+   * its gas's temperature, K; a flux of nought for none. */
+  F3dVec3 held_at;
+  f3d_real held_flux, held_area, held_temperature;
   /* kg of fluid it carries along as it speeds up, this step: what water
    * round it adds to its inertia. */
   f3d_real added_mass;
+  /* What of it stands in a liquid, as the water's last step measured it:
+   * the m³ under the surface, the liquid's speed past it, m/s, and which
+   * water, one past its index, nought for none; and, while a water
+   * measures it again, 1 when that water held it before. */
+  f3d_real submerged, liquid_speed;
+  uint32_t liquid;
+  uint32_t was_wet;
   /* Coulomb's coefficient, and the share of the approach speed that comes
    * back. */
   f3d_real friction;
@@ -404,9 +433,25 @@ typedef struct F3dLump {
    * squared, and its surface's temperature; and how much of its surface
    * is alight, m². */
   f3d_real interior, reached, skin, involved;
+  /* Its burning patch: as F3dSlot's spread, rise, patch and exposure. */
+  f3d_real spread, rise, patch, exposure;
+  /* As F3dSlot's char_depth, char_skin and charred; and how far the flame
+   * of the part below has brought it towards catching at their joint,
+   * nought to one. */
+  f3d_real char_depth, char_skin, charred, joint;
+  /* The share of it under a liquid's surface, nought to one, as the
+   * water's last step measured it. */
+  f3d_real immersed;
+  /* F3D_LUMP_OWN while its own fuel burns, F3D_LUMP_BURNER while a burner
+   * feeds it; nought for neither. */
   uint32_t burning;
-  uint32_t reserved;
+  /* 1 when its patch started at its edge, where a neighbouring part's
+   * flame crossed into it. */
+  uint32_t edge;
 } F3dLump;
+
+#define F3D_LUMP_OWN 1u
+#define F3D_LUMP_BURNER 2u
 
 typedef struct F3dEventRecord {
   F3dBody body;
@@ -480,6 +525,8 @@ typedef struct F3dWheel {
   uint32_t touching;
   f3d_real length, rotation, spin, force, lateral, skid;
   F3dVec3 centre, normal;
+  /* The tyre's width, m, and its rolling resistance coefficient. */
+  f3d_real width, rolling;
 } F3dWheel;
 
 /* A vehicle's slot. Plain data, zeroed when taken. */
@@ -511,9 +558,15 @@ typedef struct F3dLink {
   F3dQuat turn;
   F3dVec3 spin;
   f3d_real lower, upper, motor_speed, motor_force;
-  /* Where its motor means the joint to be: where it was when the motor
-   * took it, carried on at the motor's speed. */
+  /* Where its servo means the joint to be: where it was set, carried on
+   * at the motor's speed. */
   f3d_real motor_q;
+  /* The servo's stiffness, N m/rad or N/m, and its damping ratio. */
+  f3d_real servo_stiffness, servo_damping;
+  /* Where the last step left the joint, and how much faster than its speed
+   * the step after it moved it, rad/s or m/s: what the substeps add before
+   * the joints are read again. */
+  f3d_real left_q, drift;
   /* A spherical link's cone: how far its axis swings from the parent's,
    * and how far it twists about itself, radians. */
   f3d_real swing, twist;
@@ -524,13 +577,27 @@ typedef struct F3dShallowSource {
   f3d_real x, z, radius, rate;
 } F3dShallowSource;
 
+/* One outlet of a water: a weir's crest at a cell. Plain data. */
+typedef struct F3dShallowOutlet {
+  /* A weir: its crest and width. A drain: its invert in [crest] and its
+   * opening's area in [width]. */
+  f3d_real x, z, crest, width, coefficient;
+  /* F3D_OUTLET_WEIR or F3D_OUTLET_DRAIN. */
+  uint32_t kind;
+  uint32_t reserved;
+} F3dShallowOutlet;
+
+#define F3D_OUTLET_WEIR 0u
+#define F3D_OUTLET_DRAIN 1u
+
 /* A water's slot: its grid, where its reals start in the world's array of
  * them, and its springs. Plain data, zeroed when taken.
  *
  * Its reals, in order: the ground at each cell's centre, nx × nz; the
  * depth at each, nx × nz; the velocity across each x face, (nx + 1) × nz;
- * across each z face, nx × (nz + 1); and the volume bodies fill in each
- * column, nx × nz. */
+ * across each z face, nx × (nz + 1); the volume bodies fill in each
+ * column, nx × nz; each cell's own roughness, negative for the water's,
+ * nx × nz; and whether each cell is a wall, nx × nz. */
 typedef struct F3dShallowSlot {
   uint32_t live;
   uint32_t nx, nz;
@@ -538,9 +605,23 @@ typedef struct F3dShallowSlot {
   f3d_real cell;
   F3dVec3 origin;
   f3d_real roughness;
-  uint32_t open_edges;
+  /* Its edges, −x, +x, −z, +z: an F3D_EDGE_ kind each, and its value. */
+  uint32_t edge_kind[4];
+  f3d_real edge_value[4];
+  uint32_t outlet_count;
+  F3dShallowOutlet outlets[F3D_SHALLOW_MOST_OUTLETS];
+  /* The last step's substeps, how many steps wanted more than the most a
+   * step is cut into, and the most energy any cell held, J/m². */
+  uint32_t substeps, overruns;
+  f3d_real energy;
   /* What it is: kg/m³, Pa·s and N/m. */
   f3d_real density, viscosity, tension;
+  /* What heat sees of it: its temperature, K, its specific heat, J/(kg K),
+   * conductivity, W/(m K), and volumetric expansion, 1/K; and 1 when it
+   * boils as water does at one atmosphere. */
+  f3d_real temperature, specific_heat, conductivity, expansion;
+  uint32_t boils;
+  uint32_t heat_reserved;
   f3d_real lost;
   /* How long it has lain still, s; whether it rests, not stepped until
    * something stirs it; and its highest surface over its origin then, m. */
@@ -596,8 +677,8 @@ enum {
   F3D_JOINT_FRICTION = 1u << 5,
 };
 
-/* One joint's arena slot. Plain data, zeroed when taken: a snapshot copies
- * it whole, warm-start impulses and all. */
+/* One joint's arena slot. Plain data, zeroed when taken: in a snapshot,
+ * warm-start impulses and all. */
 typedef struct F3dJointSlot {
   uint32_t generation;
   uint32_t next_free;
@@ -639,8 +720,9 @@ typedef struct F3dJointSlot {
   F3dVec3 turned;
 } F3dJointSlot;
 
-/* Everything in a world that is not behind a pointer: what a snapshot
- * copies in one piece. */
+/* Everything in a world that is not behind a pointer. A snapshot writes it
+ * across its sections: the world's own numbers, and each table's counts
+ * with the table. */
 typedef struct F3dWorldState {
   double origin[3];
   F3dVec3 gravity;
@@ -704,6 +786,11 @@ typedef struct F3dWorldState {
   uint32_t shallow_reals;
   uint32_t spray_count;
   uint32_t bubble_count;
+  /* When water rests: the most energy a cell may hold, J/m², for how
+   * long, s; read as the defaults until water_rest_set. */
+  f3d_real water_rest_energy, water_rest_time;
+  uint32_t water_rest_set;
+  uint32_t water_reserved;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -933,6 +1020,18 @@ int f3d_turns(const F3dSlot *slot);
  * the sleep clock run. */
 void f3d_integrate_velocity(const F3dWorld *world, F3dSlot *slot, f3d_real h);
 void f3d_integrate_position(F3dSlot *slot, f3d_real h);
+
+/* A kinematic body carried [h] seconds at its velocity and spin. */
+void f3d_carry(F3dSlot *slot, f3d_real h);
+
+/* Whether [s] is a kinematic body that moves this step: one that pushes
+ * what it meets and wakes it. */
+static inline int f3d_carried(const F3dSlot *s) {
+  return s->live && s->type == F3D_BODY_KINEMATIC &&
+         (s->velocity.x != F3D_R(0.0) || s->velocity.y != F3D_R(0.0) ||
+          s->velocity.z != F3D_R(0.0) || s->spin.x != F3D_R(0.0) ||
+          s->spin.y != F3D_R(0.0) || s->spin.z != F3D_R(0.0));
+}
 void f3d_finish_motion(const F3dWorld *world, F3dSlot *slot, f3d_real dt);
 
 /* [bytes] of the world's scratch, kept between steps and grown when it is

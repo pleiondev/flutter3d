@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import '../physics_backend.dart';
 import 'buoyancy.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
@@ -11,7 +10,7 @@ import 'particle_fluid.dart';
 import 'pipe.dart';
 
 /// The parts of a `FluidWorld` that are stepped through time, from the run's
-/// physics: `PhysicsBackend.current.fluid`, the core where the run is on it
+/// physics: a backend's `fluid`, the core where the run is on it
 /// and [DartFluid] where it is on the reference.
 ///
 /// **Five solvers, and nothing else.** What a world steps is the particles
@@ -39,63 +38,36 @@ import 'pipe.dart';
 /// precision and sums neighbours in another order, so a pour lands the same
 /// liquid in the same glass by a slightly different path; each agrees with
 /// itself from run to run.
-abstract interface class FluidSolver {
+///
+/// **Extended outside this package: an `abstract base class` with defaults**
+/// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
+/// arrives with a default body and every implementation keeps compiling.
+///
+/// **Every member defaults to the Dart reference**, so a solver that does one
+/// thing on its own hardware overrides that one and inherits the rest.
+abstract base class FluidSolver {
+  const FluidSolver();
+
   /// Moves [motion]'s particles on by its substeps.
-  void moveParticles(ParticleMotion motion);
+  void moveParticles(ParticleMotion motion) => moveParticlesInDart(motion);
 
   /// Flies [flight]'s parcels on by one step.
-  void flyParcels(ParcelFlight flight);
+  void flyParcels(ParcelFlight flight) => flyParcelsInDart(flight);
 
   /// Rings [ringing]'s modes on by one step.
-  void ringModes(ModeRinging ringing);
+  void ringModes(ModeRinging ringing) => ringModesInDart(ringing);
 
   /// Drives [flow]'s pipes on by one step.
-  void flowPipes(PipeFlow flow);
+  void flowPipes(PipeFlow flow) => flowPipesInDart(flow);
 
   /// Pushes [push]'s floating bodies for one step.
-  void pushBodies(FloatPush push);
-}
-
-/// A backend with a fluid of its own: what [PhysicsBackendFluid.fluid] asks
-/// a backend for before it falls back to the reference.
-///
-/// **An interface beside [PhysicsBackend], not a member of it**, as cloth's
-/// `ClothPhysics` is: a backend a test writes to count what it was given
-/// has no fluid to offer, and should not have to say so.
-abstract interface class FluidPhysics {
-  /// This backend's fluid solver.
-  FluidSolver get fluid;
-}
-
-/// Fluid from whatever backend the run is on.
-extension PhysicsBackendFluid on PhysicsBackend {
-  /// This backend's own fluid solver if it has one ([FluidPhysics]), the
-  /// reference ([DartFluid]) if not.
-  FluidSolver get fluid => switch (this) {
-    final FluidPhysics own => own.fluid,
-    _ => const DartFluid(),
-  };
+  void pushBodies(FloatPush push) => pushBodiesInDart(push);
 }
 
 /// The reference: each solver in Dart, in double precision, as the pieces
 /// stepped themselves before there was a core to step them.
-final class DartFluid implements FluidSolver {
+final class DartFluid extends FluidSolver {
   const DartFluid();
-
-  @override
-  void moveParticles(ParticleMotion motion) => moveParticlesInDart(motion);
-
-  @override
-  void flyParcels(ParcelFlight flight) => flyParcelsInDart(flight);
-
-  @override
-  void ringModes(ModeRinging ringing) => ringModesInDart(ringing);
-
-  @override
-  void flowPipes(PipeFlow flow) => flowPipesInDart(flow);
-
-  @override
-  void pushBodies(FloatPush push) => pushBodiesInDart(push);
 }
 
 /// Particles of one liquid for [FluidSolver.moveParticles]: [substeps]
@@ -128,7 +100,8 @@ final class ParticleMotion {
   /// The liquid, for its density and kinematic viscosity.
   final FluidMedium medium;
 
-  /// The particles' spacing at rest; the kernel reaches twice that.
+  /// The particles' spacing at rest, in metres; the kernel reaches twice
+  /// that.
   final double spacing;
 
   /// Density passes per substep.
@@ -136,15 +109,19 @@ final class ParticleMotion {
 
   /// How many substeps, and how long each is.
   final int substeps;
+
+  /// How long each substep is, in seconds.
   final double dt;
 
   final Vector3 gravity;
 
-  /// Akinci's cohesion coefficient, for a work of cohesion of 2σ.
+  /// Akinci's cohesion coefficient, for a work of cohesion of 2σ: in newton
+  /// cubic metres per kilogram squared, as a force over two particles'
+  /// masses and the cohesion spline (per cubic metre).
   final double cohesion;
 
   /// The density kernel summed over the rest lattice: what a density
-  /// estimate is divided by.
+  /// estimate is divided by. Per cubic metre, as the poly6 kernel is.
   final double latticeSum;
 
   /// Σ|∇C|² over the rest lattice: what the artificial pressure is a share
@@ -180,6 +157,7 @@ final class ParcelFlight {
   /// is on a wall are moved in place.
   final Float64List parcels;
 
+  /// How long the parcels fly for, in seconds.
   final double dt;
   final Vector3 gravity;
 
@@ -244,8 +222,13 @@ final class ModeRinging {
   final Float64List omega2;
   final Float64List decay;
 
+  /// How long to ring the modes for, in seconds.
   final double dt;
+
+  /// Gravity's pull, in metres per second squared.
   final double g;
+
+  /// How deep the liquid under the surface is, in metres.
   final double depth;
 
   /// The surface's area, for the radius of the round vessel it damps as.
@@ -273,6 +256,7 @@ final class PipeFlow {
   /// flow is moved in place.
   final Float64List pipes;
 
+  /// How long the flow runs for, in seconds.
   final double dt;
 
   int get count => pipes.length ~/ pipeFloats;
@@ -325,6 +309,8 @@ final class FloatPush {
   final Float64List pushes;
 
   final Vector3 gravity;
+
+  /// How long the pushes act for, in seconds.
   final double dt;
 
   int get count => pushes.length ~/ pushFloats;

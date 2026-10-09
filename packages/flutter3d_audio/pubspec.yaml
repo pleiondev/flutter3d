@@ -1,6 +1,6 @@
 name: flutter3d_audio
 description: "Positional audio for flutter3d: attenuation, panning and voice limiting, with a pluggable backend."
-version: 0.9.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,10 +16,24 @@ environment:
 
 resolution: workspace
 
+# The web too, where `flutter_soloud` plays: `lib/testing.dart` reads its
+# file through `src/testing_files_io.dart`, chosen by
+# `if (dart.library.js_interop)`, which `tool/structure.dart` checks.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter
-  flutter3d_audio_core: ^0.9.0
+  flutter3d_audio_core: ^1.0.0-rc.1
+  # `Issue`, the one type a library reports what it could not do in, and
+  # `ResourceException`, the family a device that will not open belongs to.
+  flutter3d_foundation: ^1.0.0-rc.1
   vector_math: ^2.2.0
   flutter_soloud: ^5.1.2
 

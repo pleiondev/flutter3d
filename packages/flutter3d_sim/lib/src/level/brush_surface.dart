@@ -17,6 +17,7 @@ final class BrushSurface {
     required this.material,
     required this.shadowCasting,
     this.drawOrder = 0,
+    this.depthLayer = 0,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -30,6 +31,11 @@ final class BrushSurface {
 
   /// [Brush.drawOrder] of the brushes this surface was built from — `P7`.
   final int drawOrder;
+
+  /// The depth layer of the brushes this surface was built from: each
+  /// brush's own, else its material's — see [Brush.depthLayer]. What the
+  /// renderer's `RenderMaterial.depthLayer` is set to.
+  final int depthLayer;
 
   /// Which of the level's brushes this surface is, when the level was built
   /// one surface per brush (`BrushGeometry.build`'s `perBrush`), and null
