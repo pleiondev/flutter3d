@@ -4,6 +4,8 @@ library;
 
 import 'package:flame/components.dart';
 
+import '../host/bridge_priority.dart';
+import '../host/updates_at_root.dart';
 import '../transform/object3d_component.dart' show SyncDirection;
 import 'camera_sync_controller.dart';
 
@@ -16,20 +18,41 @@ import 'camera_sync_controller.dart';
 /// `Flutter3dFlameWidget.onTick` keeps doing that. This is for a game that
 /// would rather order the sync among its components.
 ///
-/// **Order it after whatever moves the authoritative side.** Flame updates
-/// components by ascending priority. A viewfinder that follows the player
-/// is moved by the player's update, so with [SyncDirection.flameToScene]
-/// this wants a priority above the player's; a flutter3d camera moved by a
-/// physics step wants one above the step's.
-final class CameraSyncComponent extends Component {
-  CameraSyncComponent({required this.controller, super.priority});
+/// **Ordered after whatever moves the authoritative side, by default.**
+/// Flame updates components by ascending priority. Flowing Flame to the
+/// scene, the viewfinder is moved by Flame's own camera, following its
+/// target after everything else, so this runs after that camera
+/// ([BridgePriority.afterFlameCamera]); synced before it, the 3D camera
+/// trailed `camera.follow()` by a frame. Flowing the scene to Flame, it runs
+/// after the craft and before Flame's camera reads the viewfinder
+/// ([BridgePriority.camera]).
+///
+/// **Wherever it is added.** A priority orders siblings only, and Flame's
+/// camera is a sibling of the world, not of what is in it: added to the
+/// world, where a game adds its components, this ran inside the world's
+/// update, before the camera, whatever its number, and the 3D camera trailed
+/// `camera.follow()` by a frame again — the lag the priority had been chosen
+/// to remove. Flowing Flame to the scene, it syncs from the game's root
+/// wherever it is added: see [UpdatesAtRoot].
+final class CameraSyncComponent extends Component with UpdatesAtRoot {
+  CameraSyncComponent({required this.controller, int? priority})
+    : super(
+        priority:
+            priority ??
+            switch (controller.direction) {
+              SyncDirection.flameToScene => BridgePriority.afterFlameCamera,
+              SyncDirection.sceneToFlame => BridgePriority.camera,
+            },
+      );
 
   /// The controller advanced every [update].
   final CameraSyncController controller;
 
+  /// Only flowing Flame to the scene: the other way, it runs before Flame's
+  /// camera, which inside the world it does anyway.
   @override
-  void update(double dt) {
-    super.update(dt);
-    controller.advance(dt);
-  }
+  bool get needsRoot => controller.direction == SyncDirection.flameToScene;
+
+  @override
+  void rootUpdate(double dt) => controller.advance(dt);
 }

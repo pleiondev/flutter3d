@@ -3,11 +3,14 @@
 /// as.
 library;
 
+import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flame/components.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../host/step_clock.dart';
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
+import 'actor_system_component.dart';
 
 /// A Flame [PositionComponent] wrapping one flutter3d_sim [Actor] — the
 /// same [SceneNode]/[BridgePlane] bridge [Object3dComponent] gives every
@@ -36,23 +39,30 @@ import '../transform/plane.dart';
 /// .position)`), done here once so every actor in a bridged game gets it
 /// for free instead of every game re-deriving it.
 ///
-/// **Why a despawned actor needs no special case in [onRemove].** This
-/// class does not override it: [Object3dComponent.onRemove] detaches
-/// [node] unconditionally, and [node] has its own lifetime independent of
-/// [actor] — an actor going away does not reach back and clear its scene
-/// node's parent pointer. Nothing here reads [Actor.exists] because nothing
-/// here needs to: [Actor.body] already answers `null` for a despawned
-/// entity (`EcsWorld.get` does, by construction, once the entity's
-/// generation has moved on), so the null check already in [update] is the
-/// only guard a despawned actor ever required.
-final class ActorComponent extends Object3dComponent {
+/// **The component and the actor live and die together, both ways.** An
+/// actor the simulation takes out — `ActorSystem.remove`, a horde burying its
+/// dead — takes this component with it on the next [update]: it used to stay,
+/// its node frozen where the body last stood, a monster drawn after it was
+/// gone. The other way is [removesFrom]: handed the system, taking this
+/// component out of the game takes the actor out of the system, where it used
+/// to go on thinking, biting and blocking a corridor unseen. Left null, the
+/// actor is whoever built it's to remove, which is right when the simulation
+/// owns its actors and the component only draws one.
+final class ActorComponent extends Object3dComponent
+    with CollisionCallbacks
+    implements StepFollower {
   ActorComponent({
     required this.actor,
     required super.node,
     required super.scene,
     required super.plane,
+    this.stepper,
+    this.removesFrom,
     super.direction = SyncDirection.sceneToFlame,
+    super.elevation,
     super.position,
+    super.size,
+    super.anchor,
     super.angle,
     super.scale,
     super.children,
@@ -63,12 +73,111 @@ final class ActorComponent extends Object3dComponent {
   /// The flutter3d_sim actor this component bridges to Flame.
   final Actor actor;
 
+  /// What steps [actor], when this should draw between its steps; see
+  /// `RigidBodyComponent.stepper`. Null draws it where it is.
+  ///
+  /// An [ActorSystemComponent], or the game itself when the game steps its
+  /// own simulation in `HasFixedStep.fixedUpdate` — any [StepClock].
+  final StepClock? stepper;
+
+  /// The system [actor] leaves when this component leaves the game, or null
+  /// for an actor this component only draws.
+  final ActorSystem? removesFrom;
+
+  final Vector3 _before = Vector3.zero();
+  final Vector3 _drawn = Vector3.zero();
+  double _yawBefore = 0.0;
+  bool _remembered = false;
+
+  /// Keeps where the actor's body is now, and which way it faces, as where
+  /// it was before the next step. Called by [stepper] before each step.
+  @override
+  void rememberPlace() {
+    final body = actor.body;
+    if (body == null) return;
+    _before.setFrom(body.position);
+    _yawBefore = actor.yaw;
+    _remembered = true;
+  }
+
+  /// Carries the actor's body across too, still moving; see
+  /// `RigidBodyComponent.shiftScene`.
+  @override
+  void shiftScene(Vector3 by) {
+    super.shiftScene(by);
+    final body = actor.body;
+    if (body == null) return;
+    body.position.add(by);
+    body.collider
+      ..position.setFrom(body.position)
+      ..refreshBounds();
+    _before.add(by);
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    // Added again, it draws from where the body is, not from where it was
+    // when it went.
+    _remembered = false;
+    stepper?.follow(this);
+  }
+
+  @override
+  void onRemove() {
+    stepper?.unfollow(this);
+    final system = removesFrom;
+    if (system != null && actor.exists) system.remove(actor);
+    super.onRemove();
+  }
+
+  /// Copies the actor's body and facing onto [node], then lets
+  /// [Object3dComponent.update] read them onto the Flame side.
+  ///
+  /// **Only when the scene is authoritative.** Flowing Flame to the scene,
+  /// the node is written from Flame's position straight after, and copying
+  /// the body there first did nothing but cost a write.
+  ///
+  /// **The facing too, not only the place.** An actor turns by its yaw,
+  /// radians about Y with nought looking along −Z, which is the rotation a
+  /// node is drawn with; without it every bridged actor slid about facing
+  /// the one way it was built facing.
   @override
   void update(double dt) {
-    final body = actor.body;
-    // Null for an actor with no body (a turret, a director) and for one
-    // that has been despawned — both are "nothing to copy", not an error.
-    if (body != null) node.setPositionFrom(body.position);
+    if (!actor.exists) {
+      // Gone from the simulation: gone from the game.
+      if (!isRemoving) removeFromParent();
+      return;
+    }
+    if (direction == SyncDirection.sceneToFlame) {
+      final body = actor.body;
+      // Null for an actor with no body (a turret, a director) and for one
+      // that has been despawned — both are "nothing to copy", not an error.
+      final steps = stepper;
+      if (body != null && steps != null && _remembered) {
+        Vector3.mix(_before, body.position, steps.alpha, _drawn);
+        placeNode(_drawn);
+      } else if (body != null) {
+        placeNode(body.position);
+      }
+      // Turned between its steps as it is moved between them: a bot's place
+      // glided and its facing clicked round sixty times a second.
+      if (actor.facing != null) {
+        turnNodeTo(
+          steps != null && _remembered
+              ? _between(_yawBefore, actor.yaw, steps.alpha)
+              : actor.yaw,
+        );
+      }
+    }
     super.update(dt);
+  }
+
+  /// [t] of the way from angle [a] to angle [b], the short way round.
+  static double _between(double a, double b, double t) {
+    const whole = 6.283185307179586;
+    var turn = (b - a) % whole;
+    if (turn > whole / 2.0) turn -= whole;
+    return a + turn * t;
   }
 }

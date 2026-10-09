@@ -36,6 +36,9 @@ workspace:
   - packages/flutter3d_game/example
   - packages/flame_flutter3d
   - packages/flame_flutter3d/example
+  - packages/flame_flutter3d_audio
+  - packages/flame_multiplayer
+  - packages/flame_multiplayer_dashwire
   - packages/flutter3d_sim
   - packages/flutter3d_lab
   - packages/flutter3d_lti
@@ -57,6 +60,7 @@ workspace:
   - packages/pointer_lock
   - packages/pointer_lock/example
   - apps/flutter3d_demo_arcade
+  - apps/flutter3d_demo_river
   - apps/flutter3d_demo_dungeon
   - apps/flutter3d_editor
   - apps/flutter3d_modeler

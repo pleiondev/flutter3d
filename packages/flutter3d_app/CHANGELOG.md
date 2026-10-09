@@ -1,3 +1,11 @@
+## 0.8.1
+
+**`SceneSurface` draws more than one view.** `moreViews` are drawn into the
+same frame after `view`, each through its own camera into its own part of
+the frame: the other half of a split screen, a rear-view mirror. The
+renderer drew several views and the surface handed it one, so a two-player
+game had to leave the widget and drive the renderer itself.
+
 ## 0.8.0
 
 **`LevelLoader` builds the scene through `flutter3d_editor_core`'s

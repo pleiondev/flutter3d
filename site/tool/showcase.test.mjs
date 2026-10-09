@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { changelogMarkdown, compareVersions, indexMarkdown, splitLines } from './showcase.mjs';
+import { changelogLeads, changelogMarkdown, compareVersions, indexMarkdown, splitLines } from './showcase.mjs';
 
 test('a span left open across a newline is closed and reopened', () => {
   // Mutation: split on newlines without tracking what is open. A block comment
@@ -78,6 +78,51 @@ test('the changelog lists releases newest first, changed pages before new ones',
   // The page is new under the release it arrived in, and not again later.
   assert.ok(at('**New in the showcase**') > at('## 0.7.0'));
   assert.match(md, /\[Fog\]\(\/showcase\/learn\/fog\/\) \(here or earlier\): Haze\./);
+});
+
+test('a package CHANGELOG gives each release the bold claim of each entry', () => {
+  const leads = changelogLeads([
+    '## 0.8.3',
+    '',
+    '**A host that goes lets go of the game.** It kept the disposed host.',
+    '',
+    '**`BillboardAtlas` keeps what it uploads',
+    'straight.** Per image and sampling.',
+    '',
+    'A paragraph with no claim is skipped.',
+    '',
+    '## 0.8.2',
+    '',
+    '- **`PhysicsStepComponent` steps the physics** on Flame\'s clock.',
+    '- **A removed component hears no more contacts.** Not relayed.',
+  ].join('\n'));
+  assert.deepEqual([...leads.keys()], ['0.8.3', '0.8.2']);
+  assert.deepEqual(leads.get('0.8.3'), [
+    'A host that goes lets go of the game',
+    '`BillboardAtlas` keeps what it uploads straight',
+  ]);
+  assert.deepEqual(leads.get('0.8.2'), [
+    '`PhysicsStepComponent` steps the physics',
+    'A removed component hears no more contacts',
+  ]);
+});
+
+test('a package release is listed under its version, and folds when long', () => {
+  // Mutation: list only the showcase's versions; a release that changed the
+  // bridge alone disappears from the page.
+  const many = Array.from({ length: 12 }, (_, i) => `Change ${i}`);
+  const md = changelogMarkdown(
+    { manifest: { categories: [], features: [] } },
+    [{
+      name: 'flame_flutter3d',
+      title: 'Flame bridge',
+      leads: new Map([['0.8.3', many], ['0.8.2', ['A removed component hears no more contacts']]]),
+    }],
+  );
+  assert.ok(md.indexOf('## 0.8.3') < md.indexOf('## 0.8.2'));
+  assert.match(md, /\*\*Flame bridge\*\* \(\[flame_flutter3d 0\.8\.3\]\(https:\/\/pub\.dev\/packages\/flame_flutter3d\/changelog#083\)\)/);
+  assert.match(md, /<details><summary>12 changes<\/summary>/);
+  assert.match(md, /## 0\.8\.2\n\n\*\*Flame bridge\*\*[^\n]*\n\n- A removed component hears no more contacts\n/);
 });
 
 test('the changelog says how to generate the bundle when there is none', () => {

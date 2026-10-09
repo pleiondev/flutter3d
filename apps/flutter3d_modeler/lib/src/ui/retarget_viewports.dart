@@ -32,7 +32,11 @@ class RetargetViewports extends StatefulWidget {
     required this.renderer,
     required this.targetStage,
     required this.source,
+    this.frames,
   });
+
+  /// Handed to both views — see [ModelerViewport.frames].
+  final Listenable? frames;
 
   /// The one device every viewport in this application draws through —
   /// `material_studio_dialog.dart`'s own precedent for a second `Scene` on
@@ -56,9 +60,8 @@ class _RetargetViewportsState extends State<RetargetViewports> {
 
   /// Which [RetargetSource] [_sourceStage] was built for — compared by
   /// identity, since a fresh import always hands over a genuinely new
-  /// [RetargetSource] and this widget is rebuilt on every tick of the
-  /// application's own render loop regardless of whether the source ever
-  /// changed.
+  /// [RetargetSource] and this widget is rebuilt on every change to the
+  /// screen around it regardless of whether the source ever changed.
   RetargetSource? _builtFor;
 
   @override
@@ -108,6 +111,7 @@ class _RetargetViewportsState extends State<RetargetViewports> {
                   renderer: widget.renderer,
                   stage: sourceStage,
                   onFrame: () {},
+                  frames: widget.frames,
                   grid: null,
                   overlay: false,
                 ),
@@ -118,6 +122,7 @@ class _RetargetViewportsState extends State<RetargetViewports> {
             renderer: widget.renderer,
             stage: widget.targetStage,
             onFrame: () {},
+            frames: widget.frames,
             grid: null,
             overlay: false,
           ),

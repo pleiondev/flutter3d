@@ -113,4 +113,20 @@ void main() {
       expect(session.history.steps, hasLength(1));
     });
   });
+
+  test('after rebind, a command lands on the document the host opened, not '
+      'the one the session started with', () {
+    // Mutation: have `rebind` do nothing — the move then lands on the
+    // startup history, which a GUI that has opened a file no longer shows.
+    final session = sessionWithOneBlock();
+    final startup = session.history;
+    final opened = sessionWithOneBlock().history;
+
+    session.rebind(opened);
+    session.run(MoveBy(Vector3(1, 0, 0)));
+
+    expect(opened.steps, hasLength(1));
+    expect(startup.steps, isEmpty);
+    expect(opened.recoveryJournal, isNotNull);
+  });
 }

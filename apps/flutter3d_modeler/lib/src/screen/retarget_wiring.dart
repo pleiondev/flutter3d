@@ -280,6 +280,7 @@ extension _RetargetWiring on _ModelerScreenState {
           renderer: state.renderer,
           targetStage: state.stage,
           source: _retargetSource,
+          frames: _viewportFrames,
         ),
       ),
     ],

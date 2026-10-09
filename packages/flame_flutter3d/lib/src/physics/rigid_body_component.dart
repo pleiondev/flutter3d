@@ -2,12 +2,16 @@
 /// [SceneNode] and a Flame [PositionComponent].
 library;
 
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
+import '../host/step_clock.dart';
 import '../transform/object3d_component.dart';
+import 'physics_step_component.dart';
 
 /// Bridges one [RigidBody] onto a flutter3d [SceneNode] and, through
 /// [Object3dComponent], onto a Flame [PositionComponent] — and, through the
@@ -35,14 +39,21 @@ import '../transform/object3d_component.dart';
 /// nothing here supports writing a Flame position back onto a [RigidBody]'s
 /// [Collider], because [Collider.moveTo] is [Dynamics]'s to call, not a
 /// transform bridge's.
-class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
+class RigidBodyComponent extends Object3dComponent
+    with CollisionCallbacks
+    implements StepFollower {
   RigidBodyComponent({
     required this.body,
     required super.node,
     required super.scene,
     required super.plane,
+    this.stepper,
+    this.removeFrom,
     super.direction,
+    super.elevation,
     super.position,
+    super.size,
+    super.anchor,
     super.angle,
     super.scale,
     super.children,
@@ -52,10 +63,89 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
 
   /// The physics body this component tracks.
   ///
-  /// Owned by whoever built it — this component neither constructs the body
-  /// nor removes it from its [CollisionWorld]; it only reads
-  /// [RigidBody.position] every frame.
+  /// Owned by whoever built it — this component never constructs the body,
+  /// and removes it from its [CollisionWorld] only when handed [removeFrom];
+  /// otherwise it reads [RigidBody.position] every frame and nothing else.
   final RigidBody body;
+
+  /// What steps [body], when this should draw between its steps: the frame
+  /// usually falls between two, and a body drawn where the last step left
+  /// it moves in sixtieth-of-a-second jumps on a screen that shows more.
+  /// Null draws it where it is.
+  final PhysicsStepComponent? stepper;
+
+  /// The dynamics [body] leaves, and its collision world with it, when this
+  /// component leaves the game; null leaves it to whoever built it.
+  ///
+  /// **A despawned crate was still solid.** With the body left behind, a
+  /// crate removed from Flame stayed in the world, unseen, for everything
+  /// to bump into. Taken out when the component is gone, not when Flame
+  /// moves it to a new parent, and never from inside a contact: Flame
+  /// removes components at the start of a frame, between steps.
+  final Dynamics? removeFrom;
+
+  final Vector3 _before = Vector3.zero();
+  final Vector3 _drawn = Vector3.zero();
+  bool _remembered = false;
+
+  /// Keeps where [body] is now as where it was before the next step. Called
+  /// by [stepper] before each step.
+  @override
+  void rememberPlace() {
+    _before.setFrom(body.position);
+    _remembered = true;
+  }
+
+  /// Puts [body] at [to], still and awake, and draws it there at once.
+  ///
+  /// **Moved, not slid.** Written straight into the collider, a respawned
+  /// body was drawn sliding across the level from where it had been, since
+  /// the drawing runs between the last two steps, and a body asleep where
+  /// it was stayed asleep in the air where it went.
+  void teleport(Vector3 to) {
+    body.collider
+      ..moveTo(to)
+      ..clearDelta();
+    body
+      ..velocity.setZero()
+      ..wake();
+    _before.setFrom(to);
+    placeNode(to);
+  }
+
+  /// Carries the body across too, still moving, and where it was before the
+  /// step with it, so it is not drawn sliding back across the world.
+  @override
+  void shiftScene(Vector3 by) {
+    super.shiftScene(by);
+    body.collider
+      ..moveTo(body.position + by)
+      ..clearDelta();
+    _before.add(by);
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    // Added again, it draws from where the body is, not from where it was
+    // when it went.
+    _remembered = false;
+    stepper?.follow(this);
+  }
+
+  @override
+  void onRemove() {
+    stepper?.unfollow(this);
+    final dynamics = removeFrom;
+    if (dynamics != null) {
+      scheduleMicrotask(() {
+        if (!isMounted && parent == null && dynamics.bodies.contains(body)) {
+          dynamics.remove(body);
+        }
+      });
+    }
+    super.onRemove();
+  }
 
   /// Copies [body]'s current position onto [node], then defers to
   /// [Object3dComponent.update] to carry that onto the Flame side.
@@ -68,7 +158,13 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
   /// put it.
   @override
   void update(double dt) {
-    node.setPositionFrom(body.position);
+    final steps = stepper;
+    if (steps != null && _remembered) {
+      Vector3.mix(_before, body.position, steps.alpha, _drawn);
+      placeNode(_drawn);
+    } else {
+      placeNode(body.position);
+    }
     super.update(dt);
   }
 }

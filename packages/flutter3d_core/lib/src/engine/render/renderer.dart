@@ -496,6 +496,7 @@ final class Renderer implements RenderServices {
       }
       slot.clear();
     }
+    _pendingMeshes.forEach(_releaseMeshes);
     targetPool.trim();
 
     // The window-sized targets `_ensureTargets` owns. On a resize they go
@@ -643,6 +644,17 @@ final class Renderer implements RenderServices {
 
   /// Reused across frames, so a steady overlay allocates nothing.
   final DebugDraw debugDraw = DebugDraw();
+
+  /// Lines of the application's own, added to [debugDraw] every frame after
+  /// the ones [RenderSettings.debug] asks for, and drawn with them: a game's
+  /// hitboxes, a path an agent means to walk, a ray a gun just cast.
+  ///
+  /// **For what the scene cannot say about itself.** The built-in overlay
+  /// draws what nodes, lights and cameras are; a collision shape that lives
+  /// in a game's own tree, or in another engine's, is not in the scene, and
+  /// the only way to see it where it is was a mesh made for the purpose.
+  /// Null draws nothing extra, and costs nothing.
+  void Function(DebugDraw lines)? debugLines;
 
   /// The scene's lights, repacked once per view.
   final LightBuffer lights = LightBuffer();
@@ -3800,20 +3812,7 @@ final class Renderer implements RenderServices {
     // The counter now advances at the *end* of the frame, so everything
     // released during frame N goes into slot `N % 3` and is retired at the top
     // of frame N + 3.
-    final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
-    for (final texture in expired) {
-      targetPool.release(texture);
-    }
-    expired.clear();
-
-    // The same slot, for the targets this renderer owns rather than borrows:
-    // reallocated by a resize or a settings change, and given back to the
-    // device instead of to the pool. See [_destroyAfterFrame].
-    final finished = _pendingDestroy[_frameIndex % _kFramesInFlight];
-    for (final texture in finished) {
-      device.releaseTexture(texture);
-    }
-    finished.clear();
+    _retireFrameSlot();
 
     // `C9`: the split meshes' index buffers no view drew with for longer than
     // the frames in flight go back to the device. And no view is being drawn
@@ -4530,6 +4529,34 @@ final class Renderer implements RenderServices {
     developer.Timeline.finishSync();
   }
 
+  /// Hands back everything queued in the current slot of the ring a full
+  /// ring ago: pooled targets to the pool, owned targets to the device, and
+  /// the meshes an application let go of.
+  ///
+  /// Called at the top of every call that submits GPU work and moves
+  /// [_frameIndex] — [render] and [renderPost] both. A path that queues
+  /// releases without ever draining a slot is a path whose pool only grows.
+  void _retireFrameSlot() {
+    final slot = _frameIndex % _kFramesInFlight;
+    final expired = _pendingRelease[slot];
+    for (final texture in expired) {
+      targetPool.release(texture);
+    }
+    expired.clear();
+
+    // The same slot, for the targets this renderer owns rather than borrows:
+    // reallocated by a resize or a settings change, and given back to the
+    // device instead of to the pool. See [_destroyAfterFrame].
+    final finished = _pendingDestroy[slot];
+    for (final texture in finished) {
+      device.releaseTexture(texture);
+    }
+    finished.clear();
+
+    // See [releaseMeshAfterFrame].
+    _releaseMeshes(_pendingMeshes[slot]);
+  }
+
   /// Bloom and the composite — tone map, look, debug overlay — over an
   /// already-rendered HDR colour buffer, standalone.
   ///
@@ -4574,7 +4601,27 @@ final class Renderer implements RenderServices {
   }) {
     developer.Timeline.startSync('Renderer.renderPost');
     final clock = Stopwatch()..start();
+    // **This call is a frame of the ring too.** Bloom's chain goes back
+    // through `_releaseAfterFrame`, and only a call that drains a slot and
+    // moves the counter ever returns it to the pool: a host that calls
+    // nothing but `renderPost` would otherwise allocate a fresh chain every
+    // time it is called.
+    _retireFrameSlot();
+    try {
+      return _renderPost(hdr, settings, keepHdr, target, clock);
+    } finally {
+      _frameIndex++;
+      developer.Timeline.finishSync();
+    }
+  }
 
+  PostFrameResult _renderPost(
+    TextureHandle hdr,
+    RenderSettings settings,
+    bool keepHdr,
+    TextureHandle? target,
+    Stopwatch clock,
+  ) {
     final bloomNode = _BloomNode(this, settings.bloom);
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
@@ -4675,7 +4722,6 @@ final class Renderer implements RenderServices {
     );
 
     clock.stop();
-    developer.Timeline.finishSync();
 
     return PostFrameResult(
       frame: output,
@@ -4842,6 +4888,56 @@ final class Renderer implements RenderServices {
     _pendingDestroy[_frameIndex % _kFramesInFlight].add(texture);
   }
 
+  /// Gives [mesh]'s vertex and index buffers back to the device once no
+  /// frame in flight can still be drawing with them.
+  ///
+  /// **For a mesh an application built and is done with**: a stretch of
+  /// streamed terrain behind the camera, a bridge that has fallen. Released
+  /// at once, the buffers could still be read by a frame the GPU has not
+  /// finished, and a game releasing on its next update was one frame clear
+  /// of that where the renderer keeps [_kFramesInFlight]. Through the same
+  /// ring as the textures, retired at the top of the frame that many frames
+  /// on, and on [dispose] if no frame comes.
+  ///
+  /// A mesh shared with anything still drawn must not be handed here; the
+  /// renderer does not count references.
+  ///
+  /// **Into the last frame's slot, not the coming one's.** An application
+  /// calls this between frames, when the counter already names the frame
+  /// about to start, and that frame's slot is retired at its own top: a
+  /// mesh put there went back to the device one frame later, with the two
+  /// frames before still possibly reading it. Filed under the last frame
+  /// submitted, it is retired that many frames after it.
+  void releaseMeshAfterFrame(DeviceMesh mesh) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    _pendingMeshes[lastSubmitted].add(mesh);
+  }
+
+  /// Gives [texture] back to the device once no frame in flight can still be
+  /// sampling it — [releaseMeshAfterFrame]'s counterpart, for a texture an
+  /// application uploaded and is done with, and filed under the last frame
+  /// submitted for the same reason.
+  void releaseTextureAfterFrame(TextureHandle texture) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    _pendingDestroy[lastSubmitted].add(texture);
+  }
+
+  final List<List<DeviceMesh>> _pendingMeshes = List<List<DeviceMesh>>.generate(
+    _kFramesInFlight,
+    (_) => <DeviceMesh>[],
+  );
+
+  void _releaseMeshes(List<DeviceMesh> meshes) {
+    for (final mesh in meshes) {
+      device
+        ..releaseGeometry(mesh.vertices)
+        ..releaseGeometry(mesh.indices);
+    }
+    meshes.clear();
+  }
+
   final List<List<TextureHandle>> _pendingDestroy =
       List<List<TextureHandle>>.generate(
         _kFramesInFlight,
@@ -4863,7 +4959,10 @@ final class Renderer implements RenderServices {
     required double aspect,
     required RenderSettings settings,
   }) {
-    if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
+    final extra = debugLines;
+    if (!settings.debug.anyEnabled &&
+        settings.highlighted.isEmpty &&
+        extra == null) {
       return false;
     }
 
@@ -4875,6 +4974,7 @@ final class Renderer implements RenderServices {
       aspect: aspect,
       highlighted: settings.highlighted,
     );
+    extra?.call(debugDraw);
     // Trimmed to what the camera can see before it is uploaded — see
     // [DebugDraw.clipToNearPlane]. A line list goes straight to the hardware,
     // so the near plane is the engine's to respect.

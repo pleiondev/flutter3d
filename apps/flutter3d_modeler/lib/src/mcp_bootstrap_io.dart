@@ -24,6 +24,15 @@ ModelHttpServer? _server;
 /// directory that call was given.
 File? _sessionFile;
 
+/// The session [_server] answers for — set as soon as [startMcpServer] is
+/// called, before the socket is bound.
+ModelSession? _session;
+
+/// Points the running server at [history], the document now on screen.
+/// Every path that installs a new [ModelHistory] calls this; without it an
+/// agent keeps editing the document that was open when the server started.
+void rebindMcpHistory(ModelHistory history) => _session?.rebind(history);
+
 /// Starts listening on `127.0.0.1:$port` (`0` picks any free port) over
 /// [history] — the same document a person already has open — and writes
 /// the port and token an agent needs into the session file, named
@@ -71,18 +80,28 @@ Future<void> startMcpServer({
   /// makes it answer.
   String? Function()? pausedBecause,
 }) async {
-  if (_server != null) return;
-  final session = ModelSession(history);
-  final server = await ModelHttpServer.start(
-    session: session,
-    port: port,
-    extraTools: uiActions == null
-        ? const <ModelPictureTool>[]
-        : uiToolsFor(uiActions),
-    onToolCall: onToolCall,
-    onInitialize: onInitialize,
-    pausedBecause: pausedBecause,
-  );
+  if (_session != null) return;
+  // Held before the bind is awaited: an open that lands while the socket is
+  // still coming up has to be able to [rebindMcpHistory] already.
+  final session = _session = ModelSession(history);
+  final ModelHttpServer server;
+  try {
+    server = await ModelHttpServer.start(
+      session: session,
+      port: port,
+      extraTools: uiActions == null
+          ? const <ModelPictureTool>[]
+          : uiToolsFor(uiActions),
+      onToolCall: onToolCall,
+      onInitialize: onInitialize,
+      pausedBecause: pausedBecause,
+    );
+  } catch (_) {
+    // A port already taken leaves nothing running, and a later call has to
+    // be able to try again.
+    _session = null;
+    rethrow;
+  }
   _server = server;
   final dir =
       sessionDirectory ??
@@ -100,6 +119,7 @@ Future<void> stopMcpServer() async {
   final server = _server;
   if (server == null) return;
   _server = null;
+  _session = null;
   await server.close();
   final file = _sessionFile;
   _sessionFile = null;

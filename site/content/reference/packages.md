@@ -212,7 +212,22 @@ A bridge to the [Flame](https://pub.dev/packages/flame) 2D game engine. Flame dr
 
 There is one clock, Flame's. A `BridgeClock` component, added to the hosted `FlameGame` once, calls back every frame after Flame's own components have updated, and that callback is where a physics step, an actor-system step or a camera sync advances. `BridgePlane` is the one place a Flame `Vector2` and a flutter3d `Vector3` are the same point: `BridgePlane.ground(height:)` for a top-down game, where Flame's `y` becomes flutter3d's `z`, and `BridgePlane.backdrop(depth:)` for a side-scroller, where it stays `y`. Every bridged component takes one, so a game settles its axis convention once.
 
-The bridges themselves cover transforms, lifecycle, physics contacts, input, the actor system and the camera, through `flutter3d_sim`, `flutter3d_physics` and `flutter3d_game`. `apps/flutter3d_demo_arcade` uses all of them at once.
+A game that mixes in `HasFlutter3d` owns its 3D world: its scene, camera, renderer and projector are fields of the game, it builds the world in `onOpen3d`, and `Flutter3dFlameWidget(game: game)` needs nothing else. `Object3dComponent` keeps a Flame component and a scene node in one place, with Flame's effects, nesting, visibility, scale and an `elevation` off the plane all crossing; `InstancedObject3dComponent` does the same for many small things drawn in one call.
+
+Around that: a `ChaseCamera` over `flutter3d_sim`'s `CameraRig`, a `BridgeProjector` between the 3D camera and Flame's screen, taps that land on what a perspective camera shows (`Tap3dCallbacks`), hitboxes drawn in the scene for debugging, `ChunkStreamer` for a world built piece by piece, `Particles3dComponent` for blasts, and physics, actors, input and camera sync through `flutter3d_physics`, `flutter3d_sim` and `flutter3d_game`, the first two in fixed steps. `apps/flutter3d_demo_river` uses most of it, `apps/flutter3d_demo_arcade` the physics side.
+
+### `flame_flutter3d_audio`
+Sound for a bridged game. `AudioSceneComponent` is the game's audio scene: silent until the player's first input opens the speakers, which is when a browser allows it, heard from the game's 3D camera, and mixed after everything has moved. `SoundEmitterComponent` is a loop held open by state rather than by events: it plays while its component is in the game and `playing` is true, sounds from its bridged parent, and moves onto the real speakers when they open.
+
+A package of its own because sound brings SoLoud's native library, and on the web its script, into every application that depends on it; a bridged game with no sound carries neither.
+
+### `flame_multiplayer`
+Two players on two machines, for any game that steps in fixed steps, and with no dependencies at all. `PeerRoom` is the room: slot nought for whoever made it, a hello repeated until the other machine answers with what it plays, and channels on one wire that do not hear each other. `RollbackPlay` runs one simulation on both machines in step, each driving its own player, over `RollbackSession` (input delay, the guess of the far side's hands, the rollback when it was wrong), and keeps the first settled ending so both go on from the same state. `BatonStream` is turns: the machine playing tells frames and events, the other replays them at the pace they were played, and the turn goes across with its state. `PeerFeed` is two games side by side, each telling the other where it is.
+
+`PeerWire` is the one door to a network, JSON-shaped messages sent reliably or not, and `LoopbackWire` two ends of it in one process for tests. `flutter3d_net`'s `NetTransportWire` carries it over that package's relay and WebRTC, and `NetSession` there is `RollbackSession` on a `Snapshot`.
+
+### `flame_multiplayer_dashwire`
+`DashwireWire`: a [dashwire](https://pub.dev/packages/dashwire) `WireConnection` as a `PeerWire`, reliable and unreliable messages on dashwire's two channels. dashwire's binary WebSocket passes through `flutter3d_net`'s relay unchanged, so games on either adapter meet in the same rooms. A package of its own so the core keeps no dependencies.
 
 ### `flutter3d_lti`
 LTI 1.3 launch and xAPI reporting, so a lesson can be launched from a learning management system and report back to it. `LtiPlatformConfig` is one LMS registration, read from environment variables. `OidcLoginInitiation` builds the redirect for LTI's third-party login with a fresh `state` and `nonce`. `LtiLaunchValidator` checks an incoming `id_token` against the platform's JWKS (cached by `kid`), its issuer, audience and expiry, and the `state` and `nonce` of the login that started it. `AgsClient` posts a score to a line item through Assignment and Grade Services, signing its own client-credentials grant, and `XapiClient` PUTs a statement to a Learning Record Store under the statement's own UUID, so a retried submission cannot count twice.
@@ -292,6 +307,9 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 
 ### `apps/flutter3d_demo_arcade`
 *Meteor Yard*: a ship and a yard, with Flame and flutter3d each drawing their own layer and every bridge in `flame_flutter3d` doing real work at once. It is the fifth demo game and the one that exists to prove the bridge end to end.
+
+### `apps/flutter3d_demo_river`
+*River Sortie*: a jet up a river that never ends, after River Raid. A Flame game from end to end, with Flame's own hitboxes and collision callbacks deciding every hit and Flame painting the instrument panel, and flutter3d drawing the valley, the water and the craft underneath through `Object3dComponent`. Five levels with a task each, whose last bridge stays shielded until the task is done, and targets that go down the way their kind would: a tanker sinks, a helicopter spins into the river, a depot takes its neighbours with it.
 
 ### `apps/flutter3d_showcase`
 Every capability of the engine on a page of its own, with the version it appeared in, a step-by-step guide that builds it, and the source that runs. The site's [guides by capability](/showcase/learn/) are generated from the same files, and its web build is what [the live showcase](/showcase/) runs.

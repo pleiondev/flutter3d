@@ -22,6 +22,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
@@ -158,6 +159,62 @@ void main() {
     expect(digestsA.steps, isNotEmpty);
     expect(sessionA.droppedCorrections, 0);
     expect(sessionB.droppedCorrections, 0);
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('flame_multiplayer\'s room and turns work over the relay through '
+      'NetTransportWire', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final room = 'turns-${DateTime.now().microsecondsSinceEpoch}';
+    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+    final transportA = await WebSocketTransport.connect(roomUri);
+    final transportB = await WebSocketTransport.connect(roomUri);
+    addTearDown(transportA.close);
+    addTearDown(transportB.close);
+
+    final roomA = PeerRoom(
+      NetTransportWire(transportA),
+      slot: 0,
+      about: const <String, Object?>{'plays': 'jet'},
+    );
+    final roomB = PeerRoom(NetTransportWire(transportB), slot: 1);
+    final frames = <Object?>[];
+    Map<String, Object?>? handed;
+    final host = BatonStream(
+      roomA.channel('turns'),
+      holding: true,
+      onFrame: (_) {},
+      onEvent: (_) {},
+      onBaton: (_) {},
+    );
+    final guest = BatonStream(
+      roomB.channel('turns'),
+      holding: false,
+      onFrame: (f) => frames.add(f['n']),
+      onEvent: (_) {},
+      onBaton: (s) => handed = s,
+    );
+
+    for (var i = 0; i < 400 && !(roomA.met && roomB.met); i++) {
+      roomA.step(1 / 60);
+      roomB.step(1 / 60);
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+    }
+    expect(roomB.peer, <String, Object?>{'plays': 'jet'});
+
+    for (var n = 0; n < 30; n++) {
+      host.tellFrame(<String, Object?>{'n': n});
+      guest.step();
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+    }
+    host.pass(<String, Object?>{'player': 1});
+    for (var i = 0; i < 200 && handed == null; i++) {
+      guest.step();
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+    }
+    expect(frames, <int>[for (var n = 0; n < 30; n++) n]);
+    expect(handed, <String, Object?>{'player': 1});
+    expect(guest.holding, isTrue);
   }, timeout: const Timeout(Duration(seconds: 30)));
 
   test(

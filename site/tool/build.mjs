@@ -13,7 +13,13 @@ import anchor from 'markdown-it-anchor';
 import attrs from 'markdown-it-attrs';
 import hljs from 'highlight.js';
 
-import { buildShowcasePages, changelogMarkdown, indexMarkdown, readBundle } from './showcase.mjs';
+import {
+  buildShowcasePages,
+  changelogLeads,
+  changelogMarkdown,
+  indexMarkdown,
+  readBundle,
+} from './showcase.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -222,6 +228,17 @@ const NAV = [
     badge: 'genre',
     pages: [
       { file: 'arcade/demo.md', url: '/arcade/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
+    // The second Flame game: the other way round from Meteor Yard, with
+    // Flame's own hitboxes deciding every hit and only the transform bridge
+    // carrying anything into the scene. Levels, tasks and sound, one page.
+    section: 'River Sortie',
+    slug: 'river',
+    badge: 'genre',
+    pages: [
+      { file: 'river/demo.md', url: '/river/demo/', title: 'Playable demo', kind: 'demo' },
     ],
   },
   {
@@ -490,6 +507,16 @@ mkdirSync(distDir, { recursive: true });
 // The showcase's guides, if the bundle has been generated; see showcase.mjs.
 const showcaseBundle = readBundle(root);
 
+// Packages the changelog page lists by their own record, beside the showcase
+// pages: the Flame bridge has no pages of its own, and its releases were
+// missing from the page altogether.
+const changelogPackages = [
+  { name: 'flame_flutter3d', title: 'Flame bridge' },
+].map((p) => ({
+  ...p,
+  leads: changelogLeads(readFileSync(join(root, '..', 'packages', p.name, 'CHANGELOG.md'), 'utf8')),
+}));
+
 let built = 0;
 // What each page said about itself, collected while it is being built rather
 // than by reading the tree a second time afterwards. The second read is where
@@ -500,7 +527,7 @@ flat.forEach((page, index) => {
   const { data, body: written } = frontMatter(source);
   const body = written
     .replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle))
-    .replace('{{changelog}}', () => changelogMarkdown(showcaseBundle));
+    .replace('{{changelog}}', () => changelogMarkdown(showcaseBundle, changelogPackages));
   catalog.push({
     url: page.url,
     title: page.title,

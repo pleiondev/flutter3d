@@ -17,6 +17,14 @@
 /// one does, this was a rewrite rather than a move.
 part of 'renderer.dart';
 
+/// The coarsest step a depth in [0, 1] is stored with in a map of [format]:
+/// a half float keeps eleven significant bits, so between one half and one
+/// its values are 1/2048 apart. Full floats are finer than any bias.
+double _storedDepthStep(TextureFormat format) => switch (format) {
+  TextureFormat.r16g16b16a16Float => 1.0 / 2048.0,
+  _ => 0.0,
+};
+
 /// Which faces a shadow pass culls to record the side [faces] names.
 ///
 /// Culling the front faces is what leaves the back ones drawn, and the other
@@ -809,9 +817,19 @@ extension _ShadowPasses on Renderer {
       _shadowCascades[2] = count.toDouble();
       _shadowCascades[3] = 1.0 / resolution;
       _shadowParams[1] = settings.bias;
+      // **Never finer than the map can store.** The bias is kept in metres
+      // when a near cascade reaches back to a far caster, so in stored depth
+      // it shrinks with that reach: in a river valley two hundred metres long
+      // it came to a tenth of a half-float step. A lit floor compared against
+      // its own depth rounded to that step then shadowed itself in bands, on
+      // Metal and every other device that stores the map as it says, and not
+      // on the software backend, which keeps full floats in any format.
+      final storedStep = _storedDepthStep(hdrFormat);
       for (var i = 0; i < 3; i++) {
-        _shadowCascadeBias[i] =
-            settings.bias * _shadowCascadeBiasScale[math.min(i, count - 1)];
+        _shadowCascadeBias[i] = math.max(
+          settings.bias * _shadowCascadeBiasScale[math.min(i, count - 1)],
+          math.min(settings.bias, storedStep),
+        );
       }
       _shadowParams[2] = settings.normalOffset;
       _shadowParams[3] = settings.strength.clamp(0.0, 1.0);

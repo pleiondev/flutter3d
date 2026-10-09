@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
@@ -89,7 +90,14 @@ class PlayScreen extends StatefulWidget {
   State<PlayScreen> createState() => _PlayScreenState();
 }
 
-class _PlayScreenState extends State<PlayScreen> {
+class _PlayScreenState extends State<PlayScreen>
+    with SingleTickerProviderStateMixin {
+  /// **What makes the game run.** The frame is drawn inside the viewport's
+  /// own build, and this route is opaque, so the editor's ticker below it is
+  /// muted: without one here, [_frame] ran only when something else happened
+  /// to rebuild the screen, and a held W moved nothing.
+  late final Ticker _ticker = createTicker((_) => setState(() {}));
+
   late final PlaySession _session = PlaySession.start(
     device: widget.renderer.device,
     project: widget.projectNow(),
@@ -111,6 +119,7 @@ class _PlayScreenState extends State<PlayScreen> {
       stop: () => Navigator.of(context).maybePop(),
       where: () => _session.position,
     );
+    _ticker.start();
   }
 
   @override
@@ -120,6 +129,7 @@ class _PlayScreenState extends State<PlayScreen> {
     // and a flag cleared in only one of those paths is a `play.reload` that
     // reloads a game nobody is looking at.
     widget.control?.running = null;
+    _ticker.dispose();
     _keys.dispose();
     super.dispose();
   }

@@ -1,5 +1,5 @@
 /// [ActorSystemComponent] steps a real flutter3d_sim [ActorSystem] exactly
-/// once per [update], through the `beginStep`/`step` pair the system
+/// once per step, through the `beginStep`/`step` pair the system
 /// requires.
 library;
 
@@ -119,5 +119,29 @@ void main() {
     );
 
     expect(component.priority, -120);
+  });
+
+  test('a second of play moves an actor as far at any frame rate', () {
+    // Mutation: step the system by the frame's own dt.
+    double after(double frame) {
+      final system = _system();
+      final body = CharacterController(
+        world: system.world,
+        position: Vector3(0.0, 10.0, 0.0),
+      );
+      system.spawn(body: body);
+      final component = ActorSystemComponent(
+        system: system,
+        focus: () => Vector3.zero(),
+      );
+      for (var t = 0; t < (1.0 / frame).round(); t++) {
+        component.update(frame);
+      }
+      return body.position.y;
+    }
+
+    final slow = after(1 / 30);
+    expect(slow, lessThan(10.0), reason: 'it never fell');
+    expect(after(1 / 120), closeTo(slow, 1e-9));
   });
 }

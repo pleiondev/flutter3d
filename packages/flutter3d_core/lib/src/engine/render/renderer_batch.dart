@@ -98,6 +98,7 @@ extension _BatchedDraws on Renderer {
   /// the instance tint; and a batch is already a batch.
   bool _isBatchable(MeshNode node) =>
       node is! InstancedMeshNode &&
+      !node.isTinted &&
       node.skeleton == null &&
       node.morph == null &&
       !node.lightmapped &&

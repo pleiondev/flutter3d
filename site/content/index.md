@@ -6,9 +6,9 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and five gam
 
 # Five games, one engine, no edits in between
 
-flutter3d is a renderer, a game layer, and five games built on them: a shooter, a platformer, a racing game and a strategy game, each with a genre package of its own, and Meteor Yard, a Flame game over a 3D yard. The platformer and the racer were built without changing a line in the shooter's engine packages.
+flutter3d is a renderer, a game layer, and six games built on them: a shooter, a platformer, a racing game and a strategy game, each with a genre package of its own, and two Flame games drawn in 3D, Meteor Yard and River Sortie. The platformer and the racer were built without changing a line in the shooter's engine packages.
 
-**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/) · [the strategy game](/strategy/demo/) · [Meteor Yard](/arcade/demo/), a Flame game over a 3D yard. **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/) · [the strategy game](/strategy/demo/) · [Meteor Yard](/arcade/demo/) and [River Sortie](/river/demo/), two Flame games drawn in 3D. **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
@@ -79,9 +79,14 @@ flutter3d is a renderer, a game layer, and five games built on them: a shooter, 
     <h3>Meteor Yard</h3>
     <p>A Flame game over a 3D yard: one clock, 3D contacts as Flame collisions, Flame's joystick, and bots to ram head on.</p>
   </a></li>
+  <li><a href="/river/demo/">
+    <span class="card-kind">Flame · playable</span>
+    <h3>River Sortie</h3>
+    <p>A jet up a river that never ends, after River Raid: five levels with a task each, targets that sink, spin down or go up in flames, and cartridge-style sound.</p>
+  </a></li>
 </ul>
 
-All five run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
+All six run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
 
 ## The package split
 

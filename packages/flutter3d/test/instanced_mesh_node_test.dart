@@ -141,4 +141,54 @@ void main() {
 
     expect(scene.staticShadowGeneration, greaterThan(generation));
   });
+  group('slots by handle', () {
+    Vector3 placeOf(InstancedMeshNode node, int index) {
+      final m = Matrix4.zero();
+      node.readTransform(index, m);
+      return m.getTranslation();
+    }
+
+    test('a release in the middle moves the last into the hole, and its '
+        'handle follows', () {
+      // Three shots in the air; the first hits something. The third still
+      // has to be drawn, and its owner still has to find it.
+      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 4);
+      final first = node.acquire(
+        transform: Matrix4.translationValues(1.0, 0.0, 0.0),
+      );
+      node.acquire(transform: Matrix4.translationValues(2.0, 0.0, 0.0));
+      final third = node.acquire(
+        transform: Matrix4.translationValues(3.0, 0.0, 0.0),
+        color: Vector4(1.0, 0.0, 0.0, 1.0),
+      );
+
+      node.release(first);
+
+      expect(node.count, 2);
+      expect(first.live, isFalse);
+      expect(third.index, 0);
+      expect(placeOf(node, 0).x, 3.0);
+      expect(node.instanceData[12], 1.0);
+      expect(node.instanceData[13], 0.0, reason: 'the colour moved too');
+      third.setTransform(Matrix4.translationValues(4.0, 0.0, 0.0));
+      expect(placeOf(node, 0).x, 4.0);
+      expect(() => node.release(first), throwsStateError);
+    });
+
+    test('a full batch grows rather than refusing', () {
+      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1);
+      final handles = [for (var i = 0; i < 5; i++) node.acquire()];
+      expect(node.count, 5);
+      expect(node.capacity, greaterThanOrEqualTo(5));
+      expect(handles.map((h) => h.index), <int>[0, 1, 2, 3, 4]);
+    });
+
+    test('clear lets go of every handle', () {
+      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 2);
+      final handle = node.acquire();
+      node.clear();
+      expect(handle.live, isFalse);
+      expect(node.acquire().index, 0);
+    });
+  });
 }

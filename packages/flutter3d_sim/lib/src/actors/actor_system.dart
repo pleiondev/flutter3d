@@ -23,20 +23,28 @@
 /// was carrying them and every restore silently re-phased the thinking and
 /// forgot the aim. See [save].
 ///
-/// ## Nothing targets anything but the focus
+/// ## Nothing targets anything but a focus
 ///
-/// One thing that everything pays attention to, which the caller names each
-/// step. No infighting, and it is a deliberate trade rather than an omission:
-/// it keeps the target a single reference rather than a search, and removes the
-/// whole class of bug where two actors lock onto each other and the fight
-/// resolves itself off screen. It is also what makes one flow field enough for
-/// the entire level.
+/// What everything pays attention to is named by the caller each step: one
+/// focus, or several — the players of a co-op game. No infighting, and it is a
+/// deliberate trade rather than an omission: it keeps the target a lookup
+/// rather than a search, and removes the whole class of bug where two actors
+/// lock onto each other and the fight resolves itself off screen.
+///
+/// With several, each actor attends to the one nearest *by walking*, which the
+/// flow field already knows: it is swept from every focus at once and records
+/// which one each cell's route ends at (`FlowField.sourceAt`). So several foci
+/// still cost one sweep per class of body, and a monster behind a wall goes
+/// for the player it can reach first rather than the one it is closest to
+/// through the stone. Without navigation, or where the field has no answer,
+/// it is the nearest by straight line.
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
+import '../ecs/entity.dart';
 import '../loop/game_event.dart';
 import '../math/motion.dart';
 import '../math/portable_math.dart';
@@ -52,6 +60,10 @@ import 'brain.dart';
 import 'health.dart';
 
 export 'actor_hurt.dart';
+
+/// One of the things [ActorSystem.step] is told everything pays attention to:
+/// where it is, and the body it belongs to, if any.
+typedef FocusPoint = ({Vector3 at, Collider? body});
 
 final class ActorSystem {
   ActorSystem({required this.world, required this.random, EcsWorld? entities})
@@ -124,13 +136,38 @@ final class ActorSystem {
   /// Actors that took damage this step and survived.
   final List<ActorHurt> hurtThisStep = <ActorHurt>[];
 
-  /// Damage dealt to whatever everything is paying attention to, this step.
+  /// Damage dealt to whatever everything is paying attention to, this step —
+  /// all the foci together. [damageToFoci] has it per focus.
   double damageToFocusThisStep = 0.0;
 
+  /// Damage dealt to each focus this step, by its index in the list [step]
+  /// was given. Written through [hurtFocus].
+  List<double> get damageToFoci => List<double>.unmodifiable(_damageToFoci);
+  final List<double> _damageToFoci = <double>[0.0];
+
   /// Where the focus is, and what body it belongs to. Set by [step].
-  Vector3 get focus => _focus;
-  final Vector3 _focus = Vector3.zero();
-  Collider? focusBody;
+  ///
+  /// With several foci: inside a brain, the one this actor attends to; outside
+  /// [step], the first.
+  Vector3 get focus => _foci[_focusIndex];
+  Collider? get focusBody => _fociBodies[_focusIndex];
+
+  /// For code written against 0.8.0, where this was a field: [step] names
+  /// the body, as `focusBody:` or in `foci:`, and overwrites whatever was
+  /// set here on its next call, as it always did.
+  @Deprecated('Name the body in step(focusBody:) or step(foci:).')
+  set focusBody(Collider? body) => _fociBodies[_focusIndex] = body;
+
+  /// Which focus the actor being thought about attends to, by its index in
+  /// the list [step] was given. Zero with one focus, and outside [step].
+  int get focusIndex => _focusIndex;
+  int _focusIndex = 0;
+
+  /// How many foci the last [step] was given.
+  int get fociCount => _foci.length;
+
+  final List<Vector3> _foci = <Vector3>[Vector3.zero()];
+  final List<Collider?> _fociBodies = <Collider?>[null];
 
   /// How fast the focus is moving, in metres per second.
   ///
@@ -144,10 +181,16 @@ final class ActorSystem {
   /// the focus further in one step than anything can travel, and a velocity
   /// worked out from that is a number in the hundreds — which, to anything
   /// leading a shot, means firing at the horizon.
-  Vector3 get focusVelocity => _focusVelocity;
-  final Vector3 _focusVelocity = Vector3.zero();
-  final Vector3 _lastFocus = Vector3.zero();
-  bool _hasLastFocus = false;
+  ///
+  /// Per focus, and like [focus] this is the attended one inside a brain. Zero
+  /// for every focus on the step after their number changed: the list is
+  /// matched by index, and a player leaving it shifts everyone after them.
+  Vector3 get focusVelocity => _fociVelocity[_focusIndex];
+
+  /// How fast the focus at [index] is moving, as [focusVelocity] measures it.
+  Vector3 focusVelocityOf(int index) => _fociVelocity[index];
+  final List<Vector3> _fociVelocity = <Vector3>[Vector3.zero()];
+  final List<Vector3> _lastFoci = <Vector3>[];
 
   /// How far the focus may move in one step before it is treated as a jump
   /// rather than as movement.
@@ -187,23 +230,32 @@ final class ActorSystem {
   /// This used to require the first three. A game with a destructible crate had
   /// to give it a walking capsule and a brain that did nothing, which is the
   /// arrangement an entity-component design exists to remove.
+  ///
+  /// [entity] builds the actor under an entity a restore put back rather than
+  /// a new one — see [EcsWorld.vacant] for the game that needs this, one whose
+  /// actors arrive during play. It must be vacant, or this throws: building
+  /// over something that is there is two actors answering to one entity.
   Actor spawn({
     CharacterController? body,
     Health? health,
     Brain? brain,
     Facing? facing,
     String? name,
+    Entity? entity,
   }) {
-    final entity = entities.spawn();
-    if (body != null) entities.set(entity, Body(body));
-    if (health != null) entities.set(entity, Vitality(health));
-    if (facing != null) entities.set(entity, facing);
-    if (brain != null) entities.set(entity, Thinking(brain));
+    if (entity != null && !entities.vacant(entity)) {
+      throw ArgumentError.value(entity, 'entity', 'is not a vacant slot');
+    }
+    final made = entity ?? entities.spawn();
+    if (body != null) entities.set(made, Body(body));
+    if (health != null) entities.set(made, Vitality(health));
+    if (facing != null) entities.set(made, facing);
+    if (brain != null) entities.set(made, Thinking(brain));
 
-    final actor = Actor(entities, entity, name: name)
+    final actor = Actor(entities, made, name: name)
       ..onDamage = (double amount, Object? from) =>
-          hurt(_handles[entity.index]!, amount, from: from);
-    _handles[entity.index] = actor;
+          hurt(_handles[made.index]!, amount, from: from);
+    _handles[made.index] = actor;
     body?.collider.userData = actor;
     return actor;
   }
@@ -273,6 +325,7 @@ final class ActorSystem {
   /// `RaceState.clearStepFlags`, and the genre simulations' own.
   void beginStep() {
     damageToFocusThisStep = 0.0;
+    _damageToFoci.fillRange(0, _damageToFoci.length, 0.0);
     died.clear();
     hurtThisStep.clear();
     _begun = true;
@@ -287,7 +340,25 @@ final class ActorSystem {
   bool _begun = false;
 
   /// Advances every actor.
-  void step(double dt, {required Vector3 focus, Collider? focusBody}) {
+  ///
+  /// Name what they pay attention to as one [focus], with its [focusBody], or
+  /// as several [foci] — one per player of a co-op game, in an order that
+  /// stays put from step to step, since [damageToFoci] and [focusIndex] are
+  /// read by it. Exactly one of the two.
+  void step(
+    double dt, {
+    Vector3? focus,
+    Collider? focusBody,
+    List<FocusPoint>? foci,
+  }) {
+    if ((focus == null) == (foci == null)) {
+      throw ArgumentError('step takes either a focus or a list of foci');
+    }
+    if (foci != null && foci.isEmpty) {
+      // Nobody to chase is a game that is over, and the game says so; a
+      // system asked to step towards nothing would have to invent a place.
+      throw ArgumentError.value(foci, 'foci', 'at least one');
+    }
     // **Thrown, not asserted, and the difference is the whole point.** This is
     // a protocol between two objects, not an invariant of one: a game that
     // calls `step` without `beginStep` is a game whose dead and hurt lists grow
@@ -305,32 +376,21 @@ final class ActorSystem {
     }
     _begun = false;
     _tick++;
-    if (_hasLastFocus && dt > 0.0) {
-      _focusVelocity
-        ..setFrom(focus)
-        ..sub(_lastFocus);
-      if (_focusVelocity.length > _teleport) {
-        _focusVelocity.setZero();
-      } else {
-        _focusVelocity.scale(1.0 / dt);
-      }
-    }
-    _lastFocus.setFrom(focus);
-    _hasLastFocus = true;
-
-    _focus.setFrom(focus);
-    this.focusBody = focusBody;
+    _takeFoci(focus, focusBody, foci);
+    _measureFoci(dt);
 
     // Once for the whole system, not once per actor: everything is walking to
-    // the same place, which is the entire reason this is a field and not one
+    // the same places, which is the entire reason this is a field and not one
     // search per actor.
-    navigation?.update(focus);
+    navigation?.updateAll(_foci);
 
     _mind.dt = dt;
 
     for (final actor in actors.toList(growable: false)) {
       final body = actor.body;
       _mind.actor = actor;
+      _focusIndex = _foci.length == 1 ? 0 : _attend(actor);
+      final focus = _foci[_focusIndex];
       // Something with no body is somewhere the engine does not know; a brain
       // that wants a place gets it from a component of the game's own.
       _toFocus.setFrom(focus);
@@ -358,6 +418,118 @@ final class ActorSystem {
       brain?.act(_mind);
       body?.step(dt, wishDirection: _wish);
     }
+    _focusIndex = 0;
+  }
+
+  /// Copies what the caller named into the system's own vectors, reusing
+  /// them, so that a caller may build its list afresh every step.
+  void _takeFoci(Vector3? focus, Collider? focusBody, List<FocusPoint>? foci) {
+    final count = foci?.length ?? 1;
+    // What was measured against last step's list is [_measureFoci]'s to
+    // throw away, by comparing lengths — not this, which would also throw
+    // away the list a restore has just put back into a fresh system.
+    if (count != _damageToFoci.length) {
+      _damageToFoci
+        ..clear()
+        ..addAll(List<double>.filled(count, 0.0));
+    }
+    while (_foci.length > count) {
+      _foci.removeLast();
+      _fociBodies.removeLast();
+      _fociVelocity.removeLast();
+    }
+    while (_foci.length < count) {
+      _foci.add(Vector3.zero());
+      _fociBodies.add(null);
+      _fociVelocity.add(Vector3.zero());
+    }
+    if (foci == null) {
+      _foci.first.setFrom(focus!);
+      _fociBodies.first = focusBody;
+      return;
+    }
+    for (var i = 0; i < count; i++) {
+      _foci[i].setFrom(foci[i].at);
+      _fociBodies[i] = foci[i].body;
+    }
+  }
+
+  void _measureFoci(double dt) {
+    // Matched by index, so a change of number is a change of who is who:
+    // nothing measured against last step's list means anything now.
+    final known = _lastFoci.length == _foci.length;
+    for (var i = 0; i < _foci.length; i++) {
+      final velocity = _fociVelocity[i];
+      if (!known || dt <= 0.0) {
+        if (!known) velocity.setZero();
+        continue;
+      }
+      velocity
+        ..setFrom(_foci[i])
+        ..sub(_lastFoci[i]);
+      if (velocity.length > _teleport) {
+        velocity.setZero();
+      } else {
+        velocity.scale(1.0 / dt);
+      }
+    }
+    while (_lastFoci.length > _foci.length) {
+      _lastFoci.removeLast();
+    }
+    for (var i = 0; i < _foci.length; i++) {
+      if (i < _lastFoci.length) {
+        _lastFoci[i].setFrom(_foci[i]);
+      } else {
+        _lastFoci.add(_foci[i].clone());
+      }
+    }
+  }
+
+  /// Which focus [actor] attends to: the one its route on the flow field ends
+  /// at, or the nearest by straight line where there is no field or no route.
+  int _attend(Actor actor) {
+    final body = actor.body;
+    if (body == null) return 0;
+    final routes = navigation;
+    if (routes != null) {
+      final target = routes.targetOf(
+        body.position,
+        radius: body.halfExtents.x,
+        height: body.halfExtents.y * 2.0,
+        jump: routes.grid.jumpLinks.isEmpty ? null : JumpReach.of(body.tuning),
+      );
+      if (target >= 0) return target;
+    }
+    var best = 0;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < _foci.length; i++) {
+      final d = _foci[i].distanceToSquared(body.position);
+      if (d < bestDistance) {
+        best = i;
+        bestDistance = d;
+      }
+    }
+    return best;
+  }
+
+  /// Counts [amount] against the focus whose body is [body], and says whether
+  /// there was one.
+  ///
+  /// For a brain whose attack landed on something: the focus is hurt by the
+  /// game rather than here — it is the game that knows what a player is and
+  /// what armour does about it — and the game reads [damageToFoci] to know
+  /// which player. The attended focus is asked first, so with one focus this is
+  /// exactly `body == focusBody`, and a shot aimed at one player that hits
+  /// another still counts against the one it hit.
+  bool hurtFocus(Collider? body, double amount) {
+    var index = _fociBodies[_focusIndex] == body ? _focusIndex : -1;
+    for (var i = 0; index < 0 && i < _fociBodies.length; i++) {
+      if (_fociBodies[i] == body) index = i;
+    }
+    if (index < 0) return false;
+    damageToFocusThisStep += amount;
+    _damageToFoci[index] += amount;
+    return true;
   }
 
   /// Applies damage from the outside — a shot, a blast, a crushing lift.
@@ -438,6 +610,7 @@ final class ActorSystem {
     died.clear();
     hurtThisStep.clear();
     damageToFocusThisStep = 0.0;
+    _damageToFoci.fillRange(0, _damageToFoci.length, 0.0);
   }
 
   // MARK: - What a brain may do
@@ -555,7 +728,7 @@ final class ActorSystem {
   /// Against the level only. A ray that stopped on another actor would mean a
   /// crowd blinds itself, and two of them standing in a doorway would each wait
   /// for the other to move.
-  bool canSee(Actor actor) => canSeePoint(actor, _focus);
+  bool canSee(Actor actor) => canSeePoint(actor, focus);
 
   /// Whether there is a clear line from [actor]'s eye to [point].
   ///
@@ -596,28 +769,48 @@ final class ActorSystem {
   /// What that costs is small and real. [_tick] drives the think throttle, so
   /// restoring at zero re-phases every actor beyond [closeRange] — the same
   /// monsters, thinking on a different beat than the run that was saved, which
-  /// is enough for a determinism check to stop matching. [_lastFocus] and its
-  /// flag are what [focusVelocity] is measured from, so a restore without them
-  /// spends its first step believing the player is standing still, and
-  /// anything that leads a shot fires where the player already is not.
+  /// is enough for a determinism check to stop matching. [_lastFoci] are what
+  /// [focusVelocity] is measured from, so a restore without them spends its
+  /// first step believing the player is standing still, and anything that
+  /// leads a shot fires where the player already is not.
+  ///
+  /// One focus is written as `lastFocus`, the key it always had, so a save
+  /// from before there could be several reads the same; several are
+  /// `lastFoci`.
   ///
   /// A determinism test that restores into the *same* system cannot see any of
   /// this. Only one that loads the level again can, which is the documented
   /// use.
   Map<String, Object?> save() => <String, Object?>{
     'tick': _tick,
-    if (_hasLastFocus)
-      'lastFocus': <double>[_lastFocus.x, _lastFocus.y, _lastFocus.z],
+    if (_lastFoci.length == 1)
+      'lastFocus': <double>[_lastFoci[0].x, _lastFoci[0].y, _lastFoci[0].z],
+    if (_lastFoci.length > 1)
+      'lastFoci': <List<double>>[
+        for (final at in _lastFoci) <double>[at.x, at.y, at.z],
+      ],
   };
 
   void restore(Object? from) {
     if (from is! Map) return;
     final tick = from['tick'];
     if (tick is num) _tick = tick.toInt();
-    _hasLastFocus = readVector(from['lastFocus'], _lastFocus);
-    // Not saved: it is derived from the two fields above on the next step, and
+    _lastFoci.clear();
+    final several = from['lastFoci'];
+    final saved = several is List ? several : <Object?>[from['lastFocus']];
+    for (final entry in saved) {
+      final at = Vector3.zero();
+      if (!readVector(entry, at)) {
+        _lastFoci.clear();
+        break;
+      }
+      _lastFoci.add(at);
+    }
+    // Not saved: it is derived from the positions above on the next step, and
     // a velocity restored without the position it was measured from is a
     // number with nothing behind it.
-    _focusVelocity.setZero();
+    for (final velocity in _fociVelocity) {
+      velocity.setZero();
+    }
   }
 }

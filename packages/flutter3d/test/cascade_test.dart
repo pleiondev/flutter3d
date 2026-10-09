@@ -22,6 +22,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -448,5 +449,67 @@ void main() {
           'the near floor is shadowed by one whole-scene map and lit by the '
           'near cascade: the tower is cut by that cascade\'s near plane',
     );
+  });
+
+  test('a near cascade reaching far keeps a bias the map can store', () {
+    // A low sun and a caster two hundred metres off along it: the near
+    // cascade reaches back to it, and the bias, kept in metres, shrinks in
+    // stored depth by the same factor. Below a half-float step (1/2048,
+    // what the map is stored in) a lit floor compared against its own
+    // rounded depth shadowed itself in diagonal bands: River Sortie's
+    // valley on Metal. The software backend keeps full floats, so only the
+    // bias itself shows it.
+    //
+    // Mutation: drop the floor in `publishShadowParams`, leaving the
+    // scaled bias alone.
+    final device = FakeBackend();
+    TextureHandle texel() => device.createTexture(
+      const RenderTargetSpec(
+        width: 1,
+        height: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final scene = Scene();
+    MeshNode block(Vector3 size, Vector3 at) => MeshNode(
+      DeviceMesh.upload(device, CuboidShape(size: size).build()),
+      Material(name: 'block', lighting: LightingModel.pbr),
+    )..setPosition(at.x, at.y, at.z);
+    scene
+      ..add(block(Vector3(40.0, 1.0, 400.0), Vector3(0.0, -0.5, 190.0)))
+      ..add(block(Vector3(3.0, 20.0, 3.0), Vector3(0.0, 10.0, 200.0)))
+      ..add(
+        LightNode(type: LightType.directional, castsShadow: true, name: 'sun')
+          ..setLocalForward(Vector3(0.0, -0.35, -0.94)..normalize()),
+      );
+    final camera = CameraNode()
+      ..setPosition(0.0, 3.0, -8.0)
+      ..lookAt(Vector3(0.0, 1.0, 8.0));
+    scene.add(camera);
+
+    Renderer.create(
+      device: device,
+      fallbackAlbedo: texel(),
+      fallbackNormal: texel(),
+    ).render(
+      width: 64,
+      height: 48,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+      settings: const RenderSettings(),
+    );
+
+    final lit = <RecordedUniformBlock>[
+      for (final pass in device.passes)
+        ...pass.recordedOf<RecordedUniformBlock>().where(
+          (b) => b.block == 'FragInfo',
+        ),
+    ];
+    expect(lit, isNotEmpty, reason: 'nothing in the frame was lit');
+    final bias = lit.last.members['shadow_bias']!;
+    expect(device.hdrColorFormat, TextureFormat.r16g16b16a16Float);
+    for (var i = 0; i < 3; i++) {
+      expect(bias[i], greaterThanOrEqualTo(1.0 / 2048.0), reason: 'cascade $i');
+    }
   });
 }

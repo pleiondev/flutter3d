@@ -1,3 +1,19 @@
+## 0.4.3
+
+* **A second player holds a second controller.** `Gamepad(index: 1)` reads
+  the controller in the second slot, the second to connect, up to
+  `GamepadPlatform.maxPads`; `GamepadPlatform.readPad` reads any slot, and a
+  backend that tells no controllers apart reports every slot past the first
+  as disconnected rather than the first pad twice. On macOS and iOS every
+  controller `GameController` reports is read, each in a slot that is also
+  its `playerIndex`, so its light says which player holds it. In a browser
+  the slots are the standard pads in the order it lists them. On Android
+  every controller is reported by device, and its buttons are forwarded
+  with their device from the window, since through Flutter's keyboard two
+  controllers pressing A were one A; a d-pad that sends keys is now the
+  pad's d-pad rather than a keyboard's arrows. A slot a controller leaves
+  is the next one's, and the others keep theirs.
+
 ## 0.4.2
 
 * **An iOS build no longer fails on the buttons the plugin reads.** The Swift

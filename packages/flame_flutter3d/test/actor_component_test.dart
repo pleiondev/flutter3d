@@ -3,6 +3,7 @@
 library;
 
 import 'package:flame_flutter3d/src/ecs/actor_component.dart';
+import 'package:flame_flutter3d/src/ecs/actor_system_component.dart';
 import 'package:flame_flutter3d/src/transform/plane.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -94,5 +95,63 @@ void main() {
     // actor.body now reads null; update must treat that as "nothing to
     // copy", the same as an actor that never had a body.
     expect(() => component.update(1 / 60), returnsNormally);
+  });
+
+  test('turns the node the way the actor faces', () {
+    // An actor's yaw is radians about Y, nought looking down -Z; a quarter
+    // turn left looks down -X. Without it every bridged actor slid about
+    // facing the way it was built.
+    //
+    // Mutation: copy only the body's position.
+    final system = _system();
+    final actor = system.spawn(
+      body: CharacterController(world: system.world),
+      facing: Facing(yaw: 1.5707963267948966),
+    );
+    final component = ActorComponent(
+      actor: actor,
+      node: SceneNode(),
+      scene: Scene(),
+      plane: BridgePlane.ground(),
+    )..onMount();
+    component.update(1 / 60);
+
+    final forward = component.node.readRotation().asRotationMatrix().transform(
+      Vector3(0.0, 0.0, -1.0),
+    );
+    expect(forward.x, closeTo(-1.0, 1e-6));
+    expect(forward.z, closeTo(0.0, 1e-6));
+  });
+
+  test('turns between its steps as it moves between them', () {
+    // Its place glided between two steps and its facing clicked round.
+    //
+    // Mutation: turn the node to the yaw the last step left.
+    final system = _system();
+    final actor = system.spawn(
+      body: CharacterController(world: system.world),
+      facing: Facing(),
+    );
+    final stepper = ActorSystemComponent(system: system, focus: Vector3.zero);
+    final component = ActorComponent(
+      actor: actor,
+      node: SceneNode(),
+      scene: Scene(),
+      plane: BridgePlane.ground(),
+      stepper: stepper,
+    )..onMount();
+
+    component.rememberPlace();
+    actor.facing!.yaw = 1.5707963267948966;
+    stepper.step.advance(1 / 60 + 1 / 120);
+    expect(stepper.alpha, closeTo(0.5, 1e-9));
+    component.update(0.0);
+
+    final forward = component.node.readRotation().asRotationMatrix().transform(
+      Vector3(0.0, 0.0, -1.0),
+    );
+    // Half of a quarter turn left: an eighth, between -Z and -X.
+    expect(forward.x, closeTo(-0.7071, 1e-3));
+    expect(forward.z, closeTo(-0.7071, 1e-3));
   });
 }

@@ -37,23 +37,41 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'particle_system.dart';
 
-/// Additive, unculled, depth-tested but never written — the same request the
-/// billboard path makes, and for the same reasons.
-///
-/// Nothing is culled because a particle mesh tumbles and is seen from every
-/// side; the fragment stage shades by facing rather than by winding, so a back
-/// face is dim rather than absent.
-const PassState _kMeshParticleState = PassState(
-  primitiveType: PrimitiveType.triangle,
-  polygonMode: PolygonMode.fill,
-  cullMode: CullMode.none,
-  blend: BlendState.additive,
-  depthWrite: false,
-  depthCompare: CompareFunction.less,
-);
-
 final class MeshParticleContributor extends PassContributor {
-  MeshParticleContributor(this.particles, {required this.mesh});
+  MeshParticleContributor(
+    this.particles, {
+    required this.mesh,
+    this.blend = BlendState.additive,
+  }) : _state = PassState(
+         primitiveType: PrimitiveType.triangle,
+         polygonMode: PolygonMode.fill,
+         cullMode: CullMode.none,
+         blend: blend,
+         depthWrite: false,
+         depthCompare: CompareFunction.less,
+       );
+
+  /// Each particle takes its colour out of what is behind it: the
+  /// background times one minus the particle's colour. Dark smoke, soot, a
+  /// shadow on the water: what additive particles cannot draw, since adding
+  /// can only brighten.
+  ///
+  /// **A particle's colour is how much it darkens**, per channel, and its
+  /// alpha scales that, as it scales the light an additive one adds. White
+  /// at full alpha blacks out what is behind it; a grey of 0.6 takes sixty
+  /// per cent away. Fog fades it to nothing with distance, as it fades an
+  /// additive one.
+  ///
+  /// **Multiplication is commutative**, as addition is, so a batch of these
+  /// composites correctly in any order and the pool is still one unsorted
+  /// draw. "Over" blending would need the particles sorted every frame; the
+  /// six-way stage of `ParticleContributor` pays that for lit smoke.
+  static const BlendState darkening = BlendState(
+    sourceColorFactor: BlendFactor.zero,
+    destinationColorFactor: BlendFactor.oneMinusSourceColor,
+    sourceAlphaFactor: BlendFactor.zero,
+    destinationAlphaFactor: BlendFactor.one,
+  );
 
   final ParticleSystem particles;
 
@@ -63,6 +81,21 @@ final class MeshParticleContributor extends PassContributor {
   /// two instanced draws and therefore two contributors, which is cheap to
   /// arrange and honest about the cost.
   final DrawableGeometry mesh;
+
+  /// How a particle meets what is behind it: [BlendState.additive], which
+  /// adds light (fire, sparks, a glow), or [darkening], which takes it away.
+  /// The fragment stage is the same for both: it hands back the particle's
+  /// colour times its alpha, shaded by facing and faded by fog, and the
+  /// blend decides whether that is light added or light removed.
+  ///
+  /// Unculled, depth-tested but never written either way, the same request
+  /// the billboard path makes and for the same reasons: a particle mesh
+  /// tumbles and is seen from every side, and the fragment stage shades by
+  /// facing rather than by winding, so a back face is dim rather than
+  /// absent.
+  final BlendState blend;
+
+  final PassState _state;
 
   static const String _infoBlock = 'ParticleMeshInfo';
 
@@ -149,7 +182,7 @@ final class MeshParticleContributor extends PassContributor {
         layout: _layout,
       ),
     );
-    encoder.setState(_kMeshParticleState);
+    encoder.setState(_state);
 
     encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
     encoder.bindVertexData(

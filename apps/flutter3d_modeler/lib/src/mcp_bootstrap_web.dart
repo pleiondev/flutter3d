@@ -27,3 +27,5 @@ Future<void> startMcpServer({
 }) async {}
 
 Future<void> stopMcpServer() async {}
+
+void rebindMcpHistory(ModelHistory history) {}

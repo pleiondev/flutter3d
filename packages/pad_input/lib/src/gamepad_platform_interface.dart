@@ -55,6 +55,25 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// which is the one thing a fixed-step simulation cannot work with.
   void read(PadSnapshot out);
 
+  /// How many controllers can be held at once: the slots [readPad] reads.
+  static const int maxPads = 4;
+
+  /// Reads the controller in slot [index] into [out]: the first player's
+  /// is slot nought, the next one to connect slot one, and so on, as the
+  /// lights on a console's controllers are numbered.
+  ///
+  /// **A second player, not a second look at the first.** [read] is the
+  /// first slot; a backend that tells controllers apart answers the others.
+  /// One that does not, as this default, reports every slot past the first
+  /// as disconnected rather than showing the first pad twice.
+  void readPad(int index, PadSnapshot out) {
+    if (index == 0) {
+      read(out);
+    } else {
+      out.disconnect();
+    }
+  }
+
   /// Stops listening. Called when the last owner goes away.
   Future<void> dispose() async {}
 }

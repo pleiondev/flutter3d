@@ -1,9 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import 'backend.dart';
+import 'cutoff.dart';
 
 /// Plays through SoLoud, flat.
 ///
@@ -116,6 +116,7 @@ final class SoLoudBackend implements AudioBackend {
   /// looks exactly like a game with no sound.
   Future<void> dispose() async {
     _sources.clear();
+    _sampleRates.clear();
     _failed.clear();
     await _soloud.disposeAllSources();
     if (_soloud.isInitialized) _soloud.deinit();
@@ -126,7 +127,12 @@ final class SoLoudBackend implements AudioBackend {
     if (_sources.containsKey(asset)) return;
     final AudioSource source;
     try {
-      source = await _soloud.loadAsset(asset);
+      // The bytes first and the source from them, rather than `loadAsset`:
+      // the file's sample rate is in its header, and the filter below has to
+      // know it. See `cutoff.dart`.
+      final bytes = (await rootBundle.load(asset)).buffer.asUint8List();
+      _sampleRates[asset] = wavSampleRate(bytes) ?? _kAssumedSampleRate;
+      source = await _soloud.loadMem(asset, bytes);
     } catch (error) {
       // A missing sound leaves the game silent in one place rather than
       // stopping it. Losing a footstep should not cost the play-test — but it
@@ -146,7 +152,12 @@ final class SoLoudBackend implements AudioBackend {
       final filter = source.filters.biquadFilter;
       if (!filter.isActive) filter.activate();
       filter.type().value = _kLowPass;
-      filter.frequency().value = _kOpenCutoff;
+      // What a voice starts with before [start] sets its own: open for any
+      // speed down to half, so no voice ever begins past its Nyquist.
+      filter.frequency().value = openCutoff(
+        sampleRate: _sampleRates[asset]!,
+        rate: 0.5,
+      );
     } catch (error) {
       if (!_filterRefused) {
         _filterRefused = true;
@@ -162,9 +173,15 @@ final class SoLoudBackend implements AudioBackend {
   /// SoLoud's biquad type for a low-pass.
   static const double _kLowPass = 0.0;
 
-  /// Cutoffs at the two ends of a muffle: open, and heard through a wall.
-  static const double _kOpenCutoff = 16000.0;
-  static const double _kWallCutoff = 600.0;
+  /// What a file that is not a WAV is taken to be recorded at: what
+  /// compressed formats nearly always are.
+  static const int _kAssumedSampleRate = 44100;
+
+  /// Each loaded asset's sample rate, from its header.
+  final Map<String, int> _sampleRates = <String, int>{};
+
+  /// The sample rate of each live voice's file.
+  final Map<SoundHandle, int> _voiceRate = <SoundHandle, int>{};
 
   /// Said once. A platform without the filter is a platform where walls only
   /// quieten, which is what every platform did until now.
@@ -174,26 +191,27 @@ final class SoLoudBackend implements AudioBackend {
   final Map<SoundHandle, AudioSource> _voiceSource =
       <SoundHandle, AudioSource>{};
 
-  /// The muffle each voice was last given, so a voice nothing has changed
+  /// The cutoff each voice was last given, so a voice nothing has changed
   /// costs no call into the engine.
-  final Map<SoundHandle, double> _voiceMuffle = <SoundHandle, double>{};
+  final Map<SoundHandle, double> _voiceCutoff = <SoundHandle, double>{};
 
-  /// Moves a voice's cutoff to where [muffle] says.
-  ///
-  /// Geometric between the two ends, because hearing is: half way in the
-  /// ratio is half way in pitch, where half way in hertz would be nearly
-  /// open. Skipped when the voice is where it was, to the hundredth.
-  void _applyMuffle(SoundHandle handle, double muffle) {
+  /// Moves a voice's cutoff to where [muffle] says, for the speed [rate] it
+  /// plays at: see [muffledCutoff], and [openCutoff] for why the speed
+  /// matters. Skipped when the cutoff is within a percent of where it was.
+  void _applyMuffle(SoundHandle handle, double muffle, double rate) {
     if (_filterRefused) return;
     final source = _voiceSource[handle];
-    if (source == null) return;
-    final clamped = muffle.clamp(0.0, 1.0);
-    final last = _voiceMuffle[handle];
-    if (last != null && (last - clamped).abs() < 0.01) return;
-    _voiceMuffle[handle] = clamped;
+    final sampleRate = _voiceRate[handle];
+    if (source == null || sampleRate == null) return;
+    final cutoff = muffledCutoff(
+      openCutoff(sampleRate: sampleRate, rate: rate),
+      muffle,
+    );
+    final last = _voiceCutoff[handle];
+    if (last != null && (last - cutoff).abs() < 0.01 * last) return;
+    _voiceCutoff[handle] = cutoff;
     try {
-      source.filters.biquadFilter.frequency(soundHandle: handle).value =
-          _kOpenCutoff * math.pow(_kWallCutoff / _kOpenCutoff, clamped);
+      source.filters.biquadFilter.frequency(soundHandle: handle).value = cutoff;
     } catch (error) {
       _filterRefused = true;
       onIssue(
@@ -227,7 +245,11 @@ final class SoLoudBackend implements AudioBackend {
       // audible at the wrong speed.
       if (rate != 1.0) _soloud.setRelativePlaySpeed(handle, rate);
       _voiceSource[handle] = source;
-      if (muffle > 0.0) _applyMuffle(handle, muffle);
+      _voiceRate[handle] = _sampleRates[asset] ?? _kAssumedSampleRate;
+      // Always, not only when muffled: the source's own cutoff is safe for
+      // any speed down to half, and this voice may be slower, or faster and
+      // due a brighter one.
+      _applyMuffle(handle, muffle, rate);
       return handle;
     } catch (error) {
       onIssue(AudioIssue('could not play "$asset": $error'));
@@ -259,14 +281,15 @@ final class SoLoudBackend implements AudioBackend {
     } catch (error) {
       onIssue(AudioIssue('could not update a voice: $error'));
     }
-    _applyMuffle(handle, muffle);
+    _applyMuffle(handle, muffle, rate);
   }
 
   @override
   void stop(VoiceId voice) {
     final handle = voice as SoundHandle;
     _voiceSource.remove(handle);
-    _voiceMuffle.remove(handle);
+    _voiceRate.remove(handle);
+    _voiceCutoff.remove(handle);
     try {
       _soloud.stop(handle);
     } catch (error) {

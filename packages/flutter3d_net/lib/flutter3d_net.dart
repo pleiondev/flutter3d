@@ -18,5 +18,6 @@ library;
 export 'src/loopback_transport.dart';
 export 'src/net_session.dart';
 export 'src/net_transport.dart';
+export 'src/net_transport_wire.dart';
 export 'src/snapshot_divergence.dart';
 export 'src/websocket_transport.dart';
