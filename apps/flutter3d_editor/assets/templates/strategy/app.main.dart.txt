@@ -317,17 +317,19 @@ class _LevelScreenState extends State<LevelScreen> {
             onPointerUp: (_) => _dragged = null,
             child: Flutter3dView(
               camera: _eye,
-              input: _input,
-              plugins: <Flutter3dPlugin>[_genre],
+              loop: LoopSettings(input: _input),
+              plugins: PluginSettings(plugins: <Flutter3dPlugin>[_genre]),
               autofocus: true,
               onKeyEvent: _keys.handleKeyEvent,
               onCreated: (Flutter3dEngine engine) => _created(engine).ignore(),
               onFrame: _frame,
-              placeholder: const Center(child: CircularProgressIndicator()),
-              failure: (Object error) => DidNotStart(
-                error,
-                background: const Color(0xFF14161A),
-                foreground: const Color(0xFFFF8A80),
+              view: ViewSettings(
+                placeholder: const Center(child: CircularProgressIndicator()),
+                failure: (Object error) => DidNotStart(
+                  error,
+                  background: const Color(0xFF14161A),
+                  foreground: const Color(0xFFFF8A80),
+                ),
               ),
             ),
           ),
