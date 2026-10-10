@@ -1147,6 +1147,29 @@ bool _isInterfaceClass(String bare) {
       bare.split(' ').skip(m.length).firstOrNull == 'class';
 }
 
+/// Every type a snapshot declares as an `enum` or a `sealed` class, with
+/// which of the two it is, once each however many of its libraries declare
+/// it.
+///
+/// These are the closed sets: a value added to an enum, or a subtype added
+/// to a sealed class, breaks every exhaustive `switch` written against it,
+/// so neither can grow in a minor release.
+Map<String, String> closedSetsIn(String snapshot) => <String, String>{
+  for (final library in parseApi(snapshot).values)
+    for (final entry in library.declarations.entries)
+      entry.key: ?_closedSetKind(splitAnnotations(entry.value.header).rest),
+};
+
+String? _closedSetKind(String bare) {
+  if (bare.startsWith('enum ')) return 'enum';
+  final m = _modifiers(bare);
+  if (m.contains('sealed') &&
+      bare.split(' ').skip(m.length).firstOrNull == 'class') {
+    return 'sealed';
+  }
+  return null;
+}
+
 /// Every type a snapshot declares, with the names it extends, implements and
 /// mixes in, without their type arguments.
 Map<String, Set<String>> supertypesIn(String snapshot) {
@@ -1570,6 +1593,29 @@ List<(String, String)> proveApiDetectorsWork() {
       'found $interfaces, where a base class, a sealed class and a member '
           'named interfaceName are not interfaces and a name declared in two '
           'libraries is one type',
+    ));
+  }
+
+  // Closed sets. Mutation: drop the `class` test and a `sealed mixin` is
+  // reported; match `sealed` anywhere and a member named `sealedAt` is; read
+  // `enum` without the space and `enumerate` is.
+  final closedSets = closedSetsIn(
+    '${lib}enum Ab\n  values: a, b\n'
+    'sealed class Cd\n'
+    'abstract base class Ef\n  bool get sealedAt\n'
+    'final class Gh\n  static const List<Gh> values\n'
+    'sealed mixin Ij\n'
+    'enumerate Kl\n'
+    'library package:p/q.dart\nenum Ab\n  values: a, b\n',
+  );
+  if (closedSets.length != 2 ||
+      closedSets['Ab'] != 'enum' ||
+      closedSets['Cd'] != 'sealed') {
+    broken.add((
+      'closed sets',
+      'found $closedSets, where only an enum and a sealed class are closed '
+          'sets, a class with constants and a base class are not, and a '
+          'name declared in two libraries is one type',
     ));
   }
 

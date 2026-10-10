@@ -380,3 +380,54 @@ List<(String, String)> runtimeToolDependencies(
       for (final dependency in dependencies[package]!.toList()..sort())
         if (tools.contains(dependency)) (package, dependency),
 ];
+
+// ------------------------------------------------- a stable package's ground
+
+/// Run-time dependencies of a package at 1.x on one at 0.x that stand for
+/// now, as `'<package> -> <dependency>'`, each with why. An entry that is no
+/// longer such a dependency is a finding, so the list only shrinks.
+const Map<String, String> unstableDependencyAllowed = <String, String>{
+  'flutter3d_game -> pad_input':
+      'pad_input is a device package on its own version line (0.5), named in '
+      "the publishing sheet. `^0.5.0` holds it to 0.5.x, so a 0.6 cannot "
+      "reach a game unasked, but `PadButton` and `PadInput` are in "
+      "flutter3d_game's own signatures: the package goes to 1.0.0 before "
+      'the 1.0.0 tag, or those signatures stop naming it',
+  'flutter3d_game -> pointer_lock':
+      'pointer_lock is a device package on its own version line (0.5), named '
+      'in the publishing sheet, for the reason pad_input is: `PointerLock` is '
+      "in `DesktopInput`'s constructor, so it goes to 1.0.0 before the tag "
+      'or leaves the signature',
+};
+
+/// The major version of a pubspec `version:` value: `1` for `1.0.0-rc.1`,
+/// `0` for `0.5.0`, null for anything that is not a version.
+///
+/// A pre-release of 1.0.0 counts as 1.x: it is the 1.0 contract the day it
+/// is published, and what it depends on is what 1.0.0 will.
+int? majorVersionOf(String version) =>
+    int.tryParse(RegExp(r'^\s*(\d+)\.\d+\.\d+').firstMatch(version)?[1] ?? '');
+
+/// **S6 of `tasks/1.0-seams.md`: nothing at 1.x stands on 0.x.** The
+/// run-time dependencies, as `(package, dependency)`, of every package in
+/// [dependencies] whose version in [versions] is 1.x or later on one of
+/// this repository's packages at 0.x. A 0.x package may break in any minor,
+/// and what a 1.x package depends on at run time is part of its contract;
+/// a research package (`flutter3d_lab_*`) stays 0.x and depends only on
+/// stable ground, never the other way. A package outside [versions] (one
+/// from pub.dev) is not asked about.
+List<(String, String)> stableOnUnstable(
+  Map<String, Set<String>> dependencies,
+  Map<String, String> versions,
+) {
+  bool stable(String package) =>
+      (majorVersionOf(versions[package] ?? '') ?? 0) >= 1;
+  bool unstable(String package) =>
+      versions.containsKey(package) && majorVersionOf(versions[package]!) == 0;
+  return <(String, String)>[
+    for (final package in dependencies.keys.toList()..sort())
+      if (stable(package))
+        for (final dependency in dependencies[package]!.toList()..sort())
+          if (unstable(dependency)) (package, dependency),
+  ];
+}

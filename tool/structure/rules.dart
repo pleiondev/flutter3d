@@ -66,6 +66,7 @@ List<Rule> get allRules => <Rule>[
     name: 'the runtime depends on no editor, build tool or server',
     run: _runtimeIsNoTool,
   ),
+  (name: 'no package at 1.x depends on one at 0.x', run: _stableOnStable),
   (
     name: 'the simulation stack imports nothing that draws',
     run: _simulationDrawsNothing,
@@ -215,6 +216,7 @@ List<Rule> get allRules => <Rule>[
     name: 'a type somebody implements is a base class, not an interface',
     run: _noNewInterfaces,
   ),
+  (name: 'a public enum or sealed type is decided', run: _closedSetsDecided),
   (
     name: 'every exception hangs from Flutter3dException',
     run: _exceptionsHaveTheRoot,
@@ -3206,11 +3208,13 @@ String _inRepository(File file) =>
 /// **A published enum is a closed list somebody else's `switch` is written
 /// against.** Adding a value to it breaks every one of those, so for a package
 /// whose purpose is that other people build on it, an enum is a promise the
-/// list is finished. Sometimes it is — a mirror of an API somebody else
-/// defines, a document key the engine has to understand to act on. Usually it
-/// is not, and the audit in `doc/boundary-0.5.0.md` found four that were not:
-/// what a weapon fires, what a monster is doing, what a stick is for, and how
-/// a camera projects.
+/// list is finished. Sometimes it is — a direction, a sign, a specification's
+/// own frozen list. Usually it is not: the audit in `doc/boundary-0.5.0.md`
+/// found four that were not (what a weapon fires, what a monster is doing,
+/// what a stick is for, and how a camera projects), and before 1.0 seventy
+/// more were opened, the mirrors of `flutter_gpu` among them, because what
+/// they mirror grows. The public ones are held from the snapshots as well, by
+/// `a public enum or sealed type is decided`.
 ///
 /// The alternative each time is the shape `LightingModel` has had since before
 /// this rule: a `final class` with `static const` instances, which is an enum
@@ -3240,6 +3244,26 @@ List<Finding> _boundaryEnums() {
           ),
         );
       }
+    }
+  }
+  // An entry for an enum that is not one any more is a reason nobody reads,
+  // and it hides the day somebody turns the class back into an enum.
+  for (final entry in boundaryEnumExempt.entries) {
+    final file = File('${repositoryRoot.path}/packages/${entry.key}');
+    if (!file.existsSync()) continue;
+    final declared = <String>{
+      for (final m in enumDeclaration.allMatches(file.readAsStringSync()))
+        m.group(1)!,
+    };
+    for (final name in entry.value.keys) {
+      if (declared.contains(name)) continue;
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`boundaryEnumExempt` names `$name` under ${entry.key}, which '
+              'declares no such enum. Take the entry out',
+        ),
+      );
     }
   }
   return found;
@@ -5213,6 +5237,90 @@ List<Finding> _noNewInterfaces() {
   return found;
 }
 
+/// Every public `enum` and `sealed` type is decided: closed for good with
+/// its reason in [closedForGood], or converted, with [closedSetPending]
+/// holding the ones a later step converts.
+///
+/// **Item 5 of what a 1.x minor cannot fix.** A value added to an enum, or
+/// a subtype to a sealed class, breaks every exhaustive `switch` written
+/// against it, so a public one is frozen until 2.0. Most sets grow — light
+/// types, quality tiers, refusal reasons, placements — and those are classes
+/// with constants or `abstract final` hierarchies, which a minor can add to.
+/// The few that cannot grow without changing what they mean stay closed and
+/// say why.
+///
+/// **It reads the snapshots**, as the interface rule does: a set behind a
+/// `src/` path nobody exports is nobody's `switch`. It fails on a closed set
+/// in neither list, on one [openedSets] says was opened (it should not be an
+/// enum or sealed any more), on a [closedForGood] or [closedSetPending]
+/// entry no snapshot declares as a closed set, and on an [openedSets] entry
+/// no snapshot declares at all.
+///
+/// Mutation: turn `final class SortMode` back into an enum, regenerate the
+/// snapshot, and this names it.
+List<Finding> _closedSetsDecided() {
+  final found = <Finding>[];
+  final closed = <String, String>{};
+  final declared = <String>{};
+  for (final entry in _publishedSnapshots.entries) {
+    final snapshot = entry.value;
+    for (final MapEntry(key: name, value: shape) in closedSetsIn(
+      snapshot,
+    ).entries) {
+      final where = '${entry.key}/api/${entry.key}.api';
+      final kind = shape == 'enum' ? 'enum' : 'sealed class';
+      closed[name] = shape;
+      if (closedForGood.containsKey(name)) continue;
+      if (closedSetPending.containsKey(name)) continue;
+      found.add(
+        Finding(
+          where,
+          openedSets.containsKey(name)
+              ? '`$name` is a public $kind, and `openedSets` says it was '
+                    'decided open, so it should not be one any more: a member '
+                    'a minor release adds would break every exhaustive switch '
+                    'on it. Make it a class with constants (or an abstract '
+                    'final hierarchy) and regenerate the snapshot'
+              : '`$name` is a public $kind, so a member added in a minor '
+                    'release breaks every exhaustive switch on it. Make it a '
+                    'class with constants (or an abstract final hierarchy) '
+                    'and list it in `openedSets`, or say in `closedForGood` '
+                    'why no member can ever be added',
+        ),
+      );
+    }
+    for (final library in parseApi(snapshot).values) {
+      declared.addAll(library.declarations.keys);
+    }
+  }
+  for (final (table, names) in <(String, Iterable<String>)>[
+    ('closedForGood', closedForGood.keys),
+    ('closedSetPending', closedSetPending.keys),
+  ]) {
+    for (final name in names) {
+      if (closed.containsKey(name)) continue;
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`$table` names `$name`, which no snapshot declares as an enum or a '
+              'sealed class. Take the entry out',
+        ),
+      );
+    }
+  }
+  for (final name in openedSets.keys) {
+    if (declared.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`openedSets` names `$name`, which no snapshot declares. Take the '
+            'entry out, or correct the name',
+      ),
+    );
+  }
+  return found;
+}
+
 /// Every published exception reaches `Flutter3dException`, none is named
 /// `…Error`, and each is named `…Exception` (decision H) unless
 /// [exceptionNamePending] still lists it.
@@ -5499,6 +5607,63 @@ List<Finding> _runtimeIsNoTool() {
         Finding(
           'runtimeToolDependencyAllowed → $key',
           'is no longer a dependency: take it off',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// No package at 1.x depends at run time on a package of this repository at
+/// 0.x: S6 of `tasks/1.0-seams.md`.
+///
+/// **There is no `@experimental` in 1.x**, so work that is not ready lives in
+/// 0.x packages (`flutter3d_lab_*`) that may break in any minor. That only
+/// holds while nothing promised under semver stands on them: a 1.x package
+/// whose dependency breaks in a 0.x minor has broken its own users without a
+/// major. A research package depends on the stable seams, never the other
+/// way, and moves to 1.x in a minor once it has proved itself. It reads the
+/// pubspecs' `version:` lines, a pre-release of 1.0.0 counting as 1.x. Dev
+/// dependencies are not asked about; a standing exception is in
+/// [unstableDependencyAllowed] with its reason, and an entry there that is no
+/// longer such a dependency is a finding.
+List<Finding> _stableOnStable() {
+  final dependencies = <String, Set<String>>{};
+  final versions = <String, String>{};
+  for (final MapEntry(key: name, value: dir) in packages.entries) {
+    final pubspec = File('${dir.path}/pubspec.yaml').readAsStringSync();
+    dependencies[name] = pubspecSection(pubspec, 'dependencies');
+    if (_pubspecVersionText(pubspec) case final version?) {
+      versions[name] = version;
+    }
+  }
+  final found = <Finding>[];
+  final allowedNow = <String>{};
+  for (final (package, dependency) in stableOnUnstable(
+    dependencies,
+    versions,
+  )) {
+    final key = '$package -> $dependency';
+    if (unstableDependencyAllowed.containsKey(key)) {
+      allowedNow.add(key);
+      continue;
+    }
+    found.add(
+      Finding(
+        package,
+        'is ${versions[package]} and depends on $dependency, which is '
+        '${versions[dependency]}: a 0.x minor may break it, and with it this '
+        'package\'s users without a major. Move $dependency to 1.0.0, or '
+        'depend on the stable seam under it',
+      ),
+    );
+  }
+  for (final key in unstableDependencyAllowed.keys) {
+    if (!allowedNow.contains(key)) {
+      found.add(
+        Finding(
+          'unstableDependencyAllowed → $key',
+          'is no longer a 1.x package depending on a 0.x one: take it off',
         ),
       );
     }

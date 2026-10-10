@@ -868,11 +868,13 @@ String relative(File file, Directory dir) => file.path
 /// purpose is that other people build on it, that is the wrong shape by
 /// default. The audit that produced this table is `doc/boundary-0.5.0.md`.
 ///
-/// What survives is machinery: a set that is finite, ours, and complete — the
-/// backends' mirror of `flutter_gpu`, a document key the engine has to
-/// understand to act on, a state the whole repository is built around. Content
-/// — what a weapon fires, what a monster is doing, where an asset lives — is
-/// not on this list, and four such enums were opened rather than added to it.
+/// What survives since 1.0 is a set closed for good, whose members are fixed by
+/// what the type means (a direction, a sign, a yes or a no, a specification's
+/// own frozen list), or one nothing outside can reach: private, or exported by
+/// no library. The public ones are in [closedForGood] too, which the rule
+/// `a public enum or sealed type is decided` reads against the snapshots.
+/// Machinery that merely mirrors something (`flutter_gpu`'s state, a document
+/// key) was opened rather than kept here, because the thing it mirrors grows.
 ///
 /// A file's entry names each enum and says why. An enum that appears in a
 /// published package without a reason here fails the rule, which is the point:
@@ -882,551 +884,144 @@ boundaryEnumExempt = <String, Map<String, String>>{
   'flutter3d_lints/lib/src/migration/migration_rule.dart': <String, String>{
     'MigrationKind':
         'private to the package (under src/, exported by no library): the '
-        'three things the generated migration table asks of a resolved use. '
-        'A new kind comes with the scan that carries it out, in the same '
+        'three things the generated migration table asks of a resolved use. A '
+        'new kind comes with the scan that carries it out, in the same '
         'commit, and nothing outside switches over it',
     'MigrationMatch':
         'private to the package for the same reason as MigrationKind: which '
         'uses a manual migration reports, read only by the scan beside it',
   },
-  'flutter3d_sim/lib/src/actors/blackboard.dart': <String, String>{
-    'BehaviorStatus':
-        'success, failure and running are the whole algebra a behaviour '
-        "tree's composites are defined over. A fourth is not an outcome a "
-        "leaf is missing; it is a different kind of tree, and every "
-        'composite would have to be rewritten for it anyway',
-  },
   'flame_flutter3d/lib/src/world/grid_mover.dart': <String, String>{
     'GridHeading':
-        'the four ways out of a square cell and standing still. A fifth '
-        'would not be a heading this grid is missing — a square cell has '
-        'no other side to leave by',
-  },
-  'flutter3d_sim/lib/src/input/game_action.dart': <String, String>{
-    'ActionKind':
-        'mirrors the sealed InputAction family one for one: button, axis, '
-        'dual axis. A tape, a saved action map and a rebinding screen each '
-        'write every kind down, so a fourth kind is a format change that '
-        'comes with its own sealed subclass, not a value somebody adds',
-  },
-  'flutter3d_game/lib/src/input/action_map.dart': <String, String>{
-    'CompositePart':
-        'the two ends of a one-axis composite and the four directions of a '
-        'two-axis one: the parts the two sealed composite bindings have. A '
-        'composite with another part is another binding shape, sealed in the '
-        'same file',
-    'ConflictPolicy':
-        'take, trade or refuse are the whole of what can be done with a '
-        'source another action holds; ActionMap.rebind switches over them '
-        'and nothing outside it does',
-  },
-  'flutter3d_education/lib/src/lti/lti_launch_claims.dart': <String, String>{
-    'LtiMessageType':
-        "the IMS LTI 1.3 core spec's own closed set of message types "
-        '(`LtiResourceLinkRequest`, `LtiDeepLinkingRequest`, ...). A launch '
-        "naming a sixth is not naming a message type this package's own "
-        'switch is missing — it is not a valid LTI 1.3 launch',
-  },
-  'flutter3d_education/lib/src/lti/ags_score.dart': <String, String>{
-    'AgsActivityProgress':
-        "the IMS Assignment and Grade Services spec's own five values for "
-        "how far a student got. A sixth is not this package's to invent",
-    'AgsGradingProgress':
-        "the same spec's own values for how far grading got, for the same "
-        'reason',
-  },
-  'flutter3d_mesh/lib/src/recipes.dart': <String, String>{
-    'RecipeCategory':
-        'how a gallery groups the models this package builds, and the set '
-        'is the gallery\'s own four sections rather than a taxonomy '
-        'anybody outside switches over. The one `switch` is the heading a '
-        'card draws; a fifth section is a fifth heading in that same file, '
-        'not a case somebody else has to answer',
-  },
-  'flutter3d_editor_widgets/lib/src/number_expression.dart': <String, String>{
-    'NumberUnit':
-        'what one field\'s own numbers mean, and the set is the two things '
-        'this application measures — a length and an angle — plus "neither". '
-        'A `switch` over it lives in one function beside the enum, and a '
-        'third kind of field would be a third kind of unit table in the same '
-        'file rather than a new case anybody outside has to answer',
-  },
-  'flutter3d_core/lib/src/formats/gltf/gltf_accessor_type.dart':
-      <String, String>{
-        'GltfComponentType':
-            "the glTF specification's own component types. The set is the "
-            "format's, and a file that names a fifth is not a glTF file",
-        'GltfAccessorType':
-            "the same specification's accessor types, for the same reason",
-      },
-  'flutter3d_core/lib/src/formats/gltf/gltf_primitive_mode.dart':
-      <String, String>{
-        'GltfPrimitiveMode':
-            "the glTF specification's seven primitive modes, numbered by the "
-            'format',
-      },
-  'flutter3d_core/lib/src/formats/surface_material.dart': <String, String>{
-    'SurfaceAlphaMode':
-        "glTF's three alpha modes. A decoder for another format maps onto "
-        'these; it does not add to them',
-    'MaterialMap':
-        "the five maps glTF's core material names, each read through its own "
-        '`KHR_texture_transform` slot in the layered stage. A sixth map is a '
-        'slot in that stage, not a value here',
-    'TextureWrap':
-        'the three wrap modes glTF names, which are also the three every '
-        'GPU sampler has',
-  },
-  'flutter3d_core/lib/src/engine/render/material.dart': <String, String>{
-    'MaterialAlphaMode':
-        'the engine side of SurfaceAlphaMode, and a fourth would need a '
-        'pipeline the shaders do not have',
-  },
-  'flutter3d_core/lib/src/formats/animation/animation_track.dart':
-      <String, String>{
-        'AnimationInterpolation':
-            "glTF's three interpolations; the sampler implements exactly these",
-        'AnimationPath':
-            'the four channel targets glTF defines. A fifth is not a thing the '
-            'format can express',
-      },
-  'flutter3d_core/lib/src/engine/animation/animation_target.dart':
-      <String, String>{
-        'AnimationWrap':
-            'how a clip ends. Each value is a branch in the sampler, so a fifth '
-            'is code rather than a name',
-      },
-  'flutter3d_model_core/lib/src/exporting.dart': <String, String>{
-    'ExportFormat':
-        'each value carries the writer that produces it — `f3d(F3dModelWriter())`, '
-        '`glb(GlbModelWriter())` and the rest — so a fifth format is a `ModelWriter` '
-        'somebody wrote, not a name added to a list. The one `switch` over it picks '
-        'an extension in `bin/export.dart`, beside the enum, and a caller outside '
-        'reads `ExportFormat.values` rather than naming cases',
-    'TextureEncoding':
-        'what an export does to its images, and the set is what the writers can '
-        'actually produce. A sixth encoding is an encoder in `flutter3d_core`, not a '
-        'value here; the switches over it live in this same file, choosing which of '
-        'those encoders to call',
-  },
-  'flutter3d_core/lib/src/engine/animation/animation_layer.dart':
-      <String, String>{
-        'AnimationBlend':
-            'how a layer meets the base. Both values are whole arithmetic in '
-            'the player — one replaces a joint, the other adds a delta to it '
-            'per path — so a third is a third set of formulas there rather '
-            'than a name anybody outside has to answer',
-      },
-  'flutter3d_core/lib/src/engine/scene/light_node.dart': <String, String>{
-    'LightType':
-        'the three the lit shaders have code for. A fourth kind of light is '
-        'a shader, not a value',
-  },
-  'flutter3d_core/lib/src/engine/scene/mesh_node.dart': <String, String>{
-    'ShadowCastingMode':
-        "the engine side of the level document's ShadowCasting, which is "
-        'closed for the reason that one is',
-  },
-  'flutter3d_core/lib/src/engine/render/render_node.dart': <String, String>{
-    'FramePhase':
-        "the renderer's own passes, in the order it runs them. A phase it "
-        'does not run is not a phase',
-  },
-  'flutter3d_core/lib/src/engine/render/render_view.dart': <String, String>{
-    'SortMode':
-        'the orders the renderer knows how to sort in. Each is code in the '
-        'sort, not a label',
-  },
-  'flutter3d_core/lib/src/engine/render/composite_mix.dart': <String, String>{
-    'CompositeView':
-        'which buffer the composite shows. Each value is a branch in a '
-        'shader that ships compiled',
-  },
-  'flutter3d_core/lib/src/engine/render/resource_desc.dart': <String, String>{
-    'ResourceOrigin':
-        'where a frame resource comes from, which the frame graph switches '
-        'on to allocate it',
-  },
-  'flutter3d_core/lib/src/engine/render/shadow_settings.dart': <String, String>{
-    'ShadowCasterFaces':
-        'which faces go into the shadow map. Three ways to set cull state, '
-        'and there is no fourth',
-  },
-  'flutter3d_core/lib/src/engine/render/parity_scene.dart': <String, String>{
-    'ParityScene':
-        'names the fixtures this repository compares across backends. '
-        'Adding one is recording three golden sets, which is not something '
-        'a caller does',
-  },
-  'flutter3d_core/lib/src/formats/model_loader.dart': <String, String>{
-    'ModelFormat':
-        'names the three decoders this package ships, plus auto. A format it '
-        'does not ship never reaches this switch: a game supplies a '
-        "ModelDecoder on the request and that decoder's own `handles` picks "
-        'it, before any of these are consulted. Adding a value here means '
-        'adding a decoder to this package',
-  },
-  'flutter3d_mesh/lib/src/attributes.dart': <String, String>{
-    'MeshDomain':
-        'the four things a half-edge mesh is made of — vertex, corner, edge, '
-        'face. A fifth is not a value somebody passes; it is a different data '
-        'structure, and every operation in the package switches on these four',
-    'MeshAttribute':
-        'the layers `EditMesh` stores. Adding one means adding an array to '
-        'that class, so a caller cannot name a value this list does not have',
-  },
-  'flutter3d_mesh/lib/src/checks.dart': <String, String>{
-    'IssueSeverity':
-        'how much a check\'s finding matters: worth knowing, probably not '
-        'what somebody meant, or will not survive being drawn. Three is what '
-        'a panel can show and a person can triage, and a fourth would be a '
-        'shade of one of these rather than a new kind of answer. The set of '
-        '*findings* is open and is a value with instances, not an enum',
-  },
-  'flutter3d_mesh/lib/src/bsp.dart': <String, String>{
-    'CsgOperation':
-        'the three boolean operations a binary space partition answers — '
-        'union, subtract, intersect. A fourth would need its own clip/invert '
-        'recipe worked out from the same reference algorithm this file '
-        'already transcribes the other three from, not a value slipped into '
-        'an existing switch',
-  },
-  'flutter3d_model_core/lib/src/command.dart': <String, String>{
-    'TransformPivot':
-        'the three points a turn or a scale can be about: the middle of the '
-        'selection, each object own centre, and the cursor. A fourth is not a '
-        'value somebody passes — it is a place the interface would have to '
-        'let a person put, which is a feature with its own control',
-    'TransformSpace':
-        'world axes or the object own. There is no third frame a transform '
-        'can be expressed in that this editor has a control for; a gimbal or '
-        'a parent frame would arrive with the rig that needs it',
-  },
-  'flutter3d_model_core/lib/src/project.dart': <String, String>{
-    'ProfileTarget':
-        'the three kinds of machine a profile is written for. A rule reading '
-        'it switches on exactly these three, and a fourth — a console, say — '
-        'is a shape of hardware nothing here has been measured against, not '
-        'a value somebody passes to an existing rule',
-  },
-  'flutter3d_model_core/lib/src/object_commands.dart': <String, String>{
-    'OriginPlacement':
-        'where an object own origin goes: the middle of the bounds, the '
-        'middle of the bottom, or the world origin. The first is what a spin '
-        'wants, the second is what anything standing on a floor wants, and '
-        'the third is how a model authored off-centre gets put back. A fourth '
-        'would be a point somebody picks, and picking a point is the cursor, '
-        'which is a control and not a value',
-  },
-  'flutter3d_model_core/lib/src/readiness.dart': <String, String>{
-    'ExportSeverity':
-        'whether the result will fail to load or merely disappoint. Those are '
-        'the two answers an export dialogue can act on — refuse, or warn and '
-        'let the person decide — and a third would be an answer with nothing '
-        'to do about it',
-  },
-  'flutter3d_model_core/lib/src/selection.dart': <String, String>{
-    'SelectionMode':
-        'whether the modeller is pointing at objects or at parts of one mesh. '
-        'The two are the modes the plan names, and a third would not be a '
-        'value passed to anything — it would be a mode with its own tools, '
-        'its own commands and its own panel, which is a feature rather than '
-        'an enum value',
-  },
-  'flutter3d_mesh/lib/src/selection.dart': <String, String>{
-    'ElementLevel':
-        'the three things in a half-edge mesh a person can point at. A fourth '
-        'is not a value somebody passes; every conversion, grow and shrink in '
-        'the file switches on these three, and decision Б7 of the model '
-        'editor plan chose an enum here over a sealed class for that reason',
-  },
-  'flutter3d_core/lib/src/formats/obj/obj_loader.dart': <String, String>{
-    'ObjNormals':
-        'what to do when an OBJ has no normals. Smooth or flat, and there '
-        'is no third answer the decoder could give',
-  },
-  'flutter3d_model_core/lib/src/project_document.dart': <String, String>{
-    'UpAxis':
-        'the two conventions a 3D file actually uses. A third axis being '
-        '"up" is not a thing any format this reads asks for',
-  },
-  'flutter3d_model_core/lib/src/autosave.dart': <String, String>{
-    'RecoveryDecision':
-        'open the file or offer the autosave — a two-way fork a dialog reads '
-        'to know which button to show, and there is no third answer opening '
-        'a project could need',
-  },
-  'flutter3d_model_core/lib/src/texture_info.dart': <String, String>{
-    'TextureFileFormat':
-        "the vkFormat families this file's own switch maps to a block "
-        "layout — BC1/BC3/BC7/ETC2 RGBA8/ASTC 4×4, the set mat-30's encoder "
-        'targets — plus rgba8 for a plain PNG/JPEG and other for every '
-        'vkFormat none of those name. A format this does not recognise '
-        'already falls into other rather than needing a new case, so a '
-        'texture panel switching on this never sees a value it was not '
-        'built for',
-  },
-  'flutter3d_model_core/lib/src/texture_graph.dart': <String, String>{
-    'TextureValueType':
-        "the two socket kinds mat-10's own texture compositor reads and "
-        "writes — color and scalar. A third would be a new kind of data a "
-        "texture slot could hold, not a value slipped into an existing "
-        "node's switch, and every node's own inputs/outputType already "
-        "names one of exactly these two",
-    'TextureBlendMode':
-        'the blend recipes this compositor bakes — normal, multiply, add, '
-        'screen — a fixed list by the same Ж1 decision that fixed the node '
-        "set itself. A fifth needs its own baked recipe worked out, the "
-        "same way CsgOperation's own boolean recipes do, not a name added "
-        "to an existing switch",
-    'TextureChannel':
-        'the four channels a colour has — r, g, b, a — which is not a '
-        "number this format is ever going to grow a fifth of",
-  },
-  'flutter3d_model_core/lib/src/texture_resize.dart': <String, String>{
-    'ResizeFilter':
-        'the two ways `resizeRgba` samples a source image — an average '
-        'over an area, or an interpolation between four points. A third '
-        'resampling algorithm is a real feature, worth its own review, not '
-        'a value slipped into the switch these two already are',
-  },
-  'flutter3d_model_core/lib/src/history.dart': <String, String>{
-    'StepAuthor':
-        "mcp-10n's own two hands on the keyboard — a person at the app, "
-        'an agent over MCP. A third kind of author is a different feature '
-        '(a second agent, a plugin) worth its own row, not a value added '
-        'to the one switch an undo\'s own authorship check already is',
-  },
-  'flutter3d_core/lib/src/formats/stl/stl_loader.dart': <String, String>{
-    'StlNormals':
-        'whether a facet\'s own normal record is trusted or recomputed from '
-        'its triangle. Unlike OBJ, STL always carries a normal, so this is a '
-        'choice about how much to trust it rather than what to do when it is '
-        'missing — and there is no third answer there either',
-  },
-  'flutter3d_core/lib/src/formats/model_light.dart': <String, String>{
-    'ModelLightType':
-        "`KHR_lights_punctual`'s own three light shapes. The extension "
-        'defines exactly directional, point and spot; a fourth is not a '
-        'thing a decoded document can honestly claim to hold',
-  },
-  'flutter3d_core/lib/src/engine/assets/model_writer.dart': <String, String>{
-    'ModelWriteFormat':
-        'the writers `flutter3d_formats` has: `ObjWriter`, `GltfWriter`, '
-        '`F3dWriter`, `StlWriter` (binary and ASCII). A fifth value needs a '
-        'fifth writer built and reviewed first — this enum only names the '
-        'ones `encodeModel`\'s own switch already knows how to reach',
-  },
-  'flutter3d_webgpu/lib/src/webgpu_bundle_section.dart': <String, String>{
-    'WebGpuTextureDimension':
-        'the shapes of texture this backend has a bind group layout entry '
-        'for, spelled the way WebGPU spells them. A value it does not have '
-        'is a sampler declaration the shader translator refuses, so the set '
-        'is closed at the far end of the pipeline rather than here',
-  },
-  'flutter3d_physics/lib/src/collider.dart': <String, String>{
-    'ColliderKind':
-        'the four the solver has paths for. A fifth kind is a solver '
-        'change, not a value',
-  },
-  'flutter3d_physics/lib/src/collision_wedge.dart': <String, String>{
-    'WedgeUphill':
-        'which way a wedge rises. Four directions on a grid, and geometry '
-        'has no fifth',
-  },
-  'flutter3d_sim/lib/src/level/brush.dart': <String, String>{
-    'ShadowCasting':
-        'a level document key. The engine has to understand it to act on '
-        'it, so a document naming a mode this build does not know is a '
-        'document it cannot draw — see doc/boundary-0.5.0.md',
-  },
-  'flutter3d_sim/lib/src/level/level_light.dart': <String, String>{
-    'LevelLightType':
-        "the document's spelling of LightType, closed for the reason that "
-        'one is',
-  },
-  'flutter3d_sim/lib/src/level/level_issue.dart': <String, String>{
-    'LevelIssueSeverity':
-        'how badly a level is wrong. Three, and the validator decides what '
-        'to do with each',
-  },
-  'flutter3d_sim/lib/src/world/mover.dart': <String, String>{
-    'MoverState':
-        'where a moving platform is in its cycle, which its own step '
-        'drives. A game does not put it in a state the step cannot leave',
-  },
-  'flutter3d_sim/lib/src/loop/run_outcome.dart': <String, String>{
-    'RunOutcome':
-        'playing, won, lost. The vocabulary all three games and every '
-        'screen are built on, and the same set RunStatus is sealed around',
-  },
-  'flutter3d_sim/lib/src/save/save_record.dart': <String, String>{
-    'SaveResolution':
-        'what can come of comparing two copies of one thing: they are the '
-        'same, keep this one, keep that one, or nobody but the player can '
-        'say. A fifth would not be an answer this comparison is missing',
-  },
-  'flutter3d_editor_core/lib/src/gizmos.dart': <String, String>{
-    'Piece':
-        'the three things a level document is made of, seen from an editor: '
-        'geometry, a light, and everything else the document names. It is '
-        'closed because the format is — a fourth member would be a fourth '
-        'top-level list in Level, which is a document change and not a value',
-  },
-  'flutter3d_game_shooter/lib/src/simulation.dart': <String, String>{
-    'GameState':
-        'whether this simulation is running, over, or finished. Pausing and '
-        "cutscenes belong to the application; these three are the step's "
-        'own',
-  },
-  'flutter3d_game_platformer/lib/src/simulation.dart': <String, String>{
-    'RunState': 'the same three the shooter has, in this genre',
-  },
-  'flutter3d_game_racing/lib/src/race_phase.dart': <String, String>{
-    'RacePhase':
-        'countdown, running, finished. The lights, the race and the end of '
-        'it, driven by this package',
-  },
-  'flutter3d_sim_mcp/lib/src/playtest.dart': <String, String>{
-    'PlaytestOutcome':
-        'died, exited, stuck, or timed out — the four ways `Playtest.run`\'s '
-        'own loop can decide a playthrough is over, tied to the parameters '
-        '(`maxSteps`, `stuckAfter`) that same loop reads. Not content: a '
-        'fifth way to end would be a fifth branch in that loop, not a '
-        "monster or a weapon this package has never heard of",
-  },
-  'flutter3d_sim_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
-    'DiagnosticView':
-        'lit, normals, shadowMap, staticShadowMap — the four debug outputs '
-        '`RenderSettings` itself already knows how to produce. A fifth view '
-        'would need a fifth setting on that class before this package could '
-        'read it back at all; this enum only names what is already there, '
-        'the same reason `RenderSettings.showShadowMap` and its siblings are '
-        'booleans and not a growing list',
+        'closed for good, as `closedForGood` says: the four ways out of a '
+        'square cell, and standing still: a square has no fifth side to leave '
+        'by',
   },
   'flame_flutter3d/lib/src/transform/object3d_component.dart': <String, String>{
     'SyncDirection':
-        'which of two sides writes a frame\'s transform into the other, and '
-        'there are exactly two sides to a bridge between two engines. A '
-        'third value would not be a third direction — there is nowhere else '
-        'for a write to come from — so the `switch` beside it in the same '
-        'file is exhaustive by the shape of the problem, not by omission',
+        'closed for good, as `closedForGood` says: which of the two engines '
+        "writes the other's transform: a bridge has two ends, and a write "
+        'comes from one of them',
   },
-  'flame_flutter3d/lib/src/transform/plane.dart': <String, String>{
-    'PlaneAxis':
-        'which flutter3d axis, Y or Z, a bridge plane holds constant. A '
-        'third case is not a third plane the game genres this package '
-        'targets — top-down and side-scrolling — actually have; it would be '
-        'a plane perpendicular to X, which reads as neither a ground nor a '
-        'backdrop, and adding it is exactly the kind of case this rule '
-        'wants argued for rather than typed. It is not, yet',
+  'flutter3d_education/lib/src/lti/ags_score.dart': <String, String>{
+    'AgsActivityProgress':
+        'closed for good, as `closedForGood` says: the five values of IMS '
+        'Assignment and Grade Services 2.0: the specification carries its own '
+        'version, and another value is another version of it',
+    'AgsGradingProgress':
+        'closed for good, as `closedForGood` says: the five values of IMS '
+        'Assignment and Grade Services 2.0: the specification carries its own '
+        'version, and another value is another version of it',
   },
-  'flutter3d_sim/lib/src/level/level_sketch.dart': <String, String>{
-    '_Axis':
-        'private to the sketch: the two horizontal axes a wall runs '
-        'along. There is no third horizontal axis',
+  'flutter3d_core/lib/src/formats/gltf/gltf_accessor_type.dart': <String, String>{
+    'GltfComponentType':
+        "closed for good, as `closedForGood` says: glTF 2.0's own component "
+        'types: the specification is versioned, and a file naming another is '
+        'not glTF 2.0',
+    'GltfAccessorType':
+        "closed for good, as `closedForGood` says: glTF 2.0's own accessor "
+        'types: the specification is versioned, and a file naming another is '
+        'not glTF 2.0',
   },
-  'flutter3d_core/lib/src/formats/splat/splat_cloud.dart': <String, String>{
-    'SplatColorSpace':
-        "how a capture's colours were stored, which decides the one "
-        'conversion the reader makes. A colour is stored encoded or it '
-        'is not',
+  'flutter3d_core/lib/src/formats/gltf/gltf_primitive_mode.dart': <String, String>{
+    'GltfPrimitiveMode':
+        "closed for good, as `closedForGood` says: glTF 2.0's seven primitive "
+        'modes, numbered by the format: the specification is versioned, and a '
+        'file naming an eighth is not glTF 2.0',
   },
-  'flutter3d_core/lib/src/formats/animation/animation_pointer.dart':
-      <String, String>{
-        'AnimationPointerTarget':
-            'the two objects `KHR_animation_pointer` paths reach that the '
-            'player applies to. A third is code in `PointerTargets`, not a '
-            'name',
-        'AnimationPointerProperty':
-            'the pointer paths the player knows how to apply, each carrying '
-            'its component count. A path it cannot apply is refused on '
-            'load, so a new one is code in the player first',
-      },
-  'flutter3d_core/lib/src/geometry/mesh_tangents.dart': <String, String>{
-    'TangentMethod':
-        'the two tangent frames the generator has code for: the one glTF '
-        'and every baker assume, and a one-pass fast path. A third frame is '
-        'a third generator in the same file before it is a value',
+  'flutter3d_core/lib/src/engine/render/shadow_settings.dart': <String, String>{
+    'ShadowCasterFaces':
+        'closed for good, as `closedForGood` says: front, back or both: every '
+        "non-empty set of a triangle's two faces",
+  },
+  'flutter3d_core/lib/src/engine/render/composite_mix.dart': <String, String>{
+    'CompositeView':
+        'exported by no library: which buffer the composite shows, each value '
+        'a branch in a shader that ships compiled',
+  },
+  'flutter3d_core/lib/src/engine/render/parity_scene.dart': <String, String>{
+    'ParityScene':
+        'exported by no library: names the fixtures this repository compares '
+        'across backends. Adding one is recording three golden sets, which is '
+        'not something a caller does',
   },
   'flutter3d_core/lib/src/engine/render/renderer_shadow_pass.dart':
       <String, String>{
         '_StaticTile':
-            'private to the shadow pass: what a static tile does this '
-            'frame, one branch of the pass each',
+            'private to the shadow pass: what a static tile does this frame, one '
+            'branch of the pass each',
       },
-  'flutter3d_core/lib/src/engine/render/pass_contributor.dart':
-      <String, String>{
-        'ReactiveShape':
-            'the coverage shapes `post/reactive_sprite.frag` has code for, '
-            'in its order. A fourth is a shader branch before it is a value',
-      },
-  'flutter3d_core/lib/src/engine/render/render_settings.dart': <String, String>{
-    'OutputTransform':
-        'the curves the composite stage has code for and the swap-chain '
-        'formats the backends expose. Another curve is shader code and '
-        'a surface format first',
-    'TransparencyMode':
-        'the two ways the renderer composites what blends: the sorted '
-        'pass and the weighted blended targets. Each is a pass of its '
-        'own',
-    'DiffuseModel':
-        'the diffuse lobes the lit stages have code for, chosen by one '
-        'frame-wide lane. A third lobe is a shader branch',
-    'TemporalClip':
-        'the axis tables the temporal resolve clips against, each a '
-        'precomputed set the shader reads. Another size is another '
-        'table',
-  },
-  'flutter3d_core/lib/src/engine/render/splat_contributor.dart':
-      <String, String>{
-        'SplatComposite':
-            'how a splat cloud composites: sorted blending, a hashed test, '
-            "or whichever the frame's temporal setting calls for. Each is a "
-            'stage and a draw path',
-      },
-  'flutter3d_core/lib/src/engine/scene/occlusion/occlusion_test.dart':
-      <String, String>{
-        'OcclusionMode':
-            'the occlusion tests the renderer runs: none, the software '
-            "rasteriser's, and the depth pyramid's. Each is a pass the "
-            'renderer schedules',
-      },
-  'flutter3d_model_core/lib/src/asset_audit.dart': <String, String>{
-    'AuditCheck':
-        'the checks `auditAsset` runs, each a function in the same file '
-        'that a report groups its findings under. A sixth is a sixth '
-        'function there',
-  },
   'flutter3d_cpu/lib/src/cpu_encoder.dart': <String, String>{
     '_Storage':
         'private to the encoder: the three pixel storages the software '
         'rasteriser keeps a target in',
   },
+  'flutter3d_webgpu/lib/src/webgpu_bundle_section.dart': <String, String>{
+    'WebGpuTextureDimension':
+        'exported by no library: the shapes of texture this backend has a '
+        'bind group layout entry for, spelled the way WebGPU spells them',
+  },
+  'flutter3d_physics/lib/src/collision_wedge.dart': <String, String>{
+    'WedgeUphill':
+        'closed for good, as `closedForGood` says: the four horizontal '
+        'directions of the grid a wedge rises towards: a grid has no fifth',
+  },
+  'flutter3d_sim/lib/src/level/level_sketch.dart': <String, String>{
+    '_Axis':
+        'private to the sketch: the two horizontal axes a wall runs along. '
+        'There is no third horizontal axis',
+  },
+  'flutter3d_model_core/lib/src/texture_graph.dart': <String, String>{
+    'TextureChannel':
+        'closed for good, as `closedForGood` says: r, g, b and a: the four '
+        'channels of an RGBA colour',
+  },
+  'flutter3d_model_core/lib/src/autosave.dart': <String, String>{
+    'RecoveryDecision':
+        'closed for good, as `closedForGood` says: open the saved file or '
+        'offer the autosave: the two answers to whether the autosave is newer',
+  },
+  'flutter3d_hardware/lib/src/formats.dart': <String, String>{
+    'WindingOrder':
+        'closed for good, as `closedForGood` says: clockwise or '
+        'counter-clockwise: the two orientations a triangle has',
+    'CompareFunction':
+        'closed for good, as `closedForGood` says: never, always and the six '
+        'comparisons: every function from less, equal and greater to pass or '
+        'fail',
+    'StencilFace':
+        'closed for good, as `closedForGood` says: front, back or both: every '
+        "non-empty set of a triangle's two faces",
+    'FramebufferOrigin':
+        'closed for good, as `closedForGood` says: whether row zero is the '
+        'top or the bottom: the sign of the y axis',
+  },
+  'flutter3d_hardware/lib/src/resources.dart': <String, String>{
+    'StorageTextureAccess':
+        'closed for good, as `closedForGood` says: read, write, or both: '
+        'every non-empty set of the two ways to touch a texel',
+  },
+  'pad_input/lib/src/gamepad_platform_interface.dart': <String, String>{
+    'PadConnection':
+        'closed for good, as `closedForGood` says: connected or not: a yes or '
+        'a no, kept as two states for which way it changed',
+  },
+  'pointer_lock/lib/src/pointer_lock_platform_interface.dart': <String, String>{
+    'CaptureState':
+        'closed for good, as `closedForGood` says: captured or released: a '
+        'yes or a no, kept as two states for who released it',
+  },
 };
 
 /// Whole packages whose enums are all machinery, and the one reason each time.
 ///
-/// Three packages mirror something they do not own — `flutter_gpu`'s pipeline
-/// state, the gamepad the platform reports, the pointer lock the browser has —
-/// and every value in them exists because the thing on the other side has it.
-/// A third-party backend or platform implementation is obliged to handle all of
-/// them, which is the definition of a set that is finite and not ours to grow
-/// on a whim. Listing them one at a time would be the same sentence twenty-five
-/// times.
-///
-/// Adding a value to one of these is still a breaking change and is still
-/// recorded as one; see `doc/boundary-0.5.0.md`.
-const Map<String, String> boundaryEnumPackageExempt = <String, String>{
-  'flutter3d_hardware':
-      'mirrors flutter_gpu. Every value is one the graphics API has, and a '
-      'third-party backend must handle each of them',
-  'pad_input':
-      'mirrors what a gamepad platform reports. The buttons and axes are the '
-      "device's, not this package's",
-  'pointer_lock':
-      "mirrors the platform's pointer lock, which has exactly these states",
-};
+/// Empty since 1.0. Three packages used to be here because they mirror
+/// something they do not own (`flutter_gpu`'s pipeline state, a gamepad, the
+/// browser's pointer lock), but a mirrored set still grows when the thing on
+/// the other side does, and that growth is exactly what an enum cannot take
+/// in a minor release. What is left of them is one closed enum each, named
+/// above with its reason like any other.
+const Map<String, String> boundaryEnumPackageExempt = <String, String>{};
 
 /// Files inside a stepped package allowed to call the machine's `dart:math`.
 ///
@@ -1976,6 +1571,229 @@ const Map<String, String> exceptionNamePending = <String, String>{
       'renamed with the render-snapshot work',
 };
 
+// ------------------------------------------------- 1.0: closed sets
+
+/// Public enums and sealed types that stay closed, by name, with the reason
+/// no member can ever be added to them.
+///
+/// **Item 5 of what a 1.x minor cannot fix** (`tasks/1.0-stability.md`): a
+/// value added to a public `enum`, or a subtype to a public `sealed` class,
+/// breaks every exhaustive `switch` somebody wrote against it, so it can only
+/// come in a major. Under strict semver that freezes the type for the life of
+/// 1.x. A type earns a place here only when a new member would change what
+/// the type means: a direction, a sign, the two answers of a yes or a no, a
+/// fixed mathematical set, a specification's own frozen list with its own
+/// version. Everything that names a kind, a tier, a reason, a phase, a mode,
+/// a refusal, a placement, a backend, a format or a policy is open, and is in
+/// [openedSets] instead. Each type here says the same in its own doc.
+const Map<String, String> closedForGood = <String, String>{
+  'AgsActivityProgress':
+      'the five values of IMS Assignment and Grade Services 2.0: the '
+      'specification carries its own version, and another value is another '
+      'version of it',
+  'AgsGradingProgress':
+      'the five values of IMS Assignment and Grade Services 2.0: the '
+      'specification carries its own version, and another value is another '
+      'version of it',
+  'CaptureState':
+      'captured or released: a yes or a no, kept as two states for who '
+      'released it',
+  'CloudFetch':
+      'a copy, none, or the store could not say: yes, no and unknown to '
+      'whether there is a copy',
+  'CloudPut':
+      'kept, overtaken, or the store could not say: yes, no and unknown to '
+      'whether a write won',
+  'CompareFunction':
+      'never, always and the six comparisons: every function from less, equal '
+      'and greater to pass or fail',
+  'FramebufferOrigin':
+      'whether row zero is the top or the bottom: the sign of the y axis',
+  'GltfAccessorType':
+      "glTF 2.0's own accessor types: the specification is versioned, and a "
+      'file naming another is not glTF 2.0',
+  'GltfComponentType':
+      "glTF 2.0's own component types: the specification is versioned, and a "
+      'file naming another is not glTF 2.0',
+  'GltfPrimitiveMode':
+      "glTF 2.0's seven primitive modes, numbered by the format: the "
+      'specification is versioned, and a file naming an eighth is not glTF '
+      '2.0',
+  'GridHeading':
+      'the four ways out of a square cell, and standing still: a square has '
+      'no fifth side to leave by',
+  'LevelPatchResult':
+      'patched or refused: the two answers to whether a patch applies, with '
+      'the reason inside the refusal',
+  'PadConnection':
+      'connected or not: a yes or a no, kept as two states for which way it '
+      'changed',
+  'ProjectRead':
+      'opened or refused: the two answers to whether a file could be read, '
+      'with the reason inside the refusal',
+  'RecoveryDecision':
+      'open the saved file or offer the autosave: the two answers to whether '
+      'the autosave is newer',
+  'SaveRead':
+      'found or not read: the two answers to whether a document holds a save, '
+      'with the reason inside the refusal',
+  'SaveUpgrade':
+      'upgraded or refused: the two answers to whether a save can be carried '
+      'forward, with the reason inside the refusal',
+  'ScrubAnswer':
+      'moved or refused: the two answers to whether a scrub landed, with the '
+      'reason inside the refusal',
+  'ServiceAnswer':
+      'done or refused: the two answers a service gives, with the reason '
+      'inside the refusal',
+  'ShadowCasterFaces':
+      "front, back or both: every non-empty set of a triangle's two faces",
+  'StencilFace':
+      "front, back or both: every non-empty set of a triangle's two faces",
+  'StorageTextureAccess':
+      'read, write, or both: every non-empty set of the two ways to touch a '
+      'texel',
+  'SyncDirection':
+      "which of the two engines writes the other's transform: a bridge has "
+      'two ends, and a write comes from one of them',
+  'TapeBisection':
+      'agree or diverge: the two answers to whether two tapes play alike, '
+      'with where inside the divergence',
+  'TextureChannel': 'r, g, b and a: the four channels of an RGBA colour',
+  'WedgeUphill':
+      'the four horizontal directions of the grid a wedge rises towards: a '
+      'grid has no fifth',
+  'WindingOrder':
+      'clockwise or counter-clockwise: the two orientations a triangle has',
+};
+
+/// Public types that were an `enum` or a `sealed` class and were opened
+/// before 1.0, by name, with the package and the shape they took.
+///
+/// **A record of a decision, and a guard on it.** Each was decided open: an
+/// enum became a class with `static const` members and a private constructor
+/// (the shape `DeviceFeature` has, keeping `values`, `name`, `byName` and the
+/// enum's `toString`), a sealed result or command became an `abstract final`
+/// hierarchy this package alone grows, and the texture graph's nodes an
+/// `abstract base class` with a visitor. The rule fails on a name here that a
+/// snapshot declares as an `enum` or `sealed` again, and on a name no
+/// snapshot declares at all.
+const Map<String, String> openedSets = <String, String>{
+  'ActionKind': 'flutter3d_sim: a class with constants',
+  'AnimationCondition': 'flutter3d_core: an abstract final hierarchy',
+  'AnimationGoal': 'flutter3d_core: an abstract final hierarchy',
+  'AnimationInterpolation': 'flutter3d_core: a class with constants',
+  'AnimationPath': 'flutter3d_core: a class with constants',
+  'AnimationPointerProperty': 'flutter3d_core: a class with constants',
+  'AnimationPointerTarget': 'flutter3d_core: a class with constants',
+  'AnimationWrap': 'flutter3d_core: a class with constants',
+  'AuditCheck': 'flutter3d_model_core: a class with constants',
+  'BehaviorStatus': 'flutter3d_sim: a class with constants',
+  'BlendFactor': 'flutter3d_hardware: a class with constants',
+  'BlendOperation': 'flutter3d_hardware: a class with constants',
+  'CompositePart': 'flutter3d_game: a class with constants',
+  'ConflictPolicy': 'flutter3d_game: a class with constants',
+  'CsgOperation': 'flutter3d_mesh: a class with constants',
+  'CullMode': 'flutter3d_hardware: a class with constants',
+  'DebrisStatic': 'flutter3d_physics_native: an abstract final hierarchy',
+  'DepthRange': 'flutter3d_hardware: a class with constants',
+  'DiagnosticView': 'flutter3d_sim_mcp: a class with constants',
+  'DocumentCommand': 'flutter3d_editor_core: an abstract final hierarchy',
+  'EditorCommand': 'flutter3d_editor_core: an abstract final hierarchy',
+  'ElementLevel': 'flutter3d_mesh: a class with constants',
+  'ExportFormat': 'flutter3d_model_core: a class with constants',
+  'ExportResult': 'flutter3d_model_core: an abstract final hierarchy',
+  'ExportSeverity': 'flutter3d_model_core: a class with constants',
+  'FeatureStability': 'flutter3d_hardware: a class with constants',
+  'FuzzTransform': 'flutter3d_conformance: an abstract final hierarchy',
+  'Geometry': 'flutter3d_model_core: an abstract final hierarchy',
+  'GeometryUsage': 'flutter3d_hardware: a class with constants',
+  'IndexType': 'flutter3d_hardware: a class with constants',
+  'InputAction': 'flutter3d_sim: an abstract final hierarchy',
+  'IssueSeverity': 'flutter3d_mesh: a class with constants',
+  'LevelIssueSeverity': 'flutter3d_sim: a class with constants',
+  'LoadAction': 'flutter3d_hardware: a class with constants',
+  'LtiLaunchException': 'flutter3d_education: an abstract final hierarchy',
+  'LtiMessageType': 'flutter3d_education: a class with constants',
+  'MapMode': 'flutter3d_hardware: a class with constants',
+  'MaterialHintKind': 'flutter3d_core: an abstract final hierarchy',
+  'MaterialMap': 'flutter3d_core: a class with constants',
+  'MeshAttribute': 'flutter3d_mesh: a class with constants',
+  'MeshDomain': 'flutter3d_mesh: a class with constants',
+  'MinMagFilter': 'flutter3d_hardware: a class with constants',
+  'MipFilter': 'flutter3d_hardware: a class with constants',
+  'ModelCameraProjection': 'flutter3d_core: an abstract final hierarchy',
+  'ModelCommand': 'flutter3d_model_core: an abstract final hierarchy',
+  'ModelWriteFormat': 'flutter3d_core: a class with constants',
+  'Modifier': 'flutter3d_mesh: an abstract final hierarchy',
+  'NumberUnit': 'flutter3d_editor_widgets: a class with constants',
+  'ObjNormals': 'flutter3d_core: a class with constants',
+  'OriginPlacement': 'flutter3d_model_core: a class with constants',
+  'PadAxis': 'pad_input: a class with constants',
+  'ParamHint': 'flutter3d_model_core: an abstract final hierarchy',
+  'ParametricShape': 'flutter3d_mesh: an abstract final hierarchy',
+  'Piece': 'flutter3d_editor_core: a class with constants',
+  'PipelineStatistic': 'flutter3d_hardware: a class with constants',
+  'PlaneAxis': 'flame_flutter3d: a class with constants',
+  'PlayState': 'flutter3d_editor_play: an abstract final hierarchy',
+  'PlaytestOutcome': 'flutter3d_sim_mcp: a class with constants',
+  'PolygonMode': 'flutter3d_hardware: a class with constants',
+  'PrimitiveType': 'flutter3d_hardware: a class with constants',
+  'ProfileTarget': 'flutter3d_model_core: a class with constants',
+  'RagdollJoint': 'flutter3d_physics_native: an abstract final hierarchy',
+  'ReactiveShape': 'flutter3d_core: a class with constants',
+  'ReadingPredicate': 'flutter3d_sim_mcp: an abstract final hierarchy',
+  'RecipeCategory': 'flutter3d_mesh: a class with constants',
+  'Resimulation': 'flutter3d_sim: an abstract final hierarchy',
+  'ResizeFilter': 'flutter3d_model_core: a class with constants',
+  'ResourceOrigin': 'flutter3d_core: a class with constants',
+  'RunStatus': 'flutter3d_game: an abstract final hierarchy',
+  'SamplerAddressMode': 'flutter3d_hardware: a class with constants',
+  'SamplerBorderColor': 'flutter3d_hardware: a class with constants',
+  'SaveResolution': 'flutter3d_sim: a class with constants',
+  'SelectionMode': 'flutter3d_model_core: a class with constants',
+  'ShadowCasting': 'flutter3d_sim: a class with constants',
+  'SplatColorSpace': 'flutter3d_core: a class with constants',
+  'SplatComposite': 'flutter3d_core: a class with constants',
+  'StencilOperation': 'flutter3d_hardware: a class with constants',
+  'StepAuthor': 'flutter3d_model_core: a class with constants',
+  'StlNormals': 'flutter3d_core: a class with constants',
+  'StorageMode': 'flutter3d_hardware: a class with constants',
+  'StoreAction': 'flutter3d_hardware: a class with constants',
+  'StrategyOrder': 'flutter3d_game_strategy: an abstract final hierarchy',
+  'SurfaceAlphaMode': 'flutter3d_core: a class with constants',
+  'TemporalClip': 'flutter3d_core: a class with constants',
+  'TextureBlendMode': 'flutter3d_model_core: a class with constants',
+  'TextureDimension': 'flutter3d_hardware: a class with constants',
+  'TextureEncoding': 'flutter3d_model_core: a class with constants',
+  'TextureFileFormat': 'flutter3d_model_core: a class with constants',
+  'TextureNode': 'flutter3d_model_core: an abstract base class with a visitor',
+  'TextureSampleKind': 'flutter3d_hardware: a class with constants',
+  'TextureType': 'flutter3d_hardware: a class with constants',
+  'TextureValueType': 'flutter3d_model_core: a class with constants',
+  'TextureWrap': 'flutter3d_core: a class with constants',
+  'TransformPivot': 'flutter3d_model_core: a class with constants',
+  'TransformSpace': 'flutter3d_model_core: a class with constants',
+  'UpAxis': 'flutter3d_model_core: a class with constants',
+  'VertexStepMode': 'flutter3d_hardware: a class with constants',
+};
+
+/// Sealed types whose conversion belongs to a later step, by name, with who
+/// converts them.
+///
+/// **A to-do list, not an exemption**, like [interfaceClassPending]: the rule
+/// passes these while they are sealed and fails on an entry once its type is
+/// not, so the list only shrinks. A new closed set is not added here.
+const Map<String, String> closedSetPending = <String, String>{
+  'MaterialStatement':
+      'the material AST becomes an abstract base class with a visitor and '
+      '`visitUnknown`, with its three translators on it, in the frame '
+      'extension-point work (D24)',
+  'ResourceSize':
+      'an abstract base class with a visitor, beside the material AST, in '
+      'the same work (D24)',
+};
+
 // ------------------------------------------------------------ 1.0: naming
 
 /// Names the naming rules of item 28 let stand, each with the reason. Keyed
@@ -1988,6 +1806,10 @@ const Map<String, String> verbAllowed = <String, String>{
       'the ECS pair `get`/`set` the review names for `SimWorld` (§C): a '
       'component is got and set, and neither is a creation',
   'EcsWorld.get': 'the implementation of `SimWorld.get`',
+  'SaveResolution.takeRemote':
+      'a value of an open set, not a call: the answer "take the remote copy" '
+      'a comparison gives, named as the enum value it was, beside '
+      '`keepLocal`',
 };
 
 /// Unit-suffixed names the units rule lets stand.

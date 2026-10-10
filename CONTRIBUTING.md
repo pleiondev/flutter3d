@@ -59,7 +59,7 @@ number should be.
 
 ## Architecture is checked by scans, not by review
 
-`dart run tool/structure.dart` holds 75 rules about how the repository is
+`dart run tool/structure.dart` holds 77 rules about how the repository is
 arranged — that a genre package names no other genre, that the hardware layer
 names no graphics API, that the engine names no backend, that a simulation step
 reaches for no clock and no loose dice. It runs first in CI and takes under a
@@ -173,6 +173,18 @@ decision. The classifier in `tool/structure/api.dart` says which one:
   a new deprecation.
 - **Nothing**: a reworded deprecation, `@immutable` on a `final` class, a
   constant too long to list (`= …`, a generated table).
+
+Because a value added to an enum is a break, a public set that may grow is
+not an enum. It is a `final class` with `static const` members and a
+private constructor, `values`, `name` and `byName`, as `DeviceFeature` is;
+a result or a command that may gain a case is an `abstract final` class
+rather than a sealed one. A public `enum` or `sealed` type stays only when
+no member can ever be added without changing what it means (a direction, a
+sign, the answers of a yes or a no), and then `closedForGood` in
+`tool/structure/repository.dart` says why. The rule `a public enum or sealed
+type is decided` fails on one in neither list. A `switch` over an open set
+ends with a wildcard that refuses or names what it does, never one that
+does nothing.
 
 Three structure rules hold it:
 
