@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`UniformScratch`, in `backend.dart`**: one zeroed buffer per uniform
+  block size, kept for the device's life, for a backend's
+  `bindUniformBlock` to fill before its API copies it. Every backend here
+  made a fresh list per block per draw, six to ten a mesh a view and four
+  kilobytes for a skinned one's joints, all garbage the moment it was
+  copied.
 - **Breaking (for outside backends): `DeviceRegistry` is typed by its
   presenter.** `DeviceRegistry<P>` holds presenters of type `P`:
   `addPresenter` takes one and `presenterFor` answers one, where both used

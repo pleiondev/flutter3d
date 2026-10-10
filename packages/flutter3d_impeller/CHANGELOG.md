@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **A uniform block costs no allocation, and its layout is asked once.**
+  The block is filled in place in the device's `UniformScratch`, already
+  rounded to the host buffer's granule so no rounded copy is made either; a
+  joint palette is one copy rather than a `setFloat32` per float. Each
+  stage's slot and member offsets are kept beside it instead of asked of
+  flutter_gpu per member per draw, and a block filler is a view of one
+  zeroed block.
+- **The readback's staging pool is bounded.** At most
+  `GpuReadback.idleCapacity` (eight) idle staging textures are kept, across
+  every size, the one given back longest ago dropped for the collector;
+  before, one stayed for every size ever read back.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` in a debug build. Their memory returns
+  through the collector here, so without the check a disposed buffer would
+  still draw.
 - **Breaking: `GpuRenderBackend.open` takes `width` and `height`**, required,
   as every backend's `open` does since 1.0, so a caller writes one call for
   all four. Impeller still sizes each target as it is drawn and does not

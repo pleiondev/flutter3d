@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A uniform block costs no allocation.** `bindUniformBlock` and
+  `bindUniformBytes` fill the device's `UniformScratch` for the block's
+  size, which `queue.writeBuffer` copies, where each made a fresh list per
+  draw.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` before they reach WebGPU, in a debug
+  build.
 - **Breaking: `WebGpuDevice.decodeTexture` throws where it answered null.**
   An image the browser will not decode is a `DeviceResourceException`, as
   `EncodedImageUpload` says since 1.0; the engine's loader catches it and

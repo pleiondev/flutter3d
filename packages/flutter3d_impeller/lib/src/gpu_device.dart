@@ -31,6 +31,7 @@ import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'gpu_transfer_encoder.dart';
+import 'gpu_uniform_layout.dart';
 import 'host_buffer_grid.dart';
 
 export 'gpu_capabilities.dart' show impellerBackendName;
@@ -266,10 +267,37 @@ final class GpuRenderBackend extends GraphicsDevice {
     final cursor = _cursors[_frame < 0 ? 0 : _frame];
     final on = padded(bytes, _granule);
     final filler = cursor.fillerBefore(on.lengthInBytes);
-    if (filler > 0) host.emplace(ByteData(filler));
+    if (filler > 0) host.emplace(ByteData.sublistView(_fillerZeros, 0, filler));
     cursor.took(on.lengthInBytes);
     return host.emplace(on);
   }
+
+  /// What a filler writes: nothing anybody reads, so one block's worth of
+  /// zeros serves every filler, a view of it at a time.
+  late final Uint8List _fillerZeros = Uint8List(blockLengthFor(_granule));
+
+  /// The buffers a uniform block is filled in, one per granule-rounded size:
+  /// `HostBuffer.emplace` copies at the call, and a block already on the grid
+  /// is written as it is, with no rounded copy made of it.
+  final UniformScratch _uniformScratch = UniformScratch();
+
+  /// What each stage's uniform blocks look like, asked of flutter_gpu once
+  /// per block rather than once per member per draw.
+  final Expando<Map<String, GpuUniformLayout?>> _uniformLayouts =
+      Expando<Map<String, GpuUniformLayout?>>('uniform layouts');
+
+  /// The layout of [blockName] in [shader], or null when the compiled stage
+  /// has no such block (or it is empty), cached for the device's life.
+  GpuUniformLayout? _uniformLayout(gpu.Shader shader, String blockName) =>
+      (_uniformLayouts[shader] ??= <String, GpuUniformLayout?>{}).putIfAbsent(
+        blockName,
+        () => GpuUniformLayout.of(shader, blockName, granule: _granule),
+      );
+
+  /// A zeroed buffer [layout] is filled in, already the size it is emplaced
+  /// at.
+  Float32List _uniformScratchFor(GpuUniformLayout layout) =>
+      _uniformScratch.zeroed(layout.emplacedSize);
 
   final GpuShaderLibrary _library;
   final List<gpu.HostBuffer> _transients;
@@ -1415,6 +1443,14 @@ final class GpuRenderBackend extends GraphicsDevice {
 extension GpuRenderBackendInternals on GpuRenderBackend {
   /// See [GpuRenderBackend._emplace].
   gpu.BufferView emplace(ByteData bytes) => _emplace(bytes);
+
+  /// See [GpuRenderBackend._uniformLayout].
+  GpuUniformLayout? uniformLayout(gpu.Shader shader, String blockName) =>
+      _uniformLayout(shader, blockName);
+
+  /// See [GpuRenderBackend._uniformScratchFor].
+  Float32List uniformScratchFor(GpuUniformLayout layout) =>
+      _uniformScratchFor(layout);
 
   /// See [GpuRenderBackend._noteRejectedSubmission].
   void noteRejectedSubmission() => _noteRejectedSubmission();

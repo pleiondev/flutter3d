@@ -21,7 +21,8 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapability;
-import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
+import 'package:flutter3d_hardware/backend.dart'
+    show SynchronousBufferReadback, UniformScratch;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -202,6 +203,10 @@ final class WebGlDevice extends GraphicsDevice
   /// back only what it had set — which is nothing, once the next pass is a new
   /// encoder.
   final Set<int> _instancedAttributeLocations = <int>{};
+
+  /// The buffers a uniform block is filled in before `bufferData` copies
+  /// it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
 
   /// Builds a device over a _canvas of [width] by [height].
   ///
@@ -1953,6 +1958,7 @@ extension WebGlDeviceInternals on WebGlDevice {
       _baseVertexBaseInstanceExtension;
   Set<int> get enabledAttributeLocations => _enabledAttributeLocations;
   Set<int> get instancedAttributeLocations => _instancedAttributeLocations;
+  UniformScratch get uniformScratch => _uniformScratch;
 
   /// The GL error the last blit to the canvas left, for a debugger reading
   /// why the canvas stayed empty.

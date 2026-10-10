@@ -304,6 +304,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
+    debugCheckLive(pipeline, 'bindPipeline');
     _pipeline = pipeline.backend as WebGpuPipeline;
     // Bindings do not survive a pipeline change — the contract states it, and
     // this honours it literally rather than by accident.
@@ -316,6 +317,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     int vertexCount, {
     int slot = 0,
   }) {
+    debugCheckLive(buffer, 'bindVertexBuffer');
     final geometry = buffer.backend as WebGpuGeometry;
     _vertexBuffers[slot] = (
       buffer: geometry.buffer,
@@ -330,6 +332,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    debugCheckLive(buffer, 'bindIndexBuffer');
     final geometry = buffer.backend as WebGpuGeometry;
     _indexBuffer = (
       buffer: geometry.buffer,
@@ -373,7 +376,9 @@ abstract base class WebGpuRecorder extends PassEncoder {
     final block = stage.blockNamed(blockName);
     if (block == null) return false;
 
-    final data = Float32List(block.sizeInBytes ~/ 4);
+    // Filled in the device's scratch for this size: `writeBuffer` copies it
+    // at the call, so one buffer serves every block of the size.
+    final data = _device.uniformScratch.zeroed(block.sizeInBytes);
     for (final entry in members.entries) {
       final member = _memberOf(block, entry.key);
       final at = member.offsetInBytes ~/ 4;
@@ -407,12 +412,12 @@ abstract base class WebGpuRecorder extends PassEncoder {
         'is longer than the ${block.sizeInBytes}-byte block "$blockName"',
       );
     }
-    final padded = Uint8List(block.sizeInBytes)
-      ..setRange(
-        0,
-        bytes.lengthInBytes,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      );
+    final padded = _device.uniformScratch.zeroed(block.sizeInBytes);
+    Uint8List.sublistView(padded).setRange(
+      0,
+      bytes.lengthInBytes,
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
     _landBlock(block, ByteData.sublistView(padded));
     return true;
   }
@@ -459,6 +464,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     TextureHandle texture, {
     SamplerDescriptor? sampler,
   }) {
+    debugCheckLive(texture, 'bindTexture');
     // The sampler's state is refused before the slot is looked at.
     webgpuCheckSampler(_device.features, sampler);
     if (!shader.mayBindSampler(slot)) return false;

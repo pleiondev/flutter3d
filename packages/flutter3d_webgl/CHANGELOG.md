@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A uniform block costs no allocation.** `bindUniformBlock` and
+  `bindUniformBytes` fill the device's `UniformScratch` for the block's
+  size, which `bufferData` copies, where each made a fresh list per draw.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` before they reach GL, in a debug build.
 - **Breaking: `WebGlDevice.open` is asynchronous.** Every backend opens in
   one shape since 1.0, `await X.open(width:, height:)`; WebGL2 was the one
   that answered synchronously. The future completes in the same turn, and a

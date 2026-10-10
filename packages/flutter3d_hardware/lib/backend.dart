@@ -11,6 +11,8 @@
 /// buffer in the calling turn mixes in `SynchronousBufferReadback` from
 /// here; a caller that asks for it imports it from `testing.dart`, since
 /// the main library does not offer a stall.
+/// [UniformScratch] is the buffer a backend fills a uniform block in, kept
+/// per block size instead of made per draw.
 ///
 /// **As stable as the contract itself.** This library is part of the
 /// package's snapshot and follows the same strict semver through 1.x: a
@@ -22,3 +24,4 @@ library;
 export 'src/backend_handles.dart';
 export 'src/handle_checks.dart';
 export 'src/synchronous_readback.dart';
+export 'src/uniform_scratch.dart';

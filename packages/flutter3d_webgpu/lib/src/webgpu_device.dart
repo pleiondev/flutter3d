@@ -654,6 +654,10 @@ final class WebGpuDevice extends GraphicsDevice
   /// `webgpu_resources.dart` for why one arena reset per frame is safe.
   final WebGpuFrameArena _uniformArena;
 
+  /// The buffers a uniform block is filled in before `queue.writeBuffer`
+  /// copies it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
+
   /// Where `PassEncoder.bindVertexData`'s bytes land.
   final WebGpuFrameArena _vertexArena;
 
@@ -2367,6 +2371,7 @@ extension WebGpuDeviceInternals on WebGpuDevice {
   GPUDevice get gpuDevice => _gpuDevice;
   WebGpuFrameArena get indexArena => _indexArena;
   WebGpuFrameArena get uniformArena => _uniformArena;
+  UniformScratch get uniformScratch => _uniformScratch;
   WebGpuFrameArena get vertexArena => _vertexArena;
   WebGpuPipelineCache<GPURenderPipeline> get pipelines => _pipelines;
   GPUBindGroup bindGroupFor(
