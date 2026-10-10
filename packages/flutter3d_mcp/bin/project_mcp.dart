@@ -13,7 +13,7 @@
 /// void main() {
 ///   final tools = McpTools();
 ///   EngineLoop(input: InputState(), registries: [tools],
-///       plugins: installedPlugins);
+///       plugins: installedPlugins.plugins);
 ///   ProjectMcpServer(stdioChannel(input: stdin, output: stdout),
 ///       tools: tools);
 /// }

@@ -230,8 +230,8 @@ A flutter3d plugin ({{kind}}): {{about}}.
 An application that depends on this package finds the plugin through
 discovery: `flutter3d_build` writes `lib/plugins.g.dart` from the
 `flutter3d_plugins:` marker in this package's pubspec, and the application
-hands `installedPlugins` to its `EngineLoop`. A list written in code works as
-well:
+hands `installedPlugins`, a `PluginGroup`, to its engine. A list written in
+code works as well:
 
 ```dart
 EngineLoop(input: input, plugins: [{{class}}()]);

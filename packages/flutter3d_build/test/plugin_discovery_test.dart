@@ -163,7 +163,8 @@ flutter3d:
     final text = File('${app.path}/lib/plugins.g.dart').readAsStringSync();
     expect(text, contains("import 'package:effects/bloom.dart' as p0;"));
     expect(text, contains("import 'package:trails/trails.dart' as p1;"));
-    expect(text, contains('List<Flutter3dPlugin> get installedPlugins'));
+    expect(text, contains('PluginGroup get installedPlugins'));
+    expect(text, contains('PluginGroup(<Flutter3dPlugin>['));
     expect(text, contains('p0.GlowPlugin(),'));
     expect(text, contains('p1.TrailsPlugin(),'));
     expect(writeDiscoveredPlugins(app).written, isFalse);
@@ -247,11 +248,11 @@ $selection
     return app;
   }
 
-  test("the app's exclude leaves out a library, and plugins.g.dart says "
+  test("the app's without leaves out a library, and plugins.g.dart says "
       'so', () {
     // Mutation: ignore the app's own key. FogPlugin is installed and
     // generated although the application asked for it not to be.
-    final app = selecting('  exclude: [effects/fog.dart]');
+    final app = selecting('  without: [effects/fog.dart]');
     final discovery = discoverPlugins(app);
     expect(discovery.plugins.map((p) => '$p'), <String>[
       'package:effects/bloom.dart#BloomPlugin',
@@ -267,12 +268,12 @@ $selection
     expect(text, isNot(contains('package:effects/fog.dart')));
   });
 
-  test('exclude takes one class, and include narrows to a package', () {
+  test('without takes one class or a whole package', () {
     // Mutation: match a class selector by library alone. GlowPlugin's
     // sibling BloomPlugin would go with it.
     final app = selecting('''
-  include: [package:effects]
-  exclude:
+  without:
+    - trails
     - effects/bloom.dart#GlowPlugin
 ''');
     final discovery = discoverPlugins(app);
@@ -286,22 +287,102 @@ $selection
     );
   });
 
+  test('with adds a plugin no dependency marks, after the rest', () {
+    // The application's own plugin, and one of a package it left out whole:
+    // `without` a package, then `with` the one class it keeps.
+    final app = selecting('''
+  without: [effects]
+  with:
+    - package:app/mine.dart#MinePlugin
+    - effects/fog.dart#FogPlugin
+''');
+    final discovery = discoverPlugins(app);
+    expect(discovery.plugins.map((p) => '$p'), <String>[
+      'package:trails/trails.dart#TrailsPlugin',
+      'package:app/mine.dart#MinePlugin',
+      'package:effects/fog.dart#FogPlugin',
+    ]);
+    expect(discovery.warnings.where((w) => w.contains('with')), isEmpty);
+  });
+
+  test('with refuses what the group already holds; set is the word', () {
+    final discovery = discoverPlugins(
+      selecting('  with: [effects/fog.dart#FogPlugin]'),
+    );
+    expect(
+      discovery.plugins.where((p) => p.className == 'FogPlugin'),
+      hasLength(1),
+    );
+    expect(
+      discovery.warnings.where((w) => w.contains('with:')).single,
+      allOf(contains('FogPlugin'), contains('set:')),
+    );
+  });
+
+  test('set constructs a plugin with arguments, in its place', () {
+    // Mutation: append the configured plugin instead of replacing it. It is
+    // installed twice, and the manager refuses the second.
+    final app = selecting('''
+  set:
+    effects/bloom.dart#GlowPlugin: "strength: 2.5"
+    effects/smoke.dart#SmokePlugin: ""
+''');
+    final discovery = discoverPlugins(app);
+    expect(discovery.plugins.map((p) => p.className), <String>[
+      'BloomPlugin',
+      'GlowPlugin',
+      'FogPlugin',
+      'TrailsPlugin',
+      'SmokePlugin',
+    ]);
+    writeDiscoveredPlugins(app);
+    final text = File('${app.path}/lib/plugins.g.dart').readAsStringSync();
+    expect(text, contains('p0.GlowPlugin(strength: 2.5),'));
+    expect(text, contains('p0.BloomPlugin(),'));
+    expect(text, contains("import 'package:effects/smoke.dart' as p3;"));
+    expect(text, contains('p3.SmokePlugin(),'));
+  });
+
+  test('set names one class', () {
+    expect(
+      () => discoverPlugins(selecting('  set: {effects/fog.dart: "a: 1"}')),
+      throwsA(
+        isA<PluginDiscoveryException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('set:'), contains('effects/fog.dart')),
+        ),
+      ),
+    );
+  });
+
   test('an entry that matches nothing is warned about, not ignored', () {
     // Mutation: drop the warning. A misspelt exclusion leaves the plugin
     // installed and nothing says why.
     final discovery = discoverPlugins(
-      selecting('  exclude: [effects/fogg.dart, nobody]'),
+      selecting('  without: [effects/fogg.dart, nobody]'),
     );
     expect(discovery.excluded, isEmpty);
-    final mine = discovery.warnings.where((w) => w.contains('exclude'));
+    final mine = discovery.warnings.where((w) => w.contains('without'));
     expect(mine, hasLength(2));
     expect(mine.first, contains('effects/fogg.dart'));
     expect(mine.last, contains('nobody'));
   });
 
+  test('a key the project list does not have is warned about', () {
+    // `include:` and `exclude:` were the list's words before it took the
+    // shape of a plugin group; a project that kept them is told.
+    final discovery = discoverPlugins(selecting('  exclude: [trails]'));
+    expect(discovery.plugins.map((p) => p.className), contains('TrailsPlugin'));
+    expect(
+      discovery.warnings.where((w) => w.contains('exclude')).single,
+      contains('without:'),
+    );
+  });
+
   test('a selector that is none of the three forms names the pubspec', () {
     expect(
-      () => discoverPlugins(selecting('  exclude: [effects/fog]')),
+      () => discoverPlugins(selecting('  without: [effects/fog]')),
       throwsA(
         isA<PluginDiscoveryException>().having(
           (e) => e.message,

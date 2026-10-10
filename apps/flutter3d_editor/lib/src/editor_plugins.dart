@@ -21,9 +21,9 @@ import '../plugins.g.dart';
 /// what an editor that does not play wants of it — Play runs the game in a
 /// process of its own.
 ///
-/// **The generated list unless one is given.** [installedPlugins] is what
+/// **The generated group unless one is given.** [installedPlugins] is what
 /// `lib/plugins.g.dart` says this application's dependencies declare
-/// (`dart run flutter3d_build:plugins` writes it); a list passed to
+/// (`flutter3d plugins` writes it); a list passed to
 /// [EditorPlugins.new] replaces it, as decision 3 of the plugin plan has it.
 ///
 /// **A plugin that will not install leaves the editor without plugins, not
@@ -37,7 +37,7 @@ final class EditorPlugins {
     final pieces = EditorPieces();
     final tools = McpTools();
     final decoders = Decoders();
-    final given = plugins ?? installedPlugins;
+    final given = plugins ?? installedPlugins.plugins;
     try {
       return EditorPlugins._(
         pieces: pieces,

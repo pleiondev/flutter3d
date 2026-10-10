@@ -246,29 +246,47 @@ flutter3d_plugins:
 
 `flutter3d_build` writes the application's `lib/plugins.g.dart` from the
 dependencies that carry the marker. Its build hook does this on every build,
-and `dart run flutter3d_build:plugins` does it by hand. The file defines
-`installedPlugins`, which builds a fresh list on each read, and the
-application passes it to the engine. A list written in code takes its place.
+and `flutter3d plugins` does it by hand. The file defines
+`installedPlugins`, a `PluginGroup` built afresh on each read, and the
+application passes it to the engine. A group or a list written in code takes
+its place.
+
+**A `PluginGroup` is plugins taken whole and adjusted.** `set` puts a
+configured plugin in place of the member with its id (or adds it), `add`
+appends one, `without<T>()` and `withoutId` take members out, and each
+answers a new group:
+
+```dart
+installedPlugins
+    .set(BloomAddon(threshold: 1.2))
+    .without<FogAddon>()
+    .add(TrailsPlugin());
+```
 
 Depending on a package installs every plugin it marks; `flutter3d_post`
-marks twenty-three. An application that wants fewer says so in its own
-pubspec, under the same key:
+marks twenty-three. An application that wants them otherwise says so in its
+own pubspec, under the same key, with the group's three words:
 
 ```yaml
 flutter3d_plugins:
-  exclude:
+  without:
     - flutter3d_post/motion.dart                  # a whole library
     - flutter3d_post/style.dart#ToonLightingAddon # one class
+  set:
+    flutter3d_post/light.dart#BloomAddon: "threshold: 1.2"
+  with:
+    - package:my_game/trails.dart#TrailsPlugin
 ```
 
-`include:` is the other way round: only what it names is installed, and
-`exclude:` is applied after it. Each entry is a package (`flutter3d_post`),
-a library as the marker names it, relative to the package's `lib/`, or a
-library and a class after `#`. An entry that matches nothing a dependency
-declares is printed as a warning by the build and by
-`dart run flutter3d_build:plugins`, because a misspelt exclusion would
-otherwise leave the plugin installed and say nothing. `plugins --json`
-lists what was left out under `excluded`.
+A `without` entry is a package (`flutter3d_post`), a library as the marker
+names it, relative to the package's `lib/`, or a library and a class after
+`#`; a `set` key and a `with` entry name a class. `without` is applied
+first, then `set` (in place, or at the end), then `with`. A `without` entry
+that matches nothing a dependency declares, and a `with` entry the group
+already holds, are printed as warnings by the build and by
+`flutter3d plugins`, because a misspelt exclusion would otherwise leave the
+plugin installed and say nothing. `plugins --json` lists what was left out
+under `excluded`.
 
 ## Plugins loaded at run time
 

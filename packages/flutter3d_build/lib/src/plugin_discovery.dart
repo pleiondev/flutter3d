@@ -36,25 +36,33 @@
 /// and the keys the plugin catalogue reads, is the same. The old key is still
 /// read, with a warning in [PluginDiscovery.warnings], until 2.0.
 ///
-/// **An application picks which of them it installs.** Depending on a
-/// package installs every plugin it marks, and `flutter3d_post` marks
-/// twenty-three. The application's own pubspec narrows that under the same
-/// key, with an allow list, a deny list, or both:
+/// **The project's list is a plugin group.** Depending on a package
+/// installs every plugin it marks, and `flutter3d_post` marks twenty-three.
+/// `lib/plugins.g.dart` holds them as a `PluginGroup`, and the application's
+/// own pubspec adjusts it under the same key with the group's three words,
+/// applied in this order:
 ///
 /// ```yaml
 /// flutter3d_plugins:
-///   include: [flutter3d_post]               # only these, if given
-///   exclude:
+///   without:
 ///     - flutter3d_post/motion.dart          # a whole library
 ///     - flutter3d_post/style.dart#ToonLightingAddon   # one class
+///   set:                                    # constructed with arguments
+///     flutter3d_post/light.dart#BloomAddon: "threshold: 1.2"
+///   with:                                   # one no dependency marks
+///     - package:my_game/trails.dart#TrailsPlugin
 /// ```
 ///
-/// Each entry is a [PluginSelector]: a package, a library in it, or one
-/// class of a library. `include` is applied first, then `exclude`. An entry
-/// that matches nothing any dependency declares is reported in
-/// [PluginDiscovery.warnings], since a misspelt exclusion would otherwise
-/// leave the plugin installed without a word. What was left out is in
-/// [PluginDiscovery.excluded].
+/// A `without` entry is a [PluginSelector]: a package, a library in it, or
+/// one class of a library. A `set` key and a `with` entry name one class;
+/// `set` constructs it with the arguments written (in place, or at the end
+/// when the group does not hold it, as `PluginGroup.set` does), and `with`
+/// adds it at the end. A `without` entry that matches nothing any dependency
+/// declares, and a `with` entry the group already holds, are reported in
+/// [PluginDiscovery.warnings]: a misspelt exclusion would otherwise leave
+/// the plugin installed without a word. What was left out is in
+/// [PluginDiscovery.excluded]. Code adjusts the generated group the same
+/// way (`installedPlugins.without<FogAddon>()`).
 ///
 /// **Run by the build hook and by a command.** `buildAssets` calls
 /// [writeDiscoveredPlugins] on every build, declaring the package graph and
@@ -77,6 +85,7 @@ final class DiscoveredPlugin {
     required this.package,
     required this.import,
     required this.className,
+    this.arguments = '',
   });
 
   /// The package that declares it.
@@ -85,8 +94,21 @@ final class DiscoveredPlugin {
   /// The `package:` import the class is reached through.
   final String import;
 
-  /// The class, constructed with no arguments.
+  /// The class.
   final String className;
+
+  /// What goes between the constructor's parentheses in `plugins.g.dart`:
+  /// empty for a plugin taken as its package marks it, the text of the
+  /// project's `set:` for one it configures (`threshold: 1.2`).
+  final String arguments;
+
+  /// This plugin constructed with [arguments].
+  DiscoveredPlugin withArguments(String arguments) => DiscoveredPlugin(
+    package: package,
+    import: import,
+    className: className,
+    arguments: arguments,
+  );
 
   @override
   String toString() => '$import#$className';
@@ -121,11 +143,12 @@ final class PluginDiscovery {
   });
 
   /// The plugins, by package name and then in the order each pubspec lists
-  /// them, after the application's `include` and `exclude`.
+  /// them, after the application's `without` and `set`, and then what its
+  /// `with` and `set` added.
   final List<DiscoveredPlugin> plugins;
 
-  /// What the dependencies declare that the application's `include` or
-  /// `exclude` left out, in the same order.
+  /// What the dependencies declare that the application's `without` left
+  /// out, in the same order.
   final List<DiscoveredPlugin> excluded;
 
   /// The package config, the package graph when there is one, and each
@@ -133,13 +156,15 @@ final class PluginDiscovery {
   final List<String> readFiles;
 
   /// What a person should change, one sentence each: a dependency that
-  /// still marks its plugins with the pre-1.0 `flutter3d: plugin:` key, or
-  /// an `include` or `exclude` entry that matches nothing.
+  /// still marks its plugins with the pre-1.0 `flutter3d: plugin:` key, a
+  /// `without` entry that matches nothing, a `with` entry the group already
+  /// holds, or a key the project's list does not have.
   final List<String> warnings;
 }
 
-/// One entry of an application's `flutter3d_plugins: include:` or
-/// `exclude:` list: a package, a library of it, or one class of a library.
+/// One entry of an application's `flutter3d_plugins: without:` list, or a
+/// `with:` entry or `set:` key: a package, a library of it, or one class of
+/// a library (`with` and `set` name a class).
 ///
 /// Written `flutter3d_post`, `flutter3d_post/motion.dart` or
 /// `flutter3d_post/motion.dart#MotionBlurAddon`; a leading `package:` is
@@ -190,6 +215,14 @@ final class PluginSelector {
   /// The class, or null for every class of [library].
   final String? className;
 
+  /// The plugin a selector of one class names, as `with:` and `set:` add
+  /// it. Only for a selector with a [library] and a [className].
+  DiscoveredPlugin get plugin => DiscoveredPlugin(
+    package: package,
+    import: 'package:$package/$library',
+    className: className!,
+  );
+
   /// Whether [plugin] is what this names.
   bool matches(DiscoveredPlugin plugin) =>
       plugin.package == package &&
@@ -204,9 +237,12 @@ final class PluginSelector {
   ].join();
 }
 
-/// What an application's own pubspec keeps of its dependencies' plugins:
-/// the [plugins] its `include` and `exclude` admit, the rest as
-/// `excluded`, and a warning for each entry that matched nothing.
+/// What an application's own pubspec makes of its dependencies' plugins,
+/// as `PluginGroup` would: [plugins] [without] what its `without:` names,
+/// each plugin its `set:` names constructed with the arguments written (in
+/// place, or added at the end), then what its `with:` [add]s. The rest are
+/// `excluded`, and each `without` entry that matched nothing and each `with`
+/// entry the group already held is a warning.
 ({
   List<DiscoveredPlugin> kept,
   List<DiscoveredPlugin> excluded,
@@ -214,67 +250,122 @@ final class PluginSelector {
 })
 selectPlugins(
   List<DiscoveredPlugin> plugins, {
-  List<PluginSelector>? include,
-  List<PluginSelector> exclude = const <PluginSelector>[],
+  List<PluginSelector> without = const <PluginSelector>[],
+  Map<PluginSelector, String> set = const <PluginSelector, String>{},
+  List<PluginSelector> add = const <PluginSelector>[],
 }) {
-  bool admitted(DiscoveredPlugin p) =>
-      (include == null || include.any((s) => s.matches(p))) &&
-      !exclude.any((s) => s.matches(p));
-  String unmatched(String list, PluginSelector s) =>
-      '`$pluginMarkerKey: $list:` names $s, which no dependency declares; '
-      'check the spelling against the package\'s `$pluginMarkerKey: plugin:` '
-      'marker.';
+  bool admitted(DiscoveredPlugin p) => !without.any((s) => s.matches(p));
+  final kept = <DiscoveredPlugin>[
+    for (final p in plugins)
+      if (admitted(p))
+        switch (set.entries.where((e) => e.key.matches(p)).firstOrNull) {
+          final MapEntry<PluginSelector, String> e => p.withArguments(e.value),
+          null => p,
+        },
+  ];
+  final group = <DiscoveredPlugin>[
+    ...kept,
+    for (final MapEntry(key: selector, value: arguments) in set.entries)
+      if (!kept.any(selector.matches)) selector.plugin.withArguments(arguments),
+  ];
   return (
     kept: <DiscoveredPlugin>[
-      for (final p in plugins)
-        if (admitted(p)) p,
+      ...group,
+      for (final s in add)
+        if (!group.any(s.matches)) s.plugin,
     ],
     excluded: <DiscoveredPlugin>[
       for (final p in plugins)
         if (!admitted(p)) p,
     ],
     warnings: <String>[
-      for (final s in include ?? const <PluginSelector>[])
-        if (!plugins.any(s.matches)) unmatched('include', s),
-      for (final s in exclude)
-        if (!plugins.any(s.matches)) unmatched('exclude', s),
+      for (final s in without)
+        if (!plugins.any(s.matches)) _unmatched(s),
+      for (final s in add)
+        if (group.any(s.matches)) _alreadyHeld(s),
     ],
   );
 }
 
-/// The `include` and `exclude` lists of [app]'s `flutter3d_plugins:` key.
-/// `include` is null when the pubspec gives none, which admits everything.
-({List<PluginSelector>? include, List<PluginSelector> exclude}) _appSelection(
-  Map<Object?, Object?> app,
-  String source,
-) {
+String _unmatched(PluginSelector s) =>
+    '`$pluginMarkerKey: without:` names $s, which no dependency declares; '
+    'check the spelling against the package\'s `$pluginMarkerKey: plugin:` '
+    'marker.';
+
+String _alreadyHeld(PluginSelector s) =>
+    '`$pluginMarkerKey: with:` names $s, which the group already holds; '
+    '`set:` is the word for constructing it with arguments.';
+
+/// The keys an application's own `flutter3d_plugins:` may have: a plugin
+/// group's three words.
+const Set<String> _appKeys = <String>{'without', 'with', 'set'};
+
+/// The `without`, `set` and `with` of [app]'s `flutter3d_plugins:` key, and
+/// a warning for each other key it has.
+({
+  List<PluginSelector> without,
+  Map<PluginSelector, String> set,
+  List<PluginSelector> add,
+  List<String> warnings,
+})
+_appSelection(Map<Object?, Object?> app, String source) {
   final section = app[pluginMarkerKey];
-  List<PluginSelector>? read(String key) {
-    final value = section is Map ? section[key] : null;
-    return switch (value) {
-      null => null,
-      final String one => <PluginSelector>[
-        PluginSelector.parse(one, source: source),
-      ],
-      final List<Object?> many => <PluginSelector>[
-        for (final entry in many)
-          entry is String
-              ? PluginSelector.parse(entry, source: source)
-              : throw PluginDiscoveryException(
-                  '$source: `$pluginMarkerKey: $key:` is a list of strings',
-                ),
-      ],
-      _ => throw PluginDiscoveryException(
-        '$source: `$pluginMarkerKey: $key:` is a list of strings',
-      ),
-    };
+  final written = section is Map ? section : const <Object?, Object?>{};
+  Never wrong(String key, String shape) => throw PluginDiscoveryException(
+    '$source: `$pluginMarkerKey: $key:` is $shape',
+  );
+  PluginSelector oneClass(String key, String text) {
+    final selector = PluginSelector.parse(text, source: source);
+    if (selector.className == null) {
+      wrong(
+        key,
+        'one class of a library per entry, such as '
+        '`flutter3d_post/light.dart#BloomAddon`, and "$text" names more',
+      );
+    }
+    return selector;
   }
 
+  List<String> strings(String key) => switch (written[key]) {
+    null => const <String>[],
+    final String one => <String>[one],
+    final List<Object?> many when many.every((e) => e is String) =>
+      many.cast<String>(),
+    _ => wrong(key, 'a list of strings'),
+  };
+  final set = switch (written['set']) {
+    null => const <Object?, Object?>{},
+    final Map<Object?, Object?> map => map,
+    _ => wrong('set', 'a map from a class to its constructor\'s arguments'),
+  };
   return (
-    include: read('include'),
-    exclude: read('exclude') ?? const <PluginSelector>[],
+    without: <PluginSelector>[
+      for (final text in strings('without'))
+        PluginSelector.parse(text, source: source),
+    ],
+    set: <PluginSelector, String>{
+      for (final MapEntry(:key, :value) in set.entries)
+        oneClass('set', '$key'): switch (value) {
+          null => '',
+          final String text => text.trim(),
+          final Object other => '$other',
+        },
+    },
+    add: <PluginSelector>[
+      for (final text in strings('with')) oneClass('with', text),
+    ],
+    warnings: <String>[
+      for (final key in written.keys)
+        if (!_appKeys.contains(key)) _notAKey(source, '$key'),
+    ],
   );
 }
+
+String _notAKey(String source, String key) =>
+    '$source: `$pluginMarkerKey: $key:` is not a key of the project\'s '
+    'plugin list, and is ignored. The list is a plugin group: `without:` '
+    'takes plugins out, `set:` constructs one with arguments, `with:` adds '
+    'one.';
 
 /// The plugins among the dependencies of the application at [appRoot].
 ///
@@ -358,13 +449,18 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
   final selection = _appSelection(app, appPubspec.path);
   final selected = selectPlugins(
     plugins,
-    include: selection.include,
-    exclude: selection.exclude,
+    without: selection.without,
+    set: selection.set,
+    add: selection.add,
   );
   return PluginDiscovery(
     plugins: selected.kept,
     readFiles: read,
-    warnings: <String>[...warnings, ...selected.warnings],
+    warnings: <String>[
+      ...warnings,
+      ...selection.warnings,
+      ...selected.warnings,
+    ],
     excluded: selected.excluded,
   );
 }
@@ -373,14 +469,12 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
 /// [pluginMarkerKey] or, from before 1.0, under `flutter3d:`, and whether it
 /// was the old key. Null when it declares none. The new key wins when a
 /// pubspec has both.
-(Object, {bool legacy})? markerOf(Map<Object?, Object?> pubspec) => switch ((
-  pubspec[pluginMarkerKey],
-  pubspec[_legacyPluginMarkerKey],
-)) {
-  ({'plugin': final Object value}, _) => (value, legacy: false),
-  (_, {'plugin': final Object value}) => (value, legacy: true),
-  _ => null,
-};
+(Object, {bool legacy})? markerOf(Map<Object?, Object?> pubspec) =>
+    switch ((pubspec[pluginMarkerKey], pubspec[_legacyPluginMarkerKey])) {
+      ({'plugin': final Object value}, _) => (value, legacy: false),
+      (_, {'plugin': final Object value}) => (value, legacy: true),
+      _ => null,
+    };
 
 /// The `<import>#<Class>` entries a `flutter3d_plugins: plugin:` [value] of
 /// [package] names, in its order: one string, a list of them, or a map from
@@ -441,9 +535,10 @@ DiscoveredPlugin _parseMarker(String package, Object? entry) {
 
 /// `lib/plugins.g.dart` for [plugins].
 ///
-/// A getter rather than a list, so each engine gets plugins of its own:
-/// two engines in one process — an editor and the game it plays — must not
-/// share a plugin's state.
+/// A `PluginGroup` the code adjusts as any other
+/// (`installedPlugins.without<FogAddon>()`), and a getter, so each engine
+/// gets plugins of its own: two engines in one process — an editor and the
+/// game it plays — must not share a plugin's state.
 String renderPluginsFile(List<DiscoveredPlugin> plugins) {
   final imports = <String>[];
   for (final plugin in plugins) {
@@ -451,9 +546,9 @@ String renderPluginsFile(List<DiscoveredPlugin> plugins) {
   }
   final buffer = StringBuffer()
     ..writeln('// Generated by flutter3d_build from the `flutter3d_plugins:`')
-    ..writeln('// markers of this package\'s dependencies. Do not edit:')
-    ..writeln('// `dart run flutter3d_build:plugins` and every build write it')
-    ..writeln('// again. Pass a list of your own to the engine to override it.')
+    ..writeln('// markers of this package\'s dependencies and its own')
+    ..writeln('// `flutter3d_plugins:` `without:`, `set:` and `with:`. Do not')
+    ..writeln('// edit: `flutter3d plugins` and every build write it again.')
     ..writeln()
     ..writeln(
       "import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';",
@@ -463,17 +558,18 @@ String renderPluginsFile(List<DiscoveredPlugin> plugins) {
   }
   buffer
     ..writeln()
-    ..writeln('/// The plugins this package\'s dependencies declare, made')
-    ..writeln('/// afresh on each read.')
+    ..writeln('/// The plugins this package\'s dependencies declare, as the')
+    ..writeln('/// project\'s pubspec adjusts them, made afresh on each read.')
     ..writeln(
-      'List<Flutter3dPlugin> get installedPlugins => <Flutter3dPlugin>[',
+      'PluginGroup get installedPlugins => PluginGroup(<Flutter3dPlugin>[',
     );
   for (final plugin in plugins) {
     buffer.writeln(
-      '  p${imports.indexOf(plugin.import)}.${plugin.className}(),',
+      '  p${imports.indexOf(plugin.import)}.${plugin.className}'
+      '(${plugin.arguments}),',
     );
   }
-  buffer.writeln('];');
+  buffer.writeln(']);');
   return buffer.toString();
 }
 

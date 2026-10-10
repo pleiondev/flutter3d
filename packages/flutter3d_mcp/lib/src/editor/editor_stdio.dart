@@ -35,7 +35,7 @@ import 'editor_session.dart';
 /// import 'package:my_game/plugins.g.dart';
 ///
 /// void main(List<String> arguments) =>
-///     serveEditorMcp(arguments, plugins: installedPlugins);
+///     serveEditorMcp(arguments, plugins: installedPlugins.plugins);
 /// ```
 ///
 /// — which works for plugins that start under `dart run`, without Flutter.

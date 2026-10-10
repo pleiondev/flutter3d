@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **The project's plugin list is a plugin group.** `lib/plugins.g.dart`
+  defines `installedPlugins` as a `PluginGroup` (its `plugins` is the list
+  an engine takes), and the application's own `flutter3d_plugins:` adjusts
+  it with the group's words: `without:` takes plugins out by package,
+  library or class, `set:` constructs one with the arguments written (in
+  place, or at the end), `with:` adds one no dependency marks.
+  `selectPlugins` takes `without`, `set` and `add`, and `DiscoveredPlugin`
+  carries its `arguments`. The `include:` and `exclude:` of the earlier
+  release candidate are gone: any other key is warned about, and
+  `flutter3d migrate` renames `exclude:` to `without:` and says what to write
+  for an `include:`.
+
 - **Breaking: `usage` is `modelConvertUsage`.** It is what `runConvert`, the
   one-model converter, prints for arguments it cannot read, and it now says
   so: its first line names the function, not `dart run
