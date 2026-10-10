@@ -3421,11 +3421,12 @@ them.
   so it is in every snapshot. The six built-in composites are unchanged and
   their names cannot be taken.
 - **The editor.** `EditorPieces` (`flutter3d_editor_core`) takes commands,
-  components and palette entries. Commands: `DocumentCommand` is sealed over
-  two families, the built-in `EditorCommand` (still sealed, so its switches
-  stay exhaustive) and `PluginCommand`, which a plugin extends and reads back
-  through a `CommandReader` by name; `EditorHistory.run` takes either, so a
-  plugin's command is one step of undo like any other. Components: an
+  components and palette entries. Commands: `DocumentCommand` has two
+  families, the built-in `EditorCommand` (`abstract final`: only this
+  package adds one, and a `switch` over it ends with a wildcard, so a command
+  a minor adds breaks none) and `PluginCommand`, which a plugin extends and
+  reads back through a `CommandReader` by name; `EditorHistory.run` takes
+  either, so a plugin's command is one step of undo like any other. Components: an
   `EditorComponent` is a section of the inspector keyed by its kind, with the
   fields it knows and their defaults, for a piece and optionally some entity
   types. The editor's own sections are `builtInComponents` and go through
@@ -3667,7 +3668,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13703 tests** across 57 packages and 17 applications |
+| Unit tests | **13708 tests** across 57 packages and 17 applications |
 | Structure rules | 77, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
