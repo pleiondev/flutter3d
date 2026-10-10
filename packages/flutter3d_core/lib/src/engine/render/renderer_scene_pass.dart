@@ -212,15 +212,34 @@ extension _ScenePasses on Renderer {
       final wireframe =
           settings.wireframe && device.features.has(DeviceFeature.wireframe);
 
-      final viewRect = Renderer._viewportPixels(
+      // What the view may write: its rectangle of the target.
+      final targetRect = Renderer._viewportPixels(
         view.viewportFraction,
         width,
         height,
       );
+      // What it draws through: the same rectangle, or for a window of a
+      // larger frame drawn exactly — `RenderViewSettings.window` — the whole
+      // frame, placed so the window lands on the target, with the camera's
+      // own projection for the length of this view. Everything below that
+      // asks the view's size, its aspect, its height for a level of detail,
+      // asks the frame's, as the frame itself would.
+      final window = _windows[view];
+      final exactWindow = window != null && window.exact;
+      final viewRect = exactWindow
+          ? ScreenRect(
+              x: -window.window.left,
+              y: -window.window.top,
+              width: window.window.width,
+              height: window.window.height,
+            )
+          : targetRect;
+      final croppedProjection = view.camera.projection;
+      if (exactWindow) view.camera.projection = window.whole;
       pass.setState(
         Renderer._kSceneViewState.copyWith(
           viewport: viewRect,
-          scissor: viewRect,
+          scissor: targetRect,
           polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
         ),
       );
@@ -431,7 +450,9 @@ extension _ScenePasses on Renderer {
         scene: scene,
         view: view,
         viewNumber: viewNumber,
-        rect: viewRect,
+        // The target's rectangle: a reflection is looked up by where the
+        // fragment is on the target, and was drawn for that rectangle.
+        rect: targetRect,
         frustum: frustum,
         settings: settings,
         viewProjection: drawMatrix,
@@ -462,6 +483,7 @@ extension _ScenePasses on Renderer {
         deferred.add((
           view: view,
           rect: viewRect,
+          target: targetRect,
           viewProjection: Renderer._deferredSlot(
             _deferredViewProjections,
             slot,
@@ -530,7 +552,9 @@ extension _ScenePasses on Renderer {
             plugin.isOverlay &&
             settings.debugView.overlays != DebugWipeSide.both;
         if (narrowed) {
-          pass.setScissor(_overlayScissor(settings.debugView, viewRect, width));
+          pass.setScissor(
+            _overlayScissor(settings.debugView, targetRect, width),
+          );
         }
         plugin.encode(
           ContributorFrame(
@@ -549,9 +573,13 @@ extension _ScenePasses on Renderer {
             reversedDepth: reversed,
           )..state = passState,
         );
-        if (narrowed) pass.setScissor(viewRect);
+        if (narrowed) pass.setScissor(targetRect);
       }
       _contributorLights.end();
+
+      // The crop back, for every pass after this one: they work on the
+      // target, and see the window through it.
+      if (exactWindow) view.camera.projection = croppedProjection;
 
       // The debug overlay is deliberately NOT drawn here. Anything written into
       // the HDR target is scene light: it would be tone mapped, and a bright

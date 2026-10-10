@@ -42,9 +42,14 @@ typedef _OrderIndependentBlend = ({BlendState first, BlendState? second});
 /// [transmissive] is the opaque half's glass, kept only on a frame the scene
 /// splits around a copy of itself — `M3`, `renderer_transmission_pass.dart` —
 /// and empty on every other.
+///
+/// [rect] is the viewport the view drew through and [target] its rectangle
+/// of the target, the scissor. They differ only for a window of a larger
+/// frame (`RenderViewSettings.window`), whose viewport is the frame's.
 typedef _DeferredTransparency = ({
   RenderView view,
   ScreenRect rect,
+  ScreenRect target,
   vm.Matrix4 viewProjection,
   bool wireframe,
   bool clustered,
@@ -152,7 +157,10 @@ extension _TransparencyPasses on Renderer {
     pass.setState(
       Renderer._kSceneViewState.copyWith(
         viewport: deferred.rect,
-        scissor: deferred.rect,
+        // The view's rectangle of the target: a window of a larger frame
+        // keeps the frame's own viewport, which reaches past it — see the
+        // scene pass.
+        scissor: deferred.target,
         polygonMode: deferred.wireframe ? PolygonMode.line : PolygonMode.fill,
       ),
     );
@@ -362,7 +370,7 @@ extension _TransparencyPasses on Renderer {
           plugin.isOverlay && settings.debugView.overlays != DebugWipeSide.both;
       if (narrowed) {
         pass.setScissor(
-          _overlayScissor(settings.debugView, deferred.rect, width),
+          _overlayScissor(settings.debugView, deferred.target, width),
         );
       }
       plugin.encode(
@@ -383,7 +391,7 @@ extension _TransparencyPasses on Renderer {
           reversedDepth: _depthReversed,
         )..state = passState,
       );
-      if (narrowed) pass.setScissor(deferred.rect);
+      if (narrowed) pass.setScissor(deferred.target);
     }
     _contributorLights.end();
   }

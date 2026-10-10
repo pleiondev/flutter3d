@@ -284,6 +284,7 @@ final class RenderViewSettings {
     this.exposure = 1.0,
     this.label,
     this.depthNear,
+    this.window,
   });
 
   /// This view's own settings, in place of the ones the frame was rendered
@@ -322,9 +323,30 @@ final class RenderViewSettings {
   /// part the answer, as `capturePhoto` does.
   final double? depthNear;
 
+  /// The larger frame the target is one window of; null draws the view as
+  /// a frame of its own.
+  ///
+  /// The view's camera keeps the whole frame's projection, and the view
+  /// fills the target, which is [FrameWindow.left], [FrameWindow.top] and the
+  /// target's own size of the frame. Where the device lists
+  /// `DeviceFeature.viewportBeyondTarget` and the frame is no larger than
+  /// its largest texture, the scene's draws go through the frame's own
+  /// projection and a viewport the size of the frame, placed so that only
+  /// the window lands on the target: every pixel of it is shaded from the
+  /// inputs the whole frame would give it — the same position, depth and
+  /// shadow lookup. Everything that works on the finished target — bloom,
+  /// ambient occlusion, the composite — and every device without the
+  /// feature see the camera through a crop of its projection to the window
+  /// instead, which is the same picture to within rounding.
+  ///
+  /// The window is drawn at its own size: a frame whose settings scale the
+  /// render or resolve it over time is refused.
+  final FrameWindow? window;
+
   /// These options with the given fields replaced. [settings], [visible],
-  /// [label] and [depthNear] are reset to null by passing [clearSettings],
-  /// [clearVisible], [clearLabel] or [clearDepthNear].
+  /// [label], [depthNear] and [window] are reset to null by passing
+  /// [clearSettings], [clearVisible], [clearLabel], [clearDepthNear] or
+  /// [clearWindow].
   RenderViewSettings copyWith({
     RenderSettings? settings,
     bool Function()? visible,
@@ -332,10 +354,12 @@ final class RenderViewSettings {
     double? exposure,
     String? label,
     double? depthNear,
+    FrameWindow? window,
     bool clearSettings = false,
     bool clearVisible = false,
     bool clearLabel = false,
     bool clearDepthNear = false,
+    bool clearWindow = false,
   }) => RenderViewSettings(
     settings: clearSettings ? null : settings ?? this.settings,
     visible: clearVisible ? null : visible ?? this.visible,
@@ -343,7 +367,51 @@ final class RenderViewSettings {
     exposure: exposure ?? this.exposure,
     label: clearLabel ? null : label ?? this.label,
     depthNear: clearDepthNear ? null : depthNear ?? this.depthNear,
+    window: clearWindow ? null : window ?? this.window,
   );
+}
+
+/// Where a render target sits in a larger frame: the frame is [width] ×
+/// [height] pixels, and the target's top-left pixel is the frame's pixel
+/// ([left], [top]). See [RenderViewSettings.window].
+///
+/// A photo drawn in tiles names one per tile, each with the photo's size
+/// and the tile's corner, margin included.
+final class FrameWindow {
+  const FrameWindow({
+    required this.width,
+    required this.height,
+    this.left = 0,
+    this.top = 0,
+  });
+
+  /// The whole frame's width, in pixels.
+  final int width;
+
+  /// The whole frame's height, in pixels.
+  final int height;
+
+  /// The frame column the target's first column is, in pixels from the
+  /// frame's left edge; negative where the target starts before the frame.
+  final int left;
+
+  /// The frame row the target's first row is, in pixels from the frame's
+  /// top edge; negative where the target starts above the frame.
+  final int top;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrameWindow &&
+      other.width == width &&
+      other.height == height &&
+      other.left == left &&
+      other.top == top;
+
+  @override
+  int get hashCode => Object.hash(width, height, left, top);
+
+  @override
+  String toString() => 'FrameWindow(${width}x$height at $left, $top)';
 }
 
 /// Normalized viewport rectangle.

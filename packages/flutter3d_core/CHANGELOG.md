@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **A photo's tiles are the photo's own pixels.** `RenderViewSettings.window`
+  takes a `FrameWindow`, the larger frame a target is one window of, and
+  `capturePhoto` draws every tile as a window of the photo rather than
+  through a `CropProjection`. On a device that lists
+  `DeviceFeature.viewportBeyondTarget` the scene pass draws a window through
+  the camera's own projection and a viewport the size of the frame, held to
+  the target by the scissor, so each pixel is shaded from the position,
+  depth and shadow lookup the frame drawn whole gives it; a crop interpolated
+  the same surface through other arithmetic, and at a wall's foot one tap of
+  the shadow filter landed the other side of a tie. Every pass that works on
+  the finished target, and every device without the feature, sees the
+  window through a crop, as before. A window with a render scale, an
+  upscale or temporal anti-aliasing is refused, as is one whose view does
+  not fill its target.
 - **What loads in the background goes into a scene in the order it was
   asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
   starts; the loader awaits `ready`, attaches what it loaded and calls
