@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **`Mesh3D.onTap`, `Model3D.onTap` and `OrbitCamera3D`: a scene of
+  widgets answers the hand.** A tap on a `Scene3D` is cast through the
+  camera drawn through (`Raycaster`), and the nearest surface's handler is
+  called with the `HitResult`; a model's is handed the part it landed on
+  as well. A mesh in front that does not listen hides one behind that does.
+  `OrbitCamera3D` orbits a target: a drag turns it, a pinch or a scroll
+  moves it between `minDistance` and `maxDistance`, and a fling slows by
+  `damping` per second (null stops dead). A scene listens for these
+  gestures only while something answers them, so one inside a list takes
+  no drag from it.
+
 - **How `Scene3D` reconciles, written down and held by a test.** A widget
   that keeps its key keeps its node, moved among its siblings or under
   another parent; a rebuild loads and uploads nothing new; a widget gone

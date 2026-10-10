@@ -52,9 +52,12 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart'
+    show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
@@ -68,6 +71,7 @@ import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
 
 part 'scene_widgets_features.dart';
+part 'scene_widgets_input.dart';
 part 'scene_widgets_mount.dart';
 
 /// What the widgets of one scene share, whoever is drawing it: a [Scene3D],
@@ -81,6 +85,20 @@ abstract interface class _SceneHost {
 
   /// What advances between frames: models' animations, particles.
   Set<_Animated> get animated;
+
+  /// The meshes a tap reaches, and what each does with the hit: a
+  /// [Mesh3D.onTap], a [Model3D.onTap] for each of its parts.
+  Map<MeshNode, void Function(HitResult hit)> get tappable;
+
+  /// The [OrbitCamera3D]s built, in order; the last is the one gestures
+  /// turn.
+  List<_Orbit> get orbits;
+
+  /// Told when [tappable] or [orbits] gained their first entry or lost
+  /// their last: a [Scene3D] listens for gestures only while something
+  /// answers them, so a scene with none never takes a drag from a list it
+  /// sits in.
+  void gesturesChanged();
 }
 
 /// What a [Scene3D] has made, for a game that wants the graph underneath.
@@ -188,7 +206,9 @@ class Scene3D extends StatefulWidget {
   State<Scene3D> createState() => _Scene3DState();
 }
 
-class _Scene3DState extends State<Scene3D> implements _SceneHost {
+class _Scene3DState extends State<Scene3D>
+    with _SceneGestures
+    implements _SceneHost {
   Scene3DController? _controller;
   late final Scene _scene = Scene();
   late final CameraNode _defaultCamera = CameraNode()
@@ -208,6 +228,9 @@ class _Scene3DState extends State<Scene3D> implements _SceneHost {
   int _generation = 0;
 
   CameraNode get _camera => _cameras.isEmpty ? _defaultCamera : _cameras.last;
+
+  @override
+  CameraNode get _drawnThrough => _camera;
 
   @override
   Scene get scene => _scene;
@@ -271,7 +294,7 @@ class _Scene3DState extends State<Scene3D> implements _SceneHost {
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
-    return Stack(
+    final stack = Stack(
       fit: StackFit.expand,
       children: <Widget>[
         // Built first and never painted: the children's whole job is the
@@ -309,6 +332,7 @@ class _Scene3DState extends State<Scene3D> implements _SceneHost {
         ),
       ],
     );
+    return _withGestures(stack);
   }
 }
 
@@ -500,6 +524,7 @@ class Mesh3D extends Spatial3D {
     this.castsShadow = true,
     this.drawOrder = 0,
     this.name,
+    this.onTap,
   }) : assert(
          shape != null || geometry != null,
          'a Mesh3D draws a shape or a geometry',
@@ -513,6 +538,15 @@ class Mesh3D extends Spatial3D {
   /// See `MeshNode.drawOrder`.
   final int drawOrder;
   final String? name;
+
+  /// Called when a tap on the [Scene3D] lands on this mesh first — the
+  /// nearest surface under the finger, through the camera drawn through —
+  /// with where it landed ([HitResult.point], [HitResult.normal]).
+  ///
+  /// A ray cast through the scene's `Raycaster`, so a mesh in front that
+  /// does not listen still hides one behind that does. Null listens for
+  /// nothing, and a scene where nothing listens takes no tap at all.
+  final void Function(HitResult hit)? onTap;
 
   @override
   State<Mesh3D> createState() => _Mesh3DState();
@@ -589,7 +623,12 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
 
   @override
   void dispose() {
-    if (_node case final node?) _reflector?.surfaces.remove(node);
+    if (_node case final node?) {
+      _reflector?.surfaces.remove(node);
+      if (_scope case final scope?) {
+        _answerTaps(scope.host, <MeshNode>[node], null);
+      }
+    }
     super.dispose();
     _release();
   }
@@ -620,6 +659,11 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
       ..castsShadow = widget.castsShadow
       ..drawOrder = widget.drawOrder;
     _joinMirror(node);
+    _answerTaps(
+      scope.host,
+      <MeshNode>[node],
+      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
+    );
   }
 }
 
@@ -850,6 +894,7 @@ class Model3D extends Spatial3D {
     this.playing = true,
     this.speed = 1.0,
     this.onLoaded,
+    this.onTap,
     super.position,
     super.rotation,
     super.scale,
@@ -875,6 +920,13 @@ class Model3D extends Spatial3D {
 
   /// Called once with the instance the model became.
   final void Function(ModelInstance instance)? onLoaded;
+
+  /// Called when a tap on the [Scene3D] lands on the model first, with the
+  /// [part] it landed on — one of the instance's meshes, named as the file
+  /// names it (`MeshNode.name`) — and where ([HitResult.point]). See
+  /// [Mesh3D.onTap] on what a tap reaches. A model still loading answers
+  /// nothing.
+  final void Function(MeshNode part, HitResult hit)? onTap;
 
   @override
   State<Model3D> createState() => _Model3DState();
@@ -913,6 +965,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     final instance = asset.instantiate(scope.host.scene, parent: node);
     setState(() => _instance = instance);
     _applyAnimation();
+    _applyTaps(scope.host);
     widget.onLoaded?.call(instance);
   }
 
@@ -948,11 +1001,33 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   }
 
   @override
-  void apply(SceneNode node, _Scene3DScope scope) => _applyAnimation();
+  void apply(SceneNode node, _Scene3DScope scope) {
+    _applyAnimation();
+    _applyTaps(scope.host);
+  }
+
+  /// Every part of the instance answers a tap while [Model3D.onTap] is set.
+  void _applyTaps(_SceneHost host) {
+    final meshes = _instance?.meshes;
+    if (meshes == null) return;
+    _answerTaps(
+      host,
+      meshes,
+      widget.onTap == null
+          ? null
+          : (HitResult hit) => widget.onTap?.call(hit.requireNode, hit),
+    );
+  }
 
   @override
   void dispose() {
-    _scope?.host.animated.remove(this);
+    final host = _scope?.host;
+    if (host != null) {
+      host.animated.remove(this);
+      if (_instance?.meshes case final meshes?) {
+        _answerTaps(host, meshes, null);
+      }
+    }
     super.dispose();
     // The instance went out of the scene with the node it hangs from.
     _asset?.dispose();
