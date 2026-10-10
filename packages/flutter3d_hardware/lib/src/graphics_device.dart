@@ -511,8 +511,11 @@ abstract base class GraphicsDevice with TextureAllocator {
   // ------------------------------------------------------------------------
 
   /// Sets where each frame's GPU timings go, a frame or two after it was
-  /// encoded; null stops them. Never called on a device whose features lack
-  /// `DeviceFeature.gpuTimestamps`.
+  /// encoded; null stops them. The engine does not call it on a device whose
+  /// features lack `DeviceFeature.gpuTimestamps`; a backend without the
+  /// feature may still answer a caller that asks, with what it can measure
+  /// and its doc saying what that is (Impeller times each labelled pass from
+  /// submission to completion, and puts it on the Dart timeline).
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
   /// A pipeline from a compute stage of this device's shader library.

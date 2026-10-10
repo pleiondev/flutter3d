@@ -91,9 +91,19 @@ final class GpuRenderBackend extends GraphicsDevice {
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
       impellerFormatSupport(format, features);
 
-  /// Never called: [features] has no `gpuTimestamps`.
+  /// Each frame's labelled passes, timed from submission to the queue's
+  /// completion callback — see `GpuFrame.timePass` for what that span is and
+  /// is not. [features] does not list `gpuTimestamps`, because this is not a
+  /// timestamp query and the engine's own profiler should not read it as
+  /// one; a caller that wants the spans anyway asks here, and every labelled
+  /// pass is on the Dart timeline whether anybody asks or not.
   @override
-  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
+      _timingListener = listener;
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+
+  void _timings(GpuFrameTimings timings) => _timingListener?.call(timings);
 
   /// Refuses every compute member below with the same words.
   // TODO(impeller): flutter_gpu has no compute pipeline, compute pass or
@@ -786,7 +796,7 @@ final class GpuRenderBackend extends GraphicsDevice {
     // pass nobody will ever submit and its callbacks never run.
     _openFrame.abandonUnsubmitted();
     _openFrame.settleIfDone();
-    _openFrame = GpuFrame();
+    _openFrame = GpuFrame(number: ++_frameNumber, report: _timings);
 
     _frame = (_frame + 1) % _kFramesInFlight;
     // **This allocator leaks a block per boundary crossing, so past a budget
@@ -871,6 +881,7 @@ final class GpuRenderBackend extends GraphicsDevice {
       frame,
       depthReadOnly: descriptor.depth?.depthReadOnly ?? false,
       stencilReadOnly: descriptor.depth?.stencilReadOnly ?? false,
+      label: descriptor.label,
     );
   }
 
@@ -883,6 +894,9 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// editor holding a still camera showed, and what three, and eight, and
   /// sixteen buffers each made rarer without making impossible.
   GpuFrame _openFrame = GpuFrame();
+
+  /// Frames begun so far; the number [GpuFrameTimings.frame] carries.
+  int _frameNumber = 0;
 
   /// How many command buffers the driver has refused since this device opened.
   ///

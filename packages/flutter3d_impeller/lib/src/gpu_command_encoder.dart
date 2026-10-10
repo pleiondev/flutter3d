@@ -32,6 +32,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     this._frame, {
     this._depthReadOnly = false,
     this._stencilReadOnly = false,
+    this._label,
   }) {
     if (_depthReadOnly) _pass.setDepthWriteEnable(false);
   }
@@ -46,6 +47,10 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   final bool _stencilReadOnly;
 
   final GpuFrame _frame;
+
+  /// `RenderPassDescriptor.label`: a labelled pass is timed, see
+  /// `GpuFrame.timePass`.
+  final String? _label;
 
   DeviceFeatures get _features => _backend.features;
 
@@ -708,8 +713,11 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     // for — see `GpuFrame.encoding`.
     _frame.encoding--;
     _frame.outstanding++;
+    final label = _label;
+    final timed = label == null ? null : _frame.timePass(label);
     _buffer.submit(
       completionCallback: (bool ok) {
+        timed?.call();
         // **`ok` used to be bound and never read**, which meant a command
         // buffer the driver refused produced exactly the same accounting, the
         // same `FrameResult` and the same draw count as one that ran. In a

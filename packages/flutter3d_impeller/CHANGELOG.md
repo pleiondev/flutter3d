@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **GPU timings on Impeller, through the Dart timeline.** flutter_gpu has
+  no timestamp query, so each labelled pass is timed from its submission to
+  the queue's completion callback: a span named `GPU <label>` with its frame
+  on the timeline DevTools and Perfetto read, and a `GpuFrameTimings` per
+  frame to an `onGpuTimings` listener, which used to be ignored. The span
+  includes any wait behind earlier passes, so `gpuTimestamps` stays out of
+  the features.
 - **A uniform block costs no allocation, and its layout is asked once.**
   The block is filled in place in the device's `UniformScratch`, already
   rounded to the host buffer's granule so no rounded copy is made either; a
