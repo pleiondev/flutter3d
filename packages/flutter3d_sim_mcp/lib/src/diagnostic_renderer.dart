@@ -5,6 +5,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Which of the renderer's own debug outputs a frame is asked for — the four
@@ -126,7 +127,16 @@ Vector3 decodeOctahedralNormal(double r, double g) {
 /// package's own tests) decides what the level is allowed to spawn, and
 /// this package never needs to know.
 final class DiagnosticRenderer {
-  DiagnosticRenderer._(this._device, this._renderer, this._scene);
+  DiagnosticRenderer._(
+    this._device,
+    this._renderer,
+    this._scene, {
+    this.issues = const <LevelIssue>[],
+  });
+
+  /// What the loader said about the level as it read it: a texture it could
+  /// not load (or that [open]'s root refused), a field it did not know.
+  final List<LevelIssue> issues;
 
   final CpuDevice _device;
   final Renderer _renderer;
@@ -135,10 +145,18 @@ final class DiagnosticRenderer {
   static const int width = 320;
   static const int height = 200;
 
+  ///
+  /// Every file the level names — a document it includes, a texture — is
+  /// read through [root] and refused outside it, the project around
+  /// [levelPath] when not given: a level is somebody's file, and its
+  /// `"/Users/x/.ssh/id_rsa"` or `"../../../etc/passwd"` is a read the
+  /// person opening it never asked for.
   static Future<DiagnosticRenderer> open(
     String levelPath, {
     required EntityRegistry registry,
+    ProjectRoot? root,
   }) async {
+    final inside = root ?? ProjectRoot.around(levelPath);
     final it = cpuTestDevice(width: width, height: height);
     const marker = '/assets/levels/';
     final markerAt = levelPath.indexOf(marker);
@@ -150,12 +168,15 @@ final class DiagnosticRenderer {
       device: it.device,
       registry: registry,
       sidecars: false,
-      readDocument: (request) => File(request.uri).readAsString(),
+      readDocument: (request) =>
+          File(inside.resolve(request.uri)).readAsString(),
       readAsset: (request) async {
         final path = request.uri.startsWith('/')
             ? request.uri
             : '$assetRoot/${request.uri}';
-        return ByteData.sublistView(await File(path).readAsBytes());
+        return ByteData.sublistView(
+          await File(inside.resolve(path)).readAsBytes(),
+        );
       },
     );
     return DiagnosticRenderer._(
@@ -166,10 +187,42 @@ final class DiagnosticRenderer {
         fallbackNormal: it.normal,
       ),
       loaded.scene,
+      issues: List<LevelIssue>.unmodifiable(loaded.issues),
     );
   }
 
-  /// One frame, from [at] looking at [aim], in [view].
+  /// How far, in metres, the eye may be from the scene's origin before
+  /// [frameFrom] moves the origin to it: a kilometre, where float32 holds a
+  /// tenth of a millimetre.
+  static const double rebaseBeyond = 1000.0;
+
+  /// One frame from [eye], a place in the world in doubles, looking along
+  /// [aim], in [view].
+  ///
+  /// **The eye goes through the scene's own origin**, not the default one:
+  /// past [rebaseBeyond] the scene's origin is first moved to the eye,
+  /// rounded to whole metres (`Scene.rebaseAround`'s rule), so the camera
+  /// is narrowed to float32 near zero rather than at its distance from the
+  /// world's origin, where float32 steps are a metre at 10 000 km.
+  Future<DiagnosticFrame> frameFrom({
+    required WorldPosition eye,
+    required Vector3 aim,
+    DiagnosticView view = DiagnosticView.lit,
+  }) {
+    if (eye.distanceSquaredTo(_scene.origin) > rebaseBeyond * rebaseBeyond) {
+      _scene.shiftOrigin(
+        WorldPosition(
+          eye.x.roundToDouble(),
+          eye.y.roundToDouble(),
+          eye.z.roundToDouble(),
+        ),
+      );
+    }
+    return frame(at: _scene.toScene(eye), aim: aim, view: view);
+  }
+
+  /// One frame, from [at] — in the scene's own space, an offset from its
+  /// origin — looking at [aim], in [view].
   Future<DiagnosticFrame> frame({
     required Vector3 at,
     required Vector3 aim,

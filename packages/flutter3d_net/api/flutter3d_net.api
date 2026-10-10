@@ -32,7 +32,7 @@ final class LoopbackWire extends PeerWire
   void sendBytes(Uint8List bytes, {bool reliable = true})
   void tick()
 
-typedef PartySeat = ({PeerWire wire, int slot, int size, String code, Future<void> full, WebSocketTransport socket});
+typedef PartySeat = ({PeerWire wire, int slot, int size, String code, Future<void> full, WebSocketTransport socket, String? owner});
 
 final class PeerRoom
   Map<String, Object?>? get peer
@@ -71,7 +71,7 @@ abstract base class PeerWire
 
 final class RollbackSession<S>
   ({int step, S after})? get agreedEnd
-  RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, int? localSlot, this.players = 2, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.endsAt, this.onSettled, this.onMessage})
+  RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, int? localSlot, this.players = 2, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.maxStepsAhead = 600, this.endsAt, this.onSettled, this.onMessage})
   bool get isConnected
   bool get isResimulating
   final Map<String, Object?> Function() captureLocalFrame
@@ -81,6 +81,7 @@ final class RollbackSession<S>
   final int inputDelay
   final int localSlot
   final int maxRollbackFrames
+  final int maxStepsAhead
   final int players
   final int redundancy
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep
@@ -88,6 +89,7 @@ final class RollbackSession<S>
   final void Function(int from, Map<String, Object?> message)? onMessage
   final void Function(int step, S after, Map<int, Map<String, Object?>> frames)? onSettled
   int droppedCorrections
+  int droppedEarly
   int get step
   int stepsRerun
   static const String messageKind = 'rollback'
@@ -139,6 +141,6 @@ SnapshotDivergence? diffRuns({required DigestTrace a, required DigestTrace b, re
 
 Future<PartySeat> findParty(Uri relay, {required String game, int size = 4, String terms = '', SimulationVersion? simulation, void Function(int slot)? left, Duration timeout = const Duration(seconds: 10)})
 
-Future<PartySeat> joinParty(Uri relay, String code, {int size = 4, bool watching = false, String terms = '', SimulationVersion? simulation, void Function(int slot)? left, Duration timeout = const Duration(seconds: 10)})
+Future<PartySeat> joinParty(Uri relay, String code, {int size = 4, bool watching = false, String? owner, String terms = '', SimulationVersion? simulation, void Function(int slot)? left, Duration timeout = const Duration(seconds: 10)})
 
 Uri relayRoom(Uri relay, String code, {String terms = '', SimulationVersion? simulation})

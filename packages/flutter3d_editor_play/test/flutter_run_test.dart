@@ -158,4 +158,39 @@ void main() {
       isNull,
     );
   });
+
+  test(
+    'a device id the shell would read is refused before anything starts',
+    () async {
+      // On Windows `flutter` is `flutter.bat` and its arguments pass through
+      // `cmd.exe`, so each of these runs a second command there.
+      for (final payload in <String>[
+        'macos & calc',
+        'macos" & calc & "',
+        'macos | calc',
+        'macos^&calc',
+        '%COMSPEC%',
+        '-d',
+        'x>out.txt',
+        '',
+      ]) {
+        final it = fakeFlutterRun(device: payload);
+        // Mutation: start with `-d` and whatever the id is. The payload
+        // reaches the shell as part of the command line.
+        await it.run.start();
+        expect(it.started, isEmpty, reason: payload);
+        expect(it.run.state.value, isA<PlayStopped>(), reason: payload);
+        expect(it.run.console.value.single, contains('refused to run on'));
+      }
+      for (final id in <String>[
+        'macos',
+        'emulator-5554',
+        '00008030-001A35E22E38802E',
+        '192.168.1.5:5555',
+        'adb-R5CT-x._adb-tls-connect._tcp',
+      ]) {
+        expect(isFlutterDeviceId(id), isTrue, reason: id);
+      }
+    },
+  );
 }

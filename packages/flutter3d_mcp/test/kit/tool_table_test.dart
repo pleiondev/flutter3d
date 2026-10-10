@@ -128,9 +128,14 @@ void main() {
     // Mutation: skip the aliases when registering. `tally` disappears from
     // the list and an agent configured with it is told there is no such
     // tool — the break an alias exists to defer.
+    // `flutter3d.schema` comes after the server's own tools and aliases.
     final offered = await connection.listTools(ListToolsRequest());
-    expect(offered.tools.map((Tool t) => t.name), <String>['count', 'tally']);
-    final Tool tally = offered.tools.last;
+    expect(offered.tools.map((Tool t) => t.name), <String>[
+      'count',
+      'tally',
+      schemaToolName,
+    ]);
+    final Tool tally = offered.tools[1];
     expect(
       tally.description,
       startsWith(
@@ -150,6 +155,14 @@ void main() {
     expect(answer.isError, isNot(true));
     expect(calls, <String>['count']);
     expect(heard, <String>['count']);
+
+    // Mutation: answer `flutter3d.schema` without the server's version. A
+    // host that cached the list has nothing to compare against.
+    final schema = await connection.callTool(
+      CallToolRequest(name: schemaToolName),
+    );
+    expect(schema.isError, isNot(true));
+    expect(schema.structuredContent?['schemaVersion'], '2.1.0');
 
     await client.shutdown();
   });
@@ -263,7 +276,10 @@ void main() {
     connection.notifyInitialized();
 
     final offered = await connection.listTools(ListToolsRequest());
-    expect(offered.tools.map((Tool it) => it.name), <String>['count']);
+    expect(offered.tools.map((Tool it) => it.name), <String>[
+      'count',
+      schemaToolName,
+    ]);
 
     final first = await connection.callTool(CallToolRequest(name: 'count'));
     expect(first.isError, isNot(true));

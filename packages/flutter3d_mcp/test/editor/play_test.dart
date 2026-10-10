@@ -526,4 +526,21 @@ void main() {
       expect(demo.physics, 'native');
     });
   });
+
+  test(
+    'a device id the shell would read is refused, and no run is made',
+    () async {
+      final it = _session();
+      // Mutation: hand `device` to the run unchecked. On Windows it reaches
+      // `cmd.exe` as part of `flutter run -d …`, and `& calc` is a command.
+      for (final payload in <String>['macos & calc', 'x" | calc', '%PATH%']) {
+        final answer = await _call(it.session, 'play', <String, Object?>{
+          'device': payload,
+        });
+        expect(answer.did, isFalse, reason: payload);
+        expect(answer.says, contains('is not a device id'));
+      }
+      expect(it.devices, isEmpty);
+    },
+  );
 }

@@ -28,14 +28,20 @@
 /// **A random token, minted per server and required on every request.**
 /// Loopback-only keeps this off the network, not off every other process on
 /// the same machine. A request is accepted when its `Authorization` header
-/// (`Bearer`, then the token) or its `token` query parameter carries the
-/// token, and nothing else is.
+/// carries `Bearer` and the token, and nothing else is: not a `token` query
+/// parameter, which lands in shell history, proxy logs and a browser's
+/// address bar, and which a page in a browser on this machine can put in a
+/// form's `action`. The comparison takes the same time however much of a
+/// guess is right, the body of a request is read up to
+/// [LoopbackMcpServer.maxBodyBytes] and no further, and the session file is
+/// written readable by its owner alone.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:stream_channel/stream_channel.dart';
 
@@ -47,6 +53,11 @@ final class LoopbackMcpServer {
     this._peerOutgoing,
     this.token,
   );
+
+  /// The largest request body read, 64 MiB by default: room for a model a
+  /// tool takes base64-encoded, and a cap on what one request can make this
+  /// process hold. A larger one is answered `413` and not read.
+  static const int defaultMaxBodyBytes = 64 * 1024 * 1024;
 
   final HttpServer _server;
   final StreamController<String> _peerIncoming;
@@ -69,10 +80,13 @@ final class LoopbackMcpServer {
   /// collision than bind elsewhere. [token] is minted when omitted — the only
   /// case a real caller needs; a caller passing one is a test that wants to
   /// know it ahead of time.
+  ///
+  /// [maxBodyBytes] caps a request's body ([defaultMaxBodyBytes]).
   static Future<LoopbackMcpServer> start({
     required void Function(StreamChannel<String> channel) serve,
     int port = 0,
     String? token,
+    int maxBodyBytes = defaultMaxBodyBytes,
   }) async {
     final HttpServer server = await HttpServer.bind(
       InternetAddress.loopbackIPv4,
@@ -114,6 +128,7 @@ final class LoopbackMcpServer {
         token: actualToken,
         incoming: incoming.sink,
         pending: pending,
+        maxBodyBytes: maxBodyBytes,
       );
     });
 
@@ -125,6 +140,7 @@ final class LoopbackMcpServer {
     required String token,
     required StreamSink<String> incoming,
     required _PendingReplies pending,
+    required int maxBodyBytes,
   }) async {
     final HttpResponse response = request.response;
     try {
@@ -133,13 +149,20 @@ final class LoopbackMcpServer {
         response.write('POST a JSON-RPC message here');
         return;
       }
-      if (_presentedToken(request) != token) {
+      if (!_sameToken(_presentedToken(request), token)) {
         response.statusCode = HttpStatus.unauthorized;
-        response.write('missing or wrong token');
+        response.write(
+          'missing or wrong token: send it as Authorization: Bearer <token>',
+        );
         return;
       }
 
-      final String body = await utf8.decoder.bind(request).join();
+      final String? body = await _readBody(request, maxBodyBytes);
+      if (body == null) {
+        response.statusCode = HttpStatus.requestEntityTooLarge;
+        response.write('a request body is at most $maxBodyBytes bytes');
+        return;
+      }
       final Object? id = _idOf(body);
       if (id == null) {
         // A notification: `Peer` never answers one, so there is nothing to
@@ -169,14 +192,40 @@ final class LoopbackMcpServer {
     }
   }
 
+  /// The token in the `Authorization` header, and only there.
   static String? _presentedToken(HttpRequest request) {
     final String? header = request.headers.value(
       HttpHeaders.authorizationHeader,
     );
-    if (header != null && header.startsWith('Bearer ')) {
-      return header.substring('Bearer '.length);
+    return header != null && header.startsWith('Bearer ')
+        ? header.substring('Bearer '.length)
+        : null;
+  }
+
+  /// Whether [presented] is [token], looking at every byte of both whatever
+  /// the first difference: a `!=` that stops at the first wrong byte answers
+  /// a byte-by-byte guess a little faster each time one is right.
+  static bool _sameToken(String? presented, String token) {
+    final a = utf8.encode(presented ?? '');
+    final b = utf8.encode(token);
+    final differs = List<int>.generate(
+      b.length,
+      (int i) => (i < a.length ? a[i] : 0) ^ b[i],
+    ).fold(a.length ^ b.length, (int acc, int x) => acc | x);
+    return presented != null && differs == 0;
+  }
+
+  /// [request]'s body as text, or null when it is longer than [limit] —
+  /// refused by its `Content-Length` before a byte is read, or as soon as
+  /// what arrived passes [limit] for a body sent without one.
+  static Future<String?> _readBody(HttpRequest request, int limit) async {
+    if (request.contentLength > limit) return null;
+    final BytesBuilder bytes = BytesBuilder(copy: false);
+    await for (final List<int> chunk in request) {
+      if (bytes.length + chunk.length > limit) return null;
+      bytes.add(chunk);
     }
-    return request.uri.queryParameters['token'];
+    return utf8.decode(bytes.takeBytes());
   }
 
   static String _randomToken() {
@@ -228,15 +277,41 @@ Object? _idOf(String message) {
 /// after the socket is bound, since [port] and [token] both come from the
 /// running server — a file naming a port nothing is listening on yet would
 /// race whatever reads it.
+///
+/// **Readable by its owner alone.** The token in it is the whole of the
+/// server's access control, so on macOS and Linux the file is created empty
+/// beside its final name, made `0600`, filled and then renamed into place:
+/// at no moment is the token in a file another user can read. On Windows a
+/// file under the user's profile is the user's already. Throws a
+/// [FileSystemException] when the permissions cannot be set, rather than
+/// leave the token readable.
 void writeMcpSessionFile(
   File file, {
   required int port,
   required String token,
 }) {
   file.parent.createSync(recursive: true);
-  file.writeAsStringSync(
-    json.encode(<String, Object?>{'port': port, 'token': token}),
-  );
+  final staging = File('${file.path}.$pid.tmp')..createSync();
+  try {
+    if (!Platform.isWindows) {
+      final chmod = Process.runSync('chmod', <String>['600', staging.path]);
+      if (chmod.exitCode != 0) {
+        throw FileSystemException(
+          'could not make the session file readable by its owner alone: '
+          '${chmod.stderr}',
+          staging.path,
+        );
+      }
+    }
+    staging.writeAsStringSync(
+      json.encode(<String, Object?>{'port': port, 'token': token}),
+      flush: true,
+    );
+    staging.renameSync(file.path);
+  } catch (_) {
+    if (staging.existsSync()) staging.deleteSync();
+    rethrow;
+  }
 }
 
 /// Removes the session file [writeMcpSessionFile] wrote — called once the

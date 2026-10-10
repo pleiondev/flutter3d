@@ -21,6 +21,7 @@ import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
 import 'package:flutter3d_mcp/editor.dart';
+import 'package:flutter3d_mcp/kit.dart' show schemaToolName;
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
@@ -29,6 +30,7 @@ void main() {
   late MCPClient client;
   late ServerConnection connection;
   late String started;
+  late EditorMcpServer server;
 
   /// A copy of the template, in a directory of its own.
   ///
@@ -43,7 +45,7 @@ void main() {
     );
 
     final pipe = StreamChannelController<String>(sync: true);
-    EditorMcpServer(pipe.local, session: EditorSession.open(started));
+    server = EditorMcpServer(pipe.local, session: EditorSession.open(started));
 
     client = MCPClient(
       Implementation(name: 'the suite', version: editorMcpVersion),
@@ -109,11 +111,14 @@ void main() {
 
   test('the tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    expect(
-      offered.tools.map((Tool it) => it.name),
-      editorTools.map((EditorTool it) => it.name),
-      reason: 'tools/list and the table this server was built from disagree',
-    );
+    // Published under their `area.verb` names, then the written names as
+    // aliases until the next major, then `flutter3d.schema`.
+    expect(offered.tools.map((Tool it) => it.name), <String>[
+      for (final tool in server.tools) tool.name,
+      ...server.aliases.keys,
+      schemaToolName,
+    ], reason: 'tools/list and the table this server was built from disagree');
+    expect(server.tools, hasLength(editorTools.length));
 
     // Every one of them answers something, including the ones that refuse.
     // A tool registered under a name nothing implements answers "no tool
@@ -200,8 +205,29 @@ void main() {
     });
     expect(saved.did, isTrue, reason: saved.says);
 
+    // A row an editor adds gets an id drawn unseeded (`Editing` in
+    // editor_core: nothing replays an edit, ids only have to differ), so the
+    // three torches' ids are held to being three different ones and then
+    // written as `fresh-0..2` before the text is compared.
+    final written = File(
+      '${workspace.path}/three_torches.json',
+    ).readAsStringSync();
+    final entities =
+        (jsonDecode(written) as Map<String, Object?>)['entities']!
+            as List<Object?>;
+    final fresh = <String>[
+      for (final row in entities.skip(entities.length - at.length))
+        (row! as Map<String, Object?>)['id']! as String,
+    ];
+    expect(fresh.toSet(), hasLength(at.length));
+    final normalized = fresh.indexed.fold(
+      written,
+      (String text, (int, String) id) =>
+          text.replaceAll('"${id.$2}"', '"fresh-${id.$1}"'),
+    );
+
     expect(
-      File('${workspace.path}/three_torches.json').readAsStringSync(),
+      normalized,
       File('test/editor/fixtures/three_torches.json').readAsStringSync(),
       reason:
           'the document written after three place calls is not the one in '

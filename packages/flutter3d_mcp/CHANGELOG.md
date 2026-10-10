@@ -1,5 +1,27 @@
 ## 1.0.0-rc.1
 
+- **Breaking: every file tool reads and writes inside one directory.**
+  `ProjectRoot.resolve` (new, in `kit.dart`, with `PathOutsideRootException` under
+  `ResourceException`) takes each path a tool is handed — the modeller's
+  `project.save`, `project.export`, `project.import`, `project.journal`, the
+  editor's `level.save`, `capture.open`, `render.saveCapture` — and refuses
+  one that leaves the project by `..`, an absolute path elsewhere or a link.
+  `ModelSession`, `EditorSession` take `root:`; left out, it is the nearest
+  directory above the document with a `pubspec.yaml`, or the document's own.
+  A save under another spelling of a generated level is refused like the
+  plain one.
+
+- **Breaking: the loopback transport takes its token in the header only.**
+  `Authorization: Bearer <token>`; a `?token=` query is refused. The token
+  is compared in constant time, a body over
+  `LoopbackMcpServer.defaultMaxBodyBytes` (64 MiB, `maxBodyBytes:` on
+  `start`) is answered `413`, and `writeMcpSessionFile` writes the file
+  `0600` on macOS and Linux.
+
+- **`play.start` refuses a device id a shell would read.** On Windows the
+  id is an argument to `cmd.exe`; one outside `isFlutterDeviceId` is
+  refused before a run is made.
+
 - **The editor server draws its level through `flutter3d_level_scene`**,
   where `LevelScene` lives since it left `flutter3d_editor_core`.
 

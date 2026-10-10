@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -37,6 +38,17 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// to watch: its slot comes after the players', it hears everything and
 /// what it says reaches the players, so a spectator can ask for the tape.
 ///
+/// **A party has an owner, and only who the owner invites watches.** The
+/// machine that opens a party is told a token in its welcome, `"owner"`,
+/// and `/watch/<code>?owner=<token>` is the only way in as a spectator: a
+/// watcher hears every frame and speaks to every player, and a party's code
+/// is five letters anybody can try. A party holds at most [_maxWatchers]
+/// watchers, and the relay at most [_maxCodes] rooms and parties at once.
+///
+/// **Every request is served on its own.** A machine that is slow to
+/// upgrade, or never answers the close frame of a refusal, holds up its own
+/// request and nobody else's.
+///
 /// `/match?size=N&game=<name>` — matchmaking for strangers: a party of N
 /// for that game that is still filling, or a new one under a fresh code.
 /// The welcome carries the `code`, so friends can still be sent after a
@@ -73,10 +85,13 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// One party: its players by slot, nobody in a slot that was left, and its
 /// spectators.
 final class _Party {
-  _Party(this.size, this.terms, this.simulation);
+  _Party(this.size, this.terms, this.simulation, this.owner);
 
   final int size;
   final String terms;
+
+  /// The token its first machine was told, which a watcher presents.
+  final String owner;
 
   /// The simulation version its first machine named, "none" for none.
   final String simulation;
@@ -88,6 +103,16 @@ final class _Party {
     ...watchers,
   ];
 }
+
+/// The most watchers one party holds.
+const int _maxWatchers = 8;
+
+/// The most rooms and parties the relay holds at once.
+const int _maxCodes = 4096;
+
+/// Close code 1013, "try again later", from the IANA registry RFC 6455
+/// keeps; `dart:io` names no constant for it.
+const int _tryAgainLater = 1013;
 
 Future<void> main(List<String> args) async {
   final port = args.isNotEmpty ? int.parse(args[0]) : 0;
@@ -106,13 +131,15 @@ Future<void> main(List<String> args) async {
   final filling = <String, String>{};
   final dice = math.Random.secure();
 
-  await for (final request in server) {
+  bool crowded() => rooms.length + parties.length >= _maxCodes;
+
+  Future<void> serve(HttpRequest request) async {
     if (!WebSocketTransformer.isUpgradeRequest(request)) {
       request.response
         ..statusCode = HttpStatus.badRequest
         ..write('this is a WebSocket relay, not a page');
       await request.response.close();
-      continue;
+      return;
     }
     final segments = request.uri.pathSegments;
     if (segments.length == 1 && segments[0] == 'match') {
@@ -132,8 +159,10 @@ Future<void> main(List<String> args) async {
         watching: false,
         size: size,
         onFull: () => filling.remove(key),
+        crowded: crowded,
+        dice: dice,
       );
-      continue;
+      return;
     }
     if (segments.length == 2 &&
         (segments[0] == 'party' || segments[0] == 'watch') &&
@@ -143,24 +172,33 @@ Future<void> main(List<String> args) async {
         parties,
         segments[1],
         watching: segments[0] == 'watch',
+        crowded: crowded,
+        dice: dice,
       );
-      continue;
+      return;
     }
     if (segments.length != 2 || segments[0] != 'room' || segments[1].isEmpty) {
       request.response.statusCode = HttpStatus.notFound;
       await request.response.close();
-      continue;
+      return;
     }
     final code = segments[1];
     final socket = await WebSocketTransformer.upgrade(request);
-    if (await _refusedProtocol(socket, request)) continue;
+    if (await _refusedProtocol(socket, request)) return;
+    if (!rooms.containsKey(code) && crowded()) {
+      await socket.close(
+        _tryAgainLater,
+        'this relay holds as many rooms and parties as it can',
+      );
+      return;
+    }
     final room = rooms.putIfAbsent(code, () => <WebSocket>[]);
     if (room.length >= 2) {
       await socket.close(
         WebSocketStatus.policyViolation,
         'room $code already has two peers',
       );
-      continue;
+      return;
     }
     final terms = _termsOf(request);
     final held = roomTerms.putIfAbsent(code, () => terms);
@@ -169,7 +207,7 @@ Future<void> main(List<String> args) async {
         WebSocketStatus.policyViolation,
         _otherTerms('room $code', held, terms),
       );
-      continue;
+      return;
     }
     final simulation = _simulationOf(request);
     final heldSimulation = roomSimulation.putIfAbsent(code, () => simulation);
@@ -178,7 +216,7 @@ Future<void> main(List<String> args) async {
         WebSocketStatus.policyViolation,
         _otherSimulation('room $code', heldSimulation, simulation),
       );
-      continue;
+      return;
     }
     room.add(socket);
     socket.listen(
@@ -197,6 +235,15 @@ Future<void> main(List<String> args) async {
       },
     );
   }
+
+  server.listen((HttpRequest request) {
+    unawaited(
+      serve(request).catchError((Object error) {
+        // One machine's broken request is its own; the relay goes on.
+        stderr.writeln('a request to ${request.uri.path} failed: $error');
+      }),
+    );
+  });
 }
 
 /// Joins [request] to the party [code] — as the next player, or with
@@ -209,6 +256,8 @@ Future<void> _joinParty(
   required bool watching,
   int? size,
   void Function()? onFull,
+  required bool Function() crowded,
+  required math.Random dice,
 }) async {
   final asked =
       size ?? int.tryParse(request.uri.queryParameters['size'] ?? '') ?? 4;
@@ -222,7 +271,37 @@ Future<void> _joinParty(
   final simulation = _simulationOf(request);
   final socket = await WebSocketTransformer.upgrade(request);
   if (await _refusedProtocol(socket, request)) return;
-  final room = parties[code] ??= _Party(asked.clamp(2, 32), terms, simulation);
+  if (watching) {
+    final presented = request.uri.queryParameters['owner'];
+    if (!_sameToken(presented, party!.owner)) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        'watching party $code takes the token its owner was welcomed with',
+      );
+      return;
+    }
+    if (party.watchers.length >= _maxWatchers) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        'party $code already has $_maxWatchers watchers',
+      );
+      return;
+    }
+  }
+  final opening = !parties.containsKey(code);
+  if (opening && crowded()) {
+    await socket.close(
+      _tryAgainLater,
+      'this relay holds as many rooms and parties as it can',
+    );
+    return;
+  }
+  final room = parties[code] ??= _Party(
+    asked.clamp(2, 32),
+    terms,
+    simulation,
+    _ownerToken(dice),
+  );
   final refusal = room.terms != terms
       ? _otherTerms('party $code', room.terms, terms)
       : room.simulation != simulation
@@ -260,6 +339,7 @@ Future<void> _joinParty(
       'size': room.size,
       'watching': watching,
       'code': code,
+      'owner': ?(opening ? room.owner : null),
       'protocol': <int>[
         WireHello.currentProtocolMajor,
         WireHello.currentProtocolMinor,
@@ -294,6 +374,24 @@ Future<void> _joinParty(
   );
 }
 
+/// A party's owner token: 128 random bits, URL-safe.
+String _ownerToken(math.Random dice) => base64Url
+    .encode(List<int>.generate(16, (_) => dice.nextInt(256)))
+    .replaceAll('=', '');
+
+/// Whether [presented] is [token], looking at every byte of both whatever
+/// the first difference, so a guess is not answered faster as it gets
+/// closer.
+bool _sameToken(String? presented, String token) {
+  final a = utf8.encode(presented ?? '');
+  final b = utf8.encode(token);
+  final differs = List<int>.generate(
+    b.length,
+    (int i) => (i < a.length ? a[i] : 0) ^ b[i],
+  ).fold(a.length ^ b.length, (int acc, int x) => acc | x);
+  return presented != null && differs == 0;
+}
+
 /// The terms [request] asked for, the empty text when it named none.
 String _termsOf(HttpRequest request) =>
     request.uri.queryParameters['terms'] ?? '';
@@ -325,12 +423,43 @@ Future<bool> _refusedProtocol(WebSocket socket, HttpRequest request) async {
 
 /// Why a machine on simulation version [asked] was turned away from
 /// [what], which runs [held]: which side has to update, and to what.
+///
+/// **What to do comes first.** A close reason is cut to 123 bytes, and a
+/// party's code and two simulations (`engine 1, racing 7`) fill that; said
+/// last, the version to update to was the part that went.
 String _otherSimulation(String what, String held, String asked) {
-  final (h, a) = (int.tryParse(held), int.tryParse(asked));
-  final update = h != null && a != null && a > h
+  final update = _newerSimulation(held, asked) == true
       ? 'its players have to update to simulation $asked'
       : 'update to simulation $held';
-  return _cut('$what runs simulation $held and this machine $asked: $update');
+  return _cut('$update: $what runs simulation $held, this machine $asked');
+}
+
+/// Whether [asked] is newer than [held], both as
+/// `SimulationVersion.describe` writes them (`engine 1, racing 7`): true
+/// when every number in it is at least the other's and one is more, false
+/// for the other way round, null when they name different parts or each is
+/// ahead somewhere. A number alone (`7`) is a part with no name.
+bool? _newerSimulation(String held, String asked) {
+  Map<String, int>? parts(String described) {
+    final read = <String, int>{};
+    for (final piece in described.split(',')) {
+      final match = RegExp(r'^\s*(.*?)\s*(\d+)\s*$').firstMatch(piece);
+      if (match == null) return null;
+      read[match.group(1)!] = int.parse(match.group(2)!);
+    }
+    return read;
+  }
+
+  final (h, a) = (parts(held), parts(asked));
+  if (h == null || a == null || h.length != a.length) return null;
+  if (!h.keys.every(a.containsKey)) return null;
+  final ahead = h.keys.where((k) => a[k]! > h[k]!).length;
+  final behind = h.keys.where((k) => a[k]! < h[k]!).length;
+  return switch ((ahead, behind)) {
+    (> 0, 0) => true,
+    (0, > 0) => false,
+    _ => null,
+  };
 }
 
 /// Why a machine asking with [asked] was turned away from [what], held to

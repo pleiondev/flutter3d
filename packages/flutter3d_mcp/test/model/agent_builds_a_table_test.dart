@@ -21,6 +21,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
+import 'package:flutter3d_mcp/kit.dart' show schemaToolName;
 import 'package:flutter3d_mcp/model.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
@@ -30,13 +31,17 @@ void main() {
   late MCPClient client;
   late ServerConnection connection;
   late String started;
+  late ModelMcpServer server;
 
   setUp(() async {
     workspace = Directory.systemTemp.createTempSync('flutter3d_model_mcp');
     started = '${workspace.path}/table.f3dproj';
 
     final pipe = StreamChannelController<String>(sync: true);
-    ModelMcpServer(pipe.local, session: ModelSession.open(started));
+    server = ModelMcpServer(
+      pipe.local,
+      session: ModelSession.open(started),
+    );
 
     client = MCPClient(
       Implementation(name: 'the suite', version: modelMcpVersion),
@@ -76,16 +81,31 @@ void main() {
 
   test('the tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    expect(offered.tools.map((Tool it) => it.name), <String>[
-      ...modelTools.map((ModelTool it) => it.name),
-      renderTool.name,
-      renderSheetTool.name,
-      // `pro-rn-04`: the full-quality snapshot, which is not `render` with
-      // more arguments — see `render_tool.dart` for why the two are apart.
-      renderSnapshotTool.name,
-      // A3: an arrived asset checked, with all seven views.
-      auditTool.name,
-    ], reason: 'tools/list and the table this server was built from disagree');
+    // The table, under the `area.verb` names it publishes, then the
+    // written names as aliases until the next major, then
+    // `flutter3d.schema`.
+    expect(server.tools.map((it) => it.name), <String>[
+      for (final written in <String>[
+        ...modelTools.map((ModelTool it) => it.name),
+        renderTool.name,
+        renderSheetTool.name,
+        // `pro-rn-04`: the full-quality snapshot, which is not `render` with
+        // more arguments — see `render_tool.dart` for why the two are apart.
+        renderSnapshotTool.name,
+        // A3: an arrived asset checked, with all seven views.
+        auditTool.name,
+      ])
+        modelToolNames[written]?.name ?? written,
+    ]);
+    expect(
+      offered.tools.map((Tool it) => it.name),
+      <String>[
+        for (final tool in server.tools) tool.name,
+        ...server.aliases.keys,
+        schemaToolName,
+      ],
+      reason: 'tools/list and the table this server was built from disagree',
+    );
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');
     }

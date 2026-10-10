@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:vm_service/vm_service.dart';
 
+import 'devices.dart';
 import 'game_events.dart';
 import 'play_state.dart';
 import 'vm_connect.dart';
@@ -134,6 +135,11 @@ final class FlutterRun with PlayedGame {
   @override
   Future<void> start() async {
     if (_process != null) return;
+    if (device case final String id when !isFlutterDeviceId(id)) {
+      _print('refused to run on "$id": not a device id flutter devices lists');
+      state.value = const PlayStopped(-1);
+      return;
+    }
     state.value = const PlayStarting('Starting flutter run…');
     final Process process;
     try {

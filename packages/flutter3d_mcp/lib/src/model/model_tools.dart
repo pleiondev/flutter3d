@@ -3066,7 +3066,11 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final path = arguments['path'];
-      return session.save(path is String ? path : null);
+      if (path is! String) return session.save(null);
+      return switch (session.root.tryResolve(path)) {
+        (path: final String inside, refused: null) => session.save(inside),
+        (path: _, :final refused) => (did: false, says: refused!),
+      };
     }),
   ),
   ModelTool(
@@ -3100,11 +3104,14 @@ List<ModelTool> get modelTools => <ModelTool>[
       if (to is! String) {
         return (did: false, says: 'export needs a "to" path');
       }
-      return session.export(
-        to,
-        format: arguments['format'] as String?,
-        force: arguments['force'] == true,
-      );
+      return switch (session.root.tryResolve(to)) {
+        (path: final String inside, refused: null) => session.export(
+          inside,
+          format: arguments['format'] as String?,
+          force: arguments['force'] == true,
+        ),
+        (path: _, :final refused) => (did: false, says: refused!),
+      };
     }),
   ),
   ModelTool(
@@ -3156,11 +3163,15 @@ List<ModelTool> get modelTools => <ModelTool>[
           says: 'import needs a "from" path',
         ));
       }
+      final (path: inside, :refused) = session.root.tryResolve(from);
+      if (inside == null) {
+        return Future<Answer>.value((did: false, says: refused!));
+      }
       final unit = arguments['unit'];
       final scale = unit is String ? (_importUnitScale[unit] ?? 1.0) : 1.0;
       final upAxis = arguments['upAxis'] == 'z' ? UpAxis.z : UpAxis.y;
       return session.import(
-        from,
+        inside,
         options: ImportSettings(scale: scale, upAxis: upAxis),
         weld: arguments['weld'] == true,
         fixNormals: arguments['fixNormals'] == true,
@@ -3187,7 +3198,10 @@ List<ModelTool> get modelTools => <ModelTool>[
       if (to is! String) {
         return (did: false, says: 'journal needs a "to" path');
       }
-      return session.journal(to);
+      return switch (session.root.tryResolve(to)) {
+        (path: final String inside, refused: null) => session.journal(inside),
+        (path: _, :final refused) => (did: false, says: refused!),
+      };
     }),
   ),
   ModelTool(

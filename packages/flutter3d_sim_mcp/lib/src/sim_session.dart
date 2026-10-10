@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
@@ -34,7 +33,14 @@ PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
 /// has anything worth keeping is the only time it is allowed to replace
 /// what came before.
 final class SimSession {
-  SimSession({required this.game, this.entities});
+  SimSession({required this.game, this.entities, ProjectRoot? root})
+    : root = root ?? ProjectRoot.around(null);
+
+  /// The directory every path this session is handed must lie inside: the
+  /// level [open] reads, the runs [verify] and [bisect] read and the level
+  /// each of them names, and the `.f3drun` [writeRun] and [expect] write.
+  /// The working directory when not given.
+  final ProjectRoot root;
 
   /// What this session plays — `flutter3d_game_shooter`'s
   /// `ShooterHeadlessGame`, for the crypt.
@@ -70,7 +76,7 @@ final class SimSession {
   PictureAnswer open(String path) {
     final Level level;
     try {
-      final json = jsonDecode(File(path).readAsStringSync());
+      final json = jsonDecode(_readInside(path));
       level = Level.fromJson((json as Map).cast<String, Object?>());
     } catch (error) {
       return _refuse('could not read a level from "$path": $error');
@@ -271,7 +277,7 @@ final class SimSession {
     final runs = <Demo>[];
     for (final path in <String>[pathA, pathB]) {
       try {
-        final json = jsonDecode(File(path).readAsStringSync());
+        final json = jsonDecode(_readInside(path));
         runs.add(Demo.fromJson((json as Map).cast<String, Object?>()));
       } on DemoFormatException catch (error) {
         return _refuse('"$path" is not a run: ${error.message}');
@@ -297,7 +303,7 @@ final class SimSession {
     }
     final Level level;
     try {
-      final json = jsonDecode(File(a.level).readAsStringSync());
+      final json = jsonDecode(_readInside(a.level));
       level = Level.fromJson((json as Map).cast<String, Object?>());
     } catch (error) {
       return _refuse('could not read the runs\' level "${a.level}": $error');
@@ -365,7 +371,7 @@ final class SimSession {
   PictureAnswer verify(String path, {Map<String, Object?>? predicate}) {
     final Demo demo;
     try {
-      final json = jsonDecode(File(path).readAsStringSync());
+      final json = jsonDecode(_readInside(path));
       demo = Demo.fromJson((json as Map).cast<String, Object?>());
     } on DemoFormatException catch (error) {
       return _refuse('"$path" is not a run: ${error.message}');
@@ -401,7 +407,7 @@ final class SimSession {
     }
     final Level level;
     try {
-      final json = jsonDecode(File(demo.level).readAsStringSync());
+      final json = jsonDecode(_readInside(demo.level));
       level = Level.fromJson((json as Map).cast<String, Object?>());
     } catch (error) {
       return _refuse('could not read the run\'s level "${demo.level}": $error');
@@ -411,7 +417,15 @@ final class SimSession {
     final ResimulationRetraced retraced;
     switch (_onPhysicsOf(
       demo,
-      () => resimulate(game: game, level: level, demo: demo, dt: _dt),
+      // The backend `_onPhysicsOf` just chose, handed in: `resimulate`'s
+      // own default is the Dart one, which refuses a native run.
+      () => resimulate(
+        game: game,
+        level: level,
+        demo: demo,
+        dt: _dt,
+        physics: usePhysics(),
+      ),
     )) {
       case ResimulationLevelChanged(:final found, :final recorded):
         return _refuse(
@@ -520,6 +534,11 @@ final class SimSession {
     return _ok('step ${digests.steps.last}: ${digests.hexDigests.last}');
   }
 
+  /// The text of the file at [path], refused by [root] before it is opened
+  /// when it lies outside: a parse error would quote what it read.
+  String _readInside(String path) =>
+      File(root.resolve(path)).readAsStringSync();
+
   PictureAnswer writeRun(String path) {
     final recorder = _recorder;
     final digests = _digests;
@@ -546,7 +565,7 @@ final class SimSession {
       simulation: game.simulation,
     );
     try {
-      File(path).writeAsStringSync(jsonEncode(demo.toJson()));
+      File(root.resolve(path)).writeAsStringSync(jsonEncode(demo.toJson()));
     } catch (error) {
       return 'could not write "$path": $error';
     }
@@ -562,14 +581,15 @@ final class SimSession {
     if (run == null || path == null) return _refuse('no level open');
     try {
       final renderer = _renderer ??= await SimRenderer.open(
-        path,
+        root.resolve(path),
         registry: game.registry(),
+        root: root,
       );
-      // The renderer draws relative to the world origin, in float32.
-      final eye = run.eye.toVector3Relative(WorldPosition.origin);
+      // The eye in the world, in doubles: the renderer narrows it through
+      // its scene's own origin, which it keeps near the eye.
       final aim = Vector3.zero();
       run.aim(aim);
-      final png = await renderer.frame(at: eye, aim: aim);
+      final png = await renderer.frameFrom(eye: run.eye, aim: aim);
       return _ok(
         'a frame from the player\'s own eye, ${png.length} bytes',
         png,

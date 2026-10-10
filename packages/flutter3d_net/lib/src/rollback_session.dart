@@ -90,6 +90,7 @@ final class RollbackSession<S> {
     this.inputDelay = 2,
     this.maxRollbackFrames = 8,
     this.redundancy = 8,
+    this.maxStepsAhead = 600,
     this.endsAt,
     this.onSettled,
     this.onMessage,
@@ -97,7 +98,8 @@ final class RollbackSession<S> {
        assert(players >= 2 && players <= 32, 'two to thirty-two machines'),
        assert(inputDelay >= 0, 'a negative delay would apply input early'),
        assert(maxRollbackFrames > 0, 'a window of nought corrects nothing'),
-       assert(redundancy >= 0, 'a negative redundancy resends nothing') {
+       assert(redundancy >= 0, 'a negative redundancy resends nothing'),
+       assert(maxStepsAhead > 0, 'a peer is always a little ahead') {
     assert(
       this.localSlot >= 0 && this.localSlot < players,
       'this machine\'s slot is one of the $players',
@@ -136,6 +138,13 @@ final class RollbackSession<S> {
   final int maxRollbackFrames;
   final int redundancy;
 
+  /// How far past the step about to run a peer's frame is kept for later:
+  /// ten seconds at sixty steps by default. A frame further ahead is
+  /// dropped and counted in [droppedEarly] — a peer that far ahead is not
+  /// one this machine will catch up with, and a peer that says so on
+  /// purpose would otherwise have this one keep every step number it names.
+  final int maxStepsAhead;
+
   /// Whether a settled state is an ending; null for a game with none.
   final bool Function(S after)? endsAt;
 
@@ -162,6 +171,9 @@ final class RollbackSession<S> {
 
   /// Frames that came too late to correct anything.
   int droppedCorrections = 0;
+
+  /// Frames that came for a step more than [maxStepsAhead] ahead.
+  int droppedEarly = 0;
 
   /// How many steps were run again, over every correction.
   int stepsRerun = 0;
@@ -229,12 +241,22 @@ final class RollbackSession<S> {
   /// step, some of them repeats of ones already had — or a message that is
   /// not the rollback's, handed to [onMessage].
   void receive(int from, Map<String, Object?> message) {
+    // A wire between two machines names the sender as the other of its own
+    // slot, and a room's transport does not know which slot the room gave
+    // this machine (a WebSocket to `/room/<code>` is slot nought on both
+    // ends). So a session told another slot than its wire's hears the
+    // sender as the other of its own: otherwise the joining machine, told
+    // slot one, takes every frame from slot nought for its own and drops it.
+    final sender = players == 2 && localSlot != wire.slot ? 1 - from : from;
     if (message[PeerWire.engineKey] != messageKind) {
-      onMessage?.call(from, message);
+      onMessage?.call(sender, message);
       return;
     }
     final frames = message['frames'];
-    if (frames is! Map || from == localSlot || from < 0 || from >= players) {
+    if (frames is! Map ||
+        sender == localSlot ||
+        sender < 0 ||
+        sender >= players) {
       return;
     }
     final steps = <int, Map<String, Object?>>{
@@ -243,7 +265,7 @@ final class RollbackSession<S> {
           at: frame.cast<String, Object?>(),
     };
     for (final at in steps.keys.toList()..sort()) {
-      _receiveOne(from, at, steps[at]!);
+      _receiveOne(sender, at, steps[at]!);
     }
   }
 
@@ -255,6 +277,10 @@ final class RollbackSession<S> {
   }
 
   void _receiveOne(int from, int at, Map<String, Object?> frame) {
+    if (at >= _step + maxStepsAhead) {
+      droppedEarly++;
+      return;
+    }
     if (at >= _step) {
       (_early[from] ??= <int, Map<String, Object?>>{})[at] = frame;
       return;

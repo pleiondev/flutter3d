@@ -217,6 +217,8 @@ String describeLevelApplied(Map<String, Object?> answer)
 
 Future<List<FlutterDevice>> flutterDevices({RunFlutter run = _runFlutter})
 
+bool isFlutterDeviceId(String id)
+
 Map<String, String> levelApplyArguments(String document)
 
 Map<String, String>? levelPatchArguments(String base, String document)

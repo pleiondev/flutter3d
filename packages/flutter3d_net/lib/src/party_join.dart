@@ -10,6 +10,11 @@ import 'wire_hello.dart';
 /// A machine's place in a relay's party: its wire, the slot the relay gave
 /// it, the party's [code] — the one to send a friend — and [full], which
 /// completes once every player's slot is taken.
+///
+/// `owner` is the token the relay welcomed the machine that opened the
+/// party with, and null for everybody else: it is what a spectator is let
+/// in with ([joinParty]'s `owner`), so the host hands it only to whoever it
+/// invites to watch.
 typedef PartySeat = ({
   PeerWire wire,
   int slot,
@@ -17,6 +22,7 @@ typedef PartySeat = ({
   String code,
   Future<void> full,
   WebSocketTransport socket,
+  String? owner,
 });
 
 /// Joins the party [code] on the relay at [relay] — `ws://host:port/` —
@@ -38,11 +44,15 @@ typedef PartySeat = ({
 /// turned away with a reason naming both. Null names none, which meets only
 /// another that names none. The protocol this build speaks
 /// always goes with it, and a relay of another major turns the machine away.
+///
+/// [owner] is what a spectator is let in with: the `owner` of the seat the
+/// party's host was given. A relay turns a watcher away without it.
 Future<PartySeat> joinParty(
   Uri relay,
   String code, {
   int size = 4,
   bool watching = false,
+  String? owner,
   String terms = '',
   SimulationVersion? simulation,
   void Function(int slot)? left,
@@ -52,6 +62,7 @@ Future<PartySeat> joinParty(
     pathSegments: <String>[watching ? 'watch' : 'party', code],
     queryParameters: <String, String>{
       if (!watching) 'size': '$size',
+      if (watching) 'owner': ?owner,
       if (terms.isNotEmpty) 'terms': terms,
       ..._versions(simulation),
     },
@@ -127,7 +138,8 @@ Future<PartySeat> _seat(
   required Duration timeout,
 }) async {
   final socket = await WebSocketTransport.connect(at);
-  final welcomed = Completer<({int slot, int size, String code})>();
+  final welcomed =
+      Completer<({int slot, int size, String code, String? owner})>();
   final full = Completer<void>();
   void Function(Map<String, Object?>)? onward;
   socket.listen((Map<String, Object?> message) {
@@ -137,10 +149,12 @@ Future<PartySeat> _seat(
         // A relay from before matchmaking names no code; the one asked
         // for is the party's.
         final named = message['code'];
+        final owner = message['owner'];
         welcomed.complete((
           slot: slot,
           size: of,
           code: named is String ? named : code ?? '',
+          owner: owner is String ? owner : null,
         ));
       case {'relay': 'full'}:
         if (!full.isCompleted) full.complete();
@@ -172,6 +186,7 @@ Future<PartySeat> _seat(
     code: seat.code,
     full: full.future,
     socket: socket,
+    owner: seat.owner,
   );
 }
 

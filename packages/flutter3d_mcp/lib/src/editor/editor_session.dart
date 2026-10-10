@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp/kit.dart' show Answer, PictureAnswer;
+import 'package:flutter3d_mcp/kit.dart'
+    show Answer, PictureAnswer, ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -30,9 +31,14 @@ export 'package:flutter3d_mcp/kit.dart' show Answer, PictureAnswer;
 /// sixty-four snapshots behind it would quietly become sixty-four snapshots of
 /// somebody else's work.
 final class EditorSession {
-  EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces})
-    : play = play ?? PlaySession(levelPath: editing.path),
-      pieces = pieces ?? EditorPieces();
+  EditorSession(
+    this.editing, {
+    PlaySession? play,
+    EditorPieces? pieces,
+    ProjectRoot? root,
+  }) : play = play ?? PlaySession(levelPath: editing.path),
+       pieces = pieces ?? EditorPieces(),
+       root = root ?? ProjectRoot.around(editing.path);
 
   /// Reads the document at [path].
   ///
@@ -45,6 +51,12 @@ final class EditorSession {
       EditorSession(Editing.parse(File(path).readAsStringSync(), path: path));
 
   final Editing editing;
+
+  /// The directory every path a tool hands this session must lie inside —
+  /// [save]'s, and the capture files' — and the project around the level
+  /// when not given: the nearest directory above it with a `pubspec.yaml`,
+  /// the one `play` runs, or the level's own directory.
+  final ProjectRoot root;
 
   /// The game this level belongs to, run from here.
   final PlaySession play;
@@ -394,8 +406,21 @@ final class EditorSession {
   ///
   /// Written over the level the game is playing, it goes to the game too
   /// when one is running, as the editor application's save does.
+  ///
+  /// [path] is resolved inside [root] and refused outside it, and compared
+  /// with the level's own path as the file it names rather than as text: a
+  /// `./` or an absolute spelling of the generated file is the same file.
   Future<Answer> save(String? path) async {
-    final elsewhere = path != null && path != editing.path;
+    final String? asked;
+    if (path == null) {
+      asked = null;
+    } else {
+      final (path: inside, :refused) = root.tryResolve(path);
+      if (inside == null) return (did: false, says: refused!);
+      asked = inside;
+    }
+    final own = root.tryResolve(File(editing.path).absolute.path).path;
+    final elsewhere = asked != null && asked != own;
     if (!elsewhere && !editing.canOverwrite) {
       return (
         did: false,
@@ -405,7 +430,7 @@ final class EditorSession {
             'ownership of itself',
       );
     }
-    final to = path ?? editing.path;
+    final to = asked ?? editing.path;
     final document = editing.write(claiming: elsewhere ? author : null);
     File(to).writeAsStringSync(document);
     editing.saved();

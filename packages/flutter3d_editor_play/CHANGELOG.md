@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A device id is checked before it reaches `flutter run -d`.**
+  `isFlutterDeviceId` (new) holds an id to letters, digits, `.`, `_`, `:`
+  and `-`; `FlutterRun.start` refuses another, since on Windows `flutter`
+  runs through `cmd.exe`, and `parseFlutterDevices` leaves such an entry out.
+
 - **Breaking: `GameEventLog.take` is `record`.** `PlayedGame.stop` stays
   beside `dispose`: it is a state transition (`start` may follow), and its
   doc now says so.

@@ -11,6 +11,7 @@ library;
 export 'src/kit/answers.dart';
 export 'src/kit/argument_check.dart';
 export 'src/kit/loopback_http.dart';
+export 'src/kit/project_root.dart';
 export 'src/kit/project_server.dart';
 export 'src/kit/project_tools.dart';
 export 'src/kit/tool_spec.dart';

@@ -34,6 +34,7 @@ void main() {
     // Named rather than counted: a count would pass a rename, and what a reader
     // of this file wants to know is *which* ones are not document commands.
     const beyondTheCommands = <String>{
+      'command.run',
       'prefabs',
       'list',
       'select',
@@ -63,6 +64,11 @@ void main() {
       'render_pass_output',
       'render_scan_nan',
       'render_stats',
+      'render_memory',
+      'render_debug_views',
+      'render_capture_save',
+      'capture_open',
+      'capture_draw',
       'setBehaviour',
       'removeBehaviour',
       'setCutscene',

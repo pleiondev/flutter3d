@@ -134,14 +134,18 @@ final class PeerRoom {
   void _hear(Map<String, Object?> message) {
     final tag = message['tag'];
     final body = message['body'];
-    if (tag is! String || body is! Map) return;
-    final said = body.cast<String, Object?>();
+    if (tag is! String) return;
+    // A hello is read whatever its body: one without (a build from before
+    // the hello carried `about`) is a machine to refuse by name, and it
+    // only learns which version to update to from the answer.
     if (tag == _helloTag) {
       final theirs = WireHello.read(message);
       _peerHello = theirs;
       final reason = hello.refusal(theirs);
       if (reason == null) {
-        _peer = said;
+        _peer = body is Map
+            ? body.cast<String, Object?>()
+            : const <String, Object?>{};
       } else {
         _refusal = reason;
       }
@@ -153,8 +157,8 @@ final class PeerRoom {
     // Nothing but the hello passes from a machine that cannot be played
     // with. Before any hello a channel still hears: a frame can overtake
     // the hello it follows.
-    if (_refusal != null) return;
-    _channels[tag]?.deliver(said);
+    if (_refusal != null || body is! Map) return;
+    _channels[tag]?.deliver(body.cast<String, Object?>());
   }
 }
 

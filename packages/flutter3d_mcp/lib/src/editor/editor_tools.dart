@@ -317,10 +317,12 @@ List<EditorTool> get _renderTools {
             says: 'no game is running: call play first, or give vmService',
           );
         }
-        final path = arguments['path'];
-        if (path is! String || path.isEmpty) {
+        final asked = arguments['path'];
+        if (asked is! String || asked.isEmpty) {
           return (did: false, says: 'path names the file to write');
         }
+        final (:path, :refused) = session.root.tryResolve(asked);
+        if (path == null) return (did: false, says: refused!);
         final answer = await session.play.ask(
           address,
           'ext.flutter3d.render.capture',
@@ -374,10 +376,12 @@ List<EditorTool> get _captureTools => <EditorTool>[
       ),
     ),
     (EditorSession session, Map<String, Object?> arguments) async {
-      final path = arguments['path'];
-      if (path is! String || path.isEmpty) {
+      final asked = arguments['path'];
+      if (asked is! String || asked.isEmpty) {
         return (did: false, says: 'path names the file to open', png: null);
       }
+      final (:path, :refused) = session.root.tryResolve(asked);
+      if (path == null) return (did: false, says: refused!, png: null);
       final (:open, :why) = openCaptureFile(path);
       if (open == null) return (did: false, says: why!, png: null);
       _openCaptures[session] = open;

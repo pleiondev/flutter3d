@@ -1,5 +1,8 @@
 ## 0.3.0
 
+- **A spectator presents the party owner's token.** See `flutter3d_net`:
+  `joinParty(watching: true, owner: host.owner)`.
+
 - **Breaking: `Registration` and `SimulationVersion` are not re-exported.**
   They are `flutter3d_foundation`'s and `flutter3d_plugin_api`'s; the wire,
   the room and the rollback still are, from `flutter3d_net`.

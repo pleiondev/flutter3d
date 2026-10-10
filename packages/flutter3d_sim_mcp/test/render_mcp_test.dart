@@ -65,8 +65,13 @@ List<int> _texel(List<int> rgb) =>
 /// not a NaN, a legitimate but wrong normal, which is the failure this
 /// engine's guarded PBR path actually produces from a plausible authoring
 /// mistake (a placeholder texture where a tangent-space map belongs).
+///
+/// Inside this package, under `.dart_tool`: the server runs here, and its
+/// file tools read inside the directory it runs in and nowhere else.
 Directory _writeWorkspace() {
-  final workspace = Directory.systemTemp.createTempSync('flutter3d_diagnostic');
+  final workspace = Directory(
+    '${Directory.current.path}/.dart_tool',
+  ).createTempSync('flutter3d_diagnostic');
   final textures = Directory('${workspace.path}/assets/textures')
     ..createSync(recursive: true);
   final levels = Directory('${workspace.path}/assets/levels')
@@ -177,13 +182,68 @@ void main() {
 
   test('the five tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
+    // Published as `area.verb`, the written names kept as aliases until the
+    // next major, and `flutter3d.schema` after them.
     expect(offered.tools.map((t) => t.name).toSet(), <String>{
+      'level.open',
+      'render.frame',
+      'render.pixel',
+      'render.passes',
+      'render.scanNan',
       'open',
       'frame',
       'pixel',
       'passes',
       'scanNaN',
+      'flutter3d.schema',
     });
+  });
+
+  test('a level outside the project, or one naming a file outside it, is '
+      'refused before a byte of it is read', () async {
+    final outside = Directory.systemTemp.createTempSync('diagnostic_outside');
+    addTearDown(() => outside.deleteSync(recursive: true));
+    File('${outside.path}/secret.json').writeAsStringSync('root:x:0:0');
+    File(
+      '${outside.path}/secret.png',
+    ).writeAsBytesSync(_texel(<int>[1, 2, 3]));
+
+    // Mutation: open `path` unresolved, as before 1.0. The level parser's
+    // error would quote the file back: `root:x:0:0`.
+    for (final where in <String>[
+      '${outside.path}/secret.json',
+      '../../../../../../../../${outside.path}/secret.json',
+    ]) {
+      final opened = await call('open', <String, Object?>{'path': where});
+      expect(opened.did, isFalse, reason: where);
+      expect(opened.says, contains('outside the project'));
+      expect(opened.says, isNot(contains('root:x')));
+    }
+
+    // Mutation: read a level's own references unresolved
+    // (`diagnostic_renderer.dart`'s `readAsset`, as before 1.0). A level
+    // inside the project would pull in a texture from anywhere.
+    final level =
+        jsonDecode(
+              File(
+                '${workspace.path}/assets/levels/probe.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, Object?>;
+    ((level['materials']! as Map<String, Object?>)['good']!
+            as Map<String, Object?>)['normal'] =
+        '${outside.path}/secret.png';
+    File(
+      '${workspace.path}/assets/levels/reaching.json',
+    ).writeAsStringSync(jsonEncode(level));
+    // The level opens, as one with a missing texture does, with its wall
+    // flat — and says the texture was refused.
+    final reaching = await call('open', <String, Object?>{
+      'path': '${workspace.path}/assets/levels/reaching.json',
+    });
+    expect(reaching.did, isTrue, reason: reaching.says);
+    expect(reaching.says, contains('secret.png'));
+    expect(reaching.says, contains('outside the project'));
   });
 
   test('pixel before a frame is refused, not crashed', () async {

@@ -13,7 +13,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
 const String _broken =
-    '../flutter3d_model_core/test/model/fixtures/broken_asset.glb';
+    '../flutter3d_model_core/test/fixtures/broken_asset.glb';
 
 Future<ModelSession> _imported() async {
   final session = ModelSession(ModelHistory(const ModelProject()));

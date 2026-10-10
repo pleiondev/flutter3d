@@ -26,7 +26,10 @@ base class DiagnosticMcpServer extends ToolTableServer<DiagnosticSession, Pictur
 
 final class DiagnosticRenderer
   Future<DiagnosticFrame> frame({required Vector3 at, required Vector3 aim, DiagnosticView view = DiagnosticView.lit})
-  static Future<DiagnosticRenderer> open(String levelPath, {required EntityRegistry registry})
+  Future<DiagnosticFrame> frameFrom({required WorldPosition eye, required Vector3 aim, DiagnosticView view = DiagnosticView.lit})
+  final List<LevelIssue> issues
+  static Future<DiagnosticRenderer> open(String levelPath, {required EntityRegistry registry, ProjectRoot? root})
+  static const double rebaseBeyond = 1000.0
   static const int height = 200
   static const int width = 320
 
@@ -94,7 +97,8 @@ base class SimMcpServer extends ToolTableServer<SimSession, PictureAnswer>
 
 final class SimRenderer
   Future<Uint8List> frame({required Vector3 at, required Vector3 aim})
-  static Future<SimRenderer> open(String levelPath, {required EntityRegistry registry})
+  Future<Uint8List> frameFrom({required WorldPosition eye, required Vector3 aim})
+  static Future<SimRenderer> open(String levelPath, {required EntityRegistry registry, ProjectRoot? root})
   static const int height = DiagnosticRenderer.height
   static const int width = DiagnosticRenderer.width
 
@@ -109,10 +113,11 @@ final class SimSession
   PictureAnswer step({required int steps, double moveX = 0.0, double moveY = 0.0, double lookX = 0.0, double lookY = 0.0, Map<String, bool> held = const <String, bool>{}})
   PictureAnswer verify(String path, {Map<String, Object?>? predicate})
   PictureAnswer writeRun(String path)
-  SimSession({required this.game, this.entities})
+  SimSession({required this.game, this.entities, ProjectRoot? root})
   bool get isOpen
   final EntityLayout? entities
   final HeadlessGame game
+  final ProjectRoot root
 
 typedef SimTool = OfferedTool<SimSession, PictureAnswer>;
 

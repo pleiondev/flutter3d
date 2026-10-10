@@ -6,6 +6,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:path_provider/path_provider.dart';
@@ -83,7 +84,13 @@ Future<void> startMcpServer({
   if (_session != null) return;
   // Held before the bind is awaited: an open that lands while the socket is
   // still coming up has to be able to [rebindMcpHistory] already.
-  final session = _session = ModelSession(history);
+  // A session with no document would take the working directory as its
+  // root, and an app bundle's working directory is `/`: nothing would be
+  // confined. The user's home is where an agent may save and export.
+  final session = _session = ModelSession(
+    history,
+    root: ProjectRoot(Platform.environment['HOME'] ?? Directory.current.path),
+  );
   final ModelHttpServer server;
   try {
     server = await ModelHttpServer.start(

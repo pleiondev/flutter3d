@@ -319,6 +319,39 @@ void main() {
     expect(digests[0].steps, isNotEmpty);
     expect(rollbacks[0].session.stepsRerun, greaterThan(0));
   });
+
+  test('a frame for a step far ahead is dropped and counted, one near is '
+      'kept for its step', () {
+    final (ours, theirs) = LoopbackWire.pair();
+    final applied = <Map<int, Map<String, Object?>>>[];
+    final session = RollbackSession<int>(
+      wire: ours,
+      captureLocalFrame: () => const <String, Object?>{},
+      applyAndStep: applied.add,
+      save: () => applied.length,
+      restore: (_) {},
+      maxStepsAhead: 10,
+    );
+    addTearDown(session.dispose);
+
+    // Mutation: keep every frame at or past the step, as before 1.0. A
+    // peer naming a thousand step numbers far ahead — or one per message,
+    // for as long as the match lasts — has this machine hold all of them.
+    theirs.send(<String, Object?>{
+      PeerWire.engineKey: RollbackSession.messageKind,
+      'frames': <String, Object?>{
+        for (var at = 1000000; at < 1001000; at++) '$at': <String, Object?>{},
+        '3': <String, Object?>{'move': 1},
+      },
+    });
+    ours.tick();
+    expect(session.droppedEarly, 1000);
+
+    for (var i = 0; i < 4; i++) {
+      session.advance();
+    }
+    expect(applied[3][1], <String, Object?>{'move': 1});
+  });
 }
 
 /// Two walked numbers, a component of the test's world.

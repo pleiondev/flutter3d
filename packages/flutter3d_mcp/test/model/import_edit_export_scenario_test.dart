@@ -68,8 +68,13 @@ void main() {
   test(
     "somebody else's table: imported, renamed, given a level of detail, exported again",
     () async {
+      // Into the session's project first: its file tools read nothing
+      // outside it.
+      File(
+        'test/model/fixtures/table.glb',
+      ).copySync('${workspace.path}/table.glb');
       final imported = await call('import', <String, Object?>{
-        'from': 'test/model/fixtures/table.glb',
+        'from': 'table.glb',
       });
       expect(imported.did, isTrue, reason: imported.says);
 

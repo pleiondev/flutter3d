@@ -31,6 +31,8 @@ final class _JsonOnly extends PeerWire {
   }
 }
 
+// Who sent and what, as a list rather than a record: a record's `==` holds
+// its fields to `==`, and a `List` there is equal only to itself.
 void main() {
   test('a loopback carries bytes as bytes, late and in order', () {
     // Mutation: deliver due bytes before due messages — the order the two
@@ -39,7 +41,7 @@ void main() {
     final order = <Object>[];
     b
       ..listen(order.add)
-      ..listenBytes((from, bytes) => order.add((from, bytes.toList())));
+      ..listenBytes((from, bytes) => order.add(<Object>[from, bytes.toList()]));
     final buffer = Uint8List.fromList(<int>[1, 2, 3]);
     a
       ..send(<String, Object?>{'n': 1})
@@ -51,7 +53,10 @@ void main() {
     b.tick();
     expect(order, <Object>[
       <String, Object?>{'n': 1},
-      (0, <int>[1, 2, 3]),
+      <Object>[
+        0,
+        <int>[1, 2, 3],
+      ],
     ]);
   });
 
@@ -81,12 +86,17 @@ void main() {
     // Mutation: deliver a party's bytes as from the other of two — slot 2
     // reads as slot 1 sending.
     final party = LoopbackParty(3);
-    final heard = <(int, List<int>)>[];
-    party.wire(0).listenBytes((from, data) => heard.add((from, data.toList())));
+    final heard = <List<Object>>[];
+    party
+        .wire(0)
+        .listenBytes((from, data) => heard.add(<Object>[from, data.toList()]));
     party.wire(2).sendBytes(Uint8List.fromList(<int>[5]));
     party.tick();
-    expect(heard, <(int, List<int>)>[
-      (2, <int>[5]),
+    expect(heard, <List<Object>>[
+      <Object>[
+        2,
+        <int>[5],
+      ],
     ]);
   });
 
@@ -96,15 +106,18 @@ void main() {
     final (a, b) = LoopbackWire.pair();
     final left = PeerWire.party(a, slot: 0);
     final right = PeerWire.party(b, slot: 1);
-    final heard = <(int, List<int>)>[];
+    final heard = <List<Object>>[];
     final messages = <Map<String, Object?>>[];
     right
       ..listen(messages.add)
-      ..listenBytes((from, data) => heard.add((from, data.toList())));
+      ..listenBytes((from, data) => heard.add(<Object>[from, data.toList()]));
     left.sendBytes(Uint8List.fromList(<int>[42, 43]));
     b.tick();
-    expect(heard, <(int, List<int>)>[
-      (0, <int>[42, 43]),
+    expect(heard, <List<Object>>[
+      <Object>[
+        0,
+        <int>[42, 43],
+      ],
     ]);
     expect(messages, isEmpty);
   });

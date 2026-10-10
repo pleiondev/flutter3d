@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 4,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "shooter start",
   "generatedBy": "packages/flutter3d_editor_mcp",
   "editor": {
@@ -52,7 +55,8 @@
         1.0,
         16.0
       ],
-      "material": "floor"
+      "material": "floor",
+      "id": "b692e4b6"
     },
     {
       "at": [
@@ -65,7 +69,8 @@
         1.0,
         16.0
       ],
-      "material": "ceiling"
+      "material": "ceiling",
+      "id": "eb1a07f0"
     },
     {
       "at": [
@@ -78,7 +83,8 @@
         4.0,
         1.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "c4a2cec3"
     },
     {
       "at": [
@@ -91,7 +97,8 @@
         4.0,
         1.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "fdf6b743"
     },
     {
       "at": [
@@ -104,7 +111,8 @@
         4.0,
         18.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "3f8e29f9"
     },
     {
       "at": [
@@ -117,7 +125,8 @@
         4.0,
         18.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "a206ad79"
     }
   ],
   "lights": [
@@ -134,7 +143,8 @@
         0.78
       ],
       "intensity": 9.0,
-      "range": 16.0
+      "range": 16.0,
+      "id": "88ce8d88"
     }
   ],
   "entities": [
@@ -145,7 +155,8 @@
         0.0,
         5.0
       ],
-      "yaw": 0.0
+      "yaw": 0.0,
+      "id": "a33a6d7d"
     },
     {
       "type": "torch",
@@ -154,7 +165,8 @@
         2.6,
         0.0
       ],
-      "yaw": 1.5708
+      "yaw": 1.5708,
+      "id": "b008d762"
     },
     {
       "type": "pickup",
@@ -163,8 +175,11 @@
         0.6,
         1.0
       ],
-      "gives": "health",
-      "amount": 25
+      "props": {
+        "gives": "health",
+        "amount": 25
+      },
+      "id": "aefaeb4d"
     },
     {
       "type": "exit",
@@ -173,9 +188,11 @@
         1.25,
         -6.5
       ],
-      "yaw": 0.0
+      "yaw": 0.0,
+      "id": "478f4e3f"
     },
     {
+      "id": "fresh-0",
       "type": "torch",
       "at": [
         7.75,
@@ -185,6 +202,7 @@
       "yaw": 1.5708
     },
     {
+      "id": "fresh-1",
       "type": "torch",
       "at": [
         0.0,
@@ -194,6 +212,7 @@
       "yaw": 1.5708
     },
     {
+      "id": "fresh-2",
       "type": "torch",
       "at": [
         0.0,

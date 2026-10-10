@@ -154,6 +154,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 2));
       }
 
+      // Mutation: take the wire's sender as it is in `receive`. Both room
+      // sockets are slot nought, so B — told slot one — reads A's frames as
+      // its own, drops them, and settles every step on a guess: step 25.
       final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
       expect(
         divergence,
@@ -294,6 +297,38 @@ void main() {
     expect(
       await heard.future.timeout(const Duration(seconds: 5)),
       <String, Object?>{'n': 2},
+    );
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('a party holds a bounded number of watchers, each let in by the '
+      'owner\'s token', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final code = 'watched-${DateTime.now().microsecondsSinceEpoch}';
+    final host = await joinParty(base, code, size: 2);
+    addTearDown(host.socket.close);
+    final owner = host.owner;
+    expect(owner, isNotNull);
+
+    final watchers = <PartySeat>[
+      for (var i = 0; i < 8; i++)
+        await joinParty(base, code, watching: true, owner: owner),
+    ];
+    for (final watcher in watchers) {
+      addTearDown(watcher.socket.close);
+    }
+    // Mutation: no cap, as before 1.0. Every watcher is a copy of every
+    // frame the players send, and one machine could open thousands.
+    await expectLater(
+      joinParty(base, code, watching: true, owner: owner),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('already has 8 watchers'),
+        ),
+      ),
     );
   }, timeout: const Timeout(Duration(seconds: 30)));
 }

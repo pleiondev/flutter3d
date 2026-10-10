@@ -100,7 +100,32 @@ void main() {
       );
     }
 
-    final watching = await joinParty(base, code, watching: true);
+    // Only the host is told the party's owner token, and only with it is a
+    // spectator let in.
+    expect(seats[0].owner, isNotNull);
+    expect(seats.skip(1).map((s) => s.owner), everyElement(isNull));
+    // Mutation: let anybody with the code watch, as before 1.0. A stranger
+    // who tries five letters hears every frame and speaks to every player.
+    await expectLater(
+      joinParty(base, code, watching: true),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('takes the token its owner was welcomed with'),
+        ),
+      ),
+    );
+    await expectLater(
+      joinParty(base, code, watching: true, owner: '${seats[0].owner}x'),
+      throwsA(isA<StateError>()),
+    );
+    final watching = await joinParty(
+      base,
+      code,
+      watching: true,
+      owner: seats[0].owner,
+    );
     expect(watching.slot, players);
     var watched = <int>[];
     final watcher = PartyTapeWatcher<List<int>>(

@@ -15,12 +15,14 @@ import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
 /// A plugin's scope, as the host would make it: an id, a place in the
-/// install order, and the registrations it keeps.
+/// install order, and the registrations it keeps. It asks for the `tools`
+/// permission unless [permissions] says otherwise.
 final class _Scope extends PluginScope {
-  _Scope(String id, this.rank)
+  _Scope(String id, this.rank, {Set<PluginPermission>? permissions})
     : manifest = PluginManifest(
         id: id,
         apiVersion: const PluginApiVersion(1, 0),
+        permissions: permissions ?? <PluginPermission>{PluginPermission.tools},
       );
 
   @override
@@ -160,6 +162,21 @@ void main() {
       () => tools.addTool(_tool('reset'), (_) => _says('')),
       throwsArgumentError,
     );
+    // Mutation: drop the permission check in `addTool`. A plugin that never
+    // said it talks to agents would publish a tool anyway, and whoever
+    // installed it would not have seen that it can.
+    expect(
+      () => tools
+          .forPlugin(_Scope('mute', 2, permissions: <PluginPermission>{}))
+          .addTool(_tool('hush'), (_) => _says('')),
+      throwsA(
+        isA<PluginException>().having(
+          (PluginException e) => e.message,
+          'message',
+          allOf(contains('plugin "mute"'), contains('`tools` permission')),
+        ),
+      ),
+    );
   });
 
   test('a schema version declared after the tools reaches them and a '
@@ -218,7 +235,11 @@ void main() {
     );
     final (client, connection) = await _connect(pipe);
 
-    expect(await _names(connection), <String>['count', 'wind.gust']);
+    expect(await _names(connection), <String>[
+      'count',
+      schemaToolName,
+      'wind.gust',
+    ]);
     final answer = await connection.callTool(
       CallToolRequest(name: 'wind.gust'),
     );
@@ -229,9 +250,13 @@ void main() {
     // never listen. A plugin switched off leaves its tool listed, and one
     // switched on is never offered.
     gust.cancel();
-    expect(await _names(connection), <String>['count']);
+    expect(await _names(connection), <String>['count', schemaToolName]);
     wind.addTool(_tool('calm'), (_) => _says('calmed'));
-    expect(await _names(connection), <String>['count', 'wind.calm']);
+    expect(await _names(connection), <String>[
+      'count',
+      schemaToolName,
+      'wind.calm',
+    ]);
 
     await client.shutdown();
     await server.shutdown();
@@ -259,7 +284,7 @@ void main() {
     // Mutation: register project tools without the check. `registerTool`
     // throws on the second `wind.gust` and the server fails to start.
     final (client, connection) = await _connect(pipe);
-    expect(await _names(connection), <String>['wind.gust']);
+    expect(await _names(connection), <String>['wind.gust', schemaToolName]);
     expect(server.shadowedProjectTools, <String>['wind.gust']);
     final answer = await connection.callTool(
       CallToolRequest(name: 'wind.gust'),
@@ -350,7 +375,7 @@ void main() {
       multiLine: true,
     ).firstMatch(File('pubspec.yaml').readAsStringSync())?.group(1);
     expect((hello.serverInfo as Map<String, Object?>)['version'], pubspec);
-    expect(await _names(connection), <String>['wind.gust']);
+    expect(await _names(connection), <String>[schemaToolName, 'wind.gust']);
 
     await client.shutdown();
   });

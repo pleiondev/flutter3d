@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a party has an owner, and only who it invites watches.** The
+  relay welcomes the machine that opens a party with an `owner` token,
+  `PartySeat.owner`; `joinParty(watching: true, owner:)` presents it, and a
+  watcher without it is closed. A party holds at most eight watchers, the
+  relay at most 4096 rooms and parties, and each request is served on its
+  own rather than after the one before.
+
+- **A rollback session told another slot than its wire's hears the sender
+  right.** Both ends of a `/room/<code>` WebSocket are slot nought; the
+  joining machine, told slot one, took every frame for its own and dropped
+  it. `RollbackSession.maxStepsAhead` (600) bounds the frames kept for later
+  steps; the ones past it are counted in `droppedEarly`.
+
+- **A hello without a body is answered.** `PeerRoom` reads its versions and
+  says which to update to, rather than dropping it and leaving an older
+  machine waiting. The relay's refusal for another simulation starts with
+  what to update to, so the 123-byte close reason keeps it, and tells the
+  newer machine's party when it is the party that is behind.
+
 - **Breaking: `Registration`, `SimulationVersion` and `firstDifferingPath` are
   not re-exported.** They are `flutter3d_foundation`'s,
   `flutter3d_plugin_api`'s and `flutter3d_sim`'s.

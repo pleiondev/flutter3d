@@ -33,6 +33,20 @@ final class FlutterDevice {
   String toString() => '$name ($id, $platform${emulator ? ', emulator' : ''})';
 }
 
+/// Whether [id] is a device id `flutter run -d` may be handed: letters and
+/// digits, then letters, digits, `.`, `_`, `:` and `-`, at most 128 of them —
+/// every id `flutter devices` prints (`macos`, `emulator-5554`, an iOS UDID,
+/// `192.168.1.5:5555`, `adb-R5CT-x._adb-tls-connect._tcp`).
+///
+/// **The id is an argument to a shell on Windows**, where `flutter` is
+/// `flutter.bat` and runs through `cmd.exe`, and it arrives from an agent's
+/// call or a config file. A space, a quote, `&`, `|`, `^`, `%` or `<`/`>`
+/// would be read by the shell, not the tool, so nothing outside this set is
+/// passed on anywhere.
+bool isFlutterDeviceId(String id) => _deviceId.hasMatch(id);
+
+final RegExp _deviceId = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:\-]{0,127}$');
+
 /// The devices in what `flutter devices --machine` printed.
 ///
 /// **From the first `[` on**, because the tool may say something before the
@@ -54,7 +68,7 @@ List<FlutterDevice> parseFlutterDevices(String printed) {
       if (entry case {
         'id': final String id,
         'name': final String name,
-      } when entry['isSupported'] != false)
+      } when entry['isSupported'] != false && isFlutterDeviceId(id))
         FlutterDevice(
           id: id,
           name: name,

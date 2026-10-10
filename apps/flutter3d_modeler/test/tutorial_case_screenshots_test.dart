@@ -500,8 +500,9 @@ void main() {
           socket
             ..add(
               utf8.encode(
-                'POST /mcp?token=$token HTTP/1.1\r\n'
+                'POST /mcp HTTP/1.1\r\n'
                 'Host: 127.0.0.1:$port\r\n'
+                'Authorization: Bearer $token\r\n'
                 'Content-Type: application/json\r\n'
                 'Content-Length: ${payload.length}\r\n'
                 'Connection: close\r\n'

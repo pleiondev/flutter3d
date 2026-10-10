@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_mcp/kit.dart' show Answer;
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 // `retargetClip` again, prefixed: this class has a method of that name, and a
@@ -51,10 +51,25 @@ final class ModelSession {
   /// whichever journal is attached regardless of caller, every command a
   /// person runs directly against the same shared [history] too — land on
   /// one recovery journal rather than each caller needing one of its own.
-  ModelSession(ModelHistory history, {this.path, this.client})
-    : _history = history {
+  ModelSession(
+    ModelHistory history, {
+    this.path,
+    this.client,
+    ProjectRoot? root,
+  }) : _history = history,
+       root = root ?? ProjectRoot.around(path) {
     history.recoveryJournal ??= CommandJournal();
   }
+
+  /// The directory every path a tool hands this session must lie inside:
+  /// `save`, `export`, `import` and `journal` resolve theirs through it and
+  /// refuse one outside. The project around [path] when not given — the
+  /// nearest directory above it with a `pubspec.yaml`, or its own — and the
+  /// working directory for a session with no path.
+  ///
+  /// The verbs themselves take any path: a person's file dialog in the
+  /// modeller is not an agent's argument.
+  final ProjectRoot root;
 
   /// Which client this session is talking to, by the name it said hello with
   /// — `ux-45`. Every step this session makes is stamped with it, so an undo

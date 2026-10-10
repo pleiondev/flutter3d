@@ -19,7 +19,7 @@ final class EditorSession
   Answer setBehavior(String name, Map<String, Object?> tree)
   Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at)
   Answer undo()
-  EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces})
+  EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces, ProjectRoot? root})
   Future<Answer> generateLevel(LevelRules rules, {required int seed})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
@@ -32,6 +32,7 @@ final class EditorSession
   final Editing editing
   final EditorPieces pieces
   final PlaySession play
+  final ProjectRoot root
   static const String author = 'packages/flutter3d_editor_mcp'
 
 typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
@@ -128,7 +129,7 @@ final class EditorSession
   Answer setBehavior(String name, Map<String, Object?> tree)
   Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at)
   Answer undo()
-  EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces})
+  EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces, ProjectRoot? root})
   Future<Answer> generateLevel(LevelRules rules, {required int seed})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
@@ -141,6 +142,7 @@ final class EditorSession
   final Editing editing
   final EditorPieces pieces
   final PlaySession play
+  final ProjectRoot root
   static const String author = 'packages/flutter3d_editor_mcp'
 
 typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
@@ -162,7 +164,8 @@ final class LoopbackMcpServer
   Future<void> close()
   final String token
   int get port
-  static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token})
+  static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token, int maxBodyBytes = defaultMaxBodyBytes})
+  static const int defaultMaxBodyBytes = 64 * 1024 * 1024
 
 abstract base class McpToolRegistry extends PluginRegistry
   const McpToolRegistry()
@@ -216,7 +219,7 @@ final class ModelSession
   Map<String, Object?> structured(Answer answer, {List<int> made = const <int>[]})
   ModelHistory get history
   ModelProject get project
-  ModelSession(ModelHistory history, {this.path, this.client})
+  ModelSession(ModelHistory history, {this.path, this.client, ProjectRoot? root})
   ProjectSelection? reportedSelection
   String audit()
   String check()
@@ -229,6 +232,7 @@ final class ModelSession
   String? client
   String? path
   factory ModelSession.open(String path)
+  final ProjectRoot root
   static CommandTarget targetIn(Map<String, Object?> arguments)
   void rebind(ModelHistory next)
 
@@ -248,6 +252,14 @@ final class OfferedTool<S, A>
   const OfferedTool(this.spec, this.run)
   final FutureOr<A> Function(S session, Map<String, Object?> arguments) run
   final ToolSpec spec
+
+final class PathOutsideRootException extends ResourceException
+  String get message
+  String toString()
+  const PathOutsideRootException(this.requested, {required this.root, this.why})
+  final String requested
+  final String root
+  final String? why
 
 typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
@@ -286,6 +298,14 @@ final class PlaySession
 
 base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult>
   ProjectMcpServer(super.channel, {required McpTools tools, super.pausedBecause, super.onProjectCall, super.onInitialize})
+
+final class ProjectRoot
+  ({String? path, String? refused}) tryResolve(String requested)
+  ProjectRoot(String directory)
+  String resolve(String requested)
+  String toString()
+  factory ProjectRoot.around(String? documentPath)
+  final String path
 
 final class ProjectTool
   String get name
@@ -489,7 +509,8 @@ final class LoopbackMcpServer
   Future<void> close()
   final String token
   int get port
-  static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token})
+  static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token, int maxBodyBytes = defaultMaxBodyBytes})
+  static const int defaultMaxBodyBytes = 64 * 1024 * 1024
 
 abstract base class McpToolRegistry extends PluginRegistry
   const McpToolRegistry()
@@ -519,10 +540,26 @@ final class OfferedTool<S, A>
   final FutureOr<A> Function(S session, Map<String, Object?> arguments) run
   final ToolSpec spec
 
+final class PathOutsideRootException extends ResourceException
+  String get message
+  String toString()
+  const PathOutsideRootException(this.requested, {required this.root, this.why})
+  final String requested
+  final String root
+  final String? why
+
 typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
 base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult>
   ProjectMcpServer(super.channel, {required McpTools tools, super.pausedBecause, super.onProjectCall, super.onInitialize})
+
+final class ProjectRoot
+  ({String? path, String? refused}) tryResolve(String requested)
+  ProjectRoot(String directory)
+  String resolve(String requested)
+  String toString()
+  factory ProjectRoot.around(String? documentPath)
+  final String path
 
 final class ProjectTool
   String get name
@@ -715,7 +752,7 @@ final class ModelSession
   Map<String, Object?> structured(Answer answer, {List<int> made = const <int>[]})
   ModelHistory get history
   ModelProject get project
-  ModelSession(ModelHistory history, {this.path, this.client})
+  ModelSession(ModelHistory history, {this.path, this.client, ProjectRoot? root})
   ProjectSelection? reportedSelection
   String audit()
   String check()
@@ -728,6 +765,7 @@ final class ModelSession
   String? client
   String? path
   factory ModelSession.open(String path)
+  final ProjectRoot root
   static CommandTarget targetIn(Map<String, Object?> arguments)
   void rebind(ModelHistory next)
 

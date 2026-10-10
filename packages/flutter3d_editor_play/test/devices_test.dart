@@ -52,6 +52,19 @@ void main() {
     );
   });
 
+  test('an id flutter run -d could not be handed safely is not offered', () {
+    // Mutation: offer every id the tool printed. An entry a hostile
+    // `flutter` shim (or a device name echoed as an id) printed would be
+    // offered to an agent that passes it straight back to `play`.
+    expect(
+      parseFlutterDevices(
+        '[{"id": "macos & calc", "name": "Mac"}, '
+        '{"id": "macos", "name": "macOS"}]',
+      ).map((FlutterDevice it) => it.id),
+      <String>['macos'],
+    );
+  });
+
   test('something that is not a list is no devices, not a crash', () {
     expect(parseFlutterDevices('No devices found'), isEmpty);
     expect(parseFlutterDevices('[{"id": '), isEmpty);

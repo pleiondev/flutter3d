@@ -110,6 +110,16 @@ final class PlaySession {
   /// Runs the project, on [device] or the tool's own choice, and waits until
   /// it is up, has failed, or [waitFor] has passed.
   Future<Answer> start({String? device}) async {
+    // Refused here, before a running game is let go of: on Windows the id
+    // is an argument to `cmd.exe` (`isFlutterDeviceId` says why).
+    if (device != null && !isFlutterDeviceId(device)) {
+      return (
+        did: false,
+        says:
+            '"$device" is not a device id: call play_devices for the ids '
+            'flutter run -d takes',
+      );
+    }
     final root = projectRootOf(levelPath);
     if (root == null) {
       return (

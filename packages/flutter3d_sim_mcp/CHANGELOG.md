@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the sessions read and write inside a root.** `SimSession`
+  and `DiagnosticSession` take `root:` (a `ProjectRoot`, the working
+  directory when left out); `open`, `writeRun`, `expect`, `verify`,
+  `bisect` and the level a run names resolve through it, and a level's own
+  references to documents and textures do too. `DiagnosticSession.open`
+  says what the loader let go of, such as a texture refused or missing.
+
+- **`frame` draws from the eye through the scene's own origin.**
+  `DiagnosticRenderer.frameFrom` and `SimRenderer.frameFrom` take the eye
+  in the world and move the scene's origin to it past a kilometre, so a
+  level far from the world's origin is drawn as one near it.
+
+- **`verify` replays a run on the physics it was recorded on**, handed to
+  `resimulate`, rather than on the Dart physics it defaults to.
+
 - **Breaking: `PictureAnswer` is not re-exported.** It is the agent kit's,
   `package:flutter3d_mcp/kit.dart`.
 

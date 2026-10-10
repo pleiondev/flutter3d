@@ -119,12 +119,22 @@ int _biggestMeshObject(ModelProject project) {
 void main() {
   test('RobotExpressive, unskinned: autoRig, paintWeights, setKey, export to '
       'GLB with a real skeleton and a real clip', () async {
-    final session = ModelSession(ModelHistory(const ModelProject()));
+    // The project the session's file tools are held to, with the sample
+    // copied in: an agent imports what is in the project.
+    final tempDir = Directory.systemTemp.createTempSync('anim30_rig_test');
+    addTearDown(() => tempDir.deleteSync(recursive: true));
+    File(
+      '../flutter3d_samples/assets/RobotExpressive.glb',
+    ).copySync('${tempDir.path}/RobotExpressive.glb');
+    final session = ModelSession(
+      ModelHistory(const ModelProject()),
+      path: '${tempDir.path}/robot.f3dproj',
+    );
 
     // 1. Import — mesh and silhouette only; see the library comment for
     // why this file's own skin never enters the picture.
     final imported = await _call(session, 'import', <String, Object?>{
-      'from': '../flutter3d_samples/assets/RobotExpressive.glb',
+      'from': 'RobotExpressive.glb',
     });
     expect(imported.did, isTrue, reason: imported.says);
     expect(session.history.project.objects, isNotEmpty);
@@ -284,8 +294,6 @@ void main() {
     // 7. Export to GLB, and read it back through the real glTF loader —
     // the acceptance line itself: a skeleton and a clip, not just a
     // ModelProject that says it has them.
-    final tempDir = Directory.systemTemp.createTempSync('anim30_rig_test');
-    addTearDown(() => tempDir.deleteSync(recursive: true));
     final glbPath = '${tempDir.path}/robot.glb';
 
     final exported = await _call(session, 'export', <String, Object?>{

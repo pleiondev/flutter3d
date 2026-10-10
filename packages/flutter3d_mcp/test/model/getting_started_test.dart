@@ -67,14 +67,19 @@ void main() {
         // tool table cannot say is the order, and each of these is a step of
         // it — read before editing, aim before acting, look at the result,
         // group what belongs together, check before exporting.
+        // Under the names `tools/list` publishes, which are the ones an
+        // agent can call.
         for (final String named in <String>[
-          'describe',
-          'selectFacing',
-          'render',
-          'amend',
-          'batch',
-          'cleanup',
-          'check',
+          for (final written in <String>[
+            'describe',
+            'selectFacing',
+            'render',
+            'amend',
+            'batch',
+            'cleanup',
+            'check',
+          ])
+            modelToolNames[written]!.name,
         ]) {
           expect(
             text,
@@ -91,15 +96,18 @@ void main() {
       final String? said = ready.instructions;
       expect(said, isNotNull);
       for (final String named in <String>[
-        'describe',
-        'render',
-        'renderSheet',
-        'amend',
-        'batch',
-        'cleanup',
-        'makeGameReady',
-        'buildFrom',
-        'describe_type',
+        for (final written in <String>[
+          'describe',
+          'render',
+          'renderSheet',
+          'amend',
+          'batch',
+          'cleanup',
+          'makeGameReady',
+          'buildFrom',
+          'describe_type',
+        ])
+          modelToolNames[written]!.name,
         'modelling_strategy',
       ]) {
         expect(

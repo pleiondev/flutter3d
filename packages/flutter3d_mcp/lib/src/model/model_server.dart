@@ -373,49 +373,40 @@ its own parameters or a mesh with topology, painted with materials from a
 shared table.
 
 Every tool is named for what it acts on and what it does to it:
-`object.addPrimitive`, `mesh.extrude`, `selection.facing`. The names from
-before 1.0 (`addPrimitive`, `extrude`) still answer, and are the command names
+`object.addPrimitive`, `mesh.extrude`. The names from before 1.0
+(`addPrimitive`, `extrude`) still answer, and are the command names
 `history.batch` takes inside its list.
 
-Work in this order: call `project.list` to see what is there and what id each thing
-has, `selection.set` some of it, then the commands that change it. Commands that add
-something — `object.addPrimitive`, `object.addLathe` — select what they made; everything
-else that moves or deletes acts on the current selection. Mesh commands
-(`mesh.extrude`, `mesh.loopCut`, …) need `selection.set` with an `object` and a `level` first.
+Work in this order: `project.list` to see what is there and each thing's id,
+`selection.set` some of it, then the commands that change it. Commands that
+add something select what they made; everything else acts on the selection.
+Mesh commands (`mesh.extrude`, `mesh.loopCut`, …) need `selection.set` with an
+`object` and a `level` first.
 
-Do not guess an element id. `object.describe` says where every vertex, edge and face
-of an object is, which way it faces and how big it is, and `selection.facing`
-picks the faces pointing a given way — "the top" is `selection.facing` with an
-axis of [0,1,0], not a number you hoped was right. `selection.near` takes a region
-round a point. Every answer also carries `structuredContent`: what the call
-did, the ids of any objects it created, and what is selected now — so the id
-of something you just duplicated or imported is in the reply rather than
-something to go looking for.
+Do not guess an element id. `object.describe` says where every vertex, edge
+and face of an object is and which way it faces; `selection.facing` picks the
+faces pointing a given way ("the top" is an axis of [0,1,0]) and
+`selection.near` a region round a point. Every answer's `structuredContent`
+says what the call did, the ids it created and what is selected now.
 
-`view.render` draws the project from one of seven views and `view.renderSheet` draws four
-at once — the cheap way to see whether a shape is right before editing it
-again. `history.amend` replaces the step on top of the undo stack rather than adding a
-second one, which is how you try an extrude at 0.3 after trying it at 0.5.
-`mesh.cleanup`, `project.makeGameReady` and `object.buildFrom` are recipes: a run of edits that is
-the same every time, as one step. `type.describe` says what fields a modifier
-kind, a shape or a texture node takes. The `modelling_strategy` prompt is the
-order to do all of it in.
+`view.render` draws one of seven views and `view.renderSheet` four at once.
+`history.amend` replaces the step on top of the undo stack, so an extrude
+tried at 0.5 can be tried at 0.3 without leaving both. `mesh.cleanup`,
+`project.makeGameReady` and `object.buildFrom` are recipes, each one step.
+`type.describe` says what fields a modifier, a shape or a texture node takes.
+The `modelling_strategy` prompt is the order to do all of it in.
 
-`project.check` says what is wrong with the project as an export would see it; `asset.audit`
-checks an imported asset's size, origin and meshes, and can repair them. `project.save`
-writes the project's own format; `project.export` writes `.f3d`, `.glb`, `.obj`, `.stl`
-or `.usdz` for something else to read. `project.import` brings another file's objects
-in. `project.journal` writes every command run this session to a recovery file.
-
-`history.undo`/`history.redo` walk the history one step at a time, where a step is whatever one
-tool call did — except a drag of many small changes, which nothing here can
-send as one call anyway. `history.batch` is the other way round: several commands as
-one step, taken back whole if any of them refuses.
+`project.check` says what an export would object to; `asset.audit` checks and
+repairs an imported asset. `project.save` writes the project's own format,
+`project.export` writes `.f3d`, `.glb`, `.obj`, `.stl` or `.usdz`,
+`project.import` brings another file's objects in, and `project.journal`
+writes this session's commands to a recovery file. `history.undo` and
+`history.redo` walk one tool call at a time; `history.batch` runs several
+commands as one step, taken back whole if any of them refuses.
 
 Units, everywhere: distances are metres, angles are radians unless a field
 says degrees, the world is Y-up and right-handed, and a transform is sixteen
 numbers in `Matrix4.storage` (column-major) order. An argument this server
-does not take is refused by name rather than ignored, so a call that comes
-back with a sentence about a key is a call with a misspelling in it, not a
-project that would not do what you asked.
+does not take is refused by name rather than ignored: a sentence about a key
+means a misspelling.
 ''';

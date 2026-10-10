@@ -161,9 +161,14 @@ void main() {
     expect(project.materials, hasLength(1));
     final SurfaceMaterial oak = project.materials.single.surface;
     expect(oak.name, 'oak');
-    expect(oak.baseColor.r, closeTo(0.6, 1e-6));
-    expect(oak.baseColor.g, closeTo(0.35, 1e-6));
-    expect(oak.baseColor.b, closeTo(0.15, 1e-6));
+    // `setMaterialField` takes `baseColor` as sRGB, the way a person picks
+    // it, and the material keeps it linear; read back as sRGB it is the
+    // number sent.
+    final oakSrgb = oak.baseColor.toSrgb();
+    expect(oakSrgb.r, closeTo(0.6, 1e-6));
+    expect(oakSrgb.g, closeTo(0.35, 1e-6));
+    expect(oakSrgb.b, closeTo(0.15, 1e-6));
+    expect(oak.baseColor.r, lessThan(0.6));
     expect(oak.roughness, closeTo(0.8, 1e-6));
     expect(oak.metallic, 0.0);
     expect(project[1]!.materialSlots, <int>[0]);
