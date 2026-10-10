@@ -1,14 +1,23 @@
-// Fetches wgpu-native for the target the hook builds for — P9, phase 10.
-//
-// A pinned release of gfx-rs/wgpu-native, its archive's sha256 checked
-// against the one written here, unpacked into the hooks' shared output so a
-// second build does not fetch it again. Only the static library and the
-// headers are kept: the GPU library links wgpu-native in, so there is one
-// binary to ship and no second one to find at run time.
-//
-// When there is no release for the target, no network, or a checksum that
-// does not match, this says why and returns null, and the hook builds the
-// core without its GPU passes: a game built offline still runs, on the CPU.
+/// Fetches wgpu-native for the target a build hook builds for: the one pinned
+/// release every package of the engine that links wgpu-native links.
+///
+/// **For a build hook, not for an application.** `flutter3d_wgpu`'s hook
+/// links it into the compute sidecar and `flutter3d_physics_native`'s into
+/// its GPU passes, both through this library, so the version, the checksums
+/// and the unpacking are written once: a bump of the release is one edit,
+/// and the two cannot drift onto different wgpu-natives.
+///
+/// A pinned release of gfx-rs/wgpu-native, its archive's sha256 checked
+/// against the one written here, unpacked into the hook's shared output so a
+/// second build does not fetch it again. Only the static library and the
+/// headers are kept: each library that uses it links it in, so there is no
+/// second binary to find at run time.
+///
+/// When there is no release for the target, no network, or a checksum that
+/// does not match, [fetchWgpuNative] says why and returns null, and the hook
+/// builds without wgpu: a game built offline still runs, on the CPU.
+library;
+
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -88,9 +97,7 @@ Future<Directory?> fetchWgpuNative(
 ) async {
   final expected = wgpuNativeArchives[target];
   if (expected == null) {
-    say(
-      'no wgpu-native $wgpuNativeVersion for $target: building without GPU passes',
-    );
+    say('no wgpu-native $wgpuNativeVersion for $target: building without wgpu');
     return null;
   }
   final home = Directory.fromUri(
@@ -110,7 +117,7 @@ Future<Directory?> fetchWgpuNative(
       final response = await request.close();
       if (response.statusCode != 200) {
         say(
-          'fetching $url: HTTP ${response.statusCode}: building without GPU passes',
+          'fetching $url: HTTP ${response.statusCode}: building without wgpu',
         );
         return null;
       }
@@ -122,12 +129,12 @@ Future<Directory?> fetchWgpuNative(
       client.close();
     }
   } on IOException catch (e) {
-    say('fetching $url: $e: building without GPU passes');
+    say('fetching $url: $e: building without wgpu');
     return null;
   }
   final actual = sha256.convert(bytes).toString();
   if (actual != expected) {
-    say('$url has sha256 $actual, not $expected: building without GPU passes');
+    say('$url has sha256 $actual, not $expected: building without wgpu');
     return null;
   }
   // Only the headers and the static library: the dynamic one would be what
@@ -147,8 +154,9 @@ Future<Directory?> fetchWgpuNative(
     File('${home.path}/$name')
       ..createSync(recursive: true)
       ..writeAsBytesSync(entry.content as List<int>)
-      // Dated long before this build: the headers are what the GPU library
-      // is compiled against, so they are among its dependencies, and a file
+      // Dated long before this build: the headers are what a library that
+      // links wgpu is compiled against, so they are among its dependencies,
+      // and a file
       // dated now told the build runner it was modified during the build —
       // "Build must be rerun", and `flutter test` exiting 1 on every fresh
       // checkout, CI's every run.

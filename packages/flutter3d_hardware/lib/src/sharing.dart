@@ -272,12 +272,13 @@ String _whyNot(
   GraphicsDevice consumer,
   DeviceFeature feature,
 ) {
-  if (!producer.features.has(feature)) {
-    return '${producer.backendName} cannot export one (no ${feature.name})';
-  }
-  if (!consumer.features.has(feature)) {
-    return '${consumer.backendName} cannot import one (no ${feature.name})';
-  }
+  final halves = <String>[
+    if (!producer.features.has(feature))
+      '${producer.backendName} cannot export one (no ${feature.name})',
+    if (!consumer.features.has(feature))
+      '${consumer.backendName} cannot import one (no ${feature.name})',
+  ];
+  if (halves.isNotEmpty) return halves.join(', and ');
   return 'they have no native handle kind in common: '
       '${producer.backendName} shares '
       '${producer.shareableKinds.map((k) => k.name).join(', ')}, '

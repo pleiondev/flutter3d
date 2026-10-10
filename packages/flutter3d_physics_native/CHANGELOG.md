@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **wgpu-native is fetched where the compute sidecar fetches it.** The
+  hook's pinned release, checksums and unpacking moved to
+  `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so
+  the GPU passes and the sidecar link the same wgpu-native and a bump is one
+  edit. `archive` and `crypto` are no longer this package's dependencies;
+  `flutter3d_wgpu` is, for the hook alone.
 - **`DebrisStatic` and `RagdollJoint` are `abstract final` rather than
   sealed**, so a shape or a joint a later minor adds breaks no `switch` over
   them.
