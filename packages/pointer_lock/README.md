@@ -1,5 +1,9 @@
 # pointer_lock
 
+> This package is built for a game loop that reads mouse deltas once per step.
+> For an ordinary Flutter app, [helgoboss/pointer_lock](https://github.com/helgoboss/pointer_lock)
+> is the more natural choice.
+
 Locks the mouse pointer in place and reports its motion as relative deltas.
 
 Flutter exposes no pointer lock on any desktop platform and does not surface the
@@ -87,12 +91,11 @@ remembers to ask for it back. So construction always issues a reset first.
 
 [helgoboss/pointer_lock](https://github.com/helgoboss/pointer_lock) (MIT) solves
 the same problem across more platforms, and the macOS technique here came from
-it. It is not published on pub.dev. This plugin exists because of three things
-that package does not do, each of which a game needs:
+it. This plugin differs from it in three places a game needed:
 
-- no observer for focus loss, so Cmd+Tab strands the cursor system-wide;
-- one channel message per mouse event, at a 1000 Hz polling rate;
-- no `isSupported`, which a build targeting mobile needs.
+- an observer for focus loss, so Cmd+Tab does not strand the cursor;
+- deltas read by the caller once per step;
+- `isSupported`, for a build that also targets mobile.
 
 ## Cost
 

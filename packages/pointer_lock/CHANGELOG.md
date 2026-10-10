@@ -1,3 +1,11 @@
+## 0.4.2+2
+
+**The README and the pub.dev description point to helgoboss/pointer_lock.**
+The two packages share a name and a technique but are built for different
+callers. This one serves a game loop that reads deltas once per step; for an
+ordinary Flutter app the other one is the more natural choice, and the top of
+the README now says so. Documentation only.
+
 ## 0.4.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
