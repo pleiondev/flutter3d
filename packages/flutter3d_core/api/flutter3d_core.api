@@ -1642,6 +1642,16 @@ abstract base mixin class FrameTextureSource
   abstract TextureHandle acquire(RenderTargetDescriptor spec)
   abstract void release(TextureHandle texture)
 
+final class FrameWindow
+  String toString()
+  bool operator ==(Object other)
+  const FrameWindow({required this.width, required this.height, this.left = 0, this.top = 0})
+  final int height
+  final int left
+  final int top
+  final int width
+  int get hashCode
+
 final class FrameWorkBudget
   FrameWorkBudget({this.microseconds = 0, int Function()? clock})
   bool allows()
@@ -3834,8 +3844,9 @@ final class RenderView
   void markDrawn()
 
 final class RenderViewSettings
-  RenderViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false})
-  const RenderViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear})
+  RenderViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, FrameWindow? window, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false, bool clearWindow = false})
+  const RenderViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear, this.window})
+  final FrameWindow? window
   final RenderSettings? settings
   final String? label
   final bool Function()? visible

@@ -7,20 +7,21 @@ import 'dart:io';
 import 'package:flutter3d_showcase/src/catalog/catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../tool/showcase_bundle.dart';
+
 void main() {
-  test('the site bundle has every page, its guide and its source', () async {
+  test('the site bundle has every page, its guide and its source', () {
     // Mutation: skip a page that fails to expand. The site would then build
     // with a hole where a guide should be, and nobody would be told.
     final Directory out = Directory.systemTemp.createTempSync('bundle_');
     addTearDown(() => out.deleteSync(recursive: true));
 
-    final ProcessResult result = await Process.run('dart', <String>[
-      'run',
-      'tool/showcase_bundle.dart',
-      '--out',
-      out.path,
-    ]);
-    expect(result.exitCode, 0, reason: '${result.stderr}');
+    // Called in this process and not through `dart run`, whose first run on a
+    // clean checkout builds every package's native hooks before the tool
+    // starts: minutes, for a bundle that takes well under a second.
+    final ShowcaseBundle bundle = writeShowcaseBundle(out);
+    expect(bundle.failures, isEmpty, reason: bundle.failures.join('\n'));
+    expect(bundle.pages, kCatalog.length);
 
     final Map<String, Object?> manifest =
         jsonDecode(File('${out.path}/manifest.json').readAsStringSync())

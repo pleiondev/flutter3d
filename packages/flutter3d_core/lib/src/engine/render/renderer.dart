@@ -4633,7 +4633,118 @@ final class Renderer with RenderServices {
       ),
   ];
 
+  /// The views of this frame that are windows of a larger frame
+  /// (`RenderViewSettings.window`): the camera's own projection, the window,
+  /// and whether the scene pass draws it exactly — through that projection
+  /// and a viewport the size of the frame — or through the crop every other
+  /// pass sees it by. Filled by [_openWindows] for the length of one frame.
+  final Map<RenderView, ({Projection whole, FrameWindow window, bool exact})>
+  _windows =
+      <RenderView, ({Projection whole, FrameWindow window, bool exact})>{};
+
   FrameResult render({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    final opened = _openWindows(views, width, height, settings);
+    try {
+      return _renderFrame(
+        width: width,
+        height: height,
+        scene: scene,
+        views: views,
+        settings: settings,
+      );
+    } finally {
+      for (final (camera, whole) in opened) {
+        camera.projection = whole;
+      }
+      _windows.clear();
+    }
+  }
+
+  /// Puts each window's camera behind a crop of its own projection to the
+  /// window, for the frame, and answers what to put back.
+  ///
+  /// **The crop is what every pass sees except the scene's draws.** Bloom,
+  /// ambient occlusion, fog and the composite work on the target and
+  /// reconstruct positions from its pixels, so they need the projection the
+  /// target is a picture through. The scene pass swaps the camera's own back
+  /// for its draws where the device can place a viewport past the target —
+  /// see `renderer_scene_pass.dart` — and that is what makes a window the
+  /// frame's own pixels rather than a crop's.
+  List<(CameraNode, Projection)> _openWindows(
+    List<RenderView> views,
+    int width,
+    int height,
+    RenderSettings settings,
+  ) {
+    final opened = <(CameraNode, Projection)>[];
+    final frame = views.isEmpty
+        ? settings
+        : views.first.options.settings ?? settings;
+    for (final view in views) {
+      final window = view.options.window;
+      if (window == null) continue;
+      if (window.width <= 0 || window.height <= 0) {
+        throw ArgumentError(
+          'A window of a ${window.width}x${window.height} frame has no frame '
+          'to be a window of; give the frame its size in pixels.',
+        );
+      }
+      if (frame.renderScale != 1.0 ||
+          frame.spatialUpscale.enabled ||
+          frame.antiAlias.temporal.enabled) {
+        throw ArgumentError(
+          'A window of a larger frame is drawn at its own size and in one '
+          'frame: turn off the render scale, the upscale and temporal '
+          'anti-aliasing for it, as capturePhoto does.',
+        );
+      }
+      final fraction = view.viewportFraction;
+      if (fraction.x != 0.0 ||
+          fraction.y != 0.0 ||
+          fraction.width != 1.0 ||
+          fraction.height != 1.0) {
+        throw ArgumentError(
+          'A window of a larger frame fills its target; this view is given '
+          '$fraction of it.',
+        );
+      }
+      final camera = view.camera;
+      if (opened.any((open) => identical(open.$1, camera))) {
+        throw ArgumentError(
+          'Two windows in one frame share a camera; each window needs its '
+          'own, since each sees the camera through its own crop.',
+        );
+      }
+      final whole = camera.projection;
+      camera.projection = CropProjection(
+        whole,
+        frameAspect: window.width / window.height,
+        left: window.left / window.width,
+        right: (window.left + width) / window.width,
+        top: window.top / window.height,
+        bottom: (window.top + height) / window.height,
+      );
+      opened.add((camera, whole));
+      final largest = device.limits.maxTextureDimension2D;
+      _windows[view] = (
+        whole: whole,
+        window: window,
+        exact:
+            device.features.has(DeviceFeature.viewportBeyondTarget) &&
+            window.width <= largest &&
+            window.height <= largest,
+      );
+    }
+    return opened;
+  }
+
+  FrameResult _renderFrame({
     required int width,
     required int height,
     required Scene scene,

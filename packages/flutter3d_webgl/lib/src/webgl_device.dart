@@ -428,6 +428,12 @@ final class WebGlDevice extends GraphicsDevice
       // `A2.8`: clip depth in `[0, 1]` and a float depth, both from
       // `EXT_clip_control` — see [depthRange].
       if (_clipControl) DeviceFeature.reversedDepth,
+      // `glViewport` takes a negative corner and a size past the
+      // framebuffer's, up to `MAX_VIEWPORT_DIMS`, which WebGL2 holds at no
+      // less than the largest texture; the scissor and the framebuffer cut
+      // what falls outside. A larger frame than that is not asked for: the
+      // renderer draws a window of it through a crop instead.
+      DeviceFeature.viewportBeyondTarget,
       // Where `OES_draw_buffers_indexed` is offered, which is most desktop
       // browsers and not every phone — `R8`. Without it weighted blended
       // transparency draws its list once per target.

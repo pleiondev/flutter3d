@@ -193,6 +193,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         FrameResources,
         FrameResult,
         FrameTextureSource,
+        FrameWindow,
         FrameWorkBudget,
         FreeLook,
         FullscreenDraw,

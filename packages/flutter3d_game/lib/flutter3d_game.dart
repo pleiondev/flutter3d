@@ -230,6 +230,7 @@ export 'package:flutter3d/flutter3d.dart'
         FrameResources,
         FrameResult,
         FrameTextureSource,
+        FrameWindow,
         FrameWorkBudget,
         FramebufferOrigin,
         FreeLook,

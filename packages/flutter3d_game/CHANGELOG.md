@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+- **Re-exports `FrameWindow`** from `flutter3d`.
 - **Breaking: `SynchronousBufferReadback` is not re-exported**, since
   `flutter3d` no longer exports it: the stalling read is a test's or a
   tool's, from `package:flutter3d_hardware/testing.dart`.

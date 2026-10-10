@@ -26,7 +26,6 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 
 import '../../formats/srgb.dart';
 import '../scene/camera_node.dart';
-import '../scene/projection.dart';
 import '../scene/scene.dart';
 import 'render_view.dart';
 import 'renderer.dart';
@@ -359,8 +358,16 @@ PhotoPlan photoSettings(
 /// [onRows] a row of tiles at a time, top to bottom, finished and opaque.
 ///
 /// Each tile is [tileWidth] × [tileHeight] of the picture drawn with [margin]
-/// pixels more on every side, through a [CropProjection] of [camera]'s own
-/// projection; the margin is thrown away. **What the margin is for:** bloom,
+/// pixels more on every side, as a [RenderViewSettings.window] of the whole
+/// picture; the margin is thrown away. **A window, not a crop**, so a tile is
+/// the picture's own pixels: on a device that lists
+/// `DeviceFeature.viewportBeyondTarget` every fragment is shaded from the
+/// position, depth and shadow lookup the picture drawn whole gives it, and a
+/// tiled photo with nothing on that reads neighbours equals the scene drawn
+/// once, byte for byte. A device without the feature draws a
+/// window through a crop of the projection, which agrees to within the
+/// rounding of a different matrix — a shadow edge can land a texel the other
+/// way. **What the margin is for:** bloom,
 /// ambient occlusion, depth of field and screen-space reflections read
 /// neighbours, and at a tile's edge without one they read the clear colour —
 /// a seam down the picture wherever a highlight sits near one. With a margin
@@ -369,8 +376,7 @@ PhotoPlan photoSettings(
 /// screen rather than equal to it; `photo_capture_test.dart` measures how
 /// close.
 ///
-/// The camera's projection is borrowed for the capture and put back after it,
-/// failure included. The renderer is the game's own: a photo is drawn on the
+/// The camera is left as it was given. The renderer is the game's own: a photo is drawn on the
 /// device that is already up, at the size the game asks, so nothing about it
 /// needs a second device. **Nothing else may draw on it until this returns.**
 /// A hardware readback can resolve a frame or two after the ask, and a game
@@ -413,12 +419,11 @@ Future<PhotoCaptureReport> capturePhoto({
   final drawWidth = tileWidth + 2 * margin;
   final drawHeight = tileHeight + 2 * margin;
 
-  final whole = camera.projection;
   // One depth mapping for the whole photo, the one the screen draws it with.
-  // A tile fitting its own near plane to the little its crop sees would draw
-  // the same surface at another depth than its neighbour, and a tie between
-  // two coplanar faces would settle one way in one tile and the other way
-  // in the next.
+  // A tile fitting its own near plane to the little it sees would draw the
+  // same surface at another depth than its neighbour, and a tie between two
+  // coplanar faces would settle one way in one tile and the other way in the
+  // next.
   final near = renderer.depthNearFor(
     scene: scene,
     view: RenderView(camera: camera, layerMask: layerMask),
@@ -426,67 +431,66 @@ Future<PhotoCaptureReport> capturePhoto({
     height: height,
     settings: chosen.tile,
   );
-  try {
-    for (var tileY = 0; tileY < tilesY; tileY++) {
-      final top = tileY * tileHeight;
-      final rows = math.min(tileHeight, height - top);
-      final strip = Uint8List(width * rows * 4);
-      for (var tileX = 0; tileX < tilesX; tileX++) {
-        final left = tileX * tileWidth;
-        final columns = math.min(tileWidth, width - left);
-        camera.projection = CropProjection(
-          whole,
-          frameAspect: width / height,
-          left: (left - margin) / width,
-          right: (left + tileWidth + margin) / width,
-          top: (top - margin) / height,
-          bottom: (top + tileHeight + margin) / height,
-        );
-        final result = renderer.render(
-          width: drawWidth,
-          height: drawHeight,
-          scene: scene,
-          views: <RenderView>[
-            RenderView(
-              camera: camera,
-              clearColor: clearColor,
-              layerMask: layerMask,
-              cut: true,
-              options: RenderViewSettings(depthNear: near),
+  for (var tileY = 0; tileY < tilesY; tileY++) {
+    final top = tileY * tileHeight;
+    final rows = math.min(tileHeight, height - top);
+    final strip = Uint8List(width * rows * 4);
+    for (var tileX = 0; tileX < tilesX; tileX++) {
+      final left = tileX * tileWidth;
+      final columns = math.min(tileWidth, width - left);
+      final result = renderer.render(
+        width: drawWidth,
+        height: drawHeight,
+        scene: scene,
+        views: <RenderView>[
+          RenderView(
+            camera: camera,
+            clearColor: clearColor,
+            layerMask: layerMask,
+            cut: true,
+            options: RenderViewSettings(
+              depthNear: near,
+              // The tile, margin and all, as a window of the photo: drawn
+              // through the photo's own projection, so each of its pixels is
+              // the one the photo drawn whole would have.
+              window: FrameWindow(
+                width: width,
+                height: height,
+                left: left - margin,
+                top: top - margin,
+              ),
             ),
-          ],
-          settings: chosen.tile,
+          ),
+        ],
+        settings: chosen.tile,
+      );
+      // A tile the device cannot hand back throws its
+      // `DeviceResourceException` here, and nothing past row [top] has
+      // been written.
+      final pixels = await renderer.device.readback(result.frame);
+      final tile = pixels.buffer.asUint8List(
+        pixels.offsetInBytes,
+        pixels.lengthInBytes,
+      );
+      for (var row = 0; row < rows; row++) {
+        final from = ((row + margin) * drawWidth + margin) * 4;
+        strip.setRange(
+          (row * width + left) * 4,
+          (row * width + left + columns) * 4,
+          tile,
+          from,
         );
-        // A tile the device cannot hand back throws its
-        // `DeviceResourceException` here, and nothing past row [top] has
-        // been written.
-        final pixels = await renderer.device.readback(result.frame);
-        final tile = pixels.buffer.asUint8List(
-          pixels.offsetInBytes,
-          pixels.lengthInBytes,
-        );
-        for (var row = 0; row < rows; row++) {
-          final from = ((row + margin) * drawWidth + margin) * 4;
-          strip.setRange(
-            (row * width + left) * 4,
-            (row * width + left + columns) * 4,
-            tile,
-            from,
-          );
-        }
-        onProgress?.call((tileY * tilesX + tileX + 1) / (tilesX * tilesY));
       }
-      // Opaque: a saved photo with the sky see-through is a picture of the
-      // viewer's background, and a clear colour's alpha was never a choice
-      // about the picture.
-      for (var i = 3; i < strip.length; i += 4) {
-        strip[i] = 255;
-      }
-      finish.apply(strip, top, rows);
-      await onRows(strip, top, rows);
+      onProgress?.call((tileY * tilesX + tileX + 1) / (tilesX * tilesY));
     }
-  } finally {
-    camera.projection = whole;
+    // Opaque: a saved photo with the sky see-through is a picture of the
+    // viewer's background, and a clear colour's alpha was never a choice
+    // about the picture.
+    for (var i = 3; i < strip.length; i += 4) {
+      strip[i] = 255;
+    }
+    finish.apply(strip, top, rows);
+    await onRows(strip, top, rows);
   }
   return PhotoCaptureReport(
     width: width,

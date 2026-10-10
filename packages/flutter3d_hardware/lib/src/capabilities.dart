@@ -488,6 +488,31 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
+  /// `PassEncoder.setViewport` takes a rectangle that starts left of or
+  /// above the target and reaches past its far edges, and draws what of it
+  /// falls on the target — the scissor and the target cut it, as any
+  /// viewport is cut. A target can then be one window of a larger frame,
+  /// drawn through that frame's own projection: a tile of a photo is the
+  /// photo's pixels rather than a crop's.
+  ///
+  /// **What moving the corner by whole pixels changes.** On the software
+  /// rasteriser, nothing but where the fragments land: it measures window
+  /// positions from the viewport's corner and adds the corner to the pixel's
+  /// whole-number index, so every input a fragment gets is the bits the
+  /// unmoved viewport gave it. WebGL2 adds the corner in the viewport
+  /// transform, in floats, before the hardware snaps positions to its
+  /// sub-pixel grid; a position that lands within a float's rounding of a
+  /// grid line can snap the other way, and nowhere else does it differ.
+  ///
+  /// Not listed by WebGPU, whose `setViewport` must lie inside the
+  /// attachment, nor by Impeller, which promises nothing about a viewport
+  /// outside the target on Metal. A tile there is drawn through a crop of
+  /// the projection instead, and is the frame's pixels to within rounding.
+  static const viewportBeyondTarget = DeviceFeature._(
+    'viewport-beyond-target',
+    FeatureStability.stable,
+  );
+
   // --------------------------------------------------------------- reserved
   // Named, not built. No backend may report these and no call exists yet.
 
@@ -583,6 +608,7 @@ final class DeviceFeature extends Capability {
     meshShaders,
     bindlessResources,
     immediateData,
+    viewportBeyondTarget,
   ];
 
   /// The feature called [name], or null for a name this version does not

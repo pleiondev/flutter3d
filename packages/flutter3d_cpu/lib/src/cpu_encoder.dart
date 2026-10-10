@@ -1034,8 +1034,10 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     final invW = <double>[0, 0];
     for (var i = 0; i < 2; i++) {
       invW[i] = 1.0 / clip[i].w;
-      sx[i] = view.x + (clip[i].x * invW[i] * 0.5 + 0.5) * view.width;
-      sy[i] = view.y + (0.5 - clip[i].y * invW[i] * 0.5) * view.height;
+      // From the viewport's corner, as the triangle path measures them, and
+      // for its reason; the corner goes back on to the whole pixel below.
+      sx[i] = (clip[i].x * invW[i] * 0.5 + 0.5) * view.width;
+      sy[i] = (0.5 - clip[i].y * invW[i] * 0.5) * view.height;
       sz[i] = clip[i].z * invW[i];
     }
 
@@ -1070,8 +1072,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
     for (var step = 0; step <= steps; step++) {
       final t = step / steps;
-      final x = (sx[0] + dx * t).floor();
-      final y = (sy[0] + dy * t).floor();
+      final x = (sx[0] + dx * t).floor() + view.x;
+      final y = (sy[0] + dy * t).floor() + view.y;
       if (x < clipRect.x ||
           y < clipRect.y ||
           x >= clipRect.x + clipRect.width ||
@@ -1435,8 +1437,17 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       final ndcY = clip[i].y * invW[i];
       sz[i] = clip[i].z * invW[i];
       // NDC to the viewport, with +Y up in clip space and row zero at the top.
-      sx[i] = view.x + (ndcX * 0.5 + 0.5) * view.width;
-      sy[i] = view.y + (0.5 - ndcY * 0.5) * view.height;
+      //
+      // **Measured from the viewport's own corner, not the target's.** The
+      // corner is added to the pixel's whole-number index below instead,
+      // where adding it is exact. A viewport that starts outside its target
+      // — a tile of a larger frame, `DeviceFeature.viewportBeyondTarget` —
+      // then computes every window position, edge function and weight from
+      // the same numbers the whole frame did, so a tile is that frame's
+      // pixels byte for byte. Added here, the corner rounded each position a
+      // different way in each tile.
+      sx[i] = (ndcX * 0.5 + 0.5) * view.width;
+      sy[i] = (0.5 - ndcY * 0.5) * view.height;
     }
 
     var area =
@@ -1531,10 +1542,14 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     final edge2y = sy0 - sy2;
 
     final clipRect = _clipRect(view, target);
-    var minX = sx.reduce((a, b) => a < b ? a : b).floor();
-    var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
-    var minY = sy.reduce((a, b) => a < b ? a : b).floor();
-    var maxY = sy.reduce((a, b) => a > b ? a : b).ceil();
+    // The box in target pixels: the viewport's corner goes back on here, as
+    // whole numbers.
+    final originX = view.x;
+    final originY = view.y;
+    var minX = sx.reduce((a, b) => a < b ? a : b).floor() + originX;
+    var maxX = sx.reduce((a, b) => a > b ? a : b).ceil() + originX;
+    var minY = sy.reduce((a, b) => a < b ? a : b).floor() + originY;
+    var maxY = sy.reduce((a, b) => a > b ? a : b).ceil() + originY;
     if (minX < clipRect.x) minX = clipRect.x;
     if (minY < clipRect.y) minY = clipRect.y;
     if (maxX > clipRect.x + clipRect.width - 1) {
@@ -1610,8 +1625,10 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
-        final px = x + 0.5;
-        final py = y + 0.5;
+        // The pixel's centre from the viewport's corner, which is where the
+        // window positions above are measured from.
+        final px = (x - originX) + 0.5;
+        final py = (y - originY) + 0.5;
         final w0 = edge0x * (py - sy0) - edge0y * (px - sx0);
         final w1 = edge1x * (py - sy1) - edge1y * (px - sx1);
         final w2 = edge2x * (py - sy2) - edge2y * (px - sx2);
@@ -1666,7 +1683,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
         // gl_FragCoord: pixel centre, window depth, and 1/w. Rebuilt rather
         // than reused between fragments, because a stage that kept a reference
         // to it would see the next fragment's values.
-        context.coord.setValues(px, py, z, iw);
+        // In the target's pixels, as `gl_FragCoord` is everywhere.
+        context.coord.setValues(x + 0.5, y + 0.5, z, iw);
         context.surface = null;
         context.albedo = null;
         context.debugSurface = null;

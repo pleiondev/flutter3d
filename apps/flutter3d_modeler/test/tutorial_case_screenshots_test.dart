@@ -146,6 +146,26 @@ void main() {
       }
       await tester.pump(const Duration(milliseconds: 400));
     }
+    // **A project file is in once its name is on the screen, and not
+    // before.** Opening one decodes its textures through the engine's image
+    // codec, real asynchronous work that moves only while a hop is open. Two
+    // settles were enough on an idle machine and not on a busy one: the
+    // document landed in the second settle's hop, after the frame that hop
+    // decodes had been drawn, and `05-outliner-after-import` came out as the
+    // launch's cube under the case's own outliner. Bounded, and moving no
+    // clock; the frames drawn while it waits are never the picture.
+    for (var wait = 0; !asksImport && wait < 60; wait++) {
+      if (find.textContaining(name).evaluate().isNotEmpty) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(
+      asksImport || find.textContaining(name).evaluate().isNotEmpty,
+      isTrue,
+      reason: '$name never opened',
+    );
     // Twice: the document lands on one frame and the scene it builds is
     // rasterised and decoded over the next two.
     await settleFrames(tester);

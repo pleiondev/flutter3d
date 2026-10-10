@@ -142,6 +142,11 @@ DeviceFeatures impellerFeatures({required bool cubesWork}) {
     // the OpenGL ES path 24 fixed bits, where it would gain nothing.
     if (context.defaultDepthStencilFormat == gpu.PixelFormat.d32FloatS8UInt)
       DeviceFeature.reversedDepth,
+    // Not `viewportBeyondTarget`: flutter_gpu hands a viewport to Metal,
+    // Vulkan and OpenGL ES as it is, and Metal's validation holds a viewport
+    // inside the render target. A window of a larger frame is drawn here
+    // through a crop of its projection.
+    //
     // Everything else is absent, and each call it gates refuses with a
     // TODO(impeller) at the refusal: array, 3D and cube-array textures and
     // rendering into a layer (flutter_gpu's TextureType is 2D, 2D

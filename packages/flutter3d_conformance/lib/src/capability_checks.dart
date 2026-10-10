@@ -63,6 +63,11 @@ const Map<String, String> unprobedFeatures = <String, String>{
       'no call of its own: it describes the depth range and the depth '
       'format, and a device without it draws a reversed projection all the '
       'same, without the precision',
+  'viewport-beyond-target':
+      'no call refuses: a device without it is never handed such a '
+      'viewport, and the renderer draws a window of a larger frame through '
+      'a crop there; held with pixels by photo_capture_test.dart in '
+      'flutter3d_cpu',
 };
 
 final ByteData _sixteen = ByteData.sublistView(

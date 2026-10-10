@@ -160,13 +160,13 @@ void main() {
   test('a ragged grid of tiles stitches into the whole frame', () async {
     final capture = await _capture(_noBloom, margin: 0);
     final reference = await _whole(_noBloom);
-    // Mutation: build the crop from the aspect the renderer hands
-    // `CropProjection.toMatrix` — the tile's — instead of `frameAspect`. The
+    // Mutation: give a window's scene pass a viewport the target's size
+    // rather than the frame's (`viewRect` in `renderer_scene_pass.dart`). The
     // 200 x 152 tiles and the 80-pixel column each squash the cubes their own
     // way, and thousands of pixels move.
     //
-    // Within one step, as `tiled_projection_stitch_test.dart` explains: a
-    // crop folded into the matrix interpolates through different arithmetic.
+    // Within one step, which the test below tightens to none for a scene
+    // with a shadow in it.
     final difference = compareFrames(
       capture.pixels,
       reference,
@@ -279,6 +279,147 @@ void main() {
     },
   );
 
+  test('a tiled photo of a shadow at a wall\'s foot is the frame, byte for '
+      'byte', () async {
+    // The showcase's photo-mode room: a floor, low walls round it, a pillar
+    // and a crate under a sun, and a lens looking across it at the far wall,
+    // whose foot is where a shadow lookup sits on a tie.
+    final device = CpuDevice(
+      width: 320,
+      height: 180,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    MeshNode block(String name, Vector3 size, Vector4 colour, Vector3 at) =>
+        MeshNode(
+          DeviceMesh.upload(device, CuboidShape(size: size).build()),
+          RenderMaterial(
+            name: name,
+            baseColor: LinearColor.fromSrgb(
+              colour.x,
+              colour.y,
+              colour.z,
+              colour.w,
+            ),
+            roughness: 0.8,
+          ),
+          name: name,
+        )..setPositionFrom(at);
+    final lens = CameraNode(
+      name: 'photo lens',
+      projection: const PerspectiveProjection(fovY: 0.9),
+    );
+    final scene = Scene()
+      ..ambientColor = const LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
+      ..add(
+        block(
+          'floor',
+          Vector3(8.0, 0.1, 8.0),
+          Vector4(0.34, 0.38, 0.36, 1.0),
+          Vector3(0.0, -0.05, 0.0),
+        ),
+      )
+      ..add(
+        block(
+          'pillar',
+          Vector3(1.0, 3.0, 1.0),
+          Vector4(0.7, 0.62, 0.5, 1.0),
+          Vector3(1.5, 1.5, -1.0),
+        ),
+      )
+      ..add(
+        block(
+          'crate',
+          Vector3.all(0.8),
+          Vector4(0.8, 0.3, 0.2, 1.0),
+          Vector3(-1.5, 0.4, 1.0),
+        ),
+      );
+    for (final (double x, double z, double w, double d)
+        in <(double, double, double, double)>[
+          (4.1, 0.0, 0.2, 8.4),
+          (-4.1, 0.0, 0.2, 8.4),
+          (0.0, 4.1, 8.4, 0.2),
+          (0.0, -4.1, 8.4, 0.2),
+        ]) {
+      scene.add(
+        block(
+          'wall',
+          Vector3(w, 0.4, d),
+          Vector4(0.55, 0.57, 0.6, 1.0),
+          Vector3(x, 0.2, z),
+        ),
+      );
+    }
+    scene
+      ..add(lens)
+      ..add(
+        LightNode(name: 'sun', intensity: 2.8 * LightNode.defaultIntensity)
+          ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
+      );
+    lens
+      ..setPosition(0.3, 1.5, 3.2)
+      ..lookAt(Vector3(0.0, 1.0, 0.0));
+
+    const width = 640;
+    const height = 360;
+    final clear = LinearColor.fromSrgb(0.05, 0.05, 0.07);
+    final renderer = Renderer.create(device: device);
+    final photo = Uint8List(width * height * 4);
+    final made = await capturePhoto(
+      renderer: renderer,
+      scene: scene,
+      camera: lens,
+      width: width,
+      height: height,
+      settings: _noBloom,
+      clearColor: clear,
+      tileWidth: 320,
+      tileHeight: 180,
+      margin: 16,
+      onRows: (rgba, top, rows) =>
+          photo.setRange(top * width * 4, (top + rows) * width * 4, rgba),
+    );
+    final frame = renderer.render(
+      width: width,
+      height: height,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: lens, clearColor: clear)],
+      settings: photoSettings(_noBloom, PhotoFilter.none, made.exposure).tile,
+    );
+    final reference = (await renderer.device.readback(
+      frame.frame,
+    )).buffer.asUint8List();
+
+    String where(int pixel, int channel) {
+      final at = pixel * 4 + channel;
+      return '(${pixel % width}, ${pixel ~/ width}) channel $channel: '
+          '${photo[at]} against ${reference[at]}';
+    }
+
+    final differing = <String>[
+      for (var i = 0; i < width * height; i++)
+        for (var c = 0; c < 3; c++)
+          if (photo[i * 4 + c] != reference[i * 4 + c]) where(i, c),
+    ];
+    // Mutation: draw the window through the crop of the projection
+    // (`exact: false` in `Renderer._openWindows`), as tiles were drawn
+    // before. The floor at the far wall's foot, (300, 198), sits a few
+    // millionths of a metre elsewhere in the bottom-left tile, one tap of
+    // the shadow filter lands the other side of the wall's stored depth, and
+    // the pixel comes out ten steps brighter than the frame's.
+    //
+    // Mutation: add the viewport's corner to each window position in the
+    // software rasteriser rather than to the pixel's index. Every position
+    // in the right-hand and lower tiles rounds another way.
+    //
+    // Mutation: drop the sub-texel snap in `BoundTexture._sampleLevel`. The
+    // composite reads each texel's centre a few hundred-thousandths of a
+    // texel off, differently at each target size, and eight pixels of sky
+    // over the far wall's top come out a step apart.
+    expect(differing, isEmpty);
+  });
+
   test('a capture says what it could not carry over, and puts the camera '
       'back', () async {
     final settings = const RenderSettings(
@@ -287,8 +428,9 @@ void main() {
       motionBlur: MotionBlurSettings(enabled: true),
     );
     final capture = await _capture(settings, filter: PhotoFilter.noir);
-    // Mutation: drop the `finally` that restores the projection. The game's
-    // next frame is drawn through the last tile's crop — the bottom-right
+    // Mutation: drop the `finally` in `Renderer.render` that gives a window's
+    // camera its projection back. The game's next frame is drawn through the
+    // last tile's crop — the bottom-right
     // corner of the picture, magnified to fill the screen.
     expect(capture.camera.projection, isA<PerspectiveProjection>());
     expect(capture.report.tilesX, 3);
