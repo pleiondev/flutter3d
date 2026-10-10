@@ -12,10 +12,16 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// has no reason to depend on hooks at all.
 ///
 /// [BuildError]: https://pub.dev/documentation/hooks/latest/hooks/BuildError-class.html
+///
+/// When `impellerc` itself refused a stage, [cause] is the
+/// `ShaderCompileException` read from what it said: the stage, the line and
+/// column of each error and the source line, for a tool to point at.
 final class ShaderBundleBuildException extends ResourceException {
-  const ShaderBundleBuildException(this.message);
+  const ShaderBundleBuildException(this.message, {this.cause});
   @override
   final String message;
+  @override
+  final Object? cause;
   @override
   String toString() => message;
 }

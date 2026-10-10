@@ -100,6 +100,33 @@ void main() {
     );
   });
 
+  test('a WGSL refusal says where, as a tool reads it', () {
+    // Mutation: the ledger dropping the diagnostic it was given — the
+    // exception has a log and no place, which WebGL's has had since 1.0.
+    final ledger = _ledger()
+      ..complainOfShader(
+        'pbr.frag',
+        'line 3, column 7: unknown type',
+        diagnostic: const ShaderDiagnostic(
+          'unknown type',
+          line: 3,
+          column: 7,
+          excerpt: '  let x: vex3<f32>;',
+        ),
+      );
+    expect(
+      ledger.takeFrame,
+      throwsA(
+        isA<ShaderCompileException>()
+            .having((e) => e.target, 'target', 'webgpu')
+            .having((e) => e.line, 'line', 3)
+            .having((e) => e.column, 'column', 7)
+            .having((e) => e.excerpt, 'excerpt', contains('vex3'))
+            .having((e) => e.diagnostics, 'diagnostics', hasLength(1)),
+      ),
+    );
+  });
+
   test('a lost device does not throw what its loss explains', () {
     // Mutation: ignore `deviceLost`, and the frame after a loss throws a
     // refusal on top of the event on `lost`.

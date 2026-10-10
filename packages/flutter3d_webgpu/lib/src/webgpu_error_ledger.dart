@@ -26,7 +26,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ShaderCompileException;
+    show ShaderCompileException, ShaderDiagnostic;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show DeviceResourceException;
 
@@ -77,9 +77,20 @@ final class WebGpuErrorLedger {
       _hold(_Complaint(what, message));
 
   /// Files what the browser's compiler said of the WGSL of [shader]; [log]
-  /// is where and what (`line 3, column 7: …`).
-  void complainOfShader(String shader, String log) =>
-      _hold(_Complaint('the WGSL of "$shader"', log, shader: shader));
+  /// is where and what (`line 3, column 7: …`), and [diagnostic] the same as
+  /// a tool reads it: the message, the line and column, and the source line.
+  void complainOfShader(
+    String shader,
+    String log, {
+    ShaderDiagnostic? diagnostic,
+  }) => _hold(
+    _Complaint(
+      'the WGSL of "$shader"',
+      log,
+      shader: shader,
+      diagnostic: diagnostic,
+    ),
+  );
 
   void _hold(_Complaint complaint) {
     if (_held.length < maxHeld) {
@@ -118,6 +129,10 @@ final class WebGpuErrorLedger {
         shader: shaders.join(', '),
         backend: backend,
         log: said,
+        target: 'webgpu',
+        diagnostics: List<ShaderDiagnostic>.unmodifiable(<ShaderDiagnostic>[
+          for (final complaint in taken) ?complaint.diagnostic,
+        ]),
       );
     }
     throw DeviceResourceException(
@@ -145,11 +160,12 @@ final class WebGpuErrorLedger {
 /// One thing the browser said: of [what], [message]; [shader] when it was
 /// the compiler, about that stage.
 final class _Complaint {
-  const _Complaint(this.what, this.message, {this.shader});
+  const _Complaint(this.what, this.message, {this.shader, this.diagnostic});
 
   final String what;
   final String message;
   final String? shader;
+  final ShaderDiagnostic? diagnostic;
 
   String get said => '$what: $message';
 }

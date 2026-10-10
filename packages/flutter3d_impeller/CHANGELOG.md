@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **A stage `impellerc` refused says where.** `ShaderBundleBuildException`
+  takes a `cause`, and a failed compile's is a `ShaderCompileException`
+  read from `impellerc`'s output: `target` `impeller`, the stage when every
+  error names one kind, and a `ShaderDiagnostic` per placed error.
 - **GPU timings on Impeller, through the Dart timeline.** flutter_gpu has
   no timestamp query, so each labelled pass is timed from its submission to
   the queue's completion callback: a span named `GPU <label>` with its frame

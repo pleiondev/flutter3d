@@ -40,7 +40,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show ShaderDiagnostic, UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
@@ -514,10 +514,20 @@ final class WebGpuDevice extends GraphicsDevice
       module.getCompilationInfo().toDart.then((GPUCompilationInfo info) {
         for (final message in info.messages.toDart) {
           if (message.type != 'error') continue;
+          final line = message.lineNum;
+          final lines = wgsl.split('\n');
           _ledger.complainOfShader(
             name,
-            'line ${message.lineNum}, column ${message.linePos}: '
-            '${message.message}',
+            'line $line, column ${message.linePos}: ${message.message}',
+            // WebGPU counts both from one, and zero when it names no place.
+            diagnostic: ShaderDiagnostic(
+              message.message,
+              line: line > 0 ? line : null,
+              column: message.linePos > 0 ? message.linePos : null,
+              excerpt: line > 0 && line <= lines.length
+                  ? lines[line - 1]
+                  : null,
+            ),
           );
         }
       }),

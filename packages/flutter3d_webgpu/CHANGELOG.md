@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **A WGSL refusal says where.** The `ShaderCompileException` thrown at
+  the next `beginFrame` carries `target` (`webgpu`) and a `ShaderDiagnostic`
+  for each error the browser's compiler gave, with its line, column and the
+  source line, as WebGL's has; it carried the log alone.
 - **A uniform block costs no allocation.** `bindUniformBlock` and
   `bindUniformBytes` fill the device's `UniformScratch` for the block's
   size, which `queue.writeBuffer` copies, where each made a fresh list per
