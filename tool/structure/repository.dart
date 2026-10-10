@@ -2036,3 +2036,116 @@ const Map<String, String> settingsAllowed = <String, String>{
 const Map<String, int> unitsUndocumentedPending = <String, int>{
   'flutter3d_effects': 5,
 };
+
+// --------------------------------------------------------- a test's minute
+
+/// Test files that give a test, or themselves, longer than a minute, each
+/// with the reason and the time it was measured at.
+///
+/// **A test that runs longer than a minute is a bug until proven otherwise.**
+/// Every package's `dart_test.yaml` says `timeout: 1m`, and a `testWidgets`
+/// is held to it by `test/flutter_test_config.dart`. A test that genuinely
+/// needs longer says so where it is declared — a `timeout:` on the test or a
+/// `@Timeout` on its file, with the reason and the measured time in a comment
+/// beside it — and is listed here, keyed by its path from the repository
+/// root. The rule fails on a longer timeout that is not listed, and on a
+/// listed file that no longer has one.
+///
+/// The slow tests found when the rule arrived were fixed rather than listed:
+/// a share server built inside a test, ninety frames rasterised and never
+/// looked at, a sun map reset tile by tile on every frame of a bake, a
+/// screenshot pumping twenty-four full-window frames per JSON-RPC call.
+const Map<String, String> slowTestsAllowed = <String, String>{
+  'packages/flutter3d/test/render_benchmark_test.dart':
+      'a benchmark, tagged and skipped outside tool/benchmarks.sh: three '
+      'frames up to 7680x4320 on the software rasteriser, 139.6 s together '
+      'on an M3 Pro on 2026-09-25',
+  'packages/flutter3d/test/sculpt_budget_benchmark_test.dart':
+      'a benchmark, tagged and skipped outside tool/benchmarks.sh: a '
+      '1.2-million-triangle mesh uploaded, a BVH built over it and a stroke '
+      'repeated three times — 3.35 s of setup and about 306 ms a stroke on '
+      'an M3 Pro on 2026-09-13',
+  'packages/flutter3d_app/test/widget_surface_pipeline_benchmark_test.dart':
+      'a benchmark, tagged and skipped outside tool/benchmarks.sh: sixty '
+      '512x512 frames rasterised and read back, twice, to time a redraw '
+      'against a skip',
+};
+
+/// Longer timeouts that were in the tree before the minute was the rule,
+/// with what each one is for as its own comment or test says it.
+///
+/// **A to-do list, not an exemption**, like [interfaceClassPending]: none of
+/// these has been timed against the minute yet. When a test here is timed,
+/// it is made to fit the minute and its timeout removed, or it moves to
+/// [slowTestsAllowed] with the measurement beside its reason. A new long
+/// timeout is not added here.
+const Map<String, String> slowTestsPending = <String, String>{
+  'apps/flutter3d_demo_dungeon/test/frame_test.dart':
+      'walks the crypt\'s whole five-level chain on the software rasteriser; '
+      'its comment calls two minutes three times the measurement',
+  'apps/flutter3d_demo_dungeon/test/headless_verify_test.dart':
+      'a recorded run verified by playing the crypt blind, fire and water '
+      'included',
+  'apps/flutter3d_demo_dungeon/test/replay_video_test.dart':
+      'a .f3drun rendered to a video with no GPU, through ffmpeg',
+  'apps/flutter3d_demo_strategy/test/demo_test.dart':
+      'a whole match recorded and replayed twice, once from a bare match',
+  'apps/flutter3d_demo_strategy/test/map_world_test.dart':
+      'a match on the map world saved, restored and stepped on beside the '
+      'original',
+  'packages/flame_multiplayer/test/party_relay_test.dart':
+      'a party of four over real sockets on the relay, rolling back into '
+      'agreement',
+  'packages/flutter3d_build/test/lights_test.dart':
+      'the light optimizer from a command line, once per device class',
+  'packages/flutter3d_build/test/migrate_fixture_test.dart':
+      'the 0.8 fixture project migrated and then `flutter analyze`d in a '
+      'process of its own',
+  'packages/flutter3d_build/test/migration_kinds_enum_to_class_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_internal_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_null_to_throw_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_record_to_class_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_regroup_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_demo_content/test/sim_mcp/fixtures/sim_mcp_server.dart':
+      'the server a test starts in a process of its own, alive long enough '
+      'for a client to connect, open a level and step it; killed before '
+      'this runs out',
+  'packages/flutter3d_demo_content/test/sim_mcp/sim_mcp_test.dart':
+      'an MCP client against a simulation server in another process',
+  'packages/flutter3d_game/test/run_timeline_extensions_test.dart':
+      'a fixture game started under `flutter run` and driven through its '
+      'VM service',
+  'packages/flutter3d_impeller/test/metal_bindings_test.dart':
+      'every stage compiled by impellerc and its Metal reflection read',
+  'packages/flutter3d_impeller/test/shader_bundle_build_test.dart':
+      'a real impellerc build of the shader bundle',
+  'packages/flutter3d_impeller/test/stage_bindings_test.dart':
+      'every stage compiled by impellerc and compared with the committed '
+      'table',
+  'packages/flutter3d_mcp/test/editor/dungeon_frame_test.dart':
+      'runs only with FLUTTER3D_RUN_GAMES=1: the dungeon under `flutter run` '
+      'with an agent driving it from a cold session',
+  'packages/flutter3d_mcp/test/model/phase_four_scenario_test.dart':
+      'the phase-four scenario end to end over MCP: subdivided, sculpted, '
+      'retopologised, unwrapped, baked, painted and exported',
+  'packages/flutter3d_mesh/test/bake_test.dart':
+      'a 256x256 bake, timed and printed',
+  'packages/flutter3d_mesh/test/multires_test.dart':
+      'a multiresolution stack built over a dense mesh, timed and printed',
+  'packages/flutter3d_mesh/test/ux39_fuzz_test.dart':
+      'five hundred insets, slides and bridges over three seeds, validated '
+      'after each',
+  'packages/flutter3d_physics_native/test/c_unit_test.dart':
+      'the C core\'s own tests compiled under the sanitisers and run, in '
+      'both precisions',
+  'packages/flutter3d_sim_mcp/test/fixtures/render_mcp_server.dart':
+      'the server a test starts in a process of its own; killed before '
+      'this runs out',
+  'packages/flutter3d_testing/test/flip_test.dart':
+      'runs only with FLIP_IMAGES set: FLIP over full reference images',
+};

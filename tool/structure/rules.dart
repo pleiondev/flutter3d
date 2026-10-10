@@ -53,6 +53,10 @@ List<Rule> get allRules => <Rule>[
   (name: 'the Impeller runners are reachable', run: _impellerRunners),
   (name: 'the document says how many tests there are', run: _testCount),
   (
+    name: 'a test runs in a minute unless its reason is listed',
+    run: _testsRunInAMinute,
+  ),
+  (
     name: 'an application that draws asks its platform for the GPU',
     run: _gpuIsEnabled,
   ),
@@ -1552,6 +1556,162 @@ List<Finding> _exemptionsResolve() {
           ),
         );
       }
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------------ a test's minute
+
+/// What `test/flutter_test_config.dart` must say for a widget test to be held
+/// to the package's minute rather than to `testWidgets`' own ten.
+const String _minuteMarker = 'defaultTestTimeout = const Timeout.factor(1)';
+
+/// **A test that runs longer than a minute is a bug until proven otherwise.**
+///
+/// The last full run before this rule had tests of 108, 176 and 215 seconds,
+/// and a screenshot of five and a half minutes, each passing — because a
+/// plain test's thirty seconds had been raised by hand wherever it was hit
+/// and a widget test had `testWidgets`' own ten minutes. Every one of them
+/// turned out to have a cause: a server built inside a test, frames
+/// rasterised that nothing read, a sun map reset tile by tile on every frame
+/// of a bake. A timeout raised to fit is the cause made invisible.
+///
+/// So every package with tests says `timeout: 1m` in its `dart_test.yaml`;
+/// one with a widget test also has the `flutter_test_config.dart` that turns
+/// `testWidgets`' ten minutes into that minute; and a test given longer is
+/// listed in [slowTestsAllowed] with its reason and measured time, or is one
+/// of the [slowTestsPending] that predate the rule. Packages are found from
+/// every tracked `pubspec.yaml`, so a new one is covered the day it has a
+/// test — the tools' and the cloud services' as well as `packages/` and
+/// `apps/`.
+List<Finding> _testsRunInAMinute() {
+  final root = repositoryRoot;
+  final ProcessResult listed;
+  try {
+    listed = Process.runSync('git', <String>[
+      'ls-files',
+      '*pubspec.yaml',
+    ], workingDirectory: root.path);
+  } on ProcessException {
+    return <Finding>[
+      Finding('git', 'is not on PATH, so no package could be found'),
+    ];
+  }
+  if (listed.exitCode != 0) {
+    return <Finding>[Finding('git ls-files', '${listed.stderr}')];
+  }
+
+  final found = <Finding>[];
+  final timed = <String>{};
+  for (final pubspec in (listed.stdout as String).split('\n')) {
+    if (pubspec.isEmpty) continue;
+    // A fixture project inside a suite is the suite's data, not a package
+    // with tests of its own.
+    if (pubspec.split('/').contains('test')) continue;
+    final cut = pubspec.lastIndexOf('/');
+    final package = cut < 0 ? '.' : pubspec.substring(0, cut);
+    final prefix = cut < 0 ? '' : '$package/';
+    final suite = Directory('${root.path}/${prefix}test');
+    final files = dartFilesIn(suite);
+    if (!files.any((File f) => f.path.endsWith('_test.dart'))) continue;
+
+    final config = File('${root.path}/${prefix}dart_test.yaml');
+    if (!config.existsSync()) {
+      found.add(
+        Finding(
+          '${prefix}dart_test.yaml',
+          'is missing, so every test here has package:test\'s own thirty '
+              'seconds and every widget test ten minutes; it needs '
+              '`timeout: 1m`',
+        ),
+      );
+    } else {
+      final yaml = config.readAsStringSync();
+      if (!RegExp(r'^timeout:\s*1m\s*$', multiLine: true).hasMatch(yaml)) {
+        found.add(
+          Finding(
+            '${prefix}dart_test.yaml',
+            'gives its tests no minute: it needs a top-level `timeout: 1m`',
+          ),
+        );
+      }
+      for (final long in longYamlTimeoutsIn(yaml)) {
+        found.add(
+          Finding(
+            '${prefix}dart_test.yaml:${long.line}',
+            '${long.says} gives a whole tag or package longer than the '
+                'minute; give it to the test that needs it, with its reason, '
+                'and list it in slowTestsAllowed',
+          ),
+        );
+      }
+    }
+
+    final sources = <File, String>{
+      for (final file in files) file: file.readAsStringSync(),
+    };
+    final widgets = sources.values.any(
+      (String source) => source.contains('testWidgets('),
+    );
+    for (final MapEntry(key: file, value: source) in sources.entries) {
+      final path = '${prefix}test/${relative(file, suite)}';
+      if (file.path.endsWith('flutter_test_config.dart') &&
+          !source.contains(_minuteMarker)) {
+        found.add(
+          Finding(
+            path,
+            'is the test configuration for every file below it and does not '
+            'set `$_minuteMarker`, so a widget test there has ten minutes',
+          ),
+        );
+      }
+      final long = longTimeoutsIn(source);
+      if (long.isEmpty) continue;
+      timed.add(path);
+      if (slowTestsAllowed.containsKey(path) ||
+          slowTestsPending.containsKey(path)) {
+        continue;
+      }
+      for (final timeout in long) {
+        found.add(
+          Finding(
+            '$path:${timeout.line}',
+            '${timeout.says}: longer than the minute, and not in '
+                'slowTestsAllowed. Find why it is slow; if it truly needs '
+                'longer, say why and how long it measured beside the timeout '
+                'and list the file there',
+          ),
+        );
+      }
+    }
+    if (widgets &&
+        !File('${suite.path}/flutter_test_config.dart').existsSync()) {
+      found.add(
+        Finding(
+          '${prefix}test/flutter_test_config.dart',
+          'is missing: this suite has a widget test, and `testWidgets` gives '
+              'each one ten minutes of its own unless this file sets '
+              '`$_minuteMarker`',
+        ),
+      );
+    }
+  }
+
+  for (final path in <String>{
+    ...slowTestsAllowed.keys,
+    ...slowTestsPending.keys,
+  }) {
+    if (!timed.contains(path)) {
+      found.add(
+        Finding(
+          path,
+          File('${root.path}/$path').existsSync()
+              ? 'is listed as needing longer than a minute and gives no test '
+                    'longer any more; take it off the list'
+              : 'is listed as needing longer than a minute and is not there',
+        ),
+      );
     }
   }
   return found;

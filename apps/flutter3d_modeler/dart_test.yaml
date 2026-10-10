@@ -1,3 +1,14 @@
+# **A test that runs longer than a minute is a bug until proven otherwise.**
+# The proof is a `timeout:` on the test or a `@Timeout` on its file, with
+# the reason and the measured time beside it, listed in `slowTestsAllowed`
+# in tool/structure/repository.dart; the structure rule "a test runs in a
+# minute unless its reason is listed" fails on one that is not.
+#
+# `testWidgets` hands every test a ten-minute timeout of its own, which
+# would win over this one; test/flutter_test_config.dart turns that into
+# a factor of one, so a widget test gets this minute too.
+timeout: 1m
+
 # Tags this package's tests use. Declared so an unknown tag is an error
 # rather than a silent no-op: `-x goldens` with an s would otherwise skip
 # nothing and look exactly like a run that skipped everything asked for.
