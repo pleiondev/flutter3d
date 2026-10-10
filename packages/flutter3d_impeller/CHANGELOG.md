@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A pipeline flutter_gpu will not link skips its draws.** A link refused
+  at `createPipeline`, or at the first draw where OpenGL ES links lazily
+  (`Failed to append drawIndexed`), is reported to
+  `GraphicsDevice.pipelineRefusals` instead of thrown. The draws with it
+  are skipped, and it is linked again at its next bind until it is left
+  refused. On an Adreno phone that fell back to OpenGL ES, one such pair
+  failed every frame.
 - **A stage `impellerc` refused says where.** `ShaderBundleBuildException`
   takes a `cause`, and a failed compile's is a `ShaderCompileException`
   read from `impellerc`'s output: `target` `impeller`, the stage when every
