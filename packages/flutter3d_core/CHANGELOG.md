@@ -1,5 +1,23 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AnimationInterpolation`, `AnimationPath`,
+  `AnimationPointerProperty`, `AnimationPointerTarget`, `AnimationWrap`,
+  `MaterialMap`, `ModelWriteFormat`, `ObjNormals`, `ReactiveShape`,
+  `ResourceOrigin`, `SplatComposite`, `StlNormals`, `SurfaceAlphaMode`,
+  `TemporalClip` and `TextureWrap` are open sets.** Classes with constants
+  rather than enums, so a value a later minor adds (an interpolation another
+  format has, a texture map a glTF extension brings) breaks no `switch`. The
+  constants, `values`, `name` (the word every file already writes) and
+  `toString` are unchanged, `byName` reads a name back, and the five whose
+  position code reads keep `index`. `SplatColorSpace`, new in this release,
+  is open too. The glTF types (`GltfAccessorType`, `GltfComponentType`,
+  `GltfPrimitiveMode`) and `ShadowCasterFaces` stay enums, closed for good.
+- **Breaking: `MaterialHintKind` and `ModelCameraProjection` are
+  `abstract final` rather than sealed**, so a hint or a projection a later
+  minor adds breaks no `switch`: one over them ends with a wildcard.
+  `AnimationCondition` and `AnimationGoal`, new in this release, are the
+  same. The material AST and `ResourceSize` are opened with their visitor in
+  a later step.
 - **What loads in the background goes into a scene in the order it was
   asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
   starts; the loader awaits `ready`, attaches what it loaded and calls

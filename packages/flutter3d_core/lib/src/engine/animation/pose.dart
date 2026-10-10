@@ -228,6 +228,8 @@ final class AnimationPose {
 
         case AnimationPath.weights:
         case AnimationPath.pointer:
+        default:
+          // Not a joint's TRS, and nor is a path a later release adds.
           break;
       }
     }

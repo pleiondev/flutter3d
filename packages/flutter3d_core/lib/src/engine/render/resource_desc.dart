@@ -51,14 +51,40 @@ final class AbsolutePixels extends ResourceSize {
 /// earlier frame's pixels both come back as a texture, and they mean opposite
 /// things: the first is stale and must not be sampled, the second is exactly
 /// what the sampler is for. See [FrameGraphNode.keeps].
-enum ResourceOrigin {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ResourceOrigin {
+  const ResourceOrigin._(this.name);
+
   /// A node drew it during this frame. Absent means nothing produced it, and a
   /// reader that can do without has to.
-  drawn,
+  static const ResourceOrigin drawn = ResourceOrigin._('drawn');
 
   /// A node maintains it across frames. It is valid to sample, and some or all
   /// of it predates this frame — deliberately.
-  kept,
+  static const ResourceOrigin kept = ResourceOrigin._('kept');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ResourceOrigin> values = <ResourceOrigin>[drawn, kept];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ResourceOrigin? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ResourceOrigin.$name';
 }
 
 /// What a node is asking for when it writes a resource.

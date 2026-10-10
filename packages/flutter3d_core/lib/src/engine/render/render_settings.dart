@@ -3124,22 +3124,51 @@ final class TemporalSettings {
 /// contains the box's three, so a k-DOP never keeps more than the plain
 /// min–max box would.
 ///
-/// An enum and not a count, because the axes of each size are an optimised
-/// set rather than any k directions.
-enum TemporalClip {
+/// A set of sizes and not a count, because the axes of each size are an
+/// optimised set rather than any k directions.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TemporalClip {
+  const TemporalClip._(this.name, this.axisCount);
+
   /// The variance-tightened YCoCg box, the resolve's own since `R2`.
-  aabb(0),
+  static const TemporalClip aabb = TemporalClip._('aabb', 0);
 
   /// Four axes: the box and one diagonal.
-  kdop8(4),
+  static const TemporalClip kdop8 = TemporalClip._('kdop8', 4);
 
   /// Eight axes.
-  kdop16(8),
+  static const TemporalClip kdop16 = TemporalClip._('kdop16', 8);
 
   /// Sixteen axes, the paper's recommendation where the budget allows.
-  kdop32(16);
+  static const TemporalClip kdop32 = TemporalClip._('kdop32', 16);
 
-  const TemporalClip(this.axisCount);
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TemporalClip> values = <TemporalClip>[
+    aabb,
+    kdop8,
+    kdop16,
+    kdop32,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TemporalClip? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
 
   /// How many slabs bound the neighbourhood; nought for the box, which the
   /// shader takes as its signal to clip the old way.
@@ -3151,7 +3180,11 @@ enum TemporalClip {
     kdop8 => kdop8Axes,
     kdop16 => kdop16Axes,
     kdop32 => kdop32Axes,
+    _ => throw UnsupportedError('no slab axes for $this'),
   };
+
+  @override
+  String toString() => 'TemporalClip.$name';
 }
 
 /// The colour table that changes nothing, [size] slices wide — `gfx-18n`.

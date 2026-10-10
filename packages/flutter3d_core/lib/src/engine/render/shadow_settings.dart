@@ -18,6 +18,10 @@ export 'shadow_technique.dart';
 /// against its own depth and shows acne; recording the far side moves the
 /// recorded surface inside the solid, which cures the acne and instead lets a
 /// thin caster's shadow detach from it.
+///
+/// **Closed for good**: front, back or both: every non-empty set of a
+/// triangle's two faces. No member can be added without changing what the type
+/// means, so it stays an enum and a `switch` over it may name every case.
 enum ShadowCasterFaces {
   /// Draw the faces turned towards the light. The general-purpose choice,
   /// and the common default; acne is held off by the biases.

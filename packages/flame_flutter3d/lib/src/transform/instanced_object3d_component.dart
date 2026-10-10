@@ -207,6 +207,10 @@ class InstancedObject3dComponent extends PositionComponent
         _scale.setValues(sx, across, sy);
       case PlaneAxis.z:
         _scale.setValues(sx, sy, across);
+      default:
+        throw UnsupportedError(
+          'a bridge plane cannot hold ${plane.axis} constant yet',
+        );
     }
     final bent = space;
     if (bent == null) {

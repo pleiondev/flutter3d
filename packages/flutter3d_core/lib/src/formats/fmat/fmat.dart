@@ -379,6 +379,7 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
           SurfaceAlphaMode.opaque => 'opaque',
           SurfaceAlphaMode.mask => 'mask',
           SurfaceAlphaMode.blend => 'blend',
+          _ => surface.alphaMode.name,
         },
       if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
       if (surface.doubleSided) 'doubleSided': true,
@@ -494,6 +495,7 @@ String _wrapWord(TextureWrap wrap) => switch (wrap) {
   TextureWrap.repeat => 'repeat',
   TextureWrap.clampToEdge => 'clampToEdge',
   TextureWrap.mirroredRepeat => 'mirroredRepeat',
+  _ => wrap.name,
 };
 
 TextureWrap _wrap(Object? value) => switch (value) {
@@ -618,6 +620,7 @@ Map<String, Object?> _writeHintKind(MaterialHintKind kind) => switch (kind) {
           <String, Object?>{'value': choice.value, 'label': choice.label},
     ],
   },
+  _ => throw UnsupportedError('.fmat has no hint for $kind'),
 };
 
 SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>

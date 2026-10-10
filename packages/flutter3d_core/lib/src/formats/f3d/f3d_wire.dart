@@ -22,6 +22,7 @@ int alphaModeCode(SurfaceAlphaMode mode) => switch (mode) {
   SurfaceAlphaMode.opaque => 0,
   SurfaceAlphaMode.mask => 1,
   SurfaceAlphaMode.blend => 2,
+  _ => throw UnsupportedError('.f3d has no code for $mode'),
 };
 
 /// The [SurfaceAlphaMode] for [code], or null for a code this build lacks.
@@ -37,6 +38,7 @@ int textureWrapCode(TextureWrap wrap) => switch (wrap) {
   TextureWrap.repeat => 0,
   TextureWrap.clampToEdge => 1,
   TextureWrap.mirroredRepeat => 2,
+  _ => throw UnsupportedError('.f3d has no code for $wrap'),
 };
 
 /// The [TextureWrap] for [code], or null for a code this build lacks.
@@ -54,6 +56,7 @@ int animationPathCode(AnimationPath path) => switch (path) {
   AnimationPath.scale => 2,
   AnimationPath.weights => 3,
   AnimationPath.pointer => 4,
+  _ => throw UnsupportedError('.f3d has no code for $path'),
 };
 
 /// The [AnimationPath] for [code], or null for a code this build lacks.
@@ -72,6 +75,7 @@ int interpolationCode(AnimationInterpolation interpolation) =>
       AnimationInterpolation.step => 0,
       AnimationInterpolation.linear => 1,
       AnimationInterpolation.cubicSpline => 2,
+      _ => throw UnsupportedError('.f3d has no code for $interpolation'),
     };
 
 /// The [AnimationInterpolation] for [code], or null for a code this build

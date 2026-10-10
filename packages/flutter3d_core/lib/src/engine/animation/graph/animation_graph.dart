@@ -421,6 +421,7 @@ final class AnimationGraph {
       final CompareCondition c => c.holds(actual),
       BoolCondition(:final value) => (actual != 0.0) == value,
       TriggerCondition() => actual != 0.0,
+      _ => throw UnsupportedError('no test for ${check.condition}'),
     };
   }
 

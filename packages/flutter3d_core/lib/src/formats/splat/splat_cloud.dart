@@ -198,12 +198,38 @@ double splatChannel(double coefficient) => 0.5 + splatShC0 * coefficient;
 /// A PLY or SPZ file does not say, and every trainer that writes one fits it
 /// to sRGB-encoded photographs and blends it in that encoding, so [srgb] is
 /// what their readers assume unless told otherwise.
-enum SplatColorSpace {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SplatColorSpace {
+  const SplatColorSpace._(this.name);
+
   /// `srgb_rec709_display`: the fitted colours are sRGB-encoded.
-  srgb,
+  static const SplatColorSpace srgb = SplatColorSpace._('srgb');
 
   /// `lin_rec709_display`: the fitted colours are already linear.
-  linear,
+  static const SplatColorSpace linear = SplatColorSpace._('linear');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SplatColorSpace> values = <SplatColorSpace>[srgb, linear];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SplatColorSpace? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SplatColorSpace.$name';
 }
 
 /// A zeroth-band coefficient as the linear channel the engine blends, for a
@@ -223,5 +249,6 @@ double splatColor(double coefficient, SplatColorSpace space) {
   return switch (space) {
     SplatColorSpace.srgb => srgbToLinear(math.min(channel, 1.0)),
     SplatColorSpace.linear => channel,
+    _ => throw UnsupportedError('no conversion from $space'),
   };
 }

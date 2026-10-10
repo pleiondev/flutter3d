@@ -64,9 +64,9 @@ final class FuzzRandom
   double between(double lo, double hi)
   int below(int n)
 
-sealed class FuzzTransform
-  FuzzProgram? apply(FuzzProgram program)
-  Set<int> get involves
+abstract final class FuzzTransform
+  abstract FuzzProgram? apply(FuzzProgram program)
+  abstract Set<int> get involves
   const FuzzTransform()
 
 typedef OwnShaderSection = ({String id, ByteData bytes, String sdk});

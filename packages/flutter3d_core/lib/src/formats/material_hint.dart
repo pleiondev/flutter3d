@@ -12,9 +12,11 @@ import 'surface_material.dart';
 /// them. So this hierarchy answers one question — how should somebody be shown
 /// this value — and nothing else.
 ///
-/// Sealed, so a `switch` over the kinds in an inspector is exhaustive and the
-/// day a sixth kind arrives the compiler names every place that has to grow.
-sealed class MaterialHintKind {
+/// An open set, grown only here: `abstract final` so nobody outside adds a
+/// kind, and not sealed, so a kind a later release adds breaks no inspector.
+/// A `switch` over the kinds ends with a wildcard that shows the value as it
+/// is.
+abstract final class MaterialHintKind {
   const MaterialHintKind();
 }
 
@@ -157,6 +159,7 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
           SurfaceAlphaMode.opaque => 'Opaque',
           SurfaceAlphaMode.mask => 'Cut out at the threshold',
           SurfaceAlphaMode.blend => 'Blended',
+          _ => mode.name,
         }),
     ]),
     label: 'Alpha',

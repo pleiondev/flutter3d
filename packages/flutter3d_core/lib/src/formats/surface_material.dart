@@ -10,9 +10,80 @@ import 'material_extensions.dart';
 export 'material_extensions.dart';
 
 /// How a surface treats the alpha channel.
-enum SurfaceAlphaMode { opaque, mask, blend }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SurfaceAlphaMode {
+  const SurfaceAlphaMode._(this.name);
 
-enum TextureWrap { repeat, clampToEdge, mirroredRepeat }
+  static const SurfaceAlphaMode opaque = SurfaceAlphaMode._('opaque');
+
+  static const SurfaceAlphaMode mask = SurfaceAlphaMode._('mask');
+
+  static const SurfaceAlphaMode blend = SurfaceAlphaMode._('blend');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SurfaceAlphaMode> values = <SurfaceAlphaMode>[
+    opaque,
+    mask,
+    blend,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SurfaceAlphaMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SurfaceAlphaMode.$name';
+}
+
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureWrap {
+  const TextureWrap._(this.name);
+
+  static const TextureWrap repeat = TextureWrap._('repeat');
+
+  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge');
+
+  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureWrap> values = <TextureWrap>[
+    repeat,
+    clampToEdge,
+    mirroredRepeat,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureWrap? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureWrap.$name';
+}
 
 /// Filtering and wrapping requested for a texture.
 final class TextureSampling {
@@ -93,12 +164,50 @@ final class TextureBinding {
 /// The maps of a metal-rough material, in the order the layered stage keeps
 /// their transforms — `C8`, `LayerInfo.uv_transform` and `kMapBaseColor` and
 /// the rest in `lib/surface.glsl`.
-enum MaterialMap {
-  baseColor,
-  metallicRoughness,
-  normal,
-  occlusion,
-  emissive;
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MaterialMap {
+  const MaterialMap._(this.name);
+
+  static const MaterialMap baseColor = MaterialMap._('baseColor');
+
+  static const MaterialMap metallicRoughness = MaterialMap._(
+    'metallicRoughness',
+  );
+
+  static const MaterialMap normal = MaterialMap._('normal');
+
+  static const MaterialMap occlusion = MaterialMap._('occlusion');
+
+  static const MaterialMap emissive = MaterialMap._('emissive');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MaterialMap> values = <MaterialMap>[
+    baseColor,
+    metallicRoughness,
+    normal,
+    occlusion,
+    emissive,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MaterialMap? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
 
   /// [material]'s binding for this map, or null.
   TextureBinding? of(SurfaceMaterial material) => switch (this) {
@@ -107,7 +216,11 @@ enum MaterialMap {
     normal => material.normalTexture,
     occlusion => material.occlusionTexture,
     emissive => material.emissiveTexture,
+    _ => throw UnsupportedError('a surface material has no binding for $this'),
   };
+
+  @override
+  String toString() => 'MaterialMap.$name';
 }
 
 /// `KHR_texture_transform`'s three fields — see [TextureBinding.transform].

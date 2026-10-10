@@ -61,6 +61,7 @@ extension _GltfWriterAnimation on GltfWriter {
             AnimationPath.weights => 1,
             AnimationPath.translation || AnimationPath.scale => 3,
             AnimationPath.pointer => track.componentCount,
+            _ => track.componentCount,
           };
           final outputAccessor = _addAccessor(<String, Object?>{
             'bufferView': _appendBufferView(track.values),

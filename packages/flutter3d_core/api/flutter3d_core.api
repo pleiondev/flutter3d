@@ -175,17 +175,17 @@ final class AnimationComparison
   static const AnimationComparison less = AnimationComparison._('less', _less)
   static const AnimationComparison notEquals = AnimationComparison._('notEquals', _notEquals, exact: true)
 
-sealed class AnimationCondition
+abstract final class AnimationCondition
   const AnimationCondition(this.parameter)
   final String parameter
 
-sealed class AnimationGoal
+abstract final class AnimationGoal
   AnimationGoal({double weight = 1.0})
   Map<String, Object?> save()
+  abstract void apply(AnimationPose pose)
   double get fadingTo
   double get weight
   set weight(double value)
-  void apply(AnimationPose pose)
   void fadeTo(double target, double seconds)
   void restore(Map<String, Object?> from)
   void step(double dt)
@@ -231,11 +231,17 @@ final class AnimationGraphLayer
   set weight(double value)
   void fadeTo(double target, double seconds)
 
-enum AnimationInterpolation
-  values: step, linear, cubicSpline
+final class AnimationInterpolation
   String toGltf()
+  String toString()
+  final String name
   int get valuesPerKey
   static AnimationInterpolation fromGltf(String? name)
+  static AnimationInterpolation? byName(String name)
+  static const AnimationInterpolation cubicSpline = AnimationInterpolation._('cubicSpline')
+  static const AnimationInterpolation linear = AnimationInterpolation._('linear')
+  static const AnimationInterpolation step = AnimationInterpolation._('step')
+  static const List<AnimationInterpolation> values = <AnimationInterpolation>[step, linear, cubicSpline]
 
 final class AnimationLayer
   AnimationBlend blend
@@ -307,12 +313,20 @@ final class AnimationParameters
   void loadByName(Map<String, double> saved)
   void reset()
 
-enum AnimationPath
-  values: translation, rotation, scale, weights, pointer
+final class AnimationPath
   String toGltf()
-  const AnimationPath(this.componentCount)
+  String toString()
+  final String name
   final int componentCount
+  int get index
+  static AnimationPath? byName(String name)
   static AnimationPath? fromGltf(String? name)
+  static const AnimationPath pointer = AnimationPath._('pointer', 0)
+  static const AnimationPath rotation = AnimationPath._('rotation', 4)
+  static const AnimationPath scale = AnimationPath._('scale', 3)
+  static const AnimationPath translation = AnimationPath._('translation', 3)
+  static const AnimationPath weights = AnimationPath._('weights', 0)
+  static const List<AnimationPath> values = <AnimationPath>[translation, rotation, scale, weights, pointer]
 
 final class AnimationPlayer
   AnimationClip? get clip
@@ -365,17 +379,32 @@ final class AnimationPointerFormatException extends Flutter3dFormatException
   const AnimationPointerFormatException(this.message)
   final String message
 
-enum AnimationPointerProperty
-  values: baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity
-  const AnimationPointerProperty(this.target, this.componentCount)
+final class AnimationPointerProperty
+  String toString()
   final AnimationPointerTarget target
+  final String name
   final int componentCount
+  int get index
+  static AnimationPointerProperty? byName(String name)
+  static const AnimationPointerProperty baseColor = AnimationPointerProperty._('baseColor', AnimationPointerTarget.material, 4)
+  static const AnimationPointerProperty emissiveStrength = AnimationPointerProperty._('emissiveStrength', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty lightColor = AnimationPointerProperty._('lightColor', AnimationPointerTarget.light, 3)
+  static const AnimationPointerProperty lightIntensity = AnimationPointerProperty._('lightIntensity', AnimationPointerTarget.light, 1)
+  static const AnimationPointerProperty metallic = AnimationPointerProperty._('metallic', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty roughness = AnimationPointerProperty._('roughness', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty textureOffset = AnimationPointerProperty._('textureOffset', AnimationPointerTarget.material, 2)
+  static const List<AnimationPointerProperty> values = <AnimationPointerProperty>[baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity]
 
 abstract base mixin class AnimationPointerSink
   abstract void setPointer(AnimationPointer pointer, List<double> values)
 
-enum AnimationPointerTarget
-  values: material, light
+final class AnimationPointerTarget
+  String toString()
+  final String name
+  static AnimationPointerTarget? byName(String name)
+  static const AnimationPointerTarget light = AnimationPointerTarget._('light')
+  static const AnimationPointerTarget material = AnimationPointerTarget._('material')
+  static const List<AnimationPointerTarget> values = <AnimationPointerTarget>[material, light]
 
 final class AnimationPose
   AnimationPose restCopy()
@@ -445,8 +474,14 @@ final class AnimationTransition
   final double? exitTime
   final int priority
 
-enum AnimationWrap
-  values: once, loop, pingPong
+final class AnimationWrap
+  String toString()
+  final String name
+  static AnimationWrap? byName(String name)
+  static const AnimationWrap loop = AnimationWrap._('loop')
+  static const AnimationWrap once = AnimationWrap._('once')
+  static const AnimationWrap pingPong = AnimationWrap._('pingPong')
+  static const List<AnimationWrap> values = <AnimationWrap>[once, loop, pingPong]
 
 final class AntiAliasSettings
   AntiAliasSettings copyWith({bool? enabled, EdgeSmoothing? method, double? contrastThreshold, double? blend, double? sharpen, TemporalSettings? temporal})
@@ -2406,7 +2441,7 @@ final class MaterialHint
   final String? help
   final String? label
 
-sealed class MaterialHintKind
+abstract final class MaterialHintKind
   const MaterialHintKind()
 
 final class MaterialInput
@@ -2428,9 +2463,18 @@ final class MaterialLocalRef extends MaterialExpression
   const MaterialLocalRef(this.name, MaterialType type)
   final String name
 
-enum MaterialMap
-  values: baseColor, metallicRoughness, normal, occlusion, emissive
+final class MaterialMap
+  String toString()
   TextureBinding? of(SurfaceMaterial material)
+  final String name
+  int get index
+  static MaterialMap? byName(String name)
+  static const List<MaterialMap> values = <MaterialMap>[baseColor, metallicRoughness, normal, occlusion, emissive]
+  static const MaterialMap baseColor = MaterialMap._('baseColor')
+  static const MaterialMap emissive = MaterialMap._('emissive')
+  static const MaterialMap metallicRoughness = MaterialMap._('metallicRoughness')
+  static const MaterialMap normal = MaterialMap._('normal')
+  static const MaterialMap occlusion = MaterialMap._('occlusion')
 
 final class MaterialNegate extends MaterialExpression
   MaterialNegate(this.operand)
@@ -2754,7 +2798,7 @@ final class ModelCamera
   final ModelCameraProjection projection
   final String? name
 
-sealed class ModelCameraProjection
+abstract final class ModelCameraProjection
   const ModelCameraProjection()
 
 abstract base class ModelDecoder
@@ -2933,9 +2977,17 @@ final class ModelWrite
   final List<String> warnings
   final List<WrittenFile> files
 
-enum ModelWriteFormat
-  values: glb, obj, f3d, stl, stlAscii
+final class ModelWriteFormat
   ModelWriter get writer
+  String toString()
+  final String name
+  static ModelWriteFormat? byName(String name)
+  static const List<ModelWriteFormat> values = <ModelWriteFormat>[glb, obj, f3d, stl, stlAscii]
+  static const ModelWriteFormat f3d = ModelWriteFormat._('f3d')
+  static const ModelWriteFormat glb = ModelWriteFormat._('glb')
+  static const ModelWriteFormat obj = ModelWriteFormat._('obj')
+  static const ModelWriteFormat stl = ModelWriteFormat._('stl')
+  static const ModelWriteFormat stlAscii = ModelWriteFormat._('stlAscii')
 
 final class ModelWriteRequest
   const ModelWriteRequest({required this.document, required this.format, this.name = 'model'})
@@ -3047,8 +3099,14 @@ final class ObjModelWriter extends CheckedModelWriter
   const ObjModelWriter()
   double get tolerance
 
-enum ObjNormals
-  values: smooth, flat, none
+final class ObjNormals
+  String toString()
+  final String name
+  static ObjNormals? byName(String name)
+  static const List<ObjNormals> values = <ObjNormals>[smooth, flat, none]
+  static const ObjNormals flat = ObjNormals._('flat')
+  static const ObjNormals none = ObjNormals._('none')
+  static const ObjNormals smooth = ObjNormals._('smooth')
 
 final class ObjWriter
   ObjWriter(this.document, {this.name = 'model', this.decimals = 6, this.flipTexcoordV = true})
@@ -3571,8 +3629,15 @@ final class ReactiveFrame
   static const PassState state = …
   void bindSprite(ShaderHandle fragment, ReactiveShape shape, {TextureHandle? texture})
 
-enum ReactiveShape
-  values: disc, gaussian, sprite
+final class ReactiveShape
+  String toString()
+  final String name
+  int get index
+  static ReactiveShape? byName(String name)
+  static const List<ReactiveShape> values = <ReactiveShape>[disc, gaussian, sprite]
+  static const ReactiveShape disc = ReactiveShape._('disc')
+  static const ReactiveShape gaussian = ReactiveShape._('gaussian')
+  static const ReactiveShape sprite = ReactiveShape._('sprite')
 
 final class ReflectionProbeNode extends SceneNode
   ReflectionProbeNode({this.radius = 0.0, this.intensity = 1.0, this.faceSize = 64, this.levels = 4, this.refreshFaceEveryFrame = false, this.near = 0.05, this.far = 200.0, super.name})
@@ -3957,8 +4022,13 @@ final class ResourceLoadCanceledException extends ResourceException
   const ResourceLoadCanceledException(this.key)
   final Object? key
 
-enum ResourceOrigin
-  values: drawn, kept
+final class ResourceOrigin
+  String toString()
+  final String name
+  static ResourceOrigin? byName(String name)
+  static const List<ResourceOrigin> values = <ResourceOrigin>[drawn, kept]
+  static const ResourceOrigin drawn = ResourceOrigin._('drawn')
+  static const ResourceOrigin kept = ResourceOrigin._('kept')
 
 final class ResourcePriority implements Comparable<ResourcePriority>
   String toString()
@@ -4447,11 +4517,22 @@ final class SplatCloud
   int get shRestFloatsPerSplat
   void covarianceOf(int index, Float32List out, [int at = 0])
 
-enum SplatColorSpace
-  values: srgb, linear
+final class SplatColorSpace
+  String toString()
+  final String name
+  static SplatColorSpace? byName(String name)
+  static const List<SplatColorSpace> values = <SplatColorSpace>[srgb, linear]
+  static const SplatColorSpace linear = SplatColorSpace._('linear')
+  static const SplatColorSpace srgb = SplatColorSpace._('srgb')
 
-enum SplatComposite
-  values: automatic, sorted, hashed
+final class SplatComposite
+  String toString()
+  final String name
+  static SplatComposite? byName(String name)
+  static const List<SplatComposite> values = <SplatComposite>[automatic, sorted, hashed]
+  static const SplatComposite automatic = SplatComposite._('automatic')
+  static const SplatComposite hashed = SplatComposite._('hashed')
+  static const SplatComposite sorted = SplatComposite._('sorted')
 
 final class SplatContributor extends PassContributor
   Aabb3? boundsFor(RenderView view)
@@ -4579,8 +4660,13 @@ final class StlModelWriter extends CheckedModelWriter
   double get tolerance
   final bool ascii
 
-enum StlNormals
-  values: fromFile, recomputed
+final class StlNormals
+  String toString()
+  final String name
+  static StlNormals? byName(String name)
+  static const List<StlNormals> values = <StlNormals>[fromFile, recomputed]
+  static const StlNormals fromFile = StlNormals._('fromFile')
+  static const StlNormals recomputed = StlNormals._('recomputed')
 
 final class StlWriter
   StlWriter(this.document, {this.name = 'model'})
@@ -4590,8 +4676,14 @@ final class StlWriter
   final String name
   late final List<String> warnings
 
-enum SurfaceAlphaMode
-  values: opaque, mask, blend
+final class SurfaceAlphaMode
+  String toString()
+  final String name
+  static SurfaceAlphaMode? byName(String name)
+  static const List<SurfaceAlphaMode> values = <SurfaceAlphaMode>[opaque, mask, blend]
+  static const SurfaceAlphaMode blend = SurfaceAlphaMode._('blend')
+  static const SurfaceAlphaMode mask = SurfaceAlphaMode._('mask')
+  static const SurfaceAlphaMode opaque = SurfaceAlphaMode._('opaque')
 
 final class SurfaceMaterial
   String toString()
@@ -4634,11 +4726,18 @@ final class TelemetryLevel
   static const TelemetryLevel off = TelemetryLevel._('off', 0)
   static const TelemetryLevel timings = TelemetryLevel._('timings', 2)
 
-enum TemporalClip
-  values: aabb, kdop8, kdop16, kdop32
+final class TemporalClip
   List<(double, double, double)> get axes
-  const TemporalClip(this.axisCount)
+  String toString()
+  final String name
   final int axisCount
+  int get index
+  static TemporalClip? byName(String name)
+  static const List<TemporalClip> values = <TemporalClip>[aabb, kdop8, kdop16, kdop32]
+  static const TemporalClip aabb = TemporalClip._('aabb', 0)
+  static const TemporalClip kdop16 = TemporalClip._('kdop16', 8)
+  static const TemporalClip kdop32 = TemporalClip._('kdop32', 16)
+  static const TemporalClip kdop8 = TemporalClip._('kdop8', 4)
 
 final class TemporalSettings
   TemporalSettings copyWith({bool? enabled, int? sequenceLength, double? historyWeight, double? sharpen, double? reactive, TemporalClip? clip})
@@ -4681,8 +4780,14 @@ final class TextureTransform
   final Vector2 scale
   final double rotation
 
-enum TextureWrap
-  values: repeat, clampToEdge, mirroredRepeat
+final class TextureWrap
+  String toString()
+  final String name
+  static TextureWrap? byName(String name)
+  static const List<TextureWrap> values = <TextureWrap>[repeat, clampToEdge, mirroredRepeat]
+  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge')
+  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat')
+  static const TextureWrap repeat = TextureWrap._('repeat')
 
 final class ThinLens
   String toString()
@@ -5440,11 +5545,17 @@ final class AnimationGraphFormatException extends Flutter3dFormatException
   const AnimationGraphFormatException(this.message)
   final String message
 
-enum AnimationInterpolation
-  values: step, linear, cubicSpline
+final class AnimationInterpolation
   String toGltf()
+  String toString()
+  final String name
   int get valuesPerKey
   static AnimationInterpolation fromGltf(String? name)
+  static AnimationInterpolation? byName(String name)
+  static const AnimationInterpolation cubicSpline = AnimationInterpolation._('cubicSpline')
+  static const AnimationInterpolation linear = AnimationInterpolation._('linear')
+  static const AnimationInterpolation step = AnimationInterpolation._('step')
+  static const List<AnimationInterpolation> values = <AnimationInterpolation>[step, linear, cubicSpline]
 
 final class AnimationMarker
   String toString()
@@ -5461,12 +5572,20 @@ final class AnimationMask
   int get length
   static const AnimationMask everything = AnimationMask._all()
 
-enum AnimationPath
-  values: translation, rotation, scale, weights, pointer
+final class AnimationPath
   String toGltf()
-  const AnimationPath(this.componentCount)
+  String toString()
+  final String name
   final int componentCount
+  int get index
+  static AnimationPath? byName(String name)
   static AnimationPath? fromGltf(String? name)
+  static const AnimationPath pointer = AnimationPath._('pointer', 0)
+  static const AnimationPath rotation = AnimationPath._('rotation', 4)
+  static const AnimationPath scale = AnimationPath._('scale', 3)
+  static const AnimationPath translation = AnimationPath._('translation', 3)
+  static const AnimationPath weights = AnimationPath._('weights', 0)
+  static const List<AnimationPath> values = <AnimationPath>[translation, rotation, scale, weights, pointer]
 
 final class AnimationPointer
   AnimationPointerTarget get target
@@ -5486,17 +5605,32 @@ final class AnimationPointerFormatException extends Flutter3dFormatException
   const AnimationPointerFormatException(this.message)
   final String message
 
-enum AnimationPointerProperty
-  values: baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity
-  const AnimationPointerProperty(this.target, this.componentCount)
+final class AnimationPointerProperty
+  String toString()
   final AnimationPointerTarget target
+  final String name
   final int componentCount
+  int get index
+  static AnimationPointerProperty? byName(String name)
+  static const AnimationPointerProperty baseColor = AnimationPointerProperty._('baseColor', AnimationPointerTarget.material, 4)
+  static const AnimationPointerProperty emissiveStrength = AnimationPointerProperty._('emissiveStrength', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty lightColor = AnimationPointerProperty._('lightColor', AnimationPointerTarget.light, 3)
+  static const AnimationPointerProperty lightIntensity = AnimationPointerProperty._('lightIntensity', AnimationPointerTarget.light, 1)
+  static const AnimationPointerProperty metallic = AnimationPointerProperty._('metallic', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty roughness = AnimationPointerProperty._('roughness', AnimationPointerTarget.material, 1)
+  static const AnimationPointerProperty textureOffset = AnimationPointerProperty._('textureOffset', AnimationPointerTarget.material, 2)
+  static const List<AnimationPointerProperty> values = <AnimationPointerProperty>[baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity]
 
 abstract base mixin class AnimationPointerSink
   abstract void setPointer(AnimationPointer pointer, List<double> values)
 
-enum AnimationPointerTarget
-  values: material, light
+final class AnimationPointerTarget
+  String toString()
+  final String name
+  static AnimationPointerTarget? byName(String name)
+  static const AnimationPointerTarget light = AnimationPointerTarget._('light')
+  static const AnimationPointerTarget material = AnimationPointerTarget._('material')
+  static const List<AnimationPointerTarget> values = <AnimationPointerTarget>[material, light]
 
 final class AnimationTrack
   AnimationTrack({required this.nodeIndex, required this.path, required this.interpolation, required this.times, required this.values, required this.componentCount, this.pointer})
@@ -6217,7 +6351,7 @@ final class MaterialHint
   final String? help
   final String? label
 
-sealed class MaterialHintKind
+abstract final class MaterialHintKind
   const MaterialHintKind()
 
 final class MaterialInput
@@ -6239,9 +6373,18 @@ final class MaterialLocalRef extends MaterialExpression
   const MaterialLocalRef(this.name, MaterialType type)
   final String name
 
-enum MaterialMap
-  values: baseColor, metallicRoughness, normal, occlusion, emissive
+final class MaterialMap
+  String toString()
   TextureBinding? of(SurfaceMaterial material)
+  final String name
+  int get index
+  static MaterialMap? byName(String name)
+  static const List<MaterialMap> values = <MaterialMap>[baseColor, metallicRoughness, normal, occlusion, emissive]
+  static const MaterialMap baseColor = MaterialMap._('baseColor')
+  static const MaterialMap emissive = MaterialMap._('emissive')
+  static const MaterialMap metallicRoughness = MaterialMap._('metallicRoughness')
+  static const MaterialMap normal = MaterialMap._('normal')
+  static const MaterialMap occlusion = MaterialMap._('occlusion')
 
 final class MaterialNegate extends MaterialExpression
   MaterialNegate(this.operand)
@@ -6354,7 +6497,7 @@ final class ModelCamera
   final ModelCameraProjection projection
   final String? name
 
-sealed class ModelCameraProjection
+abstract final class ModelCameraProjection
   const ModelCameraProjection()
 
 abstract base class ModelDecoder
@@ -6565,8 +6708,14 @@ final class ObjModelWriter extends CheckedModelWriter
   const ObjModelWriter()
   double get tolerance
 
-enum ObjNormals
-  values: smooth, flat, none
+final class ObjNormals
+  String toString()
+  final String name
+  static ObjNormals? byName(String name)
+  static const List<ObjNormals> values = <ObjNormals>[smooth, flat, none]
+  static const ObjNormals flat = ObjNormals._('flat')
+  static const ObjNormals none = ObjNormals._('none')
+  static const ObjNormals smooth = ObjNormals._('smooth')
 
 final class ObjWriter
   ObjWriter(this.document, {this.name = 'model', this.decimals = 6, this.flipTexcoordV = true})
@@ -6639,8 +6788,13 @@ final class SplatCloud
   int get shRestFloatsPerSplat
   void covarianceOf(int index, Float32List out, [int at = 0])
 
-enum SplatColorSpace
-  values: srgb, linear
+final class SplatColorSpace
+  String toString()
+  final String name
+  static SplatColorSpace? byName(String name)
+  static const List<SplatColorSpace> values = <SplatColorSpace>[srgb, linear]
+  static const SplatColorSpace linear = SplatColorSpace._('linear')
+  static const SplatColorSpace srgb = SplatColorSpace._('srgb')
 
 final class SplatOctree
   SplatOctree(this.nodes)
@@ -6698,8 +6852,13 @@ final class StlModelWriter extends CheckedModelWriter
   double get tolerance
   final bool ascii
 
-enum StlNormals
-  values: fromFile, recomputed
+final class StlNormals
+  String toString()
+  final String name
+  static StlNormals? byName(String name)
+  static const List<StlNormals> values = <StlNormals>[fromFile, recomputed]
+  static const StlNormals fromFile = StlNormals._('fromFile')
+  static const StlNormals recomputed = StlNormals._('recomputed')
 
 final class StlWriter
   StlWriter(this.document, {this.name = 'model'})
@@ -6709,8 +6868,14 @@ final class StlWriter
   final String name
   late final List<String> warnings
 
-enum SurfaceAlphaMode
-  values: opaque, mask, blend
+final class SurfaceAlphaMode
+  String toString()
+  final String name
+  static SurfaceAlphaMode? byName(String name)
+  static const List<SurfaceAlphaMode> values = <SurfaceAlphaMode>[opaque, mask, blend]
+  static const SurfaceAlphaMode blend = SurfaceAlphaMode._('blend')
+  static const SurfaceAlphaMode mask = SurfaceAlphaMode._('mask')
+  static const SurfaceAlphaMode opaque = SurfaceAlphaMode._('opaque')
 
 final class SurfaceMaterial
   String toString()
@@ -6767,8 +6932,14 @@ final class TextureTransform
   final Vector2 scale
   final double rotation
 
-enum TextureWrap
-  values: repeat, clampToEdge, mirroredRepeat
+final class TextureWrap
+  String toString()
+  final String name
+  static TextureWrap? byName(String name)
+  static const List<TextureWrap> values = <TextureWrap>[repeat, clampToEdge, mirroredRepeat]
+  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge')
+  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat')
+  static const TextureWrap repeat = TextureWrap._('repeat')
 
 final class UniversalBlockFormat
   const UniversalBlockFormat({required this.hasAlpha})

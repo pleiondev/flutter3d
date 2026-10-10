@@ -489,8 +489,13 @@ final class PhysicsStepComponent extends Component with FixedStepUpdate, StepClo
   void unfollow(StepFollower body)
   void update(double dt)
 
-enum PlaneAxis
-  values: y, z
+final class PlaneAxis
+  String toString()
+  final String name
+  static PlaneAxis? byName(String name)
+  static const List<PlaneAxis> values = <PlaneAxis>[y, z]
+  static const PlaneAxis y = PlaneAxis._('y')
+  static const PlaneAxis z = PlaneAxis._('z')
 
 final class PlayerInputs
   Component listenToKeyboard()

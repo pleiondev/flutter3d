@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
+  transform a later minor adds to the fuzzer breaks no `switch` over them.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,
   the refusal the capability checks hold every backend to, lives now.
 

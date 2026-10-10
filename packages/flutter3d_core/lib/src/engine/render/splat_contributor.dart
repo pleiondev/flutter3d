@@ -485,14 +485,20 @@ final class SplatQuads {
 }
 
 /// How a cloud's overlapping splats are combined — `N5`.
-enum SplatComposite {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SplatComposite {
+  const SplatComposite._(this.name);
+
   /// [hashed] while a temporal resolve runs, [sorted] otherwise: the noise is
   /// only worth having when something averages it.
-  automatic,
+  static const SplatComposite automatic = SplatComposite._('automatic');
 
   /// Sorted back to front and alpha blended, the way a cloud has always been
   /// drawn. Exact in a single frame; costs a sort whenever the eye moves.
-  sorted,
+  static const SplatComposite sorted = SplatComposite._('sorted');
 
   /// Unsorted: each splat kept or dropped whole at a pixel against noise, with
   /// its opacity as the chance of keeping it, and written opaque with its
@@ -502,7 +508,31 @@ enum SplatComposite {
   /// The cores come out as the sorted blend does. The faint tails come out
   /// darker: their kept pixels are sparse, and the resolve clips its history
   /// to each pixel's neighbourhood, which there often holds none of them.
-  hashed,
+  static const SplatComposite hashed = SplatComposite._('hashed');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SplatComposite> values = <SplatComposite>[
+    automatic,
+    sorted,
+    hashed,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SplatComposite? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SplatComposite.$name';
 }
 
 /// Draws a cloud into the scene pass.
@@ -681,6 +711,7 @@ final class SplatContributor extends PassContributor {
       SplatComposite.automatic => frame.temporal,
       SplatComposite.sorted => false,
       SplatComposite.hashed => true,
+      _ => throw UnsupportedError('no splat draw path for $composite'),
     };
     final vertexShader = frame.device.shaders['ParticleVertex'];
     final fragmentShader =

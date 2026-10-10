@@ -6,6 +6,11 @@ import '../format_exceptions.dart';
 /// The conversion to a triangle list lives here rather than as a static helper on
 /// the loader: it is entirely determined by the topology, and keeping it on the
 /// enum means the switch is exhaustive by construction.
+///
+/// **Closed for good**: glTF 2.0's seven primitive modes, numbered by the
+/// format: the specification is versioned, and a file naming an eighth is not
+/// glTF 2.0. No member can be added without changing what the type means, so it
+/// stays an enum and a `switch` over it may name every case.
 enum GltfPrimitiveMode {
   points(0),
   lines(1),

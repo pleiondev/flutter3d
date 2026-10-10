@@ -79,5 +79,8 @@ extension _GltfWriterLightsCameras on GltfWriter {
             'zfar': o.zfar,
           },
         },
+        _ => throw UnsupportedError(
+          'glTF has no camera type for ${camera.projection}',
+        ),
       };
 }

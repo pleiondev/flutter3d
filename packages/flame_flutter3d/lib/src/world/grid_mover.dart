@@ -5,6 +5,11 @@ import 'cell_grid_component.dart';
 
 /// Which way a [GridMover] goes, as the screen sees it: up is towards the
 /// top, Flame's `y` falling.
+///
+/// **Closed for good**: the four ways out of a square cell, and standing still:
+/// a square has no fifth side to leave by. No member can be added without
+/// changing what the type means, so it stays an enum and a `switch` over it may
+/// name every case.
 enum GridHeading {
   none(0, 0),
   up(0, -1),

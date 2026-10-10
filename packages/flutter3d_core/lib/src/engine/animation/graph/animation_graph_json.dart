@@ -157,6 +157,7 @@ abstract final class AnimationGraphJson {
           'parameter': c.parameter,
           'trigger': true,
         },
+        _ => throw UnsupportedError('no JSON for $c'),
       };
 
   /// The words a graph names a state's wrap by. Spelled out rather than

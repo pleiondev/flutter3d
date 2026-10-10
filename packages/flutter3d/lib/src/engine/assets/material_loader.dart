@@ -226,11 +226,15 @@ Future<RenderMaterial> bindMaterial(
     emissive: surface.emissive,
     // A file's strength is glTF's, a multiple of the factor; the material's
     // is nits, and one of the file's was always drawn at the old unit's.
-    emissiveStrength: surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
+    emissiveStrength:
+        surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (surface.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
       SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
+      _ => throw UnsupportedError(
+        'no material alpha mode draws ${surface.alphaMode} yet',
+      ),
     },
     alphaCutoff: surface.alphaCutoff,
     doubleSided: surface.doubleSided,
@@ -363,11 +367,15 @@ Future<RenderMaterial> bindSurfaceMaterial(
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
     emissive: source.emissive,
-    emissiveStrength: source.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
+    emissiveStrength:
+        source.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (source.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
       SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
+      _ => throw UnsupportedError(
+        'no material alpha mode draws ${source.alphaMode} yet',
+      ),
     },
     alphaCutoff: source.alphaCutoff,
     doubleSided: source.doubleSided,

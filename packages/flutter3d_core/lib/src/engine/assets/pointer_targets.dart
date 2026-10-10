@@ -38,6 +38,8 @@ final class PointerTargets with AnimationPointerSink {
       case AnimationPointerTarget.light:
         final light = lights[pointer.index];
         if (light != null) applyToLight(light, pointer, values);
+      default:
+        throw UnsupportedError('no sink takes ${pointer.target} pointers');
     }
   }
 
@@ -63,7 +65,8 @@ final class PointerTargets with AnimationPointerSink {
         );
       case AnimationPointerProperty.emissiveStrength:
         // glTF animates a multiple of the factor; the material holds nits.
-        material.emissiveStrength = values[0] * RenderMaterial.defaultEmissiveStrength;
+        material.emissiveStrength =
+            values[0] * RenderMaterial.defaultEmissiveStrength;
       case AnimationPointerProperty.roughness:
         material.roughness = values[0];
       case AnimationPointerProperty.metallic:
@@ -76,6 +79,8 @@ final class PointerTargets with AnimationPointerSink {
       case AnimationPointerProperty.lightColor:
       case AnimationPointerProperty.lightIntensity:
         break;
+      default:
+        throw UnsupportedError('a material cannot take ${pointer.property}');
     }
   }
 
@@ -120,6 +125,8 @@ final class PointerTargets with AnimationPointerSink {
       case AnimationPointerProperty.metallic:
       case AnimationPointerProperty.textureOffset:
         break;
+      default:
+        throw UnsupportedError('a light cannot take ${pointer.property}');
     }
   }
 }

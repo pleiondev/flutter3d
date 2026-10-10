@@ -583,6 +583,7 @@ String _hintsOf(MaterialDocument document) => <String>[
         TextureHint(:final extensions) => 'texture ${extensions.join(',')}',
         EnumHint(:final values) =>
           'enum ${values.map((v) => '${v.value}=${v.label}').join(',')}',
+        _ => '${entry.value.kind}',
       },
     ].join(':'),
 ].join('|');
