@@ -130,6 +130,9 @@ final class PerspectiveProjection extends Projection {
   /// Vertical field of view. Vertical rather than horizontal so that widening the
   /// viewport reveals more scene instead of squashing it.
   /// In radians.
+  ///
+  /// The engine's one name for it; only a glTF camera keeps the format's own
+  /// `yfov` (`ModelPerspectiveCamera.yfov`).
   final double fovY;
 
   /// [fovY], in radians.

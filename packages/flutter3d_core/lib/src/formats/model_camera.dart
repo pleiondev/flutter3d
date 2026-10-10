@@ -24,6 +24,13 @@ final class ModelPerspectiveCamera extends ModelCameraProjection {
   });
 
   /// Vertical field of view, in radians.
+  ///
+  /// **`yfov` because it is glTF's field**, spelled as the specification
+  /// spells it so a reader and a writer map one name to one key, like
+  /// [znear] and [zfar]. Everywhere else the engine says `fovY`
+  /// (`PerspectiveProjection.fovY`, `OffAxisProjection.symmetric`,
+  /// `OrbitController.frameBounds`), and `Projection.verticalFieldOfView` is
+  /// the same angle asked of any projection, null for one that has none.
   final double yfov;
 
   /// Absent means the camera follows the viewport's own aspect ratio,
