@@ -86,8 +86,7 @@ final class Consents {
           _ => const TelemetryConsent.notAsked(),
         };
       } on FormatException {
-        _telemetry = const TelemetryConsent.notAsked();
-      } on DocumentFormatException {
+        // A `DocumentFormatException` is one too.
         _telemetry = const TelemetryConsent.notAsked();
       }
     }

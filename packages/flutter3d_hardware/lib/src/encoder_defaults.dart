@@ -3,7 +3,7 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 
 import 'capabilities.dart';
 
@@ -16,7 +16,7 @@ import 'capabilities.dart';
 /// the contract promises it says; a silent no-op would be a draw that never
 /// happened with nothing anywhere saying so.
 Never refuseByDefault(Object encoder, DeviceFeature feature) =>
-    throw UnsupportedCapability(
+    throw UnsupportedCapabilityException(
       feature,
       backend: '${encoder.runtimeType}',
       reason: 'its encoder leaves this to the default',

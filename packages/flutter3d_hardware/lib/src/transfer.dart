@@ -10,7 +10,7 @@
 /// render pass that draws from what it was copied into.
 ///
 /// Every copy is gated by its own `DeviceFeature`, and a backend without it
-/// throws `UnsupportedCapability` from the copy — opening the pass itself is
+/// throws `UnsupportedCapabilityException` from the copy — opening the pass itself is
 /// never refused, so a caller can ask per copy rather than per pass. That
 /// refusal is each copy's default body: a backend overrides the copies it
 /// has, and one written before a later copy is added keeps compiling.

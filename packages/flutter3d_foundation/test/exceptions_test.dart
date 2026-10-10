@@ -122,7 +122,7 @@ void main() {
   test('a refused capability names it, who refused and how to ask first', () {
     // Mutation: drop `askedBy` from the message — a caller would not learn
     // where the question that avoids the throw is asked.
-    const refused = UnsupportedCapability(
+    const refused = UnsupportedCapabilityException(
       _Shadows(),
       backend: 'the software renderer',
       reason: 'it draws no depth',
@@ -135,7 +135,7 @@ void main() {
       'depth. Ask whether `Renderer.capabilities` has it before calling.',
     );
     expect(
-      const UnsupportedCapability(_Bare(), backend: 'x').message,
+      const UnsupportedCapabilityException(_Bare(), backend: 'x').message,
       'x does not support bare.',
     );
   });

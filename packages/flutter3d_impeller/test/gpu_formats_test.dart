@@ -25,7 +25,7 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/src/gpu_formats.dart';
 import 'package:flutter3d_impeller/src/gpu_texture.dart';
@@ -186,7 +186,7 @@ void main() {
         expect(
           () => factor.toGpu(),
           throwsA(
-            isA<UnsupportedCapability>()
+            isA<UnsupportedCapabilityException>()
                 .having(
                   (e) => e.feature,
                   'feature',
@@ -205,7 +205,7 @@ void main() {
         expect(
           () => operation.toGpu(),
           throwsA(
-            isA<UnsupportedCapability>()
+            isA<UnsupportedCapabilityException>()
                 .having((e) => e.feature, 'feature', DeviceFeature.minMaxBlend)
                 .having((e) => e.backend, 'backend', 'Impeller'),
           ),

@@ -1642,7 +1642,7 @@ decision gets made (see the package README, "Capabilities and stability"). The
 `textureFormatSupport` — and the rest of what WebGPU and WebGL2 can do:
 descriptor-made textures of every shape, general and mapped buffers, a
 `TransferEncoder`, storage textures, indirect and multi-draws, query sets and
-render bundles. Every call a feature gates throws `UnsupportedCapability` on a
+render bundles. Every call a feature gates throws `UnsupportedCapabilityException` on a
 device without it. The pre-1.0 `supportsX` getters are gone: each is a
 `DeviceFeature` asked of `features`.
 
@@ -1660,7 +1660,7 @@ device without it. The pre-1.0 `supportsX` getters are gone: each is a
   registry per engine, not a process-wide list: `platformDevices()` makes one
   with this platform's backends, and every addition is a `Registration`.
   **`GraphicsDevice` is an `abstract base class`** with a body for every
-  member a feature gates (it throws `UnsupportedCapability`), and a backend
+  member a feature gates (it throws `UnsupportedCapabilityException`), and a backend
   `extends` it; so do `ComputeEncoder` and `TransferEncoder`, and
   `PassEncoder` is an `abstract base mixin class`. Each backend is its own
   package on a caret range of this one, and a member added in a 1.x minor
@@ -1668,7 +1668,7 @@ device without it. The pre-1.0 `supportsX` getters are gone: each is a
   the backend overrides it once it has the feature. The encoders follow
   the same rule: every member of `PassEncoder`, `ComputeEncoder` and
   `TransferEncoder` a `DeviceFeature` gates has a body that throws
-  `UnsupportedCapability` naming it (`drawIndexed` with both bases zero is
+  `UnsupportedCapabilityException` naming it (`drawIndexed` with both bases zero is
   `draw`, alpha to coverage is ignored). `backend.dart`, the library a
   backend imports, is held to the same semver as the contract.
 - **One `open`.** Every backend opens as `await X.open(width:, height:)`:
@@ -1974,7 +1974,7 @@ same package.
 Since 1.0 it also takes in `capabilityChecks`, which hold a device to its own
 report in both directions: every `DeviceFeature` it lists has to pass a minimal
 call, every one it does not list has to refuse that call with
-`UnsupportedCapability` naming it. What needs a purpose-built stage to probe is named in
+`UnsupportedCapabilityException` naming it. What needs a purpose-built stage to probe is named in
 `unprobedFeatures` with the reason rather than passed in silence.
 
 ### 7.6 Compute
@@ -1993,7 +1993,7 @@ reads a buffer back through a mappable staging buffer. The software rasteriser
 runs a stage through `CpuStage.compute`, whose Dart mirror is handed a whole
 workgroup and runs the phases between barriers across all its invocations,
 which is what a barrier means; a dispatch finishes before it returns. Impeller
-and WebGL2 do not list the feature and throw `UnsupportedCapability` from the creators:
+and WebGL2 do not list the feature and throw `UnsupportedCapabilityException` from the creators:
 flutter_gpu has no compute pipeline yet, and WebGL2 has no compute stage.
 
 Compute stages have a manifest of their own, `flutter3d.compute.json`, which
@@ -3662,7 +3662,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13672 tests** across 57 packages and 17 applications |
+| Unit tests | **13673 tests** across 57 packages and 17 applications |
 | Structure rules | 74, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

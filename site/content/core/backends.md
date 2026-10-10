@@ -140,7 +140,7 @@ final class MyDevice extends GraphicsDevice {
 }
 ```
 
-That is the whole of the capability half; the rest of this page is resources and frames. `GraphicsDevice` is an `abstract base class`: what a feature gates has a body that throws `UnsupportedCapability`, so you override what your backend has and list it in `features`, and the members with no body will not compile until they are all there, which is the one part of the contract that needs no reading at all.
+That is the whole of the capability half; the rest of this page is resources and frames. `GraphicsDevice` is an `abstract base class`: what a feature gates has a body that throws `UnsupportedCapabilityException`, so you override what your backend has and list it in `features`, and the members with no body will not compile until they are all there, which is the one part of the contract that needs no reading at all.
 
 | Query | What answering wrong costs you |
 |---|---|

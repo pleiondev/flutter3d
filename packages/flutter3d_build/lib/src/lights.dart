@@ -34,11 +34,12 @@ Future<int> runLights(
   final Editing editing;
   try {
     editing = Editing.parse(source.readAsStringSync(), path: options.level);
+  } on LevelFormatException catch (error) {
+    // Before the bare `FormatException` below, which it now also is.
+    complain.writeln('${options.level}: $error');
+    return 1;
   } on FormatException catch (error) {
     complain.writeln('${options.level}: ${error.message}');
-    return 1;
-  } on LevelFormatException catch (error) {
-    complain.writeln('${options.level}: $error');
     return 1;
   }
 
@@ -242,8 +243,7 @@ LightingState? _stateIn(String path) {
     });
     return LightingState(name is String ? name : path, lights: read.lights);
   } on FormatException {
-    return null;
-  } on LevelFormatException {
+    // A `LevelFormatException` is one too.
     return null;
   }
 }

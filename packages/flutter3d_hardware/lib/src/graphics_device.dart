@@ -8,7 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
@@ -138,7 +138,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// keeps its range. A depth attachment for a face is an ordinary 2D texture
   /// of the face's size from [createTexture], not part of the cube.
   ///
-  /// Throws `UnsupportedCapability` when the device cannot make cubes — ask
+  /// Throws `UnsupportedCapabilityException` when the device cannot make cubes — ask
   /// `features.has(DeviceFeature.cubeTextures)` — and a chain longer than the
   /// device will allocate is trimmed to what it will, the same rule the upload
   /// path follows. Ask `features.has(DeviceFeature.renderToMipLevel)` before
@@ -346,7 +346,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// Every face is [size] by [size] — cube faces are square by definition, and
   /// a rectangular one is a mistake worth refusing rather than resizing.
   ///
-  /// Throws `UnsupportedCapability` when the device cannot make cubes, and a
+  /// Throws `UnsupportedCapabilityException` when the device cannot make cubes, and a
   /// [DeviceResourceException] when there are not six faces or a face is not
   /// the size its description says — the same rule as
   /// [createTextureFromPixels], whose caller decides whether an asset that
@@ -555,7 +555,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   // which are gone since 1.0 — see "Capabilities and stability" in this
   // package's README.
   //
-  // Everything a [DeviceFeature] gates throws `UnsupportedCapability` on a
+  // Everything a [DeviceFeature] gates throws `UnsupportedCapabilityException` on a
   // device without it. All of it is the 1.0 contract under strict semver: a
   // backend that gains a capability starts listing the feature, and nothing
   // here changes.
@@ -566,7 +566,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// The one place to ask; the `supportsX` getters it replaced are gone since
   /// 1.0. A feature this version of the contract does not name cannot be in
   /// it; a feature it names and this device lacks answers false, and every
-  /// call that feature gates throws `UnsupportedCapability`.
+  /// call that feature gates throws `UnsupportedCapabilityException`.
   ///
   /// **A mixin is a capability too, and the two agree.** Three capabilities
   /// are types a device opts into rather than members every device carries:
@@ -690,7 +690,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   // 1.0, wave 3: a base class with defaults. Every member below has a body,
   // so a backend written against 1.0.0 keeps compiling when one is added in
   // a minor. A feature-gated member's default refuses with
-  // [UnsupportedCapability]; anything that is only a courtesy to a debugger
+  // [UnsupportedCapabilityException]; anything that is only a courtesy to a debugger
   // does nothing.
   // ------------------------------------------------------------------------
 
@@ -702,8 +702,14 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// The refusal for [feature] on this device, for a default body or a
   /// backend's own gate to throw: `throw refuse(DeviceFeature.compute)`.
   @protected
-  UnsupportedCapability refuse(DeviceFeature feature, {String? reason}) =>
-      UnsupportedCapability(feature, backend: backendName, reason: reason);
+  UnsupportedCapabilityException refuse(
+    DeviceFeature feature, {
+    String? reason,
+  }) => UnsupportedCapabilityException(
+    feature,
+    backend: backendName,
+    reason: reason,
+  );
 
   /// The refusal for a request this device has the feature for and still
   /// cannot honour, for a backend to throw from [operation]:

@@ -60,7 +60,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
@@ -293,7 +293,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   @override
   void setPolygonMode(PolygonMode mode) {
     if (mode == PolygonMode.fill) return;
-    throw UnsupportedCapability(
+    throw UnsupportedCapabilityException(
       DeviceFeature.wireframe,
       backend: _backend,
       reason: 'there is no polygon fill mode in the API',

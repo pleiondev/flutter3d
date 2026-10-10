@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'backend_handles.dart';
@@ -106,7 +106,7 @@ final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
 /// from the constructor's flags. The 0.9 surface is off unless a test
 /// names it in `extraFeatures`; a feature named there is *recorded* — each
 /// call becomes a [RecordedCall] in the pass or in [calls] — and a feature
-/// not named is refused with [UnsupportedCapability], exactly as a real
+/// not named is refused with [UnsupportedCapabilityException], exactly as a real
 /// backend without it refuses. Compute is never available: a fake runs no
 /// stage, and `extraFeatures` may not name it.
 final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
@@ -144,11 +144,12 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     calls.add(RecordedCall('releaseStorageBuffer', buffer));
   }
 
-  static UnsupportedCapability _noCompute() => UnsupportedCapability(
-    DeviceFeature.compute,
-    backend: _name,
-    reason: 'a fake runs no compute stage',
-  );
+  static UnsupportedCapabilityException _noCompute() =>
+      UnsupportedCapabilityException(
+        DeviceFeature.compute,
+        backend: _name,
+        reason: 'a fake runs no compute stage',
+      );
 
   @override
   Future<MappedBuffer> mapBuffer(

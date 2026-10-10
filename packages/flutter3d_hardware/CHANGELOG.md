@@ -50,7 +50,7 @@
   write-mask, depth-clamp and storage members, `bindUniformBytes`,
   `drawIndirect`, `drawNonIndexed`) and `setBlendColor`, the gated members
   of `ComputeEncoder` and every copy of `TransferEncoder` throw
-  `UnsupportedCapability` naming their feature unless a backend overrides
+  `UnsupportedCapabilityException` naming their feature unless a backend overrides
   them; `drawIndexed` with both bases zero is `draw`, and
   `setAlphaToCoverage` is ignored, as a device without it promises. An
   encoder from outside this repository written against 1.0.0 keeps
@@ -70,7 +70,7 @@
   within a major, so a backend written against 1.0.0 compiles against every
   1.x.
 
-- **`UnsupportedCapability` moved to `flutter3d_foundation`**, and
+- **`UnsupportedCapabilityException` moved to `flutter3d_foundation`**, and
   `DeviceFeature` extends the foundation's `Capability`. Import the
   refusal from the foundation (or `package:flutter3d/flutter3d.dart`, which
   still exports it); its constructor, fields and sentence are unchanged.
@@ -128,7 +128,7 @@
 - **Breaking: a device throws where it answered null.**
   `createTextureFromPixels`, `createCubeTextureFromPixels` and
   `createCubeRenderTarget` return a `TextureHandle`: a device without cubes
-  throws `UnsupportedCapability`, and pixels of the wrong size a new
+  throws `UnsupportedCapabilityException`, and pixels of the wrong size a new
   `DeviceResourceException`. `DeviceRegistry.open` throws a new
   `DeviceUnavailableException`, with each backend's refusal, rather than a
   `StateError`. A null travelled a long way from the call that declined; a
@@ -188,7 +188,7 @@
   `LoadedShaderLibrary`, `TextureAllocator`, `MappedBuffer` and the
   `EncodedImageUpload` mixin are extended, not implemented, so a member a
   minor adds breaks no backend. Feature-gated members have bodies that
-  throw `UnsupportedCapability` through `refuse`; the deprecated `supportsX`
+  throw `UnsupportedCapabilityException` through `refuse`; the deprecated `supportsX`
   getters are answered by the base class.
 - **Debug groups, device loss, asynchronous pipelines and labels.**
   `pushDebugGroup`, `popDebugGroup` and `insertDebugMarker` on every
@@ -217,13 +217,13 @@
   (`trace_wire_names.dart`) rather than each value's Dart name. The words are
   the names as they were, so every trace reads as before; a rename in the API
   no longer changes what a trace says.
-- **`UnsupportedCapability` is a `CapabilityException`, not an
+- **`UnsupportedCapabilityException` is a `CapabilityException`, not an
   `UnsupportedError`.** A device without a feature is a fact about the
   hardware that a correct program meets, not a programmer's mistake, so it is
   an exception like the rest of the engine's, under `Flutter3dException` from
   `flutter3d_plugin_api`. Its `message`, `feature`, `backend` and `reason` are
   what they were, and the constructor is `const`. A check for the refusal
-  catches `UnsupportedCapability` (or `CapabilityException`), not
+  catches `UnsupportedCapabilityException` (or `CapabilityException`), not
   `UnsupportedError`.
 - **Breaking:** `ShaderBundleException` extends `ResourceException` instead of
   implementing `Exception`, and it is the one type for a stale bundle too:
@@ -301,7 +301,7 @@ under strict semver, and `api/flutter3d_hardware.api` is the contract.
   deprecation notice fails `flutter analyze`.
 
 - **A refusal is one type.** Every call a feature gates throws
-  `UnsupportedCapability` — a `CapabilityException` naming the feature, the
+  `UnsupportedCapabilityException` — a `CapabilityException` naming the feature, the
   backend and the reason — on a device without it, before anything reaches a
   driver. `DeviceFeatures.require` is how a backend says so in the same words
   as every other, and `RenderPassDescriptor.checkFeatures` refuses a pass

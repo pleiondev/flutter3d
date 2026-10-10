@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException;
@@ -54,7 +54,7 @@ final class EnvironmentCube {
 abstract final class EnvironmentMap {
   /// Whether [device] can hold the cube every `from…` builds — ask before
   /// building one, since a device without cubes is refused with
-  /// `UnsupportedCapability` (it answered null before 1.0).
+  /// `UnsupportedCapabilityException` (it answered null before 1.0).
   static bool isSupportedOn(GraphicsDevice device) =>
       device.features.has(DeviceFeature.cubeTextures);
 
@@ -177,7 +177,7 @@ abstract final class EnvironmentMap {
   /// direction each texel looks along.
   ///
   /// **Throws rather than answering null, since 1.0** (decision 4):
-  /// `UnsupportedCapability` where the device cannot hold a cube (ask
+  /// `UnsupportedCapabilityException` where the device cannot hold a cube (ask
   /// [isSupportedOn]), an [ArgumentError] for a sky that is off, and the
   /// device's `DeviceResourceException` where the upload refuses. A caller
   /// that would rather keep the flat ambient asks first.
@@ -241,7 +241,7 @@ abstract final class EnvironmentMap {
   /// reason and with more cost: a sun four hundred times brighter than the
   /// sky around it clamps to white.
   ///
-  /// Throws `UnsupportedCapability` where the device has no cube textures
+  /// Throws `UnsupportedCapabilityException` where the device has no cube textures
   /// ([isSupportedOn]), an [ArgumentError] where the pixels do not match the
   /// size given, and the device's `DeviceResourceException` where the upload
   /// refuses.
@@ -271,7 +271,7 @@ abstract final class EnvironmentMap {
 
   static void _requireCubes(GraphicsDevice device) {
     if (!isSupportedOn(device)) {
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.cubeTextures,
         backend: device.backendName,
         reason: 'an environment map is a cube',

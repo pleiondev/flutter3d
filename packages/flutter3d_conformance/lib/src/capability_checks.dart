@@ -3,7 +3,7 @@
 /// **The check the 1.0 contract rests on.** `GraphicsDevice.features` is one
 /// set of answers a caller branches on, and the contract makes two promises
 /// about each: a feature the device lists works, and a feature it does not
-/// list refuses every call it gates with `UnsupportedCapability` — before
+/// list refuses every call it gates with `UnsupportedCapabilityException` — before
 /// anything reaches a driver, and naming itself. A backend that listed a
 /// feature it could not deliver would send callers down a path that fails
 /// somewhere else; one that left a feature out and quietly did something
@@ -25,7 +25,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
@@ -705,7 +705,7 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       // A capability a device opts into (`SynchronousBufferReadback`); one
       // that has not is refused exactly as a gated call refuses.
       if (d is! SynchronousBufferReadback) {
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.synchronousReadback,
           backend: d.backendName,
         );
@@ -764,7 +764,7 @@ final Map<DeviceFeature, bool Function(GraphicsDevice device)> _tables =
     };
 
 /// Walks every feature: a listed one must work, an unlisted one must refuse
-/// with `UnsupportedCapability`, a reserved one must never be listed.
+/// with `UnsupportedCapabilityException`, a reserved one must never be listed.
 Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
   final features = device.features;
   final wrong = <String>[];
@@ -804,7 +804,7 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
         '${feature.name} is not reported, and its call succeeded anyway — '
         'a backend that can do it should say so',
       );
-    } on UnsupportedCapability catch (refusal) {
+    } on UnsupportedCapabilityException catch (refusal) {
       final acceptable =
           refusal.feature == feature || missing.contains(refusal.feature);
       if (!acceptable) {
@@ -816,7 +816,7 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
     } on Object catch (error) {
       wrong.add(
         '${feature.name} is not reported, and its call threw $error rather '
-        'than UnsupportedCapability naming it',
+        'than UnsupportedCapabilityException naming it',
       );
     }
   }

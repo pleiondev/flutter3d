@@ -285,7 +285,7 @@ of it and fails, and so does one still here at or past its removal version.
 
 A capability a backend cannot provide yet is not a reason to leave it out of
 the interface. It goes in, the backend leaves it out of `features`, and the
-call throws `UnsupportedCapability` with a `TODO(<backend>)` saying what would
+call throws `UnsupportedCapabilityException` with a `TODO(<backend>)` saying what would
 unblock it. `capabilityChecks` in `flutter3d_conformance` holds both halves.
 
 ## Tools for agents are a contract too

@@ -12,7 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
@@ -313,7 +313,7 @@ void main() {
 
   test('what the device does not list is refused by name', () async {
     // The other half of the honesty rule: an unlisted feature's call throws
-    // `UnsupportedCapability` naming that feature, before anything looks at
+    // `UnsupportedCapabilityException` naming that feature, before anything looks at
     // the handle it was given.
     //
     // Mutation: look the slot up before checking the sampler. The border
@@ -323,8 +323,8 @@ void main() {
     final target = _target(device);
     final foreign = wrapStorageBuffer(backend: Object(), lengthInBytes: 16);
     Matcher refuses(DeviceFeature feature) => throwsA(
-      isA<UnsupportedCapability>().having(
-        (UnsupportedCapability e) => e.feature,
+      isA<UnsupportedCapabilityException>().having(
+        (UnsupportedCapabilityException e) => e.feature,
         'feature',
         feature,
       ),

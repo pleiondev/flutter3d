@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 
 import 'platform_feature.dart';
 
-Never _noFiles(String path) => throw UnsupportedCapability(
+Never _noFiles(String path) => throw UnsupportedCapabilityException(
   PlatformFeature.fileSystem,
   backend: 'the browser',
   reason: 'there is no file system to read $path from',

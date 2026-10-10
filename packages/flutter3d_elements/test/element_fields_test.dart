@@ -37,7 +37,7 @@ void main() {
     expect(
       () => silent.airTemperature,
       throwsA(
-        isA<UnsupportedCapability>().having(
+        isA<UnsupportedCapabilityException>().having(
           (e) => e.feature.name,
           'feature',
           'ElementFields.airTemperature',
@@ -46,11 +46,11 @@ void main() {
     );
     expect(
       () => silent.addForce(body, Vector3.zero()),
-      throwsA(isA<UnsupportedCapability>()),
+      throwsA(isA<UnsupportedCapabilityException>()),
     );
     expect(
       () => silent.quantityOf(body, FieldQuantity.temperature),
-      throwsA(isA<UnsupportedCapability>()),
+      throwsA(isA<UnsupportedCapabilityException>()),
     );
   });
 
@@ -80,7 +80,7 @@ void main() {
     expect(
       () =>
           damp.quantityOf(body, const FieldQuantity('humidity', Unit.percent)),
-      throwsA(isA<UnsupportedCapability>()),
+      throwsA(isA<UnsupportedCapabilityException>()),
     );
   });
 }

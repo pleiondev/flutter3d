@@ -8,7 +8,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
         Quantity,
         Unit,
         UnitMismatchException,
-        UnsupportedCapability,
+        UnsupportedCapabilityException,
         WorldPositionVector;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -48,7 +48,7 @@ extension type const ElementBody(int id) {
 ///
 /// **Extended outside this package: an `abstract base class` with a body
 /// for every member.** A backend overrides what its world has; anything
-/// else is refused with an [UnsupportedCapability] naming the member, so a
+/// else is refused with an [UnsupportedCapabilityException] naming the member, so a
 /// member added in a minor breaks no backend written against 1.0, and a
 /// backend with no water says so when water is asked for rather than
 /// failing to compile.
@@ -62,10 +62,11 @@ abstract base class ElementFields {
   const ElementFields();
 
   /// The refusal of [member], which this backend does not answer.
-  UnsupportedCapability _refuse(String member) => UnsupportedCapability(
-    _Member('ElementFields.$member'),
-    backend: '$runtimeType',
-  );
+  UnsupportedCapabilityException _refuse(String member) =>
+      UnsupportedCapabilityException(
+        _Member('ElementFields.$member'),
+        backend: '$runtimeType',
+      );
 
   // Air and wind.
 
@@ -137,14 +138,17 @@ abstract base class ElementFields {
   /// By default [FieldQuantity.temperature] is [temperatureOf],
   /// [FieldQuantity.surfaceTemperature] [surfaceTemperatureOf] and
   /// [FieldQuantity.water] [waterOf]; anything else is refused with an
-  /// [UnsupportedCapability] naming it. A backend with more fields answers
+  /// [UnsupportedCapabilityException] naming it. A backend with more fields answers
   /// them here and hands the rest to `super`.
   Quantity quantityOf(ElementBody body, FieldQuantity quantity) =>
       Quantity(switch (quantity) {
         FieldQuantity.temperature => temperatureOf(body),
         FieldQuantity.surfaceTemperature => surfaceTemperatureOf(body),
         FieldQuantity.water => waterOf(body),
-        _ => throw UnsupportedCapability(quantity, backend: '$runtimeType'),
+        _ => throw UnsupportedCapabilityException(
+          quantity,
+          backend: '$runtimeType',
+        ),
       }, quantity.unit);
 
   /// [amount] of [quantity] into [body] over the next step, or out of it.
@@ -153,12 +157,15 @@ abstract base class ElementFields {
   /// that measures something else is refused with a
   /// [UnitMismatchException]. By default [FieldQuantity.heat] is [addHeat]
   /// and [FieldQuantity.water] [addWater]; anything else is refused with an
-  /// [UnsupportedCapability] naming it.
+  /// [UnsupportedCapabilityException] naming it.
   void addQuantity(ElementBody body, FieldQuantity quantity, Quantity amount) =>
       switch (quantity) {
         FieldQuantity.heat => addHeat(body, amount.valueIn(quantity.unit)),
         FieldQuantity.water => addWater(body, amount.valueIn(quantity.unit)),
-        _ => throw UnsupportedCapability(quantity, backend: '$runtimeType'),
+        _ => throw UnsupportedCapabilityException(
+          quantity,
+          backend: '$runtimeType',
+        ),
       };
 }
 

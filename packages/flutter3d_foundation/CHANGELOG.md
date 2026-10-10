@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A refusal of bad bytes is still a `FormatException`.**
+  `Flutter3dFormatException` implements it, so code that catches
+  `on FormatException`, as 0.8 code does, keeps catching the engine's
+  format refusals; `source` and `offset` are null unless a refusal knows
+  them.
+- **`UnsupportedCapabilityException`**, renamed from `UnsupportedCapability`
+  so that what is thrown says so in its name, as every other exception of
+  the engine does.
+
 - **`PlacedEvent` is a `base mixin class`**: an event mixes it in beside
   the `BusEvent` it extends (`extends BusEvent with PlacedEvent`), and
   `direction` is null unless the event says otherwise.
@@ -39,7 +48,7 @@
   tool. `ShaderDiagnostic.parseLog` reads GLSL's `ERROR: 0:12:` and the
   `file:14:7: error:` of glslang, Tint and Naga. The constructor of before
   still works.
-- **`UnsupportedCapability` and `Capability` are here**, so the core and
+- **`UnsupportedCapabilityException` and `Capability` are here**, so the core and
   the platforms refuse what they lack the way a device does. The refusal
   came from `flutter3d_hardware`; its `feature` is now a `Capability`, which
   `DeviceFeature` extends, and the sentence's "ask first" comes from

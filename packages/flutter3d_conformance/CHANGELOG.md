@@ -1,6 +1,6 @@
 ## 1.0.0-rc.1
 
-- **Depends on `flutter3d_foundation`**, where `UnsupportedCapability`,
+- **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,
   the refusal the capability checks hold every backend to, lives now.
 
 - **The readback check asks for the HDR target whole.** A backend has to
@@ -53,7 +53,7 @@
   catches the root; one who acts on a kind catches its family. The migration
   table marks them as nothing to do. `ConformanceDeclinedException` gains `message`,
   which is its `reason`.
-- **The blend, wireframe and primitive checks accept `UnsupportedCapability`**
+- **The blend, wireframe and primitive checks accept `UnsupportedCapabilityException`**
   as the refusal, now that it is no longer an `UnsupportedError`. A bare
   `UnsupportedError` still counts, for a backend written before the type
   existed.
@@ -90,7 +90,7 @@
 `capabilityChecks` walks each `DeviceFeature`: one the device lists has to
 work through a minimal call — a buffer written comes back, a copy lands, a
 query set resolves, a pass state is accepted — and one it does not list has
-to refuse that call with `UnsupportedCapability` naming it. Reserved
+to refuse that call with `UnsupportedCapabilityException` naming it. Reserved
 features may never be listed, the compression and float families must agree
 with `textureFormatSupport`, and a second check holds the pre-1.0 getters to
 the set they now forward to. What cannot be probed without a purpose-built

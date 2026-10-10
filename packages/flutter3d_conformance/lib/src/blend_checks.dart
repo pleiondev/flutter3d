@@ -17,7 +17,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -200,7 +200,7 @@ void _refusesTheConstant(
     var refusedSetter = false;
     try {
       pass.setBlendColor(constant);
-    } on UnsupportedCapability {
+    } on UnsupportedCapabilityException {
       refusedSetter = true;
     } on UnsupportedError {
       refusedSetter = true;
@@ -216,7 +216,7 @@ void _refusesTheConstant(
     var refusedState = false;
     try {
       pass.setBlend(equation);
-    } on UnsupportedCapability {
+    } on UnsupportedCapabilityException {
       refusedState = true;
     } on UnsupportedError {
       refusedState = true;

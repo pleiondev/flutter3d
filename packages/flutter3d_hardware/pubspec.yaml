@@ -37,7 +37,7 @@ platforms:
   windows:
 
 dependencies:
-  # `Flutter3dException` and its families, which `UnsupportedCapability` and
+  # `Flutter3dException` and its families, which `UnsupportedCapabilityException` and
   # `ShaderBundleException` extend. Plain Dart over `vector_math` alone, so
   # the hardware layer still names no graphics API and no Flutter, and no
   # longer needs the plugin contract to throw.

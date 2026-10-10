@@ -5,7 +5,7 @@
 /// member added to them in a minor must arrive with a body, or every such
 /// backend stops compiling. So every member a `DeviceFeature` gates has one,
 /// and it is the refusal the contract promises a device without the feature:
-/// an `UnsupportedCapability` naming that feature. These encoders override
+/// an `UnsupportedCapabilityException` naming that feature. These encoders override
 /// nothing a feature gates; anything else they are asked answers with a
 /// `StateError`, so a member left without a body fails here by name.
 library;
@@ -13,7 +13,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
@@ -43,8 +43,8 @@ final class _BareTransfer extends TransferEncoder {
 }
 
 Matcher _refuses(DeviceFeature feature) => throwsA(
-  isA<UnsupportedCapability>().having(
-    (UnsupportedCapability e) => e.feature,
+  isA<UnsupportedCapabilityException>().having(
+    (UnsupportedCapabilityException e) => e.feature,
     'feature',
     feature,
   ),

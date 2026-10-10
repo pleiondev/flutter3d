@@ -4,7 +4,7 @@
 /// * [Flutter3dException] and its four families, the root of everything the
 ///   engine throws, [DocumentFormatException], and the leaves every layer
 ///   shares: [ShaderCompileException] with its [ShaderDiagnostic]s,
-///   [AssetNotFoundException], and [UnsupportedCapability], the refusal of
+///   [AssetNotFoundException], and [UnsupportedCapabilityException], the refusal of
 ///   a [Capability];
 /// * [Unit] and [Quantity], a unit as a vector of dimension exponents and a
 ///   value that refuses to cross dimensions;

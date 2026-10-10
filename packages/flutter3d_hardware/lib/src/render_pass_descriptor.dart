@@ -247,7 +247,7 @@ final class ColorTarget {
   /// draws into. Zero for every texture that has one.
   ///
   /// Ask `DeviceFeature.renderToArrayLayer` before naming anything but zero:
-  /// a backend without it throws `UnsupportedCapability` from
+  /// a backend without it throws `UnsupportedCapabilityException` from
   /// `beginRenderPass` rather than drawing into layer zero.
   final int layer;
 
@@ -503,7 +503,7 @@ final class RenderPassDescriptor {
   /// [limit] is `GraphicsDevice.maxColorAttachments`. Passed rather than
   /// taken from a device, because this file may not know what a device is —
   /// the descriptor is what a caller builds before it has opened anything.
-  /// Throws [UnsupportedCapability] when this pass needs a feature [features]
+  /// Throws [UnsupportedCapabilityException] when this pass needs a feature [features]
   /// lacks: a colour or depth attachment at a layer above zero
   /// (`renderToArrayLayer`), at a mip level above zero (`renderToMipLevel`),
   /// an occlusion query set (`occlusionQuery`) or timestamp writes

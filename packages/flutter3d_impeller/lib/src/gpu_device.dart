@@ -15,7 +15,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
@@ -109,7 +109,7 @@ final class GpuRenderBackend extends GraphicsDevice {
   // TODO(impeller): flutter_gpu has no compute pipeline, compute pass or
   // storage binding — unblocked by flutter/flutter#188480, whose proposal
   // (#188474) the contract's compute shape already follows.
-  Never _noCompute() => throw UnsupportedCapability(
+  Never _noCompute() => throw UnsupportedCapabilityException(
     DeviceFeature.compute,
     backend: impellerBackendName,
     reason:
@@ -1261,7 +1261,7 @@ final class GpuRenderBackend extends GraphicsDevice {
     if (usage.contains(BufferUsage.storage)) {
       // TODO(impeller): no storage binding and no compute in flutter_gpu —
       // unblocked by flutter/flutter#188480.
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.renderStageStorage,
         backend: impellerBackendName,
         reason:
@@ -1272,7 +1272,7 @@ final class GpuRenderBackend extends GraphicsDevice {
     if (usage.contains(BufferUsage.indirect)) {
       // TODO(impeller): flutter_gpu's RenderPass has no indirect draw —
       // unblocked by an upstream RenderPass.drawIndexedIndirect.
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.indirectDraw,
         backend: impellerBackendName,
         reason: 'flutter_gpu has no indirect draw to read the arguments',
@@ -1331,7 +1331,7 @@ final class GpuRenderBackend extends GraphicsDevice {
   // TODO(impeller): flutter_gpu has no query objects — no occlusion, timer
   // or pipeline-statistics queries — unblocked by an upstream query-set API
   // on its CommandBuffer / RenderPass.
-  Never _noQueries(QueryType type) => throw UnsupportedCapability(
+  Never _noQueries(QueryType type) => throw UnsupportedCapabilityException(
     type.feature,
     backend: impellerBackendName,
     reason: 'flutter_gpu has no ${type.name} queries',
@@ -1367,7 +1367,7 @@ final class GpuRenderBackend extends GraphicsDevice {
     MapMode mode, {
     int offsetInBytes = 0,
     int? sizeInBytes,
-  }) => throw UnsupportedCapability(
+  }) => throw UnsupportedCapabilityException(
     DeviceFeature.mappedBuffers,
     backend: impellerBackendName,
     reason: 'a flutter_gpu DeviceBuffer cannot be mapped',
@@ -1384,7 +1384,7 @@ final class GpuRenderBackend extends GraphicsDevice {
   @override
   RenderBundleEncoder createRenderBundleEncoder(
     RenderBundleDescriptor descriptor,
-  ) => throw UnsupportedCapability(
+  ) => throw UnsupportedCapabilityException(
     DeviceFeature.renderBundles,
     backend: impellerBackendName,
     reason: 'flutter_gpu has no render bundles',

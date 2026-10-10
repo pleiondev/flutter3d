@@ -149,7 +149,7 @@ abstract base mixin class PassEncoder {
 
   /// Filled or drawn as edges. Ask `features.has(DeviceFeature.wireframe)`
   /// before naming [PolygonMode.line]: a backend that cannot draw it throws
-  /// `UnsupportedCapability` rather than filling.
+  /// `UnsupportedCapabilityException` rather than filling.
   void setPolygonMode(PolygonMode mode);
   void setCullMode(CullMode mode);
   void setWindingOrder(WindingOrder order);
@@ -232,7 +232,7 @@ abstract base mixin class PassEncoder {
   /// that makes an unset constant contribute nothing.
   ///
   /// **Ask `features.has(DeviceFeature.blendConstant)` first.** A backend
-  /// without it throws `UnsupportedCapability` from here *and* from
+  /// without it throws `UnsupportedCapabilityException` from here *and* from
   /// [setBlend] when the state names one of the four factors, rather than
   /// drawing the term as zero — flutter_gpu exposes no blend-constant setter,
   /// so the Impeller backend is that backend today. The refusal is the
@@ -429,7 +429,7 @@ abstract base mixin class PassEncoder {
 
   // ------------------------------------------------------------------------
   // Since 1.0. Each member below is gated by a `DeviceFeature` and throws
-  // `UnsupportedCapability` on a device without it, before anything reaches
+  // `UnsupportedCapabilityException` on a device without it, before anything reaches
   // the driver — so a caller can ask `features` once, and a backend that
   // cannot do something says so in the same words as every other.
   //

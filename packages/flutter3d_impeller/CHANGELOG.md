@@ -105,7 +105,7 @@ Of the new surface this backend lists what flutter_gpu really offers —
 `textureWrites` (any region, level and face, through
 `CommandBuffer.copyBufferToTexture`), `buffers`, `nonIndexedDraw`,
 `multiDraw`, `uniformBytes` and the compression families flutter_gpu
-reports — and refuses the rest with `UnsupportedCapability`, each refusal
+reports — and refuses the rest with `UnsupportedCapabilityException`, each refusal
 carrying a `TODO(impeller)` that names what flutter_gpu lacks. Compute still
 waits on flutter/flutter#188480.
 

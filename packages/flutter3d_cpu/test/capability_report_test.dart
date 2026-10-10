@@ -11,7 +11,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -176,8 +176,8 @@ void main() {
     expect(
       () => pass.setDepthBias(const DepthBias(constant: 1)),
       throwsA(
-        isA<UnsupportedCapability>().having(
-          (UnsupportedCapability e) => e.feature,
+        isA<UnsupportedCapabilityException>().having(
+          (UnsupportedCapabilityException e) => e.feature,
           'feature',
           DeviceFeature.depthBias,
         ),
@@ -192,8 +192,8 @@ void main() {
     final rig = Rig();
     final pass = rig.pass();
     Matcher refusing(DeviceFeature f) => throwsA(
-      isA<UnsupportedCapability>().having(
-        (UnsupportedCapability e) => e.feature,
+      isA<UnsupportedCapabilityException>().having(
+        (UnsupportedCapabilityException e) => e.feature,
         'feature',
         f,
       ),
@@ -240,9 +240,12 @@ void main() {
             usage: BufferUsage.standardStorage,
           ),
         ),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
-      expect(() => d.beginComputePass(), throwsA(isA<UnsupportedCapability>()));
+      expect(
+        () => d.beginComputePass(),
+        throwsA(isA<UnsupportedCapabilityException>()),
+      );
     },
   );
 }

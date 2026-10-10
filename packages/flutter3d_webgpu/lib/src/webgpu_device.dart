@@ -40,7 +40,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ShaderDiagnostic, UnsupportedCapability;
+    show ShaderDiagnostic, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
@@ -2124,12 +2124,15 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     if (usage.contains(BufferUsage.storage) &&
         !features.has(DeviceFeature.compute) &&
         !features.has(DeviceFeature.renderStageStorage)) {
-      throw UnsupportedCapability(DeviceFeature.compute, backend: _backend);
+      throw UnsupportedCapabilityException(
+        DeviceFeature.compute,
+        backend: _backend,
+      );
     }
     if (usage.contains(BufferUsage.indirect) &&
         !features.has(DeviceFeature.indirectDraw) &&
         !features.has(DeviceFeature.indirectDispatch)) {
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.indirectDraw,
         backend: _backend,
       );

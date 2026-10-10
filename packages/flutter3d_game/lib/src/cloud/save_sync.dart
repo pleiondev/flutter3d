@@ -149,8 +149,7 @@ final class SaveSync {
         };
       }
     } on FormatException {
-      _state = const <String, Object?>{};
-    } on DocumentFormatException {
+      // A `DocumentFormatException` is one too.
       _state = const <String, Object?>{};
     }
   }

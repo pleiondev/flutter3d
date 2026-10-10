@@ -12,7 +12,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
 /// The name every refusal from this backend gives it —
-/// `UnsupportedCapability.backend`.
+/// `UnsupportedCapabilityException.backend`.
 const String webglBackendName = 'WebGL2';
 
 /// What a [TextureHandle] carries on this backend.

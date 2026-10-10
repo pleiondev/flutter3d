@@ -72,8 +72,10 @@ abstract base class Flutter3dException implements Exception
   abstract String get message
   const Flutter3dException()
 
-abstract base class Flutter3dFormatException extends Flutter3dException
+abstract base class Flutter3dFormatException extends Flutter3dException implements FormatException
+  Object? get source
   const Flutter3dFormatException()
+  int? get offset
 
 abstract base class FormatDocument
   FormatDocument({Map<String, Object?> unknown = const <String, Object?>{}})
@@ -341,10 +343,10 @@ final class UnitMismatchException extends Flutter3dFormatException
   final Unit from
   final Unit to
 
-final class UnsupportedCapability extends CapabilityException
+final class UnsupportedCapabilityException extends CapabilityException
   String get message
   String toString()
-  const UnsupportedCapability(this.feature, {required this.backend, this.reason})
+  const UnsupportedCapabilityException(this.feature, {required this.backend, this.reason})
   final Capability feature
   final String backend
   final String? reason

@@ -52,7 +52,7 @@ final class FakePass extends PassEncoder
   final RenderBundleDescriptor? bundleDescriptor;
 
   /// What the device that opened it reports. A 1.0-surface call the set
-  /// lacks is refused with [UnsupportedCapability], as on a real backend;
+  /// lacks is refused with [UnsupportedCapabilityException], as on a real backend;
   /// one it has is recorded as a [RecordedCall].
   final DeviceFeatures features;
 

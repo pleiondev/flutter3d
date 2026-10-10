@@ -18,7 +18,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -48,14 +48,14 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
       pass.setPolygonMode(PolygonMode.line);
       draw();
       pass.submit();
-    } on UnsupportedCapability {
+    } on UnsupportedCapabilityException {
       // Deliberately not submitted, for the reason
       // `checkUniformMemberMismatchIsRefused` gives: a backend is entitled to
       // release the pass on the way out.
       refused = true;
     } on UnsupportedError {
       // The same, from a backend that refuses with a bare UnsupportedError
-      // rather than the UnsupportedCapability the contract asks for.
+      // rather than the UnsupportedCapabilityException the contract asks for.
       refused = true;
     }
     require(
@@ -118,7 +118,7 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       pass.setPrimitiveType(type);
       draw();
       pass.submit();
-    } on UnsupportedCapability {
+    } on UnsupportedCapabilityException {
       refused = true;
     } on UnsupportedError {
       refused = true;
@@ -126,7 +126,7 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       throw ConformanceFailureException(
         'drawing PrimitiveType.${type.name} failed with '
         '${error.runtimeType}: $error. A backend that cannot assemble a '
-        'primitive type refuses with an UnsupportedCapability (or at least an '
+        'primitive type refuses with an UnsupportedCapabilityException (or at least an '
         'UnsupportedError) — a caller deciding '
         'between two ways of drawing cannot act on anything else. See '
         'PassEncoder.setPrimitiveType.',

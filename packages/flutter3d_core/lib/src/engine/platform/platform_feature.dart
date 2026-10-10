@@ -1,7 +1,7 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 /// Something a platform the core runs on may lack, as a device may lack a
-/// `DeviceFeature`: refused with the foundation's [UnsupportedCapability],
+/// `DeviceFeature`: refused with the foundation's [UnsupportedCapabilityException],
 /// so a caller catches it as a [CapabilityException] whichever layer said
 /// no.
 ///

@@ -16,7 +16,7 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart' show debugCheckLive;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
@@ -482,7 +482,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   /// says so; quietly filling would show a solid model to somebody who asked
   /// for a wireframe and left them to wonder.
   ///
-  /// An [UnsupportedCapability] naming `DeviceFeature.wireframe`, and not
+  /// An [UnsupportedCapabilityException] naming `DeviceFeature.wireframe`, and not
   /// the [StateError] a fault raises, because this is the one that a caller
   /// asked about first: the type is what lets a caller catch this and draw
   /// lines instead without also swallowing a broken frame. Since 1.0 the pass
@@ -1732,7 +1732,7 @@ const int webglDepthClamp = 0x864F;
 /// solid model to somebody who asked for a wireframe.
 void webglGatePolygonMode(PolygonMode mode) {
   if (canDrawPolygonMode(mode)) return;
-  throw UnsupportedCapability(
+  throw UnsupportedCapabilityException(
     DeviceFeature.wireframe,
     backend: webglBackendName,
     reason:
@@ -1784,7 +1784,7 @@ void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
   if (sampler.borderColor != null) {
     // TODO(webgl): border colours — WebGL2 has no CLAMP_TO_BORDER (it is
     // OpenGL ES 3.2, and no WebGL extension exposes it).
-    throw UnsupportedCapability(
+    throw UnsupportedCapabilityException(
       DeviceFeature.samplerBorderColor,
       backend: webglBackendName,
       reason: 'WebGL2 has no CLAMP_TO_BORDER',
@@ -1797,7 +1797,7 @@ void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
 /// `glPolygonOffsetClamp` is desktop GL 4.6 and an ES extension WebGL does
 /// not expose, so a non-zero [DepthBias.clamp] would be silently unclamped.
 /// Refused by name instead — an [UnsupportedError] rather than an
-/// [UnsupportedCapability], since the device does have depth bias, and a
+/// [UnsupportedCapabilityException], since the device does have depth bias, and a
 /// caller wanting the clamp keeps the slope small instead.
 void webglGateDepthBias(WebGlDevice device, DepthBias bias) {
   device.features.require(DeviceFeature.depthBias, backend: webglBackendName);
@@ -1847,7 +1847,7 @@ void webglGateNonIndexed(WebGlDevice device, int firstInstance) {
 Never webglRefuseRenderStageStorage() {
   // TODO(webgl): render-stage storage — WebGL2 has no shader storage blocks
   // or image load/store (both OpenGL ES 3.1); the WebGPU backend has them.
-  throw UnsupportedCapability(
+  throw UnsupportedCapabilityException(
     DeviceFeature.renderStageStorage,
     backend: webglBackendName,
     reason: 'WebGL2 has no storage buffers or images; that is OpenGL ES 3.1',
@@ -1858,7 +1858,7 @@ Never webglRefuseRenderStageStorage() {
 Never webglRefuseIndirect(DeviceFeature feature) {
   // TODO(webgl): indirect draws — WebGL2 has no DRAW_INDIRECT_BUFFER (it is
   // OpenGL ES 3.1), so no draw can read its counts from a buffer.
-  throw UnsupportedCapability(
+  throw UnsupportedCapabilityException(
     feature,
     backend: webglBackendName,
     reason: 'WebGL2 has no indirect draws; that is OpenGL ES 3.1',
@@ -1869,7 +1869,7 @@ Never webglRefuseIndirect(DeviceFeature feature) {
 Never webglRefusePipelineStatistics() {
   // TODO(webgl): pipeline statistics — no WebGL2 query or extension counts
   // shader invocations or primitives.
-  throw UnsupportedCapability(
+  throw UnsupportedCapabilityException(
     DeviceFeature.pipelineStatisticsQuery,
     backend: webglBackendName,
     reason: 'WebGL2 has no pipeline statistics query',

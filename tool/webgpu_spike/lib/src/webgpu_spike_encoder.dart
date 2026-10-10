@@ -14,7 +14,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
@@ -141,7 +141,7 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   /// have no WebGPU spelling, and the contract says a backend that answers false
   /// throws from here rather than drawing the term as zero.
   @override
-  void setBlendColor(LinearColor color) => throw UnsupportedCapability(
+  void setBlendColor(LinearColor color) => throw UnsupportedCapabilityException(
     DeviceFeature.blendConstant,
     backend: spikeBackendName,
     reason:
@@ -182,7 +182,7 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     if (state != null && state.usesBlendColor) {
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.blendConstant,
         backend: spikeBackendName,
         reason:
@@ -204,7 +204,7 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   @override
   void setPolygonMode(PolygonMode mode) {
     if (mode == PolygonMode.fill) return;
-    throw UnsupportedCapability(
+    throw UnsupportedCapabilityException(
       DeviceFeature.wireframe,
       backend: spikeBackendName,
       reason:
@@ -298,22 +298,23 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
     // Gated first, before anything about the slot: the features a sampler
     // needs beyond the pre-1.0 ones are refused as such.
     SamplerDescriptor(compare: final CompareFunction _) =>
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.samplerCompare,
         backend: spikeBackendName,
         reason: 'a spike, not a backend',
       ),
     SamplerDescriptor(borderColor: final SamplerBorderColor _) =>
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.samplerBorderColor,
         backend: spikeBackendName,
         reason: 'a spike, not a backend',
       ),
-    SamplerDescriptor(usesExtendedState: true) => throw UnsupportedCapability(
-      DeviceFeature.samplerLodClamp,
-      backend: spikeBackendName,
-      reason: 'a spike, not a backend',
-    ),
+    SamplerDescriptor(usesExtendedState: true) =>
+      throw UnsupportedCapabilityException(
+        DeviceFeature.samplerLodClamp,
+        backend: spikeBackendName,
+        reason: 'a spike, not a backend',
+      ),
     _ => throw _noSamplerSlot,
   };
 
@@ -613,7 +614,7 @@ final class WebGpuSpikeTransferEncoder extends TransferEncoder {
 
   /// Refused although the spike lists `offscreenMultisample`: a resolve is
   /// an empty render pass with a `resolveTarget`, and the spike's passes
-  /// resolve nothing. Not a `UnsupportedCapability` for that reason — the
+  /// resolve nothing. Not a `UnsupportedCapabilityException` for that reason — the
   /// feature is listed, so this is the spike's own unfinished work.
   @override
   void resolveTexture(

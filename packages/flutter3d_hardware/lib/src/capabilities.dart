@@ -18,7 +18,7 @@
 /// the engine's own and says so.
 ///
 /// **An unsupported feature is a refusal, never a substitution.** Every call a
-/// feature gates throws [UnsupportedCapability] — a [CapabilityException]
+/// feature gates throws [UnsupportedCapabilityException] — a [CapabilityException]
 /// that names the feature and the backend — on a device that does not list
 /// it. The
 /// conformance check `every capability a device reports is honest` holds both
@@ -26,7 +26,7 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Capability, CapabilityException, UnsupportedCapability;
+    show Capability, CapabilityException, UnsupportedCapabilityException;
 import 'package:meta/meta.dart';
 
 import 'formats.dart';
@@ -35,7 +35,7 @@ import 'formats.dart';
 enum FeatureStability {
   /// Part of the 1.0 contract: its calls exist, are promised under semver,
   /// and change only with a major version. A backend that lacks it refuses
-  /// them with [UnsupportedCapability] — which is a complete answer, and the
+  /// them with [UnsupportedCapabilityException] — which is a complete answer, and the
   /// one a later backend release turns into "yes" without the API moving.
   stable,
 
@@ -55,7 +55,7 @@ enum FeatureStability {
 /// by identity or by [name]; both are stable.
 ///
 /// **A [Capability]**, so that a refusal of one is the foundation's
-/// [UnsupportedCapability], the one every layer throws.
+/// [UnsupportedCapabilityException], the one every layer throws.
 @immutable
 final class DeviceFeature extends Capability {
   const DeviceFeature._(this.name, this.stability);
@@ -651,7 +651,7 @@ final class DeviceFeatures {
     return DeviceFeatures(_features.where((f) => !drop.contains(f)));
   }
 
-  /// Throws [UnsupportedCapability] unless the device has [feature].
+  /// Throws [UnsupportedCapabilityException] unless the device has [feature].
   ///
   /// **For a backend, on the way into every call [feature] gates**, so that
   /// all of them refuse in the same words. [backend] names the backend as a
@@ -663,7 +663,11 @@ final class DeviceFeatures {
     String? reason,
   }) {
     if (has(feature)) return;
-    throw UnsupportedCapability(feature, backend: backend, reason: reason);
+    throw UnsupportedCapabilityException(
+      feature,
+      backend: backend,
+      reason: reason,
+    );
   }
 
   @override

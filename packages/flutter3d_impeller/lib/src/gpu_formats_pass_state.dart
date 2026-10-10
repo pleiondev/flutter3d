@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
@@ -151,7 +151,7 @@ extension BlendFactorToGpu on BlendFactor {
     BlendFactor.source1Color ||
     BlendFactor.oneMinusSource1Color ||
     BlendFactor.source1Alpha ||
-    BlendFactor.oneMinusSource1Alpha => throw UnsupportedCapability(
+    BlendFactor.oneMinusSource1Alpha => throw UnsupportedCapabilityException(
       DeviceFeature.dualSourceBlending,
       backend: 'Impeller',
       reason:
@@ -170,7 +170,8 @@ extension BlendOperationToGpu on BlendOperation {
     // TODO(impeller): flutter_gpu's BlendOperation stops at reverseSubtract —
     // unblocked by upstream flutter_gpu gaining min and max, which Impeller's
     // own blend descriptor and both its APIs already have.
-    BlendOperation.min || BlendOperation.max => throw UnsupportedCapability(
+    BlendOperation.min ||
+    BlendOperation.max => throw UnsupportedCapabilityException(
       DeviceFeature.minMaxBlend,
       backend: 'Impeller',
       reason: 'flutter_gpu has no BlendOperation.$name',

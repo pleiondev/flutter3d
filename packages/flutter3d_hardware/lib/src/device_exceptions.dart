@@ -8,7 +8,7 @@
 /// declined. A throw names the call, the backend and the reason where it
 /// happened, and a caller that can carry on catches it there.
 ///
-/// A device that lacks a *feature* throws `UnsupportedCapability`, a
+/// A device that lacks a *feature* throws `UnsupportedCapabilityException`, a
 /// `CapabilityException`, as it always has; these two are for a request the
 /// device has the feature for and still cannot honour.
 library;

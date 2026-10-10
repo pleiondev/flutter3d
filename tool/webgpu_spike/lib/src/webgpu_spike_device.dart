@@ -17,7 +17,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
@@ -141,19 +141,20 @@ fn spikeFragment(in : VertexOut) -> @location(0) vec4<f32> {
 ''';
 
 /// A device, as far as one triangle needs one.
-/// The name the spike refuses in, as `UnsupportedCapability.backend`.
+/// The name the spike refuses in, as `UnsupportedCapabilityException.backend`.
 const String spikeBackendName = 'the WebGPU spike';
 
 /// The refusal every member past the triangle throws: the spike lists none
 /// of the features they need, and says why in one sentence.
-Never spikeRefuses(DeviceFeature feature) => throw UnsupportedCapability(
-  feature,
-  backend: spikeBackendName,
-  reason:
-      'a spike, not a backend — it draws one triangle to count what the '
-      'contract owes a WebGPU implementation, and flutter3d_webgpu is the '
-      'backend that implements it',
-);
+Never spikeRefuses(DeviceFeature feature) =>
+    throw UnsupportedCapabilityException(
+      feature,
+      backend: spikeBackendName,
+      reason:
+          'a spike, not a backend — it draws one triangle to count what the '
+          'contract owes a WebGPU implementation, and flutter3d_webgpu is the '
+          'backend that implements it',
+    );
 
 final class WebGpuSpikeDevice extends GraphicsDevice {
   // ------------------------------------------------------- capabilities

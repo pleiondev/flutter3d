@@ -570,7 +570,7 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
         PluginException,
         ResourceException,
         ShaderCompileException,
-        UnsupportedCapability,
+        UnsupportedCapabilityException,
         Vector3Foundation,
         Vector4Foundation,
         WorldPosition,

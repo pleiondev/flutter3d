@@ -1,5 +1,5 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
@@ -56,7 +56,7 @@ void main() {
           reason: 'no arrays here',
         ),
         throwsA(
-          isA<UnsupportedCapability>()
+          isA<UnsupportedCapabilityException>()
               .having((e) => e.feature, 'feature', DeviceFeature.textureArrays)
               .having((e) => e.backend, 'backend', 'WebGL9')
               .having(
@@ -127,14 +127,14 @@ void main() {
       final device = FakeBackend();
       expect(
         () => device.createQuerySet(QueryType.occlusion, 4),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
       final pass = device.beginRenderPass(
         const RenderPassDescriptor(colors: <ColorTarget>[]),
       );
       expect(
         () => pass.setDepthBias(const DepthBias(constant: 2)),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
 
       final able = FakeBackend(
@@ -170,7 +170,7 @@ void main() {
           ),
         ),
         throwsA(
-          isA<UnsupportedCapability>().having(
+          isA<UnsupportedCapabilityException>().having(
             (e) => e.feature,
             'feature',
             DeviceFeature.renderToArrayLayer,

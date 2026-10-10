@@ -1368,7 +1368,7 @@ entries:
       optional `offsetInBytes`/`sizeInBytes` of `bindStorageBuffer` are
       additions to call. Only a backend of your own that implements
       `ComputeEncoder` has work: it adds the new members, and for a
-      capability it lacks throws `UnsupportedCapability` and leaves the
+      capability it lacks throws `UnsupportedCapabilityException` and leaves the
       feature out of `features`, as the hardware interface section of
       CONTRIBUTING.md describes.
 
@@ -1391,7 +1391,7 @@ entries:
       flutter3d_build:migrate` rewrites them). A backend of your own that
       implements `GraphicsDevice` mixes in `DeviceCapabilityForwarders`
       for the deprecated getters, adds the new members, and throws
-      `UnsupportedCapability` for what it cannot do yet.
+      `UnsupportedCapabilityException` for what it cannot do yet.
 
   # 2 break(s), seen in flutter3d, flutter3d_core:
   #   no longer re-exported through package:flutter3d_hardware/flutter3d_hardware.dart
@@ -1417,7 +1417,7 @@ entries:
       Code that records a pass is unchanged: `draw` gained the optional
       `firstIndex` and `indexCount`, and the new members are additions to
       call. Only an encoder of your own that implements `PassEncoder` has
-      work: it adds the new members, throwing `UnsupportedCapability` for
+      work: it adds the new members, throwing `UnsupportedCapabilityException` for
       what its backend lacks.
 
   # 1 break(s), seen in flutter3d:
@@ -9880,7 +9880,7 @@ entries:
       GraphicsDevice`, mark the class `final`, `base` or `sealed`, and drop
       `DeviceCapabilityForwarders` (the base class answers the deprecated
       getters). Feature-gated members have bodies that throw
-      `UnsupportedCapability`; override what your backend has. New:
+      `UnsupportedCapabilityException`; override what your backend has. New:
       `createPipelineAsync`, `lost`, `setLabel`, `releasePipeline`. A
       capability mixin such as `EncodedImageUpload` is `with`, not
       `implements`.
@@ -16298,7 +16298,7 @@ entries:
       `createTexture(TextureDescriptor descriptor)` now. Make the 2D target it
       always made when `descriptor is RenderTargetDescriptor`, and the general
       form (what `createTextureWithDescriptor` made) otherwise, or refuse it
-      with `UnsupportedCapability(DeviceFeature.textureWrites, …)`.
+      with `UnsupportedCapabilityException(DeviceFeature.textureWrites, …)`.
 
   - id: f2-hardware-GraphicsDevice-readBufferSync
     package: flutter3d_hardware
@@ -16327,7 +16327,7 @@ entries:
     kind: manual
     guidance: >-
       Returns a `TextureHandle`, not a nullable one: a device without cubes
-      throws `UnsupportedCapability` (ask
+      throws `UnsupportedCapabilityException` (ask
       `features.has(DeviceFeature.cubeTextures)` first), and faces of the
       wrong count or size a `DeviceResourceException`.
 
@@ -16337,7 +16337,7 @@ entries:
     kind: manual
     guidance: >-
       Returns a `TextureHandle`, not a nullable one: a device without cubes
-      throws `UnsupportedCapability` — ask
+      throws `UnsupportedCapabilityException` — ask
       `features.has(DeviceFeature.cubeTextures)` first.
 
   - id: f2-hardware-DeviceCapabilityForwarders
@@ -16558,7 +16558,7 @@ entries:
     kind: manual
     guidance: >-
       Returns the environment, not a nullable one: a device
-      without cubes throws `UnsupportedCapability` and a sky that is off an
+      without cubes throws `UnsupportedCapabilityException` and a sky that is off an
       `ArgumentError`. Ask `EnvironmentMap.isSupportedOn(device)` (and
       `sky.enabled`) first where the null meant "keep the flat ambient".
 
@@ -16568,7 +16568,7 @@ entries:
     kind: manual
     guidance: >-
       Returns the environment, not a nullable one: a device without cubes
-      throws `UnsupportedCapability` (ask `EnvironmentMap.isSupportedOn`),
+      throws `UnsupportedCapabilityException` (ask `EnvironmentMap.isSupportedOn`),
       and pixels that are not `width × height` RGBA8 an `ArgumentError`.
 
   - id: f2-core-EnvironmentMap-fromEncoded
@@ -16972,7 +16972,7 @@ entries:
     guidance: >-
       What `CpuDevice` inherits from `GraphicsDevice` changed: the texture
       creators answer a non-null handle and throw `DeviceResourceException`
-      or `UnsupportedCapability` where they answered null, `readPixels` is
+      or `UnsupportedCapabilityException` where they answered null, `readPixels` is
       `readback`, and the deprecated `supportsX`, `maxAnisotropy` and
       `maxColorAttachments` are `features.has(...)` and `limits`. The
       entries for `GraphicsDevice` say each.

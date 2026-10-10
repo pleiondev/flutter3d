@@ -51,6 +51,7 @@ final class MaterialBuildException extends Flutter3dFormatException {
 
   /// The material source, as a path; empty for a failure no one source
   /// caused, such as no `impellerc` to run.
+  @override
   final String source;
   final int? line;
   final int? column;

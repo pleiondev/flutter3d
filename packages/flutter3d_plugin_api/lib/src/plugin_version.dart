@@ -16,6 +16,7 @@ final class PluginFormatException extends Flutter3dFormatException {
   final String message;
 
   /// What was being read, when there was something to show.
+  @override
   final Object? source;
 
   @override

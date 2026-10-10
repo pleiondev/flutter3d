@@ -103,7 +103,7 @@ abstract base mixin class TextureAllocator {
   /// `cubeTextures`, `cubeArrayTextures`, and `textureWrites` for the general
   /// form itself; a [TextureUsage.storage] texture needs `storageTextures`
   /// and a format whose support says `storage`. A device without one throws
-  /// `UnsupportedCapability`, and a size past its limits an [ArgumentError].
+  /// `UnsupportedCapabilityException`, and a size past its limits an [ArgumentError].
   TextureHandle createTexture(TextureDescriptor descriptor);
 
   /// Gives one back, rather than waiting for the whole device to go.

@@ -7,7 +7,7 @@
 /// that shipped before it. 0.8.0 therefore carries the whole shape. WebGPU and
 /// the software rasteriser run it; WebGL2 and Impeller leave
 /// `DeviceFeature.compute` out of their features and refuse the creators with
-/// `UnsupportedCapability`. Impeller follows when flutter_gpu exposes compute
+/// `UnsupportedCapabilityException`. Impeller follows when flutter_gpu exposes compute
 /// pipelines (flutter/flutter#188480), and the shape follows its proposal
 /// (#188474) so that becomes a mapping rather than a redesign.
 library;
@@ -174,7 +174,7 @@ abstract base class ComputeEncoder {
   /// [StorageTextureAccess.readWrite]; the texture's format must answer
   /// `storage` (or `storageReadWrite`) in `textureFormatSupport`, and it must
   /// have been made with [TextureUsage.storage]. A backend without the
-  /// feature throws `UnsupportedCapability`.
+  /// feature throws `UnsupportedCapabilityException`.
   bool bindStorageTexture(
     ShaderHandle stage,
     String name,

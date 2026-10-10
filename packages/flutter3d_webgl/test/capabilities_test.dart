@@ -16,7 +16,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
@@ -55,8 +55,8 @@ WebGlFormatCaps _caps({
 );
 
 Matcher _refusing(DeviceFeature feature) => throwsA(
-  isA<UnsupportedCapability>().having(
-    (UnsupportedCapability e) => e.feature,
+  isA<UnsupportedCapabilityException>().having(
+    (UnsupportedCapabilityException e) => e.feature,
     'feature',
     feature,
   ),
@@ -252,7 +252,7 @@ void main() {
         () => pass.setDepthBias(const DepthBias(constant: 1, clamp: 0.5)),
         throwsA(
           isA<UnsupportedError>().having(
-            (UnsupportedError e) => e is UnsupportedCapability,
+            (UnsupportedError e) => e is UnsupportedCapabilityException,
             'a capability refusal',
             isFalse,
           ),

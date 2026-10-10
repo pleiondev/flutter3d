@@ -20,7 +20,7 @@ import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart'
     show SynchronousBufferReadback, UniformScratch;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -65,13 +65,14 @@ final class WebGlDevice extends GraphicsDevice
   // TODO(webgl): compute — WebGL2 has no compute stage; the WebGL 2.0
   // Compute draft was abandoned, and compute on the web goes through the
   // WebGPU backend. Nothing here can unblock it.
-  static UnsupportedCapability _noCompute() => UnsupportedCapability(
-    DeviceFeature.compute,
-    backend: webglBackendName,
-    reason:
-        'WebGL2 has no compute stage — the WebGL 2.0 Compute draft was '
-        'abandoned; compute on the web goes through the WebGPU backend',
-  );
+  static UnsupportedCapabilityException _noCompute() =>
+      UnsupportedCapabilityException(
+        DeviceFeature.compute,
+        backend: webglBackendName,
+        reason:
+            'WebGL2 has no compute stage — the WebGL 2.0 Compute draft was '
+            'abandoned; compute on the web goes through the WebGPU backend',
+      );
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
@@ -981,7 +982,7 @@ final class WebGlDevice extends GraphicsDevice
         // TODO(webgl): cube-array textures — TEXTURE_CUBE_MAP_ARRAY is
         // OpenGL ES 3.2 and WebGL2 is ES 3.0, with no extension for it.
         // Only a later WebGL would unblock it.
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.cubeArrayTextures,
           backend: webglBackendName,
           reason: 'cube-map arrays are OpenGL ES 3.2, and WebGL2 is ES 3.0',
@@ -997,7 +998,7 @@ final class WebGlDevice extends GraphicsDevice
     if (descriptor.usage.contains(TextureUsage.storage)) {
       // TODO(webgl): storage textures — WebGL2 has no image load/store
       // (that is OpenGL ES 3.1); storage on the web is the WebGPU backend's.
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.storageTextures,
         backend: webglBackendName,
         reason: 'WebGL2 has no image load/store; that is OpenGL ES 3.1',
@@ -1055,7 +1056,7 @@ final class WebGlDevice extends GraphicsDevice
     if (descriptor.usage.contains(BufferUsage.storage)) {
       // TODO(webgl): storage buffers — WebGL2 has no shader storage blocks
       // (OpenGL ES 3.1) and no compute; the WebGPU backend has both.
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.renderStageStorage,
         backend: webglBackendName,
         reason: 'WebGL2 has no shader storage buffers; that is OpenGL ES 3.1',
@@ -1064,7 +1065,7 @@ final class WebGlDevice extends GraphicsDevice
     if (descriptor.usage.contains(BufferUsage.indirect)) {
       // TODO(webgl): indirect buffers — WebGL2 has no indirect draw or
       // dispatch at all (OpenGL ES 3.1 again), so nothing would read one.
-      throw UnsupportedCapability(
+      throw UnsupportedCapabilityException(
         DeviceFeature.indirectDraw,
         backend: webglBackendName,
         reason: 'WebGL2 has no indirect commands to read an argument buffer',
@@ -1180,7 +1181,7 @@ final class WebGlDevice extends GraphicsDevice
       case QueryType.pipelineStatistics:
         // TODO(webgl): pipeline statistics — WebGL2 has no such query and no
         // extension that adds one.
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.pipelineStatisticsQuery,
           backend: webglBackendName,
           reason: 'WebGL2 has no pipeline statistics query',

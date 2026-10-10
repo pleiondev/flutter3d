@@ -162,7 +162,7 @@
 - **What WebGPU does not have is refused by name.** Border colours, ASTC HDR,
   pipeline statistics and synchronous readback are absent from the API;
   storage in vertex and fragment stages waits on the section's reflection
-  carrying storage bindings. Each throws `UnsupportedCapability` before it
+  carrying storage bindings. Each throws `UnsupportedCapabilityException` before it
   looks at the handle it was given, and the pre-1.0 refusals — the blend
   constant, `PolygonMode.line` — are now that same type.
 

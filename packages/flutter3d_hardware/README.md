@@ -48,7 +48,7 @@ occlusion, timestamp and pipeline-statistics queries, render bundles,
 compressed formats and multisample resolve.
 
 **A missing capability is a refusal, never a substitution.** Every call a
-feature gates throws `UnsupportedCapability`, naming the feature, the backend
+feature gates throws `UnsupportedCapabilityException`, naming the feature, the backend
 and the reason, before anything reaches a driver. A backend that has not built
 something yet says so the same way: Impeller lacks most of the 1.0 surface
 until `flutter_gpu` exposes it, and each gap is an explicit refusal with a
@@ -92,7 +92,7 @@ the surface therefore needs a version decision before it can pass:
   `GraphicsDevice`, `ComputeEncoder` and `TransferEncoder` are `abstract base
   class`es and `PassEncoder` an `abstract base mixin class`: a backend
   `extends` them, and a new member arrives with a body (a feature-gated one
-  throws `UnsupportedCapability`) that a backend overrides once it has the
+  throws `UnsupportedCapabilityException`) that a backend overrides once it has the
   feature. Every feature-gated member of the three encoders has that body
   already. A member without a default body would break every backend, so it
   waits for a major;

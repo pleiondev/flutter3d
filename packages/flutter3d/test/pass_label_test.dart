@@ -65,6 +65,9 @@ void main() {
     );
     expect(device.features.has(DeviceFeature.independentBlend), isFalse);
     expect(device.hdrOutputFormats, isEmpty);
-    expect(device.beginComputePass, throwsA(isA<UnsupportedCapability>()));
+    expect(
+      device.beginComputePass,
+      throwsA(isA<UnsupportedCapabilityException>()),
+    );
   });
 }

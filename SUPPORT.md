@@ -223,5 +223,5 @@ rule above, and its CHANGELOG says so.
 
 A capability Impeller does not have yet is in the hardware interface anyway.
 The Impeller device leaves it out of `features`, and a call to it throws
-`UnsupportedCapability`. When Flutter GPU gains it, it is filled in without a
+`UnsupportedCapabilityException`. When Flutter GPU gains it, it is filled in without a
 change to the API.

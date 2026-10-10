@@ -536,7 +536,7 @@ export 'package:flutter3d/flutter3d.dart'
         UniformBlock,
         UniformMemberLayout,
         UniversalTarget,
-        UnsupportedCapability,
+        UnsupportedCapabilityException,
         UsdzModelWriter,
         UsdzWriter,
         Vector2,

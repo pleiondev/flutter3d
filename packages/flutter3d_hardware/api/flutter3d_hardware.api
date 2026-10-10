@@ -381,7 +381,7 @@ final class GpuPassTiming
 
 abstract base class GraphicsDevice with TextureAllocator
   @protected DeviceResourceException refuseResource(String operation, String reason, {Object? cause})
-  @protected UnsupportedCapability refuse(DeviceFeature feature, {String? reason})
+  @protected UnsupportedCapabilityException refuse(DeviceFeature feature, {String? reason})
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
   Future<ByteData> readBuffer(StorageBuffer buffer)

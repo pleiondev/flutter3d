@@ -123,7 +123,7 @@
   `flutter3d migrate` adds with a TODO, and a tool may extend it with its
   own node. Folding, evaluating and emitting refuse a kind this build does
   not know with an `ArgumentError` naming it.
-- **The browser refuses a file read with `UnsupportedCapability`.** A read
+- **The browser refuses a file read with `UnsupportedCapabilityException`.** A read
   by path in a web build throws the foundation's refusal for
   `PlatformFeature.fileSystem`, the capability a platform lacks the way a
   device lacks a `DeviceFeature`, instead of a bare `UnsupportedError`; a
@@ -311,7 +311,7 @@
 
 - **Breaking: `EnvironmentMap.fromSky`, `fromPanorama` and `fromEncoded`
   throw where they answered null.** A device without cubes throws
-  `UnsupportedCapability` (ask the new `EnvironmentMap.isSupportedOn`), a sky
+  `UnsupportedCapabilityException` (ask the new `EnvironmentMap.isSupportedOn`), a sky
   that is off or pixels of the wrong size an `ArgumentError`, and bytes
   neither reader takes the new `PanoramaFormatException`.
 - **Breaking: `RenderSettings.needsSurfaceBuffer` is gone**, deprecated in

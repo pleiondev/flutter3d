@@ -6,7 +6,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_shader.dart';
@@ -32,7 +32,8 @@ const String wireframeRefusal =
 // name, so bytes would have to be split into named members first, which
 // needs the block's layout; the `ShaderHandle.layouts` table compiled stages
 // carry would unblock it once every stage here is held to one.
-UnsupportedCapability uniformBytesRefusal() => UnsupportedCapability(
+UnsupportedCapabilityException
+uniformBytesRefusal() => UnsupportedCapabilityException(
   DeviceFeature.uniformBytes,
   backend: cpuBackendName,
   reason:

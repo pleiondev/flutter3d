@@ -21,7 +21,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
@@ -754,13 +754,13 @@ void main() {
       );
       expect(
         () => pass.setBlendColor(LinearColor.white),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
       expect(
         () => pass.setBlend(
           const BlendState(sourceColorFactor: BlendFactor.blendColor),
         ),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
       pass.submit();
       scene.device.dispose();
@@ -775,7 +775,7 @@ void main() {
       );
       expect(
         () => pass.setPolygonMode(PolygonMode.line),
-        throwsA(isA<UnsupportedCapability>()),
+        throwsA(isA<UnsupportedCapabilityException>()),
       );
       pass
         ..setPolygonMode(PolygonMode.fill)

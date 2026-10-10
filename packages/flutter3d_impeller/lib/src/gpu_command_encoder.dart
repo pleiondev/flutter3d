@@ -10,7 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapability;
+    show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart' show debugCheckLive;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
@@ -188,7 +188,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       if (state.usesBlendColor) {
         // TODO(impeller): no blend-constant setter on flutter_gpu's
         // RenderPass — unblocked by an upstream RenderPass.setBlendConstant.
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.blendConstant,
           backend: impellerBackendName,
           reason:
@@ -201,7 +201,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       if (state.usesDualSource) {
         // TODO(impeller): no second-source BlendFactor in flutter_gpu —
         // unblocked by upstream dual-source blending.
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.dualSourceBlending,
           backend: impellerBackendName,
           reason: 'flutter_gpu has no second-source blend factors',
@@ -210,7 +210,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       if (state.usesMinMax) {
         // TODO(impeller): flutter_gpu's BlendOperation has no min or max —
         // unblocked by upstream adding them.
-        throw UnsupportedCapability(
+        throw UnsupportedCapabilityException(
           DeviceFeature.minMaxBlend,
           backend: impellerBackendName,
           reason: 'flutter_gpu has no min or max blend operation',
@@ -243,13 +243,14 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): no blend-constant setter on flutter_gpu's RenderPass —
   // unblocked by an upstream RenderPass.setBlendConstant.
   @override
-  Never setBlendColor(LinearColor color) => throw UnsupportedCapability(
-    DeviceFeature.blendConstant,
-    backend: impellerBackendName,
-    reason:
-        'flutter_gpu has no blend-constant setter; ask before naming '
-        'BlendFactor.blendColor and the three beside it',
-  );
+  Never setBlendColor(LinearColor color) =>
+      throw UnsupportedCapabilityException(
+        DeviceFeature.blendConstant,
+        backend: impellerBackendName,
+        reason:
+            'flutter_gpu has no blend-constant setter; ask before naming '
+            'BlendFactor.blendColor and the three beside it',
+      );
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
@@ -490,7 +491,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       ),
       _ => (DeviceFeature.samplerLodClamp, 'a level-of-detail clamp'),
     };
-    throw UnsupportedCapability(
+    throw UnsupportedCapabilityException(
       feature,
       backend: impellerBackendName,
       reason: "flutter_gpu's SamplerOptions has no $what",
@@ -514,7 +515,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): flutter_gpu's draw and drawIndexed take a count and an
   // instance count only — unblocked by upstream base vertex / first
   // instance (first vertex) arguments on them.
-  Never _refuseBaseVertexOrInstance() => throw UnsupportedCapability(
+  Never _refuseBaseVertexOrInstance() => throw UnsupportedCapabilityException(
     DeviceFeature.baseVertexBaseInstance,
     backend: impellerBackendName,
     reason:
@@ -539,11 +540,12 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): flutter_gpu has no indirect draw — unblocked by an
   // upstream RenderPass.drawIndexedIndirect (and a compute pass to write
   // the arguments, flutter/flutter#188480).
-  Never _noIndirect(DeviceFeature feature) => throw UnsupportedCapability(
-    feature,
-    backend: impellerBackendName,
-    reason: 'flutter_gpu has no indirect draw',
-  );
+  Never _noIndirect(DeviceFeature feature) =>
+      throw UnsupportedCapabilityException(
+        feature,
+        backend: impellerBackendName,
+        reason: 'flutter_gpu has no indirect draw',
+      );
 
   @override
   void multiDrawIndirect(
@@ -631,7 +633,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): flutter_gpu binds uniforms and samplers only — storage
   // buffers and textures in a render stage are unblocked by an upstream
   // storage binding on RenderPass.
-  Never _noRenderStorage() => throw UnsupportedCapability(
+  Never _noRenderStorage() => throw UnsupportedCapabilityException(
     DeviceFeature.renderStageStorage,
     backend: impellerBackendName,
     reason: 'flutter_gpu binds no storage to a render stage',

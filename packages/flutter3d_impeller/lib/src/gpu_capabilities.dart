@@ -13,7 +13,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'gpu_formats.dart';
 
-/// The name this backend refuses in, as `UnsupportedCapability.backend`.
+/// The name this backend refuses in, as `UnsupportedCapabilityException.backend`.
 const String impellerBackendName = 'Impeller';
 
 /// The features flutter_gpu exposes on the running context.

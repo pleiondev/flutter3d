@@ -146,7 +146,7 @@ integer and shadow samplers; they used to be refused at link.
 timestamps come from `EXT_disjoint_timer_query_webgl2` where it counts them,
 and a disjoint read throws rather than handing back meaningless numbers.
 Pipeline statistics, indirect draws, storage bound to a render stage, border
-colours and compute are refused with `UnsupportedCapability`, each with the
+colours and compute are refused with `UnsupportedCapabilityException`, each with the
 reason WebGL2 cannot have it. A refused call leaves the pass able to submit;
 `setPolygonMode(line)` is now one of those refusals.
 

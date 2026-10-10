@@ -1,7 +1,7 @@
 ## 1.0.0-rc.1
 
 - **`ElementFields` has a body for every member**: what a backend does not
-  override is refused with an `UnsupportedCapability` naming the member,
+  override is refused with an `UnsupportedCapabilityException` naming the member,
   so a member added in a minor breaks no backend.
 - **Fields by quantity.** `ElementFields.quantityOf(body, FieldQuantity)`
   reads a field as a foundation `Quantity` in its unit, and `addQuantity`

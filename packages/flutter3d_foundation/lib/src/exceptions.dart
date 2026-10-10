@@ -50,8 +50,22 @@ abstract base class Flutter3dException implements Exception {
 /// `import 'dart:core'` or would hide it, and `on FormatException` would read
 /// the same either way. With the prefix, `on Flutter3dFormatException` always
 /// means ours and `on FormatException` always means the SDK's.
-abstract base class Flutter3dFormatException extends Flutter3dException {
+abstract base class Flutter3dFormatException extends Flutter3dException
+    implements FormatException {
   const Flutter3dFormatException();
+
+  /// **A `FormatException` too**, because that is what the engine threw for
+  /// bad bytes before this family existed, and code written then catches it
+  /// as `on FormatException`. Replacing a bare throw with one of these keeps
+  /// that code catching it.
+  ///
+  /// The text that failed, where a refusal has it; null by default.
+  @override
+  Object? get source => null;
+
+  /// Where in [source] it failed, where a refusal knows; null by default.
+  @override
+  int? get offset => null;
 }
 
 /// Something asked of a device, a backend or a platform that it does not do:
@@ -92,7 +106,7 @@ abstract base class ResourceException extends Flutter3dException {
 /// stable [name]: a graphics device's `DeviceFeature`, a renderer's or a
 /// platform's own.
 ///
-/// **Here so that one refusal serves every layer.** [UnsupportedCapability]
+/// **Here so that one refusal serves every layer.** [UnsupportedCapabilityException]
 /// was the hardware's alone, holding a `DeviceFeature`; the core and the
 /// platforms refused what they lacked with a bare [UnsupportedError]. A
 /// capability of any layer extends this and is refused the same way.
@@ -121,8 +135,8 @@ abstract base class Capability {
 /// caller meets it in a correct program: a device that lacks a feature is a
 /// fact about the hardware, not a mistake in the code that asked. A caller
 /// who asks first ([Capability.askedBy]) never sees it.
-final class UnsupportedCapability extends CapabilityException {
-  const UnsupportedCapability(
+final class UnsupportedCapabilityException extends CapabilityException {
+  const UnsupportedCapabilityException(
     this.feature, {
     required this.backend,
     this.reason,
@@ -144,7 +158,7 @@ final class UnsupportedCapability extends CapabilityException {
       '${feature.askedBy == null ? '' : ' Ask whether ${feature.askedBy} has it before calling.'}';
 
   @override
-  String toString() => 'UnsupportedCapability: $message';
+  String toString() => 'UnsupportedCapabilityException: $message';
 }
 
 /// A shader stage a backend's compiler refused, or a pair of stages its
