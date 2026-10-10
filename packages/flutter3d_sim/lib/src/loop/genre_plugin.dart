@@ -33,11 +33,15 @@ import 'published_worlds.dart';
 /// * [systemName] is the genre's step, one system in [stepPhase] (the
 ///   `physics` phase unless a genre says otherwise), named `<genre>.step`
 ///   and also a genre's `static const stepSystem`. A game orders its own
-///   systems against it by that name. **One system, not
-///   several**: the order inside a genre's step — its movers, its sweeps, its
-///   rules — is what a recorded tape replays, and nothing may run between its
-///   parts. The genre's own moments inside it are `StepSystems` phases on
-///   the simulation, where a genre has them.
+///   systems against it by that name — `before: [platformer.stepSystem]` for
+///   a rule that runs ahead of the genre's step, `after:` for one that reads
+///   what it did — through the loop's `addSystem`, with the `LoopContext`
+///   every system is handed. The order inside the step — its movers, its
+///   sweeps, its rules — is what a recorded tape replays. A genre that has
+///   moments of its own a game may hang rules between ("after the weapons
+///   fired") adds its step as several systems in [stepPhase], each named
+///   `<genre>.<moment>` and ordered after the one before, and a game's rule
+///   names the two it runs between.
 /// * [simulation] is the run being stepped, or null to step nothing. Setting
 ///   it points the new run's events at the bus ([publishEvents]) and the old
 ///   run's away from it.

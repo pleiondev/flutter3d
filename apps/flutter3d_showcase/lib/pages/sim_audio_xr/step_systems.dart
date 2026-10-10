@@ -1,10 +1,11 @@
-/// Work a game hangs off a fixed step without owning the step itself, and the
-/// events a step reports so a frame can react without polling.
+/// Work a game adds to the loop's fixed step without owning the step itself,
+/// and the events a step reports so a frame can react without polling.
 ///
 /// Quoted by `step_systems.md` and shown whole in the Source tab.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -24,7 +25,7 @@ final class StepSystemsDemo extends ShowcaseDemo {
   bool loggingOn = true;
 
   bool _dirty = true;
-  late StepSystems _systems;
+  late EngineLoop _loop;
   final List<String> _ran = <String>[];
   late final List<MeshNode> _slots;
   late final BarGauge _tower;
@@ -80,31 +81,26 @@ final class StepSystemsDemo extends ShowcaseDemo {
   /// toggle says otherwise, named to run after it.
   void _register() {
     // #region live
-    final StepSystems systems = StepSystems();
-    systems.add(
-      StepPhase.begin,
-      (StepContext step) {
-        _ran.add('scoring');
-        _score += 5;
-      },
-      label: 'scoring',
-      after: scoringFirst ? const <String>[] : const <String>['input'],
-    );
-    systems.add(
-      StepPhase.begin,
-      (StepContext step) => _ran.add('input'),
-      label: 'input',
+    final loop = EngineLoop(input: InputState());
+    loop.addSystem('scoring', LoopPhase.rules, (LoopContext step) {
+      _ran.add('scoring');
+      _score += 5;
+    }, after: scoringFirst ? const <String>[] : const <String>['input']);
+    loop.addSystem(
+      'input',
+      LoopPhase.rules,
+      (LoopContext step) => _ran.add('input'),
     );
     if (loggingOn) {
-      systems.add(
-        StepPhase.begin,
-        (StepContext step) => _ran.add('logging'),
-        label: 'logging',
+      loop.addSystem(
+        'logging',
+        LoopPhase.rules,
+        (LoopContext step) => _ran.add('logging'),
         after: const <String>['scoring', 'input'],
       );
     }
     // #endregion live
-    _systems = systems;
+    _loop = loop;
   }
 
   @override
@@ -117,7 +113,7 @@ final class StepSystemsDemo extends ShowcaseDemo {
     if (_sinceStep >= 0.6) {
       _sinceStep = 0.0;
       _ran.clear();
-      _systems.run(StepPhase.begin, 0.6);
+      _loop.runSteps(1);
       if (_score >= 100) _score = 0;
     }
     // Slot i shows whichever system ran i-th this step, dimming as the next
@@ -160,44 +156,44 @@ final class StepSystemsDemo extends ShowcaseDemo {
 
   static String _run() {
     // #region systems
-    final systems = StepSystems();
-    // The bus the step publishes onto. A game's is its `EngineLoop`'s; this
-    // page runs a phase by hand, so a `DirectBus`, which hands each event to
-    // its subscribers as it is published.
+    final loop = EngineLoop(input: InputState());
+    // The bus the step publishes onto. A game's is its `EngineLoop`'s, whose
+    // step channel is heard at the end of the step; this page wants each
+    // event as it is published, so a `DirectBus`.
     final events = DirectBus();
     final heard = <GameEvent>[];
     events.onStep<GameEvent>('step_systems.heard', (d) => heard.add(d.event));
     var score = 0;
     final order = <String>[];
 
-    final logging = systems.add(
-      StepPhase.begin,
-      (StepContext step) => order.add('logging'),
-      label: 'logging',
+    final logging = loop.addSystem(
+      'logging',
+      LoopPhase.rules,
+      (LoopContext step) => order.add('logging'),
       after: const <String>['scoring'],
     );
-    systems.add(StepPhase.begin, (StepContext step) {
+    loop.addSystem('scoring', LoopPhase.rules, (LoopContext step) {
       order.add('scoring');
       score += 5;
       events.publish(_ScoreChanged(score));
-    }, label: 'scoring');
+    });
     // #endregion systems
 
     // #region run
     // Registered "logging" first but named to run after "scoring": the
     // constraint wins, and only what nothing names falls back on
     // registration.
-    systems.run(StepPhase.begin, 1 / 60);
+    loop.runSteps(1);
     final published = List<GameEvent>.of(heard);
     final firstOrder = List<String>.of(order);
     // #endregion run
 
     // #region remove
-    // The handle `add` returned removes the system again; a step run after
-    // that no longer calls it.
-    systems.remove(logging);
+    // The handle `addSystem` returned removes the system again; a step run
+    // after that no longer calls it.
+    logging.cancel();
     order.clear();
-    systems.run(StepPhase.begin, 1 / 60);
+    loop.runSteps(1);
     final afterRemoval = List<String>.of(order);
     // #endregion remove
 

@@ -30,8 +30,8 @@ final class PhaseKind {
 
 /// A named stretch of the loop that systems are added to.
 ///
-/// **A name rather than an enum**, for the reason `StepPhase` and
-/// `GameAction` are names: a genre has moments the engine cannot list, and
+/// **A name rather than an enum**, for the reason `GameAction` is a name: a
+/// genre has moments the engine cannot list, and
 /// a plugin adds them with `LoopRegistry.addPhase` between the engine's.
 /// A name is unique across both kinds — a step phase and a frame phase may
 /// not share one, since a constraint names a phase without its kind.
@@ -142,10 +142,15 @@ final class LoopPhase {
 
 /// What a system is told about the moment it runs in.
 ///
-/// **One object rather than parameters, so it can grow**, as `StepContext`
-/// grew: a new field here breaks nobody, a new parameter breaks every system.
-/// Reused between calls by the engine; copy what you keep. Made by the
-/// engine: `base`, so a member added later arrives with a default.
+/// **One object rather than parameters, so it can grow**: a new field here
+/// breaks nobody, a new parameter breaks every system. Reused between calls
+/// by the engine; copy what you keep. Made by the engine: `base`, so a member
+/// added later arrives with a default.
+///
+/// **The one context every system is handed**, the engine's, a plugin's and
+/// a genre's alike: a rule a game adds to a genre's step is a system in the
+/// genre's phase, ordered against `<genre>.step` by name
+/// (`LoopRegistry.addSystem`), and reads this.
 abstract base class LoopContext {
   const LoopContext();
 
