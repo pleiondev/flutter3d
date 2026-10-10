@@ -76,11 +76,6 @@ IOSink _quiet([StringBuffer? into]) {
   return IOSink(controller);
 }
 
-/// The bakes here run on the software rasteriser, and a loaded machine takes
-/// minutes over them. On the tests themselves rather than on the library: a
-/// runner that folds every file into one drops a library's `@Timeout`.
-const Timeout _slow = Timeout(Duration(minutes: 5));
-
 void main() {
   group('the manifest', () {
     test('names no classes by default', () {
@@ -305,7 +300,7 @@ classes:
       expect((cache.values.single! as Map)['lods'], '');
       expect(_measure('$generated/sphere.f3d').sides, <int>[64]);
     });
-  }, timeout: _slow);
+  });
 
   test('convert --classes writes one file per class, and a class that names '
       'no chain takes the command line\'s', () async {
@@ -345,7 +340,7 @@ classes:
       ]).classes,
       <DeviceClass>[DeviceClass.web, DeviceClass.phone],
     );
-  }, timeout: _slow);
+  });
 
   test('fitDocumentTextures clamps axis by axis and leaves the rest', () {
     final wide = img.encodePng(img.Image(width: 64, height: 8));
