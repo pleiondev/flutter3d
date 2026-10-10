@@ -13,6 +13,31 @@
 /// list, which is what stayed behind.
 part of 'renderer.dart';
 
+/// The blend of a masked draw whose edge is coverage — `P7`: the colour
+/// replaced as an opaque draw replaces it, and the alpha the larger of what
+/// the fragment wrote and what was there.
+///
+/// **Why the alpha cannot simply be one.** Alpha to coverage reads the
+/// fragment's own alpha to decide how many samples it covers, on WebGPU and
+/// WebGL2 alike, and writes that same alpha into them; neither API has a way
+/// to write one in its place. The maximum is the nearest an opaque surface
+/// gets: over an opaque frame — every frame cleared with an alpha of one —
+/// a covered sample keeps one, the resolve averages ones, and the frame stays
+/// opaque along the edge, as the hard cutoff leaves it. Over a transparent
+/// clear it keeps the coverage alpha, which is the edge the cutoff would
+/// have left there too, softened.
+///
+/// `max` needs `DeviceFeature.minMaxBlend`; the scene pass offers coverage
+/// only where the device has it, and draws the hard cutoff, reported as
+/// `FrameResult.alphaToCoverageDeclined`, where it does not.
+const BlendState _coverageEdgeBlend = BlendState(
+  sourceColorFactor: BlendFactor.one,
+  destinationColorFactor: BlendFactor.zero,
+  alphaOperation: BlendOperation.max,
+  sourceAlphaFactor: BlendFactor.one,
+  destinationAlphaFactor: BlendFactor.one,
+);
+
 /// What the x-ray stage swaps in when it draws a node again.
 ///
 /// A material for the node's own, and a blend the material cannot express:
@@ -408,8 +433,20 @@ extension _MeshEncode on Renderer {
     } else if (orderIndependent == null) {
       // `RenderMaterial.blendMode` for a material that blends; a fade of an
       // opaque one by its node's tint is over, as it always was.
+      // `P7`: a mask whose edge is coverage writes the alpha it turned into
+      // coverage, and that alpha is not the surface's — the surface is
+      // opaque, as the hard cutoff says by writing one. Kept over what is
+      // beneath it, it would leave the frame translucent along every leaf and
+      // read as straight colour above its alpha by anything that takes the
+      // frame as premultiplied. See [_coverageEdgeBlend].
+      final coverageEdge =
+          override == null &&
+          !blend &&
+          material.alphaMode == MaterialAlphaMode.mask &&
+          material.alphaToCoverage &&
+          state.coverageAvailable;
       final blendState = !blend
-          ? null
+          ? (coverageEdge ? _coverageEdgeBlend : null)
           : material.isTransparent
           ? _MaterialStages._blendFor(material)
           : BlendState.alphaBlend;

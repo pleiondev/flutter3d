@@ -230,9 +230,16 @@ extension _ScenePasses on Renderer {
       // is exactly the case this catches.
       passState.depthCompare = CompareFunction.less;
       // `P7`: the meshes of a multisampled pass on a device that can may
-      // turn alpha into coverage.
+      // turn alpha into coverage — and keep the frame opaque under it, which
+      // takes a `max` on the alpha (`_coverageEdgeBlend`). A device with
+      // coverage and no `max` draws the hard cutoff and says so rather than
+      // leave a translucent rim. The pass multisamples only without the
+      // surface buffer, so its colour is the one attachment the blend is set
+      // on and no second one needs a blend of its own.
       passState.coverageAvailable =
-          msaa != null && device.features.has(DeviceFeature.alphaToCoverage);
+          msaa != null &&
+          device.features.has(DeviceFeature.alphaToCoverage) &&
+          device.features.has(DeviceFeature.minMaxBlend);
 
       final camera = view.camera;
       final viewMatrix = camera.viewMatrix;

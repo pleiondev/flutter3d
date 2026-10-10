@@ -30,8 +30,12 @@ import 'package:vector_math/vector_math.dart';
 ({FrameResult result, FakePass scenePass}) _frame(
   RenderMaterial material, {
   bool supported = true,
+  bool minMax = true,
 }) {
-  final device = FakeBackend(supportsAlphaToCoverage: supported);
+  final device = FakeBackend(
+    supportsAlphaToCoverage: supported,
+    extraFeatures: <DeviceFeature>[if (minMax) DeviceFeature.minMaxBlend],
+  );
   final texel = device.createTextureFromPixels(
     width: 1,
     height: 1,
@@ -88,6 +92,70 @@ double _cutoffBound(FakePass pass) => pass
     .lastWhere((RecordedUniformBlock b) => b.block == 'FragInfo')
     .members['material2']![0];
 
+/// The blend on attachment zero when the leaf was drawn: the last one set
+/// before the draw that follows the leaf's `FragInfo`.
+BlendState? _leafBlend(FakePass pass) {
+  final commands = pass.commands;
+  final block = commands.lastIndexWhere(
+    (Recorded c) => c is RecordedUniformBlock && c.block == 'FragInfo',
+  );
+  final draw = commands.indexWhere((Recorded c) => c is RecordedDraw, block);
+  return commands
+      .sublist(0, draw)
+      .whereType<RecordedBlend>()
+      .lastWhere((RecordedBlend b) => b.attachment == 0)
+      .state;
+}
+
+/// [state]'s alpha for a fragment alpha [source] over [destination], by the
+/// rule every backend blends with: the two factors, then the operation, and
+/// `min`/`max` on the values themselves.
+double _blendAlpha(BlendState state, double source, double destination) =>
+    _apply(
+      state.alphaOperation,
+      source * _factor(state.sourceAlphaFactor, source),
+      destination * _factor(state.destinationAlphaFactor, source),
+      source,
+      destination,
+    );
+
+/// [state]'s colour channel for [source] over [destination], the fragment's
+/// alpha being [alpha].
+double _blendColor(
+  BlendState state,
+  double source,
+  double destination,
+  double alpha,
+) => _apply(
+  state.colorOperation,
+  source * _factor(state.sourceColorFactor, alpha),
+  destination * _factor(state.destinationColorFactor, alpha),
+  source,
+  destination,
+);
+
+double _factor(BlendFactor factor, double sourceAlpha) => switch (factor) {
+  BlendFactor.zero => 0.0,
+  BlendFactor.one => 1.0,
+  BlendFactor.sourceAlpha => sourceAlpha,
+  BlendFactor.oneMinusSourceAlpha => 1.0 - sourceAlpha,
+  _ => throw UnimplementedError('$factor'),
+};
+
+double _apply(
+  BlendOperation operation,
+  double s,
+  double d,
+  double rawS,
+  double rawD,
+) => switch (operation) {
+  BlendOperation.add => s + d,
+  BlendOperation.subtract => s - d,
+  BlendOperation.reverseSubtract => d - s,
+  BlendOperation.min => rawS < rawD ? rawS : rawD,
+  BlendOperation.max => rawS > rawD ? rawS : rawD,
+};
+
 void main() {
   test('a leaf that asks gets coverage, and the pass turns it off after', () {
     // Mutation: drop the reset before the contributors in
@@ -115,6 +183,35 @@ void main() {
     final frame = _frame(_leaf(), supported: false);
     expect(_coverageCalls(frame.scenePass), isEmpty);
     expect(frame.result.alphaToCoverageDeclined, isTrue);
+  });
+
+  test('a coverage edge leaves the frame opaque over an opaque frame', () {
+    // The leaf's fragment alpha is what coverage is made of, and both
+    // browser APIs write it into the samples it covers. Mutation: drop
+    // `_coverageEdgeBlend` from the lit draw, and the leaf's draw binds no
+    // blend — every covered sample takes the fragment's alpha, the resolve
+    // averages it with the clear's ones, and the frame's rim is translucent.
+    final blend = _leafBlend(_frame(_leaf()).scenePass);
+    expect(blend, isNotNull, reason: 'the coverage draw keeps the alpha');
+    // Over the opaque clear every frame starts from, whatever alpha the
+    // fragment wrote — nought at the very rim, one inside — a covered sample
+    // comes out at one, and so does the resolve of any mix of samples.
+    for (final fragmentAlpha in <double>[0.0, 0.25, 0.5, 0.999, 1.0]) {
+      expect(_blendAlpha(blend!, fragmentAlpha, 1.0), 1.0);
+    }
+    // The colour is the fragment's own, as an opaque draw writes it.
+    expect(_blendColor(blend!, 0.3, 0.9, 0.6), closeTo(0.3, 1e-12));
+  });
+
+  test('coverage without a max on the alpha is declined, not translucent', () {
+    // Mutation: drop the `minMaxBlend` condition from the scene pass, and a
+    // device that cannot keep the frame opaque under coverage draws it
+    // translucent instead of drawing the cutoff and saying so.
+    final frame = _frame(_leaf(), minMax: false);
+    expect(_coverageCalls(frame.scenePass), isEmpty);
+    expect(frame.result.alphaToCoverageDeclined, isTrue);
+    expect(_cutoffBound(frame.scenePass), closeTo(0.4, 1e-6));
+    expect(_leafBlend(frame.scenePass), isNull);
   });
 
   test('a scene that does not ask emits nothing, and refuses nothing', () {
