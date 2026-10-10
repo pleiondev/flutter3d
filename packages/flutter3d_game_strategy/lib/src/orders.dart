@@ -44,11 +44,12 @@ import 'unit.dart';
 
 /// One thing a side asked for, on one step.
 ///
-/// Sealed, so that reading a tape and writing one are two lists of the same
-/// length: a kind added here has to be given a line in [orderFromJson] before
-/// this file compiles, and a kind that could be written and not read is exactly
-/// how a replay diverges without saying so.
-sealed class StrategyOrder {
+/// `abstract final`, so every order is one this package wrote and gave a
+/// line in [orderFromJson]: a kind that could be written and not read is
+/// exactly how a replay diverges without saying so. Not sealed, because a new
+/// order (a new simulation version) may come in a minor release, and a
+/// `switch` over orders outside this package ends with a wildcard.
+abstract final class StrategyOrder {
   const StrategyOrder();
 
   /// The order as a document writes it down. `kind` is what reads it back.

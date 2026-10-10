@@ -100,6 +100,8 @@ final class ActionInput {
         case final DualAxisAction pair:
           state.clearDualAxis(pair);
         case GameAction():
+        default:
+          throw UnsupportedError('no input path for $action');
       }
     }
     _written.clear();
@@ -159,6 +161,8 @@ final class ActionInput {
         state.setDualAxis(pair, x, y);
       case GameAction():
       // Buttons are the devices' own, through [ActionMap.buttons].
+      default:
+        throw UnsupportedError('no input path for $action');
     }
   }
 

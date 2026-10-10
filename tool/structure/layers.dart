@@ -380,3 +380,59 @@ List<(String, String)> runtimeToolDependencies(
       for (final dependency in dependencies[package]!.toList()..sort())
         if (tools.contains(dependency)) (package, dependency),
 ];
+
+// ------------------------------------------------- a stable package's ground
+
+/// Packages at 1.x whose API names a type of one of this repository's
+/// packages at 0.x, as `'<package> -> <dependency>'`, each with why. Empty:
+/// the game's pad and pointer types are its own since 1.0.0-rc.1. An entry
+/// that no longer names one is a finding, so the list only shrinks.
+const Map<String, String> unstableDependencyAllowed = <String, String>{};
+
+/// The major version of a pubspec `version:` value: `1` for `1.0.0-rc.1`,
+/// `0` for `0.5.0`, null for anything that is not a version.
+///
+/// A pre-release of 1.0.0 counts as 1.x: it is the 1.0 contract the day it
+/// is published, and what it depends on is what 1.0.0 will.
+int? majorVersionOf(String version) =>
+    int.tryParse(RegExp(r'^\s*(\d+)\.\d+\.\d+').firstMatch(version)?[1] ?? '');
+
+/// **S6 of `tasks/1.0-seams.md`: nothing at 1.x stands on 0.x.** The
+/// run-time dependencies, as `(package, dependency)`, of every package in
+/// [dependencies] whose version in [versions] is 1.x or later on one of
+/// this repository's packages at 0.x: the candidates [unstableNamesIn] then
+/// asks about. A 0.x package may break in any minor; a research package
+/// (`flutter3d_lab_*`) stays 0.x and depends only on stable ground, never
+/// the other way. A package outside [versions] (one from pub.dev) is not
+/// asked about.
+List<(String, String)> stableOnUnstable(
+  Map<String, Set<String>> dependencies,
+  Map<String, String> versions,
+) {
+  bool stable(String package) =>
+      (majorVersionOf(versions[package] ?? '') ?? 0) >= 1;
+  bool unstable(String package) =>
+      versions.containsKey(package) && majorVersionOf(versions[package]!) == 0;
+  return <(String, String)>[
+    for (final package in dependencies.keys.toList()..sort())
+      if (stable(package))
+        for (final dependency in dependencies[package]!.toList()..sort())
+          if (unstable(dependency)) (package, dependency),
+  ];
+}
+
+/// The names of [unstableNames] — what a 0.x package declares — that
+/// [stableSnapshot], a 1.x package's `api/<package>.api`, uses.
+///
+/// **What a 1.x package may not do is name one.** A 0.x dependency used
+/// behind the package's own types is held to a minor by its caret, and a
+/// break in it is mended in a release of the 1.x package without its users
+/// seeing it; one named in a signature, or re-exported, is a break in the 1.x
+/// API the day the 0.x package makes it. Only names that start with a
+/// capital are asked about: a type, not a member that happens to share a
+/// word.
+Set<String> unstableNamesIn(String stableSnapshot, Set<String> unstableNames) =>
+    <String>{
+      for (final match in RegExp(r'\b[A-Z]\w*\b').allMatches(stableSnapshot))
+        if (unstableNames.contains(match[0])) match[0]!,
+    };

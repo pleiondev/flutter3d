@@ -397,6 +397,11 @@ final class LevelPatch {
 }
 
 /// What [LevelPatch.applyTo] made of a level.
+///
+/// **Closed for good**: patched or refused: the two answers to whether a patch
+/// applies, with the reason inside the refusal. No case can be added without
+/// changing what the type means, so it stays sealed and a `switch` over it may
+/// name every case.
 sealed class LevelPatchResult {
   const LevelPatchResult();
 }

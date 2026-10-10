@@ -527,14 +527,40 @@ int? _skeletonIndexOf(ModelObject object, int skeletonCount) {
 /// things, and only one of them is what the file said.
 ///
 /// Which way is up in the file being imported.
-enum UpAxis {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class UpAxis {
+  const UpAxis._(this.name);
+
   /// glTF's own convention, and this project's: no adjustment.
-  y,
+  static const UpAxis y = UpAxis._('y');
 
   /// Common in CAD and DCC exports (and STL, which specifies no convention at
   /// all but is Z-up in practice more often than not). The root is rotated
   /// −90° about X, which is the rotation that takes a Z-up model's "up" to Y.
-  z,
+  static const UpAxis z = UpAxis._('z');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<UpAxis> values = <UpAxis>[y, z];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static UpAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'UpAxis.$name';
 }
 
 /// How to interpret a file [fromModelDocument] is bringing in, for the two
@@ -885,6 +911,7 @@ MeshData _meshOf(Geometry geometry, ShapeSet shapeSet) {
     EditedGeometry(:final mesh) => mesh.toMeshData(),
     ImportedGeometry(:final MeshData data) => data,
     SocketGeometry() => _nothing,
+    _ => throw UnsupportedError('no mesh data for $geometry'),
   };
   if (shapeSet.isEmpty) return mesh;
   if (geometry is! EditedGeometry) return mesh;

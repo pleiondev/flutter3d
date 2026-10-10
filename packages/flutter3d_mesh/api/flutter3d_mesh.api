@@ -91,8 +91,14 @@ final class CsgNode
   void clipTo(CsgNode other, CsgTolerance tolerance)
   void invert()
 
-enum CsgOperation
-  values: union, subtract, intersect
+final class CsgOperation
+  String toString()
+  final String name
+  static CsgOperation? byName(String name)
+  static const CsgOperation intersect = CsgOperation._('intersect')
+  static const CsgOperation subtract = CsgOperation._('subtract')
+  static const CsgOperation union = CsgOperation._('union')
+  static const List<CsgOperation> values = <CsgOperation>[union, subtract, intersect]
 
 final class CsgPlane
   CsgPlane get flipped
@@ -215,8 +221,14 @@ final class EditMeshBuilder
   int get faceCount
   int get vertexCount
 
-enum ElementLevel
-  values: vertex, edge, face
+final class ElementLevel
+  String toString()
+  final String name
+  static ElementLevel? byName(String name)
+  static const ElementLevel edge = ElementLevel._('edge')
+  static const ElementLevel face = ElementLevel._('face')
+  static const ElementLevel vertex = ElementLevel._('vertex')
+  static const List<ElementLevel> values = <ElementLevel>[vertex, edge, face]
 
 abstract final class FaceFlags
   static const int smooth = 1 << 0
@@ -248,8 +260,15 @@ final class IdRemap
   final Int32List faces
   final Int32List vertices
 
-enum IssueSeverity
-  values: note, warning, error
+final class IssueSeverity
+  String toString()
+  final String name
+  int get index
+  static IssueSeverity? byName(String name)
+  static const IssueSeverity error = IssueSeverity._('error')
+  static const IssueSeverity note = IssueSeverity._('note')
+  static const IssueSeverity warning = IssueSeverity._('warning')
+  static const List<IssueSeverity> values = <IssueSeverity>[note, warning, error]
 
 final class JournalStep
   const JournalStep(this.indices, this.before)
@@ -312,8 +331,18 @@ final class MergeReport
   final int vertices
   int get merged
 
-enum MeshAttribute
-  values: uv0, color, weights, joints, crease, flags, materialSlot
+final class MeshAttribute
+  String toString()
+  final String name
+  static MeshAttribute? byName(String name)
+  static const List<MeshAttribute> values = <MeshAttribute>[uv0, color, weights, joints, crease, flags, materialSlot]
+  static const MeshAttribute color = MeshAttribute._('color')
+  static const MeshAttribute crease = MeshAttribute._('crease')
+  static const MeshAttribute flags = MeshAttribute._('flags')
+  static const MeshAttribute joints = MeshAttribute._('joints')
+  static const MeshAttribute materialSlot = MeshAttribute._('materialSlot')
+  static const MeshAttribute uv0 = MeshAttribute._('uv0')
+  static const MeshAttribute weights = MeshAttribute._('weights')
 
 class MeshBrush
   const MeshBrush({required this.kind, required this.radius, required this.strength, this.falloff = BrushFalloff.smooth})
@@ -347,8 +376,15 @@ final class MeshChecks
   final EditMesh mesh
   final double tolerance
 
-enum MeshDomain
-  values: vertex, corner, edge, face
+final class MeshDomain
+  String toString()
+  final String name
+  static MeshDomain? byName(String name)
+  static const List<MeshDomain> values = <MeshDomain>[vertex, corner, edge, face]
+  static const MeshDomain corner = MeshDomain._('corner')
+  static const MeshDomain edge = MeshDomain._('edge')
+  static const MeshDomain face = MeshDomain._('face')
+  static const MeshDomain vertex = MeshDomain._('vertex')
 
 typedef MeshHit = ({int face, int triangle, double distance, Vector3 point});
 
@@ -454,9 +490,9 @@ final class MirrorModifier extends Modifier
   final double? mergeDistance
   static MirrorModifier? fromJson(Map<String, Object?> json)
 
-sealed class Modifier
-  EditMesh apply(EditMesh base, ModifierContext context)
-  Map<String, Object?> toJson()
+abstract final class Modifier
+  abstract EditMesh apply(EditMesh base, ModifierContext context)
+  abstract Map<String, Object?> toJson()
   const Modifier()
 
 final class ModifierContext
@@ -541,10 +577,10 @@ final class ParametricPlane extends ParametricShape
   final int depthSegments
   final int widthSegments
 
-sealed class ParametricShape
-  EditMesh toEditMesh()
-  Shape get drawn
-  String get name
+abstract final class ParametricShape
+  abstract EditMesh toEditMesh()
+  abstract Shape get drawn
+  abstract String get name
   const ParametricShape()
 
 final class ParametricSphere extends ParametricShape
@@ -587,10 +623,16 @@ final class Recipe
   final String id
   final String name
 
-enum RecipeCategory
-  values: lighting, furniture, tableware, architecture
-  const RecipeCategory(this.label)
+final class RecipeCategory
+  String toString()
   final String label
+  final String name
+  static RecipeCategory? byName(String name)
+  static const List<RecipeCategory> values = <RecipeCategory>[lighting, furniture, tableware, architecture]
+  static const RecipeCategory architecture = RecipeCategory._('architecture', 'Architecture')
+  static const RecipeCategory furniture = RecipeCategory._('furniture', 'Furniture')
+  static const RecipeCategory lighting = RecipeCategory._('lighting', 'Lighting')
+  static const RecipeCategory tableware = RecipeCategory._('tableware', 'Tableware')
 
 final class RemeshReport
   String toString()

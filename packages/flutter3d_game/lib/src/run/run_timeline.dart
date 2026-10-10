@@ -169,7 +169,7 @@ final class CodeReplay {
 
 /// What [RunTimeline.scrubTo] and [RunTimeline.branchHere] answered.
 ///
-/// **Sealed on purpose**: a result, every case of which a caller has to
+/// **Closed for good, and sealed on purpose**: a result, every case of which a caller has to
 /// handle — a scrub that landed and one that was refused say different
 /// things to the person holding the slider.
 sealed class ScrubAnswer {

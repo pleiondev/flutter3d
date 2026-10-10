@@ -21,16 +21,42 @@ library;
 import 'dart:math' as math;
 
 /// What a field's own numbers mean, so a typed unit can be converted into it.
-enum NumberUnit {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class NumberUnit {
+  const NumberUnit._(this.name);
+
   /// A count, a factor, a weight: a suffix means nothing and is refused.
-  plain,
+  static const NumberUnit plain = NumberUnit._('plain');
 
   /// Scene units, which this project's own documents are in.
-  meters,
+  static const NumberUnit meters = NumberUnit._('meters');
 
   /// What a rotation field shows. Radians are what the arithmetic uses and
   /// `TransformFields` converts at its own edge; a person types degrees.
-  degrees,
+  static const NumberUnit degrees = NumberUnit._('degrees');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<NumberUnit> values = <NumberUnit>[plain, meters, degrees];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static NumberUnit? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'NumberUnit.$name';
 }
 
 /// [said] as a number in [unit]'s own terms, or null when it is not one.
@@ -67,6 +93,7 @@ double? _factorFor(String suffix, NumberUnit unit) => switch (unit) {
     'turn' || 'turns' => 360.0,
     _ => null,
   },
+  _ => null,
 };
 
 /// A recursive-descent reader over one line of arithmetic.

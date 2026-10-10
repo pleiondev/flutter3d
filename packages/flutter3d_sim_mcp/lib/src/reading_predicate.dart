@@ -31,7 +31,7 @@ final class ReadingPredicateException extends Flutter3dFormatException {
 }
 
 /// One claim about one row of a reading: the player, or an actor by name.
-sealed class ReadingPredicate {
+abstract final class ReadingPredicate {
   const ReadingPredicate(this.who);
 
   /// Reads a claim of the shape the `expect` tool takes: a `kind`, a `who`

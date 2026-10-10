@@ -27,7 +27,43 @@ import 'package:vector_math/vector_math.dart';
 import '../ecs/ecs_world.dart';
 
 /// How a node came out of its last tick.
-enum BehaviorStatus { success, failure, running }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class BehaviorStatus {
+  const BehaviorStatus._(this.name);
+
+  static const BehaviorStatus success = BehaviorStatus._('success');
+
+  static const BehaviorStatus failure = BehaviorStatus._('failure');
+
+  static const BehaviorStatus running = BehaviorStatus._('running');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<BehaviorStatus> values = <BehaviorStatus>[
+    success,
+    failure,
+    running,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static BehaviorStatus? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'BehaviorStatus.$name';
+}
 
 final class Blackboard {
   Blackboard({Map<String, Object?>? values}) : _values = <String, Object?>{} {

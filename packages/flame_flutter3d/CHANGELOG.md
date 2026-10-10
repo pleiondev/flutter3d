@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `PlaneAxis` is an open set**, a class with constants rather
+  than an enum: a plane holding X constant is a value it can still gain.
+  `y`, `z`, `values` and `name` are as they were. `GridHeading` and
+  `SyncDirection` stay enums, closed for good.
 - **`StepClock` is an `abstract mixin class`**, mixed in beside the Flame
   type a clock extends (`extends Component with FixedStepUpdate,
   StepClock`), so a member a minor adds can arrive with a body. Code that

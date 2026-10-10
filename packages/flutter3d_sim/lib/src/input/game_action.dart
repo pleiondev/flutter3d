@@ -5,30 +5,57 @@ import 'package:vector_math/vector_math.dart';
 /// The three a binding screen and a tape have to tell apart: a button is
 /// down or up (with a magnitude where a trigger can say), an axis is one
 /// number in `[-1, 1]`, and a dual axis is two of them.
-enum ActionKind {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ActionKind {
+  const ActionKind._(this.name);
+
   /// A [GameAction]: held or not, pressed and released on edges.
-  button,
+  static const ActionKind button = ActionKind._('button');
 
   /// An [AxisAction]: one number in `[-1, 1]`, a throttle or a crane's lift.
-  axis,
+  static const ActionKind axis = ActionKind._('axis');
 
   /// A [DualAxisAction]: two numbers, a direction to walk or a view to turn.
-  dualAxis,
+  static const ActionKind dualAxis = ActionKind._('dualAxis');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ActionKind> values = <ActionKind>[button, axis, dualAxis];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ActionKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ActionKind.$name';
 }
 
 /// A named thing the player can ask for, with the type of its value.
 ///
-/// **Sealed, three kinds and no more.** A game declares its own actions of
-/// each kind, as it always declared its own [GameAction]s; what it cannot do
-/// is invent a fourth kind, because a tape, a rebinding screen and a saved
-/// action map all have to know how to write each kind down.
+/// **Three kinds, grown only here.** A game declares its own actions of each
+/// kind, as it always declared its own [GameAction]s; what it cannot do is
+/// invent a fourth kind, because a tape, a rebinding screen and a saved action
+/// map all have to know how to write each kind down. A later release can add
+/// one with its [ActionKind], so a `switch` over actions ends with a wildcard.
 ///
 /// [T] is what [InputState.valueOf] answers for it: `bool` for a button,
 /// `double` for an axis, [Vector2] for a dual axis.
 ///
 /// Equality is by kind and name, so a declaration in a genre and a name read
 /// back from a file are the same action without a registry between them.
-sealed class InputAction<T extends Object> {
+abstract final class InputAction<T extends Object> {
   /// What it is called, in a tape, a saved action map and a rebind screen.
   String get name;
 

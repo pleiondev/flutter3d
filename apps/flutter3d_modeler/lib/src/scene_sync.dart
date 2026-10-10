@@ -467,6 +467,7 @@ final class SceneSync {
         ImportedGeometry(:final data) => data,
         // A socket draws nothing — see `SocketGeometry`'s own doc comment.
         SocketGeometry() => _empty,
+        _ => throw UnsupportedError('no mesh data for $geometry'),
       };
 
   /// What a socket uploads as: no vertices, no indices. One instance for all

@@ -78,6 +78,7 @@ class ObjectRow extends StatelessWidget {
                     // the model that something else is attached to, which is
                     // what an anchor says and what no shape glyph would.
                     SocketGeometry() => Icons.anchor_outlined,
+                    _ => Icons.help_outline,
                   },
                   size: 14,
                   color: theme.colorScheme.onSurfaceVariant,

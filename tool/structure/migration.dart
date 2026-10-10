@@ -122,7 +122,16 @@ const Map<String, String> manualAllowlist = <String, String>{
       'colour, or the old unit to lux); no kind rewrites an argument\'s value',
   '2b-model_core-ProjectLight':
       'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',  '2s-game-PadInput-device':
+      'an argument and a returned element change type from a device '
+      'package\'s to the game\'s own; no kind rewrites an argument\'s '
+      'expression or the type a comparison is written against',
+  '2s-game-PadPresses-menuButton':
+      'an argument changes type from a device package\'s button to the '
+      'game\'s own; no kind rewrites an argument\'s expression',
+  '2s-game-DesktopInput-capture':
+      'an argument changes type from a device package\'s pointer lock to '
+      'the game\'s own capture; no kind rewrites an argument\'s expression',
 };
 
 /// Words in what a person reads that belong to the work behind the release,

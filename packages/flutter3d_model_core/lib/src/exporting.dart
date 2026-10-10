@@ -41,38 +41,69 @@ import 'selection.dart';
 /// `flutter3d_mcp/model.dart`'s own tool table is held against its command names:
 /// a writer added there without a member here is a failing test rather than
 /// a format nobody can pick.
-enum ExportFormat {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ExportFormat {
+  const ExportFormat._(this.name, this.writer);
+
   /// The engine's own container: every surface, material, image, node and
   /// animation this repository knows how to write.
-  f3d(F3dModelWriter()),
+  static const ExportFormat f3d = ExportFormat._('f3d', F3dModelWriter());
 
   /// Wavefront OBJ with its `.mtl` beside it. The oldest thing every tool
   /// reads, and the least it can carry: triangles, a placement baked into
   /// them, and a Phong approximation of each material.
-  obj(ObjModelWriter()),
+  static const ExportFormat obj = ExportFormat._('obj', ObjModelWriter());
 
   /// A self-contained glTF binary — `fmt-06`'s own `GltfWriter`, the format
   /// most of the rest of the world actually opens. Everything OBJ cannot
   /// carry survives this one: the node tree, materials with textures,
   /// skins and animation.
-  glb(GlbModelWriter()),
+  static const ExportFormat glb = ExportFormat._('glb', GlbModelWriter());
 
   /// Binary STL: triangles and nothing else — no colour, no hierarchy, no
   /// names. What a printer and most CAD tools want, and `ux-18`'s own
   /// reason for being here: the writer has existed since `fmt-09` and this
   /// menu did not offer it, so the one format a person with a 3D printer
   /// came for was the one they could not choose.
-  stl(StlModelWriter()),
+  static const ExportFormat stl = ExportFormat._('stl', StlModelWriter());
 
   /// The same triangles as text. Larger by several times and readable in an
   /// editor, which is occasionally exactly what somebody needs.
-  stlAscii(StlModelWriter(ascii: true)),
+  static const ExportFormat stlAscii = ExportFormat._(
+    'stlAscii',
+    StlModelWriter(ascii: true),
+  );
 
   /// USDZ, for Quick Look on an Apple device — geometry only so far, which
   /// is what the writer's own sentence says and what this menu repeats.
-  usdz(UsdzModelWriter());
+  static const ExportFormat usdz = ExportFormat._('usdz', UsdzModelWriter());
 
-  const ExportFormat(this.writer);
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ExportFormat> values = <ExportFormat>[
+    f3d,
+    obj,
+    glb,
+    stl,
+    stlAscii,
+    usdz,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ExportFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   final ModelWriter writer;
 
@@ -98,7 +129,11 @@ enum ExportFormat {
   bool get carriesLods => switch (this) {
     f3d || glb => true,
     obj || stl || stlAscii || usdz => false,
+    _ => throw UnsupportedError('no export path for $this'),
   };
+
+  @override
+  String toString() => 'ExportFormat.$name';
 }
 
 /// How a texture's pixels are written — mat-30's own row: "an encoder …, an
@@ -111,9 +146,15 @@ enum ExportFormat {
 /// compressed format at all — see `ktx2_texture_export_test.dart`). `.f3d` is
 /// this engine's own container with its own loader, so it is the one place a
 /// choice made here does not have to satisfy anybody else's reader.
-enum TextureEncoding {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureEncoding {
+  const TextureEncoding._(this.name);
+
   /// What every writer already did before this option existed.
-  png,
+  static const TextureEncoding png = TextureEncoding._('png');
 
   /// BC3 for a texture with any translucent texel, BC1 otherwise — the same
   /// per-image choice `fmt-22`'s own encoders were built and PSNR-verified
@@ -128,7 +169,27 @@ enum TextureEncoding {
   /// guessed at: the bytes still decode to the same channel values a real
   /// GPU would sample, only without the sampler's own automatic gamma
   /// decode a `_SRGB` format would have asked for.
-  ktx2,
+  static const TextureEncoding ktx2 = TextureEncoding._('ktx2');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureEncoding> values = <TextureEncoding>[png, ktx2];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureEncoding? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureEncoding.$name';
 }
 
 /// One file an export produced.
@@ -148,9 +209,10 @@ final class ExportFile {
 ///
 /// **Three cases rather than bytes-or-null**, because the third one is the
 /// point. A project that will not export cleanly is neither a success nor a
-/// failure: it is a question for the person, and the compiler asking about all
-/// three is what stops a caller writing a file that quietly lost an object.
-sealed class ExportResult {
+/// failure: it is a question for the person. The set is open (a later release
+/// may answer "partly written"), so a `switch` over a result ends with a
+/// wildcard that writes nothing and says what came back.
+abstract final class ExportResult {
   const ExportResult();
 }
 

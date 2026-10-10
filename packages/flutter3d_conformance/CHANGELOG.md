@@ -2,6 +2,8 @@
 
 - **`viewport-beyond-target` is named among the features no call refuses**:
   a device without it is never handed such a viewport.
+- **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
+  transform a later minor adds to the fuzzer breaks no `switch` over them.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,
   the refusal the capability checks hold every backend to, lives now.
 

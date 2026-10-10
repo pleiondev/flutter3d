@@ -73,6 +73,9 @@ extension _F3dWriteBundle on F3dWriter {
           :final zfar,
         ) =>
           (1, xmag, ymag, znear, zfar, 3),
+        _ => throw UnsupportedError(
+          '.f3d has no camera record for ${camera.projection}',
+        ),
       };
       view
         ..setUint32(o, kind, Endian.little)

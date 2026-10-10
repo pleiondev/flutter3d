@@ -1245,6 +1245,9 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       StencilOperation.invert => ~stored,
       StencilOperation.incrementWrap => stored + 1,
       StencilOperation.decrementWrap => stored - 1,
+      _ => throw UnsupportedError(
+        'the software rasteriser has no stencil operation $op',
+      ),
     };
     stencil[index] =
         (stored & ~state.writeMask) | (value & state.writeMask & 0xFF);
@@ -1880,6 +1883,9 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     BlendOperation.reverseSubtract => d - s,
     BlendOperation.min => math.min(rawS, rawD),
     BlendOperation.max => math.max(rawS, rawD),
+    _ => throw UnsupportedError(
+      'the software rasteriser has no blend operation $op',
+    ),
   };
 
   /// One factor for one channel: [s] and [d] are that channel's source and
@@ -1919,6 +1925,9 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     BlendFactor.oneMinusSource1Color => 1.0 - s1,
     BlendFactor.source1Alpha => s1a,
     BlendFactor.oneMinusSource1Alpha => 1.0 - s1a,
+    _ => throw UnsupportedError(
+      'the software rasteriser has no blend factor $factor',
+    ),
   };
 
   /// The depth offset a triangle's fragments take — `setDepthBias`.

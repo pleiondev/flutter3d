@@ -133,6 +133,11 @@ final class SaveRecord {
 }
 
 /// What [SaveRecord.read] made of a document.
+///
+/// **Closed for good**: found or not read: the two answers to whether a
+/// document holds a save, with the reason inside the refusal. No case can be
+/// added without changing what the type means, so it stays sealed and a
+/// `switch` over it may name every case.
 sealed class SaveRead {
   const SaveRead();
 }
@@ -158,18 +163,49 @@ final class SaveNotRead extends SaveRead {
 }
 
 /// Which of two copies of a save to keep.
-enum SaveResolution {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SaveResolution {
+  const SaveResolution._(this.name);
+
   /// They are the same run, or there is neither.
-  inSync,
+  static const SaveResolution inSync = SaveResolution._('inSync');
 
   /// The local copy is the one to keep, and to send.
-  keepLocal,
+  static const SaveResolution keepLocal = SaveResolution._('keepLocal');
 
   /// The other copy is the one to keep, and to write here.
-  takeRemote,
+  static const SaveResolution takeRemote = SaveResolution._('takeRemote');
 
   /// Two different runs equally far along. Only the player can say.
-  ask,
+  static const SaveResolution ask = SaveResolution._('ask');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SaveResolution> values = <SaveResolution>[
+    inSync,
+    keepLocal,
+    takeRemote,
+    ask,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SaveResolution? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SaveResolution.$name';
 }
 
 /// Decides between [local] and [remote], given the digest both sides last

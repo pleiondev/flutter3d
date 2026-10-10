@@ -287,6 +287,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
           width,
           height,
         );
+      default:
+        throw UnsupportedError(
+          'WebGL2 cannot copy into a ${to.texture.dimension} texture',
+        );
     }
   }
 
@@ -440,6 +444,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
           type,
           offset.toJS,
         );
+      default:
+        throw UnsupportedError(
+          'WebGL2 cannot copy into a ${to.texture.dimension} texture',
+        );
     }
   }
 
@@ -515,6 +523,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
           internal,
           image.toJS,
           layout.offsetInBytes.toJS,
+        );
+      default:
+        throw UnsupportedError(
+          'WebGL2 cannot copy into a ${to.texture.dimension} texture',
         );
     }
   }

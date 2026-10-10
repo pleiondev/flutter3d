@@ -26,8 +26,14 @@ final class ActionDeclaration
   final String? label
   final bool rebindable
 
-enum ActionKind
-  values: button, axis, dualAxis
+final class ActionKind
+  String toString()
+  final String name
+  static ActionKind? byName(String name)
+  static const ActionKind axis = ActionKind._('axis')
+  static const ActionKind button = ActionKind._('button')
+  static const ActionKind dualAxis = ActionKind._('dualAxis')
+  static const List<ActionKind> values = <ActionKind>[button, axis, dualAxis]
 
 final class ActionSet
   ActionDeclaration? declarationOf(InputAction<Object> action)
@@ -283,8 +289,14 @@ final class BehaviorParameters
 
 typedef BehaviorPathStep = ({int node, String kind, String label, BehaviorStatus status});
 
-enum BehaviorStatus
-  values: success, failure, running
+final class BehaviorStatus
+  String toString()
+  final String name
+  static BehaviorStatus? byName(String name)
+  static const BehaviorStatus failure = BehaviorStatus._('failure')
+  static const BehaviorStatus running = BehaviorStatus._('running')
+  static const BehaviorStatus success = BehaviorStatus._('success')
+  static const List<BehaviorStatus> values = <BehaviorStatus>[success, failure, running]
 
 final class BehaviorTree
   BehaviorStatus tick(Mind mind, Blackboard board)
@@ -1166,9 +1178,9 @@ final class HttpTelemetrySink extends TelemetrySink
   final JsonPost post
   final Uri endpoint
 
-sealed class InputAction<T extends Object>
-  ActionKind get kind
-  String get name
+abstract final class InputAction<T extends Object>
+  abstract ActionKind get kind
+  abstract String get name
 
 final class InputFrame
   InputFrame withAxes(Map<String, double> axes)
@@ -1414,8 +1426,13 @@ final class LevelIssue
   final String message
   final String? where
 
-enum LevelIssueSeverity
-  values: error, warning
+final class LevelIssueSeverity
+  String toString()
+  final String name
+  static LevelIssueSeverity? byName(String name)
+  static const LevelIssueSeverity error = LevelIssueSeverity._('error')
+  static const LevelIssueSeverity warning = LevelIssueSeverity._('warning')
+  static const List<LevelIssueSeverity> values = <LevelIssueSeverity>[error, warning]
 
 typedef LevelKit = void Function(LevelSketch sketch, LevelRecipe recipe);
 
@@ -2167,7 +2184,7 @@ final class ReplaySide
   final void Function(Snapshot snapshot) restore
   int stepsRun
 
-sealed class Resimulation
+abstract final class Resimulation
   const Resimulation()
 
 final class ResimulationDiverged extends Resimulation
@@ -2342,8 +2359,15 @@ final class SaveRefused extends SaveUpgrade
   final String reason
   final bool newer
 
-enum SaveResolution
-  values: inSync, keepLocal, takeRemote, ask
+final class SaveResolution
+  String toString()
+  final String name
+  static SaveResolution? byName(String name)
+  static const List<SaveResolution> values = <SaveResolution>[inSync, keepLocal, takeRemote, ask]
+  static const SaveResolution ask = SaveResolution._('ask')
+  static const SaveResolution inSync = SaveResolution._('inSync')
+  static const SaveResolution keepLocal = SaveResolution._('keepLocal')
+  static const SaveResolution takeRemote = SaveResolution._('takeRemote')
 
 final class SaveSchema
   SaveUpgrade upgrade(Map<String, Object?> run, int from)
@@ -2438,12 +2462,19 @@ final class ServiceRefused<T> extends ServiceAnswer<T>
   const ServiceRefused(this.reason)
   final String reason
 
-enum ShadowCasting
-  values: on, off, doubleSided, shadowsOnly
+final class ShadowCasting
   String get wireName
+  String toString()
   bool get casts
   bool get needsWord
+  final String name
+  static ShadowCasting? byName(String name)
   static ShadowCasting? fromWireName(String word)
+  static const List<ShadowCasting> values = <ShadowCasting>[on, off, doubleSided, shadowsOnly]
+  static const ShadowCasting doubleSided = ShadowCasting._('doubleSided')
+  static const ShadowCasting off = ShadowCasting._('off')
+  static const ShadowCasting on = ShadowCasting._('on')
+  static const ShadowCasting shadowsOnly = ShadowCasting._('shadowsOnly')
 
 final class ShareBundle extends FormatDocument
   FormatSpec get spec

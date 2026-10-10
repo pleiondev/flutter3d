@@ -104,8 +104,6 @@ dev_dependencies:
   # A runner that climbs, for the character body's own test.
   flutter3d_game_platformer: ^1.0.0-rc.1
 
-  # A controller that is not there, for the pad feed's own test.
-  pad_input: ^0.5.0
 
   # Flame's own 2D physics, for the test that a bridged component follows
   # one of its bodies; the bridge itself asks only for Flame's providers.

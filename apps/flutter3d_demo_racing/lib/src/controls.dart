@@ -10,7 +10,6 @@ library;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 
 /// What this game lets a driver ask for.
 ///
@@ -68,12 +67,12 @@ const List<GameAction> rebindableActions = <GameAction>[
 /// engine's own defaults left out: this game does not walk, and a d-pad bound
 /// to `moveForward` here would be a control that means nothing.
 Bindings padBindings(Bindings bindings) => bindings
-  ..bind(InputSource.pad(PadButton.triggerRight.id), Drive.throttle)
-  ..bind(InputSource.pad(PadButton.triggerLeft.id), Drive.brake)
-  ..bind(InputSource.pad(PadButton.faceSouth.id), Drive.handbrake)
-  ..bind(InputSource.pad(PadButton.faceNorth.id), Drive.tireSet)
-  ..bind(InputSource.pad(PadButton.dpadLeft.id), Drive.left)
-  ..bind(InputSource.pad(PadButton.dpadRight.id), Drive.right);
+  ..bind(InputSource.pad(GamePadButton.triggerRight.id), Drive.throttle)
+  ..bind(InputSource.pad(GamePadButton.triggerLeft.id), Drive.brake)
+  ..bind(InputSource.pad(GamePadButton.faceSouth.id), Drive.handbrake)
+  ..bind(InputSource.pad(GamePadButton.faceNorth.id), Drive.tireSet)
+  ..bind(InputSource.pad(GamePadButton.dpadLeft.id), Drive.left)
+  ..bind(InputSource.pad(GamePadButton.dpadRight.id), Drive.right);
 
 /// The driving keys.
 ///

@@ -30,6 +30,11 @@ final class RunResponse {
 typedef RunTransport = Future<RunResponse> Function(RunRequest request);
 
 /// What a call to a service came to.
+///
+/// **Closed for good**: done or refused: the two answers a service gives, with
+/// the reason inside the refusal. No case can be added without changing what
+/// the type means, so it stays sealed and a `switch` over it may name every
+/// case.
 sealed class ServiceAnswer<T> {
   const ServiceAnswer();
 }

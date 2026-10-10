@@ -453,6 +453,10 @@ final class SimSession {
         );
       case final ResimulationRetraced found:
         retraced = found;
+      case final Resimulation other:
+        return _refuse(
+          'the replay answered $other, which this tool cannot read',
+        );
     }
     final run = retraced.run;
     final hex = retraced.finalDigest.toRadixString(16).padLeft(8, '0');

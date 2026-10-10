@@ -1,7 +1,6 @@
-import 'package:pad_input/pad_input.dart' show PadButton;
-
 import '../input/bindings.dart' show InputSource;
 import '../input/pad_actions.dart';
+import '../input/pad_device.dart';
 import 'game_settings.dart';
 
 /// The pad, as a screen reads it rather than as the game does.
@@ -24,7 +23,7 @@ import 'game_settings.dart';
 /// the whole point for a player who has one of the two devices.
 final class PadPresses {
   /// What was down last frame, so an edge is per button.
-  final Set<PadButton> _held = <PadButton>{};
+  final Set<GamePadButton> _held = <GamePadButton>{};
 
   /// Offers this frame's press to [settings], and says whether anything is
   /// left over for the screen.
@@ -59,7 +58,7 @@ final class PadPresses {
   bool offer(
     PadInput pad,
     GameSettingsController settings, {
-    PadButton? menuButton,
+    GamePadButton? menuButton,
     void Function()? opening,
   }) {
     final held = pad.heldButtons;
@@ -68,7 +67,9 @@ final class PadPresses {
     // anything down", so a player who died holding the accelerator had to let
     // go of everything before Start would register — the edge had already been
     // spent by the button they were still holding.
-    final pressed = held.where((PadButton it) => !_held.contains(it)).toList();
+    final pressed = held
+        .where((GamePadButton it) => !_held.contains(it))
+        .toList();
     _held
       ..clear()
       ..addAll(held);

@@ -34,6 +34,7 @@ int stencilOperationToGl(StencilOperation op) => switch (op) {
   StencilOperation.invert => web.WebGLRenderingContext.INVERT,
   StencilOperation.incrementWrap => web.WebGLRenderingContext.INCR_WRAP,
   StencilOperation.decrementWrap => web.WebGLRenderingContext.DECR_WRAP,
+  _ => throw UnsupportedError('WebGL2 has no stencil operation for $op'),
 };
 
 /// Which face a `stencil*Separate` call addresses.
@@ -51,6 +52,7 @@ int? cullModeToGl(CullMode mode) => switch (mode) {
   CullMode.none => null,
   CullMode.frontFace => web.WebGLRenderingContext.FRONT,
   CullMode.backFace => web.WebGLRenderingContext.BACK,
+  _ => throw UnsupportedError('WebGL2 has no cull face for $mode'),
 };
 
 int windingOrderToGl(WindingOrder order) => switch (order) {
@@ -64,6 +66,7 @@ int primitiveTypeToGl(PrimitiveType type) => switch (type) {
   PrimitiveType.line => web.WebGLRenderingContext.LINES,
   PrimitiveType.lineStrip => web.WebGLRenderingContext.LINE_STRIP,
   PrimitiveType.point => web.WebGLRenderingContext.POINTS,
+  _ => throw UnsupportedError('WebGL2 has no primitive for $type'),
 };
 
 int blendFactorToGl(BlendFactor factor) => switch (factor) {
@@ -96,7 +99,8 @@ int blendFactorToGl(BlendFactor factor) => switch (factor) {
   BlendFactor.source1Color => 0x88F9, // SRC1_COLOR_WEBGL
   BlendFactor.oneMinusSource1Color => 0x88FA, // ONE_MINUS_SRC1_COLOR_WEBGL
   BlendFactor.source1Alpha => 0x8589, // SRC1_ALPHA_WEBGL
-  BlendFactor.oneMinusSource1Alpha => 0x88FB, // ONE_MINUS_SRC1_ALPHA_WEBGL
+  BlendFactor.oneMinusSource1Alpha => 0x88FB, // ONE_MINUS_SRC1_ALPHA_WEBGL,
+  _ => throw UnsupportedError('WebGL2 has no blend factor for $factor'),
 };
 
 /// Min and max are WebGL2 core (`EXT_blend_minmax` in WebGL1), so every
@@ -108,17 +112,20 @@ int blendOperationToGl(BlendOperation op) => switch (op) {
     web.WebGLRenderingContext.FUNC_REVERSE_SUBTRACT,
   BlendOperation.min => web.WebGL2RenderingContext.MIN,
   BlendOperation.max => web.WebGL2RenderingContext.MAX,
+  _ => throw UnsupportedError('WebGL2 has no blend equation for $op'),
 };
 
 int indexTypeToGl(IndexType type) => switch (type) {
   IndexType.int16 => web.WebGLRenderingContext.UNSIGNED_SHORT,
   IndexType.int32 => web.WebGLRenderingContext.UNSIGNED_INT,
+  _ => throw UnsupportedError('WebGL2 has no index type for $type'),
 };
 
 /// Bytes per index, for turning a count into a buffer length.
 int indexSizeInBytes(IndexType type) => switch (type) {
   IndexType.int16 => 2,
   IndexType.int32 => 4,
+  _ => throw UnsupportedError('no index size for $type'),
 };
 
 /// How the host's bytes for [format] are handed to `texSubImage2D`: the
@@ -359,6 +366,7 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
 int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => web.WebGLRenderingContext.NEAREST,
   MinMagFilter.linear => web.WebGLRenderingContext.LINEAR,
+  _ => throw UnsupportedError('WebGL2 has no filter for $filter'),
 };
 
 /// The minification filter, with the mip filter folded in the way GL wants.
@@ -393,12 +401,16 @@ int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
       (MinMagFilter.linear, MipFilter.linear) =>
         web.WebGLRenderingContext.LINEAR_MIPMAP_LINEAR,
       (final MinMagFilter plain, MipFilter.nearest) => minMagFilterToGl(plain),
+      _ => throw UnsupportedError(
+        'WebGL2 has no minification filter for ${(filter, mip)}',
+      ),
     };
 
 int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => web.WebGLRenderingContext.CLAMP_TO_EDGE,
   SamplerAddressMode.repeat => web.WebGLRenderingContext.REPEAT,
   SamplerAddressMode.mirror => web.WebGLRenderingContext.MIRRORED_REPEAT,
+  _ => throw UnsupportedError('WebGL2 has no wrap mode for $mode'),
 };
 
 /// Whether WebGL2 can draw this polygon mode at all.
@@ -415,6 +427,7 @@ int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
 bool canDrawPolygonMode(PolygonMode mode) => switch (mode) {
   PolygonMode.fill => true,
   PolygonMode.line => false,
+  _ => false,
 };
 
 /// Which compressed-texture extensions this context's [getExtension] answered

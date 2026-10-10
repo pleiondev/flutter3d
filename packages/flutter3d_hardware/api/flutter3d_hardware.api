@@ -39,14 +39,44 @@ typedef BackendOpener = Future<GraphicsDevice> Function({required int width, req
 extension BindUniformBlockObject on PassEncoder
   bool bindBlock(ShaderHandle stage, UniformBlock block)
 
-enum BlendFactor
-  values: zero, one, sourceColor, oneMinusSourceColor, sourceAlpha, oneMinusSourceAlpha, destinationColor, oneMinusDestinationColor, destinationAlpha, oneMinusDestinationAlpha, sourceAlphaSaturated, blendColor, oneMinusBlendColor, blendAlpha, oneMinusBlendAlpha, source1Color, oneMinusSource1Color, source1Alpha, oneMinusSource1Alpha
+final class BlendFactor
+  String toString()
+  final String name
+  static BlendFactor? byName(String name)
+  static const BlendFactor blendAlpha = BlendFactor._('blendAlpha')
+  static const BlendFactor blendColor = BlendFactor._('blendColor')
+  static const BlendFactor destinationAlpha = BlendFactor._('destinationAlpha')
+  static const BlendFactor destinationColor = BlendFactor._('destinationColor')
+  static const BlendFactor one = BlendFactor._('one')
+  static const BlendFactor oneMinusBlendAlpha = BlendFactor._('oneMinusBlendAlpha')
+  static const BlendFactor oneMinusBlendColor = BlendFactor._('oneMinusBlendColor')
+  static const BlendFactor oneMinusDestinationAlpha = BlendFactor._('oneMinusDestinationAlpha')
+  static const BlendFactor oneMinusDestinationColor = BlendFactor._('oneMinusDestinationColor')
+  static const BlendFactor oneMinusSource1Alpha = BlendFactor._('oneMinusSource1Alpha')
+  static const BlendFactor oneMinusSource1Color = BlendFactor._('oneMinusSource1Color')
+  static const BlendFactor oneMinusSourceAlpha = BlendFactor._('oneMinusSourceAlpha')
+  static const BlendFactor oneMinusSourceColor = BlendFactor._('oneMinusSourceColor')
+  static const BlendFactor source1Alpha = BlendFactor._('source1Alpha')
+  static const BlendFactor source1Color = BlendFactor._('source1Color')
+  static const BlendFactor sourceAlpha = BlendFactor._('sourceAlpha')
+  static const BlendFactor sourceAlphaSaturated = BlendFactor._('sourceAlphaSaturated')
+  static const BlendFactor sourceColor = BlendFactor._('sourceColor')
+  static const BlendFactor zero = BlendFactor._('zero')
+  static const List<BlendFactor> values = …
 
 extension BlendFactorInfo on BlendFactor
   bool get isDualSource
 
-enum BlendOperation
-  values: add, subtract, reverseSubtract, min, max
+final class BlendOperation
+  String toString()
+  final String name
+  static BlendOperation? byName(String name)
+  static const BlendOperation add = BlendOperation._('add')
+  static const BlendOperation max = BlendOperation._('max')
+  static const BlendOperation min = BlendOperation._('min')
+  static const BlendOperation reverseSubtract = BlendOperation._('reverseSubtract')
+  static const BlendOperation subtract = BlendOperation._('subtract')
+  static const List<BlendOperation> values = <BlendOperation>[add, subtract, reverseSubtract, min, max]
 
 final class BlendState
   bool get usesBlendColor
@@ -157,8 +187,14 @@ final class ComputePipelineHandle
   final ShaderHandle shader
   void dispose()
 
-enum CullMode
-  values: none, frontFace, backFace
+final class CullMode
+  String toString()
+  final String name
+  static CullMode? byName(String name)
+  static const CullMode backFace = CullMode._('backFace')
+  static const CullMode frontFace = CullMode._('frontFace')
+  static const CullMode none = CullMode._('none')
+  static const List<CullMode> values = <CullMode>[none, frontFace, backFace]
 
 @immutable final class DepthBias
   String toString()
@@ -170,8 +206,13 @@ enum CullMode
   int get hashCode
   static const DepthBias none = DepthBias()
 
-enum DepthRange
-  values: zeroToOne, negativeOneToOne
+final class DepthRange
+  String toString()
+  final String name
+  static DepthRange? byName(String name)
+  static const DepthRange negativeOneToOne = DepthRange._('negativeOneToOne')
+  static const DepthRange zeroToOne = DepthRange._('zeroToOne')
+  static const List<DepthRange> values = <DepthRange>[zeroToOne, negativeOneToOne]
 
 final class DepthTarget
   const DepthTarget({required this.texture, this.clearValue = 1.0, this.loadAction = LoadAction.clear, this.storeAction = StoreAction.dontCare, this.stencilLoadAction = LoadAction.clear, this.stencilStoreAction = StoreAction.dontCare, this.stencilClearValue = 0, this.mipLevel = 0, this.layer = 0, this.face = 0, this.depthReadOnly = false, this.stencilReadOnly = false})
@@ -352,8 +393,13 @@ final class DeviceUnavailableException extends ResourceException
 base mixin EncodedImageUpload on GraphicsDevice
   abstract Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
 
-enum FeatureStability
-  values: stable, reserved
+final class FeatureStability
+  String toString()
+  final String name
+  static FeatureStability? byName(String name)
+  static const FeatureStability reserved = FeatureStability._('reserved')
+  static const FeatureStability stable = FeatureStability._('stable')
+  static const List<FeatureStability> values = <FeatureStability>[stable, reserved]
 
 enum FramebufferOrigin
   values: topLeft, bottomLeft
@@ -367,8 +413,13 @@ final class GeometryBuffer
   final int offsetInBytes
   void dispose()
 
-enum GeometryUsage
-  values: vertices, indices
+final class GeometryUsage
+  String toString()
+  final String name
+  static GeometryUsage? byName(String name)
+  static const GeometryUsage indices = GeometryUsage._('indices')
+  static const GeometryUsage vertices = GeometryUsage._('vertices')
+  static const List<GeometryUsage> values = <GeometryUsage>[vertices, indices]
 
 final class GpuFrameTimings
   const GpuFrameTimings({required this.frame, required this.passes})
@@ -434,8 +485,13 @@ abstract base class GraphicsDevice with TextureAllocator
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
-enum IndexType
-  values: int16, int32
+final class IndexType
+  String toString()
+  final String name
+  static IndexType? byName(String name)
+  static const IndexType int16 = IndexType._('int16')
+  static const IndexType int32 = IndexType._('int32')
+  static const List<IndexType> values = <IndexType>[int16, int32]
 
 @immutable final class IndexedDraw
   String toString()
@@ -461,29 +517,50 @@ final class LayeredShaderLibrary with ShaderLibrary
   final ShaderLibrary first
   final ShaderLibrary second
 
-enum LoadAction
-  values: dontCare, load, clear
+final class LoadAction
+  String toString()
+  final String name
+  static LoadAction? byName(String name)
+  static const List<LoadAction> values = <LoadAction>[dontCare, load, clear]
+  static const LoadAction clear = LoadAction._('clear')
+  static const LoadAction dontCare = LoadAction._('dontCare')
+  static const LoadAction load = LoadAction._('load')
 
 base mixin LoadedShaderLibrary on ShaderLibrary
   abstract String get name
   abstract void refresh(ByteData bytes)
 
-enum MapMode
-  values: read, write
+final class MapMode
+  String toString()
+  final String name
+  static MapMode? byName(String name)
+  static const List<MapMode> values = <MapMode>[read, write]
+  static const MapMode read = MapMode._('read')
+  static const MapMode write = MapMode._('write')
 
 abstract base class MappedBuffer
   abstract ByteData get bytes
   abstract void unmap()
 
-enum MinMagFilter
-  values: nearest, linear
+final class MinMagFilter
+  String toString()
+  final String name
+  static MinMagFilter? byName(String name)
+  static const List<MinMagFilter> values = <MinMagFilter>[nearest, linear]
+  static const MinMagFilter linear = MinMagFilter._('linear')
+  static const MinMagFilter nearest = MinMagFilter._('nearest')
 
 abstract final class MipChain
   static List<ByteData> build(ByteData pixels, int width, int height)
   static int levelsFor(int width, int height)
 
-enum MipFilter
-  values: nearest, linear
+final class MipFilter
+  String toString()
+  final String name
+  static MipFilter? byName(String name)
+  static const List<MipFilter> values = <MipFilter>[nearest, linear]
+  static const MipFilter linear = MipFilter._('linear')
+  static const MipFilter nearest = MipFilter._('nearest')
 
 abstract base mixin class PassEncoder
   abstract bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerDescriptor? sampler})
@@ -565,14 +642,36 @@ final class PipelineHandle
   final String name
   void dispose()
 
-enum PipelineStatistic
-  values: vertexShaderInvocations, clipperInvocations, clipperPrimitivesOut, fragmentShaderInvocations, computeShaderInvocations
+final class PipelineStatistic
+  String toString()
+  final String name
+  int get index
+  static PipelineStatistic? byName(String name)
+  static const List<PipelineStatistic> values = <PipelineStatistic>[vertexShaderInvocations, clipperInvocations, clipperPrimitivesOut, fragmentShaderInvocations, computeShaderInvocations]
+  static const PipelineStatistic clipperInvocations = PipelineStatistic._('clipperInvocations')
+  static const PipelineStatistic clipperPrimitivesOut = PipelineStatistic._('clipperPrimitivesOut')
+  static const PipelineStatistic computeShaderInvocations = PipelineStatistic._('computeShaderInvocations')
+  static const PipelineStatistic fragmentShaderInvocations = PipelineStatistic._('fragmentShaderInvocations')
+  static const PipelineStatistic vertexShaderInvocations = PipelineStatistic._('vertexShaderInvocations')
 
-enum PolygonMode
-  values: fill, line
+final class PolygonMode
+  String toString()
+  final String name
+  static PolygonMode? byName(String name)
+  static const List<PolygonMode> values = <PolygonMode>[fill, line]
+  static const PolygonMode fill = PolygonMode._('fill')
+  static const PolygonMode line = PolygonMode._('line')
 
-enum PrimitiveType
-  values: triangle, triangleStrip, line, lineStrip, point
+final class PrimitiveType
+  String toString()
+  final String name
+  static PrimitiveType? byName(String name)
+  static const List<PrimitiveType> values = <PrimitiveType>[triangle, triangleStrip, line, lineStrip, point]
+  static const PrimitiveType line = PrimitiveType._('line')
+  static const PrimitiveType lineStrip = PrimitiveType._('lineStrip')
+  static const PrimitiveType point = PrimitiveType._('point')
+  static const PrimitiveType triangle = PrimitiveType._('triangle')
+  static const PrimitiveType triangleStrip = PrimitiveType._('triangleStrip')
 
 final class QuerySet
   String toString()
@@ -642,11 +741,23 @@ final class RenderTargetPool
   int trim()
   void release(TextureHandle texture)
 
-enum SamplerAddressMode
-  values: clampToEdge, repeat, mirror
+final class SamplerAddressMode
+  String toString()
+  final String name
+  static SamplerAddressMode? byName(String name)
+  static const List<SamplerAddressMode> values = <SamplerAddressMode>[clampToEdge, repeat, mirror]
+  static const SamplerAddressMode clampToEdge = SamplerAddressMode._('clampToEdge')
+  static const SamplerAddressMode mirror = SamplerAddressMode._('mirror')
+  static const SamplerAddressMode repeat = SamplerAddressMode._('repeat')
 
-enum SamplerBorderColor
-  values: transparentBlack, opaqueBlack, opaqueWhite
+final class SamplerBorderColor
+  String toString()
+  final String name
+  static SamplerBorderColor? byName(String name)
+  static const List<SamplerBorderColor> values = <SamplerBorderColor>[transparentBlack, opaqueBlack, opaqueWhite]
+  static const SamplerBorderColor opaqueBlack = SamplerBorderColor._('opaqueBlack')
+  static const SamplerBorderColor opaqueWhite = SamplerBorderColor._('opaqueWhite')
+  static const SamplerBorderColor transparentBlack = SamplerBorderColor._('transparentBlack')
 
 final class SamplerDescriptor
   SamplerDescriptor withAnisotropy(int anisotropy)
@@ -742,8 +853,19 @@ typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
 enum StencilFace
   values: both, front, back
 
-enum StencilOperation
-  values: keep, zero, setToReferenceValue, incrementClamp, decrementClamp, invert, incrementWrap, decrementWrap
+final class StencilOperation
+  String toString()
+  final String name
+  static StencilOperation? byName(String name)
+  static const List<StencilOperation> values = <StencilOperation>[keep, zero, setToReferenceValue, incrementClamp, decrementClamp, invert, incrementWrap, decrementWrap]
+  static const StencilOperation decrementClamp = StencilOperation._('decrementClamp')
+  static const StencilOperation decrementWrap = StencilOperation._('decrementWrap')
+  static const StencilOperation incrementClamp = StencilOperation._('incrementClamp')
+  static const StencilOperation incrementWrap = StencilOperation._('incrementWrap')
+  static const StencilOperation invert = StencilOperation._('invert')
+  static const StencilOperation keep = StencilOperation._('keep')
+  static const StencilOperation setToReferenceValue = StencilOperation._('setToReferenceValue')
+  static const StencilOperation zero = StencilOperation._('zero')
 
 final class StencilState
   String toString()
@@ -769,14 +891,27 @@ final class StorageBuffer
   final int lengthInBytes
   void dispose()
 
-enum StorageMode
-  values: hostVisible, devicePrivate, deviceTransient
+final class StorageMode
+  String toString()
+  final String name
+  static StorageMode? byName(String name)
+  static const List<StorageMode> values = <StorageMode>[hostVisible, devicePrivate, deviceTransient]
+  static const StorageMode devicePrivate = StorageMode._('devicePrivate')
+  static const StorageMode deviceTransient = StorageMode._('deviceTransient')
+  static const StorageMode hostVisible = StorageMode._('hostVisible')
 
 enum StorageTextureAccess
   values: writeOnly, readOnly, readWrite
 
-enum StoreAction
-  values: dontCare, store, multisampleResolve, storeAndMultisampleResolve
+final class StoreAction
+  String toString()
+  final String name
+  static StoreAction? byName(String name)
+  static const List<StoreAction> values = <StoreAction>[dontCare, store, multisampleResolve, storeAndMultisampleResolve]
+  static const StoreAction dontCare = StoreAction._('dontCare')
+  static const StoreAction multisampleResolve = StoreAction._('multisampleResolve')
+  static const StoreAction store = StoreAction._('store')
+  static const StoreAction storeAndMultisampleResolve = StoreAction._('storeAndMultisampleResolve')
 
 abstract base mixin class TextureAllocator
   abstract TextureHandle createTexture(TextureDescriptor descriptor)
@@ -812,8 +947,17 @@ final class TextureCopyLocation
   final int width
   int get hashCode
 
-enum TextureDimension
-  values: d1, d2, d2Array, d3, cube, cubeArray
+final class TextureDimension
+  String toString()
+  final String name
+  static TextureDimension? byName(String name)
+  static const List<TextureDimension> values = <TextureDimension>[d1, d2, d2Array, d3, cube, cubeArray]
+  static const TextureDimension cube = TextureDimension._('cube')
+  static const TextureDimension cubeArray = TextureDimension._('cubeArray')
+  static const TextureDimension d1 = TextureDimension._('d1')
+  static const TextureDimension d2 = TextureDimension._('d2')
+  static const TextureDimension d2Array = TextureDimension._('d2Array')
+  static const TextureDimension d3 = TextureDimension._('d3')
 
 final class TextureFormat
   String toString()
@@ -934,11 +1078,26 @@ final class TextureHandle
   final int z
   int get hashCode
 
-enum TextureSampleKind
-  values: float, sint, uint, depth, stencil
+final class TextureSampleKind
+  String toString()
+  final String name
+  static TextureSampleKind? byName(String name)
+  static const List<TextureSampleKind> values = <TextureSampleKind>[float, sint, uint, depth, stencil]
+  static const TextureSampleKind depth = TextureSampleKind._('depth')
+  static const TextureSampleKind float = TextureSampleKind._('float')
+  static const TextureSampleKind sint = TextureSampleKind._('sint')
+  static const TextureSampleKind stencil = TextureSampleKind._('stencil')
+  static const TextureSampleKind uint = TextureSampleKind._('uint')
 
-enum TextureType
-  values: texture2D, texture2DMultisample, textureCube, textureExternalOES
+final class TextureType
+  String toString()
+  final String name
+  static TextureType? byName(String name)
+  static const List<TextureType> values = <TextureType>[texture2D, texture2DMultisample, textureCube, textureExternalOES]
+  static const TextureType texture2D = TextureType._('texture2D')
+  static const TextureType texture2DMultisample = TextureType._('texture2DMultisample')
+  static const TextureType textureCube = TextureType._('textureCube')
+  static const TextureType textureExternalOES = TextureType._('textureExternalOES')
 
 @immutable final class TextureUsage
   String toString()
@@ -998,8 +1157,13 @@ final class VertexLayoutDescriptor
   const VertexLayoutDescriptor(this.buffers)
   final List<BufferLayout> buffers
 
-enum VertexStepMode
-  values: vertex, instance
+final class VertexStepMode
+  String toString()
+  final String name
+  static VertexStepMode? byName(String name)
+  static const List<VertexStepMode> values = <VertexStepMode>[vertex, instance]
+  static const VertexStepMode instance = VertexStepMode._('instance')
+  static const VertexStepMode vertex = VertexStepMode._('vertex')
 
 enum WindingOrder
   values: clockwise, counterClockwise

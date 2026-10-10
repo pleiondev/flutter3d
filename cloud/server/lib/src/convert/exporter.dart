@@ -232,7 +232,13 @@ class ExportRuns<T> {
   Future<T> once(String key, Future<T> Function() work) {
     final running = _running[key];
     if (running != null) return running;
-    final started = work().whenComplete(() => _running.remove(key));
+    // A block body, not `=> _running.remove(key)`: `remove` answers the
+    // future it removes, which is `started` itself, and `whenComplete` waits
+    // on a future its callback returns — so the arrow form waits on itself
+    // and never completes.
+    final started = work().whenComplete(() {
+      _running.remove(key);
+    });
     _running[key] = started;
     return started;
   }

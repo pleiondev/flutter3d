@@ -2419,6 +2419,62 @@ List<Finding> proveDetectorsWork() {
     'only the runtime is held to it, and only against the tools',
   );
 
+  // Nothing at 1.x stands on 0.x (S6). Mutation: compare the major with `>`
+  // and a release candidate is not 1.x; drop the `versions.containsKey` and
+  // a pub.dev package with no version here reads as 0.x.
+  const lines = <String, String>{
+    'stable': '1.0.0-rc.1',
+    'lab': '0.3.0',
+    'other': '1.2.0',
+  };
+  fires(
+    'nothing at 1.x stands on 0.x',
+    stableOnUnstable(<String, Set<String>>{
+          'stable': <String>{'lab', 'other', 'vector_math'},
+        }, lines).single ==
+        ('stable', 'lab'),
+    'a release candidate of 1.0.0 depending on a 0.x package',
+  );
+  quiet(
+    'nothing at 1.x stands on 0.x',
+    stableOnUnstable(<String, Set<String>>{
+      'lab': <String>{'stable', 'other'},
+      'other': <String>{'stable', 'vector_math'},
+    }, lines).isEmpty,
+    'a 0.x package on 1.x ones, and a 1.x one on 1.x and pub.dev',
+    'the rule holds the stable side only, and only to this repository',
+  );
+  // ... and what is refused is a 0.x type in the 1.x API. Mutation: match
+  // without word boundaries and `GamePadButton` names `PadButton`; drop the
+  // capital and a member `read` names a 0.x function.
+  const unstable = <String>{'PadButton', 'PointerLock', 'read'};
+  fires(
+    'a 1.x API names no 0.x type',
+    unstableNamesIn(
+          'final class DesktopInput\n  DesktopInput({PointerLock? capture})\n',
+          unstable,
+        ).single ==
+        'PointerLock',
+    'a 0.x type in a 1.x constructor',
+  );
+  quiet(
+    'a 1.x API names no 0.x type',
+    unstableNamesIn(
+      'final class PadInput\n  Iterable<GamePadButton> get held\n'
+      '  void read(PadReading out)\n',
+      unstable,
+    ).isEmpty,
+    'a type of its own whose name ends in a 0.x one, and a member named alike',
+    'only a whole type name is the 0.x package\'s',
+  );
+  fires(
+    'major version',
+    majorVersionOf('1.0.0-rc.1') == 1 &&
+        majorVersionOf('0.5.0') == 0 &&
+        majorVersionOf('none') == null,
+    '1.0.0-rc.1, 0.5.0 and a word',
+  );
+
   // The simulation draws nothing (rule 6): an import of the core is found,
   // one of the native physics or of a package whose name only starts like
   // a forbidden one is not.

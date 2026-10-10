@@ -255,6 +255,8 @@ final class SaveSync {
           remote: remote,
           remoteVersion: version,
         );
+      case final SaveResolution other:
+        throw UnsupportedError('a sync has no step for $other yet');
     }
   }
 

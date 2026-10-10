@@ -195,6 +195,7 @@ class ActionBindingsSection extends StatelessWidget {
         CompositePart.right,
       ],
       GameAction() => const <CompositePart>[],
+      _ => const <CompositePart>[],
     };
     return <Widget>[
       if (action is GameAction)

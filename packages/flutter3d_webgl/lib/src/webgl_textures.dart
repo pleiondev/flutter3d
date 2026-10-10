@@ -55,6 +55,7 @@ int? webglTargetOf(TextureDimension dimension) => switch (dimension) {
   TextureDimension.cube => web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
   // No 1D texture in GL ES at all, and no cube array before ES 3.2.
   TextureDimension.d1 || TextureDimension.cubeArray => null,
+  _ => null,
 };
 
 /// A texture as [descriptor] says, allocated with `texStorage2D` or
@@ -328,6 +329,10 @@ void webglWriteTexture(
         transfer.type,
         webglTransferView(ByteData.sublistView(tight), transfer.type),
       );
+    default:
+      throw UnsupportedError(
+        'WebGL2 cannot upload into a ${target.dimension} texture',
+      );
   }
   gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 4);
 }
@@ -412,6 +417,10 @@ void _writeCompressed(
         box.height,
         internal,
         tight.toJS,
+      );
+    default:
+      throw UnsupportedError(
+        'WebGL2 cannot upload into a ${target.dimension} texture',
       );
   }
 }

@@ -271,6 +271,7 @@ final class BehaviorTree {
         BehaviorStatus.success => BehaviorStatus.failure,
         BehaviorStatus.failure => BehaviorStatus.success,
         BehaviorStatus.running => BehaviorStatus.running,
+        final BehaviorStatus other => other,
       },
       _AlwaysSucceed() => switch (_tick(node.child, context)) {
         BehaviorStatus.running => BehaviorStatus.running,

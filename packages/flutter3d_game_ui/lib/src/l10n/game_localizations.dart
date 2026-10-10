@@ -155,6 +155,7 @@ base class Flutter3dGameLocalizations {
     CompositePart.down => 'down',
     CompositePart.left => 'left',
     CompositePart.right => 'right',
+    _ => part.name,
   };
 
   /// The line under the controls after a rebind took [source] from
@@ -427,6 +428,7 @@ final class _Russian extends Flutter3dGameLocalizations {
     CompositePart.down => 'вниз',
     CompositePart.left => 'влево',
     CompositePart.right => 'вправо',
+    _ => part.name,
   };
   @override
   String conflict(String source, String action) =>

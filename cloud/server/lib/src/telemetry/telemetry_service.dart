@@ -134,10 +134,12 @@ final class TelemetryService {
         return _say(400, 'an upload is a JSON object');
       }
       upload = TelemetryUpload.fromJson(json);
+    } on TelemetryUploadFormatException catch (error) {
+      // First: it is a `FormatException` too, and its sentence is about the
+      // upload, which is JSON — "not JSON" in front of it would be wrong.
+      return _say(400, error.message);
     } on FormatException catch (error) {
       return _say(400, 'not JSON: ${error.message}');
-    } on TelemetryUploadFormatException catch (error) {
-      return _say(400, error.message);
     }
 
     final demo = upload.demo;
@@ -272,6 +274,8 @@ _Replayed _replayed(
     steps: steps,
     trail: trail,
   ),
+  // An answer a later release adds is one this server cannot vouch for.
+  final Resimulation other => _refused('the replay answered $other'),
 };
 
 _Replayed _refused(String why) =>

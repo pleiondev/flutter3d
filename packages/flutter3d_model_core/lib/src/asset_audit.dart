@@ -47,21 +47,53 @@ const double assetMinSize = 0.01;
 const double assetMaxSize = 100.0;
 
 /// Which of the audit's questions a finding answers.
-enum AuditCheck {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AuditCheck {
+  const AuditCheck._(this.name);
+
   /// The overall size is outside [assetMinSize]…[assetMaxSize].
-  units,
+  static const AuditCheck units = AuditCheck._('units');
 
   /// The origin is away from the base centre of the bounds.
-  pivot,
+  static const AuditCheck pivot = AuditCheck._('pivot');
 
   /// An `ExportReadiness` issue: a budget, an empty mesh, a pinch.
-  readiness,
+  static const AuditCheck readiness = AuditCheck._('readiness');
 
   /// Two or more materials identical but for their names.
-  materials,
+  static const AuditCheck materials = AuditCheck._('materials');
 
   /// What rebuilding an imported mesh's topology had to decide.
-  mesh,
+  static const AuditCheck mesh = AuditCheck._('mesh');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AuditCheck> values = <AuditCheck>[
+    units,
+    pivot,
+    readiness,
+    materials,
+    mesh,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AuditCheck? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'AuditCheck.$name';
 }
 
 /// One thing wrong with an asset, in a sentence with its numbers in it.
@@ -236,6 +268,7 @@ Aabb3? _localBoundsOf(Geometry geometry) => switch (geometry) {
     data.triangleCount == 0 ? null : data.computeBounds(),
   ParametricGeometry(:final shape) => shape.drawn.build().computeBounds(),
   SocketGeometry() => null,
+  _ => throw UnsupportedError('no bounds for $geometry'),
 };
 
 /// The origin further from the base centre than this reads as misplaced: a

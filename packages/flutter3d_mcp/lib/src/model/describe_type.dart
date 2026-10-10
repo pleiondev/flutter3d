@@ -140,4 +140,5 @@ String _hint(ParamHint? hint) => switch (hint) {
   Vector3Hint(:final unit) => unit == null ? '' : ' (in $unit)',
   ChoiceHint(:final values) => ', one of ${values.join(', ')}',
   BoolHint() => '',
+  _ => '',
 };

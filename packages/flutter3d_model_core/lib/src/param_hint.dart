@@ -12,9 +12,9 @@
 /// command's are metres, radians and counts. Sharing the type would also
 /// mean this package importing `LightingModel` for a picker it never shows.
 ///
-/// Sealed, so a switch building a control from one of these is exhaustive —
-/// the same reasoning `MaterialHintKind` gives for itself.
-sealed class ParamHint {
+/// An open set grown only here, for the reason `MaterialHintKind` gives for
+/// itself: a switch building a control from one ends with a wildcard.
+abstract final class ParamHint {
   const ParamHint();
 }
 

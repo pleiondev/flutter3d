@@ -9,10 +9,16 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show ActionMap, Bindings, InputSource, PadInput;
+    show
+        ActionMap,
+        Bindings,
+        GamePadButton,
+        InputSource,
+        PadDevice,
+        PadInput,
+        PadReading;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pad_input/pad_input.dart';
 
 const GameAction _up = GameAction('up');
 
@@ -33,19 +39,12 @@ KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
 );
 
 /// A controller with the south face button held, and nothing else.
-final class _HeldA extends GamepadPlatform {
+final class _HeldA extends PadDevice {
   @override
-  bool get isSupported => true;
-
-  @override
-  Stream<PadConnection> get connectionChanges =>
-      const Stream<PadConnection>.empty();
-
-  @override
-  void read(PadSnapshot out) {
+  void read(PadReading out) {
     out
       ..isConnected = true
-      ..setDown(PadButton.faceSouth, down: true);
+      ..setDown(GamePadButton.faceSouth, down: true);
   }
 }
 
@@ -80,17 +79,14 @@ void main() {
       // Nothing ticked a PadInput in a Flame game, and it never moved.
       //
       // Mutation: leave the pad unticked.
-      final pad = PadInput(
-        state: InputState(),
-        pad: Gamepad(platform: _HeldA()),
-      );
+      final pad = PadInput(state: InputState(), pad: _HeldA());
       final bridge = _player(LogicalKeyboardKey.keyW);
       await game.addAll(<Component>[bridge.followPad(pad)]);
       await game.ready();
 
       expect(pad.heldButtons, isEmpty);
       game.update(1 / 60);
-      expect(pad.heldButtons, contains(PadButton.faceSouth));
+      expect(pad.heldButtons, contains(GamePadButton.faceSouth));
     },
   );
 }

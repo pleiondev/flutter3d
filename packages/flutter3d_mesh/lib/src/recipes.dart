@@ -29,16 +29,60 @@ import 'edit_mesh.dart';
 import 'parametric.dart';
 
 /// What a recipe belongs to, for a gallery to group by.
-enum RecipeCategory {
-  lighting('Lighting'),
-  furniture('Furniture'),
-  tableware('Tableware'),
-  architecture('Architecture');
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class RecipeCategory {
+  const RecipeCategory._(this.name, this.label);
 
-  const RecipeCategory(this.label);
+  static const RecipeCategory lighting = RecipeCategory._(
+    'lighting',
+    'Lighting',
+  );
+
+  static const RecipeCategory furniture = RecipeCategory._(
+    'furniture',
+    'Furniture',
+  );
+
+  static const RecipeCategory tableware = RecipeCategory._(
+    'tableware',
+    'Tableware',
+  );
+
+  static const RecipeCategory architecture = RecipeCategory._(
+    'architecture',
+    'Architecture',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<RecipeCategory> values = <RecipeCategory>[
+    lighting,
+    furniture,
+    tableware,
+    architecture,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static RecipeCategory? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// What a gallery's own section heading says.
   final String label;
+
+  @override
+  String toString() => 'RecipeCategory.$name';
 }
 
 /// One model that can be built rather than downloaded.

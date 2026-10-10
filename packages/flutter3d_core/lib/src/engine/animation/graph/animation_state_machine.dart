@@ -52,7 +52,7 @@ final class AnimationComparison {
 /// `AnimationGraph` resolves the name to an index when it is built, and a
 /// name the schema lacks is one of [AnimationStateMachine.problems] rather
 /// than a condition that is silently never true.
-sealed class AnimationCondition {
+abstract final class AnimationCondition {
   const AnimationCondition(this.parameter);
 
   final String parameter;

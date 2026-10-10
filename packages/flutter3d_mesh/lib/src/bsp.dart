@@ -394,7 +394,43 @@ CsgResult? booleanOp(
 }) => _boolean(a, b, operation, maxPolygons);
 
 /// The three boolean operations a binary space partition answers.
-enum CsgOperation { union, subtract, intersect }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class CsgOperation {
+  const CsgOperation._(this.name);
+
+  static const CsgOperation union = CsgOperation._('union');
+
+  static const CsgOperation subtract = CsgOperation._('subtract');
+
+  static const CsgOperation intersect = CsgOperation._('intersect');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<CsgOperation> values = <CsgOperation>[
+    union,
+    subtract,
+    intersect,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static CsgOperation? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'CsgOperation.$name';
+}
 
 CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
   final aTriangles = _triangleCount(a);
@@ -431,6 +467,8 @@ CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
       nodeB.clipTo(nodeA, tolerance);
       nodeA.build(nodeB.allPolygons(), tolerance);
       nodeA.invert();
+    default:
+      throw UnsupportedError('no boolean recipe for $op');
   }
 
   final resultPolygons = nodeA.allPolygons();

@@ -5,11 +5,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// Named `RunStatus` and not `RunState`, which a genre package may use for
 /// its own enum: an application importing both never has to hide one.
 ///
-/// **Sealed on purpose.** A screen draws every one of these — loading,
-/// playing, failed — and a `switch` that is told when a case is missing is
-/// the point: a fourth status a screen did not draw would be a black frame.
-/// How a run is going *inside* play is [RunOutcome], which is the open set.
-sealed class RunStatus<L> {
+/// **Open, and a screen draws something for every status.** Loading,
+/// playing and failed are the three today; a fourth (paused for a call,
+/// say) can arrive in a minor release, so a `switch` over a status ends with
+/// a wildcard that draws a neutral frame rather than a black one. How a run
+/// is going *inside* play is [RunOutcome].
+abstract final class RunStatus<L> {
   const RunStatus();
 }
 

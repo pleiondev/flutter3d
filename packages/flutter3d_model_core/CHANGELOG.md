@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **Breaking: fifteen enums are open sets and five sealed types are not
+  sealed.** `AuditCheck`, `ExportFormat`, `ExportSeverity`,
+  `OriginPlacement`, `ProfileTarget`, `ResizeFilter`, `SelectionMode`,
+  `StepAuthor`, `TextureBlendMode`, `TextureEncoding`, `TextureFileFormat`,
+  `TextureValueType`, `TransformPivot`, `TransformSpace` and `UpAxis` are
+  classes with constants; `ExportResult`, `Geometry`, `ModelCommand` and
+  `ParamHint` are `abstract final`. A value or a case a later minor adds
+  breaks no `switch`, which ends with a wildcard; the words `.f3dproj` and
+  the journal write are unchanged. `TextureChannel` and `RecoveryDecision`
+  stay enums, closed for good.
+- **Breaking: `TextureNode` is an `abstract base class` with a visitor.**
+  `accept` hands a node to a `TextureNodeVisitor`, which has a method per
+  kind and answers `visitUnknown` for a kind it predates, so a pass over a
+  texture graph keeps compiling when a later minor adds a node.
 - **Breaking: a project's lights are lux and candela, in `.f3dproj`
   version 2.** `ProjectLight.intensity` holds what `LightNode.intensity`
   holds, lux for a directional light and candela for the others, and

@@ -106,6 +106,7 @@ String? formatBadgeFor(TextureFileFormat format) => switch (format) {
   TextureFileFormat.etc2Rgba8 => 'ETC2',
   TextureFileFormat.astc4x4 => 'ASTC 4×4',
   TextureFileFormat.other => 'KTX2',
+  _ => format.name.toUpperCase(),
 };
 
 /// The four numbers a `TextureSampling` actually varies, as the words a
@@ -150,4 +151,5 @@ String _wrapLabel(TextureWrap wrap) => switch (wrap) {
   TextureWrap.repeat => 'Repeat',
   TextureWrap.clampToEdge => 'Clamp to edge',
   TextureWrap.mirroredRepeat => 'Mirrored repeat',
+  _ => wrap.name,
 };

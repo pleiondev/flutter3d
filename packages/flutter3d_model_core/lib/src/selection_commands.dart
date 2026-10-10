@@ -9,7 +9,7 @@
 /// the region was arrived at, and an agent driving the modeller could ask for
 /// an extrusion but had no way of saying what to extrude. A command fixes all
 /// three at once because the history, the journal and the tool table are all
-/// fed from the same sealed set.
+/// fed from the same set of commands.
 ///
 /// **The project comes back unchanged, and that is deliberate.** Every command
 /// here hands [ModelHistory] the very same [ModelProject] it was given, so
@@ -44,6 +44,7 @@ Selection _everything(EditMesh mesh, ElementLevel level) => switch (level) {
       if (mesh.isFaceAlive(face)) face,
   ]),
   ElementLevel.edge => _everyEdge(mesh),
+  _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
 };
 
 Selection _everyEdge(EditMesh mesh) {
@@ -201,6 +202,9 @@ final class SelectAll extends ModelCommand {
                 )
               : OpResult.done(selection: everything);
         }),
+        _ => Outcome.refused(
+          'there is no selecting everything in ${selection.mode} mode',
+        ),
       };
 }
 
@@ -224,11 +228,15 @@ final class SelectNone extends ModelCommand {
   Map<String, Object?> get arguments => const <String, Object?>{};
 
   @override
-  Outcome apply(ModelProject project, ProjectSelection selection) =>
-      _keep(project, selection, switch (selection.mode) {
-        SelectionMode.object => selection.copyWith(objects: const <int>[]),
-        SelectionMode.mesh => selection.copyWith(elements: const <int>[]),
-      });
+  Outcome apply(ModelProject project, ProjectSelection selection) => _keep(
+    project,
+    selection,
+    switch (selection.mode) {
+      SelectionMode.object => selection.copyWith(objects: const <int>[]),
+      SelectionMode.mesh => selection.copyWith(elements: const <int>[]),
+      _ => selection.copyWith(objects: const <int>[], elements: const <int>[]),
+    },
+  );
 }
 
 /// Everything that was not selected, and nothing that was.
@@ -269,6 +277,9 @@ final class InvertSelection extends ModelCommand {
               target.elements.level,
             ).difference(target.elements),
           ),
+        ),
+        _ => Outcome.refused(
+          'there is no inverting a selection in ${selection.mode} mode',
         ),
       };
 }

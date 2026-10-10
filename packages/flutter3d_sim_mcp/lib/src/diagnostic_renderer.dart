@@ -25,7 +25,48 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// cube atlases the point-shadow pass fills. A per-node texture, a per-cascade
 /// break-out and an overdraw counter are none of them anywhere in
 /// `RenderSettings`, and building them is a wider spike than this one.
-enum DiagnosticView { lit, normals, shadowMap, staticShadowMap }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class DiagnosticView {
+  const DiagnosticView._(this.name);
+
+  static const DiagnosticView lit = DiagnosticView._('lit');
+
+  static const DiagnosticView normals = DiagnosticView._('normals');
+
+  static const DiagnosticView shadowMap = DiagnosticView._('shadowMap');
+
+  static const DiagnosticView staticShadowMap = DiagnosticView._(
+    'staticShadowMap',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<DiagnosticView> values = <DiagnosticView>[
+    lit,
+    normals,
+    shadowMap,
+    staticShadowMap,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static DiagnosticView? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'DiagnosticView.$name';
+}
 
 RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
   DiagnosticView.lit => const RenderSettings(),
@@ -42,6 +83,7 @@ RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
   DiagnosticView.staticShadowMap => const RenderSettings(
     showStaticShadowMap: true,
   ),
+  _ => throw UnsupportedError('no render settings show $view'),
 };
 
 /// One rendered frame, read back two ways: [png] is what a person or a model

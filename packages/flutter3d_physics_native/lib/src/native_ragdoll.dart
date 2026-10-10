@@ -28,7 +28,7 @@ import 'native_dynamics.dart';
 import 'native_world.dart';
 
 /// How a bone is held to its parent.
-sealed class RagdollJoint {
+abstract final class RagdollJoint {
   const RagdollJoint();
 }
 
@@ -210,6 +210,8 @@ final class NativeRagdoll {
           );
         case RagdollBend():
           throw StateError('a bend is resolved against the rest pose first');
+        default:
+          throw UnsupportedError('the native core has no joint for $held');
       }
       _joints.add(joint);
       _jointOf[i] = joint;

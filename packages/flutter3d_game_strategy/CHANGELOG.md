@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `StrategyOrder` is `abstract final` rather than sealed.**
+  Every order is still one this package wrote and can read back from a tape;
+  a new one, which is a new simulation version, may come in a minor, so a
+  `switch` over orders ends with a wildcard.
 - **A game's rules hang on the step through `addSystem`.**
   `StrategySimulation.systems` (sim's `StepSystems`) is replaced by
   `addSystem(name, phase, system, {after, before})`, returning the

@@ -54,14 +54,14 @@ void main() {
   late InputState state;
   late DesktopInput input;
 
-  setUp(() {
+  setUp(() async {
+    // Through the platform's own capture, as a game gets it, so the plugin's
+    // states are what this test sees turned into the game's.
     platform = _FakeCapture();
     PointerLockPlatform.instance = platform;
+    await PointerLock.disposeInstance();
     state = InputState();
-    input = DesktopInput(
-      state: state,
-      capture: PointerLock(platform: platform),
-    );
+    input = DesktopInput(state: state, capture: MouseCapture.platform());
   });
 
   tearDown(() => input.dispose());

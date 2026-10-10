@@ -433,6 +433,7 @@ SamplerDescriptor samplerOptionsFor(TextureSampling info) {
     TextureWrap.repeat => SamplerAddressMode.repeat,
     TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
     TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
+    _ => throw UnsupportedError('no sampler address mode for $wrap'),
   };
 
   return SamplerDescriptor(

@@ -498,6 +498,8 @@ Aabb3? _boundsOf(Geometry geometry) {
       }
     case SocketGeometry():
       break;
+    default:
+      throw UnsupportedError('no mesh to render for $geometry');
   }
   return any ? Aabb3.minMax(min, max) : null;
 }

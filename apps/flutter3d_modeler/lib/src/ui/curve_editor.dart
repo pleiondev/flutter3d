@@ -54,6 +54,7 @@ String _componentLabel(AnimationPath path, int component) => switch (path) {
   // A `KHR_animation_pointer` track: a colour, an offset or one number,
   // whichever property it names, so its lanes are numbered rather than named.
   AnimationPath.pointer => '#$component',
+  _ => '#$component',
 };
 
 /// Which handle of a key is being dragged, or the key's own value.

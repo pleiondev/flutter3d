@@ -27,11 +27,42 @@ import 'edit_mesh.dart';
 
 /// Which kind of element a selection holds.
 ///
-/// Machinery: these are the three things a half-edge mesh is made of that a
-/// person can point at, and a fourth would be a different data structure rather
-/// than a value somebody adds. Named in `boundaryEnumExempt` for that reason,
-/// which is decision Б7 of `doc/model-editor-plan.md`.
-enum ElementLevel { vertex, edge, face }
+/// The three things a half-edge mesh is made of that a person can point at
+/// today. A corner, which [MeshDomain] already has, could be a fourth, so the
+/// set is open and a `switch` over a level ends with a default.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ElementLevel {
+  const ElementLevel._(this.name);
+
+  static const ElementLevel vertex = ElementLevel._('vertex');
+
+  static const ElementLevel edge = ElementLevel._('edge');
+
+  static const ElementLevel face = ElementLevel._('face');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ElementLevel> values = <ElementLevel>[vertex, edge, face];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ElementLevel? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ElementLevel.$name';
+}
 
 /// The elements a person has picked, at one level.
 final class Selection {
@@ -386,6 +417,8 @@ void _forEachVertexOf(
       visit(mesh.originOf(mesh.nextOf(id)));
     case ElementLevel.face:
       mesh.forEachVertex(id, visit);
+    default:
+      throw UnsupportedError('a half-edge mesh has no $level elements');
   }
 }
 
@@ -421,6 +454,8 @@ void _forEachElement(
       for (var face = 0; face < mesh.faceSlotCount; face++) {
         if (mesh.isFaceAlive(face)) visit(face);
       }
+    default:
+      throw UnsupportedError('a half-edge mesh has no $level elements');
   }
 }
 

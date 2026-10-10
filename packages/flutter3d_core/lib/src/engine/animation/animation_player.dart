@@ -772,6 +772,8 @@ final class AnimationPlayer {
 
       case AnimationPath.weights:
       case AnimationPath.pointer:
+      default:
+        // Not a joint's TRS, and nor is a path a later release adds.
         break;
     }
   }
@@ -861,7 +863,9 @@ final class AnimationPlayer {
         break;
 
       case AnimationPath.pointer:
-        // Layers leave pointer tracks alone — see [_applyPointer].
+      default:
+        // Layers leave pointer tracks alone — see [_applyPointer] — and a
+        // path a later release adds is not one a layer knows how to fold.
         break;
     }
   }
@@ -977,6 +981,8 @@ final class AnimationPlayer {
         // Answered before the node lookup — see `_applyWeights` and
         // `_applyPointer`. Nothing reaches here.
         break;
+      default:
+        throw UnsupportedError('a node has no $path to write');
     }
   }
 

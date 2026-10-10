@@ -11,38 +11,46 @@
 /// rest of the process, a view that turns further on a slower machine.
 library;
 
-import 'dart:async';
-
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pad_input/pad_input.dart';
 
-/// A gamepad that does whatever the test says.
-final class FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..isConnected = true;
-  final StreamController<PadConnection> _connections =
-      StreamController<PadConnection>.broadcast();
+/// A gamepad that does whatever the test says, with no dead zone, so a test
+/// can name the number it expects.
+///
+/// The dead zone belongs to the platform's pad and has its own tests in the
+/// device package; mixing it in here would mean every expectation below
+/// carried a rescale nobody asked about.
+final class FakePad extends PadDevice {
+  final PadReading state = PadReading()..isConnected = true;
 
-  @override
-  bool get isSupported => true;
-
-  @override
-  Stream<PadConnection> get connectionChanges => _connections.stream;
-
-  @override
-  void read(PadSnapshot out) => out.copyFrom(state);
+  double _stick = 0.0;
+  double _trigger = 0.0;
 
   @override
-  Future<void> dispose() async => _connections.close();
+  double get stickDeadZone => _stick;
+
+  @override
+  double get triggerDeadZone => _trigger;
+
+  @override
+  void setDeadZones({required double stick, required double trigger}) {
+    _stick = stick;
+    _trigger = trigger;
+  }
+
+  @override
+  void read(PadReading out) => out.copyFrom(state);
 }
 
-/// A pad with no dead zone, so a test can name the number it expects.
-///
-/// The dead zone has its own tests in the device package; mixing it in here
-/// would mean every expectation below carried a rescale nobody asked about.
-Gamepad _bare(FakePad fake) =>
-    Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.0, trigger: 0.0));
+/// A build with no gamepad implementation: never supported, never there.
+final class _NoPad extends PadDevice {
+  @override
+  bool get isSupported => false;
+
+  @override
+  void read(PadReading out) => out.disconnect();
+}
 
 /// A two-number action of a game's own, as a game would declare one.
 const DualAxisAction _lean = DualAxisAction('lean');
@@ -72,9 +80,9 @@ void main() {
       // `flutter3d_game_shooter`'s own test calls this "half a deflection is half a
       // wish": a stick pushed halfway walks, and a translator that ran it
       // through press/held would make it run.
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -0.5);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickY, -0.5);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       expect(input.moveAxis.y, closeTo(0.5, 1e-9));
     });
@@ -83,9 +91,9 @@ void main() {
       // A pad reports Y positive downwards — Apple's convention and the
       // browser's. The flip belongs in the open, and this is the test that says
       // which way round it goes.
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickY, -1.0);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       expect(input.moveAxis.y, closeTo(1.0, 1e-9));
     });
@@ -93,9 +101,9 @@ void main() {
     test('plus the keyboard is one, not 1.41', () {
       // The oldest speed exploit there is, and the reason `_recomputeMoveAxis`
       // clamps. A player with a hand on each device must not go faster.
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickY, -1.0);
       final input = InputState()..press(GameAction.moveRight);
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       expect(input.moveAxis.length, closeTo(1.0, 1e-6));
     });
@@ -103,11 +111,11 @@ void main() {
     test('and a stick routed to nothing never touches the axis', () {
       // A racing game steers with it. If the translator wrote the movement axis
       // anyway, the car would also be walking.
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickX, 1.0);
       final input = InputState();
       PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
@@ -120,22 +128,18 @@ void main() {
     // binds its stick to its own two-number action and the pad drives it.
 
     test('drives it, with no case in this package knowing it exists', () {
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 0.5);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickX, 0.5);
       final input = InputState();
-      PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _leaning(),
-      ).tick(1 / 60);
+      PadInput(state: input, pad: fake, actions: _leaning()).tick(1 / 60);
 
       expect(input.dualAxis(_lean).x, closeTo(0.5, 1e-9));
       expect(input.moveAxis.x, 0.0, reason: 'the stick walked as well');
     });
 
     test('and lets go of it with the rest of the pad', () {
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickX, 1.0);
       final input = InputState();
-      final pad = PadInput(state: input, pad: _bare(fake), actions: _leaning())
+      final pad = PadInput(state: input, pad: fake, actions: _leaning())
         ..tick(1 / 60);
 
       expect(input.dualAxis(_lean).x, closeTo(1.0, 1e-9));
@@ -151,13 +155,9 @@ void main() {
     test('gets the deflection the device reported, unless it says invert', () {
       // Whether y wants negating depends on what the action means, so the
       // binding decides: walking's default inverts it, this one does not.
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickY, -1.0);
       final input = InputState();
-      PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _leaning(),
-      ).tick(1 / 60);
+      PadInput(state: input, pad: fake, actions: _leaning()).tick(1 / 60);
 
       expect(input.dualAxis(_lean).y, closeTo(-1.0, 1e-9));
     });
@@ -169,16 +169,16 @@ void main() {
       // displacement and a stick reports a speed, so somebody has to integrate,
       // and if nobody does the camera turns further on a faster machine — which
       // is the same class of bug the fixed step exists to prevent.
-      final fake = FakePad()..state.setAxis(PadAxis.rightStickX, 1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.rightStickX, 1.0);
       final input = InputState();
 
       final whole = Vector2.zero();
-      PadInput(state: input, pad: _bare(fake), lookRate: 1000.0)
+      PadInput(state: input, pad: fake, lookRate: 1000.0)
         ..tick(0.5)
         ..drainLook(whole);
 
       final halves = Vector2.zero();
-      PadInput(state: input, pad: _bare(fake), lookRate: 1000.0)
+      PadInput(state: input, pad: fake, lookRate: 1000.0)
         ..tick(0.25)
         ..tick(0.25)
         ..drainLook(halves);
@@ -192,12 +192,9 @@ void main() {
       // takes one callback and the application composes the two, so moving both
       // devices at once has to turn the view by the sum — a pad that assigned
       // would silently swallow the mouse.
-      final fake = FakePad()..state.setAxis(PadAxis.rightStickX, 1.0);
-      final pad = PadInput(
-        state: InputState(),
-        pad: _bare(fake),
-        lookRate: 100.0,
-      )..tick(1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.rightStickX, 1.0);
+      final pad = PadInput(state: InputState(), pad: fake, lookRate: 100.0)
+        ..tick(1.0);
 
       final out = Vector2(7.0, 3.0);
       pad.drainLook(out);
@@ -207,12 +204,9 @@ void main() {
     });
 
     test('and what has been drained is gone', () {
-      final fake = FakePad()..state.setAxis(PadAxis.rightStickX, 1.0);
-      final pad = PadInput(
-        state: InputState(),
-        pad: _bare(fake),
-        lookRate: 100.0,
-      )..tick(1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.rightStickX, 1.0);
+      final pad = PadInput(state: InputState(), pad: fake, lookRate: 100.0)
+        ..tick(1.0);
 
       final first = Vector2.zero();
       final second = Vector2.zero();
@@ -229,15 +223,15 @@ void main() {
     test('presses and releases what it is bound to', () {
       final fake = FakePad();
       final input = InputState();
-      final pad = PadInput(state: input, pad: _bare(fake));
+      final pad = PadInput(state: input, pad: fake);
 
-      fake.state.setDown(PadButton.faceSouth, down: true);
+      fake.state.setDown(GamePadButton.faceSouth, down: true);
       pad.tick(1 / 60);
       expect(input.pressed(GameAction.jump), isTrue);
       expect(input.held(GameAction.jump), isTrue);
 
       input.endStep();
-      fake.state.setDown(PadButton.faceSouth, down: false);
+      fake.state.setDown(GamePadButton.faceSouth, down: false);
       pad.tick(1 / 60);
       expect(input.released(GameAction.jump), isTrue);
       expect(input.held(GameAction.jump), isFalse);
@@ -247,9 +241,10 @@ void main() {
       // A held button re-pressed every frame fires an automatic weapon at the
       // frame rate instead of the weapon's rate — the same thing
       // `DesktopInput` refuses to do with a key repeat.
-      final fake = FakePad()..state.setDown(PadButton.faceSouth, down: true);
+      final fake = FakePad()
+        ..state.setDown(GamePadButton.faceSouth, down: true);
       final input = InputState();
-      final pad = PadInput(state: input, pad: _bare(fake))..tick(1 / 60);
+      final pad = PadInput(state: input, pad: fake)..tick(1 / 60);
 
       input.endStep();
       pad.tick(1 / 60);
@@ -265,21 +260,17 @@ void main() {
       final fake = FakePad();
       final input = InputState();
       final bindings = Bindings()
-        ..bind(InputSource.pad(PadButton.shoulderLeft.id), dash)
-        ..bind(InputSource.pad(PadButton.shoulderRight.id), dash);
-      final pad = PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(bindings),
-      );
+        ..bind(InputSource.pad(GamePadButton.shoulderLeft.id), dash)
+        ..bind(InputSource.pad(GamePadButton.shoulderRight.id), dash);
+      final pad = PadInput(state: input, pad: fake, actions: _map(bindings));
 
       fake.state
-        ..setDown(PadButton.shoulderLeft, down: true)
-        ..setDown(PadButton.shoulderRight, down: true);
+        ..setDown(GamePadButton.shoulderLeft, down: true)
+        ..setDown(GamePadButton.shoulderRight, down: true);
       pad.tick(1 / 60);
       expect(input.held(dash), isTrue);
 
-      fake.state.setDown(PadButton.shoulderLeft, down: false);
+      fake.state.setDown(GamePadButton.shoulderLeft, down: false);
       pad.tick(1 / 60);
       expect(
         input.held(dash),
@@ -287,15 +278,15 @@ void main() {
         reason: 'the other button is still down',
       );
 
-      fake.state.setDown(PadButton.shoulderRight, down: false);
+      fake.state.setDown(GamePadButton.shoulderRight, down: false);
       pad.tick(1 / 60);
       expect(input.held(dash), isFalse);
     });
 
     test('and an unbound button does nothing at all', () {
-      final fake = FakePad()..state.setDown(PadButton.guide, down: true);
+      final fake = FakePad()..state.setDown(GamePadButton.guide, down: true);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       // The middle button belongs to the operating system, and a game that
       // steals it is a game that cannot be left.
@@ -310,13 +301,13 @@ void main() {
       final input = InputState();
       final pad = PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: PadInput.addSlotDefaultsTo(
           PadInput.addDefaultsTo(_map(Bindings())),
         ),
       );
 
-      fake.state.setDown(PadButton.dpadRight, down: true);
+      fake.state.setDown(GamePadButton.dpadRight, down: true);
       pad.tick(1 / 60);
       expect(input.slotRequest, 1);
 
@@ -331,11 +322,11 @@ void main() {
 
     test('and it takes the button from walking', () {
       // The d-pad walks by default and selects in a game that says so.
-      final fake = FakePad()..state.setDown(PadButton.dpadUp, down: true);
+      final fake = FakePad()..state.setDown(GamePadButton.dpadUp, down: true);
       final input = InputState();
       PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: PadInput.addSlotDefaultsTo(
           PadInput.addDefaultsTo(_map(Bindings())),
         ),
@@ -346,9 +337,9 @@ void main() {
     });
 
     test('and by default the d-pad walks instead', () {
-      final fake = FakePad()..state.setDown(PadButton.dpadUp, down: true);
+      final fake = FakePad()..state.setDown(GamePadButton.dpadUp, down: true);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       expect(input.moveAxis.y, closeTo(1.0, 1e-9));
       expect(input.slotRequest, isNull);
@@ -357,18 +348,15 @@ void main() {
 
   group('a trigger', () {
     Bindings pedal() =>
-        Bindings()..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
+        Bindings()
+          ..bind(InputSource.pad(GamePadButton.triggerRight.id), throttle);
 
     test('carries a magnitude, not just a bit', () {
       // What racing needed and could not have: `VehicleInput.throttle` is a
       // double, and the input layer could only answer one or nothing.
-      final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 0.42);
+      final fake = FakePad()..state.setAxis(GamePadAxis.triggerRight, 0.42);
       final input = InputState();
-      PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(pedal()),
-      ).tick(1 / 60);
+      PadInput(state: input, pad: fake, actions: _map(pedal())).tick(1 / 60);
 
       expect(input.value(throttle), closeTo(0.42, 1e-6));
     });
@@ -380,23 +368,23 @@ void main() {
       //
       // Mutation: set the action value from this control's magnitude alone.
       final fake = FakePad()
-        ..state.setAxis(PadAxis.triggerLeft, 1.0)
-        ..state.setAxis(PadAxis.triggerRight, 0.2);
+        ..state.setAxis(GamePadAxis.triggerLeft, 1.0)
+        ..state.setAxis(GamePadAxis.triggerRight, 0.2);
       final input = InputState();
       final pad = PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: _map(
           Bindings()
-            ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
-            ..bind(InputSource.pad(PadButton.triggerRight.id), throttle),
+            ..bind(InputSource.pad(GamePadButton.triggerLeft.id), throttle)
+            ..bind(InputSource.pad(GamePadButton.triggerRight.id), throttle),
         ),
       );
 
       pad.tick(1 / 60);
       expect(input.value(throttle), closeTo(1.0, 1e-6));
 
-      fake.state.setAxis(PadAxis.triggerLeft, 0.0);
+      fake.state.setAxis(GamePadAxis.triggerLeft, 0.0);
       pad.tick(1 / 60);
       expect(
         input.value(throttle),
@@ -404,7 +392,7 @@ void main() {
         reason: 'the right trigger is still at 0.2',
       );
 
-      fake.state.setAxis(PadAxis.triggerRight, 0.0);
+      fake.state.setAxis(GamePadAxis.triggerRight, 0.0);
       pad.tick(1 / 60);
       expect(input.value(throttle), 0.0);
     });
@@ -416,22 +404,18 @@ void main() {
       //
       // Mutation: drop the sweep of controls not read this tick.
       final fake = FakePad()
-        ..state.setAxis(PadAxis.triggerLeft, 1.0)
-        ..state.setAxis(PadAxis.triggerRight, 0.3);
+        ..state.setAxis(GamePadAxis.triggerLeft, 1.0)
+        ..state.setAxis(GamePadAxis.triggerRight, 0.3);
       final bindings = Bindings()
-        ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
-        ..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
+        ..bind(InputSource.pad(GamePadButton.triggerLeft.id), throttle)
+        ..bind(InputSource.pad(GamePadButton.triggerRight.id), throttle);
       final input = InputState();
-      final pad = PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(bindings),
-      );
+      final pad = PadInput(state: input, pad: fake, actions: _map(bindings));
 
       pad.tick(1 / 60);
       expect(input.value(throttle), closeTo(1.0, 1e-6));
 
-      bindings.unbind(InputSource.pad(PadButton.triggerLeft.id));
+      bindings.unbind(InputSource.pad(GamePadButton.triggerLeft.id));
       pad.tick(1 / 60);
       expect(
         input.value(throttle),
@@ -446,18 +430,14 @@ void main() {
       // weapon firing at the frame rate.
       final fake = FakePad();
       final input = InputState();
-      final pad = PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(pedal()),
-      );
+      final pad = PadInput(state: input, pad: fake, actions: _map(pedal()));
 
-      fake.state.setAxis(PadAxis.triggerRight, 0.55);
+      fake.state.setAxis(GamePadAxis.triggerRight, 0.55);
       pad.tick(1 / 60);
       expect(input.held(throttle), isTrue);
 
       input.endStep();
-      fake.state.setAxis(PadAxis.triggerRight, 0.45);
+      fake.state.setAxis(GamePadAxis.triggerRight, 0.45);
       pad.tick(1 / 60);
       expect(
         input.held(throttle),
@@ -468,7 +448,7 @@ void main() {
       );
       expect(input.released(throttle), isFalse);
 
-      fake.state.setAxis(PadAxis.triggerRight, 0.3);
+      fake.state.setAxis(GamePadAxis.triggerRight, 0.3);
       pad.tick(1 / 60);
       expect(input.held(throttle), isFalse);
     });
@@ -478,13 +458,9 @@ void main() {
       // magnitude present is authoritative, so a trigger that came home and
       // wrote nought would shadow `W` for the rest of the process: hold `W`,
       // brush a trigger once, and the throttle is dead until relaunch.
-      final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 0.8);
+      final fake = FakePad()..state.setAxis(GamePadAxis.triggerRight, 0.8);
       final input = InputState()..press(throttle); // as if a key were down
-      final pad = PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(pedal()),
-      );
+      final pad = PadInput(state: input, pad: fake, actions: _map(pedal()));
 
       pad.tick(1 / 60);
       expect(
@@ -493,7 +469,7 @@ void main() {
         reason: 'the trigger is what the player is moving',
       );
 
-      fake.state.setAxis(PadAxis.triggerRight, 0.0);
+      fake.state.setAxis(GamePadAxis.triggerRight, 0.0);
       pad.tick(1 / 60);
       expect(
         input.value(throttle),
@@ -506,11 +482,11 @@ void main() {
 
   group('a stick routed to a pair of actions', () {
     test('asks for each side with its own magnitude', () {
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 0.6);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickX, 0.6);
       final input = InputState();
       PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
@@ -521,11 +497,11 @@ void main() {
     });
 
     test('and the other way for the other sign', () {
-      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, -1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.leftStickX, -1.0);
       final input = InputState();
       PadInput(
         state: input,
-        pad: _bare(fake),
+        pad: fake,
         actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
@@ -540,10 +516,10 @@ void main() {
       // down: nothing produced a key-up, and dropping them means a player with
       // a hand on `W` stops walking because a battery died.
       final fake = FakePad()
-        ..state.setDown(PadButton.faceSouth, down: true)
-        ..state.setAxis(PadAxis.leftStickY, -1.0);
+        ..state.setDown(GamePadButton.faceSouth, down: true)
+        ..state.setAxis(GamePadAxis.leftStickY, -1.0);
       final input = InputState()..press(GameAction.moveForward);
-      final pad = PadInput(state: input, pad: _bare(fake))..tick(1 / 60);
+      final pad = PadInput(state: input, pad: fake)..tick(1 / 60);
       expect(input.held(GameAction.jump), isTrue);
 
       fake.state.disconnect();
@@ -569,15 +545,12 @@ void main() {
       // A pad whose battery dies mid-corner must not leave the car at full
       // speed. Half of this is the device package zeroing before it announces
       // itself; this half is the translator withdrawing the number.
-      final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.triggerRight, 1.0);
       final input = InputState();
       final bindings = Bindings()
-        ..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
-      final pad = PadInput(
-        state: input,
-        pad: _bare(fake),
-        actions: _map(bindings),
-      )..tick(1 / 60);
+        ..bind(InputSource.pad(GamePadButton.triggerRight.id), throttle);
+      final pad = PadInput(state: input, pad: fake, actions: _map(bindings))
+        ..tick(1 / 60);
       expect(input.value(throttle), closeTo(1.0, 1e-9));
 
       fake.state.disconnect();
@@ -588,12 +561,9 @@ void main() {
     });
 
     test('and the view it had accumulated goes with it', () {
-      final fake = FakePad()..state.setAxis(PadAxis.rightStickX, 1.0);
-      final pad = PadInput(
-        state: InputState(),
-        pad: _bare(fake),
-        lookRate: 100.0,
-      )..tick(1.0);
+      final fake = FakePad()..state.setAxis(GamePadAxis.rightStickX, 1.0);
+      final pad = PadInput(state: InputState(), pad: fake, lookRate: 100.0)
+        ..tick(1.0);
 
       fake.state.disconnect();
       pad.tick(1 / 60);
@@ -609,7 +579,7 @@ void main() {
       // device that does not exist.
       final fake = FakePad()..state.disconnect();
       final input = InputState()..setStickAxis(0.0, 1.0);
-      PadInput(state: input, pad: _bare(fake)).tick(1 / 60);
+      PadInput(state: input, pad: fake).tick(1 / 60);
 
       expect(input.moveAxis.y, closeTo(1.0, 1e-9));
     });
@@ -679,12 +649,12 @@ void main() {
       // For a title card waiting on "press any button" and a game-over screen
       // offering a restart: neither is a verb the simulation has, and inventing
       // an action for each would put words in the binding table nothing reads.
-      final fake = FakePad()..state.setDown(PadButton.start, down: true);
-      final pad = PadInput(state: InputState(), pad: _bare(fake))..tick(1 / 60);
+      final fake = FakePad()..state.setDown(GamePadButton.start, down: true);
+      final pad = PadInput(state: InputState(), pad: fake)..tick(1 / 60);
 
-      expect(pad.heldButtons, contains(PadButton.start));
+      expect(pad.heldButtons, contains(GamePadButton.start));
 
-      fake.state.setDown(PadButton.start, down: false);
+      fake.state.setDown(GamePadButton.start, down: false);
       pad.tick(1 / 60);
       expect(pad.heldButtons, isEmpty);
     });
@@ -696,28 +666,33 @@ void main() {
           .withValue(GameSettingKeys.padLook, 250.0)
           .withValue(GameSettingKeys.stickDeadZone, 0.3);
       final fake = FakePad();
-      final pad = PadInput(
-        state: InputState(),
-        pad: Gamepad(platform: fake),
-      )..applySettings(config);
+      final pad = PadInput(state: InputState(), pad: fake)
+        ..applySettings(config);
 
       expect(pad.lookRate, 250.0);
-      expect(pad.pad.deadzone.stick, 0.3);
+      expect(pad.pad.stickDeadZone, 0.3);
       expect(
-        pad.pad.deadzone.trigger,
-        const Deadzone().trigger,
+        pad.pad.triggerDeadZone,
+        GameSettingKeys.triggerDeadZone.fallback,
         reason: 'a key the settings do not carry is its fallback',
       );
+    });
+
+    test('reach the platform pad\'s own dead zones', () {
+      // Mutation: drop the override of `setDeadZones` in the platform pad,
+      // and the player's slider moves nothing.
+      final device = PadDevice.platform(slot: 1)
+        ..setDeadZones(stick: 0.25, trigger: 0.1);
+
+      expect(device.stickDeadZone, 0.25);
+      expect(device.triggerDeadZone, 0.1);
     });
   });
 
   group('a build with no gamepad implementation', () {
     test('is a translator that says nothing', () {
       final input = InputState()..press(GameAction.moveForward);
-      final pad = PadInput(
-        state: input,
-        pad: Gamepad(platform: UnsupportedGamepad()),
-      )..tick(1 / 60);
+      final pad = PadInput(state: input, pad: _NoPad())..tick(1 / 60);
 
       expect(pad.isSupported, isFalse);
       expect(pad.isConnected, isFalse);

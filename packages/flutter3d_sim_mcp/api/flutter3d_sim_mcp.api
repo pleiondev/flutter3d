@@ -35,8 +35,15 @@ final class DiagnosticRenderer
 
 typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
 
-enum DiagnosticView
-  values: lit, normals, shadowMap, staticShadowMap
+final class DiagnosticView
+  String toString()
+  final String name
+  static DiagnosticView? byName(String name)
+  static const DiagnosticView lit = DiagnosticView._('lit')
+  static const DiagnosticView normals = DiagnosticView._('normals')
+  static const DiagnosticView shadowMap = DiagnosticView._('shadowMap')
+  static const DiagnosticView staticShadowMap = DiagnosticView._('staticShadowMap')
+  static const List<DiagnosticView> values = <DiagnosticView>[lit, normals, shadowMap, staticShadowMap]
 
 final class HealthPredicate extends ReadingPredicate
   HealthPredicate(super.who, {this.below, this.atLeast})
@@ -69,8 +76,15 @@ final class Playtest
   final int stuckAfter
   static Map<String, Object?> heatmap(List<PlaytestRun> runs, {double cellSize = 1.0})
 
-enum PlaytestOutcome
-  values: died, exited, stuck, timedOut
+final class PlaytestOutcome
+  String toString()
+  final String name
+  static PlaytestOutcome? byName(String name)
+  static const List<PlaytestOutcome> values = <PlaytestOutcome>[died, exited, stuck, timedOut]
+  static const PlaytestOutcome died = PlaytestOutcome._('died')
+  static const PlaytestOutcome exited = PlaytestOutcome._('exited')
+  static const PlaytestOutcome stuck = PlaytestOutcome._('stuck')
+  static const PlaytestOutcome timedOut = PlaytestOutcome._('timedOut')
 
 final class PlaytestRun
   const PlaytestRun({required this.seed, required this.steps, required this.outcome, required this.positions})
@@ -79,10 +93,10 @@ final class PlaytestRun
   final int seed
   final int steps
 
-sealed class ReadingPredicate
-  String describe()
+abstract final class ReadingPredicate
+  abstract String describe()
+  abstract bool holdsFor(Map<String, Object?> row)
   bool holds(Map<String, Object?> reading)
-  bool holdsFor(Map<String, Object?> row)
   const ReadingPredicate(this.who)
   factory ReadingPredicate.fromJson(Map<String, Object?> json)
   final String who

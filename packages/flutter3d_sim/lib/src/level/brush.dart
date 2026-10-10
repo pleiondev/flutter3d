@@ -21,21 +21,49 @@ import 'level_material.dart';
 /// document writes — but this package may not import the engine (see the note
 /// at the foot of its `pubspec.yaml`), so the two are spelled twice and the
 /// bridge maps them case by case rather than by name.
-enum ShadowCasting {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ShadowCasting {
+  const ShadowCasting._(this.name);
+
   /// Drawn into the shadow maps and into the colour image. The default.
-  on,
+  static const ShadowCasting on = ShadowCasting._('on');
 
   /// Drawn into the colour image and into no shadow map. What a fence wants.
-  off,
+  static const ShadowCasting off = ShadowCasting._('off');
 
   /// Cast from every face, whatever the renderer's caster-face setting says.
   ///
   /// What a single-thickness wall wants: recorded from its lit side only, a
   /// wall lets light along the seam where it meets the floor.
-  doubleSided,
+  static const ShadowCasting doubleSided = ShadowCasting._('doubleSided');
 
   /// Drawn into the shadow maps and into no colour image.
-  shadowsOnly;
+  static const ShadowCasting shadowsOnly = ShadowCasting._('shadowsOnly');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ShadowCasting> values = <ShadowCasting>[
+    on,
+    off,
+    doubleSided,
+    shadowsOnly,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ShadowCasting? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// Whether a brush in this mode is drawn into the shadow maps at all.
   bool get casts => this != ShadowCasting.off;
@@ -66,6 +94,9 @@ enum ShadowCasting {
     ShadowCasting.doubleSided: 'doubleSided',
     ShadowCasting.shadowsOnly: 'shadowsOnly',
   };
+
+  @override
+  String toString() => 'ShadowCasting.$name';
 }
 
 /// One axis-aligned block of level geometry.

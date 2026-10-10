@@ -2603,11 +2603,12 @@ entries:
     kind: none
     wave: 3
     reason: >-
-      `LtiLaunchException` is still sealed with the same subtypes and members;
-      it now extends `ResourceException` (and through it `Flutter3dException`)
-      instead of implementing `Exception` directly. Every `on
-      LtiLaunchException`, `on Exception` and `switch` over its subtypes still
-      matches, and nothing outside the package could extend it.
+      `LtiLaunchException` has the same subtypes and members; it now extends
+      `ResourceException` (and through it `Flutter3dException`) instead of
+      implementing `Exception` directly. Every `on LtiLaunchException` and
+      `on Exception` still matches, and nothing outside the package could
+      extend it. It is no longer sealed: `2s-lti-LtiLaunchException-open`
+      says what that asks of a `switch` over its subtypes.
 
   # 1 break(s), seen in flutter3d_lti:
   #   the declaration changed: XapiException implements Exception -> extends ResourceException
@@ -19201,3 +19202,905 @@ entries:
       drew as. A number written for the pre-1.0 unit is that number times
       `LightNode.defaultIntensity`. A project file of version 1 is lifted
       as it is read.
+
+  # Growing enumerations: every public enum and sealed type is either
+  # closed for good or open, so that a member a 1.x minor adds breaks no
+  # exhaustive switch.
+
+  - id: 2s-flame_flutter3d-PlaneAxis-open
+    package: flame_flutter3d
+    symbol: PlaneAxis
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `PlaneAxis` is an open set since 1.0, a class with constants rather than
+      an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-AnimationInterpolation-open
+    package: flutter3d_core
+    symbol: AnimationInterpolation
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AnimationInterpolation` is an open set since 1.0, a class with
+      constants rather than an enum, so a value a later minor adds does not
+      break your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values`, `name` (the same words the enum wrote) and `byName` are there;
+      `index` is not.
+
+  - id: 2s-core-AnimationPath-open
+    package: flutter3d_core
+    symbol: AnimationPath
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AnimationPath` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is there
+      too.
+
+  - id: 2s-core-AnimationPointerProperty-open
+    package: flutter3d_core
+    symbol: AnimationPointerProperty
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AnimationPointerProperty` is an open set since 1.0, a class with
+      constants rather than an enum, so a value a later minor adds does not
+      break your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values`, `name` (the same words the enum wrote) and `byName` are there;
+      `index` is there too.
+
+  - id: 2s-core-AnimationPointerTarget-open
+    package: flutter3d_core
+    symbol: AnimationPointerTarget
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AnimationPointerTarget` is an open set since 1.0, a class with
+      constants rather than an enum, so a value a later minor adds does not
+      break your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values`, `name` (the same words the enum wrote) and `byName` are there;
+      `index` is not.
+
+  - id: 2s-core-AnimationWrap-open
+    package: flutter3d_core
+    symbol: AnimationWrap
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AnimationWrap` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-MaterialMap-open
+    package: flutter3d_core
+    symbol: MaterialMap
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MaterialMap` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is there
+      too.
+
+  - id: 2s-core-ModelWriteFormat-open
+    package: flutter3d_core
+    symbol: ModelWriteFormat
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ModelWriteFormat` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-core-ObjNormals-open
+    package: flutter3d_core
+    symbol: ObjNormals
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ObjNormals` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-ReactiveShape-open
+    package: flutter3d_core
+    symbol: ReactiveShape
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ReactiveShape` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is there
+      too.
+
+  - id: 2s-core-ResourceOrigin-open
+    package: flutter3d_core
+    symbol: ResourceOrigin
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ResourceOrigin` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-SplatComposite-open
+    package: flutter3d_core
+    symbol: SplatComposite
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `SplatComposite` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-StlNormals-open
+    package: flutter3d_core
+    symbol: StlNormals
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StlNormals` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-core-SurfaceAlphaMode-open
+    package: flutter3d_core
+    symbol: SurfaceAlphaMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `SurfaceAlphaMode` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-core-TemporalClip-open
+    package: flutter3d_core
+    symbol: TemporalClip
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TemporalClip` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is there
+      too.
+
+  - id: 2s-core-TextureWrap-open
+    package: flutter3d_core
+    symbol: TextureWrap
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureWrap` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-editor_core-Piece-open
+    package: flutter3d_editor_core
+    symbol: Piece
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `Piece` is an open set since 1.0, a class with constants rather than an
+      enum, so a value a later minor adds does not break your code: a `switch`
+      over it needs a `_ =>` case. The constants, `values`, `name` (the same
+      words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-editor_widgets-NumberUnit-open
+    package: flutter3d_editor_widgets
+    symbol: NumberUnit
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `NumberUnit` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-lti-LtiMessageType-open
+    package: flutter3d_lti
+    symbol: LtiMessageType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `LtiMessageType` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-BlendFactor-open
+    package: flutter3d_hardware
+    symbol: BlendFactor
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `BlendFactor` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-BlendOperation-open
+    package: flutter3d_hardware
+    symbol: BlendOperation
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `BlendOperation` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-CullMode-open
+    package: flutter3d_hardware
+    symbol: CullMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `CullMode` is an open set since 1.0, a class with constants rather than
+      an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-DepthRange-open
+    package: flutter3d_hardware
+    symbol: DepthRange
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `DepthRange` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-GeometryUsage-open
+    package: flutter3d_hardware
+    symbol: GeometryUsage
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `GeometryUsage` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-IndexType-open
+    package: flutter3d_hardware
+    symbol: IndexType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `IndexType` is an open set since 1.0, a class with constants rather than
+      an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-LoadAction-open
+    package: flutter3d_hardware
+    symbol: LoadAction
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `LoadAction` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-MinMagFilter-open
+    package: flutter3d_hardware
+    symbol: MinMagFilter
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MinMagFilter` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-MipFilter-open
+    package: flutter3d_hardware
+    symbol: MipFilter
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MipFilter` is an open set since 1.0, a class with constants rather than
+      an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-PolygonMode-open
+    package: flutter3d_hardware
+    symbol: PolygonMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `PolygonMode` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-PrimitiveType-open
+    package: flutter3d_hardware
+    symbol: PrimitiveType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `PrimitiveType` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-SamplerAddressMode-open
+    package: flutter3d_hardware
+    symbol: SamplerAddressMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `SamplerAddressMode` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-hardware-StencilOperation-open
+    package: flutter3d_hardware
+    symbol: StencilOperation
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StencilOperation` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-hardware-StorageMode-open
+    package: flutter3d_hardware
+    symbol: StorageMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StorageMode` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-StoreAction-open
+    package: flutter3d_hardware
+    symbol: StoreAction
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StoreAction` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-TextureType-open
+    package: flutter3d_hardware
+    symbol: TextureType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureType` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-hardware-VertexStepMode-open
+    package: flutter3d_hardware
+    symbol: VertexStepMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `VertexStepMode` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-mesh-CsgOperation-open
+    package: flutter3d_mesh
+    symbol: CsgOperation
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `CsgOperation` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-mesh-ElementLevel-open
+    package: flutter3d_mesh
+    symbol: ElementLevel
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ElementLevel` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-mesh-IssueSeverity-open
+    package: flutter3d_mesh
+    symbol: IssueSeverity
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `IssueSeverity` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is there
+      too.
+
+  - id: 2s-mesh-MeshAttribute-open
+    package: flutter3d_mesh
+    symbol: MeshAttribute
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MeshAttribute` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-mesh-MeshDomain-open
+    package: flutter3d_mesh
+    symbol: MeshDomain
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MeshDomain` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-mesh-RecipeCategory-open
+    package: flutter3d_mesh
+    symbol: RecipeCategory
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `RecipeCategory` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-AuditCheck-open
+    package: flutter3d_model_core
+    symbol: AuditCheck
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `AuditCheck` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-ExportFormat-open
+    package: flutter3d_model_core
+    symbol: ExportFormat
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ExportFormat` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-ExportSeverity-open
+    package: flutter3d_model_core
+    symbol: ExportSeverity
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ExportSeverity` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-OriginPlacement-open
+    package: flutter3d_model_core
+    symbol: OriginPlacement
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `OriginPlacement` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-model_core-ProfileTarget-open
+    package: flutter3d_model_core
+    symbol: ProfileTarget
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ProfileTarget` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-ResizeFilter-open
+    package: flutter3d_model_core
+    symbol: ResizeFilter
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ResizeFilter` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-SelectionMode-open
+    package: flutter3d_model_core
+    symbol: SelectionMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `SelectionMode` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-StepAuthor-open
+    package: flutter3d_model_core
+    symbol: StepAuthor
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StepAuthor` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-TextureBlendMode-open
+    package: flutter3d_model_core
+    symbol: TextureBlendMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureBlendMode` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-model_core-TextureEncoding-open
+    package: flutter3d_model_core
+    symbol: TextureEncoding
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureEncoding` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-model_core-TextureFileFormat-open
+    package: flutter3d_model_core
+    symbol: TextureFileFormat
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureFileFormat` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-model_core-TextureValueType-open
+    package: flutter3d_model_core
+    symbol: TextureValueType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureValueType` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-model_core-TransformPivot-open
+    package: flutter3d_model_core
+    symbol: TransformPivot
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TransformPivot` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-TransformSpace-open
+    package: flutter3d_model_core
+    symbol: TransformSpace
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TransformSpace` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-model_core-UpAxis-open
+    package: flutter3d_model_core
+    symbol: UpAxis
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `UpAxis` is an open set since 1.0, a class with constants rather than an
+      enum, so a value a later minor adds does not break your code: a `switch`
+      over it needs a `_ =>` case. The constants, `values`, `name` (the same
+      words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-sim-LevelIssueSeverity-open
+    package: flutter3d_sim
+    symbol: LevelIssueSeverity
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `LevelIssueSeverity` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-sim-ShadowCasting-open
+    package: flutter3d_sim
+    symbol: ShadowCasting
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ShadowCasting` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-sim_mcp-DiagnosticView-open
+    package: flutter3d_sim_mcp
+    symbol: DiagnosticView
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `DiagnosticView` is an open set since 1.0, a class with constants rather
+      than an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-sim_mcp-PlaytestOutcome-open
+    package: flutter3d_sim_mcp
+    symbol: PlaytestOutcome
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `PlaytestOutcome` is an open set since 1.0, a class with constants
+      rather than an enum, so a value a later minor adds does not break your
+      code: a `switch` over it needs a `_ =>` case. The constants, `values`,
+      `name` (the same words the enum wrote) and `byName` are there; `index`
+      is not.
+
+  - id: 2s-pad_input-PadAxis-open
+    package: pad_input
+    symbol: PadAxis
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `PadAxis` is an open set since 1.0, a class with constants rather than
+      an enum, so a value a later minor adds does not break your code: a
+      `switch` over it needs a `_ =>` case. The constants, `values`, `name`
+      (the same words the enum wrote) and `byName` are there; `index` is not.
+
+  - id: 2s-conformance-FuzzTransform-open
+    package: flutter3d_conformance
+    symbol: FuzzTransform
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `FuzzTransform` is an `abstract final` class rather than a sealed one,
+      so a case a later minor adds breaks no `switch`: a `switch` over its
+      cases ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-core-MaterialHintKind-open
+    package: flutter3d_core
+    symbol: MaterialHintKind
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MaterialHintKind` is an `abstract final` class rather than a sealed
+      one, so a case a later minor adds breaks no `switch`: a `switch` over
+      its cases ends with a wildcard. The cases and their fields are
+      unchanged.
+
+  - id: 2s-core-ModelCameraProjection-open
+    package: flutter3d_core
+    symbol: ModelCameraProjection
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ModelCameraProjection` is an `abstract final` class rather than a
+      sealed one, so a case a later minor adds breaks no `switch`: a `switch`
+      over its cases ends with a wildcard. The cases and their fields are
+      unchanged.
+
+  - id: 2s-editor_core-EditorCommand-open
+    package: flutter3d_editor_core
+    symbol: EditorCommand
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `EditorCommand` is an `abstract final` class rather than a sealed one,
+      so a case a later minor adds breaks no `switch`: a `switch` over its
+      cases ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-lti-LtiLaunchException-open
+    package: flutter3d_lti
+    symbol: LtiLaunchException
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `LtiLaunchException` is an `abstract final` class rather than a sealed
+      one, so a case a later minor adds breaks no `switch`: a `switch` over
+      its cases ends with a wildcard. The cases and their fields are
+      unchanged.
+
+  - id: 2s-game-RunStatus-open
+    package: flutter3d_game
+    symbol: RunStatus
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `RunStatus` is an `abstract final` class rather than a sealed one, so a
+      case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-game_strategy-StrategyOrder-open
+    package: flutter3d_game_strategy
+    symbol: StrategyOrder
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `StrategyOrder` is an `abstract final` class rather than a sealed one,
+      so a case a later minor adds breaks no `switch`: a `switch` over its
+      cases ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-mesh-Modifier-open
+    package: flutter3d_mesh
+    symbol: Modifier
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `Modifier` is an `abstract final` class rather than a sealed one, so a
+      case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-mesh-ParametricShape-open
+    package: flutter3d_mesh
+    symbol: ParametricShape
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ParametricShape` is an `abstract final` class rather than a sealed one,
+      so a case a later minor adds breaks no `switch`: a `switch` over its
+      cases ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-model_core-ExportResult-open
+    package: flutter3d_model_core
+    symbol: ExportResult
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ExportResult` is an `abstract final` class rather than a sealed one, so
+      a case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-model_core-Geometry-open
+    package: flutter3d_model_core
+    symbol: Geometry
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `Geometry` is an `abstract final` class rather than a sealed one, so a
+      case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-model_core-ModelCommand-open
+    package: flutter3d_model_core
+    symbol: ModelCommand
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ModelCommand` is an `abstract final` class rather than a sealed one, so
+      a case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-model_core-ParamHint-open
+    package: flutter3d_model_core
+    symbol: ParamHint
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ParamHint` is an `abstract final` class rather than a sealed one, so a
+      case a later minor adds breaks no `switch`: a `switch` over its cases
+      ends with a wildcard. The cases and their fields are unchanged.
+
+  - id: 2s-sim_mcp-ReadingPredicate-open
+    package: flutter3d_sim_mcp
+    symbol: ReadingPredicate
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ReadingPredicate` is an `abstract final` class rather than a sealed
+      one, so a case a later minor adds breaks no `switch`: a `switch` over
+      its cases ends with a wildcard. The cases and their fields are
+      unchanged.
+
+  - id: 2s-model_core-TextureNode-open
+    package: flutter3d_model_core
+    symbol: TextureNode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TextureNode` is an `abstract base class` with a visitor rather than a
+      sealed class, so a node kind a later minor adds breaks no `switch`: a
+      `switch` over the kinds ends with a wildcard, or reads every kind
+      through `accept` and a `TextureNodeVisitor`, whose `visitUnknown`
+      answers for a kind it predates.
+
+  # The game's input names no type of a 0.x device package: its pad and
+  # pointer types are its own, with the device packages behind them.
+
+  - id: 2s-game-PadInput-device
+    package: flutter3d_game
+    symbol: PadInput
+    kind: manual
+    members: [pad, heldButtons]
+    wave: 2
+    guidance: >-
+      `pad:` takes a `PadDevice`, the game's own: leave out `pad:
+      Gamepad.instance`, which is the default, write `PadDevice.platform(slot:
+      n)` for `Gamepad(index: n)`, and make a test's fake pad extend
+      `PadDevice` and fill the `PadReading` it is handed. `heldButtons` holds
+      `GamePadButton`s, so compare with `GamePadButton.start` rather than
+      `PadButton.start`: a `contains` with the old type still compiles and is
+      always false.
+
+  - id: 2s-game-PadPresses-menuButton
+    package: flutter3d_game
+    symbol: PadPresses
+    kind: manual
+    members: [offer]
+    wave: 2
+    guidance: >-
+      `menuButton:` takes a `GamePadButton`, the game's own: write
+      `GamePadButton.start` for `PadButton.start`. The ids are the same, so a
+      saved binding is unchanged.
+
+  - id: 2s-game-DesktopInput-capture
+    package: flutter3d_game
+    symbol: DesktopInput
+    kind: manual
+    members: [capture]
+    wave: 2
+    guidance: >-
+      `capture:` takes a `MouseCapture`, the game's own: leave out `capture:
+      PointerLock.instance`, which is the default, and make a test's fake
+      capture extend `MouseCapture`, whose `changes` is a `Stream<bool>`, true
+      when the pointer is taken.

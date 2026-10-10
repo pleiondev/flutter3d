@@ -35,7 +35,6 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart' as stereo;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pad_input/pad_input.dart';
 
 import 'src/backend.dart';
 import 'src/circuits.dart';
@@ -1561,7 +1560,7 @@ class _RaceScreenState extends State<RaceScreen>
     if (!_presses.offer(
       _pad,
       _settings,
-      menuButton: PadButton.start,
+      menuButton: GamePadButton.start,
       // The same clause Escape and the gear run — the keys the car was holding
       // are let go, or it comes back accelerating into a wall.
       opening: _input.clear,

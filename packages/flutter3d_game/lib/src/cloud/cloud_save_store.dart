@@ -37,7 +37,7 @@ abstract base class CloudSaveStore {
 
 /// What [CloudSaveStore.fetch] found.
 ///
-/// **Sealed on purpose.** A sync answers every case and nothing else can
+/// **Closed for good, and sealed on purpose.** A sync answers every case and nothing else can
 /// happen to a fetch — there is a copy, there is none, or the store could not
 /// say — so a `switch` over it is exhaustive and a case that went unhandled
 /// would be a run silently lost. A fourth answer would be a new protocol, and
@@ -48,7 +48,7 @@ sealed class CloudFetch {
 
 /// What [CloudSaveStore.put] did.
 ///
-/// **Sealed on purpose**, for the reason [CloudFetch] is: kept, overtaken by
+/// **Closed for good, and sealed on purpose**, for the reason [CloudFetch] is: kept, overtaken by
 /// another device, or not reachable are the whole of what a write can do.
 sealed class CloudPut {
   const CloudPut();

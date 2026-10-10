@@ -9,21 +9,53 @@ library;
 import 'formats.dart';
 
 /// What kind of value a [TextureFormat]'s texels hold.
-enum TextureSampleKind {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureSampleKind {
+  const TextureSampleKind._(this.name);
+
   /// Read as floats in a shader: float, normalised and compressed formats.
-  float,
+  static const TextureSampleKind float = TextureSampleKind._('float');
 
   /// Read as signed integers; never filtered or blended.
-  sint,
+  static const TextureSampleKind sint = TextureSampleKind._('sint');
 
   /// Read as unsigned integers; never filtered or blended.
-  uint,
+  static const TextureSampleKind uint = TextureSampleKind._('uint');
 
   /// A depth value.
-  depth,
+  static const TextureSampleKind depth = TextureSampleKind._('depth');
 
   /// A stencil value only.
-  stencil,
+  static const TextureSampleKind stencil = TextureSampleKind._('stencil');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureSampleKind> values = <TextureSampleKind>[
+    float,
+    sint,
+    uint,
+    depth,
+    stencil,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureSampleKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureSampleKind.$name';
 }
 
 /// Facts about every [TextureFormat] that do not depend on a device.

@@ -7,7 +7,7 @@ import 'watched.dart';
 
 /// Where a run is: not yet started, starting, running with a VM service to
 /// attach to, or over.
-sealed class PlayState {
+abstract final class PlayState {
   const PlayState();
 }
 

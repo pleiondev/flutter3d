@@ -30,20 +30,52 @@ import 'selection.dart';
 
 /// Roughly how much an issue matters.
 ///
-/// Machinery: three levels is what a panel can show and what a person can
-/// triage, and a fourth would be a shade of one of these rather than a new
-/// kind of answer. Named in `boundaryEnumExempt` for that reason, which is
-/// decision Б7 of `doc/model-editor-plan.md`.
-enum IssueSeverity {
+/// Three levels is what a panel shows and a person can triage today. The set
+/// is open all the same, because a severity is a tier, and tiers are where a
+/// later release finds it wants one more.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class IssueSeverity {
+  const IssueSeverity._(this.name);
+
   /// Worth knowing. A boundary edge on a plane, an n-gon in a file.
-  note,
+  static const IssueSeverity note = IssueSeverity._('note');
 
   /// Probably not what somebody meant. Vertices in the same place, a shell
   /// wound inside out.
-  warning,
+  static const IssueSeverity warning = IssueSeverity._('warning');
 
   /// Will not survive being drawn or written out. A face with no area.
-  error,
+  static const IssueSeverity error = IssueSeverity._('error');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<IssueSeverity> values = <IssueSeverity>[
+    note,
+    warning,
+    error,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static IssueSeverity? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
+
+  @override
+  String toString() => 'IssueSeverity.$name';
 }
 
 /// A kind of thing a check can find.

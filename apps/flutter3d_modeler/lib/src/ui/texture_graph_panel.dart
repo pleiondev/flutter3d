@@ -223,6 +223,7 @@ final class HintRow extends StatelessWidget {
           ),
         ],
       ),
+      _ => Text(bound),
     };
     return SizedBox(
       height: ModelerMetrics.row,

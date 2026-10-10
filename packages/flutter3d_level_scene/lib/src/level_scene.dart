@@ -280,15 +280,16 @@ final class LevelScene {
   ///
   /// **Case by case rather than by name**, though the four words are spelled
   /// the same on both sides: `flutter3d_sim` may not import the engine, so the
-  /// two enums are two enums, and a `switch` with no default is the thing that
-  /// makes the compiler point at this line the day either of them grows a
-  /// fifth answer. Matching on `name` would compile and quietly fall back.
+  /// two sets are two types. Both are open, so a fifth mode on the level side
+  /// reaches the wildcard and refuses loudly until it is mapped here. Matching
+  /// on `name` would compile and quietly fall back.
   static ShadowCastingMode shadowModeOf(ShadowCasting casting) =>
       switch (casting) {
         ShadowCasting.on => ShadowCastingMode.on,
         ShadowCasting.off => ShadowCastingMode.off,
         ShadowCasting.doubleSided => ShadowCastingMode.doubleSided,
         ShadowCasting.shadowsOnly => ShadowCastingMode.shadowsOnly,
+        _ => throw UnsupportedError('no engine shadow mode for $casting'),
       };
 
   /// Builds an engine material from a level material and the loaded maps.

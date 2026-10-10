@@ -232,6 +232,31 @@ void main() {
     expect(server.store.rows, isEmpty);
   });
 
+  test('an upload that is JSON but not a run is refused with the reader\'s '
+      'sentence, and one that is not JSON is called that', () async {
+    // Mutation: catch `FormatException` before the upload's own exception,
+    // which is one, and a well-formed body that names no game is answered
+    // "not JSON".
+    final server = _server();
+    final json =
+        jsonDecode(_upload(_record(stick: 1.0))) as Map<String, Object?>
+          ..remove('game');
+
+    final (status, answer) = await _call(
+      server,
+      'POST',
+      '/runs',
+      jsonEncode(json),
+    );
+    expect(status, 400);
+    expect(answer['says'], 'the upload names no game');
+
+    final (broken, brokenAnswer) = await _call(server, 'POST', '/runs', '{');
+    expect(broken, 400);
+    expect(brokenAnswer['says'], startsWith('not JSON: '));
+    expect(server.store.rows, isEmpty);
+  });
+
   test(
     'a run of a game or a level this server lacks is refused by name',
     () async {

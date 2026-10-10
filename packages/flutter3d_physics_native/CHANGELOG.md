@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`DebrisStatic` and `RagdollJoint` are `abstract final` rather than
+  sealed**, so a shape or a joint a later minor adds breaks no `switch` over
+  them.
 - **Any shape a game extends `CollisionShape` with runs in the core**, as
   the hull of its `supportPoint` sampled in `customShapeDirections`, not
   only a `CustomShape`.

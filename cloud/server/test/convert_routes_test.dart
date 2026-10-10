@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
 import 'package:flutter3d_models/src/convert/conversion_store.dart';
 import 'package:flutter3d_models/src/convert/converter.dart';
@@ -23,7 +24,7 @@ import 'package:flutter3d_models/src/domain/user.dart';
 import 'package:flutter3d_models/src/http/convert_routes.dart';
 import 'package:flutter3d_models/src/http/cookies.dart';
 import 'package:flutter3d_models/src/http/editor_gate.dart';
-import 'package:shelf/shelf.dart';
+import 'package:jaspr/server.dart';
 import 'package:test/test.dart';
 
 const _origin = 'https://models.pleion.dev';
@@ -192,6 +193,10 @@ class _Harness {
 }
 
 void main() {
+  // The result pages are rendered with Jaspr, which refuses to render before
+  // it is initialised; the other route tests do the same in their own files.
+  setUpAll(() => Jaspr.initializeApp(options: defaultServerOptions));
+
   late _Harness h;
   setUp(() => h = _Harness());
   tearDown(() => h.dispose());

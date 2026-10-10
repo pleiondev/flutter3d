@@ -9,7 +9,7 @@
 /// `aspectRatio` may be absent on purpose, meaning "follow the viewport",
 /// which `Projection` has no way to represent since it is always handed a
 /// concrete one.
-sealed class ModelCameraProjection {
+abstract final class ModelCameraProjection {
   const ModelCameraProjection();
 }
 

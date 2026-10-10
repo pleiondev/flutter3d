@@ -15,7 +15,7 @@ import '../pose.dart';
 /// inverse of the model's world matrix. [weight] moves when [fadeTo] says,
 /// on the graph's steps, so a monster turns its head to you and away again
 /// rather than snapping.
-sealed class AnimationGoal {
+abstract final class AnimationGoal {
   AnimationGoal({double weight = 1.0})
     : _weight = weight.clamp(0.0, 1.0),
       _target = weight.clamp(0.0, 1.0);

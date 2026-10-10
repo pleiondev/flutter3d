@@ -113,6 +113,7 @@ class _PlayScreenState extends State<PlayScreen> {
                       owns ? 'Running, $vmService' : 'Attached, $vmService',
                     PlayStopped(:final String reason) => reason,
                     PlayStopped(:final exitCode) => 'Stopped ($exitCode)',
+                    _ => '$state',
                   },
                   key: const ValueKey<String>('play.status'),
                   style: const TextStyle(color: _text),

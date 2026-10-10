@@ -65,6 +65,11 @@ final class SaveSchema {
 }
 
 /// What [SaveSchema.upgrade] made of a run.
+///
+/// **Closed for good**: upgraded or refused: the two answers to whether a save
+/// can be carried forward, with the reason inside the refusal. No case can be
+/// added without changing what the type means, so it stays sealed and a
+/// `switch` over it may name every case.
 sealed class SaveUpgrade {
   const SaveUpgrade();
 }

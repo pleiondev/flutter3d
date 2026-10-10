@@ -18,34 +18,139 @@ library;
 import '../format_exceptions.dart';
 
 /// The kind of object a pointer lands on.
-enum AnimationPointerTarget { material, light }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationPointerTarget {
+  const AnimationPointerTarget._(this.name);
+
+  static const AnimationPointerTarget material = AnimationPointerTarget._(
+    'material',
+  );
+
+  static const AnimationPointerTarget light = AnimationPointerTarget._('light');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationPointerTarget> values = <AnimationPointerTarget>[
+    material,
+    light,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationPointerTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'AnimationPointerTarget.$name';
+}
 
 /// The property a pointer drives, with the number of floats in one value.
-enum AnimationPointerProperty {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationPointerProperty {
+  const AnimationPointerProperty._(this.name, this.target, this.componentCount);
+
   /// glTF's `baseColorFactor`: linear RGBA, as the file keeps it. The sink
   /// converts to the authored tint `RenderMaterial.baseColor` holds.
-  baseColor(AnimationPointerTarget.material, 4),
+  static const AnimationPointerProperty baseColor = AnimationPointerProperty._(
+    'baseColor',
+    AnimationPointerTarget.material,
+    4,
+  );
 
   /// `KHR_materials_emissive_strength`'s multiplier.
-  emissiveStrength(AnimationPointerTarget.material, 1),
-  roughness(AnimationPointerTarget.material, 1),
-  metallic(AnimationPointerTarget.material, 1),
+  static const AnimationPointerProperty emissiveStrength =
+      AnimationPointerProperty._(
+        'emissiveStrength',
+        AnimationPointerTarget.material,
+        1,
+      );
+
+  static const AnimationPointerProperty roughness = AnimationPointerProperty._(
+    'roughness',
+    AnimationPointerTarget.material,
+    1,
+  );
+
+  static const AnimationPointerProperty metallic = AnimationPointerProperty._(
+    'metallic',
+    AnimationPointerTarget.material,
+    1,
+  );
 
   /// `KHR_texture_transform`'s `offset` on any of a material's textures.
   ///
   /// One property for all of them: the pointer string says which texture the
   /// file named, a writer puts it back there, and the sink moves that map's
   /// offset alone — `C8`, `PointerTargets.textureMapOf`.
-  textureOffset(AnimationPointerTarget.material, 2),
+  static const AnimationPointerProperty textureOffset =
+      AnimationPointerProperty._(
+        'textureOffset',
+        AnimationPointerTarget.material,
+        2,
+      );
 
   /// `KHR_lights_punctual`'s `color`, linear RGB.
-  lightColor(AnimationPointerTarget.light, 3),
-  lightIntensity(AnimationPointerTarget.light, 1);
+  static const AnimationPointerProperty lightColor = AnimationPointerProperty._(
+    'lightColor',
+    AnimationPointerTarget.light,
+    3,
+  );
 
-  const AnimationPointerProperty(this.target, this.componentCount);
+  static const AnimationPointerProperty lightIntensity =
+      AnimationPointerProperty._(
+        'lightIntensity',
+        AnimationPointerTarget.light,
+        1,
+      );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationPointerProperty> values =
+      <AnimationPointerProperty>[
+        baseColor,
+        emissiveStrength,
+        roughness,
+        metallic,
+        textureOffset,
+        lightColor,
+        lightIntensity,
+      ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationPointerProperty? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
 
   final AnimationPointerTarget target;
   final int componentCount;
+
+  @override
+  String toString() => 'AnimationPointerProperty.$name';
 }
 
 /// One resolved pointer: [property] of the [index]th object of its kind.
@@ -167,6 +272,7 @@ final class AnimationPointer {
             '/extensions/KHR_lights_punctual/lights/$index/color',
           AnimationPointerProperty.lightIntensity =>
             '/extensions/KHR_lights_punctual/lights/$index/intensity',
+          _ => throw UnsupportedError('no glTF pointer for $property'),
         },
       );
 

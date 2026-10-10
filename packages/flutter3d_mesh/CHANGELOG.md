@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `CsgOperation`, `ElementLevel`, `IssueSeverity`,
+  `MeshAttribute`, `MeshDomain` and `RecipeCategory` are open sets, and
+  `Modifier` and `ParametricShape` are `abstract final`.** Classes with
+  constants rather than enums, and hierarchies no longer sealed, so a corner
+  level, a fourth boolean or a new modifier in a later minor breaks no
+  `switch`. The constants, `values`, `name` and `toString` are unchanged,
+  `byName` reads a name back, and `IssueSeverity` keeps `index` for sorting.
 - **Breaking: `SculptMeshBvh.raycast` answers a `TriangleHit`**, the core's
   class for what `TriangleBvh.raycast` answers, where it answered a record;
   its getters are the record's fields, so a read of one is unchanged.

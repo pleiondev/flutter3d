@@ -312,6 +312,9 @@ final class SetParametric extends ModelCommand {
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket and was never described by numbers',
       ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
+      ),
     };
   }
 }
@@ -360,6 +363,9 @@ final class BakeToMesh extends ModelCommand {
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket, and there is no shape underneath it '
         'to turn into a mesh',
+      ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
       ),
     };
   }
@@ -427,6 +433,9 @@ final class BuildTopology extends ModelCommand {
       ),
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket and has no shape underneath it',
+      ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
       ),
     };
   }
@@ -642,6 +651,7 @@ Outcome _aboutThePivot(
     final Vector3 about = switch (pivot) {
       TransformPivot.median => middle,
       TransformPivot.individual => object.transform.getTranslation(),
+      _ => throw UnsupportedError('no pivot point for $pivot'),
     };
     final Matrix4 moved = _sandwiched(
       about,
@@ -660,16 +670,55 @@ Outcome _aboutThePivot(
 /// standing on a floor wants, and it is the one an engine expects of a prop;
 /// the world origin is how a model that was authored off-centre gets put back
 /// where the exporter assumes it is.
-enum OriginPlacement {
-  boundsCenter('boundsCentre'),
-  boundsBottom('boundsBottom'),
-  worldOrigin('worldOrigin');
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class OriginPlacement {
+  const OriginPlacement._(this.name, this.wire);
 
-  const OriginPlacement(this.wire);
+  static const OriginPlacement boundsCenter = OriginPlacement._(
+    'boundsCenter',
+    'boundsCentre',
+  );
+
+  static const OriginPlacement boundsBottom = OriginPlacement._(
+    'boundsBottom',
+    'boundsBottom',
+  );
+
+  static const OriginPlacement worldOrigin = OriginPlacement._(
+    'worldOrigin',
+    'worldOrigin',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<OriginPlacement> values = <OriginPlacement>[
+    boundsCenter,
+    boundsBottom,
+    worldOrigin,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static OriginPlacement? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// The word a journal and the `setOrigin` tool write for it, which stays
   /// as it was written when the Dart name changed (`boundsCentre`).
   final String wire;
+
+  @override
+  String toString() => 'OriginPlacement.$name';
 }
 
 /// Moves an object's origin without moving the object.
@@ -868,6 +917,7 @@ final class ApplyTransform extends ModelCommand {
       mesh: null,
       refused: '"${object.name}" is a socket and has no vertices to move',
     ),
+    _ => (object: null, mesh: null, refused: 'object $id is not a mesh'),
   };
 }
 

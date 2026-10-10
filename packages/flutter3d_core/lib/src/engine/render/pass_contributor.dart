@@ -466,16 +466,49 @@ final class ContributorFrame extends FrameContext {
 
 /// How a reactive sprite's coverage is worked out — `R4`, and the shapes
 /// `post/reactive_sprite.frag` knows, in its order.
-enum ReactiveShape {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ReactiveShape {
+  const ReactiveShape._(this.name);
+
   /// `particle.frag`'s procedural disc: a squared smoothstep from the middle.
-  disc,
+  static const ReactiveShape disc = ReactiveShape._('disc');
 
   /// `splat.frag`'s Gaussian, with the quad's coordinates in standard
   /// deviations.
-  gaussian,
+  static const ReactiveShape gaussian = ReactiveShape._('gaussian');
 
   /// The sprite texture's own alpha.
-  sprite,
+  static const ReactiveShape sprite = ReactiveShape._('sprite');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ReactiveShape> values = <ReactiveShape>[
+    disc,
+    gaussian,
+    sprite,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ReactiveShape? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
+
+  @override
+  String toString() => 'ReactiveShape.$name';
 }
 
 /// Everything a contributor is handed to mark its pixels reactive — `R4`.

@@ -283,6 +283,8 @@ PlayheadStep advanceTime({
           turned = !turned;
         }
       }
+    default:
+      throw UnsupportedError('no wrap rule for $wrap');
   }
 
   return PlayheadStep(time: next, reversing: turned, stopped: false);

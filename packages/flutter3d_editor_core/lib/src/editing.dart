@@ -112,6 +112,7 @@ final class Editing {
           Piece.brush => level.brushes[it.index].id,
           Piece.light => level.lights[it.index].id,
           Piece.entity => level.entities[it.index].id,
+          _ => throw UnsupportedError('a level has no list of ${it.kind}'),
         };
 
   int? _indexOf(Piece kind, String id) {
@@ -119,6 +120,7 @@ final class Editing {
       Piece.brush => level.brushes.indexWhere((Brush b) => b.id == id),
       Piece.light => level.lights.indexWhere((LevelLight l) => l.id == id),
       Piece.entity => level.entities.indexWhere((EntityDef e) => e.id == id),
+      _ => throw UnsupportedError('a level has no list of $kind'),
     };
     return at < 0 ? null : at;
   }
@@ -188,6 +190,7 @@ final class Editing {
             Piece.brush => level.brushes.length,
             Piece.light => level.lights.length,
             Piece.entity => level.entities.length,
+            _ => throw UnsupportedError('a level has no list of ${it.kind}'),
           };
 
   /// Where [it] is in the document, or null when it is not there.
@@ -197,6 +200,7 @@ final class Editing {
           Piece.brush => level.brushes[it.index].center,
           Piece.light => level.lights[it.index].position,
           Piece.entity => level.entities[it.index].position,
+          _ => throw UnsupportedError('a level has no list of ${it.kind}'),
         };
 
   /// What is selected, whatever kind it is, or null.
@@ -205,6 +209,7 @@ final class Editing {
     Piece.light => light,
     Piece.entity => entity,
     null => null,
+    _ => throw UnsupportedError('a level has no list of $kind'),
   };
 
   Brush? get brush => kind != Piece.brush ? null : _at(level.brushes, selected);
@@ -664,6 +669,8 @@ final class Editing {
         );
         kind = Piece.entity;
         selected = level.entities.length - 1;
+      default:
+        throw UnsupportedError('a level has no list of ${it.kind}');
     }
   }
 
@@ -736,6 +743,8 @@ final class Editing {
         level.lights.removeAt(index);
       case Piece.entity:
         level.entities.removeAt(index);
+      default:
+        throw UnsupportedError('a level has no list of ${kind!}');
     }
     kind = null;
     selected = null;
@@ -759,6 +768,8 @@ final class Editing {
           level.lights.removeAt(it.index);
         case Piece.entity:
           level.entities.removeAt(it.index);
+        default:
+          throw UnsupportedError('a level has no list of ${it.kind}');
       }
     }
     kind = null;
@@ -839,6 +850,7 @@ final class Editing {
         'name': '',
       },
       Piece.entity => const <String, Object?>{'name': ''},
+      _ => throw UnsupportedError('a level has no list of ${kind!}'),
     };
     return <String, Object?>{
       for (final entry in all.entries)
@@ -916,6 +928,7 @@ final class Editing {
       Piece.light => 'lights',
       Piece.entity => 'entities',
       null => null,
+      _ => throw UnsupportedError('a level has no list of $kind'),
     };
     final list = document[name];
     final at = selected;
@@ -943,6 +956,7 @@ final class Editing {
           Piece.brush => 'brushes',
           Piece.light => 'lights',
           Piece.entity => 'entities',
+          _ => throw UnsupportedError('a level has no list of ${kind!}'),
         }];
     if (list is! List || at < 0 || at >= list.length) return null;
     final row = list[at];

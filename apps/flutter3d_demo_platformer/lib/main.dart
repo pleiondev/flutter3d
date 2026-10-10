@@ -35,7 +35,6 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pad_input/pad_input.dart';
 
 import 'src/air.dart';
 import 'src/audio_cubit.dart';
@@ -776,9 +775,9 @@ class _GameScreenState extends State<GameScreen> {
       ActionMap(actions: PlatformerActions.set, buttons: bindings),
     );
     return bindings
-      ..bind(InputSource.pad(PadButton.faceEast.id), PlatformerActions.dash)
+      ..bind(InputSource.pad(GamePadButton.faceEast.id), PlatformerActions.dash)
       ..bind(
-        InputSource.pad(PadButton.shoulderLeft.id),
+        InputSource.pad(GamePadButton.shoulderLeft.id),
         PlatformerActions.dropThrough,
       );
   }
@@ -1108,7 +1107,7 @@ class _GameScreenState extends State<GameScreen> {
     if (!_presses.offer(
       _pad,
       _settings,
-      menuButton: PadButton.start,
+      menuButton: GamePadButton.start,
       opening: _openSettings,
     )) {
       return;
@@ -1120,7 +1119,7 @@ class _GameScreenState extends State<GameScreen> {
       _begin();
       return;
     }
-    if (_runIsOver && _pad.heldButtons.contains(PadButton.start)) _restart();
+    if (_runIsOver && _pad.heldButtons.contains(GamePadButton.start)) _restart();
   }
 
   /// The pad's presses, told apart from its holds.

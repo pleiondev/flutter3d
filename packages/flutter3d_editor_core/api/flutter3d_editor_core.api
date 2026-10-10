@@ -64,12 +64,12 @@ final class Delete extends EditorCommand
   bool apply(Editing editing)
   const Delete()
 
-sealed class DocumentCommand
-  Map<String, Object?> get arguments
+abstract final class DocumentCommand
   Map<String, Object?> toJson()
-  String get name
-  String get says
-  bool apply(Editing editing)
+  abstract Map<String, Object?> get arguments
+  abstract String get name
+  abstract String get says
+  abstract bool apply(Editing editing)
   const DocumentCommand()
 
 abstract final class DocumentText
@@ -157,12 +157,12 @@ final class Editing
   void turn(double by)
   void undo()
 
-sealed class EditorCommand extends DocumentCommand
-  Map<String, Object?> get arguments
+abstract final class EditorCommand extends DocumentCommand
   Map<String, Object?> toJson()
-  String get name
-  String get says
-  bool apply(Editing editing)
+  abstract Map<String, Object?> get arguments
+  abstract String get name
+  abstract String get says
+  abstract bool apply(Editing editing)
   const EditorCommand()
   static EditorCommand? fromJson(Map<String, Object?> json)
 
@@ -366,8 +366,14 @@ abstract final class Picking
   static double? hit(Vector3 min, Vector3 max, Vector3 from, Vector3 along)
   static int? brushAt(List<Brush> brushes, Vector3 from, Vector3 along)
 
-enum Piece
-  values: brush, light, entity
+final class Piece
+  String toString()
+  final String name
+  static Piece? byName(String name)
+  static const List<Piece> values = <Piece>[brush, light, entity]
+  static const Piece brush = Piece._('brush')
+  static const Piece entity = Piece._('entity')
+  static const Piece light = Piece._('light')
 
 final class Place extends EditorCommand
   Map<String, Object?> get arguments

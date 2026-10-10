@@ -17,7 +17,7 @@ import '../save/demo.dart';
 import '../save/state_digest.dart';
 
 /// What [resimulate] found.
-sealed class Resimulation {
+abstract final class Resimulation {
   const Resimulation();
 }
 

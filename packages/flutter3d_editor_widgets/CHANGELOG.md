@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `NumberUnit` is an open set**, a class with constants rather
+  than an enum, so a unit a later minor adds breaks no `switch`. The
+  constants, `values` and `name` are as they were.
 - **Breaking: public constants are lowerCamelCase, without the k prefix,
   as Effective Dart asks.** `kLabelBesideFrom` is `labelBesideFrom`. The
   values are the same; `dart fix` carries the renames.

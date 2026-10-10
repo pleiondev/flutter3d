@@ -19,6 +19,11 @@ import 'plane.dart';
 /// transform that no caller ever explicitly wrote into would still look
 /// changed to whichever side polled it first. A direction chosen once, at
 /// construction, is one field instead of a heuristic.
+///
+/// **Closed for good**: which of the two engines writes the other's transform:
+/// a bridge has two ends, and a write comes from one of them. No member can be
+/// added without changing what the type means, so it stays an enum and a
+/// `switch` over it may name every case.
 enum SyncDirection {
   /// This component's flutter3d [SceneNode] is authoritative; its position
   /// and rotation are copied onto the Flame side every frame. What every
@@ -357,6 +362,10 @@ class Object3dComponent extends PositionComponent
         node.setScale(sx, across, sy);
       case PlaneAxis.z:
         node.setScale(sx, sy, across);
+      default:
+        throw UnsupportedError(
+          'a bridge plane cannot hold ${plane.axis} constant yet',
+        );
     }
   }
 

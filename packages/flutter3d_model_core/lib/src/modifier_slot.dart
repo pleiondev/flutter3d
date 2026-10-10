@@ -115,4 +115,5 @@ Map<String, ParamHint> hintsForModifier(Modifier modifier) =>
         'operation': ChoiceHint([...CsgOperation.values.map(csgOperationWord)]),
         'operandId': const IntHint(min: 0),
       },
+      _ => const <String, ParamHint>{},
     };

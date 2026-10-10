@@ -316,6 +316,11 @@ abstract final class ProjectSection {
 /// An exception was the other candidate and lost for the reason the plan gives:
 /// opening a file the user chose is not exceptional, it is a normal Tuesday,
 /// and the sentence belongs in front of them rather than in a stack trace.
+///
+/// **Closed for good**: opened or refused: the two answers to whether a file
+/// could be read, with the reason inside the refusal. No case can be added
+/// without changing what the type means, so it stays sealed and a `switch` over
+/// it may name every case.
 sealed class ProjectRead {
   const ProjectRead();
 }
@@ -502,6 +507,10 @@ Uint8List writeProject(
           geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
         case SocketGeometry():
           geometry = <String, Object?>{'kind': 'socket'};
+        default:
+          throw UnsupportedError(
+            '.f3dproj has no record for ${object.geometry}',
+          );
       }
       out.add(<String, Object?>{
         'id': object.id,

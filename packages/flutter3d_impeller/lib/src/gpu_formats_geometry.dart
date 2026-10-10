@@ -10,6 +10,7 @@ extension IndexTypeToGpu on IndexType {
   gpu.IndexType toGpu() => switch (this) {
     IndexType.int16 => gpu.IndexType.int16,
     IndexType.int32 => gpu.IndexType.int32,
+    _ => throw UnsupportedError('flutter_gpu has no index type for $this'),
   };
 }
 
@@ -64,6 +65,9 @@ extension VertexStepModeToGpu on VertexStepMode {
   gpu.VertexStepMode toGpu() => switch (this) {
     VertexStepMode.vertex => gpu.VertexStepMode.vertex,
     VertexStepMode.instance => gpu.VertexStepMode.instance,
+    _ => throw UnsupportedError(
+      'flutter_gpu has no vertex step mode for $this',
+    ),
   };
 }
 

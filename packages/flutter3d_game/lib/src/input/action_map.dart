@@ -114,18 +114,54 @@ final class AxisSettings {
 }
 
 /// Which part of a composite binding a source drives.
-enum CompositePart {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class CompositePart {
+  const CompositePart._(this.name);
+
   /// The minus end of an [AxisComposite].
-  negative,
+  static const CompositePart negative = CompositePart._('negative');
 
   /// The plus end of an [AxisComposite].
-  positive,
+  static const CompositePart positive = CompositePart._('positive');
 
   /// The four directions of a [DualAxisComposite].
-  up,
-  down,
-  left,
-  right,
+  static const CompositePart up = CompositePart._('up');
+
+  static const CompositePart down = CompositePart._('down');
+
+  static const CompositePart left = CompositePart._('left');
+
+  static const CompositePart right = CompositePart._('right');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<CompositePart> values = <CompositePart>[
+    negative,
+    positive,
+    up,
+    down,
+    left,
+    right,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static CompositePart? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'CompositePart.$name';
 }
 
 /// One way a device reaches an action.
@@ -451,18 +487,48 @@ final class BindingConflict {
 }
 
 /// What to do when a rebind meets a source already in use.
-enum ConflictPolicy {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ConflictPolicy {
+  const ConflictPolicy._(this.name);
+
   /// Take it: the other action loses the source. What a rebinding screen
   /// has always done, and the default.
-  steal,
+  static const ConflictPolicy steal = ConflictPolicy._('steal');
 
   /// Trade: the other action gets the source the rebound one gave up, so
   /// nothing is left unbound. Takes it, as [steal], when there was nothing
   /// to give.
-  swap,
+  static const ConflictPolicy swap = ConflictPolicy._('swap');
 
   /// Change nothing, and say which actions are in the way.
-  refuse,
+  static const ConflictPolicy refuse = ConflictPolicy._('refuse');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ConflictPolicy> values = <ConflictPolicy>[
+    steal,
+    swap,
+    refuse,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ConflictPolicy? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ConflictPolicy.$name';
 }
 
 /// What [ActionMap.rebind] did.
@@ -727,8 +793,11 @@ final class ActionMap extends FormatDocument {
                 right: none,
               ).withSource(source, part),
             (final GameAction button, _) => ButtonBinding(button, source),
+            _ => throw UnsupportedError('no binding for ${(action, part)}'),
           });
         }
+      default:
+        throw UnsupportedError('no binding for $action');
     }
     return RebindOutcome(applied: true, conflicts: conflicts);
   }

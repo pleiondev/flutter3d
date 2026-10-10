@@ -477,6 +477,7 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
               : null,
         _ => null,
       },
+      _ => null,
     };
 
 /// [value] as one of [CsgOperation]'s own three names, or null when it is

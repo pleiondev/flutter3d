@@ -2,9 +2,8 @@
 /// row.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **What is not here.** The actual simplified meshes these specs describe
 /// are `LodMeshCache`'s own job (`lod_cache.dart`), not this file's: a

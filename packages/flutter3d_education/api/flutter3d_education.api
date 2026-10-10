@@ -74,7 +74,7 @@ final class LtiLaunchClaims
   final String? contextId
   final String? resourceLinkId
 
-sealed class LtiLaunchException extends ResourceException
+abstract final class LtiLaunchException extends ResourceException
   String toString()
   const LtiLaunchException(this.message)
   final String message
@@ -86,9 +86,14 @@ final class LtiLaunchValidator
   final LtiPlatformSettings platform
   void close()
 
-enum LtiMessageType
-  values: resourceLinkRequest, other
+final class LtiMessageType
+  String toString()
+  final String name
   static LtiMessageType fromClaim(Object? value)
+  static LtiMessageType? byName(String name)
+  static const List<LtiMessageType> values = <LtiMessageType>[resourceLinkRequest, other]
+  static const LtiMessageType other = LtiMessageType._('other')
+  static const LtiMessageType resourceLinkRequest = LtiMessageType._('resourceLinkRequest')
 
 final class LtiNonceMismatchException extends LtiLaunchException
   const LtiNonceMismatchException()
@@ -337,7 +342,7 @@ final class LtiLaunchClaims
   final String? contextId
   final String? resourceLinkId
 
-sealed class LtiLaunchException extends ResourceException
+abstract final class LtiLaunchException extends ResourceException
   String toString()
   const LtiLaunchException(this.message)
   final String message
@@ -349,9 +354,14 @@ final class LtiLaunchValidator
   final LtiPlatformSettings platform
   void close()
 
-enum LtiMessageType
-  values: resourceLinkRequest, other
+final class LtiMessageType
+  String toString()
+  final String name
   static LtiMessageType fromClaim(Object? value)
+  static LtiMessageType? byName(String name)
+  static const List<LtiMessageType> values = <LtiMessageType>[resourceLinkRequest, other]
+  static const LtiMessageType other = LtiMessageType._('other')
+  static const LtiMessageType resourceLinkRequest = LtiMessageType._('resourceLinkRequest')
 
 final class LtiNonceMismatchException extends LtiLaunchException
   const LtiNonceMismatchException()

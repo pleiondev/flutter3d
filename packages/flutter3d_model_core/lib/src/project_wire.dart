@@ -10,8 +10,10 @@
 /// words as they were on the day `.f3dproj` went 1.0; a value renamed in Dart
 /// keeps its word here, and a value added gets a new one.
 ///
-/// Every writer is an exhaustive `switch`, so a new case does not compile
-/// until it has a word. Every reader answers null for a word it does not
+/// Every writer names each value this version has. Most of these types are
+/// open sets, so a value a later minor release adds is one no `switch` here
+/// can name: it writes its own `name`, which is a wire name and never
+/// renamed within a major. Every reader answers null for a word it does not
 /// know, and the caller says what that means: a fallback with a warning in
 /// a project, a skipped entry in a journal.
 library;
@@ -32,6 +34,7 @@ import 'texture_info.dart' show TextureFileFormat;
 String stepAuthorWord(StepAuthor author) => switch (author) {
   StepAuthor.person => 'person',
   StepAuthor.agent => 'agent',
+  _ => author.name,
 };
 
 /// The [StepAuthor] [word] names, or null.
@@ -46,6 +49,7 @@ String profileTargetWord(ProfileTarget target) => switch (target) {
   ProfileTarget.desktop => 'desktop',
   ProfileTarget.mobile => 'mobile',
   ProfileTarget.web => 'web',
+  _ => target.name,
 };
 
 /// The [ProfileTarget] [word] names, or null.
@@ -65,6 +69,7 @@ String textureFileFormatWord(TextureFileFormat format) => switch (format) {
   TextureFileFormat.etc2Rgba8 => 'etc2Rgba8',
   TextureFileFormat.astc4x4 => 'astc4x4',
   TextureFileFormat.other => 'other',
+  _ => format.name,
 };
 
 /// The [TextureFileFormat] [word] names, or null.
@@ -84,6 +89,7 @@ String alphaModeWord(SurfaceAlphaMode mode) => switch (mode) {
   SurfaceAlphaMode.opaque => 'opaque',
   SurfaceAlphaMode.mask => 'mask',
   SurfaceAlphaMode.blend => 'blend',
+  _ => mode.name,
 };
 
 /// The [SurfaceAlphaMode] [word] names, or null.
@@ -99,6 +105,7 @@ String textureWrapWord(TextureWrap wrap) => switch (wrap) {
   TextureWrap.repeat => 'repeat',
   TextureWrap.clampToEdge => 'clampToEdge',
   TextureWrap.mirroredRepeat => 'mirroredRepeat',
+  _ => wrap.name,
 };
 
 /// The [TextureWrap] [word] names, or null.
@@ -113,6 +120,7 @@ TextureWrap? textureWrapOf(Object? word) => switch (word) {
 String selectionModeWord(SelectionMode mode) => switch (mode) {
   SelectionMode.object => 'object',
   SelectionMode.mesh => 'mesh',
+  _ => mode.name,
 };
 
 /// The [SelectionMode] [word] names, or null.
@@ -127,6 +135,7 @@ String elementLevelWord(ElementLevel level) => switch (level) {
   ElementLevel.vertex => 'vertex',
   ElementLevel.edge => 'edge',
   ElementLevel.face => 'face',
+  _ => level.name,
 };
 
 /// The [ElementLevel] [word] names, or null.
@@ -143,6 +152,7 @@ String textureBlendModeWord(TextureBlendMode mode) => switch (mode) {
   TextureBlendMode.multiply => 'multiply',
   TextureBlendMode.add => 'add',
   TextureBlendMode.screen => 'screen',
+  _ => mode.name,
 };
 
 /// The [TextureBlendMode] [word] names, or null.
@@ -175,6 +185,7 @@ TextureChannel? textureChannelOf(Object? word) => switch (word) {
 String transformPivotWord(TransformPivot pivot) => switch (pivot) {
   TransformPivot.median => 'median',
   TransformPivot.individual => 'individual',
+  _ => pivot.name,
 };
 
 /// The [TransformPivot] [word] names, or null.
@@ -188,6 +199,7 @@ TransformPivot? transformPivotOf(Object? word) => switch (word) {
 String transformSpaceWord(TransformSpace space) => switch (space) {
   TransformSpace.global => 'global',
   TransformSpace.local => 'local',
+  _ => space.name,
 };
 
 /// The [TransformSpace] [word] names, or null.
@@ -204,6 +216,7 @@ String animationPathWord(AnimationPath path) => switch (path) {
   AnimationPath.scale => 'scale',
   AnimationPath.weights => 'weights',
   AnimationPath.pointer => 'pointer',
+  _ => path.name,
 };
 
 /// The [AnimationPath] [word] names, or null.
@@ -222,6 +235,7 @@ String interpolationWord(AnimationInterpolation interpolation) =>
       AnimationInterpolation.step => 'step',
       AnimationInterpolation.linear => 'linear',
       AnimationInterpolation.cubicSpline => 'cubicSpline',
+      _ => interpolation.name,
     };
 
 /// The [AnimationInterpolation] [word] names, or null.
@@ -237,6 +251,7 @@ String csgOperationWord(CsgOperation operation) => switch (operation) {
   CsgOperation.union => 'union',
   CsgOperation.subtract => 'subtract',
   CsgOperation.intersect => 'intersect',
+  _ => operation.name,
 };
 
 /// The [CsgOperation] [word] names, or null.

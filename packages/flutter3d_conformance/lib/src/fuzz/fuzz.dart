@@ -343,7 +343,7 @@ FuzzProgram generateFuzzProgram(int seed) {
 // ------------------------------------------------------------- transforms
 
 /// A rewrite of a program into one that must draw the same bytes.
-sealed class FuzzTransform {
+abstract final class FuzzTransform {
   const FuzzTransform();
 
   /// The draws this transform reads, which the shrinker has to keep.

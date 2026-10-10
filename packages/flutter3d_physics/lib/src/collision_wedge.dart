@@ -9,6 +9,11 @@ part of 'collision_shape.dart';
 /// The steepness is the wedge's own proportions — a box twice as long as it is
 /// tall is a ramp of twenty-six degrees — which keeps one number out of the
 /// format and makes the slope something a level author can see in the sizes.
+///
+/// **Closed for good**: the four horizontal directions of the grid a wedge
+/// rises towards: a grid has no fifth. No member can be added without changing
+/// what the type means, so it stays an enum and a `switch` over it may name
+/// every case.
 enum WedgeUphill {
   positiveX(1.0, 0.0),
   negativeX(-1.0, 0.0),

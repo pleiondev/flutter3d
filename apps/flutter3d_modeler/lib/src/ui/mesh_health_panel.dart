@@ -120,6 +120,7 @@ class _Row extends StatelessWidget {
       IssueSeverity.error => theme.colorScheme.error,
       IssueSeverity.warning => theme.colorScheme.tertiary,
       IssueSeverity.note => theme.colorScheme.onSurfaceVariant,
+      _ => theme.colorScheme.onSurfaceVariant,
     };
     final String? tool = fixToolFor(issue.kind);
     return SizedBox(

@@ -215,6 +215,7 @@ extension _GltfAnimation on GltfLoader {
     final count = switch (pointer.target) {
       AnimationPointerTarget.material => materialCount,
       AnimationPointerTarget.light => lightCount,
+      _ => throw UnsupportedError('no object count for ${pointer.target}'),
     };
     if (pointer.index >= count) {
       warnings.add(
