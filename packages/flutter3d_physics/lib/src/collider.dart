@@ -138,9 +138,11 @@ final class Collider {
 
   /// The world this collider is in, once it has been added to one.
   ///
-  /// Assigned by [CollisionWorld.add] and cleared by its remove. Public only
-  /// because the two are in different files.
-  CollisionWorld? world;
+  /// Set by [CollisionWorld.add] and cleared by [CollisionWorld.remove], and
+  /// by nothing else: a collider that said it was in a world the world had
+  /// never filed it in would be asked for by a listener and never found.
+  CollisionWorld? get world => _world;
+  CollisionWorld? _world;
 
   CollisionListener? _listener;
 
@@ -170,7 +172,10 @@ final class Collider {
   /// `MaterialCatalog.contact` says — a measured pair, or the engine's rule
   /// over their own — in the reference `Dynamics`. A file names it by its
   /// id (`PhysicalMaterial.id`).
-  PhysicalMaterial? material;
+  ///
+  /// Given when the collider is made: what a body is made of does not change
+  /// under the solver's contacts.
+  final PhysicalMaterial? material;
 
   /// Whatever the game wants to find its way back to: a monster, a pickup, the
   /// definition of the door this collider belongs to.
@@ -238,3 +243,8 @@ final class Collider {
     indexedAt.setFrom(position);
   }
 }
+
+/// Files [collider] as in [world], or in none: [CollisionWorld]'s own door to
+/// [Collider.world], not exported.
+void fileColliderInWorld(Collider collider, CollisionWorld? world) =>
+    collider._world = world;

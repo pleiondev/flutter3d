@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `CollisionShape` is an `abstract base class`, no longer
+  `sealed`.** A shape of a game's own extends it directly and says its
+  bounds, its planes and its support; every pair method defaults to the GJK
+  walk (`convexOverlap`), ground to the field's prisms, a ray to the
+  bounding box and `inertia` to the solid bounding box. A `switch` over the
+  shapes needs a default case. `CustomShape` stays as the one-function way
+  in, and `ShapePhysics` says which backends run such a shape in their own
+  core.
+- **Breaking: `Collider.world` is read-only**, set by `CollisionWorld.add`
+  and cleared by `remove`. `Collider.material` is final, given at
+  construction.
+- **`CharacterMoved` and `JetDrop` are final classes**, not record
+  typedefs, so a field added in a minor breaks no `CharacterMover` written
+  outside and no code reading a drop. A mover builds
+  `CharacterMoved(position:, grounded:, velocity:, …)`; what it leaves out
+  is nothing met.
+
 - **`FluidMedium.oil` is gone**; it was `oliveOil` under the name it had
   on the way to 1.0.
 

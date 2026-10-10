@@ -73,13 +73,33 @@ List<JetObstacle> obstaclesNear(
 ];
 
 /// A drop a stream broke into, leaving it: where, how fast, how much.
-typedef JetDrop = ({
-  Vector3 position,
-  Vector3 velocity,
-  double volume,
-  FluidMedium medium,
-  Map<String, double> concentrations,
-});
+///
+/// **A class, not a record**, so a field a later minor adds (a temperature,
+/// a charge) breaks no code that builds or reads one.
+final class JetDrop {
+  JetDrop({
+    required this.position,
+    required this.velocity,
+    required this.volume,
+    required this.medium,
+    this.concentrations = const <String, double>{},
+  });
+
+  /// Where it left the stream.
+  final Vector3 position;
+
+  /// How fast it left, m/s.
+  final Vector3 velocity;
+
+  /// How much of the liquid it carries, m³.
+  final double volume;
+
+  /// The liquid it is.
+  final FluidMedium medium;
+
+  /// What is dissolved in it, by species, as the stream carried it.
+  final Map<String, double> concentrations;
+}
 
 /// One point of a stream as a renderer draws it: where, which way it moves,
 /// and its section — an ellipse [wide] across [across] and [thick] the other
@@ -299,13 +319,15 @@ final class Jet {
             final out =
                 (side * Portable.cos(a) + other * Portable.sin(a)) * 0.6 +
                 up * 0.8;
-            drops.add((
-              position: p.position.clone(),
-              velocity: out.normalized() * speed,
-              volume: p.volume * splash / crown,
-              medium: p.medium,
-              concentrations: p.concentrations,
-            ));
+            drops.add(
+              JetDrop(
+                position: p.position.clone(),
+                velocity: out.normalized() * speed,
+                volume: p.volume * splash / crown,
+                medium: p.medium,
+                concentrations: p.concentrations,
+              ),
+            );
           }
           _dropped += p.volume * splash;
         }
@@ -321,13 +343,15 @@ final class Jet {
         final one = math.pi * d * d * d / 6.0;
         final count = math.max(1, (p.volume / one).round());
         for (var k = 0; k < count; k++) {
-          drops.add((
-            position: p.position.clone(),
-            velocity: p.velocity.clone(),
-            volume: p.volume / count,
-            medium: p.medium,
-            concentrations: p.concentrations,
-          ));
+          drops.add(
+            JetDrop(
+              position: p.position.clone(),
+              velocity: p.velocity.clone(),
+              volume: p.volume / count,
+              medium: p.medium,
+              concentrations: p.concentrations,
+            ),
+          );
         }
         _dropped += p.volume;
         if (kept.isNotEmpty) kept.last.endsRun = true;

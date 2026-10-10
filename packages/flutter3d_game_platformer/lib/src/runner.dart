@@ -190,14 +190,9 @@ final class Runner
       halfHeight + radius,
     CollisionSphere(:final double radius) => radius,
     // A runner shaped like a ramp is not a thing, and neither is one shaped
-    // like a hillside. The compiler asking is the sealed hierarchy earning its
-    // keep: `CollisionWedge` and then `CollisionHeightfield` each named every
-    // switch that had to think about them rather than letting one fall through
-    // to a default and answer wrongly for ever.
-    CollisionWedge(:final Vector3 halfExtents) => halfExtents.y,
-    CollisionHeightfield() => _standing.boundsHalfExtents.y,
-    // A shape of a game's own stands as tall as its bounds.
-    CustomShape() => _standing.boundsHalfExtents.y,
+    // like a hillside; those, and a shape of a game's own, stand as tall as
+    // their bounds.
+    _ => _standing.boundsHalfExtents.y,
   };
 
   /// Whether the runner is sliding, which is a crouch with speed in it.

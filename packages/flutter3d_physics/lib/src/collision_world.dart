@@ -211,7 +211,7 @@ final class CollisionWorld {
 
   /// Adds a collider and returns it, so the call can be inlined into a field.
   Collider add(Collider collider) {
-    collider.world = this;
+    fileColliderInWorld(collider, this);
     collider.refreshBounds();
     _ids[collider] = _nextId++;
     _revision++;
@@ -258,7 +258,7 @@ final class CollisionWorld {
   );
 
   void remove(Collider collider) {
-    collider.world = null;
+    fileColliderInWorld(collider, null);
     _reporters.remove(collider);
     _ids.remove(collider);
     _revision++;

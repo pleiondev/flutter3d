@@ -618,7 +618,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
       case CollisionHeightfield():
         final mesh = _meshes[shape] ??= _meshOf(shape);
         return ((b) => native.setMesh(b, mesh), Vector3.zero());
-      case CustomShape():
+      default:
         final (hull, offset) = _hulls[shape] ??= _hullOfCustom(shape);
         return ((b) => native.setHull(b, hull), offset);
     }
@@ -627,12 +627,12 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
   /// A shape of a game's own as the hull of its support points, sampled in
   /// [customShapeDirections] directions: the core holds convex hulls, and a
   /// convex shape is the hull of its supports.
-  (NativeHull, Vector3) _hullOfCustom(CustomShape shape) {
+  (NativeHull, Vector3) _hullOfCustom(CollisionShape shape) {
     final points = <Vector3>[
       for (final (dx, dy, dz) in customShapeDirections)
         () {
           final out = Vector3.zero();
-          shape.support(dx, dy, dz, out);
+          shape.supportPoint(dx, dy, dz, out);
           return out;
         }(),
     ];
@@ -895,7 +895,7 @@ final class NativeCharacterMover extends CharacterMover {
       fromAbove: body.dropThrough ? 0 : body.fromAboveLayers & Layers.all,
       ignore: dynamics.standingOf(body.collider),
     );
-    return (
+    return CharacterMoved(
       position: moved.position,
       grounded: moved.grounded,
       hitWall: moved.hitWall,

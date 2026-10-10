@@ -196,13 +196,16 @@ abstract base mixin class ConstraintPhysics {
   );
 }
 
-/// A backend that collides a caller's own convex shape: a `CustomShape`,
-/// described by its support function, turned into whatever the backend's
-/// core holds (a hull of support points, usually).
+/// A backend that collides a caller's own convex shape — a subclass of
+/// `CollisionShape`, often a `CustomShape` — described by its support
+/// function and turned into whatever the backend's core holds (a hull of
+/// support points, usually). The extension point for shapes on the backend's
+/// side: `CollisionShape` is open to extension, and this says which backends
+/// can run what extends it.
 ///
 /// **A capability with no operation of its own, on purpose: a marker.** A
-/// custom shape is handed to the world like any other — a `Collider` with a
-/// `CustomShape` — so there is nothing to call. What the marker says is that
+/// custom shape is handed to the world like any other — a `Collider` with
+/// that shape — so there is nothing to call. What the marker says is that
 /// the backend's own core collides it, as a hull sampled in
 /// [customShapeSamples] directions; a backend without it leaves the shape to
 /// the world's own queries (the Dart reference's GJK walk over its support).

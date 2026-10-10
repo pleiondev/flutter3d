@@ -55,9 +55,8 @@ final Float64List _push = Float64List(3);
 /// a ball draped over a box — and zero planes for a heightfield, where an
 /// empty loop left the push at nought times infinity and every particle NaN.
 /// A sphere and a capsule are now the nearest point on their surface, a
-/// heightfield is the ground under the particle, and the `switch` over the
-/// sealed shape is what makes a sixth shape a compile error here until
-/// somebody decides how cloth meets it.
+/// heightfield is the ground under the particle, and every other shape — a
+/// box, a wedge, one of a game's own — is pushed out through its planes.
 ///
 /// Only `+ - * /` and `sqrt` reach the result, so the answer is the same bits
 /// on every platform.
@@ -139,8 +138,12 @@ bool pushParticleOutside(
       push[1] = ground - py;
       xyz[3 * i + 1] = ground;
       return true;
-    case CollisionBox() || CollisionWedge() || CustomShape():
-      final count = obstacle.shape.expandedPlanes(o, _noGrowth, _planes);
+    case _:
+      final shape = obstacle.shape;
+      final planes = shape.expandedPlaneCount <= _planeRoom
+          ? _planes
+          : Float64List(4 * shape.expandedPlaneCount);
+      final count = shape.expandedPlanes(o, _noGrowth, planes);
       if (count == 0) return false;
       // Inside when on the inward side of every plane; out along whichever
       // plane it is least far past, the shortest way out and the only one
@@ -148,10 +151,10 @@ bool pushParticleOutside(
       var best = double.infinity;
       var bx = 0.0, by = 0.0, bz = 0.0;
       for (var p = 0; p < count; p++) {
-        final nx = _planes[4 * p];
-        final ny = _planes[4 * p + 1];
-        final nz = _planes[4 * p + 2];
-        final signed = nx * px + ny * py + nz * pz - _planes[4 * p + 3];
+        final nx = planes[4 * p];
+        final ny = planes[4 * p + 1];
+        final nz = planes[4 * p + 2];
+        final signed = nx * px + ny * py + nz * pz - planes[4 * p + 3];
         if (signed > thickness) return false;
         final margin = thickness - signed;
         if (margin < best) {
@@ -171,9 +174,11 @@ bool pushParticleOutside(
   }
 }
 
-/// Scratch for the plane walk, allocated once: the widest convex shape here
-/// (a box) has six planes, a wedge five.
-final Float64List _planes = Float64List(4 * 8);
+/// Scratch for the plane walk, allocated once: the widest built-in convex
+/// shape (a box) has six planes, a wedge five. A shape of a game's own with
+/// more gets a buffer of its own.
+const int _planeRoom = 8;
+final Float64List _planes = Float64List(4 * _planeRoom);
 final Vector3 _noGrowth = Vector3.zero();
 
 /// How far from a round shape's core a particle has to sit: at least

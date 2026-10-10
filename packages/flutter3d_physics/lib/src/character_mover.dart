@@ -4,29 +4,54 @@ import 'character_controller.dart';
 import 'collider.dart';
 
 /// Where a character's move ended, and what it met on the way.
-typedef CharacterMoved = ({
-  Vector3 position,
-  bool grounded,
-  bool hitWall,
-  bool hitCeiling,
+///
+/// **A class, not a record**: a [CharacterMover] written outside this
+/// package builds one, and a field a later minor adds arrives here with a
+/// default instead of breaking every mover.
+final class CharacterMoved {
+  /// Everything but [position], [grounded] and [velocity] defaults to
+  /// nothing met: no wall, no ceiling, no step, no ground.
+  CharacterMoved({
+    required this.position,
+    required this.grounded,
+    required this.velocity,
+    this.hitWall = false,
+    this.hitCeiling = false,
+    this.stepped = false,
+    this.steppedUp = 0.0,
+    Vector3? groundNormal,
+    this.ground,
+  }) : groundNormal = groundNormal ?? Vector3.zero();
+
+  /// Where the move ended.
+  final Vector3 position;
+
+  /// Whether it ended on ground it can stand on.
+  final bool grounded;
+
+  /// Whether it met a wall on the way.
+  final bool hitWall;
+
+  /// Whether it met a ceiling on the way.
+  final bool hitCeiling;
 
   /// Climbed a step to get there.
-  bool stepped,
+  final bool stepped;
 
   /// How far the step lifted it, m — a rise not travelled through, for a
   /// renderer to smooth; nought when it did not step.
-  double steppedUp,
+  final double steppedUp;
 
   /// The velocity it moved with, less the speed into everything it met.
-  Vector3 velocity,
+  final Vector3 velocity;
 
   /// The ground's normal, or zero in the air.
-  Vector3 groundNormal,
+  final Vector3 groundNormal;
 
   /// What it stands on, or null in the air or on something the mover cannot
   /// name as a collider.
-  Collider? ground,
-});
+  final Collider? ground;
+}
 
 /// The geometry of a character's step, done elsewhere — P9: the physics core
 /// moves a world's characters through what it mirrors of that world.

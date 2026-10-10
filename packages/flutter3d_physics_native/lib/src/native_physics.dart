@@ -27,7 +27,7 @@ const String askedPhysics = String.fromEnvironment(
 /// [JointPhysics] (the core's fixed, spherical, revolute and prismatic
 /// joints), [ConstraintPhysics] (a constraint applied as a
 /// [NativeForceField] before each step) and [ShapePhysics] (a
-/// `CustomShape` as the hull of its support points).
+/// shape of a game's own as the hull of its support points).
 final class NativePhysics extends PhysicsBackend
     with JointPhysics, ConstraintPhysics, ShapePhysics {
   NativePhysics();

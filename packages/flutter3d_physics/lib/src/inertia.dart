@@ -19,7 +19,9 @@
 ///   turns close enough.
 /// * **A heightfield is treated as its bounding box too.** It is ground, and
 ///   ground does not turn; the answer exists so that [inertiaFor] has one for
-///   every shape the sealed class has, rather than a throw a game finds later.
+///   every built-in shape, rather than a throw a game finds later.
+///
+/// A shape of a game's own answers itself, through `CollisionShape.inertia`.
 library;
 
 import 'package:vector_math/vector_math.dart';
@@ -43,7 +45,7 @@ Vector3 inertiaFor(CollisionShape shape, double mass) {
     ),
     CollisionWedge(:final halfExtents) => _box(halfExtents, mass),
     CollisionHeightfield() => _box(shape.boundsHalfExtents, mass),
-    final CustomShape custom => custom.inertia(mass),
+    _ => shape.inertia(mass),
   };
 }
 

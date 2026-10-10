@@ -4,12 +4,10 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 import 'tolerances.dart';
 
-// **Parts, not libraries, and not by preference.** [CollisionShape] is `sealed`,
-// and Dart lets a sealed type be extended only from inside its own library — the
-// whole point of the seal being that a `switch` over the shapes is checked for
-// exhaustiveness. So the choice was never between one file and four libraries;
-// it was between one file and four parts of one. The docstring below already
-// promised this shape: "adding a fourth shape then means writing its own file".
+// **Parts, not libraries.** The shapes were parts of one library while
+// [CollisionShape] was `sealed`, which Dart lets be extended only inside its
+// own library; they stay parts because each built-in shape reaches the
+// others' private helpers (a heightfield's prisms, a wedge's corners).
 part 'collision_box.dart';
 part 'collision_sphere.dart';
 part 'collision_capsule.dart';
@@ -34,11 +32,10 @@ part 'custom_shape.dart';
 /// By double dispatch, not by a table of cases. [overlaps] asks the *other*
 /// shape to test itself against this one, so the concrete pair is resolved by
 /// the language and each pair's mathematics lives on one of the two shapes it
-/// concerns. Adding a shape then means writing its own file and implementing
-/// the visitor methods — the compiler names every case that is missing, which a
-/// `switch` over pairs cannot do. That is not a claim about a future: it is
-/// what happened twice, once for [CollisionWedge] and once for
-/// [CollisionHeightfield], and both times the compiler wrote the list.
+/// concerns. Adding a shape then means writing its own file and overriding
+/// the visitor methods where an exact test beats the convex walk they default
+/// to. That happened twice, once for [CollisionWedge] and once for
+/// [CollisionHeightfield].
 ///
 /// ## Exact here, approximate when moving
 ///
@@ -58,11 +55,19 @@ part 'custom_shape.dart';
 ///
 /// ## A shape of your own
 ///
-/// Sealed, so a `switch` over the shapes is checked — and the sixth case is
-/// [CustomShape], the one subtype open to extension: a convex shape given by
-/// its support function, overlapping every other shape through the GJK walk
-/// ([convexOverlap]). The pair methods below gained [overlapsCustom], which
-/// every built-in shape answers by handing the question to the custom shape.
+/// **An `abstract base class` with default bodies**, so a shape added here in
+/// a minor release — and the pair method it brings — breaks no shape written
+/// outside. A `switch` over the shapes needs a default case. Every pair method
+/// answers by the GJK walk over the two shapes' supports ([convexOverlap]),
+/// and ground by the field's prisms, so a convex shape of a game's own says
+/// its bounds, its planes and its [supportPoint], and meets every other shape
+/// without another line. [CustomShape] is the short way to that: one
+/// `support` function.
+///
+/// A backend other than the Dart reference runs such a shape when it mixes in
+/// `ShapePhysics`, the extension point on the backend's side: the native core
+/// holds it as the hull of its supports, sampled in
+/// `ShapePhysics.customShapeSamples` directions.
 ///
 /// ## One solid, or several
 ///
@@ -70,7 +75,7 @@ part 'custom_shape.dart';
 /// five are. Ground is not, and cannot be made so — see [partsIn], which is
 /// the door a shape with a dent in it comes in through, and [partSeams], which
 /// is how it says that the joins between its pieces are not surfaces.
-sealed class CollisionShape {
+abstract base class CollisionShape {
   const CollisionShape();
 
   /// Half the size of the axis-aligned box containing this shape.
@@ -244,57 +249,112 @@ sealed class CollisionShape {
 
   /// Whether this shape at [position] intersects [other] at [otherPosition].
   ///
-  /// Implemented by handing the question to [other], which knows which of its
-  /// visitor methods applies to a shape of this type.
-  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition);
+  /// The built-in shapes hand the question to [other], which knows which of
+  /// its visitor methods applies to a shape of this type. By default, the
+  /// convex walk, or the field's prisms for ground.
+  bool overlaps(
+    Vector3 position,
+    CollisionShape other,
+    Vector3 otherPosition,
+  ) => switch (other) {
+    final CollisionHeightfield field => overlapsHeightfield(
+      position,
+      field,
+      otherPosition,
+    ),
+    _ => convexOverlap(this, position, other, otherPosition),
+  };
 
-  /// Second half of the dispatch: this shape against a box.
-  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition);
+  /// Second half of the dispatch: this shape against a box. By default, the
+  /// convex walk.
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition) =>
+      convexOverlap(this, position, box, boxPosition);
 
-  /// Second half of the dispatch: this shape against a sphere.
+  /// Second half of the dispatch: this shape against a sphere. By default,
+  /// the convex walk.
   bool overlapsSphere(
     Vector3 position,
     CollisionSphere sphere,
     Vector3 spherePosition,
-  );
+  ) => convexOverlap(this, position, sphere, spherePosition);
 
-  /// Second half of the dispatch: this shape against a capsule.
+  /// Second half of the dispatch: this shape against a capsule. By default,
+  /// the convex walk.
   bool overlapsCapsule(
     Vector3 position,
     CollisionCapsule capsule,
     Vector3 capsulePosition,
-  );
+  ) => convexOverlap(this, position, capsule, capsulePosition);
 
-  /// Second half of the dispatch: this shape against a wedge.
-  ///
-  /// Added with [CollisionWedge], and the compiler naming every shape that had
-  /// not implemented it is exactly what the double dispatch was chosen for — a
-  /// `switch` over pairs would have compiled and answered wrongly.
+  /// Second half of the dispatch: this shape against a wedge. By default,
+  /// the convex walk.
   bool overlapsWedge(
     Vector3 position,
     CollisionWedge wedge,
     Vector3 wedgePosition,
-  );
+  ) => convexOverlap(this, position, wedge, wedgePosition);
 
   /// Second half of the dispatch: this shape against a field of ground.
+  ///
+  /// By default the field's prisms under this shape, each grown by this
+  /// shape's reach ([partPlanes] with this shape as the mover): the centre
+  /// inside every grown plane of one of them is an overlap. The same
+  /// Minkowski sum `CollisionHeightfield.overlapsBox` asks.
   bool overlapsHeightfield(
     Vector3 position,
     CollisionHeightfield field,
     Vector3 fieldPosition,
-  );
+  ) {
+    final scratch = Float64List(4 * field.partPlaneCount);
+    final parts = field._partsAround(
+      fieldPosition,
+      position,
+      boundsHalfExtents,
+    );
+    for (final part in parts) {
+      final count = field.partPlanes(part, fieldPosition, this, scratch);
+      var inside = true;
+      for (var i = 0; i < count && inside; i++) {
+        final base = i * 4;
+        inside =
+            scratch[base + 3] -
+                (scratch[base] * position.x +
+                    scratch[base + 1] * position.y +
+                    scratch[base + 2] * position.z) >
+            0.0;
+      }
+      if (inside) return true;
+    }
+    return false;
+  }
 
   /// Distance along [direction] at which a ray from [origin] first meets this
   /// shape at [position], or a negative number for a miss.
   ///
   /// A ray that starts inside reports zero rather than missing — a shot fired
-  /// from inside a monster still hits it.
+  /// from inside a monster still hits it. By default the bounding box
+  /// ([raycastBounds]).
   double raycast(
     Vector3 position,
     Vector3 origin,
     Vector3 direction,
     double maxDistance,
     Vector3 outNormal,
-  );
+  ) => raycastBounds(position, origin, direction, maxDistance, outNormal);
+
+  /// The inertia of a body of [mass] kilograms shaped like this, about its
+  /// centre, in kilogram square metres: what `inertiaFor` answers for a shape
+  /// it does not know. By default the solid bounding box's; the built-in
+  /// shapes are answered there exactly.
+  Vector3 inertia(double mass) {
+    final h = boundsHalfExtents;
+    final third = mass / 3.0;
+    return Vector3(
+      third * (h.y * h.y + h.z * h.z),
+      third * (h.x * h.x + h.z * h.z),
+      third * (h.x * h.x + h.y * h.y),
+    );
+  }
 
   /// Ray against this shape's bounding box.
   ///

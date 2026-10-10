@@ -1,13 +1,12 @@
-/// A part of `collision_shape.dart` — see the seal, there.
+/// A part of `collision_shape.dart`.
 part of 'collision_shape.dart';
 
-/// A convex collision volume described by its support function: the one
-/// shape a game or a plugin adds of its own.
+/// A convex collision volume described by its support function: the short
+/// way to a shape a game or a plugin adds of its own.
 ///
-/// **The open door in a sealed hierarchy.** [CollisionShape] stays sealed so a
-/// `switch` over the five built-in shapes is checked, and this is the sixth
-/// case every such switch now names: whatever a game invents — a cone, a
-/// rounded box, a hull read from a model — comes in as a subclass of this.
+/// **One function instead of three.** A shape may extend [CollisionShape]
+/// itself; this one asks only for [support] and derives the rest from it —
+/// whatever a game invents, a cone, a rounded box, a hull read from a model.
 ///
 /// ## What a subclass gives
 ///
@@ -56,18 +55,6 @@ abstract base class CustomShape extends CollisionShape {
     return point.x * nx + point.y * ny + point.z * nz;
   }
 
-  /// The inertia of a body of [mass] kilograms shaped like this, about its
-  /// centre, in kilogram square metres. By default the solid bounding box's.
-  Vector3 inertia(double mass) {
-    final h = boundsHalfExtents;
-    final third = mass / 3.0;
-    return Vector3(
-      third * (h.y * h.y + h.z * h.z),
-      third * (h.x * h.x + h.z * h.z),
-      third * (h.x * h.x + h.y * h.y),
-    );
-  }
-
   @override
   bool overlaps(
     Vector3 position,
@@ -76,77 +63,11 @@ abstract base class CustomShape extends CollisionShape {
   ) => other.overlapsCustom(otherPosition, this, position);
 
   @override
-  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition) =>
-      convexOverlap(this, position, box, boxPosition);
-
-  @override
-  bool overlapsSphere(
-    Vector3 position,
-    CollisionSphere sphere,
-    Vector3 spherePosition,
-  ) => convexOverlap(this, position, sphere, spherePosition);
-
-  @override
-  bool overlapsCapsule(
-    Vector3 position,
-    CollisionCapsule capsule,
-    Vector3 capsulePosition,
-  ) => convexOverlap(this, position, capsule, capsulePosition);
-
-  @override
-  bool overlapsWedge(
-    Vector3 position,
-    CollisionWedge wedge,
-    Vector3 wedgePosition,
-  ) => convexOverlap(this, position, wedge, wedgePosition);
-
-  @override
-  bool overlapsHeightfield(
-    Vector3 position,
-    CollisionHeightfield field,
-    Vector3 fieldPosition,
-  ) {
-    // The field's prisms under this shape, each grown by this shape's reach:
-    // the centre inside every grown plane of one of them is an overlap. The
-    // same Minkowski sum `CollisionHeightfield.overlapsBox` asks.
-    final scratch = Float64List(4 * field.partPlaneCount);
-    final parts = field._partsAround(
-      fieldPosition,
-      position,
-      boundsHalfExtents,
-    );
-    for (final part in parts) {
-      final count = field.partPlanes(part, fieldPosition, this, scratch);
-      var inside = true;
-      for (var i = 0; i < count && inside; i++) {
-        final base = i * 4;
-        inside =
-            scratch[base + 3] -
-                (scratch[base] * position.x +
-                    scratch[base + 1] * position.y +
-                    scratch[base + 2] * position.z) >
-            0.0;
-      }
-      if (inside) return true;
-    }
-    return false;
-  }
-
-  @override
   bool overlapsCustom(
     Vector3 position,
     CustomShape custom,
     Vector3 customPosition,
   ) => convexOverlap(this, position, custom, customPosition);
-
-  @override
-  double raycast(
-    Vector3 position,
-    Vector3 origin,
-    Vector3 direction,
-    double maxDistance,
-    Vector3 outNormal,
-  ) => raycastBounds(position, origin, direction, maxDistance, outNormal);
 }
 
 /// Whether convex [a] at [aPosition] and convex [b] at [bPosition] overlap,

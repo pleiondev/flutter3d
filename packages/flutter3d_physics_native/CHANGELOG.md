@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Any shape a game extends `CollisionShape` with runs in the core**, as
+  the hull of its `supportPoint` sampled in `customShapeDirections`, not
+  only a `CustomShape`.
+
 - **`NativeLiquidProperties.oil` is gone**; it was `oliveOil` under the
   name it had on the way to 1.0.
 

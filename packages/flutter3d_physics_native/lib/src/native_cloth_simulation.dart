@@ -242,9 +242,6 @@ List<double> packClothObstacles(List<ClothObstacle> obstacles) => <double>[
         radius,
         halfHeight,
       ],
-      CollisionBox() ||
-      CollisionWedge() ||
-      CustomShape() => _planes(shape, position),
       final CollisionHeightfield field => <double>[
         c.ClothObstacleKind.ground.toDouble(),
         position.x - field.width * 0.5,
@@ -258,6 +255,8 @@ List<double> packClothObstacles(List<ClothObstacle> obstacles) => <double>[
           for (var column = 0; column < field.columns; column++)
             field.sample(column, row),
       ],
+      // A box, a wedge, a shape of a game's own: its planes.
+      _ => _planes(shape, position),
     },
 ];
 

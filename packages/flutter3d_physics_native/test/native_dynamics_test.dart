@@ -42,6 +42,24 @@ RigidBody crate(
   ),
 );
 
+/// A crate written straight on [CollisionShape], outside the package: its
+/// bounds and planes, and the support every shape has by default.
+final class _OwnCrate extends CollisionShape {
+  _OwnCrate(this.half);
+
+  final Vector3 half;
+
+  @override
+  Vector3 get boundsHalfExtents => half;
+
+  @override
+  int get expandedPlaneCount => CollisionShape.boundsPlaneCount;
+
+  @override
+  int expandedPlanes(Vector3 position, Vector3 grow, Float64List out) =>
+      boundsExpandedPlanes(position, grow, out);
+}
+
 void run(RigidDynamics dynamics, int steps) {
   for (var i = 0; i < steps; i++) {
     dynamics.step(1.0 / 60.0);
@@ -60,6 +78,21 @@ void main() {
         expect(box.position.y, closeTo(0.5, 0.02));
         expect(box.isAsleep, isTrue);
         expect(box.collider.position.y, box.position.y);
+      });
+
+      test('a body of a shape of its own falls onto the floor and rests', () {
+        final world = CollisionWorld()
+          ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
+        final dynamics = make(world);
+        final body = dynamics.add(
+          RigidBody(
+            world: world,
+            shape: _OwnCrate(Vector3.all(0.5)),
+            position: Vector3(0.0, 3.0, 0.0),
+          ),
+        );
+        run(dynamics, 180);
+        expect(body.position.y, closeTo(0.5, 0.02));
       });
 
       test('a stack of five stands and sleeps', () {
