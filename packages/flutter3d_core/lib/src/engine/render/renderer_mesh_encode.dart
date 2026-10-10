@@ -592,9 +592,10 @@ extension _MeshEncode on Renderer {
     if (node.parametersFor(material).isNotEmpty &&
         material.lighting.vertexShaderName != null &&
         !batched) {
-      encoder.bindUniformBlock(
+      _bindMaterialBlocks(
+        encoder,
         activeVertexShader,
-        material.parameterBlock,
+        material,
         node.parametersFor(material),
       );
     }
@@ -1074,9 +1075,10 @@ extension _MeshEncode on Renderer {
     // cuts the way an author wants: a parameter renamed in the GLSL and not in
     // the Dart used to draw with a zero in its place, on Impeller only.
     if (node.parametersFor(material).isNotEmpty) {
-      encoder.bindUniformBlock(
+      _bindMaterialBlocks(
+        encoder,
         fragmentShader,
-        material.parameterBlock,
+        material,
         node.parametersFor(material),
       );
     }
@@ -1460,6 +1462,32 @@ extension _MeshEncode on Renderer {
   /// again only when the field's version moved, and the block that says how
   /// to read it. With no field, the block says "off" and a stand-in fills
   /// the sampler.
+  /// Binds [parameters] to [stage]: as `RenderMaterial.parameterBlock`, as
+  /// it always was, or — for a model whose stage declares blocks of its own
+  /// (`LightingModel.slots`, D21) — each block with the members that belong
+  /// to it, in the table's order.
+  void _bindMaterialBlocks(
+    PassEncoder encoder,
+    ShaderHandle stage,
+    RenderMaterial material,
+    Map<String, Float32List> parameters,
+  ) {
+    final blocks = material.lighting.slots.blocks;
+    if (blocks.isEmpty) {
+      encoder.bindUniformBlock(stage, material.parameterBlock, parameters);
+      return;
+    }
+    for (final block in blocks) {
+      final members = <String, Float32List>{
+        for (final member in block.members)
+          member.name: ?parameters[member.name],
+      };
+      if (members.isNotEmpty) {
+        encoder.bindUniformBlock(stage, block.name, members);
+      }
+    }
+  }
+
   void _bindIrradiance(PassEncoder encoder, ShaderHandle stage, Scene scene) {
     final field = scene.irradianceField;
     // The atlas the GPU keeps when the field is updated there (`L4`), the

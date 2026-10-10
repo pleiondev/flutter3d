@@ -52,9 +52,7 @@ import 'render_settings.dart';
 /// **What is not a step, and why.** The scene itself and the composite are
 /// the frame. The surface buffer is not a switch at all: the scene writes it
 /// exactly when some surviving pass reads it, so switching off its readers
-/// is what removes it. The velocity passes are shared by the temporal
-/// resolve and the motion blur and run while either does, and the object
-/// ids answer picks already taken. The transparent half and its colour copy
+/// is what removes it. The object ids answer picks already taken. The transparent half and its colour copy
 /// run only when the scene holds glass or a reader of its depth, which is
 /// content; they are steps all the same ([transparent], [sceneColorCopy]),
 /// switched by [RenderSettings.stepsOff] alone, so a frame can be drawn the
@@ -354,19 +352,34 @@ final class RenderStep {
     passes: <String>{'depth of field'},
   );
 
-  /// Off is `motionBlur.enabled` false. The velocity passes stay while the
-  /// temporal resolve still reads them.
+  /// The motion of every pixel since the last frame: the camera's, and the
+  /// nodes' that moved over it — `FrameResourceIds.velocity`.
+  ///
+  /// **A step of its own since 1.0**, so a plugin's post effect can read the
+  /// velocity whether or not the temporal resolve or the motion blur runs:
+  /// the passes run while either of those does, or while any node placed
+  /// through `RendererSteps.addNode` declares a read of the velocity. Off
+  /// through [RenderSettings.stepsOff] (`without`), and that takes the two
+  /// readers that need it, [motionBlur] and [temporalAntiAliasing], with it.
+  static const RenderStep velocity = RenderStep._(
+    'velocity',
+    null,
+    null,
+    passes: <String>{'camera velocity', 'object velocity'},
+  );
+
+  /// Off is `motionBlur.enabled` false. Needs [velocity].
   static const RenderStep motionBlur = RenderStep._(
     'motion blur',
     _motionOff,
     _motionOn,
     passes: <String>{'motion blur'},
+    needs: <RenderStep>{velocity},
   );
 
   /// The jittered frames blended across time, with the reactive mask that
   /// guides it and the two histories it keeps for the noisy effects. Off is
-  /// `antiAlias.temporal.enabled` false. The velocity passes stay while the
-  /// motion blur still reads them.
+  /// `antiAlias.temporal.enabled` false. Needs [velocity].
   ///
   /// The spatial upscale only runs without it, so switching this off is
   /// what lets an upscale that was asked for appear — the one step whose
@@ -381,6 +394,7 @@ final class RenderStep {
       'ssao history',
       'contact shadow history',
     },
+    needs: <RenderStep>{velocity},
   );
 
   /// The meter that adapts the exposure. Off is `autoExposure.enabled`
@@ -524,6 +538,7 @@ final class RenderStep {
     volumetricFog,
     lightShafts,
     depthOfField,
+    velocity,
     motionBlur,
     temporalAntiAliasing,
     autoExposure,

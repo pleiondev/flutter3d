@@ -20104,3 +20104,31 @@ entries:
       PointerLock.instance`, which is the default, and make a test's fake
       capture extend `MouseCapture`, whose `changes` is a `Stream<bool>`, true
       when the pointer is taken.
+
+  # The frame's extension points: the material language's tree and a frame
+  # resource's size are read through visitors.
+
+  - id: 2x-core-MaterialStatement-open
+    package: flutter3d_core
+    symbol: MaterialStatement
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `MaterialStatement` is an `abstract base class` with a visitor rather
+      than a sealed class, so a statement kind a later minor adds breaks no
+      `switch`: a `switch` over the kinds ends with a wildcard, or reads every
+      kind through `accept` and a `MaterialStatementVisitor`, whose
+      `visitUnknown` answers for a kind it predates. `MaterialExpression` has
+      the same visitor, `MaterialExpressionVisitor`.
+
+  - id: 2x-core-ResourceSize-open
+    package: flutter3d_core
+    symbol: ResourceSize
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `ResourceSize` is an `abstract base class` with a visitor rather than a
+      sealed class, so a size a later minor adds breaks no `switch`: a
+      `switch` over `FrameFraction` and `AbsolutePixels` ends with a wildcard,
+      or reads them through `accept` and a `ResourceSizeVisitor`, whose
+      `visitUnknown` answers for a kind it predates. `resolve` is unchanged.

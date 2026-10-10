@@ -275,7 +275,7 @@ const String _renderLib = r'''
 /// {{name}}: a render step of its own, drawn over the scene's light after
 /// bloom and before tone mapping.
 ///
-/// Installed, it adds the step `{{name}}` to the renderer and places one
+/// Installed, it adds the step `{{name}}.step` to the renderer and places one
 /// full-screen pass at `RenderAnchor.afterBloom`. `RenderSettings.without`
 /// switches it off like a built-in step, and switching bloom off takes it
 /// down too, because it needs bloom.
@@ -286,8 +286,11 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 /// The step, as the renderer reports it in `FrameResult.skipped`.
+///
+/// Named in the plugin's namespace, `{{name}}.`, as every name a plugin
+/// registers is.
 const RenderStep {{camel}}Step = RenderStep(
-  '{{name}}',
+  '{{name}}.step',
   needs: <RenderStep>{RenderStep.bloom},
 );
 
@@ -331,7 +334,7 @@ final class {{pascal}}Pass extends RenderNode {
   FullscreenEffect? _effect;
 
   @override
-  String get name => '{{name}}';
+  String get name => '{{name}}.pass';
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
@@ -344,7 +347,7 @@ final class {{pascal}}Pass extends RenderNode {
     final effect = _effect ??= switch (frame.device.shaders['{{name}}']) {
       null => null,
       final ShaderHandle shader => FullscreenEffect.overlay(
-        name: '{{name}}',
+        name: '{{name}}.pass',
         shader: shader,
       ),
     };

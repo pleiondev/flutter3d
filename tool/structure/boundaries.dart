@@ -102,15 +102,7 @@ const Map<String, Map<String, String>> restrictedLibraryUsers =
     <String, Map<String, String>>{
       'package:flutter3d_shaders/internal.dart': <String, String>{
         'flutter3d_core':
-            'the renderer binds the engine\'s own shader sources by name',
-        'flutter3d_cpu':
-            'a backend: the software device ports the engine\'s shaders',
-        'flutter3d_impeller':
-            'a backend: it loads the engine\'s shaders as compiled bundles',
-        'flutter3d_webgl':
-            'a backend: it compiles the engine\'s shaders as GLSL ES',
-        'flutter3d_webgpu':
-            'a backend: it compiles the engine\'s shaders as WGSL',
+            'the renderer fills the engine\'s own uniform blocks, typed',
       },
       'package:flutter3d_cpu/builtin.dart': <String, String>{
         'flutter3d_app':

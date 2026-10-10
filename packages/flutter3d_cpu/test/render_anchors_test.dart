@@ -333,10 +333,11 @@ final class _GradePlugin extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
-    final step = RenderStep('$id step');
+    // In the plugin's namespace, as every name a plugin registers is.
+    final step = RenderStep('$id.step');
     host.registry<RendererSteps>()
       ..addStep(step)
-      ..addNode(_hdr('$id pass'), at: RenderAnchor.beforeTonemap, step: step);
+      ..addNode(_hdr('$id.pass'), at: RenderAnchor.beforeTonemap, step: step);
   }
 }
 
@@ -615,11 +616,11 @@ void main() {
       // Install order, not names, decides between two plugins at one anchor.
       expect(
         it.renderer.renderSteps.nodesAt(RenderAnchor.beforeTonemap),
-        <String>['b pass', 'a pass'],
+        <String>['b.pass', 'a.pass'],
       );
       expect(it.renderer.renderSteps.added.map((s) => s.name), <String>[
-        'b step',
-        'a step',
+        'b.step',
+        'a.step',
       ]);
 
       manager
@@ -628,10 +629,10 @@ void main() {
       // Mutation: forget to track the node's registration, and it stays.
       expect(
         it.renderer.renderSteps.nodesAt(RenderAnchor.beforeTonemap),
-        <String>['a pass'],
+        <String>['a.pass'],
       );
       expect(it.renderer.renderSteps.added.map((s) => s.name), <String>[
-        'a step',
+        'a.step',
       ]);
     });
   });

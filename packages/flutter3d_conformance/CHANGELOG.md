@@ -21,6 +21,10 @@
   `SharedTexture` and holds zero copy demanded where it is missing to a
   `SharingException`. The honesty check probes `multiview` and the three
   sharing features. The suite has 52 checks.
+- **The `names` plugin check.** Every phase, system and event a plugin adds
+  to the loop is in its namespace (`<namespace>.<name>`); one outside it
+  fails the check with its name. It joins suite 1.0, which no badge was
+  earned against yet.
 - **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
   transform a later minor adds to the fuzzer breaks no `switch` over them.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,

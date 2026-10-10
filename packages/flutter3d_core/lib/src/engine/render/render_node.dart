@@ -30,6 +30,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 import '../scene/projection.dart' show jitterOffset;
 import 'frame_graph.dart';
 import 'frame_resources.dart';
+import 'frame_view.dart';
 import 'pass_contributor.dart';
 import 'render_view.dart';
 import 'renderer.dart';
@@ -56,7 +57,9 @@ abstract base class FrameContext {
     this.frameIndex = 0,
     this.time = 0.0,
     this.origin = WorldPosition.origin,
-  });
+    List<FrameView>? views,
+    this.viewIndex = 0,
+  }) : _views = views == null ? null : List<FrameView>.unmodifiable(views);
 
   /// The backend: how a node opens the pass it owns.
   ///
@@ -82,6 +85,45 @@ abstract base class FrameContext {
   /// The view this frame is drawn through — the first of the `render` call's
   /// — or null for a frame with no camera.
   final RenderView? view;
+
+  /// Every view of this frame, in order: one for a frame drawn through one
+  /// camera, two for a stereo pair or a headset's eyes, none for a frame
+  /// with no camera (D20).
+  ///
+  /// Each carries its own matrices, viewport and the view-projection it drew
+  /// through the frame before. A renderer makes them from its `render`
+  /// call's views; an XR session fills them from the runtime's poses and
+  /// asymmetric projections (`FrameView.posed`), and a node reads them the
+  /// same way either way. Without views handed in, the one view made from
+  /// [view].
+  late final List<FrameView> views =
+      _views ??
+      <FrameView>[
+        if (view case final view?)
+          FrameView.ofRenderView(view, aspect: _aspectOf(view)),
+      ];
+  final List<FrameView>? _views;
+
+  /// Which of [views] this node or contributor is drawing for, from nought.
+  /// A pass that draws once per view is handed each index in turn; the
+  /// matrices below are that view's.
+  final int viewIndex;
+
+  /// The view of [views] at [viewIndex], or null for a frame with no camera.
+  FrameView? get frameView =>
+      viewIndex < views.length ? views[viewIndex] : null;
+
+  /// The unjittered view-projection this frame's view drew through the
+  /// frame before — what a temporal effect of a plugin's reprojects by
+  /// (D20). [unjitteredViewProjection] when the view has no past: a
+  /// velocity of zero. Identity without a view.
+  vm.Matrix4 get previousViewProjection =>
+      frameView?.previousViewProjection ?? vm.Matrix4.identity();
+
+  /// [id] as the view at [viewIndex] keeps it: [id] for the first view,
+  /// `<name>#<index>` for each other one — see `FrameView.resourceFor`. What
+  /// a node that keeps a history per view reads and provides.
+  ResourceId perView(ResourceId id) => FrameView.resourceFor(id, viewIndex);
 
   /// How many frames the renderer has drawn before this one.
   final int frameIndex;
@@ -116,18 +158,14 @@ abstract base class FrameContext {
   /// one it last bound — what a contributor calls after binding a pipeline.
   void invalidatePipeline() => _state.invalidatePipeline();
 
-  /// The [view]'s camera's view matrix: world (the scene's space) to eye.
+  /// The [frameView]'s view matrix: world (the scene's space) to eye.
   /// Identity without a view.
-  vm.Matrix4 get viewMatrix =>
-      view?.camera.viewMatrix.clone() ?? vm.Matrix4.identity();
+  vm.Matrix4 get viewMatrix => frameView?.viewMatrix ?? vm.Matrix4.identity();
 
-  /// The [view]'s projection at its own aspect, without the jitter. Identity
-  /// without a view.
-  vm.Matrix4 get projection {
-    final camera = view?.camera;
-    if (camera == null) return vm.Matrix4.identity();
-    return camera.projection.toMatrix(_aspect);
-  }
+  /// The [frameView]'s projection at its own aspect, without the jitter.
+  /// Identity without a view.
+  vm.Matrix4 get projection =>
+      frameView?.projectionMatrix ?? vm.Matrix4.identity();
 
   /// [projection] times [viewMatrix]: the unjittered view-projection.
   vm.Matrix4 get unjitteredViewProjection => projection * viewMatrix;
@@ -146,10 +184,10 @@ abstract base class FrameContext {
     return (x: x, y: y);
   }
 
-  double get _aspect {
-    final fraction = view?.viewportFraction;
-    final w = width * (fraction?.width ?? 1.0);
-    final h = height * (fraction?.height ?? 1.0);
+  double _aspectOf(RenderView view) {
+    final fraction = view.viewportFraction;
+    final w = width * fraction.width;
+    final h = height * fraction.height;
     return h <= 0.0 ? 1.0 : w / h;
   }
 }
@@ -187,6 +225,8 @@ final class RenderFrame extends FrameContext {
     super.frameIndex,
     super.time,
     super.origin,
+    super.views,
+    super.viewIndex,
     this.sceneColor,
   });
 

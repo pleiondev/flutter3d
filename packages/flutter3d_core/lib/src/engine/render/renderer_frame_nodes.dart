@@ -1041,6 +1041,7 @@ final class _DecalNode extends RenderNode {
         decals: _scene.decals,
         views: _views,
         passState: frame.state,
+        settings: frame.settings.decals,
       );
     }
     resources.provide(FrameResourceIds.hdrColor, scene);
@@ -1478,12 +1479,20 @@ final class _IrradianceUpdateNode extends RenderNode {
 
 /// `R1`'s camera velocity, as the producer of the velocity resource.
 ///
-/// Active while temporal anti-aliasing or motion blur (`R6`) is on, the two
-/// readers of what it writes, and reading the surface buffer is what
-/// switches that buffer on — and multisampling off — for a frame that asked
-/// for either.
+/// Active while [RenderStep.velocity] is on and something reads what it
+/// writes: temporal anti-aliasing, motion blur (`R6`), or a node a plugin
+/// placed that declared the read ([asked]). Reading the surface buffer is
+/// what switches that buffer on — and multisampling off — for such a frame.
 final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
-  _CameraVelocityNode(this._renderer, this._view, this._settings);
+  _CameraVelocityNode(
+    this._renderer,
+    this._view,
+    this._settings, {
+    required this.asked,
+  });
+
+  /// Whether a placed node reads the velocity.
+  final bool asked;
 
   @override
   Renderer get owner => _renderer;
@@ -1496,7 +1505,7 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   String get name => 'camera velocity';
 
   @override
-  bool get isActive => _settings._wantsVelocity;
+  bool get isActive => _settings._velocityOn(asked: asked);
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -1525,7 +1534,16 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
 /// is there. The surface buffer is its depth test — see
 /// `renderer_velocity_pass.dart`.
 final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
-  _ObjectVelocityNode(this._renderer, this._view, this._settings, this._scene);
+  _ObjectVelocityNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._scene, {
+    required this.asked,
+  });
+
+  /// Whether a placed node reads the velocity.
+  final bool asked;
 
   @override
   Renderer get owner => _renderer;
@@ -1539,7 +1557,7 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   String get name => 'object velocity';
 
   @override
-  bool get isActive => _settings._wantsVelocity;
+  bool get isActive => _settings._velocityOn(asked: asked);
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -1980,6 +1998,11 @@ extension _VelocityReaders on RenderSettings {
       motionBlur.maxRadius >= 1.0;
 
   bool get _wantsVelocity => antiAlias.temporal.enabled || _blursMotion;
+
+  /// Whether the velocity passes run: their step on, and a reader — one of
+  /// the engine's two, or a placed node that declared the read ([asked]).
+  bool _velocityOn({required bool asked}) =>
+      RenderStep.velocity.isOn(this) && (_wantsVelocity || asked);
 }
 
 /// `R6`'s motion blur, as a link in the lit-colour chain.

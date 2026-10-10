@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import '../render/engine_light_units.dart';
+import '../render/light_types.dart';
 import 'light_node.dart';
 
 /// Light type codes as the shader reads them.
@@ -86,6 +87,71 @@ final class LightBuffer {
   /// The shader declares arrays of this length, so it is a compile-time
   /// constant on both sides. Raising it means rebuilding the bundle.
   static const int maxLights = 8;
+
+  /// The light types of plugins' own, with their hooks and codes (D22): a
+  /// light of a type registered here is packed by its hook, with its code.
+  /// The renderer's own; null packs every light as its base.
+  LightTypes? lightTypes;
+
+  /// One light's row, for a hook to fill.
+  final Float32List _hookRow = Float32List(16);
+
+  /// Hands the row [read] gathers for [light] to its type's hook, if one
+  /// is registered, and the row it fills to [write]; nothing otherwise.
+  void _hooked(
+    LightNode light,
+    void Function(Float32List row) read,
+    void Function(Float32List row) write,
+  ) {
+    final types = lightTypes;
+    if (types == null) return;
+    final hook = types.hookOf(light.type);
+    if (hook == null) return;
+    read(_hookRow);
+    final code = types.codeOf(light.type);
+    hook.pack(types.packContext(light, _hookRow, code));
+    _hookRow[3] = code.toDouble();
+    write(_hookRow);
+  }
+
+  /// Whether [light]'s type is packed by a hook — asked before anything is
+  /// made for it, since this runs for every light of every frame.
+  bool _isHooked(LightNode light) => lightTypes?.hookOf(light.type) != null;
+
+  /// [_hooked] over slot [slot] of the four arrays.
+  void _hookSlot(LightNode light, int slot) {
+    if (_isHooked(light)) _hookSlotNow(light, slot);
+  }
+
+  void _hookSlotNow(LightNode light, int slot) => _hooked(
+    light,
+    (row) {
+      for (var i = 0; i < 4; i++) {
+        row[i] = positions[slot + i];
+        row[4 + i] = colors[slot + i];
+        row[8 + i] = directions[slot + i];
+        row[12 + i] = cones[slot + i];
+      }
+    },
+    (row) {
+      for (var i = 0; i < 4; i++) {
+        positions[slot + i] = row[i];
+        colors[slot + i] = row[4 + i];
+        directions[slot + i] = row[8 + i];
+        cones[slot + i] = row[12 + i];
+      }
+    },
+  );
+
+  /// [_hooked] over the row at [at] of [out].
+  void _hookRow16(LightNode light, Float32List out, int at) {
+    if (!_isHooked(light)) return;
+    _hooked(
+      light,
+      (row) => row.setRange(0, 16, out, at),
+      (row) => out.setRange(at, at + 16, row),
+    );
+  }
 
   /// How many more lights one draw may be handed through the light list —
   /// `gfx-74n`. `kExtraLights` in `lib/surface.glsl`, and the two move together.
@@ -675,6 +741,7 @@ final class LightBuffer {
       out[at + 13] = -_halfHeight.y;
       out[at + 14] = -_halfHeight.z;
       out[at + 15] = 0.0;
+      _hookRow16(light, out, at);
       return;
     }
 
@@ -693,6 +760,7 @@ final class LightBuffer {
     out[at + 13] = cosOuter;
     out[at + 14] = 0.0;
     out[at + 15] = 0.0;
+    _hookRow16(light, out, at);
   }
 
   /// Writes one light into the next free slot, its intensity scaled by
@@ -755,6 +823,7 @@ final class LightBuffer {
       cones[slot + 2] = -_halfHeight.z;
       cones[slot + 3] = 0.0;
 
+      _hookSlot(light, slot);
       _count++;
       return;
     }
@@ -782,6 +851,7 @@ final class LightBuffer {
     cones[slot + 2] = 0.0;
     cones[slot + 3] = 0.0;
 
+    _hookSlot(light, slot);
     _count++;
   }
 

@@ -13,16 +13,21 @@ import '../lighting_model.dart';
 /// A string names one the engine ships; an object describes one it does not, and
 /// must then declare what the compiled shader binds. The flags default to the
 /// same values [LightingModel] does, so a custom lit shader is three keys.
+///
+/// A name is looked up in [models] — an engine's table, with the models its
+/// plugins registered — or in [LightingModels.shipped] when the reader has
+/// no engine at hand.
 LightingModel? readLightingJson(
   Object? value,
   List<String> warnings, {
   String key = 'lighting',
+  LightingModels? models,
 }) {
   if (value == null) return null;
   if (value is String) {
-    // The engine's models and every one a plugin registered: a file naming
-    // an addon's model reads as it while the addon is installed.
-    final named = LightingModels.named(value);
+    // The engine's models and every one a plugin registered with it: a file
+    // naming an addon's model reads as it while the addon is installed.
+    final named = (models ?? LightingModels.shipped).named(value);
     if (named != null) return named;
     warnings.add(
       '"$value" is not a shader this engine ships or a plugin registered. '
@@ -66,10 +71,13 @@ LightingModel? readLightingJson(
   );
 }
 
-Object writeLightingJson(LightingModel model) {
+Object writeLightingJson(LightingModel model, {LightingModels? models}) {
   // By name when the name reads back as this very model — built in or
   // registered — and as a description otherwise.
-  if (identical(LightingModels.named(model.shaderName), model)) {
+  if (identical(
+    (models ?? LightingModels.shipped).named(model.shaderName),
+    model,
+  )) {
     return model.shaderName;
   }
   const plain = LightingModel('', '');

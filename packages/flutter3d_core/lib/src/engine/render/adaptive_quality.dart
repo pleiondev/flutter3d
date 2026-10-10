@@ -46,6 +46,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'quality_table.dart';
+import 'render_hooks.dart';
 import 'render_settings.dart';
 
 /// What the controller aims at, and how cautiously.
@@ -132,8 +133,16 @@ final class AdaptiveQualitySettings {
 /// Holds its own state: feed it every frame's time and read [row], or pass
 /// the application's settings through [apply].
 final class AdaptiveQuality {
-  AdaptiveQuality(this.table, [this.settings = const AdaptiveQualitySettings()])
-    : _correction = List<double>.filled(table.rows.length, 1.0);
+  AdaptiveQuality(
+    this.table, [
+    this.settings = const AdaptiveQualitySettings(),
+    this.policy,
+  ]) : _correction = List<double>.filled(table.rows.length, 1.0);
+
+  /// A plugin's or an application's own rule for the next row, asked once
+  /// the engine's has chosen and answering for it where it answers at all
+  /// (D22b). Null for the engine's rule alone.
+  final QualityPolicy? policy;
 
   final QualityTable table;
   final AdaptiveQualitySettings settings;
@@ -166,7 +175,31 @@ final class AdaptiveQuality {
   /// the next. [motion] is how fast the picture moves, see [screenMotion].
   ///
   /// Disabled, this sits at full quality and forgets what it measured.
+  ///
+  /// With a [policy], the row the policy answers instead of the one the
+  /// engine's rule chose.
   QualityRow recordFrame(int micros, {double motion = 0.0}) {
+    final current = _index;
+    final chosen = _recordFrame(micros, motion: motion);
+    final policy = this.policy;
+    if (policy == null || !settings.enabled) return chosen;
+    final picked = policy.choose(
+      QualityContext(
+        table: table,
+        micros: micros,
+        motion: motion,
+        current: current,
+        choice: _index,
+      ),
+    );
+    if (picked == null) return chosen;
+    _index = picked.clamp(0, table.rows.length - 1);
+    _climbCount = 0;
+    _climbTarget = -1;
+    return row;
+  }
+
+  QualityRow _recordFrame(int micros, {required double motion}) {
     if (!settings.enabled) {
       _load = null;
       _correction.fillRange(0, _correction.length, 1.0);

@@ -164,19 +164,11 @@ Map<String, List<double>> evaluateMaterialVertex(
   final body =
       program.vertex ??
       (throw StateError('"${program.name}" has no vertex block.'));
-  final scope = <String, List<double>>{};
-  final written = <String, List<double>>{};
+  final runner = _Runner(program.name, vertex, vertexBlock: true);
   for (final statement in body) {
-    switch (statement) {
-      case MaterialLet(:final name, :final value):
-        scope[name] = _evaluate(value, vertex, scope);
-      case MaterialOutput(:final output, :final value):
-        written[output.name] = _evaluate(value, vertex, scope);
-      case MaterialReturn():
-        throw StateError('"${program.name}"\'s vertex block returns.');
-    }
+    statement.accept(runner);
   }
-  return written;
+  return runner.written;
 }
 
 List<double> _run(
@@ -184,22 +176,57 @@ List<double> _run(
   List<MaterialStatement> body,
   MaterialSurfaceValues surface,
 ) {
-  final scope = <String, List<double>>{};
+  final runner = _Runner(name, surface, vertexBlock: false);
   for (final statement in body) {
-    switch (statement) {
-      case MaterialLet(:final name, :final value):
-        scope[name] = _evaluate(value, surface, scope);
-      case MaterialReturn(:final value):
-        return _evaluate(value, surface, scope);
-      case MaterialOutput():
-        // Only a vertex block writes outputs, and it is run by
-        // [evaluateMaterialVertex].
-        throw StateError('"$name" writes an output outside a vertex block.');
-    }
+    final returned = statement.accept(runner);
+    if (returned != null) return returned;
   }
   // The parser refuses a body whose last statement is not a return, so this is
   // a program nobody parsed rather than a case with a sensible answer.
   throw StateError('"$name" has no return.');
+}
+
+/// Runs one block's statements in order: a `let` binds, an `out` is
+/// written, and a `return` answers its value, which ends the block.
+final class _Runner extends MaterialStatementVisitor<List<double>?> {
+  _Runner(this.name, MaterialSurfaceValues surface, {required this.vertexBlock})
+    : _evaluator = _Evaluator(surface);
+
+  final String name;
+  final bool vertexBlock;
+  final _Evaluator _evaluator;
+  final Map<String, List<double>> written = <String, List<double>>{};
+
+  @override
+  List<double>? visitLet(MaterialLet statement) {
+    _evaluator.scope[statement.name] = statement.value.accept(_evaluator);
+    return null;
+  }
+
+  @override
+  List<double>? visitOutput(MaterialOutput statement) {
+    // Only a vertex block writes outputs, and it is run by
+    // [evaluateMaterialVertex].
+    if (!vertexBlock) {
+      throw StateError('"$name" writes an output outside a vertex block.');
+    }
+    written[statement.output.name] = statement.value.accept(_evaluator);
+    return null;
+  }
+
+  @override
+  List<double>? visitReturn(MaterialReturn statement) {
+    if (vertexBlock) throw StateError('"$name"\'s vertex block returns.');
+    return statement.value.accept(_evaluator);
+  }
+
+  @override
+  List<double>? visitUnknown(MaterialStatement statement) =>
+      throw ArgumentError.value(
+        statement,
+        'statement',
+        'not a statement this build of the material language knows',
+      );
 }
 
 /// Throws [ArgumentError] unless [inputs] answers every name in
@@ -222,70 +249,86 @@ void checkMaterialSurface(Map<String, List<double>> inputs) {
   }
 }
 
-List<double> _evaluate(
-  MaterialExpression expression,
-  MaterialSurfaceValues surface,
-  Map<String, List<double>> scope,
-) {
-  switch (expression) {
-    case MaterialConstant(:final value):
-      return value;
-    case MaterialInputRef(:final input):
-      final value = surface.inputs[input.name];
-      if (value == null) {
-        throw StateError(
-          'This backend does not know the surface input "${input.name}".',
-        );
-      }
-      return value;
-    case MaterialLocalRef(:final name):
-      final value = scope[name];
-      if (value == null) {
-        throw StateError('"$name" is read before it is bound.');
-      }
-      return value;
-    case MaterialParamRef(:final parameter) when parameter.uniform:
-      final value = surface.uniforms[parameter.name];
-      return value != null && value.length >= parameter.type.components
-          ? value.sublist(0, parameter.type.components)
-          : parameter.defaultValue;
-    case MaterialParamRef(:final parameter):
+/// One fragment's values for every kind of expression, with the `let`s
+/// bound so far in [scope].
+final class _Evaluator extends MaterialExpressionVisitor<List<double>> {
+  _Evaluator(this.surface);
+
+  final MaterialSurfaceValues surface;
+  final Map<String, List<double>> scope = <String, List<double>>{};
+
+  @override
+  List<double> visitConstant(MaterialConstant expression) => expression.value;
+
+  @override
+  List<double> visitInputRef(MaterialInputRef expression) =>
+      surface.inputs[expression.input.name] ??
+      (throw StateError(
+        'This backend does not know the surface input '
+        '"${expression.input.name}".',
+      ));
+
+  @override
+  List<double> visitLocalRef(MaterialLocalRef expression) =>
+      scope[expression.name] ??
+      (throw StateError('"${expression.name}" is read before it is bound.'));
+
+  @override
+  List<double> visitParamRef(MaterialParamRef expression) {
+    final parameter = expression.parameter;
+    if (!parameter.uniform) {
       throw StateError(
         'The parameter "${parameter.name}" has no value. Specialise the '
         'program before drawing with it.',
       );
-    case MaterialConstruct(:final arguments):
-      return <double>[
-        for (final argument in arguments)
-          ..._evaluate(argument, surface, scope),
-      ];
-    case MaterialSwizzle(:final target, :final components):
-      final value = _evaluate(target, surface, scope);
-      return <double>[for (final index in components) value[index]];
-    case MaterialNegate(:final operand):
-      return <double>[
-        for (final component in _evaluate(operand, surface, scope)) -component,
-      ];
-    case MaterialBinary(:final op, :final left, :final right):
-      return applyBinary(
-        op,
-        _evaluate(left, surface, scope),
-        _evaluate(right, surface, scope),
-      );
-    case MaterialCall(:final builtin, :final arguments):
-      return builtin.apply(
-        broadcastArguments(<List<double>>[
-          for (final argument in arguments) _evaluate(argument, surface, scope),
-        ], builtin),
-      );
-    case MaterialSample(:final slot, :final uv):
-      final at = _evaluate(uv, surface, scope);
-      return surface.sample(slot, at[0], at[1]);
-    default:
+    }
+    final value = surface.uniforms[parameter.name];
+    return value != null && value.length >= parameter.type.components
+        ? value.sublist(0, parameter.type.components)
+        : parameter.defaultValue;
+  }
+
+  @override
+  List<double> visitConstruct(MaterialConstruct expression) => <double>[
+    for (final argument in expression.arguments) ...argument.accept(this),
+  ];
+
+  @override
+  List<double> visitSwizzle(MaterialSwizzle expression) {
+    final value = expression.target.accept(this);
+    return <double>[for (final index in expression.components) value[index]];
+  }
+
+  @override
+  List<double> visitNegate(MaterialNegate expression) => <double>[
+    for (final component in expression.operand.accept(this)) -component,
+  ];
+
+  @override
+  List<double> visitBinary(MaterialBinary expression) => applyBinary(
+    expression.op,
+    expression.left.accept(this),
+    expression.right.accept(this),
+  );
+
+  @override
+  List<double> visitCall(MaterialCall expression) => expression.builtin.apply(
+    broadcastArguments(<List<double>>[
+      for (final argument in expression.arguments) argument.accept(this),
+    ], expression.builtin),
+  );
+
+  @override
+  List<double> visitSample(MaterialSample expression) {
+    final at = expression.uv.accept(this);
+    return surface.sample(expression.slot, at[0], at[1]);
+  }
+
+  @override
+  List<double> visitUnknown(MaterialExpression expression) =>
       throw ArgumentError.value(
         expression,
         'expression',
         'not an expression this build of the material language knows',
       );
-  }
 }

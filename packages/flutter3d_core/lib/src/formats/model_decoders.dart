@@ -6,6 +6,7 @@ library;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 import 'model_loader.dart';
+import 'texture_codecs.dart';
 
 /// Makes the [AssetSource] for [path] — the path with its scheme taken off.
 typedef AssetSourceFactory = AssetSource Function(String path);
@@ -152,6 +153,16 @@ base class ModelDecoders extends DecoderRegistry {
     <ModelDecoder>[for (final e in _store.ordered(_store.models)) e.value],
   );
 
+  /// The image formats plugins brought, beside the model decoders (D22b):
+  /// what a texture this engine loads is offered first. A companion, so a
+  /// plugin asks for it as `host.registry<TextureCodecs>()`.
+  TextureCodecs get textureCodecs => _store.textureCodecs;
+
+  @override
+  Iterable<PluginRegistry> get companions => <PluginRegistry>[
+    _store.textureCodecs,
+  ];
+
   /// The registered sources, as one table.
   AssetSources get sources => AssetSources(<String, AssetSourceFactory>{
     for (final e in _store.ordered(_store.sources)) e.key: e.value,
@@ -216,6 +227,7 @@ base class ModelDecoders extends DecoderRegistry {
 
 /// What a registry and all its scoped views share.
 final class _DecoderStore {
+  final TextureCodecs textureCodecs = TextureCodecs();
   final List<_Entry<ModelDecoder>> models = <_Entry<ModelDecoder>>[];
   final List<_Entry<AssetSourceFactory>> sources =
       <_Entry<AssetSourceFactory>>[];

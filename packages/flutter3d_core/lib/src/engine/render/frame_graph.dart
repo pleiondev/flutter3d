@@ -12,6 +12,8 @@
 /// nobody can see. Here it is a read and a write.
 library;
 
+import 'resource_desc.dart';
+
 part 'frame_graph_compile.dart';
 
 /// Something a node reads or writes, addressed by name.
@@ -160,6 +162,182 @@ abstract base class FrameGraphNode {
   /// Asked once at compile, beside [isActive], and reported as
   /// [PassSkip.unsupported].
   bool get isSupported => true;
+
+  /// Declares what this node touches, into [builder]: what [FrameGraph.compile]
+  /// works the frame out from (1.0).
+  ///
+  /// **The whole declaration, where the getters are the short one.** By
+  /// default it hands [builder] [reads], [optionalReads], [writes] and
+  /// [keeps], so a node that only names resources keeps doing it with the
+  /// getters. A node that makes resources of its own — a plugin's scratch
+  /// target, the second and third colour attachments of a pass with several
+  /// outputs — declares them here with [FrameGraphBuilder.create], and the
+  /// graph knows how to make each before the node runs, when it stops being
+  /// needed, and that a texture whose lifetime ended earlier in the frame
+  /// may stand behind it (`FrameResources.alias`). A node that asks where it
+  /// runs (a compute step) says so with [FrameGraphBuilder.place].
+  ///
+  /// Called once per compile, before anything is ordered; a node answers
+  /// the same for the same frame, as the getters do.
+  ///
+  /// **`FrameResources.declare` from inside `execute` stays, as the
+  /// documented exception**: a node whose resource's size or format it only
+  /// knows once it runs. Such a resource still has to be named here — a
+  /// write the graph has not seen is one nobody can read — and is made the
+  /// first time it is asked for.
+  void setup(FrameGraphBuilder builder) {
+    reads.forEach(builder.read);
+    optionalReads.forEach(builder.readIfProduced);
+    writes.forEach(builder.write);
+    keeps.forEach(builder.keep);
+  }
+}
+
+/// What a node is handed in [FrameGraphNode.setup]: where it says what it
+/// reads, writes, keeps and makes.
+///
+/// One object that can gain members, rather than a list of parameters that
+/// grows: a later minor that lets a node declare something new (a buffer's
+/// size, a view mask) adds a method here and breaks no node.
+final class FrameGraphBuilder {
+  FrameGraphBuilder._(this.node);
+
+  /// The name of the node declaring, for its messages.
+  final String node;
+
+  // Made at the first declaration of each kind, so a node that declares
+  // two things costs two lists, not six: this runs for every node of every
+  // frame.
+  List<ResourceId>? _reads;
+  List<ResourceId>? _optionalReads;
+  List<ResourceId>? _writes;
+  List<ResourceId>? _keeps;
+  List<ResourceDesc>? _created;
+  PlacementRequest? _placement;
+
+  /// The node needs [id] produced before it runs; see
+  /// [FrameGraphNode.reads].
+  void read(ResourceId id) => (_reads ??= <ResourceId>[]).add(id);
+
+  /// The node samples [id] if the frame produces it; see
+  /// [FrameGraphNode.optionalReads].
+  void readIfProduced(ResourceId id) =>
+      (_optionalReads ??= <ResourceId>[]).add(id);
+
+  /// The node produces [id] fresh this frame; see [FrameGraphNode.writes].
+  void write(ResourceId id) => (_writes ??= <ResourceId>[]).add(id);
+
+  /// The node maintains [id] across frames; see [FrameGraphNode.keeps].
+  void keep(ResourceId id) => (_keeps ??= <ResourceId>[]).add(id);
+
+  /// The node makes [desc]'s resource and writes it, and hands back its id.
+  ///
+  /// **A plugin's resource, made by the graph.** The frame knows its size and
+  /// format before the node runs, holds a texture for it from its first use
+  /// to its last reader, and, with `FrameResources.alias` on, lends it a
+  /// texture another resource of the same description finished with earlier
+  /// in the frame. Several created resources are how a node declares a pass
+  /// with several colour outputs: one per attachment, each opened with
+  /// `FrameResources.texture` and handed to the pass it begins.
+  ///
+  /// [desc]'s id is namespaced like every name a plugin brings:
+  /// `<pluginId>.<name>`.
+  ResourceId create(ResourceDesc desc) {
+    (_created ??= <ResourceDesc>[]).add(desc);
+    write(desc.id);
+    return desc.id;
+  }
+
+  /// The node asks where it runs, with [request]: a compute step's executor
+  /// is picked at compile by the graph's [FramePlacer], and the node reads
+  /// the answer with [CompiledFrameGraph.placementOf]. A node no placer can
+  /// place does not run, and is reported as [PassSkip.unsupported].
+  void place(PlacementRequest request) => _placement = request;
+
+  /// What was declared, as the compile reads it. The lists are the
+  /// builder's own, which nothing else holds: copying them would be a
+  /// second allocation per list per node per frame.
+  NodeDeclarations _declarations() => NodeDeclarations._(
+    reads: _reads ?? const <ResourceId>[],
+    optionalReads: _optionalReads ?? const <ResourceId>[],
+    writes: _writes ?? const <ResourceId>[],
+    keeps: _keeps ?? const <ResourceId>[],
+    created: _created ?? const <ResourceDesc>[],
+    placement: _placement,
+  );
+}
+
+/// What one node declared in [FrameGraphNode.setup], as the compile read it.
+final class NodeDeclarations {
+  const NodeDeclarations._({
+    required this.reads,
+    required this.optionalReads,
+    required this.writes,
+    required this.keeps,
+    required this.created,
+    required this.placement,
+  });
+
+  /// What [node] declared, through its [FrameGraphNode.setup].
+  factory NodeDeclarations.of(FrameGraphNode node) {
+    final builder = FrameGraphBuilder._(node.name);
+    node.setup(builder);
+    return builder._declarations();
+  }
+
+  final List<ResourceId> reads;
+  final List<ResourceId> optionalReads;
+
+  /// Every write, the created resources' among them.
+  final List<ResourceId> writes;
+  final List<ResourceId> keeps;
+
+  /// The resources the node makes, each also among [writes].
+  final List<ResourceDesc> created;
+
+  /// Where the node asked to run, or null for the frame's own device.
+  final PlacementRequest? placement;
+}
+
+/// What a node asks of where it runs: a compute step's wish for the
+/// device's own compute, a sidecar, or the CPU.
+///
+/// **The seam a placement plugs into, and nothing more here.** The kinds of
+/// request and of answer belong to the compute work that defines them; the
+/// graph only carries a request from [FrameGraphBuilder.place] to the
+/// [FramePlacer] and the answer to [CompiledFrameGraph.placementOf].
+abstract base class PlacementRequest {
+  const PlacementRequest();
+
+  /// What the request is called in a report or an error.
+  String get name;
+}
+
+/// What a [FramePlacer] is asked about one node.
+final class FramePlacementContext {
+  const FramePlacementContext._(this.node, this.request, this.declarations);
+
+  /// The node asking.
+  final FrameGraphNode node;
+
+  /// What it asked for.
+  final PlacementRequest request;
+
+  /// Everything it declared, for a placer that weighs what it reads and
+  /// writes.
+  final NodeDeclarations declarations;
+}
+
+/// Picks where each node that asked to be placed runs, once per compile.
+///
+/// Handed to [FrameGraph.compile]. Answers the placement a node reads back
+/// with [CompiledFrameGraph.placementOf], or null when nothing this frame can
+/// run the node — which drops it as [PassSkip.unsupported].
+abstract base class FramePlacer {
+  const FramePlacer();
+
+  /// Where [context]'s node runs, or null when nowhere can.
+  Object? place(FramePlacementContext context);
 }
 
 /// Why a pass that was registered did not run — `gfx-39n`.
@@ -300,7 +478,30 @@ final class CompiledFrameGraph {
     required this.culled,
     required this.outputs,
     this.skipped = const <SkippedPass>[],
+    this._created = const <String, ResourceDesc>{},
+    this._placements = const <String, Object>{},
   });
+
+  final Map<String, ResourceDesc> _created;
+  final Map<String, Object> _placements;
+
+  /// How to make each resource a surviving node declared with
+  /// [FrameGraphBuilder.create], in the order the nodes run.
+  ///
+  /// `FrameResources` declares every one of them before the first node, so a
+  /// plugin's resource is made at its first use and goes back at its last
+  /// like any of the engine's.
+  Iterable<ResourceDesc> get created => _created.values;
+
+  /// How to make [id], when a surviving node created it; null otherwise.
+  ResourceDesc? descriptorOf(ResourceId id) => _created[id.name];
+
+  /// Where the node called [name] runs, as the [FramePlacer] answered, or
+  /// null for a node that asked nothing (it runs on the frame's device).
+  T? placementOf<T extends Object>(String name) => switch (_placements[name]) {
+    final T placement => placement,
+    _ => null,
+  };
 
   /// Nodes to execute, earliest first.
   final List<FrameGraphNode> order;

@@ -1,7 +1,8 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show Registration;
+    show PluginException, PluginRegistry, PluginScope, Registration;
 
 import 'material_extensions.dart';
+import 'material_language/material_slots.dart';
 
 /// A lighting model: one pre-built fragment shader and what the engine may
 /// bind to it.
@@ -60,6 +61,8 @@ final class LightingModel {
     this.vertexStageMorphs = true,
     this.usesSceneDepth = false,
     this.vertexStageInDepthPasses = false,
+    this.slots = MaterialSlotTable.none,
+    this.vertexVariants = const <VertexStageVariant>{},
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -274,11 +277,11 @@ final class LightingModel {
   /// renderer asks for it when a skinned draw reaches it and says which name it
   /// wanted when the bundle has not got it.
   ///
-  /// Instanced and lightmapped draws keep the engine's stages. Both read a
-  /// second buffer whose layout the engine declares — the instance rows, the
-  /// lightmap coordinate — and a stage supplied from outside cannot be held to
-  /// a layout it has never seen. That is a limit rather than an oversight, and
-  /// `gfx-84n` is where the language that would describe those layouts goes.
+  /// Instanced and lightmapped draws keep the engine's stages unless the
+  /// material lists them in [vertexVariants]. Both read a second buffer whose
+  /// layout the engine declares — the instance rows, the lightmap coordinate
+  /// — so a stage of one's own for them is written against that layout
+  /// (`MeshVertexLayouts.instanced`), and says so by listing the variant.
   ///
   /// The stage must write the varyings the fragment side reads and take the
   /// same `FrameInfo` block. `MeshVertex` in `flutter3d_shaders` is the
@@ -384,6 +387,31 @@ final class LightingModel {
   /// to a light. Ignored when [vertexShaderName] is null.
   final bool vertexStageInDepthPasses;
 
+  /// The variants of [vertexShaderName] this material ships beyond the
+  /// plain and the skinned stage, each `<vertexShaderName><suffix>` (D22b).
+  ///
+  /// **What lets a material's vertex stage reach instanced and lightmapped
+  /// geometry.** Those draws read a second buffer whose layout the engine
+  /// declares — `MeshVertexLayouts.instanced` for the instance rows, the
+  /// lightmap coordinate for a baked level — and a stage that declares it
+  /// draws them: an instanced draw of this material goes through
+  /// `<name>Instanced` when [VertexStageVariant.instanced] is here, and a
+  /// lightmapped one through `<name>Lightmapped`. Without them both keep the
+  /// engine's stages, as before. Ignored when [vertexShaderName] is null.
+  final Set<VertexStageVariant> vertexVariants;
+
+  /// What the stage binds beyond the engine's own blocks and samplers: its
+  /// uniform blocks — `MaterialParams` and blocks of its own — and its own
+  /// textures, in the order a backend numbers them (D21).
+  ///
+  /// **What lets a plugin's lit model bring more than the engine's five
+  /// textures.** The renderer binds each block from
+  /// `RenderMaterial.parameters`, the members that belong to it, and each
+  /// texture from `RenderMaterial.extraTextures` under its binding. Empty for
+  /// every model the engine ships and for one described by hand, which
+  /// binds `RenderMaterial.parameterBlock` as it always did.
+  final MaterialSlotTable slots;
+
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
   /// Separate from [usesMaterialMaps] because Lambert is purely diffuse: it has
@@ -437,71 +465,146 @@ final class LightingModel {
   final bool usesEnvironment;
 }
 
-/// The lighting models a document may name: the engine's [LightingModel.builtIn]
-/// and every model a plugin registered — the open registry.
+/// A variant of a material's own vertex stage, for geometry that reads
+/// more than the standard vertex (D22b).
 ///
-/// **How a plugin adds a way to light a surface.** It describes the model —
-/// by hand, or with `MaterialBindings.lightingModel` from a `.f3dmat` whose
-/// `light` and composite hooks are the model — and registers it, usually
-/// through `RendererSteps.addLightingModel` from a `LightingModelAddon`,
-/// which also hands the renderer the stages. From then on a material file
-/// naming the model's [LightingModel.shaderName] reads as that model, and a
-/// picker walking [all] offers it. Cancelling the registration takes the
-/// name back out.
-///
-/// **One table for the process, and the reason is the document.** A material
-/// file is read before any renderer exists — by an importer, a server, a
-/// tool — and it names its model by a string; the table that answers that
-/// name has to be reachable from the reader, as [LightingModel.builtIn]
-/// always was. What it holds is a description, never a stage: the stages are
-/// each renderer's, added to it by the same plugin. Registrations are
-/// counted, so two engines in one process installing the same addon share
-/// the entry and the second one's removal leaves the first's.
-///
-/// **The built-in names stay the built-in models.** A model registered under
-/// a name [LightingModel.builtIn] has is refused unless it is that very
-/// constant — `flutter3d_post/style.dart` registering [LightingModel.toon] is the
-/// case that passes. An application replacing the `Pbr` stage does that with
-/// `renderer.renderSteps.addMaterials`; the description of what `Pbr` binds is not its
-/// to change.
-abstract final class LightingModels {
-  static final Map<String, _RegisteredModel> _registered =
-      <String, _RegisteredModel>{};
+/// An open set (S0): a class with constants, so a variant a later minor adds
+/// (a morphed stage, a stage for points) breaks no `switch`.
+final class VertexStageVariant {
+  const VertexStageVariant._(this.name, this.suffix);
 
-  /// Every model a document may name: [LightingModel.builtIn] in its order,
-  /// then the registered ones not already among them, in the order they
-  /// were first registered.
-  static List<LightingModel> get all => List<LightingModel>.unmodifiable(
-    <LightingModel>[...LightingModel.builtIn, ...registered],
+  /// A skinned draw: joints and weights beside the standard vertex. Every
+  /// material stage has it, as `<name>Skinned`; listed for completeness.
+  static const VertexStageVariant skinned = VertexStageVariant._(
+    'skinned',
+    'Skinned',
   );
 
-  /// The models plugins registered, other than the built-in ones.
-  static List<LightingModel> get registered =>
-      List<LightingModel>.unmodifiable(<LightingModel>[
-        for (final entry in _registered.values)
-          if (!LightingModel.builtIn.contains(entry.model)) entry.model,
-      ]);
+  /// An instanced draw: the instance rows in a second buffer, stepped per
+  /// instance — `MeshVertexLayouts.instanced`.
+  static const VertexStageVariant instanced = VertexStageVariant._(
+    'instanced',
+    'Instanced',
+  );
 
-  /// The model whose [LightingModel.shaderName] is [shaderName], built in
-  /// or registered, or null. An exact match first, then one that differs
-  /// only in case — how material files have always been read.
-  static LightingModel? named(String shaderName) {
-    for (final model in all) {
-      if (model.shaderName == shaderName) return model;
-    }
-    final lower = shaderName.toLowerCase();
-    for (final model in all) {
-      if (model.shaderName.toLowerCase() == lower) return model;
+  /// A lightmapped draw: a level's baked coordinate beside the standard
+  /// vertex.
+  static const VertexStageVariant lightmapped = VertexStageVariant._(
+    'lightmapped',
+    'Lightmapped',
+  );
+
+  static const List<VertexStageVariant> values = <VertexStageVariant>[
+    skinned,
+    instanced,
+    lightmapped,
+  ];
+
+  /// The variant called [name], or null for one this version does not know.
+  static VertexStageVariant? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
     }
     return null;
   }
 
-  /// Makes [model] one a document may name, until the result is cancelled.
+  /// The stable name, and the wire name.
+  final String name;
+
+  /// What the stage's entry point adds to the material's vertex stage name.
+  final String suffix;
+
+  @override
+  String toString() => 'VertexStageVariant.$name';
+}
+
+/// The lighting models a document may name in one engine: the engine's
+/// [LightingModel.builtIn] and every model a plugin registered — the open
+/// registry, one per engine (D23, D43).
+///
+/// **How a plugin adds a way to light a surface.** It describes the model —
+/// by hand, or with `MaterialBindings.lightingModel` from a `.f3dmat` whose
+/// `light` and composite hooks are the model — and registers it through the
+/// one entrance, `host.registry<LightingModels>()` (a `LightingModelAddon`
+/// does this), with its stages through `RendererSteps.addMaterials`. From
+/// then on a material file read against this engine's table naming the
+/// model's [LightingModel.shaderName] reads as that model, and a picker
+/// walking [all] offers it. Cancelling the registration takes the name back
+/// out. The renderer's own table is `Renderer.lightingModels`, and a host
+/// handed `renderer.renderSteps` finds it among that registry's companions.
+///
+/// **One per engine, not one per process.** Two engines in one isolate —
+/// an editor and the game it plays — install their plugins apart, and a
+/// model one of them registered is not a name in the other's documents. A
+/// document read with no engine at hand (an importer, a server, a tool)
+/// reads against [shipped], the built-in models alone; one that names a
+/// plugin's model by name then warns and falls back as for any unknown
+/// name, and one that describes the model as an object reads anywhere.
+///
+/// **Names are compared exactly.** `Pbr` is the physical model and `pbr` is
+/// no model: a name matched in any case could not tell two plugins' apart.
+///
+/// **A plugin's model is in its namespace.** A shader's entry point cannot
+/// carry a dot, so a plugin's [LightingModel.shaderName] begins with its
+/// namespace and an underscore — `acme_ink_Ink` for `acme_ink.ink` — and a
+/// model the engine adds in a minor (which never does) cannot take its
+/// name. The built-in names stay the built-in models: one is refused unless
+/// it is that very constant, which is how `flutter3d_post/style.dart`
+/// registers [LightingModel.toon].
+final class LightingModels extends PluginRegistry {
+  /// An engine's table: the built-in models, and nothing registered yet.
+  LightingModels() : _store = _ModelStore(), _scope = null;
+
+  LightingModels._scoped(this._store, this._scope);
+
+  LightingModels._shipped() : _store = _ModelStore(frozen: true), _scope = null;
+
+  /// The built-in models alone, with nothing registerable: the table a
+  /// document read with no engine's at hand is read against.
+  static final LightingModels shipped = LightingModels._shipped();
+
+  final _ModelStore _store;
+  final PluginScope? _scope;
+
+  /// Every model a document may name: [LightingModel.builtIn] in its order,
+  /// then the registered ones not already among them, in the order they
+  /// were first registered.
+  List<LightingModel> get all => List<LightingModel>.unmodifiable(
+    <LightingModel>[...LightingModel.builtIn, ...registered],
+  );
+
+  /// The models plugins registered, other than the built-in ones.
+  List<LightingModel> get registered =>
+      List<LightingModel>.unmodifiable(<LightingModel>[
+        for (final entry in _store.registered.values)
+          if (!LightingModel.builtIn.contains(entry.model)) entry.model,
+      ]);
+
+  /// The model whose [LightingModel.shaderName] is exactly [shaderName],
+  /// built in or registered, or null.
+  LightingModel? named(String shaderName) {
+    for (final model in LightingModel.builtIn) {
+      if (model.shaderName == shaderName) return model;
+    }
+    return _store.registered[shaderName]?.model;
+  }
+
+  /// Makes [model] one a document read against this table may name, until
+  /// the result is cancelled.
   ///
   /// Throws an [ArgumentError] when another model already answers to its
-  /// [LightingModel.shaderName] — built in, or registered by somebody else.
-  /// Registering the same model again is counted, not refused.
-  static Registration register(LightingModel model) {
+  /// [LightingModel.shaderName] — built in, or registered by somebody else
+  /// — and, through a plugin's view, a [PluginException] for a name outside
+  /// the plugin's namespace. Registering the same model again is counted,
+  /// not refused. [shipped] takes nothing.
+  Registration register(LightingModel model) {
+    if (_store.frozen) {
+      throw StateError(
+        'LightingModels.shipped is the built-in models alone; register '
+        '"${model.shaderName}" in an engine\'s table '
+        '(Renderer.lightingModels)',
+      );
+    }
     final name = model.shaderName;
     for (final built in LightingModel.builtIn) {
       if (built.shaderName == name && !identical(built, model)) {
@@ -513,7 +616,21 @@ abstract final class LightingModels {
         );
       }
     }
-    final existing = _registered[name];
+    final scope = _scope;
+    if (scope != null &&
+        !LightingModel.builtIn.any((built) => identical(built, model))) {
+      final manifest = scope.manifest;
+      final prefix = '${manifest.namespace}_';
+      if (!manifest.isEngine &&
+          (!name.startsWith(prefix) || name.length == prefix.length)) {
+        throw PluginException(
+          'plugin "${manifest.id}" registered the lighting model "$name": a '
+          'plugin\'s model is in its namespace, and a shader\'s name cannot '
+          'carry a dot, so it is "$prefix<Name>"',
+        );
+      }
+    }
+    final existing = _store.registered[name];
     if (existing != null && !identical(existing.model, model)) {
       throw ArgumentError.value(
         name,
@@ -521,13 +638,29 @@ abstract final class LightingModels {
         'a different lighting model is already registered under this name',
       );
     }
-    final entry = existing ?? (_registered[name] = _RegisteredModel(model));
+    final entry =
+        existing ?? (_store.registered[name] = _RegisteredModel(model));
     entry.count++;
-    return Registration(() {
+    final registration = Registration(() {
       entry.count--;
-      if (entry.count == 0) _registered.remove(name);
+      if (entry.count == 0) _store.registered.remove(name);
     });
+    scope?.track(registration);
+    return registration;
   }
+
+  @override
+  LightingModels forPlugin(PluginScope scope) =>
+      LightingModels._scoped(_store, scope);
+}
+
+final class _ModelStore {
+  _ModelStore({this.frozen = false});
+
+  final bool frozen;
+
+  // Insertion order: a picker lists the models in the order they came.
+  final Map<String, _RegisteredModel> registered = <String, _RegisteredModel>{};
 }
 
 final class _RegisteredModel {

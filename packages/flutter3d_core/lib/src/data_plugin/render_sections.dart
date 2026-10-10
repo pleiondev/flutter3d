@@ -1,17 +1,21 @@
-/// A data plugin's `materials` and `renderSteps`: the two sections of a
-/// `.f3dplugin` document the renderer reads, through the plugin API's
-/// `DataSectionRegistry`.
+/// A data plugin's `materials`, `renderSteps`, `bindings` and `pipeline`:
+/// the sections of a `.f3dplugin` document the renderer reads, through the
+/// plugin API's `DataSectionRegistry`.
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart' show RendererSteps;
+import 'package:flutter3d_core/formats.dart' show PipelineDocument;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         DataSection,
         DataSectionContext,
         DocumentFormatException,
+        FormatSpec,
         PluginException,
         PluginHost,
-        RenderAnchor;
+        RenderAnchor,
+        SceneBindingRegistry,
+        SceneBindingSpec;
 
 import 'runtime_shaders.dart';
 
@@ -28,7 +32,40 @@ import 'runtime_shaders.dart';
 const List<DataSection> renderDataSections = <DataSection>[
   materialsSection,
   renderStepsSection,
+  bindingsSection,
+  pipelineSection,
 ];
+
+/// A data plugin's `pipeline`: an `f3d.pipeline` document's body — its
+/// anchors and its nodes, each made by a `PipelineNodeKind` a Dart plugin
+/// registered — applied to the renderer with `RendererSteps.fromDocument`
+/// (D44). Its anchors and nodes are in the plugin's namespace like any it
+/// adds by hand; on an engine that draws nothing it is read and noted.
+///
+/// ```json
+/// "pipeline": {
+///   "anchors": [{"name": "acme_glow.after glow", "after": "after bloom"}],
+///   "nodes": [{"name": "acme_glow.streak", "kind": "acme_glow.streak",
+///              "anchor": "acme_glow.after glow", "options": {"length": 8}}]
+/// }
+/// ```
+const DataSection pipelineSection = _PipelineSection();
+
+/// A data plugin's `bindings`: how its components are shown in the scene
+/// (D37), each entry a `SceneBindingSpec` —
+///
+/// ```json
+/// "bindings": [
+///   {"component": "acme_forge.heat", "node": "f3d.mesh",
+///    "material": "glow.fmat", "parameters": {"temperature": "glowStrength"},
+///    "interpolation": "linear", "lifetime": "component"}
+/// ]
+/// ```
+///
+/// Installed into the engine's `SceneBindingRegistry` (the renderer's
+/// `SceneBindings`); on an engine that draws nothing the section is read
+/// and noted, not installed.
+const DataSection bindingsSection = _BindingsSection();
 
 /// A data plugin's `materials`: the material language, compiled where the
 /// backend compiles at run time ([RuntimeShaders]).
@@ -294,6 +331,89 @@ final class _RenderStepsSection extends DataSection {
           before: step.before,
         ),
         renderer,
+      );
+    }
+  }
+}
+
+final class _BindingsSection extends DataSection {
+  const _BindingsSection();
+
+  @override
+  String get name => 'bindings';
+
+  @override
+  Object read(Object? written, DataSectionContext context) =>
+      List<SceneBindingSpec>.unmodifiable(<SceneBindingSpec>[
+        for (final entry in _entries(written, name))
+          SceneBindingSpec.fromJson(entry),
+      ]);
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final spec in section as List<SceneBindingSpec>) spec.toJson(),
+  ];
+
+  @override
+  void install(PluginHost host, Object section, DataSectionContext context) {
+    final specs = section as List<SceneBindingSpec>;
+    if (specs.isEmpty) return;
+    final bindings = host.maybeRegistry<SceneBindingRegistry>();
+    if (bindings == null) {
+      context.note('bindings not installed: this engine draws nothing');
+      return;
+    }
+    specs.forEach(bindings.add);
+  }
+}
+
+final class _PipelineSection extends DataSection {
+  const _PipelineSection();
+
+  @override
+  String get name => 'pipeline';
+
+  @override
+  Object read(Object? written, DataSectionContext context) => switch (written) {
+    final Map<Object?, Object?> map when map.keys.every((k) => k is String) =>
+      PipelineDocument.fromJson(<String, Object?>{
+        // The section is the body; the envelope is the document's own.
+        'format': 'f3d.pipeline',
+        'version': 1,
+        ...map.cast<String, Object?>(),
+      }),
+    _ => throw const DocumentFormatException('"pipeline" is not an object'),
+  };
+
+  @override
+  Object? write(Object section) {
+    final json = (section as PipelineDocument).toJson();
+    return <String, Object?>{
+      for (final MapEntry(:key, :value) in json.entries)
+        if (!FormatSpec.envelopeKeys.contains(key)) key: value,
+    };
+  }
+
+  @override
+  void install(PluginHost host, Object section, DataSectionContext context) {
+    final document = section as PipelineDocument;
+    if (document.anchors.isEmpty && document.nodes.isEmpty) return;
+    if (host.backend == null) {
+      context.note('pipeline not applied: this engine draws nothing');
+      return;
+    }
+    final steps =
+        host.maybeRegistry<RendererSteps>() ??
+        (throw PluginException(
+          'plugin "${context.plugin}" brings a pipeline, and this engine has '
+          'no RendererSteps to apply it to',
+        ));
+    try {
+      steps.fromDocument(document);
+    } on ArgumentError catch (refused) {
+      throw PluginException(
+        'plugin "${context.plugin}": its pipeline ${refused.invalidValue} '
+        '${refused.message}',
       );
     }
   }

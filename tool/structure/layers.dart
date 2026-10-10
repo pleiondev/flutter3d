@@ -286,7 +286,11 @@ const Set<String> pluginContractRoots = <String>{
 /// depends on none of them.
 /// Two more since 1.0.0-rc.1: `PluginGroup`, the set a host installs in
 /// order, and `SimulationProfile`, what a step promises about its numbers.
-const int pluginApiTypeBudget = 59;
+/// Four more with the frame's extension points (D37): `SceneBindingSpec`,
+/// `BindingInterpolation`, `BindingLifetime` and `SceneBindingRegistry`, so
+/// that a data plugin's `bindings:` section and a Dart plugin say how a
+/// component is shown without naming the renderer's types.
+const int pluginApiTypeBudget = 63;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

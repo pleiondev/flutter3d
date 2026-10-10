@@ -11,10 +11,11 @@
 /// evaluates the same tree, so there is nothing for two people to disagree
 /// about.
 ///
-/// **Sealed, so adding a node breaks every reader at compile time.** An
-/// emitter that quietly skipped a node it did not know would produce a shader
-/// that is missing a term — visible as a slightly wrong colour, in one backend,
-/// with nothing red.
+/// **Read through a visitor, so a node no reader knows is refused by name.**
+/// An emitter that quietly skipped a node it did not know would produce a
+/// shader that is missing a term — visible as a slightly wrong colour, in
+/// one backend, with nothing red; each translator's `visitUnknown` refuses
+/// it instead (D24).
 library;
 
 import 'dart:math' as math;
@@ -85,6 +86,7 @@ final class MaterialParameter {
     this.type,
     this.defaultValue, {
     this.uniform = false,
+    this._block,
   });
 
   final String name;
@@ -99,7 +101,18 @@ final class MaterialParameter {
   /// variant cannot set one; [defaultValue] is what a material that names
   /// no value is given.
   final bool uniform;
+
+  /// The uniform block a [uniform] is a member of: [materialParametersBlock]
+  /// unless the source names one of the material's own — `uniform(Hair)
+  /// vec3 tint = …;`, version 2 (D21). Null for a `param`, which is in no
+  /// block.
+  String? get block => uniform ? _block ?? materialParametersBlock : null;
+  final String? _block;
 }
+
+/// The block every `uniform` is a member of unless it names another, and
+/// the one `RenderMaterial.parameterBlock` names by default.
+const String materialParametersBlock = 'MaterialParams';
 
 /// One texture slot the material samples, by the name the engine binds it
 /// under.
@@ -109,12 +122,21 @@ final class MaterialTextureSlot {
   /// What the source calls it.
   final String name;
 
-  /// What the engine binds — `base_color_texture` and the rest. A material
-  /// cannot invent a slot, for the same reason it cannot invent a uniform
-  /// block, so the parser holds the source name to one the engine already
-  /// binds and says which names those are when it does not.
+  /// What the engine binds — `base_color_texture` and the rest — or, for a
+  /// texture of the material's own ([isOwn], version 2), `material_<name>`,
+  /// the name `RenderMaterial.extraTextures` hands it under.
   final String bindingName;
+
+  /// Whether this is a texture of the material's own rather than one of the
+  /// engine's five — `texture fur;` in a surface, version 2 (D21): a slot in
+  /// the material's [MaterialSlotTable], which the emitted stage declares
+  /// and each backend's binding plan binds.
+  bool get isOwn => bindingName.startsWith(materialOwnTexturePrefix);
 }
+
+/// What the binding of a texture of a material's own starts with:
+/// `texture fur;` is bound as `material_fur`.
+const String materialOwnTexturePrefix = 'material_';
 
 /// One value the fragment body can read.
 ///
@@ -628,10 +650,57 @@ final class MaterialBuiltin {
 }
 
 /// An expression, typed by the parser rather than by whoever reads it later.
+///
+/// **An open set, read through a visitor** (1.0). A translator — to GLSL, to
+/// WGSL, to the software backend's evaluator, or one a backend from outside
+/// brings — walks the tree with [accept] and a [MaterialExpressionVisitor],
+/// rather than with a `switch` over the kinds. A kind a later minor adds (or
+/// a plugin's own) arrives at [MaterialExpressionVisitor.visitUnknown], so
+/// a translator written against 1.0 keeps compiling and refuses the node by
+/// name instead of breaking. `materialLanguageVersion` still says which
+/// kinds a translator promises to know.
 abstract base class MaterialExpression {
   const MaterialExpression(this.type);
 
   final MaterialType type;
+
+  /// Hands this expression to the [visitor]'s method for its kind.
+  ///
+  /// [MaterialExpressionVisitor.visitUnknown] by default: what a kind the
+  /// visitor predates answers, including a plugin's own kind that does not
+  /// override this.
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitUnknown(this);
+}
+
+/// Something that reads every kind of [MaterialExpression]: a translator,
+/// an evaluator, a check.
+///
+/// **One method per kind 1.0 knows, and [visitUnknown] for the rest.** Each
+/// `visit…` here is abstract, so a translator written against 1.0 says what
+/// it does with every kind there is; a kind a later minor adds gains a
+/// method whose default body hands the node to [visitUnknown], so the same
+/// translator keeps compiling and answers the new kind as it answers any
+/// it does not know — usually by refusing it with its name.
+///
+/// Extendable outside this package, and stays so through 1.x.
+abstract base class MaterialExpressionVisitor<R> {
+  const MaterialExpressionVisitor();
+
+  R visitConstant(MaterialConstant expression);
+  R visitInputRef(MaterialInputRef expression);
+  R visitParamRef(MaterialParamRef expression);
+  R visitLocalRef(MaterialLocalRef expression);
+  R visitConstruct(MaterialConstruct expression);
+  R visitSwizzle(MaterialSwizzle expression);
+  R visitNegate(MaterialNegate expression);
+  R visitBinary(MaterialBinary expression);
+  R visitCall(MaterialCall expression);
+  R visitSample(MaterialSample expression);
+
+  /// What a kind this visitor has no method for answers: one a later minor
+  /// added, or a plugin's own.
+  R visitUnknown(MaterialExpression expression);
 }
 
 /// A literal, and the one place a `vec3(1.0, 0.0, 0.0)` that is entirely
@@ -642,6 +711,10 @@ final class MaterialConstant extends MaterialExpression {
   const MaterialConstant(this.value, MaterialType type) : super(type);
 
   final List<double> value;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitConstant(this);
 }
 
 /// One of [materialInputs].
@@ -649,6 +722,10 @@ final class MaterialInputRef extends MaterialExpression {
   MaterialInputRef(this.input) : super(input.type);
 
   final MaterialInput input;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitInputRef(this);
 }
 
 /// A declared parameter, before a variant has said what it is.
@@ -661,6 +738,10 @@ final class MaterialParamRef extends MaterialExpression {
   MaterialParamRef(this.parameter) : super(parameter.type);
 
   final MaterialParameter parameter;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitParamRef(this);
 }
 
 /// A `let` bound earlier in the body.
@@ -668,6 +749,10 @@ final class MaterialLocalRef extends MaterialExpression {
   const MaterialLocalRef(this.name, MaterialType type) : super(type);
 
   final String name;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitLocalRef(this);
 }
 
 /// `vec3(...)`, `vec4(...)` and the rest, with arguments that are not all
@@ -680,6 +765,10 @@ final class MaterialConstruct extends MaterialExpression {
   const MaterialConstruct(this.arguments, MaterialType type) : super(type);
 
   final List<MaterialExpression> arguments;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitConstruct(this);
 }
 
 /// `.x`, `.rgb`, `.xy` — component indices into the target.
@@ -691,6 +780,10 @@ final class MaterialSwizzle extends MaterialExpression {
 
   /// Zero-based, in the order written.
   final List<int> components;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitSwizzle(this);
 }
 
 /// Unary minus. The only unary operator, because `!` needs a bool type the
@@ -699,6 +792,10 @@ final class MaterialNegate extends MaterialExpression {
   MaterialNegate(this.operand) : super(operand.type);
 
   final MaterialExpression operand;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitNegate(this);
 }
 
 /// `+ - * /`, with GLSL's broadcasting: a float beside a vector spreads.
@@ -709,6 +806,10 @@ final class MaterialBinary extends MaterialExpression {
   final String op;
   final MaterialExpression left;
   final MaterialExpression right;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitBinary(this);
 }
 
 /// A call to one of [MaterialBuiltin.all].
@@ -718,6 +819,9 @@ final class MaterialCall extends MaterialExpression {
 
   final MaterialBuiltin builtin;
   final List<MaterialExpression> arguments;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) => visitor.visitCall(this);
 }
 
 /// `sample(slot, uv)`.
@@ -731,10 +835,41 @@ final class MaterialSample extends MaterialExpression {
 
   final MaterialTextureSlot slot;
   final MaterialExpression uv;
+
+  @override
+  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
+      visitor.visitSample(this);
 }
 
-sealed class MaterialStatement {
+/// One statement of a block: a `let`, a `return`, an `out`.
+///
+/// **An open set, read through a visitor**, for [MaterialExpression]'s
+/// reason: a statement kind a later minor adds (or a plugin's own) arrives
+/// at [MaterialStatementVisitor.visitUnknown], and a translator written
+/// against 1.0 refuses it by name rather than breaking.
+abstract base class MaterialStatement {
   const MaterialStatement();
+
+  /// Hands this statement to the [visitor]'s method for its kind;
+  /// [MaterialStatementVisitor.visitUnknown] by default.
+  R accept<R>(MaterialStatementVisitor<R> visitor) =>
+      visitor.visitUnknown(this);
+}
+
+/// Something that reads every kind of [MaterialStatement]. One abstract
+/// method per kind 1.0 knows; a kind added later defaults to
+/// [visitUnknown], as [MaterialExpressionVisitor] explains.
+///
+/// Extendable outside this package, and stays so through 1.x.
+abstract base class MaterialStatementVisitor<R> {
+  const MaterialStatementVisitor();
+
+  R visitLet(MaterialLet statement);
+  R visitReturn(MaterialReturn statement);
+  R visitOutput(MaterialOutput statement);
+
+  /// What a kind this visitor has no method for answers.
+  R visitUnknown(MaterialStatement statement);
 }
 
 /// `let name = expr;` — single assignment, so nothing here is a variable.
@@ -743,6 +878,9 @@ final class MaterialLet extends MaterialStatement {
 
   final String name;
   final MaterialExpression value;
+
+  @override
+  R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitLet(this);
 }
 
 /// `return expr;` — a `vec4`, rgb being the light the surface emits and a its
@@ -751,6 +889,9 @@ final class MaterialReturn extends MaterialStatement {
   const MaterialReturn(this.value);
 
   final MaterialExpression value;
+
+  @override
+  R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitReturn(this);
 }
 
 /// `out name = expr;` — one of [materialVertexOutputs], written by a
@@ -761,6 +902,9 @@ final class MaterialOutput extends MaterialStatement {
 
   final MaterialInput output;
   final MaterialExpression value;
+
+  @override
+  R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitOutput(this);
 }
 
 /// A material read from source: its name, what it declares, and its body.
@@ -918,21 +1062,11 @@ MaterialProgram specializeMaterial(
     }
   }
 
+  final folder = _Folder(variant);
   List<MaterialStatement> fold(
     List<MaterialStatement> body,
   ) => <MaterialStatement>[
-    for (final statement in body)
-      switch (statement) {
-        MaterialLet(:final name, :final value) => MaterialLet(
-          name,
-          _fold(value, variant),
-        ),
-        MaterialReturn(:final value) => MaterialReturn(_fold(value, variant)),
-        MaterialOutput(:final output, :final value) => MaterialOutput(
-          output,
-          _fold(value, variant),
-        ),
-      },
+    for (final statement in body) statement.accept(_StatementFolder(folder)),
   ];
 
   List<MaterialStatement>? foldOptional(List<MaterialStatement>? body) =>
@@ -955,77 +1089,138 @@ MaterialProgram specializeMaterial(
   );
 }
 
-MaterialExpression _fold(MaterialExpression expression, MaterialVariant v) {
-  switch (expression) {
-    case MaterialConstant():
-    case MaterialInputRef():
-    case MaterialLocalRef():
-      return expression;
-    // A uniform stays a reference: its value arrives with each draw.
-    case MaterialParamRef(:final parameter) when parameter.uniform:
-      return expression;
-    case MaterialParamRef(:final parameter):
-      return MaterialConstant(
-        v.values[parameter.name] ?? parameter.defaultValue,
-        parameter.type,
+/// Each statement with its expression folded by [folder].
+final class _StatementFolder
+    extends MaterialStatementVisitor<MaterialStatement> {
+  const _StatementFolder(this.folder);
+
+  final _Folder folder;
+
+  @override
+  MaterialStatement visitLet(MaterialLet statement) =>
+      MaterialLet(statement.name, statement.value.accept(folder));
+
+  @override
+  MaterialStatement visitReturn(MaterialReturn statement) =>
+      MaterialReturn(statement.value.accept(folder));
+
+  @override
+  MaterialStatement visitOutput(MaterialOutput statement) =>
+      MaterialOutput(statement.output, statement.value.accept(folder));
+
+  @override
+  MaterialStatement visitUnknown(MaterialStatement statement) =>
+      throw ArgumentError.value(
+        statement,
+        'statement',
+        'not a statement this build of the material language knows',
       );
-    case MaterialConstruct(:final arguments, :final type):
-      final folded = <MaterialExpression>[
-        for (final argument in arguments) _fold(argument, v),
-      ];
-      if (folded.every((f) => f is MaterialConstant)) {
-        return MaterialConstant(<double>[
-          for (final f in folded) ...(f as MaterialConstant).value,
-        ], type);
-      }
-      return MaterialConstruct(folded, type);
-    case MaterialSwizzle(:final target, :final components, :final type):
-      final folded = _fold(target, v);
-      if (folded is MaterialConstant) {
-        return MaterialConstant(<double>[
-          for (final index in components) folded.value[index],
-        ], type);
-      }
-      return MaterialSwizzle(folded, components, type);
-    case MaterialNegate(:final operand):
-      final folded = _fold(operand, v);
-      if (folded is MaterialConstant) {
-        return MaterialConstant(<double>[
-          for (final component in folded.value) -component,
-        ], folded.type);
-      }
-      return MaterialNegate(folded);
-    case MaterialBinary(:final op, :final left, :final right, :final type):
-      final a = _fold(left, v);
-      final b = _fold(right, v);
-      if (a is MaterialConstant && b is MaterialConstant) {
-        return MaterialConstant(applyBinary(op, a.value, b.value), type);
-      }
-      return MaterialBinary(op, a, b, type);
-    case MaterialCall(:final builtin, :final arguments, :final type):
-      final folded = <MaterialExpression>[
-        for (final argument in arguments) _fold(argument, v),
-      ];
-      if (folded.every((f) => f is MaterialConstant)) {
-        return MaterialConstant(
-          builtin.apply(
-            broadcastArguments(<List<double>>[
-              for (final f in folded) (f as MaterialConstant).value,
-            ], builtin),
-          ),
-          type,
-        );
-      }
-      return MaterialCall(builtin, folded, type);
-    case MaterialSample(:final slot, :final uv):
-      return MaterialSample(slot, _fold(uv, v));
-    default:
+}
+
+/// An expression with a variant's parameters folded in, and every subtree
+/// that is then constant collapsed to a [MaterialConstant].
+final class _Folder extends MaterialExpressionVisitor<MaterialExpression> {
+  const _Folder(this.variant);
+
+  final MaterialVariant variant;
+
+  @override
+  MaterialExpression visitConstant(MaterialConstant expression) => expression;
+
+  @override
+  MaterialExpression visitInputRef(MaterialInputRef expression) => expression;
+
+  @override
+  MaterialExpression visitLocalRef(MaterialLocalRef expression) => expression;
+
+  // A uniform stays a reference: its value arrives with each draw.
+  @override
+  MaterialExpression visitParamRef(MaterialParamRef expression) {
+    final parameter = expression.parameter;
+    if (parameter.uniform) return expression;
+    return MaterialConstant(
+      variant.values[parameter.name] ?? parameter.defaultValue,
+      parameter.type,
+    );
+  }
+
+  @override
+  MaterialExpression visitConstruct(MaterialConstruct expression) {
+    final folded = <MaterialExpression>[
+      for (final argument in expression.arguments) argument.accept(this),
+    ];
+    if (folded.every((f) => f is MaterialConstant)) {
+      return MaterialConstant(<double>[
+        for (final f in folded) ...(f as MaterialConstant).value,
+      ], expression.type);
+    }
+    return MaterialConstruct(folded, expression.type);
+  }
+
+  @override
+  MaterialExpression visitSwizzle(MaterialSwizzle expression) {
+    final folded = expression.target.accept(this);
+    if (folded is MaterialConstant) {
+      return MaterialConstant(<double>[
+        for (final index in expression.components) folded.value[index],
+      ], expression.type);
+    }
+    return MaterialSwizzle(folded, expression.components, expression.type);
+  }
+
+  @override
+  MaterialExpression visitNegate(MaterialNegate expression) {
+    final folded = expression.operand.accept(this);
+    if (folded is MaterialConstant) {
+      return MaterialConstant(<double>[
+        for (final component in folded.value) -component,
+      ], folded.type);
+    }
+    return MaterialNegate(folded);
+  }
+
+  @override
+  MaterialExpression visitBinary(MaterialBinary expression) {
+    final a = expression.left.accept(this);
+    final b = expression.right.accept(this);
+    if (a is MaterialConstant && b is MaterialConstant) {
+      return MaterialConstant(
+        applyBinary(expression.op, a.value, b.value),
+        expression.type,
+      );
+    }
+    return MaterialBinary(expression.op, a, b, expression.type);
+  }
+
+  @override
+  MaterialExpression visitCall(MaterialCall expression) {
+    final folded = <MaterialExpression>[
+      for (final argument in expression.arguments) argument.accept(this),
+    ];
+    if (folded.every((f) => f is MaterialConstant)) {
+      return MaterialConstant(
+        expression.builtin.apply(
+          broadcastArguments(<List<double>>[
+            for (final f in folded) (f as MaterialConstant).value,
+          ], expression.builtin),
+        ),
+        expression.type,
+      );
+    }
+    return MaterialCall(expression.builtin, folded, expression.type);
+  }
+
+  @override
+  MaterialExpression visitSample(MaterialSample expression) =>
+      MaterialSample(expression.slot, expression.uv.accept(this));
+
+  @override
+  MaterialExpression visitUnknown(MaterialExpression expression) =>
       throw ArgumentError.value(
         expression,
         'expression',
         'not an expression this build of the material language knows',
       );
-  }
 }
 
 /// `+ - * /` on two values, with GLSL's broadcasting.

@@ -388,4 +388,34 @@ void main() {
     expect(_only(outcomes, 'materials').says, contains('not plausible'));
     expect(_only(outcomes, 'manifest').passed, isFalse);
   });
+
+  test('a system named outside the plugin\'s namespace fails names', () {
+    // Mutation: compare the names with the plugin against themselves rather
+    // than against the loop without it, and nothing is ever outside.
+    final world = _World();
+    final outcomes = checkPluginConformance(
+      () => _Unspaced(world),
+      harness: world.harness(),
+    );
+    final names = _only(outcomes, 'names');
+    expect(names.passed, isFalse);
+    expect(names.says, contains('the system "count"'));
+    expect(names.says, contains('"unspaced.<name>"'));
+  });
+}
+
+/// Counts as `_Good` does, under a system name with no namespace.
+final class _Unspaced extends Flutter3dPlugin {
+  _Unspaced(this.world);
+
+  final _World world;
+
+  @override
+  PluginManifest get manifest =>
+      PluginManifest(id: 'unspaced', apiVersion: PluginApiVersion.current);
+
+  @override
+  void install(PluginHost host) {
+    host.loop.addSystem('count', LoopPhase.rules, (_) => world.values[0]++);
+  }
 }

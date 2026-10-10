@@ -53,6 +53,7 @@ workspace:
   - packages/flutter3d_matter
   - packages/flutter3d_plugin_api
   - packages/flutter3d_plugin_runtime
+  - packages/flutter3d_plugin_runtime/example
   - packages/flutter3d_lints
   - packages/flutter3d_sim
   - packages/flutter3d_camera

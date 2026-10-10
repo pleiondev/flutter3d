@@ -3,11 +3,39 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.
-sealed class ResourceSize {
+///
+/// **An open set, read through a visitor** (1.0): a size a later minor adds
+/// — a fraction of one view of several, a size taken from another resource
+/// — or a plugin's own arrives at [ResourceSizeVisitor.visitUnknown], so
+/// code that reads the kinds with [accept] keeps compiling. What every size
+/// answers is [resolve], which is all the frame graph asks of one.
+///
+/// Extendable outside this package, and stays so through 1.x.
+abstract base class ResourceSize {
   const ResourceSize();
 
   /// The size in pixels, given the frame's.
   (int, int) resolve(int frameWidth, int frameHeight);
+
+  /// Hands this size to the [visitor]'s method for its kind;
+  /// [ResourceSizeVisitor.visitUnknown] by default.
+  R accept<R>(ResourceSizeVisitor<R> visitor) => visitor.visitUnknown(this);
+}
+
+/// Something that reads every kind of [ResourceSize]: a tool that writes a
+/// frame's resources down, an inspector.
+///
+/// One abstract method per kind 1.0 knows; a kind added later arrives with
+/// a default body that hands it to [visitUnknown], as
+/// `MaterialExpressionVisitor` explains for the material language.
+abstract base class ResourceSizeVisitor<R> {
+  const ResourceSizeVisitor();
+
+  R visitFrameFraction(FrameFraction size);
+  R visitAbsolutePixels(AbsolutePixels size);
+
+  /// What a kind this visitor has no method for answers.
+  R visitUnknown(ResourceSize size);
 }
 
 /// A fraction of the frame: full size at one, half at two.
@@ -29,6 +57,10 @@ final class FrameFraction extends ResourceSize {
     final h = frameHeight ~/ divisor;
     return (w < 1 ? 1 : w, h < 1 ? 1 : h);
   }
+
+  @override
+  R accept<R>(ResourceSizeVisitor<R> visitor) =>
+      visitor.visitFrameFraction(this);
 }
 
 /// A fixed size, for anything whose extent is its own business — a shadow
@@ -41,6 +73,10 @@ final class AbsolutePixels extends ResourceSize {
 
   @override
   (int, int) resolve(int frameWidth, int frameHeight) => (width, height);
+
+  @override
+  R accept<R>(ResourceSizeVisitor<R> visitor) =>
+      visitor.visitAbsolutePixels(this);
 }
 
 /// Where the pixels behind a bound resource came from.

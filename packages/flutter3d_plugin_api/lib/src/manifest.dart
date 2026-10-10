@@ -194,6 +194,52 @@ final class PluginManifest {
       : 'a plugin id is lower case letters, digits, "_", "." and "-", '
             'starting with a letter; "$id" is not one';
 
+  /// The namespace every name this plugin registers starts with, a dot after
+  /// it: its [id] up to the first dot — the package that ships it, so the
+  /// effects of one package (`acme_frost.frost`, `acme_frost.haze`) share
+  /// `acme_frost.`.
+  ///
+  /// **What keeps a name of a plugin's from meeting one of the engine's, or
+  /// another plugin's** (D23): a render step, a node, an anchor, a settings
+  /// slot, a resource it makes, a light type, a format — each is
+  /// `<namespace>.<name>`, so a name the engine adds in a minor (which never
+  /// carries a plugin's namespace) cannot be one a plugin already took. `f3d`
+  /// is the engine's own and no plugin from outside it may use it. Names are
+  /// compared case-sensitively everywhere.
+  String get namespace {
+    final dot = id.indexOf('.');
+    return dot < 0 ? id : id.substring(0, dot);
+  }
+
+  /// Whether this plugin ships with the engine — `flutter3d` or a
+  /// `flutter3d_…` package — and so registers the engine's own names, which
+  /// carry no plugin's namespace.
+  bool get isEngine =>
+      namespace == 'flutter3d' ||
+      namespace.startsWith('flutter3d_') ||
+      namespace.startsWith('flame_flutter3d');
+
+  /// Why this plugin may not register [name] as [what] — a sentence naming
+  /// both — or null when it may: [name] is `<namespace>.<something>`, or the
+  /// plugin is one of the engine's own ([isEngine]).
+  String? nameProblem(String name, {required String what}) {
+    if (isEngine) return null;
+    if (namespace == reservedNamespace) {
+      return 'plugin "$id" registered $what "$name": the namespace '
+          '"$reservedNamespace" is the engine\'s own, and a plugin from outside '
+          'it names itself after its package';
+    }
+    final prefix = '$namespace.';
+    if (name.startsWith(prefix) && name.length > prefix.length) return null;
+    return 'plugin "$id" registered $what "$name": every name a plugin '
+        'registers is in its namespace, "$prefix<name>", so a name the engine '
+        'or another plugin adds later cannot be one it already took';
+  }
+
+  /// The engine's own namespace: `f3d.`, which no plugin from outside the
+  /// engine may register a name in.
+  static const String reservedNamespace = 'f3d';
+
   static const Set<String> _known = <String>{
     'id',
     'apiVersion',

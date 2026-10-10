@@ -82,7 +82,15 @@ bool isFmat(Uint8List bytes) {
 /// [MaterialDocument.extraTextures], and a key under `parameters` becomes a
 /// uniform: both exist so a custom shader can ask for something this engine
 /// has never heard of.
-MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
+///
+/// A lighting model named by name is looked up in [lightingModels] — the
+/// engine's, `Renderer.lightingModels`, so a plugin's model reads as itself
+/// — or among the built-in models when none is given.
+MaterialDocument readFmat(
+  Uint8List bytes, {
+  String name = '',
+  LightingModels? lightingModels,
+}) {
   final Object? parsed;
   try {
     parsed = json.decode(utf8.decode(bytes));
@@ -158,6 +166,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
 
   final surface = surfaceMaterialFromJson(
     parsed,
+    lightingModels: lightingModels,
     name: name.isEmpty ? null : name,
     warnings: warnings,
     baseColorTexture: binding(textures['albedo']),
@@ -182,7 +191,11 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
   return MaterialDocument(
     surface: surface,
     images: images,
-    lighting: readLightingJson(parsed['lighting'], warnings),
+    lighting: readLightingJson(
+      parsed['lighting'],
+      warnings,
+      models: lightingModels,
+    ),
     parameterBlock: parsed['parameterBlock'] as String? ?? 'MaterialParams',
     parameters: <String, Float32List>{
       for (final entry
@@ -211,7 +224,11 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
 /// Round-trips: what this writes, [readFmat] reads back to an equal document.
 /// That is the property a material editor stands on, and it is measured rather
 /// than asserted — see `fmat_test.dart`.
-String writeFmat(MaterialDocument document) {
+///
+/// A lighting model is written by name when [lightingModels] (the built-in
+/// models when none is given) reads the name back as that very model, and
+/// as a description otherwise.
+String writeFmat(MaterialDocument document, {LightingModels? lightingModels}) {
   final surface = document.surface;
 
   String? pathOf(TextureBinding? slot) =>
@@ -275,8 +292,9 @@ String writeFmat(MaterialDocument document) {
     // Beside the envelope for a 0.8 reader, which refuses a material without
     // it (see [fmatFormat]).
     'fmat': fmatVersion,
-    if (lighting != null) 'lighting': writeLightingJson(lighting),
-    ...surfaceMaterialToJson(surface),
+    if (lighting != null)
+      'lighting': writeLightingJson(lighting, models: lightingModels),
+    ...surfaceMaterialToJson(surface, lightingModels: lightingModels),
     if (textures.isNotEmpty) 'textures': textures,
     if (surface.extensions case final layers?)
       if (materialExtensionsToJson(layers, texture: slot) case final written
@@ -349,44 +367,46 @@ String _ensureFloatLiterals(String json) => json
 /// to one, or interning a new one, is a whole document's business, not one
 /// material's, which is why [readFmat] still does that part itself before
 /// handing the result to [surfaceMaterialFromJson].
-Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
-    <String, Object?>{
-      if (surface.name != null) 'name': surface.name,
-      // sRGB-encoded in the file, as it always was.
-      'baseColor': <double>[
-        _cleanFloat32(surface.baseColor.toSrgb().r),
-        _cleanFloat32(surface.baseColor.toSrgb().g),
-        _cleanFloat32(surface.baseColor.toSrgb().b),
-        _cleanFloat32(surface.baseColor.a),
-      ],
-      if (surface.metallic != 0.0) 'metallic': surface.metallic,
-      if (surface.roughness != 0.5) 'roughness': surface.roughness,
-      if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
-      if (surface.occlusionStrength != 1.0)
-        'occlusionStrength': surface.occlusionStrength,
-      if (surface.emissive.r != 0.0 ||
-          surface.emissive.g != 0.0 ||
-          surface.emissive.b != 0.0)
-        'emissive': <double>[
-          _cleanFloat32(surface.emissive.r),
-          _cleanFloat32(surface.emissive.g),
-          _cleanFloat32(surface.emissive.b),
-        ],
-      if (surface.emissiveStrength != 1.0)
-        'emissiveStrength': surface.emissiveStrength,
-      if (surface.alphaMode != SurfaceAlphaMode.opaque)
-        'alphaMode': switch (surface.alphaMode) {
-          SurfaceAlphaMode.opaque => 'opaque',
-          SurfaceAlphaMode.mask => 'mask',
-          SurfaceAlphaMode.blend => 'blend',
-          _ => surface.alphaMode.name,
-        },
-      if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
-      if (surface.doubleSided) 'doubleSided': true,
-      if (surface.unlit) 'unlit': true,
-      if (surface.lightingModel case final LightingModel model)
-        'lightingModel': writeLightingJson(model),
-    };
+Map<String, Object?> surfaceMaterialToJson(
+  SurfaceMaterial surface, {
+  LightingModels? lightingModels,
+}) => <String, Object?>{
+  if (surface.name != null) 'name': surface.name,
+  // sRGB-encoded in the file, as it always was.
+  'baseColor': <double>[
+    _cleanFloat32(surface.baseColor.toSrgb().r),
+    _cleanFloat32(surface.baseColor.toSrgb().g),
+    _cleanFloat32(surface.baseColor.toSrgb().b),
+    _cleanFloat32(surface.baseColor.a),
+  ],
+  if (surface.metallic != 0.0) 'metallic': surface.metallic,
+  if (surface.roughness != 0.5) 'roughness': surface.roughness,
+  if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
+  if (surface.occlusionStrength != 1.0)
+    'occlusionStrength': surface.occlusionStrength,
+  if (surface.emissive.r != 0.0 ||
+      surface.emissive.g != 0.0 ||
+      surface.emissive.b != 0.0)
+    'emissive': <double>[
+      _cleanFloat32(surface.emissive.r),
+      _cleanFloat32(surface.emissive.g),
+      _cleanFloat32(surface.emissive.b),
+    ],
+  if (surface.emissiveStrength != 1.0)
+    'emissiveStrength': surface.emissiveStrength,
+  if (surface.alphaMode != SurfaceAlphaMode.opaque)
+    'alphaMode': switch (surface.alphaMode) {
+      SurfaceAlphaMode.opaque => 'opaque',
+      SurfaceAlphaMode.mask => 'mask',
+      SurfaceAlphaMode.blend => 'blend',
+      _ => surface.alphaMode.name,
+    },
+  if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
+  if (surface.doubleSided) 'doubleSided': true,
+  if (surface.unlit) 'unlit': true,
+  if (surface.lightingModel case final LightingModel model)
+    'lightingModel': writeLightingJson(model, models: lightingModels),
+};
 
 /// The inverse of [surfaceMaterialToJson]: a [SurfaceMaterial] built from
 /// [json]'s own scalar and colour fields, with [name] as the fallback for a
@@ -400,6 +420,7 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
 /// the identical fallback [readFmat] has always given one.
 SurfaceMaterial surfaceMaterialFromJson(
   Map<String, Object?> json, {
+  LightingModels? lightingModels,
   String? name,
   List<String>? warnings,
   TextureBinding? baseColorTexture,
@@ -436,6 +457,7 @@ SurfaceMaterial surfaceMaterialFromJson(
     json['lightingModel'],
     warnings ?? <String>[],
     key: 'lightingModel',
+    models: lightingModels,
   ),
   extensions: extensions,
 );

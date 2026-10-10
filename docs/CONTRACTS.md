@@ -337,6 +337,158 @@ snapshotted in `packages/flutter3d_build/api/flutter3d_build.cli`, and its
 `version` of its own, with each subcommand's keys snapshotted beside the
 help text.
 
+## The shader ABI
+
+What a backend's shaders, and a plugin's stages, agree on with the engine
+(D21, D22, D26, D27 and amendment 5 of the field review). A backend
+written outside this repository reads it beside
+`package:flutter3d_shaders/backend.dart`, which holds the same contract as
+code.
+
+### Entry points
+
+A backend's bundle answers to every name in `requiredShaders`
+(`package:flutter3d_shaders/flutter3d_shaders.dart`), generated from
+`shaders/flutter3d.shaderbundle.json` and checked against it by a test:
+19 vertex stages and 86 fragment stages at the time of writing. A backend
+that computes answers to `computeShaders` too (`PrefixSum` and the three
+`SplatSort*` stages, which it may leave out). The names are stable within a
+major; a minor may add one, never rename or drop one.
+
+- Vertex: `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`,
+  `MeshLightmappedVertex`, `FullscreenVertex`, the three `Velocity*Vertex`,
+  `PolylineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `ImpostorVertex`,
+  the three `Sky*Vertex`, `DebugLineVertex`, `CausticPhotonVertex`,
+  `ShadowTileResetVertex` and `VertexTextureProbeVertex`.
+- Fragment: the lighting models and their `*Opaque` variants (`Unlit`,
+  `Lambert`, `BlinnPhong`, `Pbr`, `PbrLayered`, `Toon`), the engine's own
+  surfaces (`Xray`, `PlanarReflection`, `Normals`, `Impostor`, `Splat`,
+  `SplatHashed`, the six `Particle*`), the shadow stages (`ShadowDepth`,
+  `ShadowDistance` and their `*Masked`, `ShadowTransmittance`, `ShadowCopy`,
+  `EvsmFilter`, `ShadowTileReset`, `CausticSurface`, `CausticPhoton`), and
+  the frame's full-screen stages (`Composite`, the bloom chain, `Decal`, the
+  velocity, temporal, depth-of-field and motion-blur chains, `Reflections`,
+  `Ssao`, `ContactShadow`, `VolumetricFog`, `LightShafts`, the anti-aliasing
+  and upscale stages, `Luminance`, `DepthPyramid`, `ObjectId` and the rest);
+  the manifest is the list.
+
+`stageBindings` says which uniform blocks and samplers each compiled stage
+keeps, and a draw binds by it; `uniformBlocks` gives every block's members,
+offsets and sizes as std140 laid them out. Both are generated after every
+shader change and both only grow in a minor.
+
+### The defines
+
+The engine's GLSL is compiled with these, each set by the stage that
+includes the shared headers, never by the backend:
+
+| Define | What it does |
+|---|---|
+| `F3D_OPAQUE` | the opaque variant of a lighting model: no reachable `discard` |
+| `F3D_LAYERED` | `pbr.glsl` with the glTF layers (`PbrLayered`) |
+| `F3D_MEDIUMP` | colour arithmetic in `mediump` where a stage allows it |
+| `F3D_LTC` | the area-light lookup of `ltc.glsl` |
+| `F3D_TEXTURE_TRANSFORM` | a map's transform read at the sampler |
+| `F3D_SOFT_PARTICLE` | a particle stage that fades into the scene's depth |
+| `F3D_NO_LIGHT_LIST` | a stage that gathers no lights declares no light list |
+| `F3D_NO_POINT_SHADOW` | a stage that samples no cube shadow declares none |
+| `F3D_NO_METALLIC_ROUGHNESS_MAP` | a stage that reads no metal-rough map declares none |
+| `F3D_NO_SURFACE_BUFFER` | a stage drawn into one attachment writes no surface buffer |
+| `F3D_NO_FOG` | a stage that applies no fog declares no `FogInfo` |
+
+A material written in the material language sets none of them: its stage
+is emitted for the engine's headers as they are.
+
+### A material's own blocks and textures
+
+A plugin's lit model may bind more than the engine's five textures and its
+blocks (D21). Its source declares them, `uniform(Hair) vec3 tint = …;` for
+a member of a block of its own and `texture fur;` for a texture of its own,
+and its `MaterialSlotTable` lists them in a fixed order: `MaterialParams`
+first when the material has a uniform of its own, then its blocks in the
+order they are first named, then its textures in declaration order. The
+emitted GLSL declares each block as `uniform <Name> { … } f3d_block_<Name>;`
+(`MaterialParams` as `material_params`) and each texture as `uniform
+sampler2D material_<name>;`. A backend binds them:
+
+- **by name** where its bindings are named: Impeller, WebGL2, the software
+  backend;
+- **by number** on WebGPU: the material's own blocks and textures take the
+  bindings after the engine's in the material's group, in the table's order.
+  WebGPU numbers them when the build packs the stage; at run time a material
+  with blocks or textures of its own is refused and built from
+  `assets_src/` instead.
+
+The renderer binds each block from `RenderMaterial.parameters`, the members
+that belong to it, and each texture from `RenderMaterial.extraTextures`
+under its binding name.
+
+### Light codes
+
+The light row the lit stages read (four `vec4`s a light: position and type
+code, colour and intensity, direction and range, cone or half-height) codes
+its type in the first `vec4`'s `w`: directional 0, point 1, spot 2, area 3;
+the engine's later types take codes below 16. A light type of a plugin's own
+(`LightTypeHook`, registered with `LightTypes`) takes a code from 16 up,
+handed out once per renderer in registration order, and its hook fills the
+row. **The engine's lit stages skip a light whose code is 16 or more**; a
+lighting model of the plugin's own reads the code and the row in its
+`light` block (the inputs `lightKind` and `lightParams`, the row's last
+`vec4`) and computes its own falloff. The skip and the two inputs are part
+of the next shader change of the backends, which is where the engine's
+stages are compiled.
+
+### Vertex layouts
+
+A material's own vertex stage reads the standard vertex
+(`VertexLayout.standard`). Its skinned half, `<name>Skinned`, reads joints
+and weights beside it; its instanced half, `<name>Instanced`, the
+instance's rows, colour and four numbers in a second buffer stepped per
+instance (`MeshVertexLayouts.instanced`); its lightmapped half,
+`<name>Lightmapped`, the level's baked coordinate. A material lists the
+halves it ships (`LightingModel.vertexVariants`); the others are drawn
+through the engine's.
+
+### Decal stages
+
+A decal of a plugin's own (`DecalNode.lighting`) is painted through a
+full-screen stage with `Decal`'s interface: the `DecalInfo` block (sixteen
+decals a draw), `decal_texture_0` to `decal_texture_3`, `surface_texture`
+and `albedo_texture`, and two terms by `DecalInfo.params.w`: nought for the
+factor multiplied in, one for the light added. `DecalSettings.decalsPerDraw`
+and `picturesPerDraw` cut the draws within those limits.
+
+### A backend's material compiler
+
+A backend compiles the material language into its section of a material's
+`ShaderBundle` with a `MaterialCompiler` (D26): it names its backend and its
+section, says whether it compiles while a game runs, and takes one
+`MaterialCompileRequest` (the source, the stages the engine's emitter
+wrote as GLSL, the engine's headers, and backend options by name) to a
+`MaterialCompileResult`, or refuses with a `MaterialCompileException` saying
+why. A `MaterialCompilerRegistry` finds it by backend: the build hook asks
+it for every backend it builds, and `RuntimeShaders` for the backend the
+game runs on, before the engine's own three run-time paths. Two backends
+never write one section.
+
+`compileStage` (`package:flutter3d_shaders/compile.dart`, with glslang and
+naga on the machine) hands a backend a stage's SPIR-V and its text in a
+`ShaderTarget`: WGSL, MSL, HLSL or GLSL, or the SPIR-V alone.
+
+### Stages agree before a device sees them
+
+The bundle writer reads every pipeline's stages as `StageInterface`s
+(`StageInterface.fromGlsl`, after includes are resolved, or a backend's
+reflection) and holds them to each other with `checkStageAgreement`
+(amendment 5): every varying the fragment stage reads is written by the
+vertex stage with the same type, and the same location where both state
+one; every attribute the vertex stage reads is in the vertex layout the
+pipeline is drawn with, with the same type; and a uniform block both stages
+declare has the same members in the same order. Each mismatch is a
+`StageMismatch` naming both stages and what each declares, and the writer
+refuses the bundle with them: a build error with names, not a crash on one
+backend at the first draw.
+
 ## Names
 
 The units above are half of what a name promises; the other half is how it

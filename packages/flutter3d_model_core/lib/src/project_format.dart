@@ -2302,10 +2302,11 @@ T _named<T extends Object>(
 /// bound. `LightingModel` is not an [Enum] (it is `final` with `const`
 /// instances, the shape a genre-open vocabulary takes in this repository),
 /// so the lookup is by [LightingModel.shaderName] rather than [_named]'s
-/// `Enum.name`. [LightingModels.all] is searched — the built-in models and
-/// those a plugin registered: a custom shader `.fmat` can describe as an
-/// object has no representation here yet, since nothing that writes a
-/// project file builds one.
+/// `Enum.name`. [LightingModels.shipped] is searched — the built-in models;
+/// a plugin's model belongs to the engine it was registered with, and a
+/// project file names the built-in ones. A custom shader `.fmat` can
+/// describe as an object has no representation here yet, since nothing
+/// that writes a project file builds one.
 LightingModel? _lightingModelNamed(
   Object? value,
   List<String> warnings,
@@ -2316,7 +2317,7 @@ LightingModel? _lightingModelNamed(
     warnings.add('$context is not a shader name; ignored.');
     return null;
   }
-  for (final LightingModel model in LightingModels.all) {
+  for (final LightingModel model in LightingModels.shipped.all) {
     if (model.shaderName == value) return model;
   }
   warnings.add(

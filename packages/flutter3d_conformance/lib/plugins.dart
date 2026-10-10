@@ -21,7 +21,7 @@
 /// );
 /// ```
 ///
-/// ## The 6 plugin checks
+/// ## The 7 plugin checks
 ///
 /// * **manifest** — the id is well formed, the plugin API version installs on
 ///   this engine, every permission is one the engine knows, a budget reads,
@@ -32,6 +32,9 @@
 ///   and declared events are exactly those of a loop without it; switched
 ///   back on, exactly those with it; both journalled at the step they were
 ///   made.
+/// * **names** — every phase, system and event it adds to the loop is in its
+///   namespace, `<namespace>.<name>`; the engine's own packages are not held
+///   to one.
 /// * **determinism** — every step run twice from one state by the loop's
 ///   `DeterminismCheck`, which names the system that diverged; and two fresh
 ///   runs publish the same events and leave the same world, step by step.
@@ -81,6 +84,7 @@ export 'src/plugins/harness.dart'
 const List<String> pluginCheckNames = <String>[
   'manifest',
   'switch',
+  'names',
   'determinism',
   'backends',
   'budget',
@@ -112,7 +116,8 @@ const String conformanceSuiteVersion = '1.0';
 /// **Append-only.** A new check goes into a new suite version, listed here
 /// with every check of the one before it; a suite once listed never changes,
 /// so a badge earned against it keeps meaning the same thing. (`materials`
-/// joined 1.0 before 1.0 was released, so no badge was earned without it.)
+/// and `names` joined 1.0 before 1.0 was released, so no badge was earned
+/// without them.)
 const Map<String, List<String>> conformanceSuites = <String, List<String>>{
   '1.0': pluginCheckNames,
 };

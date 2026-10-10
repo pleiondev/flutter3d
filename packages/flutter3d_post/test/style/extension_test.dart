@@ -57,7 +57,11 @@ RenderSettings _frostOff(RenderSettings s) =>
     s.withExtension(frost, s.extension(frost).copyWith(enabled: false));
 bool _frostOn(RenderSettings s) => s.extension(frost).enabled;
 
-const frostStep = RenderStep('frost', switchOff: _frostOff, isOn: _frostOn);
+const frostStep = RenderStep(
+  'acme_frost.frost',
+  switchOff: _frostOff,
+  isOn: _frostOn,
+);
 
 final class FrostAddon extends RenderStepAddon {
   const FrostAddon()
@@ -69,7 +73,11 @@ final class FrostAddon extends RenderStepAddon {
       );
 }
 
-const ink = LightingModel('Ink', 'AcmeInk', usesMetallicRoughnessMap: false);
+const ink = LightingModel(
+  'Ink',
+  'acme_ink_Ink',
+  usesMetallicRoughnessMap: false,
+);
 
 final class InkAddon extends LightingModelAddon {
   const InkAddon()
@@ -185,45 +193,53 @@ void main() {
     test('toon is the kernel constant, and stays built in', () {
       expect(toonLighting, same(LightingModel.toon));
       expect(LightingModel.builtIn, contains(toonLighting));
-      expect(LightingModels.named('Toon'), same(toonLighting));
+      expect(LightingModels.shipped.named('Toon'), same(toonLighting));
     });
 
     test('the toon addon registers the model the way any plugin does', () {
       final stage = FrameStage();
+      final models = stage.renderer.lightingModels;
       final host = stage.install(const <LightingModelAddon>[
         ToonLightingAddon(),
       ]);
-      expect(
-        LightingModels.all.where((m) => m.shaderName == 'Toon'),
-        hasLength(1),
-      );
+      expect(models.all.where((m) => m.shaderName == 'Toon'), hasLength(1));
       host
         ..disable(const ToonLightingAddon().id)
         ..applyPending(1);
       // Built in for 1.x, so withdrawing the addon leaves the name.
-      expect(LightingModels.named('toon'), same(toonLighting));
+      expect(models.named('Toon'), same(toonLighting));
+      // Names compare exactly.
+      expect(models.named('toon'), isNull);
     });
 
     test("a plugin's model is named while it is on, and not after", () {
-      expect(LightingModels.named('AcmeInk'), isNull);
       final stage = FrameStage();
+      final models = stage.renderer.lightingModels;
+      expect(models.named('acme_ink_Ink'), isNull);
       final host = stage.install(const <LightingModelAddon>[InkAddon()]);
-      expect(LightingModels.named('AcmeInk'), same(ink));
-      expect(LightingModels.all.last, same(ink));
+      expect(models.named('acme_ink_Ink'), same(ink));
+      expect(models.all.last, same(ink));
+      // Another engine in the same process never heard of it.
+      expect(
+        FrameStage().renderer.lightingModels.named('acme_ink_Ink'),
+        isNull,
+      );
+      expect(LightingModels.shipped.named('acme_ink_Ink'), isNull);
       host
         ..disable(const InkAddon().id)
         ..applyPending(1);
-      expect(LightingModels.named('AcmeInk'), isNull);
+      expect(models.named('acme_ink_Ink'), isNull);
     });
 
     test('a built-in name is refused to anything but the built-in model', () {
+      final models = LightingModels();
       expect(
-        () => LightingModels.register(const LightingModel('Mine', 'Pbr')),
+        () => models.register(const LightingModel('Mine', 'Pbr')),
         throwsArgumentError,
       );
-      final again = LightingModels.register(LightingModel.pbr);
+      final again = models.register(LightingModel.pbr);
       again.cancel();
-      expect(LightingModels.named('Pbr'), same(LightingModel.pbr));
+      expect(models.named('Pbr'), same(LightingModel.pbr));
     });
   });
 }

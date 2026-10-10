@@ -40,7 +40,7 @@ state in `loop.world` or adds a `SnapshotPart` for it, and the checks
 capture, restore and digest it through `EngineLoop.snapshots`, the same path
 a rollback and a replay take.
 
-The 6 plugin checks:
+The 7 plugin checks:
 
 - **manifest**: the id is well formed, the API version installs, every
   permission is one the engine knows, a budget reads, the manifest survives
@@ -49,6 +49,8 @@ The 6 plugin checks:
 - **switch**: switched off at a step boundary, the loop is exactly what it is
   without the plugin, and switched back on, exactly what it was with it. Both
   switches are journalled at their steps.
+- **names**: every phase, system and event the plugin adds to the loop is in
+  its namespace, `<namespace>.<name>`.
 - **determinism**: every step is run twice from one state, and the first
   system whose two answers differ is named with its plugin. Two fresh runs
   must also publish the same events and leave the same world.

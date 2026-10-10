@@ -11,6 +11,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         LinearColor,
+        PluginException,
+        PluginRegistry,
         PluginScope,
         Registration,
         RenderAnchor,
@@ -40,6 +42,7 @@ import '../scene/planar_reflector_node.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_binding.dart';
 import '../scene/scene_node.dart';
 import 'cluster_draws.dart';
 import 'composite_mix.dart';
@@ -57,17 +60,21 @@ import 'frame_history.dart';
 import 'frame_pacing.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'frame_view.dart';
 import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
+import 'light_types.dart';
 import 'material.dart';
 import 'memory_report.dart';
 import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
 import 'physical_sky.dart';
+import 'pipeline_nodes.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
+import 'render_hooks.dart';
 import 'render_list.dart';
 import 'render_listener.dart';
 import 'render_node.dart';
@@ -318,6 +325,33 @@ final class Renderer with RenderServices {
   /// `renderSteps.addContributor`, and each hands back the [Registration]
   /// that takes it out again.
   final RendererSteps renderSteps;
+
+  /// The lighting models this renderer's documents may name: the built-in
+  /// ones and every one a plugin registered with this engine (D23). A
+  /// plugin reaches it as `host.registry<LightingModels>()`, through
+  /// [renderSteps]; a material file read for this renderer is read against
+  /// it (`readFmat(bytes, lightingModels: renderer.lightingModels)`).
+  LightingModels get lightingModels => renderSteps._store.lightingModels;
+
+  /// The light types of plugins' own this renderer packs, each with its hook
+  /// and code (D22). A plugin reaches it as `host.registry<LightTypes>()`,
+  /// through [renderSteps].
+  LightTypes get lightTypes => renderSteps._store.lightTypes;
+
+  /// The hooks into what this renderer draws — the draw-list hooks, the
+  /// level-of-detail policy, the skinning hooks (D22b). A plugin reaches it
+  /// as `host.registry<RenderHooks>()`, through [renderSteps].
+  RenderHooks get hooks => renderSteps._store.hooks;
+
+  /// How the simulation's components are shown in this renderer's scenes,
+  /// and the kinds of node they are shown as (D37). A plugin reaches it as
+  /// `host.registry<SceneBindingRegistry>()`, through [renderSteps].
+  SceneBindings get sceneBindings => renderSteps._store.sceneBindings;
+
+  /// The kinds of node a pipeline document applied to this renderer may
+  /// name (D44). A plugin reaches it as `host.registry<PipelineNodeKinds>()`,
+  /// through [renderSteps].
+  PipelineNodeKinds get pipelineNodeKinds => renderSteps._store.nodeKinds;
 
   final ShaderHandle _vertexShader;
 
@@ -926,6 +960,22 @@ final class Renderer with RenderServices {
   bool get _gpuIsBehind {
     final older = _unfinished.where((f) => f != _latestSubmitted).length;
     return older >= math.max(pacing.framesInFlight - 1, 1);
+  }
+
+  /// Whether this frame is held: [pacing]'s policy where it answers (D22b),
+  /// and otherwise its rule — held while the GPU is behind by every frame in
+  /// flight.
+  bool _holdsFrame() {
+    final behind = _gpuIsBehind;
+    return pacing.policy?.hold(
+          PacingContext(
+            frameIndex: _frameIndex,
+            unfinishedFrames: _unfinished.length,
+            framesInFlight: pacing.framesInFlight,
+            gpuIsBehind: behind,
+          ),
+        ) ??
+        (pacing.holdWhenBehind && behind);
   }
 
   /// What the last drawn frame answered, for a held frame to answer again,
@@ -2155,8 +2205,20 @@ final class Renderer with RenderServices {
       .._listenForGpuTimings();
   }
 
-  /// Hands [renderSteps] this renderer, for the stages a plugin adds.
-  void _attachSteps() => renderSteps._store.renderer = this;
+  /// Hands [renderSteps] this renderer, for the stages a plugin adds, and
+  /// every light buffer the light types plugins register (D22).
+  void _attachSteps() {
+    renderSteps._store.renderer = this;
+    _renderList.hooks = hooks;
+    for (final buffer in <LightBuffer>[
+      _frameLights,
+      _passLights,
+      _drawLights,
+      _contributorLights._draw,
+    ]) {
+      buffer.lightTypes = lightTypes;
+    }
+  }
 
   /// What the GPU spent in each graph node's passes, from the last frame a
   /// device reported on — `H2`. A frame or two behind the one being drawn,
@@ -3055,6 +3117,110 @@ final class Renderer with RenderServices {
   /// asks what the last one did gets the last compile back.
   final FrameGraph _frameGraph = FrameGraph();
 
+  /// The views of the frame being drawn, as `FrameContext.views` hands
+  /// them to every node and contributor.
+  List<FrameView> _frameViews = const <FrameView>[];
+
+  /// The unjittered view-projection each view drew through in its last
+  /// frame, for `FrameContext.previousViewProjection`.
+  final Expando<vm.Matrix4> _previousViewProjections = Expando<vm.Matrix4>();
+
+  /// Which of [_frameViews] stands for [view]: its place in the `render`
+  /// call's views, or nought for a view drawn outside one (a probe face, a
+  /// texture view).
+  int _frameViewIndex(RenderView? view) {
+    for (final frameView in _frameViews) {
+      if (identical(_frameViewSources[frameView.index], view)) {
+        return frameView.index;
+      }
+    }
+    return 0;
+  }
+
+  /// The `render` call's views, by index, beside [_frameViews].
+  List<RenderView> _frameViewSources = const <RenderView>[];
+
+  /// The width over the height of the pixels [view] lands on in a
+  /// [width] × [height] frame.
+  static double _aspectOfView(RenderView view, int width, int height) {
+    final rect = _viewportPixels(view.viewportFraction, width, height);
+    return rect.width / rect.height;
+  }
+
+  /// The schedule the last frame — or plan — was registered from, for
+  /// [describePipeline].
+  _FrameSchedule? _lastSchedule;
+
+  /// This renderer's frame written down as an `f3d.pipeline` document
+  /// (D44): every node in the order the graph registers it, at its anchor,
+  /// with what it reads, writes and keeps and the step it belongs to; the
+  /// anchors plugins added; the steps [settings] switches off; and the
+  /// settings slots added.
+  ///
+  /// **The standard pipeline is this, for a renderer with nothing added** —
+  /// `test/fixtures/v1/standard.pipeline.json`. Planned the way [planFrame]
+  /// plans, so no device is touched; what the frame would draw for [scene]
+  /// and [views] decides only which reflection probes there are.
+  PipelineDocument describePipeline({
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+    String? name,
+  }) {
+    planFrame(scene: scene, views: views, settings: settings);
+    final schedule = _lastSchedule!;
+    final placed = <String, _AnchoredNode>{
+      for (final entry in renderSteps._store.nodes) entry.node.name: entry,
+    };
+    final steps = renderSteps.all;
+    return PipelineDocument(
+      name: name,
+      anchors: <PipelineAnchor>[
+        for (final entry in renderSteps._store.anchors)
+          PipelineAnchor(
+            name: entry.anchor.name,
+            after: entry.anchor.follows!.name,
+          ),
+      ],
+      nodes: <PipelineNode>[
+        for (final (:anchor, :slotted, :engine) in schedule.described())
+          () {
+            final node = slotted.node;
+            final declared = NodeDeclarations.of(node);
+            final entry = placed[node.name];
+            String names(ResourceId id) => id.name;
+            return PipelineNode(
+              name: node.name,
+              anchor: entry?.anchor.name ?? anchor.name,
+              engine: engine,
+              kind: entry == null
+                  ? null
+                  : renderSteps._store.kindOf[entry.node],
+              step:
+                  entry?.step?.name ??
+                  steps
+                      .where((step) => step.ownsPass(node.name))
+                      .firstOrNull
+                      ?.name,
+              reads: declared.reads.map(names).toList(),
+              optionalReads: declared.optionalReads.map(names).toList(),
+              writes: declared.writes.map(names).toList(),
+              keeps: declared.keeps.map(names).toList(),
+              after: engine ? const <String>[] : slotted.after,
+              before: engine ? const <String>[] : slotted.before,
+            );
+          }(),
+      ],
+      stepsOff: <String>[for (final step in settings.stepsOff) step.name],
+      settings: <String>[for (final slot in renderSteps.settings) slot.id],
+    );
+  }
+
+  /// Whether a node placed through [renderSteps] declared a read of the
+  /// velocity in the last frame compiled: what keeps the velocity passes and
+  /// the frame history running for it.
+  bool _velocityAsked = false;
+
   /// The frame, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
@@ -3236,11 +3402,27 @@ final class Renderer with RenderServices {
     ]);
     // `R1`: the motion of every pixel, for the temporal resolve. Before any
     // reader of it, which is all registration order has to promise here.
+    // A placed node that reads the velocity asks for it as the engine's two
+    // readers do (`RenderStep.velocity`), so a plugin's effect gets the
+    // motion of every pixel without switching either of them on.
+    _velocityAsked = renderSteps._store.nodes.any((entry) {
+      final declared = NodeDeclarations.of(entry.node);
+      return <ResourceId>[
+        ...declared.reads,
+        ...declared.optionalReads,
+      ].any((id) => id.name == FrameResourceIds.velocity.name);
+    });
     schedule.stage(RenderAnchor.beforeVelocity, <FrameGraphNode>[
-      _CameraVelocityNode(this, view, s),
+      _CameraVelocityNode(this, view, s, asked: _velocityAsked),
       // And the nodes that moved, over it: the next version of the same
       // resource, so registration order is what puts them on top.
-      _ObjectVelocityNode(this, view, s, composite._scene),
+      _ObjectVelocityNode(
+        this,
+        view,
+        s,
+        composite._scene,
+        asked: _velocityAsked,
+      ),
       // `R4`: what blends, marked over both for the resolve to trust less.
       _ReactiveNode(this, view, s, composite._scene),
       // `R3`: the two effects that march with noise, each carried into a
@@ -3368,6 +3550,7 @@ final class Renderer with RenderServices {
     for (final node in schedule.ordered()) {
       graph.addNode(node);
     }
+    _lastSchedule = schedule;
 
     // `R2`: everything after the resolve works on the picture it
     // reconstructed, at the size that was asked for.
@@ -4341,7 +4524,9 @@ final class Renderer with RenderServices {
     // This plan's own lights, gathered the way a frame gathers them — a
     // default light included, because a scene with none is lit by one and a
     // plan that said otherwise would be planning a different picture.
-    final planLights = LightBuffer()..gather(scene.lights);
+    final planLights = LightBuffer()
+      ..lightTypes = lightTypes
+      ..gather(scene.lights);
     if (planLights.count == 0 && scene.defaultLightWhenUnlit) {
       planLights.useDefaultLight();
     }
@@ -4762,9 +4947,8 @@ final class Renderer with RenderServices {
     final previous = _lastResult;
     if (previous != null &&
         !_warmingUp &&
-        pacing.holdWhenBehind &&
-        _gpuIsBehind &&
-        _lastRequestedSize == (width, height)) {
+        _lastRequestedSize == (width, height) &&
+        _holdsFrame()) {
       _heldFrames++;
       final held = previous.toHeld();
       listener?.notify(held);
@@ -5368,6 +5552,18 @@ final class Renderer with RenderServices {
     _frameCounters = passState;
     // Taken at the top of the frame and cleared here, so a request made while
     // this frame is encoding is the *next* frame's — `gfx-70n`.
+    // Every view of the frame as a node reads it (D20), each with the
+    // view-projection it drew through the frame before.
+    _frameViewSources = List<RenderView>.of(views);
+    _frameViews = <FrameView>[
+      for (final (index, view) in views.indexed)
+        FrameView.ofRenderView(
+          view,
+          aspect: _aspectOfView(view, width, height),
+          index: index,
+          previousViewProjection: _previousViewProjections[view],
+        ),
+    ];
     final capturing = _captureWanted;
     _captureWanted = null;
     _capture = capturing == null
@@ -5415,6 +5611,7 @@ final class Renderer with RenderServices {
               services: this,
               settings: settings,
               view: views.first,
+              views: _frameViews,
               frameIndex: _frameIndex,
               time: _seconds,
               origin: scene.origin,
@@ -5541,7 +5738,16 @@ final class Renderer with RenderServices {
     // back as last frame's. The view-projections are the unjittered ones, the
     // same matrices the scene pass derived, because a reprojection has to
     // undo motion and not the jitter.
-    if (settings._wantsVelocity) frameHistory.tracking = true;
+    if (settings._wantsVelocity || _velocityAsked) {
+      frameHistory.tracking = true;
+    }
+    // What each view drew through, for the next frame's
+    // `FrameContext.previousViewProjection`: one matrix a view, kept
+    // whether or not the frame history tracks the meshes.
+    for (final frameView in _frameViews) {
+      _previousViewProjections[views[frameView.index]] =
+          frameView.viewProjection;
+    }
     if (frameHistory.tracking) {
       frameHistory.endFrame(
         frame: _frameIndex,

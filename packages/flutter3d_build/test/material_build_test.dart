@@ -45,8 +45,10 @@ CompiledStage _fakeWgsl(
   PreparedStage stage, {
   required String name,
   required bool fragment,
-}) => (
-  wgsl: '// WGSL for $name\n@fragment fn main() {}\n',
+}) => CompiledStage(
+  spirv: Uint8List(0),
+  target: ShaderTarget.wgsl,
+  text: '// WGSL for $name\n@fragment fn main() {}\n',
   offsets: <String, Map<String, int>>{
     for (final block in stage.blocks)
       block.name: <String, int>{

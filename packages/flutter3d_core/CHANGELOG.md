@@ -48,8 +48,126 @@
   `abstract final` rather than sealed**, so a hint or a projection a later
   minor adds breaks no `switch`: one over them ends with a wildcard.
   `AnimationCondition` and `AnimationGoal`, new in this release, are the
-  same. The material AST and `ResourceSize` are opened with their visitor in
-  a later step.
+  same.
+- **Breaking: the material language's tree and `ResourceSize` are read
+  through a visitor.** `MaterialStatement` and `ResourceSize` are `abstract
+  base` classes rather than sealed ones, and `MaterialExpression`,
+  `MaterialStatement` and `ResourceSize` each take `accept` with a
+  `MaterialExpressionVisitor`, `MaterialStatementVisitor` or
+  `ResourceSizeVisitor`. A kind a later minor adds, or a plugin's own,
+  reaches the visitor's `visitUnknown`, so a translator written against 1.0
+  keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
+  splice, the variant folder and the software evaluator are visitors now; a
+  `switch` over the kinds outside the engine ends with a wildcard.
+- **`f3d.pipeline`, the frame written down.** `PipelineDocument`
+  (`pipelineFormat`, version 1, in `coreFormats`) holds a frame's anchors,
+  its nodes with where each stands, what it reads, writes and keeps, its
+  step and, for a node of a plugin's own, the `PipelineNodeKind` that makes
+  it, the steps switched off and the settings slots read.
+  `Renderer.describePipeline` writes a renderer's frame as one — the
+  engine's own is `test/fixtures/v1/standard.pipeline.json` —
+  `RendererSteps.fromDocument` applies one, making its nodes through the
+  renderer's `PipelineNodeKinds` and taking everything back when cancelled
+  or refused, and `RendererSteps.settingsFor` switches its steps off. A
+  data plugin's `pipeline:` section (`pipelineSection`) is applied the same
+  way.
+- **Scene bindings, the renderer's half.** `SceneBindings`
+  (`Renderer.sceneBindings`, `host.registry<SceneBindingRegistry>()`) holds
+  the bindings and the kinds of node they make (`SceneNodeKind`, open and
+  namespaced); `SceneBinding` pairs a spec with its kind and sets a
+  material's parameters from a component's fields, blended between two
+  steps through a `SceneBindingContext`. A data plugin's `bindings:`
+  section (`bindingsSection`, among `renderDataSections`) installs into
+  it.
+- **Hooks into what a renderer draws and when.** `RenderHooks`
+  (`Renderer.hooks`, `host.registry<RenderHooks>()`) holds a plugin's
+  `DrawListHook`s — which meshes a view keeps and the order it draws them
+  in, asked after the engine's own tests with a `DrawListContext` — its
+  `LodPolicy`, which has the last word on a `LodGroup`'s level
+  (`LodGroup.select(policy:)`), and its `SkinningHook`s, the seam a
+  skinning pass of one's own comes through. `FramePacing.policy`
+  (`PacingPolicy`) decides whether a frame is held, `AdaptiveQuality`'s
+  third argument (`QualityPolicy`) which row the next is drawn at.
+  `TextureCodecs` (`ModelDecoders.textureCodecs`) holds the image formats
+  plugins read (`TextureCodec`, `TextureDecodeContext`), which
+  `uploadEncodedImage(codecs:)` offers the bytes first. A material's own
+  vertex stage may ship its instanced and lightmapped variants
+  (`LightingModel.vertexVariants`, `VertexStageVariant`), drawn against the
+  layouts in `MeshVertexLayouts`.
+- **Hooks in the light loop.** `LightTypeHook` packs the lights of a
+  `LightType.custom` of a plugin's own, registered with the renderer's
+  `LightTypes` (`host.registry<LightTypes>()`, `Renderer.lightTypes`): each
+  type gets a code from `LightTypes.firstPluginCode` up, written into the
+  row the lit stages read, and the hook fills the rest of the row through a
+  `LightPackContext`; a custom type with no hook is packed as its base. A
+  `DecalNode` may be painted through a stage of a plugin's own
+  (`DecalNode.lighting`), and `DecalSettings.decalsPerDraw` and
+  `picturesPerDraw` are the per-draw limits the pass cuts by, within
+  `maxDecalsPerDraw` and `maxPicturesPerDraw`. `ShadowTechnique` gains
+  `shadowMapProducer` and `cubeAtlasProducer`, with `ShadowProducerContext`,
+  the seams a technique of one's own draws the shadow maps through.
+- **A plugin's lit model binds blocks and textures of its own.** In a
+  `f3dmat 2` surface, `uniform(Hair) vec3 tint = …;` is a member of a block
+  of the material's own and `texture fur;` a texture of its own, bound as
+  `material_fur`. `MaterialSlotTable` lists them in the order a backend
+  numbers them (`MaterialBlockSlot` with its std140 members,
+  `MaterialTextureSlotEntry`); `MaterialBindings.slots` and
+  `LightingModel.slots` carry it, the GLSL emitter declares each block and
+  sampler, and the renderer binds each block from `RenderMaterial.parameters`
+  by its members and each texture from `extraTextures`. WebGPU builds such
+  a material in the build, not while the game runs.
+- **`RuntimeShaders` asks a backend's own material compiler first.** Given
+  a `MaterialCompilerRegistry` (`compilers:`), a data plugin's material is
+  handed to the compiler registered for the engine's backend — a fifth
+  backend's included — and its section goes into the bundle beside the
+  source; a compiler that runs in the build only is refused at run time
+  with the backend named. `runtimeMaterialBundle` takes the same
+  parameter.
+- **A plugin's registrations are in its namespace, and its lighting
+  models are its engine's.** Through a plugin's view, `RendererSteps`
+  refuses with a `PluginException` a step, a node, a resource the node
+  makes, an anchor or a settings slot of its own named outside
+  `<namespace>.` (`PluginManifest.namespace`); the application's own and
+  the engine's packages' are not held to one. `LightingModels` is one table
+  per engine rather than per process: `Renderer.lightingModels`, reached by
+  a plugin as `host.registry<LightingModels>()` through the render steps'
+  companions — the one entrance, so `RendererSteps.addLightingModel` and
+  `lightingModels` are gone and `LightingModelAddon` takes its `stages` as
+  a field that goes to `addMaterials` instead of answering `stagesFor`. A
+  plugin's model is named `<namespace>_<Name>`, since a shader's name has
+  no dot. Names compare exactly: `named('pbr')` is no model.
+  `LightingModels.shipped` is the built-in models alone, what a document
+  read with no engine at hand is read against; `readFmat`, `writeFmat`,
+  `surfaceMaterialFromJson` and `surfaceMaterialToJson` take an engine's
+  table as `lightingModels`.
+- **Every view of a frame, and the velocity on its own.**
+  `FrameContext.views` lists the frame's views as `FrameView`s — the
+  matrices each draws through, its viewport, its index and
+  `previousViewProjection`, the view-projection the same view drew through
+  the frame before — and `viewIndex` says which one a node draws for.
+  `FrameView.posed` takes a pose and an asymmetric `Projection` as a
+  headset's runtime states them, so views can come from outside the
+  renderer. `FrameView.resourceFor` and `FrameContext.perView` name a
+  resource a node keeps once per view (`<name>#<index>`, the first view's
+  under the plain name). `RenderStep.velocity` is a step of its own: the
+  velocity passes run while the temporal resolve, the motion blur, or any
+  placed node that declares a read of `FrameResourceIds.velocity` wants
+  them, and `without({RenderStep.velocity})` takes the two readers that
+  need it with it.
+- **A node declares itself into a builder.** `FrameGraphNode.setup` hands a
+  `FrameGraphBuilder` what the node reads, writes and keeps — by default
+  the getters, so every node written before it is unchanged — and
+  `FrameGraph.compile` works the frame out from those declarations.
+  `FrameGraphBuilder.create(ResourceDesc)` is how a plugin's node makes a
+  resource of its own, or several for a pass with several colour outputs:
+  the frame knows its description before the node runs
+  (`CompiledFrameGraph.created`, `descriptorOf`), makes it at its first
+  use, retires it after its last reader and, with `FrameResources.alias`,
+  lends it a texture that finished earlier in the frame.
+  `FrameResources.declare` from inside `execute` stays as the documented
+  exception. `FrameGraphBuilder.place` and the `FramePlacer` handed to
+  `compile` are where a compute step's placement is decided; a node no
+  placer places is skipped as `PassSkip.unsupported`.
 - **What loads in the background goes into a scene in the order it was
   asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
   starts; the loader awaits `ready`, attaches what it loaded and calls

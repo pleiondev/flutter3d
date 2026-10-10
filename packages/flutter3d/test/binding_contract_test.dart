@@ -23,10 +23,7 @@ import 'package:flutter3d/flutter3d.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
-// The generated uniform tables are shared by the engine and its backends,
-// released together, and are nobody else's API since 1.0.
-// ignore: implementation_imports
-import 'package:flutter3d_shaders/internal.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The declared slots [draw] left unbound, one line each.

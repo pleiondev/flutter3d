@@ -828,7 +828,7 @@ SurfaceMaterial _surfaceWith(
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
 /// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
-/// `lightingModel` is one of [LightingModels.all]'s `shaderName`s or null
+/// `lightingModel` is one of [LightingModels.shipped]'s `shaderName`s or null
 /// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
 /// a bool.
 SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
@@ -885,7 +885,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
     case 'lightingModel':
       if (value == null) return _surfaceWith(s, lightingModel: null);
       if (value is! String) return null;
-      for (final LightingModel model in LightingModels.all) {
+      for (final LightingModel model in LightingModels.shipped.all) {
         if (model.shaderName == value) {
           return _surfaceWith(s, lightingModel: model);
         }

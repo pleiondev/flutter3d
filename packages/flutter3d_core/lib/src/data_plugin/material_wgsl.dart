@@ -100,6 +100,7 @@ PackedStage spliceMaterialWgsl(
       'depth',
     );
   }
+  _refuseOwnSlots(program, refuse);
 
   final wgsl = host.wgsl;
   String found(RegExp pattern, String what) =>
@@ -212,24 +213,23 @@ PackedStage spliceMaterialWgsl(
   );
   final body = StringBuffer();
   for (final statement in program.body) {
-    switch (statement) {
-      case MaterialLet(:final name, :final value):
-        body.writeln(
-          '    let m_$name: ${_type(value.type)} = ${writer.expression(value)};',
-        );
-      case MaterialOutput():
-        // Refused above: only a vertex block writes outputs.
-        refuse('a vertex block has no place in a fragment stage');
-      case MaterialReturn(:final value):
-        body
-          ..writeln(
-            '    let f3d_result: vec4<f32> = ${writer.expression(value)};',
-          )
-          ..writeln('    var f3d_rgb: vec3<f32> = f3d_result.xyz;')
-          ..writeln('    var f3d_alpha: f32 = f3d_result.w;')
-          ..writeln('    $writeSurface((&f3d_rgb), (&f3d_alpha));')
-          ..writeln('    return;');
-    }
+    body.write(
+      statement.accept(
+        _WgslStatements(
+          writer,
+          returns: (value) =>
+              '    let f3d_result: vec4<f32> = $value;\n'
+              '    var f3d_rgb: vec3<f32> = f3d_result.xyz;\n'
+              '    var f3d_alpha: f32 = f3d_result.w;\n'
+              '    $writeSurface((&f3d_rgb), (&f3d_alpha));\n'
+              '    return;\n',
+          // Refused above: only a vertex block writes outputs.
+          output: () =>
+              refuse('a vertex block has no place in a fragment stage'),
+          unknown: refuse,
+        ),
+      ),
+    );
   }
 
   // Version 2: what `main` sets before the body — the blend that leaves
@@ -308,6 +308,17 @@ PackedStage fullscreenMaterialWgsl(
       'one',
     );
   }
+  // A full-screen stage's textures are its own by nature and bound by name;
+  // a block of its own is what WebGPU cannot number at run time.
+  if (program.parameters.any(
+    (p) => p.uniform && p.block != materialParametersBlock,
+  )) {
+    throw RuntimeShadersException(
+      '$from: a full-screen stage with a uniform block of its own is compiled '
+      'for WebGPU by the build (assets_src/); at run time its uniforms are '
+      'one MaterialParams block',
+    );
+  }
   const group = 1;
   final uniforms = <MaterialParameter>[
     for (final parameter in program.parameters)
@@ -376,18 +387,19 @@ PackedStage fullscreenMaterialWgsl(
       );
   }
   for (final statement in program.body) {
-    switch (statement) {
-      case MaterialLet(:final name, :final value):
-        out.writeln(
-          '    let m_$name: ${_type(value.type)} = ${writer.expression(value)};',
-        );
-      case MaterialReturn(:final value):
-        out.writeln('    return ${writer.expression(value)};');
-      case MaterialOutput():
-        throw RuntimeShadersException(
-          '$from: a full-screen stage has no outputs',
-        );
-    }
+    out.write(
+      statement.accept(
+        _WgslStatements(
+          writer,
+          returns: (value) => '    return $value;\n',
+          output: () => throw RuntimeShadersException(
+            '$from: a full-screen stage has no outputs',
+          ),
+          unknown: (String what) =>
+              throw RuntimeShadersException('$from: $what'),
+        ),
+      ),
+    );
   }
   out.writeln('}');
   return (
@@ -398,6 +410,24 @@ PackedStage fullscreenMaterialWgsl(
       blocks: <PreparedBlock>[?params],
       samplers: samplers,
     ),
+  );
+}
+
+/// Refuses, through [refuse], a block or a texture of the material's own
+/// (D21): WebGPU numbers bindings by group, and a slot the host stage was
+/// not built with has no number to be bound at while the game runs.
+void _refuseOwnSlots(MaterialProgram program, Never Function(String) refuse) {
+  final table = MaterialSlotTable.of(program);
+  final own = <String>[
+    for (final block in table.blocks)
+      if (block.name != materialParametersBlock) 'the block ${block.name}',
+    for (final texture in table.textures) 'the texture ${texture.name}',
+  ];
+  if (own.isEmpty) return;
+  refuse(
+    'a material with ${own.join(' and ')} of its own is compiled for WebGPU '
+    'by the build (assets_src/), which numbers its bindings; at run time the '
+    'stage it is spliced into has no binding for it',
   );
 }
 
@@ -441,8 +471,45 @@ String _type(MaterialType type) => switch (type.components) {
   _ => throw StateError('a ${type.name} is not a value WGSL can hold'),
 };
 
+/// One statement of a fragment body as lines of WGSL: a `let` as a local,
+/// a `return` as [returns] spells it, an `out` and a kind this build does
+/// not know refused through [output] and [unknown].
+final class _WgslStatements extends MaterialStatementVisitor<String> {
+  const _WgslStatements(
+    this.writer, {
+    required this.returns,
+    required this.output,
+    required this.unknown,
+  });
+
+  final _WgslWriter writer;
+  final String Function(String value) returns;
+  final Never Function() output;
+  final Never Function(String what) unknown;
+
+  @override
+  String visitLet(MaterialLet statement) {
+    final value = statement.value;
+    return '    let m_${statement.name}: ${_type(value.type)} = '
+        '${writer.expression(value)};\n';
+  }
+
+  @override
+  String visitReturn(MaterialReturn statement) =>
+      returns(writer.expression(statement.value));
+
+  @override
+  String visitOutput(MaterialOutput statement) => output();
+
+  @override
+  String visitUnknown(MaterialStatement statement) => unknown(
+    '${statement.runtimeType} is not a statement this build of the material '
+    'language knows',
+  );
+}
+
 /// One expression of the material language as WGSL.
-final class _WgslWriter {
+final class _WgslWriter extends MaterialExpressionVisitor<String> {
   _WgslWriter({
     required this.surface,
     required this.varying,
@@ -458,66 +525,92 @@ final class _WgslWriter {
   /// The uniform the parameters are bound to.
   final String params;
 
-  String expression(MaterialExpression expression) {
-    switch (expression) {
-      case MaterialConstant(:final value, :final type):
-        if (type.components == 1) return _number(value.single);
-        return '${_type(type)}(${value.map(_number).join(', ')})';
-      case MaterialInputRef(:final input):
-        final glsl = input.glsl;
-        // The surface's own fields keep their names in the WGSL struct.
-        if (glsl.startsWith('s.')) return '$surface.${glsl.substring(2)}';
-        return varying(glsl);
-      case MaterialLocalRef(:final name):
-        return 'm_$name';
-      case MaterialParamRef(:final parameter) when parameter.uniform:
-        return '$params.m_${parameter.name}';
-      case MaterialParamRef(:final parameter):
-        throw StateError(
-          'The parameter "${parameter.name}" has no value. Call '
-          'specialiseMaterial before splicing.',
-        );
-      case MaterialConstruct(:final arguments, :final type):
-        return '${_type(type)}(${arguments.map(this.expression).join(', ')})';
-      case MaterialSwizzle(:final target, :final components):
-        const letters = 'xyzw';
-        return '${this.expression(target)}.'
-            '${components.map((i) => letters[i]).join()}';
-      case MaterialNegate(:final operand):
-        return '(-(${this.expression(operand)}))';
-      case MaterialBinary(:final op, :final left, :final right):
-        return '(${this.expression(left)} $op ${this.expression(right)})';
-      case MaterialCall(:final builtin, :final arguments):
-        // Spread a float beside a vector for the component-wise builtins, as
-        // the GLSL emitter does: WGSL's `clamp`, `min`, `max`, `pow`,
-        // `smoothstep` and `step` take no mixed overloads at all.
-        final width = arguments.fold(
-          1,
-          (int w, a) => a.type.components > w ? a.type.components : w,
-        );
-        String spread(MaterialExpression argument) {
-          final text = this.expression(argument);
-          return builtin.componentWise &&
-                  width > 1 &&
-                  argument.type.components == 1
-              ? '${_type(MaterialType.numeric[width]!)}($text)'
-              : text;
-        }
+  String expression(MaterialExpression expression) => expression.accept(this);
 
-        // The sixteen builtins are named in WGSL as they are in GLSL.
-        return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
-      case MaterialSample(:final slot, :final uv):
-        final name = slot.bindingName;
-        return 'textureSample(${name}_tex, ${name}_smp, '
-            '${this.expression(uv)})';
-      default:
-        throw ArgumentError.value(
-          expression,
-          'expression',
-          'not an expression this build of the material language knows',
-        );
-    }
+  @override
+  String visitConstant(MaterialConstant expression) {
+    final MaterialConstant(:value, :type) = expression;
+    if (type.components == 1) return _number(value.single);
+    return '${_type(type)}(${value.map(_number).join(', ')})';
   }
+
+  @override
+  String visitInputRef(MaterialInputRef expression) {
+    final glsl = expression.input.glsl;
+    // The surface's own fields keep their names in the WGSL struct.
+    if (glsl.startsWith('s.')) return '$surface.${glsl.substring(2)}';
+    return varying(glsl);
+  }
+
+  @override
+  String visitLocalRef(MaterialLocalRef expression) => 'm_${expression.name}';
+
+  @override
+  String visitParamRef(MaterialParamRef expression) {
+    final parameter = expression.parameter;
+    if (parameter.uniform) return '$params.m_${parameter.name}';
+    throw StateError(
+      'The parameter "${parameter.name}" has no value. Call '
+      'specialiseMaterial before splicing.',
+    );
+  }
+
+  @override
+  String visitConstruct(MaterialConstruct expression) =>
+      '${_type(expression.type)}'
+      '(${expression.arguments.map(this.expression).join(', ')})';
+
+  @override
+  String visitSwizzle(MaterialSwizzle expression) {
+    const letters = 'xyzw';
+    return '${this.expression(expression.target)}.'
+        '${expression.components.map((i) => letters[i]).join()}';
+  }
+
+  @override
+  String visitNegate(MaterialNegate expression) =>
+      '(-(${this.expression(expression.operand)}))';
+
+  @override
+  String visitBinary(MaterialBinary expression) =>
+      '(${this.expression(expression.left)} ${expression.op} '
+      '${this.expression(expression.right)})';
+
+  @override
+  String visitCall(MaterialCall expression) {
+    final MaterialCall(:builtin, :arguments) = expression;
+    // Spread a float beside a vector for the component-wise builtins, as
+    // the GLSL emitter does: WGSL's `clamp`, `min`, `max`, `pow`,
+    // `smoothstep` and `step` take no mixed overloads at all.
+    final width = arguments.fold(
+      1,
+      (int w, a) => a.type.components > w ? a.type.components : w,
+    );
+    String spread(MaterialExpression argument) {
+      final text = this.expression(argument);
+      return builtin.componentWise && width > 1 && argument.type.components == 1
+          ? '${_type(MaterialType.numeric[width]!)}($text)'
+          : text;
+    }
+
+    // The sixteen builtins are named in WGSL as they are in GLSL.
+    return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
+  }
+
+  @override
+  String visitSample(MaterialSample expression) {
+    final name = expression.slot.bindingName;
+    return 'textureSample(${name}_tex, ${name}_smp, '
+        '${this.expression(expression.uv)})';
+  }
+
+  @override
+  String visitUnknown(MaterialExpression expression) =>
+      throw ArgumentError.value(
+        expression,
+        'expression',
+        'not an expression this build of the material language knows',
+      );
 }
 
 /// A WGSL float literal: always with a point or an exponent, and a negative

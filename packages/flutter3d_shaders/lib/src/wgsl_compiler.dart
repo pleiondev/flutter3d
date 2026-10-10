@@ -41,9 +41,12 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
+
+import 'shader_target.dart';
 
 /// Where the two programs are, by name, resolved through `PATH`.
 const String glslangExecutable = 'glslangValidator';
@@ -64,10 +67,45 @@ final class WgslCompileException extends Flutter3dFormatException {
   String toString() => 'WgslCompileException: $message';
 }
 
-/// What one stage's compilation produced.
-typedef CompiledStage = ({String wgsl, Map<String, Map<String, int>> offsets});
+/// What one stage's compilation produced: its SPIR-V, the text of the
+/// [target] it was translated into, and the uniform offsets glslang laid
+/// out.
+///
+/// **The backend author's half of the shader contract** (D27): a backend
+/// that loads SPIR-V (Vulkan) takes [spirv]; one that loads a language
+/// (WebGPU's WGSL, Metal's MSL, Direct3D's HLSL) takes [text] for the
+/// [target] it asked for. A class rather than a record, so a later minor can
+/// hand over more — reflection, a source map — without changing its shape.
+final class CompiledStage {
+  CompiledStage({
+    required this.spirv,
+    required this.target,
+    required this.text,
+    required this.offsets,
+  });
 
-/// Compiles [glsl] to WGSL, and reads back the offsets glslang assigned.
+  /// The stage as SPIR-V, what glslang made of the GLSL.
+  final Uint8List spirv;
+
+  /// What [text] is in.
+  final ShaderTarget target;
+
+  /// The stage in [target]'s language, or null when [target] is
+  /// [ShaderTarget.spirv].
+  final String? text;
+
+  /// glslang's own `Offset` per uniform block member, by block.
+  final Map<String, Map<String, int>> offsets;
+
+  /// [text] as WGSL. Throws a [StateError] for a stage compiled to another
+  /// target.
+  String get wgsl => target == ShaderTarget.wgsl
+      ? text!
+      : throw StateError('this stage was compiled to ${target.name}');
+}
+
+/// Compiles [glsl] to SPIR-V and translates it to [target] — WGSL unless
+/// asked otherwise — and reads back the offsets glslang assigned.
 ///
 /// [name] appears in every failure message and in the temporary file names, so
 /// a refusal names the stage rather than a path under `/tmp`.
@@ -79,21 +117,34 @@ typedef CompiledStage = ({String wgsl, Map<String, Map<String, int>> offsets});
 /// `generate_shaders.dart` checks every block against it. The two agreeing is
 /// what makes "std140 and WGSL's uniform address space lay this out the same
 /// way" a measurement.
+///
+/// [target] [ShaderTarget.spirv] stops after glslang and hands back the
+/// SPIR-V alone. WGSL is read back through naga a second time, as before;
+/// the other languages are naga's to write and the backend's to load.
 CompiledStage compileStage(
   String glsl, {
   required String name,
   required bool fragment,
   bool compute = false,
+  ShaderTarget target = ShaderTarget.wgsl,
 }) {
   final directory = Directory.systemTemp.createTempSync('flutter3d_wgsl_');
   try {
     // glslang picks the stage from the extension, so the extension is the
     // one place a compute stage (`H6`) differs from the other two here.
-    final extension = compute ? 'comp' : (fragment ? 'frag' : 'vert');
-    final source = File('${directory.path}/$name.$extension')
-      ..writeAsStringSync(glsl);
+    final source = File(
+      '${directory.path}/$name.'
+      '${_extensionOf(compute: compute, fragment: fragment)}',
+    )..writeAsStringSync(glsl);
     final spirv = '${directory.path}/$name.spv';
-    final wgsl = '${directory.path}/$name.wgsl';
+    final extension = switch (target) {
+      // naga picks the GLSL stage from the extension, as glslang does.
+      ShaderTarget.glsl => _extensionOf(compute: compute, fragment: fragment),
+      _ => target.extension,
+    };
+    final translatedPath = extension == null
+        ? null
+        : '${directory.path}/$name.out.$extension';
 
     final compiled = Process.runSync(glslangExecutable, <String>[
       '-V',
@@ -109,10 +160,21 @@ CompiledStage compileStage(
       );
     }
 
+    final offsets = _offsets(compiled.stdout as String);
+    final binary = File(spirv).readAsBytesSync();
+    if (translatedPath == null) {
+      return CompiledStage(
+        spirv: binary,
+        target: target,
+        text: null,
+        offsets: offsets,
+      );
+    }
+
     final translated = Process.runSync(nagaExecutable, <String>[
       '--keep-coordinate-space',
       spirv,
-      wgsl,
+      translatedPath,
     ]);
     if (translated.exitCode != 0) {
       throw WgslCompileException(
@@ -120,27 +182,31 @@ CompiledStage compileStage(
       );
     }
 
-    // Back through naga the other way. It costs a process and it answers a
-    // question the forward pass cannot: naga writing a file does not mean naga
-    // would accept that file, and the browser is a third implementation with an
-    // opinion of its own. Anything WGSL's own validator rejects would reach the
-    // device as a compile error at first draw, on a user's machine, with the
-    // build long finished.
-    final revalidated = Process.runSync(nagaExecutable, <String>[
-      '--input-kind',
-      'wgsl',
-      wgsl,
-    ]);
-    if (revalidated.exitCode != 0) {
-      throw WgslCompileException(
-        '$nagaExecutable would not read back the WGSL it wrote for $name:\n'
-        '${revalidated.stdout}${revalidated.stderr}',
-      );
+    // Back through naga the other way, for WGSL. It costs a process and it
+    // answers a question the forward pass cannot: naga writing a file does
+    // not mean naga would accept that file, and the browser is a third
+    // implementation with an opinion of its own. Anything WGSL's own
+    // validator rejects would reach the device as a compile error at first
+    // draw, on a user's machine, with the build long finished.
+    if (target == ShaderTarget.wgsl) {
+      final revalidated = Process.runSync(nagaExecutable, <String>[
+        '--input-kind',
+        'wgsl',
+        translatedPath,
+      ]);
+      if (revalidated.exitCode != 0) {
+        throw WgslCompileException(
+          '$nagaExecutable would not read back the WGSL it wrote for $name:\n'
+          '${revalidated.stdout}${revalidated.stderr}',
+        );
+      }
     }
 
-    return (
-      wgsl: File(wgsl).readAsStringSync(),
-      offsets: _offsets(compiled.stdout as String),
+    return CompiledStage(
+      spirv: binary,
+      target: target,
+      text: File(translatedPath).readAsStringSync(),
+      offsets: offsets,
     );
   } on ProcessException catch (error) {
     throw WgslCompileException(
@@ -152,6 +218,10 @@ CompiledStage compileStage(
     directory.deleteSync(recursive: true);
   }
 }
+
+/// The extension glslang and naga read a GLSL stage's kind from.
+String _extensionOf({required bool compute, required bool fragment}) =>
+    compute ? 'comp' : (fragment ? 'frag' : 'vert');
 
 /// `Offset` decorations per block, out of glslang's `-H` listing.
 ///

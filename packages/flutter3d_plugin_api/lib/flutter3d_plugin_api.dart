@@ -66,6 +66,7 @@ export 'src/plugin_group.dart';
 export 'src/plugin_version.dart';
 export 'src/registration.dart';
 export 'src/render.dart';
+export 'src/scene_binding.dart';
 export 'src/simulation.dart';
 export 'src/simulation_profile.dart';
 export 'src/simulation_version.dart';

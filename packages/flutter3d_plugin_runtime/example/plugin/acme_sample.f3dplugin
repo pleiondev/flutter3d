@@ -1,0 +1,32 @@
+{
+  "format": "f3d.plugin",
+  "version": 3,
+  "requires": [],
+  "generator": "flutter3d",
+  "manifest": {
+    "id": "acme_sample.data",
+    "apiVersion": "1.0",
+    "touches": "view",
+    "dependsOn": ["acme_sample.all"],
+    "description": "The binding and the pipeline of acme_sample, as data."
+  },
+  "bindings": [
+    {
+      "component": "acme_sample.glow",
+      "node": "acme_sample.ember",
+      "parameters": {"heat": "gloss"},
+      "interpolation": "linear"
+    }
+  ],
+  "pipeline": {
+    "anchors": [{"name": "acme_sample.after haze", "after": "after bloom"}],
+    "nodes": [
+      {
+        "name": "acme_sample.haze",
+        "kind": "acme_sample.streak",
+        "anchor": "acme_sample.after haze",
+        "options": {"length": 3}
+      }
+    ]
+  }
+}
