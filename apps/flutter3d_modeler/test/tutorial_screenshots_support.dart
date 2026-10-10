@@ -272,8 +272,7 @@ Future<void> switchMode(WidgetTester tester, ModelerMode mode) async {
   // without this hits whatever is drawn over it instead, which is how this
   // helper started failing the moment the fourth phase-four mode landed.
   final Finder segment = find.byTooltip(mode.label);
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
 }
@@ -287,8 +286,7 @@ Future<void> switchAnimationSubmode(
     of: find.byType(SegmentedButton<AnimationSubmode>),
     matching: find.text(submode.label),
   );
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
 }
@@ -299,10 +297,22 @@ Future<void> switchMeshSubmode(WidgetTester tester, MeshSubmode submode) async {
     of: find.byType(SegmentedButton<MeshSubmode>),
     matching: find.text(submode.label),
   );
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
+}
+
+/// Scrolls [target] into view so a tap lands on it.
+///
+/// **One frame, not a [settleFrames].** `ensureVisible` jumps rather than
+/// animates, so the scroll is done once the next layout has run, and a tap
+/// needs that layout and nothing else: no picture, no decode. The settle this
+/// replaces drew six frames of the whole window on the software rasteriser
+/// before every mode switch in the tour. The clock still moves as far as that
+/// settle moved it, so whatever runs on a timer is where it was.
+Future<void> scrollIntoView(WidgetTester tester, Finder target) async {
+  await tester.ensureVisible(target);
+  await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
 }
 
 /// The editor, in the UV mode, with the cube a launch opens on held.

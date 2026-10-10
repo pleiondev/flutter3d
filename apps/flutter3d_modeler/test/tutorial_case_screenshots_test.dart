@@ -125,7 +125,14 @@ void main() {
     // the pumps above have run out — and it is still the screen a person has
     // to answer before anything opens. Settling and looking again is what
     // makes this helper work for a real model as well as a fixture.
-    for (var attempt = 0; attempt < 3; attempt++) {
+    //
+    // **Not for a project file**, which never meets that screen: the loop's
+    // first look found no Import button, settled six more frames of the whole
+    // window on the software rasteriser to be sure, and found none again —
+    // on every case document, before the two settles below that every open
+    // takes anyway.
+    final bool asksImport = !name.endsWith('.f3dproj');
+    for (var attempt = 0; asksImport && attempt < 3; attempt++) {
       final Finder confirm = find.widgetWithText(FilledButton, 'Import');
       if (confirm.evaluate().isEmpty) {
         await settleFrames(tester);
@@ -357,7 +364,8 @@ void main() {
         tester,
         'Preview — see it the way the game would draw it',
       );
-      await settleFrames(tester);
+      // `openByTooltip` ends on a settle of its own; a second one here drew
+      // six more full-window frames of a preview that had already settled.
       await shootWindow(tester, 'character-from-a-bare-mesh/06-game-preview');
     });
 
@@ -513,16 +521,23 @@ void main() {
           await socket.flush();
           unawaited(socket.drain<void>().whenComplete(socket.destroy));
         });
-        // Alternating on purpose: the pump lets the server's own handler take
-        // its next step, the real delay lets the socket deliver whatever that
-        // step asked for. Neither alone gets a request answered.
+        // Alternating on purpose: the fake clock's turn lets the server's own
+        // handler take its next step, the real delay lets the socket deliver
+        // whatever that step asked for. Neither alone gets a request answered.
+        //
+        // **The clock is moved without drawing a frame.** This loop used to
+        // `pump`, and every pump is a frame of the whole window through the
+        // software rasteriser — twenty-four of them per call and a settle on
+        // top, seven calls, over five minutes for one picture. The handler
+        // needs the zone's microtasks and timers to run, which
+        // `binding.delayed` does, and nothing on the screen is looked at
+        // until every call is in.
         for (var step = 0; step < 24; step++) {
-          await tester.pump(const Duration(milliseconds: 16));
+          await tester.binding.delayed(const Duration(milliseconds: 16));
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 10)),
           );
         }
-        await settleFrames(tester);
       }
 
       await call(<String, Object?>{
@@ -577,6 +592,9 @@ void main() {
         'field': 'baseColor',
         'value': <double>[0.72, 0.36, 0.22, 1],
       });
+
+      // Drawn now, once, with every call handled.
+      await settleFrames(tester);
 
       // The badge only exists once a client has introduced itself, which is
       // the state this picture is of.
