@@ -382,6 +382,8 @@ String _describe(TimelineCommand command) => switch (command) {
   TimelineReplayed(:final fromStep) => 'replayed:$fromStep',
   TimelineScrubbed(:final step) => 'scrubbed:$step',
   TimelineReturned() => 'returned',
+  // A command a later minor adds: shown, not refused.
+  _ => '$command',
 };
 
 /// Puts [tunables] on the VM service, so an inspector can change them while

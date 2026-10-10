@@ -130,10 +130,13 @@ enum CompositePart {
 
 /// One way a device reaches an action.
 ///
-/// **Sealed: five shapes, each one a thing a device can actually do.** The
-/// devices and the rebinding screen answer every shape, and a shape one of
-/// them did not read would be a control that silently does nothing; a sixth
-/// shape waits for a major.
+/// **Five shapes, each one a thing a device can actually do, and open to a
+/// sixth.** The devices and the rebinding screen answer the five; a shape
+/// they do not know — a later minor's, or a game's own — reads as nothing
+/// and is written back as [toJson] writes it, so it is a control that does
+/// nothing on a build that does not know it, never one that breaks the map.
+/// `abstract base` rather than `sealed`, so a new shape breaks no `switch`:
+/// a switch over bindings ends with a case for the rest.
 ///
 /// * [ButtonBinding] — a key, a mouse button, a pad button, held or not;
 /// * [AxisBinding] — one analogue number, a trigger or a stick's one axis;
@@ -143,7 +146,7 @@ enum CompositePart {
 ///
 /// Dead zone, sensitivity and invert are on the two analogue shapes — see
 /// [AxisSettings].
-sealed class ActionBinding {
+abstract base class ActionBinding {
   const ActionBinding();
 
   /// Reads one binding written by [toJson], or null for a shape this build
