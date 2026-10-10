@@ -90,7 +90,7 @@ All six run in a browser on the WebGL2 backend and are embedded on their demo pa
 
 ## The package split
 
-57 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
+58 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB

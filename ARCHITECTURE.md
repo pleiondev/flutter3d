@@ -209,7 +209,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-57 packages and 17 applications in one pub workspace, with the
+58 packages and 17 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -383,7 +383,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 77 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 78 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3662,8 +3662,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13733 tests** across 57 packages and 17 applications |
-| Structure rules | 77, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **13854 tests** across 58 packages and 17 applications |
+| Structure rules | 78, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -4749,7 +4749,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  57 packages, the unpublished ones included — `pub publish
+  58 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -4779,7 +4779,7 @@ the same layer first:
 3. L2: `flutter3d_matter`, `flutter3d_shaders`
 4. L3: `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,
    `flutter3d_impeller`, `flutter3d_physics`, `flutter3d_webgl`,
-   `flutter3d_webgpu`
+   `flutter3d_webgpu`, `flutter3d_wgpu`
 5. L4: `flutter3d_audio`, `flutter3d_sim`
 6. L5: `flutter3d_build_hooks`, `flutter3d_camera`, `flutter3d_conformance`,
    `flutter3d_editor_play`, `flutter3d_editor_widgets`,

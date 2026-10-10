@@ -1817,6 +1817,10 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
   'CpuComputeShader':
       'flutter3d_cpu: the per-workgroup call, for CpuVertexShader\'s reason',
+  'KernelTexture':
+      'flutter3d_shaders: the kernel language\'s load(t, x, y), one call per texel, mirroring the shader builtin it runs in place of',
+  'KernelImage':
+      'flutter3d_shaders: the kernel language\'s store(i, x, y, v), one call per texel, mirroring the shader builtin it runs in place of',
   'CpuFragmentShader':
       'flutter3d_cpu: the per-fragment call, for CpuVertexShader\'s reason',
   'CpuVertexShader':

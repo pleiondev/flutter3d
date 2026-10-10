@@ -46,7 +46,7 @@ final class RuntimeShaders extends PluginRegistry
   Registration addMaterial(String source, {required String from})
   Registration addRenderStep(RuntimeRenderStep step, RendererSteps into)
   RuntimeShaders forPlugin(PluginScope scope)
-  RuntimeShaders({required String? backend, required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders, required Registration Function(ShaderLibrary library) addMaterials, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation})
+  RuntimeShaders({required String? backend, required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders, required Registration Function(ShaderLibrary library) addMaterials, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation, MaterialCompilerRegistry? compilers})
   String? get backend
 
 final class RuntimeShadersException extends CapabilityException
@@ -54,15 +54,19 @@ final class RuntimeShadersException extends CapabilityException
   const RuntimeShadersException(this.message)
   final String message
 
+const DataSection bindingsSection = _BindingsSection()
+
 PackedStage fullscreenMaterialWgsl(MaterialProgram program, {required int uvLocation, required String from})
 
 const DataSection materialsSection = _MaterialsSection()
 
-const List<DataSection> renderDataSections = <DataSection>[materialsSection, renderStepsSection]
+const DataSection pipelineSection = _PipelineSection()
+
+const List<DataSection> renderDataSections = <DataSection>[materialsSection, renderStepsSection, bindingsSection, pipelineSection]
 
 const DataSection renderStepsSection = _RenderStepsSection()
 
-ShaderBundle runtimeMaterialBundle(String source, {required String? backend, required String from, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation})
+ShaderBundle runtimeMaterialBundle(String source, {required String? backend, required String from, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation, MaterialCompilerRegistry? compilers})
 
 const String runtimeShaderSdk = 'flutter3d run time'
 
@@ -72,17 +76,19 @@ library package:flutter3d_core/flutter3d_core.dart
 
 final class AbsolutePixels extends ResourceSize
   (int, int) resolve(int frameWidth, int frameHeight)
+  R accept<R>(ResourceSizeVisitor<R> visitor)
   const AbsolutePixels(this.width, this.height)
   final int height
   final int width
 
 final class AdaptiveQuality
-  AdaptiveQuality(this.table, [this.settings = const AdaptiveQualitySettings()])
+  AdaptiveQuality(this.table, [this.settings = const AdaptiveQualitySettings(), this.policy])
   QualityRow get row
   QualityRow recordFrame(int micros, {double motion = 0.0})
   RenderSettings apply(RenderSettings full)
   double? estimateMicros(int i)
   final AdaptiveQualitySettings settings
+  final QualityPolicy? policy
   final QualityTable table
   int get index
 
@@ -736,6 +742,7 @@ final class CompareCondition extends AnimationCondition
   final num value
 
 final class CompiledFrameGraph
+  Iterable<ResourceDesc> get created
   Iterable<ResourceId> get resources
   Iterable<ResourceId> keptBy(int index)
   Iterable<ResourceId> writtenBy(int index)
@@ -743,10 +750,12 @@ final class CompiledFrameGraph
   List<ResourceId> releasedAfter(int index)
   List<ResourceVersion> retiredAfter(int index)
   PassSkip? skipReason(String name)
+  ResourceDesc? descriptorOf(ResourceId id)
+  T? placementOf<T extends Object>(String name)
   bool isConsumed(ResourceId id)
   bool isKeptVersion(ResourceVersion version)
   bool isRead(ResourceId id)
-  const CompiledFrameGraph(this._lastUse, this._readers, this._bindings, this._current, this._kept, {required this.order, required this.culled, required this.outputs, this.skipped = const <SkippedPass>[]})
+  const CompiledFrameGraph(this._lastUse, this._readers, this._bindings, this._current, this._kept, {required this.order, required this.culled, required this.outputs, this.skipped = const <SkippedPass>[], this._created = const <String, ResourceDesc>{}, this._placements = const <String, Object>{}})
   final List<FrameGraphNode> culled
   final List<FrameGraphNode> order
   final List<ResourceId> outputs
@@ -798,7 +807,7 @@ final class ContactShadowSettings
   final int steps
 
 final class ContributorFrame extends FrameContext
-  ContributorFrame({required this.encoder, required super.device, required super.services, required super.settings, required super.width, required super.height, super.view, this.viewProjection, super.frameIndex, super.time, super.origin, this.temporal = false, this.lights, this.sceneDepth, this.reversedDepth = false})
+  ContributorFrame({required this.encoder, required super.device, required super.services, required super.settings, required super.width, required super.height, super.view, this.viewProjection, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.temporal = false, this.lights, this.sceneDepth, this.reversedDepth = false})
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   final ContributorLights? lights
   final PassEncoder encoder
@@ -974,7 +983,8 @@ final class DebugWipeSide
   static const List<DebugWipeSide> values = <DebugWipeSide>[both, left, right]
 
 final class DecalNode extends SceneNode
-  DecalNode({this.texture, this.color = LinearColor.white, this.emissive = LinearColor.black, Vector4? region, this.order = 0, this.angleLimit = 1.3, this.angleFade = 0.2, this.depthFade = 0.1, super.name})
+  DecalNode({this.texture, this.color = LinearColor.white, this.emissive = LinearColor.black, Vector4? region, this.order = 0, this.angleLimit = 1.3, this.angleFade = 0.2, this.depthFade = 0.1, this.lighting, super.name})
+  LightingModel? lighting
   LinearColor color
   LinearColor emissive
   TextureHandle? texture
@@ -987,9 +997,13 @@ final class DecalNode extends SceneNode
   void onDetachedFromScene(Scene scene)
 
 final class DecalSettings
-  DecalSettings copyWith({bool? enabled})
-  const DecalSettings({this.enabled = false})
+  DecalSettings copyWith({bool? enabled, int? decalsPerDraw, int? picturesPerDraw})
+  const DecalSettings({this.enabled = false, this.decalsPerDraw = 16, this.picturesPerDraw = 4})
   final bool enabled
+  final int decalsPerDraw
+  final int picturesPerDraw
+  static int get maxDecalsPerDraw
+  static int get maxPicturesPerDraw
 
 final class DecodedImage
   const DecodedImage({required this.width, required this.height, required this.rgba})
@@ -1138,6 +1152,16 @@ final class DrawJournal
   void add({required String kind, required String? mesh, required String? material, required String lighting, required int vertices, required int indices, required int instances, required Map<String, Object?> state, Map<String, Float32List> uniforms = const <String, Float32List>{}, Object? node})
   void beginPass(int index, String name)
   void endPass(int drawCalls)
+
+final class DrawListContext
+  MeshNode get node
+  RenderView get view
+  double get viewDepth
+
+abstract base class DrawListHook
+  bool keeps(DrawListContext context)
+  const DrawListHook()
+  int? sortKey(DrawListContext context)
 
 final class DrawRecord
   Map<String, Map<String, Object?>> get decodedUniforms
@@ -1498,7 +1522,9 @@ final class FrameCaptureFormatException extends Flutter3dFormatException
 
 abstract base class FrameContext
   ({double x, double y}) get jitter
-  FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.time = 0.0, this.origin = WorldPosition.origin})
+  FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.time = 0.0, this.origin = WorldPosition.origin, List<FrameView>? views, this.viewIndex = 0})
+  FrameView? get frameView
+  ResourceId perView(ResourceId id)
   final GraphicsDevice device
   final RenderServices services
   final RenderSettings settings
@@ -1507,9 +1533,12 @@ abstract base class FrameContext
   final double time
   final int frameIndex
   final int height
+  final int viewIndex
   final int width
   int get drawCalls
+  late final List<FrameView> views
   vm.Matrix4 get inverseViewProjection
+  vm.Matrix4 get previousViewProjection
   vm.Matrix4 get projection
   vm.Matrix4 get unjitteredViewProjection
   vm.Matrix4 get viewMatrix
@@ -1523,16 +1552,26 @@ final class FrameDrawn extends BusEvent
 
 final class FrameFraction extends ResourceSize
   (int, int) resolve(int frameWidth, int frameHeight)
+  R accept<R>(ResourceSizeVisitor<R> visitor)
   const FrameFraction([this.divisor = 1])
   final int divisor
 
 final class FrameGraph
-  CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}, Set<String> switchedOff = const <String>{}})
+  CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}, Set<String> switchedOff = const <String>{}, FramePlacer? placer})
   int get length
   static const Set<String> undisableable = <String>{'scene', 'composite', 'object ids'}
   void addExternal(ResourceId id)
   void addNode(FrameGraphNode node)
   void clear()
+
+final class FrameGraphBuilder
+  ResourceId create(ResourceDesc desc)
+  final String node
+  void keep(ResourceId id)
+  void place(PlacementRequest request)
+  void read(ResourceId id)
+  void readIfProduced(ResourceId id)
+  void write(ResourceId id)
 
 final class FrameGraphError extends Error
   FrameGraphError(this.message)
@@ -1548,6 +1587,7 @@ abstract base class FrameGraphNode
   bool get isActive
   bool get isSupported
   const FrameGraphNode()
+  void setup(FrameGraphBuilder builder)
 
 final class FrameHeld extends BusEvent
   String get name
@@ -1571,9 +1611,10 @@ final class FrameOverTime extends BusEvent
   void digestInto(EventDigestSink sink)
 
 final class FramePacing
-  FramePacing copyWith({int? framesInFlight, bool? holdWhenBehind, Duration? stallThreshold})
-  const FramePacing({this.framesInFlight = _maxFramesInFlight, this.holdWhenBehind = true, this.stallThreshold = const Duration(milliseconds: 8)})
+  FramePacing copyWith({int? framesInFlight, bool? holdWhenBehind, Duration? stallThreshold, PacingPolicy? policy, bool clearPolicy = false})
+  const FramePacing({this.framesInFlight = _maxFramesInFlight, this.holdWhenBehind = true, this.stallThreshold = const Duration(milliseconds: 8), this.policy})
   final Duration stallThreshold
+  final PacingPolicy? policy
   final bool holdWhenBehind
   final int framesInFlight
   static int get maxFramesInFlight
@@ -1604,6 +1645,15 @@ final class FramePipelineStall extends BusEvent
   String get name
   const FramePipelineStall(this.stall)
   final PipelineStall stall
+
+final class FramePlacementContext
+  final FrameGraphNode node
+  final NodeDeclarations declarations
+  final PlacementRequest request
+
+abstract base class FramePlacer
+  abstract Object? place(FramePlacementContext context)
+  const FramePlacer()
 
 abstract final class FrameResourceIds
   static ResourceId reflectionProbe(int index)
@@ -1704,6 +1754,23 @@ final class FrameResult
 abstract base mixin class FrameTextureSource
   abstract TextureHandle acquire(RenderTargetDescriptor spec)
   abstract void release(TextureHandle texture)
+
+final class FrameView
+  FrameView({required vm.Matrix4 viewMatrix, required this.projection, this.aspect = 1.0, this.viewport = const ViewportRect(0.0, 0.0, 1.0, 1.0), this.index = 0, vm.Matrix4? previousViewProjection})
+  ResourceId resource(ResourceId id)
+  String toString()
+  bool get hasHistory
+  factory FrameView.ofRenderView(RenderView view, {required double aspect, int index = 0, vm.Matrix4? previousViewProjection})
+  factory FrameView.posed({required vm.Vector3 position, required vm.Quaternion orientation, required Projection projection, double aspect = 1.0, ViewportRect viewport = const ViewportRect(0.0, 0.0, 1.0, 1.0), int index = 0, vm.Matrix4? previousViewProjection})
+  final Projection projection
+  final ViewportRect viewport
+  final double aspect
+  final int index
+  static ResourceId resourceFor(ResourceId id, int index)
+  vm.Matrix4 get previousViewProjection
+  vm.Matrix4 get projectionMatrix
+  vm.Matrix4 get viewMatrix
+  vm.Matrix4 get viewProjection
 
 final class FrameWindow
   String toString()
@@ -2142,6 +2209,11 @@ final class LightNode extends SceneNode
   void onAttachedToScene(Scene scene)
   void onDetachedFromScene(Scene scene)
 
+final class LightPackContext
+  final Float32List row
+  final LightNode light
+  final int code
+
 final class LightShaftSettings
   LightShaftSettings copyWith({bool? enabled, int? steps, double? distance, double? strength, LinearColor? color, double? anisotropy, bool clearColor = false})
   const LightShaftSettings({this.enabled = false, this.steps = 16, this.distance = 40.0, this.strength = 0.005, this.color, this.anisotropy = 0.6})
@@ -2165,13 +2237,29 @@ final class LightType
   static const LightType spot = LightType._(2, 'spot')
   static const List<LightType> values = <LightType>[directional, point, spot, area]
 
+abstract base class LightTypeHook
+  abstract LightType get type
+  const LightTypeHook()
+  void pack(LightPackContext context)
+
+final class LightTypes extends PluginRegistry
+  LightTypeHook? hookOf(LightType type)
+  LightTypes forPlugin(PluginScope scope)
+  LightTypes()
+  List<LightTypeHook> get hooks
+  Registration register(LightTypeHook hook)
+  int codeOf(LightType type)
+  static const int firstPluginCode = 16
+
 final class LightingModel
   LightingModel withLayers(MaterialExtensions? layers, {bool textureTransforms = false})
   bool get usesFogInfo
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}})
+  final MaterialSlotTable slots
+  final Set<VertexStageVariant> vertexVariants
   final String label
   final String shaderName
   final String? vertexShaderName
@@ -2201,19 +2289,22 @@ final class LightingModel
 
 abstract base class LightingModelAddon extends Flutter3dPlugin
   PluginManifest get manifest
-  ShaderLibrary? stagesFor(GraphicsDevice device)
-  const LightingModelAddon({required this.id, required this.models, this.dependsOn = const <String>[], this.description})
+  const LightingModelAddon({required this.id, required this.models, this.stages, this.dependsOn = const <String>[], this.description})
   final List<LightingModel> models
   final List<String> dependsOn
+  final ShaderLibrary? stages
   final String id
   final String? description
   void install(PluginHost host)
 
-abstract final class LightingModels
-  static LightingModel? named(String shaderName)
-  static List<LightingModel> get all
-  static List<LightingModel> get registered
-  static Registration register(LightingModel model)
+final class LightingModels extends PluginRegistry
+  LightingModel? named(String shaderName)
+  LightingModels forPlugin(PluginScope scope)
+  LightingModels()
+  List<LightingModel> get all
+  List<LightingModel> get registered
+  Registration register(LightingModel model)
+  static final LightingModels shipped
 
 final class LineStripNode extends MeshNode
   Aabb3 get localBounds
@@ -2246,6 +2337,13 @@ final class LocalRay
   void copyFrom(LocalRay other)
   void setFrom(Vector3 origin, Vector3 direction)
 
+final class LodContext
+  const LodContext({required this.group, required this.camera, required this.choice, this.viewportHeight})
+  final CameraNode camera
+  final LodGroup group
+  final double? viewportHeight
+  final int choice
+
 final class LodGroup extends SceneNode
   List<LodLevel> get levels
   LodGroup({required List<LodLevel> levels, this.hysteresis = defaultHysteresis, this.pixelError = defaultPixelError, this.crossFade = defaultCrossFade, super.name})
@@ -2258,7 +2356,7 @@ final class LodGroup extends SceneNode
   final double hysteresis
   final double pixelError
   int get activeLevel
-  int select(CameraNode camera, {double? verticalFieldOfView, double? orthographicHeight, double? viewportHeight})
+  int select(CameraNode camera, {double? verticalFieldOfView, double? orthographicHeight, double? viewportHeight, LodPolicy? policy})
   static const double defaultCrossFade = 0.1
   static const double defaultHysteresis = 0.1
   static const double defaultPixelError = 1.0
@@ -2270,6 +2368,10 @@ final class LodLevel
   final MeshNode node
   final double maxScreenFraction
   final double? error
+
+abstract base class LodPolicy
+  const LodPolicy()
+  int? select(LodContext context)
 
 final class LookGoal extends AnimationGoal
   LookGoal({required this.joint, required Vector3 forward, this.limit = 1.0, Vector3? target, super.weight})
@@ -2312,6 +2414,7 @@ final class MaterialAlphaMode
   static const MaterialAlphaMode opaque = MaterialAlphaMode._('opaque')
 
 final class MaterialBinary extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialBinary(this.op, this.left, this.right, MaterialType type)
   final MaterialExpression left
   final MaterialExpression right
@@ -2320,9 +2423,10 @@ final class MaterialBinary extends MaterialExpression
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none})
   final Map<String, List<double>> uniforms
   final MaterialFileState state
+  final MaterialSlotTable slots
   final MaterialStageKind kind
   final String name
   final String? vertexShaderName
@@ -2354,6 +2458,23 @@ final class MaterialBlendMode
   static const MaterialBlendMode additive = MaterialBlendMode._('additive')
   static const MaterialBlendMode alpha = MaterialBlendMode._('alpha')
   static const MaterialBlendMode premultiplied = MaterialBlendMode._('premultiplied')
+
+final class MaterialBlockMember
+  Map<String, Object?> toJson()
+  bool operator ==(Object other)
+  const MaterialBlockMember({required this.name, required this.type, required this.offset})
+  final MaterialType type
+  final String name
+  final int offset
+  int get hashCode
+  int get size
+
+final class MaterialBlockSlot
+  Map<String, Object?> toJson()
+  const MaterialBlockSlot({required this.name, required this.members})
+  final List<MaterialBlockMember> members
+  final String name
+  int get size
 
 final class MaterialBuiltin
   final List<double> Function(List<List<double>> arguments) apply
@@ -2387,15 +2508,18 @@ final class MaterialBundleException extends Flutter3dFormatException
   final String message
 
 final class MaterialCall extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialCall(this.builtin, this.arguments, MaterialType type)
   final List<MaterialExpression> arguments
   final MaterialBuiltin builtin
 
 final class MaterialConstant extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialConstant(this.value, MaterialType type)
   final List<double> value
 
 final class MaterialConstruct extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialConstruct(this.arguments, MaterialType type)
   final List<MaterialExpression> arguments
 
@@ -2412,8 +2536,23 @@ final class MaterialDocument
   final SurfaceMaterial surface
 
 abstract base class MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialExpression(this.type)
   final MaterialType type
+
+abstract base class MaterialExpressionVisitor<R>
+  abstract R visitBinary(MaterialBinary expression)
+  abstract R visitCall(MaterialCall expression)
+  abstract R visitConstant(MaterialConstant expression)
+  abstract R visitConstruct(MaterialConstruct expression)
+  abstract R visitInputRef(MaterialInputRef expression)
+  abstract R visitLocalRef(MaterialLocalRef expression)
+  abstract R visitNegate(MaterialNegate expression)
+  abstract R visitParamRef(MaterialParamRef expression)
+  abstract R visitSample(MaterialSample expression)
+  abstract R visitSwizzle(MaterialSwizzle expression)
+  abstract R visitUnknown(MaterialExpression expression)
+  const MaterialExpressionVisitor()
 
 final class MaterialExtensions
   List<({TextureBinding binding, int channel})?> get coatMapSources
@@ -2490,14 +2629,17 @@ final class MaterialInput
 
 final class MaterialInputRef extends MaterialExpression
   MaterialInputRef(this.input)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialInput input
 
 final class MaterialLet extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialLet(this.name, this.value)
   final MaterialExpression value
   final String name
 
 final class MaterialLocalRef extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialLocalRef(this.name, MaterialType type)
   final String name
 
@@ -2516,19 +2658,23 @@ final class MaterialMap
 
 final class MaterialNegate extends MaterialExpression
   MaterialNegate(this.operand)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialExpression operand
 
 final class MaterialOutput extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialOutput(this.output, this.value)
   final MaterialExpression value
   final MaterialInput output
 
 final class MaterialParamRef extends MaterialExpression
   MaterialParamRef(this.parameter)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialParameter parameter
 
 final class MaterialParameter
-  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false})
+  String? get block
+  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
   final List<double> defaultValue
   final MaterialType type
   final String name
@@ -2581,13 +2727,26 @@ final class MaterialProgram
   final int languageVersion
 
 final class MaterialReturn extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
   final MaterialExpression value
 
 final class MaterialSample extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
   final MaterialExpression uv
   final MaterialTextureSlot slot
+
+final class MaterialSlotTable
+  Map<String, Object?> toJson()
+  MaterialBlockSlot? block(String name)
+  bool get isEmpty
+  const MaterialSlotTable({this.blocks = const <MaterialBlockSlot>[], this.textures = const <MaterialTextureSlotEntry>[]})
+  factory MaterialSlotTable.of(MaterialProgram program)
+  final List<MaterialBlockSlot> blocks
+  final List<MaterialTextureSlotEntry> textures
+  static List<MaterialBlockMember> std140(List<MaterialParameter> uniforms)
+  static const MaterialSlotTable none = MaterialSlotTable()
 
 final class MaterialSortIds
   int get length
@@ -2602,8 +2761,16 @@ final class MaterialStageKind
   static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen')
   static const MaterialStageKind surface = MaterialStageKind._('material')
 
-sealed class MaterialStatement
+abstract base class MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialStatement()
+
+abstract base class MaterialStatementVisitor<R>
+  abstract R visitLet(MaterialLet statement)
+  abstract R visitOutput(MaterialOutput statement)
+  abstract R visitReturn(MaterialReturn statement)
+  abstract R visitUnknown(MaterialStatement statement)
+  const MaterialStatementVisitor()
 
 final class MaterialSurfaceValues
   const MaterialSurfaceValues({required this.inputs, required this.sample, this.uniforms = const <String, List<double>>{}})
@@ -2612,6 +2779,7 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> uniforms
 
 final class MaterialSwizzle extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialSwizzle(this.target, this.components, MaterialType type)
   final List<int> components
   final MaterialExpression target
@@ -2624,8 +2792,15 @@ final class MaterialSyntaxException extends Flutter3dFormatException
   final int line
 
 final class MaterialTextureSlot
+  bool get isOwn
   const MaterialTextureSlot(this.name, this.bindingName)
   final String bindingName
+  final String name
+
+final class MaterialTextureSlotEntry
+  Map<String, Object?> toJson()
+  const MaterialTextureSlotEntry({required this.name, required this.binding})
+  final String binding
   final String name
 
 final class MaterialType
@@ -2823,6 +2998,9 @@ extension MeshTangents on MeshData
   GeneratedTangents generateTangents({VertexLayout? target, TangentMethod method = TangentMethod.mikkTSpace, bool splitSeams = true})
   MeshData withGeneratedTangents({VertexLayout? target, TangentMethod method = TangentMethod.mikkTSpace, bool splitSeams = true})
 
+abstract final class MeshVertexLayouts
+  static VertexLayoutDescriptor get instanced
+
 final class MeshoptFormatException extends Flutter3dFormatException
   String toString()
   const MeshoptFormatException(this.message)
@@ -2847,6 +3025,7 @@ abstract base class ModelDecoder
 base class ModelDecoders extends DecoderRegistry
   AssetSource sourceFor(String path, {required AssetSourceFactory fallback})
   AssetSources get sources
+  Iterable<PluginRegistry> get companions
   List<ModelDecoder> get decoders
   ModelDecoders forPlugin(PluginScope scope)
   ModelDecoders()
@@ -2855,6 +3034,7 @@ base class ModelDecoders extends DecoderRegistry
   Registration addModelDecoder(ModelDecoder decoder)
   Registration addSource(String scheme, AssetSourceFactory make)
   String get owner
+  TextureCodecs get textureCodecs
   final PluginScope? scope
 
 abstract base class ModelDocument
@@ -3101,6 +3281,15 @@ final class MtlMaterial
   final double opacity
   final double? specularExponent
 
+final class NodeDeclarations
+  factory NodeDeclarations.of(FrameGraphNode node)
+  final List<ResourceDesc> created
+  final List<ResourceId> keeps
+  final List<ResourceId> optionalReads
+  final List<ResourceId> reads
+  final List<ResourceId> writes
+  final PlacementRequest? placement
+
 final class NodeHistory
   Float32List? instances
   Float32List? joints
@@ -3266,6 +3455,17 @@ final class OverlayBatch
   int get vertexCount
   void clear()
   void vertex(Vector3 at, LinearColor color)
+
+final class PacingContext
+  const PacingContext({required this.frameIndex, required this.unfinishedFrames, required this.framesInFlight, required this.gpuIsBehind})
+  final bool gpuIsBehind
+  final int frameIndex
+  final int framesInFlight
+  final int unfinishedFrames
+
+abstract base class PacingPolicy
+  bool? hold(PacingContext context)
+  const PacingPolicy()
 
 final class PackedIndices
   const PackedIndices(this.bytes, this.count, {required this.is16Bit})
@@ -3491,6 +3691,26 @@ final class PhysicalSkyRay
   final Vector3 transmittance
   final bool ground
 
+final class PipelineAnchor
+  Map<String, Object?> toJson()
+  const PipelineAnchor({required this.name, required this.after})
+  final String after
+  final String name
+
+final class PipelineDocument extends FormatDocument
+  FormatSpec get spec
+  Iterable<PipelineNode> get added
+  Map<String, Object?> toJson()
+  PipelineDocument({this.name, this.anchors = const <PipelineAnchor>[], this.nodes = const <PipelineNode>[], this.stepsOff = const <String>[], this.settings = const <String>[], super.unknown})
+  String encode()
+  factory PipelineDocument.fromJson(Map<String, Object?> json)
+  factory PipelineDocument.parse(String text)
+  final List<PipelineAnchor> anchors
+  final List<PipelineNode> nodes
+  final List<String> settings
+  final List<String> stepsOff
+  final String? name
+
 final class PipelineGeometry
   String toString()
   final String name
@@ -3499,6 +3719,39 @@ final class PipelineGeometry
   static const PipelineGeometry lightmapped = PipelineGeometry._('lightmapped')
   static const PipelineGeometry plain = PipelineGeometry._('plain')
   static const PipelineGeometry skinned = PipelineGeometry._('skinned')
+
+final class PipelineNode
+  Map<String, Object?> toJson()
+  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}})
+  final List<String> after
+  final List<String> before
+  final List<String> keeps
+  final List<String> optionalReads
+  final List<String> reads
+  final List<String> writes
+  final Map<String, Object?> options
+  final String anchor
+  final String name
+  final String? kind
+  final String? step
+  final bool engine
+
+final class PipelineNodeContext
+  const PipelineNodeContext(this.node)
+  final PipelineNode node
+
+abstract base class PipelineNodeKind
+  String toString()
+  abstract RenderNode create(PipelineNodeContext context)
+  abstract String get name
+  const PipelineNodeKind()
+
+final class PipelineNodeKinds extends PluginRegistry
+  List<PipelineNodeKind> get kinds
+  PipelineNodeKind? kindNamed(String name)
+  PipelineNodeKinds forPlugin(PluginScope scope)
+  PipelineNodeKinds()
+  Registration add(PipelineNodeKind kind)
 
 final class PipelineStall
   String toString()
@@ -3509,6 +3762,10 @@ final class PipelineStall
   final bool opaque
   final int frame
   final int micros
+
+abstract base class PlacementRequest
+  abstract String get name
+  const PlacementRequest()
 
 final class PlainModelDocument extends ModelDocument
   const PlainModelDocument({this.surfaces = const <ModelSurface>[], this.materials = const <SurfaceMaterial>[], this.images = const <EncodedImage>[], this.nodes = const <ModelNode>[], this.animations = const <AnimationClip>[], this.skins = const <ModelSkin>[], this.lights = const <ModelLight>[], this.cameras = const <ModelCamera>[], this.warnings = const <String>[], this.asset, this.variants = const <String>[]})
@@ -3601,6 +3858,18 @@ abstract base class Projection
   abstract double get near
   const Projection()
   double? get verticalFieldOfView
+
+final class QualityContext
+  const QualityContext({required this.table, required this.micros, required this.motion, required this.current, required this.choice})
+  final QualityTable table
+  final double motion
+  final int choice
+  final int current
+  final int micros
+
+abstract base class QualityPolicy
+  const QualityPolicy()
+  int? choose(QualityContext context)
 
 final class QualityRow
   String toString()
@@ -3706,10 +3975,20 @@ final class ReflectionSettings
   final int steps
 
 final class RenderFrame extends FrameContext
-  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.time, super.origin, this.sceneColor})
+  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.sceneColor})
   final FrameResources resources
   final TextureHandle? sceneColor
   vm.Matrix4 get viewProjection
+
+final class RenderHooks extends PluginRegistry
+  List<DrawListHook> get drawListHooks
+  List<SkinningHook> get skinningHooks
+  LodPolicy? get lodPolicy
+  Registration addDrawListHook(DrawListHook hook)
+  Registration addLodPolicy(LodPolicy policy)
+  Registration addSkinningHook(SkinningHook hook)
+  RenderHooks forPlugin(PluginScope scope)
+  RenderHooks()
 
 final class RenderListener
   const RenderListener({this.drawn, this.skipped, this.overTime, this.stalled, this.held, this.frameBudget, this.refused})
@@ -3884,7 +4163,7 @@ final class RenderStep
   static const RenderStep lensFlare = RenderStep._('lens flare', _flareOff, _flareOn, passes: <String>{'lens flare'}, needs: <RenderStep>{bloom})
   static const RenderStep lightShafts = RenderStep._('light shafts', _shaftsOff, _shaftsOn, passes: <String>{'light shafts'})
   static const RenderStep localExposure = RenderStep._('local exposure', _localExposureOff, _localExposureOn, passes: <String>{'local exposure'})
-  static const RenderStep motionBlur = RenderStep._('motion blur', _motionOff, _motionOn, passes: <String>{'motion blur'})
+  static const RenderStep motionBlur = RenderStep._('motion blur', _motionOff, _motionOn, passes: <String>{'motion blur'}, needs: <RenderStep>{velocity})
   static const RenderStep planarReflections = RenderStep._('planar reflections', _planarOff, _planarOn, passes: <String>{'planar reflections'})
   static const RenderStep reflectionProbes = RenderStep._('reflection probes', _probesOff, _probesOn, passPrefix: 'reflection probe ')
   static const RenderStep reflections = RenderStep._('reflections', _reflectionsOff, _reflectionsOn, passes: <String>{'reflections'})
@@ -3896,6 +4175,7 @@ final class RenderStep
   static const RenderStep temporalAntiAliasing = …
   static const RenderStep tonemap = RenderStep._('tonemap', _tonemapOff, _tonemapOn)
   static const RenderStep transparent = RenderStep._('transparent', _transparentOff, _transparentOn, passes: <String>{'transparent'})
+  static const RenderStep velocity = RenderStep._('velocity', null, null, passes: <String>{'camera velocity', 'object velocity'})
   static const RenderStep viewportShading = RenderStep._('viewport shading', _shadingOff, _shadingOn, passes: <String>{'viewport shading'})
   static const RenderStep vignetteAndGrain = RenderStep._('vignette and grain', _filmOff, _filmOn)
   static const RenderStep volumetricFog = RenderStep._('volumetric fog', _volumetricOff, _volumetricOn, passes: <String>{'volumetric fog'})
@@ -3958,10 +4238,16 @@ final class Renderer with RenderServices
   Future<ObjectIdFrame> captureObjectIds()
   Future<String> probeMultipleRenderTargets()
   Future<void> warmUpInSlices({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(), Duration slice = const Duration(milliseconds: 8), void Function(double done)? onProgress})
+  LightTypes get lightTypes
+  LightingModels get lightingModels
   List<PipelineStall> get pipelineStalls
   MemoryReport memoryReport({Scene? scene})
+  PipelineDocument describePipeline({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(), String? name})
+  PipelineNodeKinds get pipelineNodeKinds
   PostFrameResult renderPost({required TextureHandle hdr, RenderSettings settings = const RenderSettings(), bool keepHdr = false, TextureHandle? target})
+  RenderHooks get hooks
   RenderListener? listener
+  SceneBindings get sceneBindings
   ShaderLibrary get shaders
   TextureHandle get fallbackAlbedo
   TextureHandle get fallbackBlack
@@ -3996,7 +4282,7 @@ final class Renderer with RenderServices
 
 final class RendererSteps extends RenderStepRegistry
   GraphicsDevice get device
-  List<LightingModel> get lightingModels
+  Iterable<PluginRegistry> get companions
   List<PassContributor> get contributors
   List<RenderAnchor> get anchors
   List<RenderStep> get added
@@ -4005,13 +4291,14 @@ final class RendererSteps extends RenderStepRegistry
   List<SettingsSlot<Object>> get settings
   List<String> nodesAt(RenderAnchor anchor)
   Registration addAnchor(RenderAnchor anchor)
-  Registration addLightingModel(LightingModel model)
   Registration addMaterials(ShaderLibrary library)
   Registration addNode(RenderNode node, {RenderAnchor? at, RenderStep? step, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addSettings(SettingsSlot<Object> slot)
   Registration addStep(RenderStep step)
+  Registration fromDocument(PipelineDocument document)
   Registration provide(RenderStep step)
   RenderAnchor? anchorNamed(String name)
+  RenderSettings settingsFor(PipelineDocument document, RenderSettings settings)
   RenderStep? named(String name)
   RendererSteps forPlugin(PluginScope scope)
   Set<RenderStep> get withdrawn
@@ -4090,9 +4377,16 @@ final class ResourceRequest<K, V>
   set priority(ResourcePriority value)
   void cancel()
 
-sealed class ResourceSize
-  (int, int) resolve(int frameWidth, int frameHeight)
+abstract base class ResourceSize
+  R accept<R>(ResourceSizeVisitor<R> visitor)
+  abstract (int, int) resolve(int frameWidth, int frameHeight)
   const ResourceSize()
+
+abstract base class ResourceSizeVisitor<R>
+  abstract R visitAbsolutePixels(AbsolutePixels size)
+  abstract R visitFrameFraction(FrameFraction size)
+  abstract R visitUnknown(ResourceSize size)
+  const ResourceSizeVisitor()
 
 final class ResourceVersion
   String toString()
@@ -4147,6 +4441,32 @@ final class Scene
   void remove(SceneNode node)
   void removeTextureView(RenderView texture)
   void shiftOrigin(WorldPosition to)
+
+final class SceneBinding
+  const SceneBinding(this.spec, this.kind)
+  final SceneBindingSpec spec
+  final SceneNodeKind kind
+  void applyParameters(MaterialParameters parameters, SceneBindingContext context)
+
+final class SceneBindingContext
+  Object? field(String name)
+  const SceneBindingContext({required this.binding, required this.entity, required this.fields, this.previous, this.alpha = 1.0, this.node})
+  final Map<String, Object?> fields
+  final Map<String, Object?>? previous
+  final SceneBinding binding
+  final SceneNode? node
+  final double alpha
+  final int entity
+
+final class SceneBindings extends SceneBindingRegistry
+  List<SceneBindingSpec> get bindings
+  List<SceneNodeKind> get kinds
+  Registration add(SceneBindingSpec spec)
+  Registration addKind(SceneNodeKind kind)
+  SceneBinding? resolve(String component)
+  SceneBindings forPlugin(PluginScope scope)
+  SceneBindings()
+  SceneNodeKind? kindNamed(String name)
 
 final class SceneBvh
   String toString()
@@ -4212,6 +4532,12 @@ base class SceneNode with AnimationTarget
   void setWorldPosition(WorldPosition position)
   void translate(double dx, double dy, double dz)
   void traverse(void Function(SceneNode node) visit)
+
+abstract base class SceneNodeKind
+  abstract SceneNode create(SceneBindingContext context)
+  abstract String get name
+  const SceneNodeKind()
+  void update(SceneBindingContext context)
 
 extension SceneRegistry on Scene
   void registerCamera(CameraNode node)
@@ -4356,6 +4682,11 @@ final class ShadowPrefilter
   final int radius
   int get hashCode
 
+final class ShadowProducerContext
+  const ShadowProducerContext({required this.settings, this.camera})
+  final CameraNode? camera
+  final ShadowSettings settings
+
 final class ShadowSettings
   ShadowFilter get directionalFilter
   ShadowSettings copyWith({bool? enabled, int? resolution, int? cubeResolution, double? bias, double? normalOffset, double? strength, double? depthPadding, int? cascades, double? cascadeSplit, double? viewDistance, double? pointBias, double? pointNormalOffset, double? pointSoftness, double? directionalLightRadius, double? pointLightRadius, double? pointMaxSoftness, ShadowCasterFaces? casterFaces, ShadowCasterFaces? directionalCasterFaces, ShadowFilter? filter, int? evsmBlurRadius, double? evsmBleedReduction, bool? translucentCasters, bool? caustics, int? causticPhotons, bool clearFilter = false})
@@ -4401,6 +4732,8 @@ final class ShadowSlotAllocator
   void reset()
 
 abstract base class ShadowTechnique
+  RenderNode? cubeAtlasProducer(ShadowProducerContext context)
+  RenderNode? shadowMapProducer(ShadowProducerContext context)
   ShadowPrefilter? prefilterFor(ShadowSettings settings)
   String toString()
   abstract ShadowKernel kernelFor(ShadowSettings settings)
@@ -4439,6 +4772,16 @@ final class SkinBlend
   SkinBlend(this.mesh)
   bool blend(Float32List jointMatrices)
   final MeshData mesh
+
+final class SkinningContext
+  const SkinningContext({required this.node, required this.jointMatrices})
+  final Float32List jointMatrices
+  final MeshNode node
+
+abstract base class SkinningHook
+  Float32List? skin(SkinningContext context)
+  bool claims(SkinningContext context)
+  const SkinningHook()
 
 typedef SkippedPass = ({String name, PassSkip reason});
 
@@ -4796,6 +5139,26 @@ final class TextureBinding
   final int imageIndex
   final int texCoordSet
 
+abstract base class TextureCodec
+  String toString()
+  abstract Future<Rgba8Image?> decode(TextureDecodeContext context)
+  abstract String get name
+  abstract bool sniff(Uint8List head)
+  const TextureCodec()
+
+final class TextureCodecs extends PluginRegistry
+  List<TextureCodec> get codecs
+  Registration add(TextureCodec codec)
+  TextureCodec? codecFor(Uint8List bytes)
+  TextureCodecs forPlugin(PluginScope scope)
+  TextureCodecs()
+
+final class TextureDecodeContext
+  const TextureDecodeContext({required this.bytes, this.maxDimension, this.report})
+  final Uint8List bytes
+  final int? maxDimension
+  final void Function(String message)? report
+
 final class TextureHint extends MaterialHintKind
   const TextureHint({this.extensions = imageSuffixes})
   final List<String> extensions
@@ -4979,6 +5342,16 @@ final class VertexLayout
   static const VertexLayout skinned = VertexLayout([position, normal, texcoord, tangent, color, joints, weights])
   static const VertexLayout standard = VertexLayout([position, normal, texcoord, tangent, color])
 
+final class VertexStageVariant
+  String toString()
+  final String name
+  final String suffix
+  static VertexStageVariant? byName(String name)
+  static const List<VertexStageVariant> values = <VertexStageVariant>[skinned, instanced, lightmapped]
+  static const VertexStageVariant instanced = VertexStageVariant._('instanced', 'Instanced')
+  static const VertexStageVariant lightmapped = VertexStageVariant._('lightmapped', 'Lightmapped')
+  static const VertexStageVariant skinned = VertexStageVariant._('skinned', 'Skinned')
+
 final class ViewModelNode extends RenderNode
   CameraNode camera
   List<ResourceId> get optionalReads
@@ -5137,7 +5510,7 @@ List<double> composeMaterialLit(MaterialProgram program, MaterialSurfaceValues s
 
 PassContribution contributionBetween(ByteData without, ByteData with_, {required int width, required int height})
 
-const List<FormatSpec> coreFormats = <FormatSpec>[...modelFormats, FrameCapture.format, ...hardwareFormats]
+const List<FormatSpec> coreFormats = <FormatSpec>[...modelFormats, FrameCapture.format, pipelineFormat, ...hardwareFormats]
 
 Uint8List decodeDataUri(String uri)
 
@@ -5347,6 +5720,10 @@ const MaterialInput materialLitInput = MaterialInput('lit', MaterialType.vec3, '
 
 const String materialNothingBehind = '1000000.0'
 
+const String materialOwnTexturePrefix = 'material_'
+
+const String materialParametersBlock = 'MaterialParams'
+
 const List<MaterialInput> materialSceneInputs = …
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
@@ -5411,6 +5788,10 @@ const int payloadMask = (1 << payloadBits) - 1
 
 PhotoPlan photoSettings(RenderSettings settings, PhotoFilter filter, double exposure)
 
+const FormatSpec pipelineFormat = FormatSpec(id: 'f3d.pipeline', version: pipelineVersion, suffixes: <String>['.pipeline.json'], fixture: 'test/fixtures/v<N>/standard.pipeline.json')
+
+const int pipelineVersion = 1
+
 Vector4 planeInEyeSpace(Matrix4 view, Vector3 normal, Vector3 point, {double offset = 0.0})
 
 bool probeFaceIsMirrored(FramebufferOrigin origin)
@@ -5429,7 +5810,7 @@ double raySphere(LocalRay ray, Vector3 center, double radius)
 
 double rayTriangle(LocalRay ray, Vector3 a, Vector3 b, Vector3 c, {Vector2? outUv, bool cullBackFace = false})
 
-MaterialDocument readFmat(Uint8List bytes, {String name = ''})
+MaterialDocument readFmat(Uint8List bytes, {String name = '', LightingModels? lightingModels})
 
 HdrImage readHdr(Uint8List bytes)
 
@@ -5513,9 +5894,9 @@ const int spzLatestVersion = 4
 
 double srgbToLinear(double c)
 
-SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {String? name, List<String>? warnings, TextureBinding? baseColorTexture, TextureBinding? normalTexture, TextureBinding? metallicRoughnessTexture, TextureBinding? occlusionTexture, TextureBinding? emissiveTexture, MaterialExtensions? extensions})
+SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {LightingModels? lightingModels, String? name, List<String>? warnings, TextureBinding? baseColorTexture, TextureBinding? normalTexture, TextureBinding? metallicRoughnessTexture, TextureBinding? occlusionTexture, TextureBinding? emissiveTexture, MaterialExtensions? extensions})
 
-Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface)
+Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface, {LightingModels? lightingModels})
 
 (Float64List, Float64List) symmetricEigen3(Float64List m)
 
@@ -5543,7 +5924,7 @@ const String universalBlockRgba = 'endpoint-weight-4x4-v1/rgba'
 
 Future<PackedMap?> uploadCoatMap(GraphicsDevice device, MaterialExtensions layers, {required Future<Rgba8Image?> Function(TextureBinding binding) image})
 
-Future<TextureHandle?> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true})
+Future<TextureHandle?> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true, TextureCodecs? codecs})
 
 TextureHandle? uploadRgba8(GraphicsDevice device, Rgba8Image image, {TextureSampling sampling = const TextureSampling()})
 
@@ -5557,7 +5938,7 @@ Matrix4? withDepthPlanes(Matrix4 projection, {required double near, required dou
 
 MeshData withTextureTransform(MeshData mesh, TextureTransform transform)
 
-String writeFmat(MaterialDocument document)
+String writeFmat(MaterialDocument document, {LightingModels? lightingModels})
 
 Uint8List writeKtx2({required int vkFormat, required int pixelWidth, required int pixelHeight, required List<Uint8List> levels, Map<String, String> keyValues = const <String, String>{}})
 
@@ -6197,7 +6578,9 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}})
+  final MaterialSlotTable slots
+  final Set<VertexStageVariant> vertexVariants
   final String label
   final String shaderName
   final String? vertexShaderName
@@ -6225,13 +6608,17 @@ final class LightingModel
   static const LightingModel xray = LightingModel('X-ray', 'Xray', usesMaterialMaps: false, usesMetallicRoughnessMap: false, usesMaterialParameters: false)
   static const List<LightingModel> builtIn = <LightingModel>[unlit, lambert, blinnPhong, pbr, toon, normals]
 
-abstract final class LightingModels
-  static LightingModel? named(String shaderName)
-  static List<LightingModel> get all
-  static List<LightingModel> get registered
-  static Registration register(LightingModel model)
+final class LightingModels extends PluginRegistry
+  LightingModel? named(String shaderName)
+  LightingModels forPlugin(PluginScope scope)
+  LightingModels()
+  List<LightingModel> get all
+  List<LightingModel> get registered
+  Registration register(LightingModel model)
+  static final LightingModels shipped
 
 final class MaterialBinary extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialBinary(this.op, this.left, this.right, MaterialType type)
   final MaterialExpression left
   final MaterialExpression right
@@ -6240,9 +6627,10 @@ final class MaterialBinary extends MaterialExpression
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none})
   final Map<String, List<double>> uniforms
   final MaterialFileState state
+  final MaterialSlotTable slots
   final MaterialStageKind kind
   final String name
   final String? vertexShaderName
@@ -6266,6 +6654,23 @@ final class MaterialBlend
   static const MaterialBlend mask = MaterialBlend._('mask', translucent: false)
   static const MaterialBlend opaque = MaterialBlend._('opaque', translucent: false)
   static const MaterialBlend premultiplied = MaterialBlend._('premultiplied', translucent: true)
+
+final class MaterialBlockMember
+  Map<String, Object?> toJson()
+  bool operator ==(Object other)
+  const MaterialBlockMember({required this.name, required this.type, required this.offset})
+  final MaterialType type
+  final String name
+  final int offset
+  int get hashCode
+  int get size
+
+final class MaterialBlockSlot
+  Map<String, Object?> toJson()
+  const MaterialBlockSlot({required this.name, required this.members})
+  final List<MaterialBlockMember> members
+  final String name
+  int get size
 
 final class MaterialBuiltin
   final List<double> Function(List<List<double>> arguments) apply
@@ -6299,15 +6704,18 @@ final class MaterialBundleException extends Flutter3dFormatException
   final String message
 
 final class MaterialCall extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialCall(this.builtin, this.arguments, MaterialType type)
   final List<MaterialExpression> arguments
   final MaterialBuiltin builtin
 
 final class MaterialConstant extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialConstant(this.value, MaterialType type)
   final List<double> value
 
 final class MaterialConstruct extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialConstruct(this.arguments, MaterialType type)
   final List<MaterialExpression> arguments
 
@@ -6324,8 +6732,23 @@ final class MaterialDocument
   final SurfaceMaterial surface
 
 abstract base class MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialExpression(this.type)
   final MaterialType type
+
+abstract base class MaterialExpressionVisitor<R>
+  abstract R visitBinary(MaterialBinary expression)
+  abstract R visitCall(MaterialCall expression)
+  abstract R visitConstant(MaterialConstant expression)
+  abstract R visitConstruct(MaterialConstruct expression)
+  abstract R visitInputRef(MaterialInputRef expression)
+  abstract R visitLocalRef(MaterialLocalRef expression)
+  abstract R visitNegate(MaterialNegate expression)
+  abstract R visitParamRef(MaterialParamRef expression)
+  abstract R visitSample(MaterialSample expression)
+  abstract R visitSwizzle(MaterialSwizzle expression)
+  abstract R visitUnknown(MaterialExpression expression)
+  const MaterialExpressionVisitor()
 
 final class MaterialExtensions
   List<({TextureBinding binding, int channel})?> get coatMapSources
@@ -6402,14 +6825,17 @@ final class MaterialInput
 
 final class MaterialInputRef extends MaterialExpression
   MaterialInputRef(this.input)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialInput input
 
 final class MaterialLet extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialLet(this.name, this.value)
   final MaterialExpression value
   final String name
 
 final class MaterialLocalRef extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialLocalRef(this.name, MaterialType type)
   final String name
 
@@ -6428,19 +6854,23 @@ final class MaterialMap
 
 final class MaterialNegate extends MaterialExpression
   MaterialNegate(this.operand)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialExpression operand
 
 final class MaterialOutput extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialOutput(this.output, this.value)
   final MaterialExpression value
   final MaterialInput output
 
 final class MaterialParamRef extends MaterialExpression
   MaterialParamRef(this.parameter)
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   final MaterialParameter parameter
 
 final class MaterialParameter
-  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false})
+  String? get block
+  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
   final List<double> defaultValue
   final MaterialType type
   final String name
@@ -6467,13 +6897,26 @@ final class MaterialProgram
   final int languageVersion
 
 final class MaterialReturn extends MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
   final MaterialExpression value
 
 final class MaterialSample extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
   final MaterialExpression uv
   final MaterialTextureSlot slot
+
+final class MaterialSlotTable
+  Map<String, Object?> toJson()
+  MaterialBlockSlot? block(String name)
+  bool get isEmpty
+  const MaterialSlotTable({this.blocks = const <MaterialBlockSlot>[], this.textures = const <MaterialTextureSlotEntry>[]})
+  factory MaterialSlotTable.of(MaterialProgram program)
+  final List<MaterialBlockSlot> blocks
+  final List<MaterialTextureSlotEntry> textures
+  static List<MaterialBlockMember> std140(List<MaterialParameter> uniforms)
+  static const MaterialSlotTable none = MaterialSlotTable()
 
 final class MaterialStageKind
   String toString()
@@ -6483,8 +6926,16 @@ final class MaterialStageKind
   static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen')
   static const MaterialStageKind surface = MaterialStageKind._('material')
 
-sealed class MaterialStatement
+abstract base class MaterialStatement
+  R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialStatement()
+
+abstract base class MaterialStatementVisitor<R>
+  abstract R visitLet(MaterialLet statement)
+  abstract R visitOutput(MaterialOutput statement)
+  abstract R visitReturn(MaterialReturn statement)
+  abstract R visitUnknown(MaterialStatement statement)
+  const MaterialStatementVisitor()
 
 final class MaterialSurfaceValues
   const MaterialSurfaceValues({required this.inputs, required this.sample, this.uniforms = const <String, List<double>>{}})
@@ -6493,6 +6944,7 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> uniforms
 
 final class MaterialSwizzle extends MaterialExpression
+  R accept<R>(MaterialExpressionVisitor<R> visitor)
   const MaterialSwizzle(this.target, this.components, MaterialType type)
   final List<int> components
   final MaterialExpression target
@@ -6505,8 +6957,15 @@ final class MaterialSyntaxException extends Flutter3dFormatException
   final int line
 
 final class MaterialTextureSlot
+  bool get isOwn
   const MaterialTextureSlot(this.name, this.bindingName)
   final String bindingName
+  final String name
+
+final class MaterialTextureSlotEntry
+  Map<String, Object?> toJson()
+  const MaterialTextureSlotEntry({required this.name, required this.binding})
+  final String binding
   final String name
 
 final class MaterialType
@@ -6548,6 +7007,7 @@ abstract base class ModelDecoder
 base class ModelDecoders extends DecoderRegistry
   AssetSource sourceFor(String path, {required AssetSourceFactory fallback})
   AssetSources get sources
+  Iterable<PluginRegistry> get companions
   List<ModelDecoder> get decoders
   ModelDecoders forPlugin(PluginScope scope)
   ModelDecoders()
@@ -6556,6 +7016,7 @@ base class ModelDecoders extends DecoderRegistry
   Registration addModelDecoder(ModelDecoder decoder)
   Registration addSource(String scheme, AssetSourceFactory make)
   String get owner
+  TextureCodecs get textureCodecs
   final PluginScope? scope
 
 abstract base class ModelDocument
@@ -6778,6 +7239,42 @@ final class PagedSplatOctree
   static Future<PagedSplatOctree> open(SplatRangeReader read, {int maxInFlight = 4})
   void Function(int node)? onPage
 
+final class PipelineAnchor
+  Map<String, Object?> toJson()
+  const PipelineAnchor({required this.name, required this.after})
+  final String after
+  final String name
+
+final class PipelineDocument extends FormatDocument
+  FormatSpec get spec
+  Iterable<PipelineNode> get added
+  Map<String, Object?> toJson()
+  PipelineDocument({this.name, this.anchors = const <PipelineAnchor>[], this.nodes = const <PipelineNode>[], this.stepsOff = const <String>[], this.settings = const <String>[], super.unknown})
+  String encode()
+  factory PipelineDocument.fromJson(Map<String, Object?> json)
+  factory PipelineDocument.parse(String text)
+  final List<PipelineAnchor> anchors
+  final List<PipelineNode> nodes
+  final List<String> settings
+  final List<String> stepsOff
+  final String? name
+
+final class PipelineNode
+  Map<String, Object?> toJson()
+  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}})
+  final List<String> after
+  final List<String> before
+  final List<String> keeps
+  final List<String> optionalReads
+  final List<String> reads
+  final List<String> writes
+  final Map<String, Object?> options
+  final String anchor
+  final String name
+  final String? kind
+  final String? step
+  final bool engine
+
 final class PlainModelDocument extends ModelDocument
   const PlainModelDocument({this.surfaces = const <ModelSurface>[], this.materials = const <SurfaceMaterial>[], this.images = const <EncodedImage>[], this.nodes = const <ModelNode>[], this.animations = const <AnimationClip>[], this.skins = const <ModelSkin>[], this.lights = const <ModelLight>[], this.cameras = const <ModelCamera>[], this.warnings = const <String>[], this.asset, this.variants = const <String>[]})
   final DocumentAsset? asset
@@ -6948,6 +7445,26 @@ final class TextureBinding
   final int imageIndex
   final int texCoordSet
 
+abstract base class TextureCodec
+  String toString()
+  abstract Future<Rgba8Image?> decode(TextureDecodeContext context)
+  abstract String get name
+  abstract bool sniff(Uint8List head)
+  const TextureCodec()
+
+final class TextureCodecs extends PluginRegistry
+  List<TextureCodec> get codecs
+  Registration add(TextureCodec codec)
+  TextureCodec? codecFor(Uint8List bytes)
+  TextureCodecs forPlugin(PluginScope scope)
+  TextureCodecs()
+
+final class TextureDecodeContext
+  const TextureDecodeContext({required this.bytes, this.maxDimension, this.report})
+  final Uint8List bytes
+  final int? maxDimension
+  final void Function(String message)? report
+
 final class TextureHint extends MaterialHintKind
   const TextureHint({this.extensions = imageSuffixes})
   final List<String> extensions
@@ -7016,6 +7533,16 @@ final class UsdzZip
   Uint8List build()
   UsdzZip()
   void store(String name, Uint8List data)
+
+final class VertexStageVariant
+  String toString()
+  final String name
+  final String suffix
+  static VertexStageVariant? byName(String name)
+  static const List<VertexStageVariant> values = <VertexStageVariant>[skinned, instanced, lightmapped]
+  static const VertexStageVariant instanced = VertexStageVariant._('instanced', 'Instanced')
+  static const VertexStageVariant lightmapped = VertexStageVariant._('lightmapped', 'Lightmapped')
+  static const VertexStageVariant skinned = VertexStageVariant._('skinned', 'Skinned')
 
 abstract final class VkFormat
   static const int astc4x4SfloatBlock = 1000066000
@@ -7230,6 +7757,10 @@ const MaterialInput materialLitInput = MaterialInput('lit', MaterialType.vec3, '
 
 const String materialNothingBehind = '1000000.0'
 
+const String materialOwnTexturePrefix = 'material_'
+
+const String materialParametersBlock = 'MaterialParams'
+
 const List<MaterialInput> materialSceneInputs = …
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
@@ -7256,7 +7787,11 @@ SplatCloud parseSplatPly(Uint8List bytes, {bool keepHigherBands = false, SplatCo
 
 SplatCloud parseSplatSpz(Uint8List bytes, {SplatAxes axes = SplatAxes.rightUpBack, bool keepHigherBands = true, SplatColorSpace colorSpace = SplatColorSpace.srgb})
 
-MaterialDocument readFmat(Uint8List bytes, {String name = ''})
+const FormatSpec pipelineFormat = FormatSpec(id: 'f3d.pipeline', version: pipelineVersion, suffixes: <String>['.pipeline.json'], fixture: 'test/fixtures/v<N>/standard.pipeline.json')
+
+const int pipelineVersion = 1
+
+MaterialDocument readFmat(Uint8List bytes, {String name = '', LightingModels? lightingModels})
 
 HdrImage readHdr(Uint8List bytes)
 
@@ -7298,9 +7833,9 @@ const int spzLatestVersion = 4
 
 double srgbToLinear(double c)
 
-SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {String? name, List<String>? warnings, TextureBinding? baseColorTexture, TextureBinding? normalTexture, TextureBinding? metallicRoughnessTexture, TextureBinding? occlusionTexture, TextureBinding? emissiveTexture, MaterialExtensions? extensions})
+SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {LightingModels? lightingModels, String? name, List<String>? warnings, TextureBinding? baseColorTexture, TextureBinding? normalTexture, TextureBinding? metallicRoughnessTexture, TextureBinding? occlusionTexture, TextureBinding? emissiveTexture, MaterialExtensions? extensions})
 
-Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface)
+Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface, {LightingModels? lightingModels})
 
 (Float64List, Float64List) symmetricEigen3(Float64List m)
 
@@ -7320,7 +7855,7 @@ Future<List<String>> validateGltfExport(Uint8List bytes, {AssetUriResolver? reso
 
 MeshData withTextureTransform(MeshData mesh, TextureTransform transform)
 
-String writeFmat(MaterialDocument document)
+String writeFmat(MaterialDocument document, {LightingModels? lightingModels})
 
 Uint8List writeKtx2({required int vkFormat, required int pixelWidth, required int pixelHeight, required List<Uint8List> levels, Map<String, String> keyValues = const <String, String>{}})
 
