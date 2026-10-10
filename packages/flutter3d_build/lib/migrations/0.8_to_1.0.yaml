@@ -61,6 +61,16 @@
 # `every break since the last release has its migration` finds with no entry
 # is drafted by `dart run api_snapshot:migration_seed --append` in tool/api.
 # Later work appends entries at the end; nothing here is renumbered.
+#
+# The tables are a chain, each starting where the one before ends. Once the
+# release in `to:` is tagged, this table is closed: the structure rule `a
+# migration table is closed once its release is tagged` holds it to the
+# text at the tag. The next one is started then, by hand, as
+# `1.0.0-rc.1_to_rc.2.yaml`: this header with `from: 1.0.0-rc.1`, `to:
+# 1.0.0-rc.2`, its `packages:` constraint moved on, and `entries:` empty.
+# `migration_seed` writes into whichever table is open, `migrate` applies
+# every table after the release a project's `pubspec.lock` resolves, and
+# the generator folds them all into each package's one `fix_data.yaml`.
 
 format: 1
 from: 0.8.5

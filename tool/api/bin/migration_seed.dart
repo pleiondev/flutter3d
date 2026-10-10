@@ -1,5 +1,9 @@
-/// Lists every break since the last release that the migration table does
-/// not cover yet, and drafts an entry for each.
+/// Lists every break since the last release that the open migration table
+/// does not cover yet, and drafts an entry for each.
+///
+/// The open table is the newest one whose release is not tagged yet:
+/// `0.8_to_1.0.yaml` until `v1.0.0-rc.1`, then the table that starts at
+/// that release. When every table is closed it says how to start the next.
 ///
 /// ```
 /// cd tool/api
@@ -45,24 +49,69 @@ void main(List<String> args) {
     exitCode = 1;
     return;
   }
-  final tableFile = tables.last;
-  final table = readMigrationTable(tableFile.readAsStringSync());
-  final baseline = Directory('${root.path}/tool/api/baseline/v${table.from}');
-  if (!baseline.existsSync()) {
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync('git', args, workingDirectory: root.path);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  // The open table: the newest one whose release is not tagged. A tagged
+  // table is closed (the structure rule `a migration table is closed once
+  // its release is tagged`), and the breaks after it start a new one.
+  final tags = <String>{
+    for (final line in (git(<String>['tag', '--list', 'v*']) ?? '').split('\n'))
+      if (line.trim().isNotEmpty) line.trim(),
+  };
+  final texts = <String, String>{
+    for (final f in tables) f.uri.pathSegments.last: f.readAsStringSync(),
+  };
+  final open = openMigrationTable(texts, tags: tags);
+  if (open == null) {
+    final (_, last) = newestMigrationTable(texts)!;
     stderr.writeln(
-      'no baseline for ${table.from}: run '
-      '`dart run api_snapshot:api_baseline v${table.from} '
-      'baseline/v${table.from}` in tool/api',
+      'every migration table is closed: ${last.to} is tagged. Start the '
+      'next one as `packages/flutter3d_build/lib/migrations/'
+      '${last.to}_to_<next>.yaml`, with the header of the last table, '
+      '`from: ${last.to}`, `to: <next>` and an empty `entries:`, then run '
+      'this again',
     );
     exitCode = 1;
     return;
   }
-  final released = <String, String>{
-    for (final f in baseline.listSync().whereType<File>())
-      if (f.path.endsWith('.api'))
-        f.uri.pathSegments.last.replaceAll('.api', ''): f.readAsStringSync(),
-  };
+  final tableFile = tables.firstWhere(
+    (File f) => f.uri.pathSegments.last == open,
+  );
+  final table = readMigrationTable(texts[open]!);
+  // The release's API: a baseline written for it (a release from before
+  // the snapshots), or the snapshots at its tag.
+  final baseline = Directory('${root.path}/tool/api/baseline/v${table.from}');
   final packages = repositoryPackages(root);
+  final released = <String, String>{
+    if (baseline.existsSync())
+      for (final f in baseline.listSync().whereType<File>())
+        if (f.path.endsWith('.api'))
+          f.uri.pathSegments.last.replaceAll('.api', ''): f.readAsStringSync()
+        else
+          for (final MapEntry(key: name, value: dir) in packages.entries)
+            if (git(<String>[
+                  'show',
+                  'v${table.from}:${dir.path.substring(root.path.length + 1)}/api/$name.api',
+                ])
+                case final String text)
+              name: text,
+  };
+  if (released.isEmpty) {
+    stderr.writeln(
+      'no API for ${table.from}: neither a baseline (`dart run '
+      'api_snapshot:api_baseline v${table.from} baseline/v${table.from}` '
+      'in tool/api) nor snapshots at the tag v${table.from}',
+    );
+    exitCode = 1;
+    return;
+  }
   final current = <String, String>{
     for (final MapEntry(key: name, value: dir) in packages.entries)
       if (isPublished(dir) && File('${dir.path}/api/$name.api').existsSync())

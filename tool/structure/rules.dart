@@ -204,6 +204,10 @@ List<Rule> get allRules => <Rule>[
     run: _migrationNumbers,
   ),
   (
+    name: 'a migration table is closed once its release is tagged',
+    run: _closedMigrationTables,
+  ),
+  (
     name: 'a type somebody implements is a base class, not an interface',
     run: _noNewInterfaces,
   ),
@@ -4551,6 +4555,55 @@ List<Finding> _manualCeiling() {
       for (final (_, t) in tables) t,
     ]))
       Finding('$where ($id)', '`$id` $what'),
+  ];
+}
+
+/// A migration table whose release is tagged (`v<to>`) is the text the tag
+/// holds: its stamp now is its stamp at the tag. New breaks go into the
+/// table that starts at that release, which `migration_seed` writes into.
+///
+/// **What a release told its users stays told.** A project migrated by
+/// 1.0.0-rc.1's table never runs it again; an entry added to it afterwards
+/// reaches nobody, and the guide would show a step the release did not
+/// carry. Inert until the tag exists: before `v1.0.0-rc.1` nothing is
+/// closed.
+///
+/// Mutation: tag a commit `v<to>` of the open table locally, then append an
+/// entry to it, and this names the table and where the entry belongs.
+List<Finding> _closedMigrationTables() {
+  final tables = _migrationTables();
+  if (tables.isEmpty) return const <Finding>[];
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync(
+        'git',
+        args,
+        workingDirectory: repositoryRoot.path,
+      );
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  final tags = <String>{
+    for (final line in (git(<String>['tag', '--list', 'v*']) ?? '').split('\n'))
+      if (line.trim().isNotEmpty) line.trim(),
+  };
+  const where = 'packages/flutter3d_build/lib/migrations';
+  return <Finding>[
+    for (final (file, why) in closedTableProblems(
+      tables: <String, String>{
+        for (final (f, _) in tables)
+          f.uri.pathSegments.last: f.readAsStringSync(),
+      },
+      tags: tags,
+      atTag: (String tag, String file) => git(<String>[
+        'show',
+        '$tag:packages/flutter3d_build/lib/migrations/$file',
+      ]),
+    ))
+      Finding('$where/$file', why),
   ];
 }
 

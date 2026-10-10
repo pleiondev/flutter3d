@@ -853,6 +853,80 @@ String tableStamp(String text) {
   return '${half(hash >> 32)}${half(hash)}';
 }
 
+// ---------------------------------------------------------- closed tables
+
+/// [tables] (file name to text) in the order a project crosses them, by
+/// each one's `from`.
+List<(String, MigrationTable)> _chained(Map<String, String> tables) =>
+    <(String, MigrationTable)>[
+      for (final MapEntry(:key, :value) in tables.entries)
+        (key, readMigrationTable(value)),
+    ]..sort(
+      ((String, MigrationTable) a, (String, MigrationTable) b) =>
+          compareVersionTexts(a.$2.from, b.$2.from) ?? a.$1.compareTo(b.$1),
+    );
+
+/// The table new breaks go into: the newest of [tables] (file name to
+/// text) whose release, `v<to>`, is not among [tags]. Null when the newest
+/// is tagged, and the next table has not been started.
+String? openMigrationTable(
+  Map<String, String> tables, {
+  required Set<String> tags,
+}) => switch (newestMigrationTable(tables)) {
+  (final name, final newest) when !tags.contains('v${newest.to}') => name,
+  _ => null,
+};
+
+/// The last of [tables] (file name to text) in the chain, with its file
+/// name; null when there are none.
+(String, MigrationTable)? newestMigrationTable(Map<String, String> tables) =>
+    _chained(tables).lastOrNull;
+
+/// Each of [tables] (file name to text) whose release is tagged and whose
+/// text is not the one the tag holds, as `(file, why)`. [atTag] reads a
+/// table's file at a tag, null when the tag does not have it.
+///
+/// **A released table is closed.** A project on 1.0.0-rc.1 was migrated by
+/// the table that went out with it; an entry added to that table later
+/// never reaches the projects already across, and a changed one rewrites
+/// what they were told. Once `v<to>` exists, new breaks go into the table
+/// that starts at that release. Inert until the tag exists, so it can be
+/// written before the release that closes the first table.
+List<(String, String)> closedTableProblems({
+  required Map<String, String> tables,
+  required Set<String> tags,
+  required String? Function(String tag, String file) atTag,
+}) {
+  final chained = _chained(tables);
+  final problems = <(String, String)>[];
+  for (final (name, table) in chained) {
+    final tag = 'v${table.to}';
+    if (!tags.contains(tag)) continue;
+    final next = chained
+        .where(((String, MigrationTable) t) => t.$2.from == table.to)
+        .map(((String, MigrationTable) t) => '`${t.$1}`')
+        .firstOrNull;
+    final instead =
+        'new breaks go into ${next ?? 'a table that starts at ${table.to}, '
+                '`${table.to}_to_<next>.yaml`'}';
+    final released = atTag(tag, name);
+    if (released == null) {
+      problems.add((
+        name,
+        'is not at $tag, so the release went out without it: $instead',
+      ));
+    } else if (tableStamp(released) != tableStamp(tables[name]!)) {
+      problems.add((
+        name,
+        'was closed at $tag and has changed since: put it back as the tag '
+            'has it (`git show $tag:packages/flutter3d_build/lib/migrations/'
+            '$name`); $instead',
+      ));
+    }
+  }
+  return problems;
+}
+
 // ----------------------------------------------------------------- proofs
 
 /// The proof that the reader and the coverage check fire on what they must
@@ -1096,6 +1170,28 @@ entries:
       broken.add((
         'migration numbers',
         'found $found in "$text", where $problems are wrong',
+      ));
+    }
+  }
+
+  // A closed table: quiet before its tag and when unchanged since, named
+  // when it changed after it.
+  const tagged = 'from: 0.1.0\nto: 1.0.0\nentries:\n';
+  const appended = '$tagged  - id: late\n    kind: none\n';
+  for (final (tags, now, problems) in const <(Set<String>, String, int)>[
+    (<String>{'v0.1.0'}, appended, 0),
+    (<String>{'v1.0.0'}, tagged, 0),
+    (<String>{'v1.0.0'}, appended, 1),
+  ]) {
+    final found = closedTableProblems(
+      tables: <String, String>{'0.1_to_1.0.yaml': now},
+      tags: tags,
+      atTag: (String tag, String file) => tagged,
+    );
+    if (found.length != problems) {
+      broken.add((
+        'closed tables',
+        'found $found with tags $tags, where $problems are wrong',
       ));
     }
   }

@@ -245,7 +245,12 @@ Entries are appended to the end of the table and never renumbered. Once a
 release is tagged, the breaks after it go into a new table whose `from:` is
 that tag's version, such as `1.0.0-rc.1`. The old table stays, because a
 project can still be on that release, and the generator folds every table
-into the fix data. An entry's
+into the fix data. The old table is also closed: the rule `a migration
+table is closed once its release is tagged` holds it to its text at the
+tag. Start the next table by hand with the old one's header, `from:` the
+tagged version and `entries:` empty; `migration_seed` then writes there,
+and `migrate` applies every table after the release a project's
+`pubspec.lock` resolves. An entry's
 `id` is the anchor its diagnostic links to. A deprecation can have an entry
 too: it is not a break yet, but migrating it now spares a project the major.
 
