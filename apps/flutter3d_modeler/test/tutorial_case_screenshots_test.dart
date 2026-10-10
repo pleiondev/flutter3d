@@ -485,9 +485,12 @@ void main() {
       final int port = written['port']! as int;
       final String token = written['token']! as String;
 
-      // **A socket written by hand, and the answer never awaited.** The
-      // server on the other end is this very process: it was bound from
-      // inside the
+      // **A socket written by hand, and the answer never awaited.** Two
+      // things stand in the way of an ordinary `HttpClient` here. The binding
+      // installs an `HttpOverrides` that answers every request with 400 and
+      // touches no socket at all — right for a test that must not reach the
+      // network, wrong when the server on the other end is this very process.
+      // And the server *is* this process: it was bound from inside the
       // binding's own fake-clock zone, so its handler only advances when the
       // binding drains that zone's microtasks, which is exactly what does not
       // happen while a `runAsync` sits waiting for the reply. Awaiting the
