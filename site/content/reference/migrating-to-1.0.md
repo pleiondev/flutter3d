@@ -189,7 +189,7 @@ the game reads every version of them as before.
 | `f3d.inputTape` | `.tape.json` | `flutter3d_sim` | v1–v2 | kept below v2, at the lowest version that holds it |
 | `f3d.telemetry` | `.upload.json` | `flutter3d_sim` | v1 | nothing to lift |
 | `f3d.effect` | `.f3dfx` | `flutter3d_particles` | v1–v2 | lifted to v2 through its chain |
-| `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v2 | lifted to v2 through its chain |
+| `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v3 | lifted to v3 through its chain |
 | `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1 | nothing to lift |
 | `f3d.voxelWorld` | `.voxels.json` | `flutter3d_voxel` | v1 | nothing to lift |
 | `f3d.assets` | `flutter3d_assets.yaml` | `flutter3d_build` | v1 | nothing to lift |
@@ -220,7 +220,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1566 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 289 nothing to do, 456 `dart fix`, 380 gone internal.*
+*Generated from `flutter3d_build/lib/migrations/` — 1567 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 289 nothing to do, 457 `dart fix`, 380 gone internal.*
 
 ### `flame_flutter3d`
 
@@ -479,6 +479,7 @@ carried out:
 - <a id="4a-build-recognisedExtensions"></a>**`recognisedExtensions`** (`dart fix`). `recognisedExtensions` is `recognizedExtensions`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="build-smokePuff"></a>**`smokePuff`** (`dart fix`). `smokePuff` is imported from `package:flutter3d_particles/flutter3d_particles.dart`.
 - <a id="4a-build-splitLargeMeshes"></a>**`splitLargeMeshes`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
+- <a id="build-usage"></a>**`usage`** (`dart fix`). `usage` is `modelConvertUsage`. `usage` is the text `runConvert`, the one-model converter, prints for arguments it cannot read; `dart run flutter3d_build:convert` is now `flutter3d convert`, whose usage is `convertUsage` in `package:flutter3d_build/cli.dart`.
 
 ### `flutter3d_conformance`
 
