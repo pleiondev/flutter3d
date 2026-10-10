@@ -205,26 +205,30 @@ final class FrameGraphBuilder {
   /// The name of the node declaring, for its messages.
   final String node;
 
-  final List<ResourceId> _reads = <ResourceId>[];
-  final List<ResourceId> _optionalReads = <ResourceId>[];
-  final List<ResourceId> _writes = <ResourceId>[];
-  final List<ResourceId> _keeps = <ResourceId>[];
-  final List<ResourceDesc> _created = <ResourceDesc>[];
+  // Made at the first declaration of each kind, so a node that declares
+  // two things costs two lists, not six: this runs for every node of every
+  // frame.
+  List<ResourceId>? _reads;
+  List<ResourceId>? _optionalReads;
+  List<ResourceId>? _writes;
+  List<ResourceId>? _keeps;
+  List<ResourceDesc>? _created;
   PlacementRequest? _placement;
 
   /// The node needs [id] produced before it runs; see
   /// [FrameGraphNode.reads].
-  void read(ResourceId id) => _reads.add(id);
+  void read(ResourceId id) => (_reads ??= <ResourceId>[]).add(id);
 
   /// The node samples [id] if the frame produces it; see
   /// [FrameGraphNode.optionalReads].
-  void readIfProduced(ResourceId id) => _optionalReads.add(id);
+  void readIfProduced(ResourceId id) =>
+      (_optionalReads ??= <ResourceId>[]).add(id);
 
   /// The node produces [id] fresh this frame; see [FrameGraphNode.writes].
-  void write(ResourceId id) => _writes.add(id);
+  void write(ResourceId id) => (_writes ??= <ResourceId>[]).add(id);
 
   /// The node maintains [id] across frames; see [FrameGraphNode.keeps].
-  void keep(ResourceId id) => _keeps.add(id);
+  void keep(ResourceId id) => (_keeps ??= <ResourceId>[]).add(id);
 
   /// The node makes [desc]'s resource and writes it, and hands back its id.
   ///
@@ -239,8 +243,8 @@ final class FrameGraphBuilder {
   /// [desc]'s id is namespaced like every name a plugin brings:
   /// `<pluginId>.<name>`.
   ResourceId create(ResourceDesc desc) {
-    _created.add(desc);
-    _writes.add(desc.id);
+    (_created ??= <ResourceDesc>[]).add(desc);
+    write(desc.id);
     return desc.id;
   }
 
@@ -250,12 +254,15 @@ final class FrameGraphBuilder {
   /// place does not run, and is reported as [PassSkip.unsupported].
   void place(PlacementRequest request) => _placement = request;
 
+  /// What was declared, as the compile reads it. The lists are the
+  /// builder's own, which nothing else holds: copying them would be a
+  /// second allocation per list per node per frame.
   NodeDeclarations _declarations() => NodeDeclarations._(
-    reads: List<ResourceId>.unmodifiable(_reads),
-    optionalReads: List<ResourceId>.unmodifiable(_optionalReads),
-    writes: List<ResourceId>.unmodifiable(_writes),
-    keeps: List<ResourceId>.unmodifiable(_keeps),
-    created: List<ResourceDesc>.unmodifiable(_created),
+    reads: _reads ?? const <ResourceId>[],
+    optionalReads: _optionalReads ?? const <ResourceId>[],
+    writes: _writes ?? const <ResourceId>[],
+    keeps: _keeps ?? const <ResourceId>[],
+    created: _created ?? const <ResourceDesc>[],
     placement: _placement,
   );
 }
