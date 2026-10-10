@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `SculptMeshBvh.raycast` answers a `TriangleHit`**, the core's
+  class for what `TriangleBvh.raycast` answers, where it answered a record;
+  its getters are the record's fields, so a read of one is unchanged.
 - **Breaking: `LinearColor` is not re-exported.** It is
   `flutter3d_foundation`'s.
 

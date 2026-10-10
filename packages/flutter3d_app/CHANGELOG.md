@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `BuiltEnvironment` is the core's `EnvironmentCube`**, a class
+  with the record's `texture` and `levels` as getters, which is what
+  `EnvironmentMap` builds; a builder hands back
+  `EnvironmentCube(texture, levels)` where it handed back a record.
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 
