@@ -510,6 +510,12 @@ final class _WgslWriter {
         final name = slot.bindingName;
         return 'textureSample(${name}_tex, ${name}_smp, '
             '${this.expression(uv)})';
+      default:
+        throw ArgumentError.value(
+          expression,
+          'expression',
+          'not an expression this build of the material language knows',
+        );
     }
   }
 }

@@ -8,6 +8,11 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: `MaterialExpression` is an `abstract base class`, not
+  `sealed`.** A `switch` over an expression needs a wildcard case now, which
+  `flutter3d migrate` adds with a TODO, and a tool may extend it with its
+  own node. Folding, evaluating and emitting refuse a kind this build does
+  not know with an `ArgumentError` naming it.
 - **The browser refuses a file read with `UnsupportedCapability`.** A read
   by path in a web build throws the foundation's refusal for
   `PlatformFeature.fileSystem`, the capability a platform lacks the way a

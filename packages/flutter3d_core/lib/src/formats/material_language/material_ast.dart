@@ -628,7 +628,7 @@ final class MaterialBuiltin {
 }
 
 /// An expression, typed by the parser rather than by whoever reads it later.
-sealed class MaterialExpression {
+abstract base class MaterialExpression {
   const MaterialExpression(this.type);
 
   final MaterialType type;
@@ -1019,6 +1019,12 @@ MaterialExpression _fold(MaterialExpression expression, MaterialVariant v) {
       return MaterialCall(builtin, folded, type);
     case MaterialSample(:final slot, :final uv):
       return MaterialSample(slot, _fold(uv, v));
+    default:
+      throw ArgumentError.value(
+        expression,
+        'expression',
+        'not an expression this build of the material language knows',
+      );
   }
 }
 
