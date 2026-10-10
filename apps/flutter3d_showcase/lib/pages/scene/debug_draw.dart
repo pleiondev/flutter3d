@@ -65,13 +65,13 @@ final class DebugDrawDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.38, 0.46, 0.62)
-      ..ambientIntensity = 810.68170092
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity
       ..add(hip)
       ..add(body)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 81068.170092,
+          intensity: 14.0 * LightNode.defaultIntensity,
           range: 8.0,
           name: 'debugged light',
         )..setPosition(-2.2, 3.2, 2.0),

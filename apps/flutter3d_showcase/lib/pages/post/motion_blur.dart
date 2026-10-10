@@ -81,7 +81,7 @@ final class MotionBlurDemo extends ShowcaseDemo {
       name: 'backdrop',
     )..setPosition(0.0, 0.0, -1.0);
     final LightNode sun =
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..castsShadow = false
           ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized());
     return Scene()

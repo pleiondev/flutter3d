@@ -93,7 +93,7 @@ Future<_Shot> _draw({
       if (poison) _poison(texture);
     };
 
-  final scene = Scene()..ambientIntensity = 868.5875367;
+  final scene = Scene()..ambientIntensity = 0.15 * LightNode.defaultIntensity;
   final wall = RenderMaterial(
     name: 'wall',
     baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
@@ -120,7 +120,7 @@ Future<_Shot> _draw({
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 4632.4668624,
+      intensity: 0.8 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
   );

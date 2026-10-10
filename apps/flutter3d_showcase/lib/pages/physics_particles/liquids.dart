@@ -285,9 +285,9 @@ final class LiquidsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.6, 0.7)
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(

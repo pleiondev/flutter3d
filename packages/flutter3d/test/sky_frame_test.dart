@@ -300,7 +300,7 @@ void main() {
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 6369.6419358,
+      intensity: 1.1 * LightNode.defaultIntensity,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),

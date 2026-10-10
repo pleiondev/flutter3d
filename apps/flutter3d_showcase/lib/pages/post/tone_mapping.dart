@@ -48,7 +48,7 @@ final class ToneMappingDemo extends ShowcaseDemo {
             name: 'lamp $i',
             baseColor: LinearColor.fromSrgb(0.05, 0.05, 0.05, 1.0),
             emissive: LinearColor(colors[i][0], colors[i][1], colors[i][2]),
-            emissiveStrength: 11059.2,
+            emissiveStrength: 6.0 * RenderMaterial.defaultEmissiveStrength,
           ),
           name: 'lamp $i',
         )..setPosition((i - 1) * 1.1 + 0.5, 2.3, 0.8),

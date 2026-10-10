@@ -83,7 +83,7 @@ final class ManyLightsDemo extends ShowcaseDemo {
         LightNode(
           name: 'torch $i',
           type: LightType.point,
-          intensity: 14476.458944999998,
+          intensity: 2.5 * LightNode.defaultIntensity,
           range: _torchRange,
         )..setPosition(math.cos(angle) * 6.0, 0.6, math.sin(angle) * 6.0),
       );

@@ -43,10 +43,10 @@ final class PlanarReflectionsDemo extends ShowcaseDemo {
     // #endregion floor
 
     final Scene scene = Scene()
-      ..ambientIntensity = 1737.1750734
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(floor)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.5, -0.7, -0.4)),
       );
 

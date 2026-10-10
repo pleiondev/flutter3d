@@ -63,7 +63,7 @@ _Staged _stage(SceneNode Function(CpuDevice device, Scene scene) fill) {
     ..add(
       // No shadow: a shadow has no motion of its own to blur it by, so it
       // would be an error the gather cannot answer for.
-      LightNode(intensity: 17371.750734, castsShadow: false)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity, castsShadow: false)
         ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized()),
     )
     ..add(camera);

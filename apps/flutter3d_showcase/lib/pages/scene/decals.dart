@@ -46,7 +46,7 @@ final class DecalsDemo extends ShowcaseDemo {
     // #region room
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.6, 0.7)
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(
         _slab(
           context,
@@ -79,7 +79,7 @@ final class DecalsDemo extends ShowcaseDemo {
       ..add(
         LightNode(
           name: 'sun',
-          intensity: 11581.167156,
+          intensity: 2.0 * LightNode.defaultIntensity,
           castsShadow: true,
         )..setLocalForward(Vector3(-0.4, -0.8, -0.35)),
       );

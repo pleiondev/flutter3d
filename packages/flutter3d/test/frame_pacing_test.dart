@@ -35,7 +35,7 @@ _stage() {
         RenderMaterial(lighting: LightingModel.lambert),
       )..setPosition(0.0, 0.0, -4.0),
     )
-    ..add(LightNode(intensity: 11581.167156));
+    ..add(LightNode(intensity: 2.0 * LightNode.defaultIntensity));
   final camera = scene.add(CameraNode());
   return (renderer: renderer, device: device, scene: scene, camera: camera);
 }

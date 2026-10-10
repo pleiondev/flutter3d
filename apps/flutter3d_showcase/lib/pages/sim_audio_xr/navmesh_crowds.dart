@@ -188,9 +188,9 @@ final class NavmeshCrowdsDemo extends ShowcaseDemo {
     )..setPosition(b.center.x, b.center.y, b.center.z);
 
     _scene = Scene()
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.8, -0.4)),
       );
     final List<Brush> brushes = _brushes(broken: false);

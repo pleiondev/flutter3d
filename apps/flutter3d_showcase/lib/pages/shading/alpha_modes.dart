@@ -106,7 +106,7 @@ final class AlphaModesDemo extends ShowcaseDemo {
     return scene
       ..add(wall)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.2, -0.3, -1.0)),
       );
   }

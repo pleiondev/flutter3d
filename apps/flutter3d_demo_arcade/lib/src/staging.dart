@@ -28,7 +28,7 @@ extension ArcadeGameStaging on ArcadeGame {
     // a dark floor near zero. At 2.0 the shadowed floor is about 40% of the
     // lit one on screen.
     scene
-      ..ambientIntensity = 11581.167156
+      ..ambientIntensity = 2.0 * LightNode.defaultIntensity
       ..add(_groundMesh(device))
       ..add(
         _prop(
@@ -67,7 +67,7 @@ extension ArcadeGameStaging on ArcadeGame {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 18529.8674496)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.2, -1.0, -0.12)),
       );
 

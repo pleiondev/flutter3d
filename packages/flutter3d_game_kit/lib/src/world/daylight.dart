@@ -51,7 +51,7 @@ final class Daylight {
   /// unit it was before 1.0 (times `LightNode.defaultIntensity`). A real noon is
   /// nearer 100 000; this is the sun that reads as daylight under the
   /// reference camera without metering for it.
-  static const double defaultSunIntensity = 15055.517302799999;
+  static const double defaultSunIntensity = 2.6 * LightNode.defaultIntensity;
 
   /// The moon's light as a share of the sun's; see the class comment.
   static const double defaultMoonShare = 0.12;

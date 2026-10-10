@@ -51,7 +51,7 @@ Float32List _render({
   final scene = Scene()
     ..add(camera)
     ..add(
-      LightNode(intensity: 17371.750734)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity)
         ..setRotationYawPitchRoll(0.3, -0.4, 0.0),
     )
     ..add(

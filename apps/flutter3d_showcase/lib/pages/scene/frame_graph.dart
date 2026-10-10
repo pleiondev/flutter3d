@@ -27,13 +27,13 @@ final class FrameGraphDemo extends ShowcaseDemo {
       name: 'bright metal',
       baseColor: LinearColor.fromSrgb(0.7, 0.2, 0.08, 1.0),
       emissive: LinearColor(1.0, 0.16, 0.03),
-      emissiveStrength: 4608.0,
+      emissiveStrength: 2.5 * RenderMaterial.defaultEmissiveStrength,
       metallic: 0.62,
       roughness: 0.22,
     );
     _scene = Scene()
       ..ambientColor = LinearColor(0.38, 0.46, 0.64)
-      ..ambientIntensity = 694.87002936
+      ..ambientIntensity = 0.12 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -45,7 +45,7 @@ final class FrameGraphDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.35)),
       );
     // #endregion scene

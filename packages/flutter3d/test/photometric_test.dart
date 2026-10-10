@@ -175,10 +175,11 @@ void main() {
         // two lamps below are the same lamp said two ways.
         final tuned = LightNode(
           type: LightType.point,
-          intensity: 5790.583578,
+          intensity: 1.0 * LightNode.defaultIntensity,
         )..setPosition(0.0, 0.0, 5.1);
-        final rated = LightNode.lumens(23162.334312 * math.pi)
-          ..setPosition(0.0, 0.0, 5.1);
+        final rated = LightNode.lumens(
+          4.0 * LightNode.defaultIntensity * math.pi,
+        )..setPosition(0.0, 0.0, 5.1);
 
         expect(_middle(await _draw(rated)), _middle(await _draw(tuned)));
       },
@@ -203,7 +204,7 @@ void main() {
       // 200 to 1600 lm is candela since 1.0, and five metres from a wall at
       // an exposure of one it lies below the first step of an 8-bit pixel,
       // so the three walls were the ambient alone and the same.
-      const tuned = 23162.334312 * math.pi;
+      const tuned = 4.0 * LightNode.defaultIntensity * math.pi;
       expect(await litBy(tuned * 0.4), greaterThan(await litBy(tuned * 0.2)));
       expect(await litBy(tuned * 0.2), greaterThan(await litBy(tuned * 0.05)));
     });

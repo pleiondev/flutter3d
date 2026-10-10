@@ -115,12 +115,12 @@ void main() {
       for (var i = 0; i < 30; i++)
         LightNode(
           type: LightType.point,
-          intensity: 463.24668624,
+          intensity: 0.08 * LightNode.defaultIntensity,
           range: 20.0,
         )..setPosition((i - 15) * 0.1, 1.5, 0.0),
       LightNode(
         type: LightType.point,
-        intensity: 868587.5366999999,
+        intensity: 150.0 * LightNode.defaultIntensity,
         range: 40.0,
       )..setPosition(3.0, 1.5, 0.0),
     ];

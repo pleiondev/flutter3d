@@ -168,7 +168,7 @@ final class AnimationGraphDemo extends ShowcaseDemo {
     _thigh = _node('UpperLeg.L');
 
     final scene = Scene()
-      ..ambientIntensity = 1737.1750734
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -183,7 +183,7 @@ final class AnimationGraphDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.1, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     _model = _asset.instantiate(scene, name: 'robot');

@@ -65,7 +65,7 @@ final class PhotometricUnitsDemo extends ShowcaseDemo {
   // then left alone. About EV100 12, f/4 at roughly a two-hundred-and-fiftieth;
   // the sliders then brighten and darken the picture, as the weather would.
   static final PhysicalCamera _camera = PhysicalCamera.metered(
-    10000.0 + 347.43501468,
+    10000.0 + 0.06 * LightNode.defaultIntensity,
   );
 
   @override

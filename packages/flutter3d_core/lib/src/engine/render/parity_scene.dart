@@ -267,7 +267,7 @@ enum ParityScene {
       // Above and to the right, so the lit side of both spheres is up.
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 20267.042523
+          ..intensity = 3.5 * LightNode.defaultIntensity
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -278,7 +278,7 @@ enum ParityScene {
       // and a comparison that cannot see it cannot disagree about it.
       scene.root.add(
         LightNode(name: 'sun', type: LightType.directional)
-          ..intensity = 23162.334312
+          ..intensity = 4.0 * LightNode.defaultIntensity
           ..castsShadow = true
           ..setPosition(2.5, 3.0, 1.5)
           ..lookAt(Vector3.zero()),
@@ -289,7 +289,7 @@ enum ParityScene {
     case ParityScene.pointShadowStaticMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
-          ..intensity = 69487.002936
+          ..intensity = 12.0 * LightNode.defaultIntensity
           ..range = 12.0
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
@@ -299,7 +299,7 @@ enum ParityScene {
     case ParityScene.look:
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 20267.042523
+          ..intensity = 3.5 * LightNode.defaultIntensity
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -503,5 +503,5 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
 const SkySettings _paritySky = SkySettings(
   enabled: true,
   glowStrength: 0.35,
-  sunIntensity: 11581.167156,
+  sunIntensity: 2.0 * LightNode.defaultIntensity,
 );

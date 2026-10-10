@@ -63,7 +63,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       )
       ..add(wallNode)
       ..add(
-        LightNode(name: 'sun', intensity: 23162.334312)
+        LightNode(name: 'sun', intensity: 4.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.6, -0.7, 0.15)),
       );
 

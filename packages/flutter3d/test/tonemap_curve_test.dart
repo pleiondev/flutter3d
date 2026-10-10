@@ -204,7 +204,7 @@ void main() {
           ),
         )
         ..add(
-          LightNode(intensity: 138974.005872)
+          LightNode(intensity: 24.0 * LightNode.defaultIntensity)
             ..setPosition(2.0, 3.0, 2.0)
             ..lookAt(Vector3.zero()),
         );

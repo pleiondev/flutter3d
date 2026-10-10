@@ -57,11 +57,11 @@ final class SheenDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     return Scene()
-      ..ambientIntensity = 868.5875367
+      ..ambientIntensity = 0.15 * LightNode.defaultIntensity
       ..add(MeshNode(ball, bare, name: 'bare')..setPosition(-0.6, 0.0, 0.0))
       ..add(MeshNode(ball, _cloth, name: 'sheen')..setPosition(0.6, 0.0, 0.0))
       ..add(
-        LightNode(name: 'key', intensity: 17371.750734)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
   }

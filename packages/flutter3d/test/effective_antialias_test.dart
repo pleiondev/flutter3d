@@ -28,7 +28,7 @@ FrameResult _frame(
   final renderer = Renderer.create(device: device);
   final scene = Scene()
     ..add(
-      LightNode(intensity: 23162.334312)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )

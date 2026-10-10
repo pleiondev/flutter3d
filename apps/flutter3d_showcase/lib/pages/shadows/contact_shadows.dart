@@ -73,7 +73,7 @@ final class ContactShadowsDemo extends ShowcaseDemo {
     // #endregion props
 
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 17371.750734)
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
       ..setLocalForward(Vector3(-0.6, -0.55, -0.4));
     // #endregion sun
     return scene..add(_sun);

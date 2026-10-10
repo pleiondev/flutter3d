@@ -47,7 +47,7 @@ Future<({List<int> pixels, FrameResult result})> _frame(
       ),
     )
     ..add(
-      LightNode(intensity: 28952.917889999997)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -319,7 +319,7 @@ void main() {
         final renderer = Renderer.create(device: FakeBackend());
         final scene = Scene()
           ..add(
-            LightNode(intensity: 23162.334312)
+            LightNode(intensity: 4.0 * LightNode.defaultIntensity)
               ..setPosition(2.0, 3.0, 4.0)
               ..lookAt(Vector3.zero()),
           )

@@ -49,7 +49,7 @@ final class BlendedEngineLoopDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

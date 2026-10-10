@@ -94,7 +94,7 @@ const RenderSettings _everything = RenderSettings(
   );
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 69487.002936
+      ..intensity = 12.0 * LightNode.defaultIntensity
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),

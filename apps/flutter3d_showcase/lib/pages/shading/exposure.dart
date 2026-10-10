@@ -36,7 +36,7 @@ final class ExposureDemo extends ShowcaseDemo {
     return Scene()
       ..add(box)
       ..add(
-        LightNode(name: 'sun', intensity: 8685.875367)
+        LightNode(name: 'sun', intensity: 1.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
     // #endregion scene

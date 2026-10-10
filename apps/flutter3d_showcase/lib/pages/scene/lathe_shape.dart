@@ -43,7 +43,7 @@ final class LatheShapeDemo extends ShowcaseDemo {
     ];
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.48, 0.56, 0.72)
-      ..ambientIntensity = 810.68170092;
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity;
     for (var i = 0; i < variants.length; i++) {
       final (String name, double sweep, int segments) = variants[i];
       final MeshData data = LatheShape(
@@ -76,13 +76,13 @@ final class LatheShapeDemo extends ShowcaseDemo {
     // #region light
     scene
       ..add(
-        LightNode(name: 'key', intensity: 18529.8674496)
+        LightNode(name: 'key', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.34)),
       )
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 46324.668624,
+          intensity: 8.0 * LightNode.defaultIntensity,
           range: 10.0,
           name: 'rim',
         )..setPosition(2.5, 3.8, -2.5),

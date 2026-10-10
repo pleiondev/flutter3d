@@ -74,9 +74,9 @@ final class VoxelWorldDemo extends ShowcaseDemo {
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.62, 0.75)
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 15055.517302799999)
+        LightNode(name: 'sun', intensity: 2.6 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.25)),
       );
     for (final ChunkKey chunk in _voxels.chunks) {

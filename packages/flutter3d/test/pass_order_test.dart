@@ -35,7 +35,7 @@ FrameResult _frame({RenderSettings settings = _everything}) {
   final renderer = Renderer.create(device: FakeBackend());
   final scene = Scene()
     ..add(
-      LightNode(intensity: 23162.334312, castsShadow: true)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )

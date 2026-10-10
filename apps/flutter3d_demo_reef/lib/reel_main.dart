@@ -72,10 +72,10 @@ Future<(int, int)> _wreck(
         ..optics = LiquidOptics.pureWater;
   final camera = CameraNode(name: 'reel');
   final scene = Scene()
-    ..ambientIntensity = 2895.291789
+    ..ambientIntensity = 0.5 * LightNode.defaultIntensity
     ..ambientColor = LinearColor(0.75, 0.85, 1.0)
     ..add(
-      LightNode(name: 'sun', intensity: 11581.167156)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(sunAlong),
     )
     ..add(camera);

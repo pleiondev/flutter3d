@@ -52,7 +52,7 @@ _stage({int probes = 0}) {
     );
   }
   scene.add(
-    LightNode(intensity: 11581.167156)
+    LightNode(intensity: 2.0 * LightNode.defaultIntensity)
       ..setRotationYawPitchRoll(0.3, -0.6, 0.0),
   );
   // One per room of a level, which is how many a first frame used to leave

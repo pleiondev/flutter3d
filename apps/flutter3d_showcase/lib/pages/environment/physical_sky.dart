@@ -77,7 +77,7 @@ final class PhysicalSkyDemo extends ShowcaseDemo {
       );
     }
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 17371.750734);
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity);
     scene.add(_sun);
     // #endregion sun
     return scene;

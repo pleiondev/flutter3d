@@ -49,7 +49,7 @@ final class LightChannelsDemo extends ShowcaseDemo {
         LightNode(
             name: 'red',
             type: LightType.point,
-            intensity: 34743.501468,
+            intensity: 6.0 * LightNode.defaultIntensity,
           )
           ..color = LinearColor(1.0, 0.25, 0.2)
           ..channels = LightChannels.only(0)
@@ -58,7 +58,7 @@ final class LightChannelsDemo extends ShowcaseDemo {
 
     final LightNode fill = LightNode(
       name: 'fill',
-      intensity: 6948.7002936,
+      intensity: 1.2 * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.3, -0.6, -0.6));
 
     return Scene()

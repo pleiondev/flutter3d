@@ -63,7 +63,7 @@ final class FlameOverviewDemo extends ShowcaseDemo {
     _scene = Scene()
       ..add(_cube)
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

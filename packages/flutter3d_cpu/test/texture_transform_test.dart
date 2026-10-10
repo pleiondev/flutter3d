@@ -79,10 +79,10 @@ Float32List _render(
   final scene = Scene()
     ..add(plane)
     ..add(camera)
-    ..ambientIntensity = 1447.6458945;
+    ..ambientIntensity = 0.25 * LightNode.defaultIntensity;
   if (lit) {
     scene.add(
-      LightNode(intensity: 17371.750734)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity)
         ..setRotationYawPitchRoll(0.4, -1.0, 0.0),
     );
   }

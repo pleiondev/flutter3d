@@ -72,7 +72,7 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
   final radius = math.max(((bounds.max - bounds.min)..scale(0.5)).length, 1e-3);
 
   scene.add(
-    LightNode(intensity: 17371.750734)
+    LightNode(intensity: 3.0 * LightNode.defaultIntensity)
       ..setPosition(
         center.x - radius * 1.4,
         center.y + radius * 2.0,

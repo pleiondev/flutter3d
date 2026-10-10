@@ -103,13 +103,13 @@ final class TerrainTilesDemo extends ShowcaseDemo {
     );
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(_eye);
     for (final MeshNode node in _nodes) {
       scene.add(node);
     }
     return scene..add(
-      LightNode(name: 'sun', intensity: 15055.517302799999)
+      LightNode(name: 'sun', intensity: 2.6 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
     );
   }

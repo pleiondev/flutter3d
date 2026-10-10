@@ -95,7 +95,7 @@ final class StaticShadowCacheDemo extends ShowcaseDemo {
       LightNode(
         name: 'lamp',
         type: LightType.point,
-        intensity: 289529.1789,
+        intensity: 50.0 * LightNode.defaultIntensity,
         range: 14.0,
         castsShadow: true,
       )..setPosition(0.0, 3.6, 0.0),

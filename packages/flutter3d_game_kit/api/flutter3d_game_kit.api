@@ -36,7 +36,7 @@ final class Daylight
   static const PhysicalSky earth = PhysicalSky()
   static const double defaultMoonShare = 0.12
   static const double defaultSecondsPerHour = 50.0
-  static const double defaultSunIntensity = 2.6 * Photometric.legacyUnit
+  static const double defaultSunIntensity = 2.6 * LightNode.defaultIntensity
   static const double morning = 9.0
   void advance(double dt)
   void light({required LightNode sun, required LightNode moon})
@@ -472,7 +472,7 @@ final class Daylight
   static const PhysicalSky earth = PhysicalSky()
   static const double defaultMoonShare = 0.12
   static const double defaultSecondsPerHour = 50.0
-  static const double defaultSunIntensity = 2.6 * Photometric.legacyUnit
+  static const double defaultSunIntensity = 2.6 * LightNode.defaultIntensity
   static const double morning = 9.0
   void advance(double dt)
   void light({required LightNode sun, required LightNode moon})

@@ -49,7 +49,7 @@ const int _height = 72;
 /// bright whatever the lights do, or a hit and a miss differ by a few levels of
 /// grey and no threshold tells them apart.
 ({Scene scene, CameraNode camera}) _mirrorRoom() {
-  final scene = Scene()..ambientIntensity = 868.5875367;
+  final scene = Scene()..ambientIntensity = 0.15 * LightNode.defaultIntensity;
   final device = CpuDevice(
     width: 4,
     height: 4,

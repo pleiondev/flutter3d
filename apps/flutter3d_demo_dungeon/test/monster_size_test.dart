@@ -64,7 +64,7 @@ Future<({double tall, double wide})> _drawn(String path) async {
   scene.add(
     LightNode(
       color: LinearColor(1.0, 1.0, 1.0),
-      intensity: 23162.334312,
+      intensity: 4.0 * LightNode.defaultIntensity,
     )..lookAt(Vector3(-0.3, -0.3, -1.0)),
   );
   final camera = CameraNode(

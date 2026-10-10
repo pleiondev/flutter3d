@@ -170,7 +170,8 @@ final class FixtureVisuals {
       emissive: LinearColor(color.x, color.y, color.z),
       // The level's glow is in the engine's old unit; nits here.
       emissiveStrength:
-          (fixture.entity.number('glow') ?? 3.0) * RenderMaterial.defaultEmissiveStrength,
+          (fixture.entity.number('glow') ?? 3.0) *
+          RenderMaterial.defaultEmissiveStrength,
     );
     _glowing[mechanism] = glow;
     _baseGlow[mechanism] = glow.emissiveStrength;
@@ -360,7 +361,8 @@ final class FixtureVisuals {
         final glow = _glowing[mechanism];
         if (glow != null) {
           glow.emissiveStrength =
-              (_baseGlow[mechanism] ?? 5529.6) *
+              (_baseGlow[mechanism] ??
+                  3.0 * RenderMaterial.defaultEmissiveStrength) *
               brightness;
         }
 

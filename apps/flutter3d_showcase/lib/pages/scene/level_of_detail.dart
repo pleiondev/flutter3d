@@ -72,9 +72,9 @@ final class LevelOfDetailDemo extends ShowcaseDemo {
     // #region instantiate
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.5, 0.68)
-      ..ambientIntensity = 810.68170092
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 18529.8674496)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.46, -0.82, -0.34)),
       );
     asset.instantiate(scene);

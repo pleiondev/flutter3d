@@ -60,7 +60,7 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
     scene.add(
       LightNode(
         name: 'sun',
-        intensity: 17371.750734,
+        intensity: 3.0 * LightNode.defaultIntensity,
         castsShadow: true,
       )..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
     );

@@ -55,7 +55,7 @@ Future<List<int>> _quadWithTangent(Vector4 tangent) async {
       ),
     )
     ..add(
-      LightNode(intensity: 23162.334312)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity)
         ..setPosition(5.0, 0.0, 0.9)
         ..lookAt(Vector3.zero()),
     )

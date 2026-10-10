@@ -57,9 +57,9 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
     // #endregion room
 
     // #region light
-    scene.ambientIntensity = 1737.1750734;
+    scene.ambientIntensity = 0.3 * LightNode.defaultIntensity;
     final LightNode sun =
-        LightNode(name: 'sun', intensity: 8685.875367)
+        LightNode(name: 'sun', intensity: 1.5 * LightNode.defaultIntensity)
           ..castsShadow = false
           ..setRotationYawPitchRoll(0.0, -0.6, 0.0);
     // #endregion light

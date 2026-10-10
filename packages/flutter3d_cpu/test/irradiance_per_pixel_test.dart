@@ -71,7 +71,7 @@ Float32List _frame({required bool withField, double wall = 100.0}) {
     ..setPosition(0.0, 3.0, 0.01)
     ..lookAt(Vector3.zero());
   final scene = Scene()
-    ..ambientIntensity = 5790.583578
+    ..ambientIntensity = 1.0 * LightNode.defaultIntensity
     ..add(floor)
     ..add(camera);
   if (withField) scene.irradianceField = _field(wall: wall);

@@ -155,14 +155,14 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 17371.750734, castsShadow: true)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(2.0, 4.0, 1.0)
         ..lookAt(Vector3.zero()),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 57905.835779999994,
+        intensity: 10.0 * LightNode.defaultIntensity,
         range: 8.0,
         castsShadow: true,
       )..setPosition(-1.5, 1.5, 1.0),

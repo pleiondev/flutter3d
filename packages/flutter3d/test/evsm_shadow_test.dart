@@ -55,8 +55,10 @@ Scene _floorAndBox(GraphicsDevice device, {double gap = 0.6}) {
     )..setPosition(0.0, gap, 0.0),
   );
 
-  final sun = LightNode(name: 'sun', intensity: 17371.750734)
-    ..castsShadow = true;
+  final sun = LightNode(
+    name: 'sun',
+    intensity: 3.0 * LightNode.defaultIntensity,
+  )..castsShadow = true;
   sun.lookAt(Vector3(-0.85, -1.0, -0.2));
   scene.add(sun);
   return scene;

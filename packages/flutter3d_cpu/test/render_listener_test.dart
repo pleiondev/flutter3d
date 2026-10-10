@@ -37,7 +37,7 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 11581.167156)
+      LightNode(intensity: 2.0 * LightNode.defaultIntensity)
         ..setPosition(1.0, 2.0, 2.0),
     )
     ..add(camera);

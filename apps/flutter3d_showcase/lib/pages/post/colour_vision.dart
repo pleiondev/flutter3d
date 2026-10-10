@@ -63,7 +63,7 @@ final class ColourVisionDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _device = context.device;
     final Scene scene = Scene()
-      ..ambientIntensity = 2605.7626101
+      ..ambientIntensity = 0.45 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -78,7 +78,7 @@ final class ColourVisionDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.9, -0.4)),
       );
     final DeviceMesh slab = DeviceMesh.upload(

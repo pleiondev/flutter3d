@@ -34,7 +34,7 @@ final class FrameStatsDemo extends ShowcaseDemo {
     );
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.5, 0.68)
-      ..ambientIntensity = 694.87002936
+      ..ambientIntensity = 0.12 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -70,7 +70,7 @@ final class FrameStatsDemo extends ShowcaseDemo {
     // #region light
     _sun = LightNode(
       name: 'sun',
-      intensity: 18529.8674496,
+      intensity: 3.2 * LightNode.defaultIntensity,
       castsShadow: shadows,
     )..setLocalForward(Vector3(-0.45, -0.82, -0.35));
     scene.add(_sun);

@@ -69,9 +69,9 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.4, 0.46, 0.6)
-      ..ambientIntensity = 1389.74005872
+      ..ambientIntensity = 0.24 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'key', intensity: 6948.7002936)
+        LightNode(name: 'key', intensity: 1.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
     return scene;

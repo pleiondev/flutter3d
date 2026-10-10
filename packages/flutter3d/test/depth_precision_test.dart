@@ -549,7 +549,7 @@ Future<Uint8List> _shadowShot({
     ..add(
       LightNode(
         type: LightType.directional,
-        intensity: 3184.8209679,
+        intensity: 0.55 * LightNode.defaultIntensity,
         castsShadow: true,
         name: 'sun',
       )..setLocalForward(_sunTravels),

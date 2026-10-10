@@ -63,7 +63,7 @@ Future<({FrameResult result, List<int> pixels})> _frame({
       ),
     )
     ..add(
-      LightNode(intensity: 28952.917889999997)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )

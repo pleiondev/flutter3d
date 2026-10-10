@@ -44,7 +44,7 @@ final class FlameCrowdDemo extends ShowcaseDemo {
     _context = context;
     _scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.5, 0.6)
-      ..ambientIntensity = 1447.6458945
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -59,7 +59,7 @@ final class FlameCrowdDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 11581.167156)
+        LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     _game = _Brazier(context.camera)..open3d(context.device, scene: _scene);
@@ -105,7 +105,7 @@ final class _Brazier extends FlameGame with HasFlutter3d {
       name: 'spark',
       baseColor: LinearColor.fromSrgb(1.0, 0.8, 0.4, 1.0),
       emissive: LinearColor(1.0, 0.6, 0.2),
-      emissiveStrength: 5529.6,
+      emissiveStrength: 3.0 * RenderMaterial.defaultEmissiveStrength,
     ),
     capacity: _sparks,
     name: 'sparks',

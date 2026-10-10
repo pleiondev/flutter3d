@@ -90,7 +90,7 @@ const int _height = 72;
       // Low enough that the lit floor is not saturated: a floor at the top of
       // the tone curve is a floor whose shadow cannot be seen, which is what
       // made the first version of these tests pass with no shadow in shot.
-      intensity: 6369.6419358,
+      intensity: 1.1 * LightNode.defaultIntensity,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),
@@ -152,7 +152,7 @@ Scene _postYard() {
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 6369.6419358,
+      intensity: 1.1 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.5, -0.8, 0.3)),
   );

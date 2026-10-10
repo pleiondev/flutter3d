@@ -60,7 +60,7 @@ final class FreeLookDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 1737.1750734;
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity;
     _floor = MeshNode(
       DeviceMesh.upload(
         context.device,
@@ -81,7 +81,7 @@ final class FreeLookDemo extends ShowcaseDemo {
       scene.add(node);
     }
     scene.add(
-      LightNode(name: 'sun', intensity: 17371.750734)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
     );
     _layOut(context);

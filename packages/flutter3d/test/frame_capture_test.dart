@@ -38,7 +38,7 @@ const int _size = 32;
       ),
     )
     ..add(
-      LightNode(intensity: 34743.501468)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )

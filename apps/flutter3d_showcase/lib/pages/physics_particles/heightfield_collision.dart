@@ -86,11 +86,11 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
 
     return Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 1737.1750734
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(_terrain(context, heights))
       ..add(_body)
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
   }

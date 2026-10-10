@@ -153,9 +153,9 @@ final class PartiesDemo extends ShowcaseDemo {
     ];
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 2316.2334312
+      ..ambientIntensity = 0.4 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 13897.4005872)
+        LightNode(name: 'sun', intensity: 2.4 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
     for (var row = 0; row <= _players; row++) {

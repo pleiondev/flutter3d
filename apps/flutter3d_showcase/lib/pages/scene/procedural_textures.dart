@@ -59,7 +59,7 @@ final class ProceduralTexturesDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.54, 0.72)
-      ..ambientIntensity = 810.68170092
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -86,7 +86,7 @@ final class ProceduralTexturesDemo extends ShowcaseDemo {
         )..setPosition(1.65, 1.05, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 19108.9258074)
+        LightNode(name: 'key', intensity: 3.3 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.35)),
       );
     // #endregion scene

@@ -86,7 +86,7 @@ const int _height = 72;
       type: LightType.directional,
       // Low enough that the lit floor is not at the top of the tone curve,
       // where a shadow has no room to be darker than what is around it.
-      intensity: 3184.8209679,
+      intensity: 0.55 * LightNode.defaultIntensity,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.15, -1.0, 0.2)),

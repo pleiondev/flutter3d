@@ -40,7 +40,7 @@ Vector3 _sunAt(double degrees) {
 /// comparisons against the model compare colours rather than two clipped
 /// whites. The default sun is a real noon's, which saturates at f/4.
 const PhysicalSky _dimAir = PhysicalSky(
-  sunIlluminance: 36864.0,
+  sunIlluminance: 20.0 * RenderMaterial.defaultEmissiveStrength,
 );
 
 SkySettings _sky({
@@ -375,7 +375,8 @@ void main() {
         sunIlluminance: e,
       );
       final up = Vector3(0.0, 1.0, 0.0);
-      final nits = air.radiance(up, up).y * RenderMaterial.defaultEmissiveStrength;
+      final nits =
+          air.radiance(up, up).y * RenderMaterial.defaultEmissiveStrength;
       final column =
           beta *
           height *

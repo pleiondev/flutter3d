@@ -95,7 +95,7 @@ Future<List<int>> _frame(
       )..setPosition(0.0, 0.0, -8.0),
     )
     ..add(
-      LightNode(intensity: 34743.501468)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity)
         ..setPosition(3.0, 3.0, 5.0)
         ..lookAt(Vector3.zero()),
     )

@@ -56,7 +56,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     final LightNode sun = LightNode(
       name: 'sun',
       type: LightType.directional,
-      intensity: 11581.167156,
+      intensity: 2.0 * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.3, -0.6, -0.7));
     // #endregion directional
 
@@ -64,7 +64,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     _point = LightNode(
       name: 'lamp',
       type: LightType.point,
-      intensity: 34743.501468,
+      intensity: 6.0 * LightNode.defaultIntensity,
       range: pointRange,
     )..setPosition(0.0, 1.6, 1.2);
     // #endregion point
@@ -73,7 +73,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     _spot = LightNode(
       name: 'torch',
       type: LightType.spot,
-      intensity: 57905.835779999994,
+      intensity: 10.0 * LightNode.defaultIntensity,
       range: 6.0,
       innerConeAngle: 0.0,
       outerConeAngle: spotOuterDegrees * math.pi / 180.0,

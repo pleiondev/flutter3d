@@ -53,10 +53,10 @@ Future<HollowRun> _open(
   CameraNode camera,
 ) async {
   final scene = Scene()
-    ..ambientIntensity = 3474.3501468
+    ..ambientIntensity = 0.6 * LightNode.defaultIntensity
     ..ambientColor = LinearColor(0.86, 0.88, 0.94)
     ..add(
-      LightNode(name: 'sun', intensity: 11581.167156)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(_sunAlong),
     )
     ..add(camera);

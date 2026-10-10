@@ -94,7 +94,7 @@ final class InterpolationDemo extends ShowcaseDemo {
       ..add(_linearCube)
       ..add(_cubicCube)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.8, -0.4)),
       );
   }

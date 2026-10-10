@@ -79,7 +79,7 @@ Future<_Shot> _shot({required double viewDistance}) async {
   }
 
   final sun = LightNode(
-    intensity: 11581.167156,
+    intensity: 2.0 * LightNode.defaultIntensity,
     castsShadow: true,
   );
   sun.lookAt(Vector3(0.4, -1.0, -0.35));

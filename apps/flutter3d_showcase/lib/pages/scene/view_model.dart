@@ -31,7 +31,7 @@ final class ViewModelDemo extends ShowcaseDemo {
     );
     final Scene world = Scene()
       ..ambientColor = LinearColor(0.4, 0.46, 0.6)
-      ..ambientIntensity = 926.49337248
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -53,7 +53,7 @@ final class ViewModelDemo extends ShowcaseDemo {
         )..setPosition(0.0, 1.2, -3.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     // #endregion world
@@ -76,7 +76,7 @@ final class ViewModelDemo extends ShowcaseDemo {
         )..setPosition(0.22, -0.2, -0.5),
       )
       ..add(
-        LightNode(name: 'hand key', intensity: 15055.517302799999)
+        LightNode(name: 'hand key', intensity: 2.6 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.5, -0.8)),
       );
     _handCamera = CameraNode(

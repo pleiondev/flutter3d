@@ -71,7 +71,7 @@ String qualityTablesSource(Map<DeviceClass, ({List<QualityMeasurement> rows, boo
 
 Demo readTape(String path)
 
-Future<RenderedFrame> renderFrame({required int width, required int height, required FrameBuilder build, RenderSettings settings = const RenderSettings(), Vector4? clearColorSrgb})
+Future<RenderedFrame> renderFrame({required int width, required int height, required FrameBuilder build, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
 
 Future<void> replayGolden({required Demo demo, required int atStep, required InputState input, required void Function(double dt) onStep, required int width, required int height, required FrameBuilder frame, required String goldenPath, double dt = 1.0 / 60.0, double tolerance = 0.0, String? reason})
 

@@ -46,7 +46,7 @@ final class AmbientLightDemo extends ShowcaseDemo {
     _scene = Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'key', intensity: 17371.750734)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.8, -0.2, -0.2)),
       )
       ..ambientColor = LinearColor(0.55, 0.65, 1.0)
@@ -78,7 +78,8 @@ final class AmbientLightDemo extends ShowcaseDemo {
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region check
-    if (scene.ambientIntensity != ambientIntensity * LightNode.defaultIntensity) {
+    if (scene.ambientIntensity !=
+        ambientIntensity * LightNode.defaultIntensity) {
       throw StateError('the scene ambient did not track the slider');
     }
     if (scene.lights.length != 1) {

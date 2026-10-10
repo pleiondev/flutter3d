@@ -95,7 +95,7 @@ Future<List<int>> _frame({
       // the shadow underneath the card and the camera never sees it: the
       // caster is between the two. At forty-five degrees the shadow lands
       // clear of the card's own footprint.
-      LightNode(intensity: 34743.501468, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )

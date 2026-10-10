@@ -19,6 +19,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import '../scene/light_node.dart' show LightNode;
 import 'engine_light_units.dart';
 
 /// What [PhysicalSky.look] sees along one ray: the light the air sends
@@ -93,7 +94,7 @@ final class PhysicalSky {
     this.planetRadius = 6360000.0,
     this.atmosphereHeight = 60000.0,
     this.altitude = 200.0,
-    this.sunIlluminance = 115811.67155999999,
+    this.sunIlluminance = 20.0 * LightNode.defaultIntensity,
     this.groundAlbedo = 0.3,
     this.starBrightness = 1.0,
     this.starDensity = 0.02,
@@ -219,10 +220,7 @@ final class PhysicalSky {
   /// [radiance], with what the air lets through along the same ray and
   /// whether the ray ends at the ground — what the disc and the stars are
   /// dimmed by, and what decides whether there is a disc at all.
-  PhysicalSkyRay look(
-    Vector3 direction,
-    Vector3 toSun,
-  ) {
+  PhysicalSkyRay look(Vector3 direction, Vector3 toSun) {
     final d = _unit(direction, Vector3(0.0, 0.0, 1.0));
     final s = _unit(toSun, Vector3(0.0, 1.0, 0.0));
     final k = PhysicalSkyKilometres(this);

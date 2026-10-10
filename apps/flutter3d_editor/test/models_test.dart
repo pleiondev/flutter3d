@@ -226,7 +226,7 @@ void main() {
     camera.lookAt(Vector3.zero());
     scene.add(camera);
     scene.add(
-      LightNode(intensity: 23162.334312, name: 'sun')
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity, name: 'sun')
         ..lookAt(Vector3(-0.4, -1.0, -0.6)),
     );
 

@@ -202,7 +202,7 @@ void main() {
       final sun = scene.add(
         LightNode(
           type: LightType.directional,
-          intensity: 5790.583578,
+          intensity: 1.0 * LightNode.defaultIntensity,
           name: 'sun',
         ),
       );

@@ -107,7 +107,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 46324.668624,
+        intensity: 8.0 * LightNode.defaultIntensity,
         name: 'sun',
       )..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
     );

@@ -85,7 +85,7 @@ final class ActorsDemo extends ShowcaseDemo {
     );
     return Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 1737.1750734
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
         block('floor', Vector3(6.0, 0.1, 6.0), Vector4(0.36, 0.4, 0.38, 1.0))
           ..setPosition(0.0, -0.05, 0.0),
@@ -100,7 +100,7 @@ final class ActorsDemo extends ShowcaseDemo {
       ..add(_body)
       ..add(_bar)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

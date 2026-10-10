@@ -50,7 +50,7 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
         name: 'beacon',
         baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         emissive: LinearColor(1.0, 0.4, 0.1),
-        emissiveStrength: 3686.4,
+        emissiveStrength: 2.0 * RenderMaterial.defaultEmissiveStrength,
       ),
       name: 'beacon',
     )..setPosition(0.0, 0.65, 0.0);
@@ -60,7 +60,7 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
       ..add(floorMesh)
       ..add(beacon)
       ..add(
-        LightNode(name: 'sun', intensity: 5790.583578)
+        LightNode(name: 'sun', intensity: 1.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

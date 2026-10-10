@@ -65,7 +65,7 @@ final class SkeletonDebugDemo extends ShowcaseDemo {
     return Scene()
       ..add(banner)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
   }

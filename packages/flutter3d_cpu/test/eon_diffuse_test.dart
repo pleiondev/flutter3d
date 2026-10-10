@@ -46,7 +46,7 @@ Float32List _render({
     ..add(sphere)
     ..add(camera)
     ..ambientIntensity = lit ? 0.0 : LightNode.defaultIntensity;
-  if (lit) scene.add(LightNode(intensity: 17371.750734));
+  if (lit) scene.add(LightNode(intensity: 3.0 * LightNode.defaultIntensity));
   final result = Renderer.create(device: device).render(
     width: _size,
     height: _size,

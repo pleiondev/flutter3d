@@ -101,7 +101,7 @@ Future<Uint8List> _shot({required bool shadows}) async {
     ..add(
       LightNode(
         type: LightType.directional,
-        intensity: 3184.8209679,
+        intensity: 0.55 * LightNode.defaultIntensity,
         castsShadow: true,
         name: 'sun',
       )..setLocalForward(_sunTravels),

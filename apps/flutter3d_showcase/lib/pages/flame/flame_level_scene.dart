@@ -82,7 +82,7 @@ final class FlameLevelSceneDemo extends ShowcaseDemo {
     );
     final Scene level = Scene()
       ..ambientColor = air.toLinearColor()
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -94,7 +94,7 @@ final class FlameLevelSceneDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 13897.4005872)
+        LightNode(name: 'sun', intensity: 2.4 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
     for (var i = 0; i < 14; i++) {

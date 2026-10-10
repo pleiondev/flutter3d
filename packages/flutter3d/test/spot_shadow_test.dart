@@ -108,7 +108,7 @@ const double _coneAngle = 0.45;
   final light =
       LightNode(
           type: LightType.spot,
-          intensity: 347435.01467999996,
+          intensity: 60.0 * LightNode.defaultIntensity,
           range: 20.0,
           outerConeAngle: coneAngle,
           innerConeAngle: coneAngle * 0.5,

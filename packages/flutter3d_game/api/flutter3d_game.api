@@ -971,6 +971,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   BufferTextureLayout from flutter3d_hardware
   BufferUsage from flutter3d_hardware
   BundleAssetSource
+  BundledMaterialSchemas from flutter3d_core
   BundledMaterials from flutter3d_core
   CameraNode from flutter3d_core
   CapabilityException from flutter3d_foundation
@@ -1051,6 +1052,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   EncodedImage from flutter3d_core
   EnumHint from flutter3d_core
   EnumHintValue from flutter3d_core
+  EnvironmentCube from flutter3d_core
   EnvironmentMap from flutter3d_core
   ExportReport from flutter3d_core
   ExposureAdapter from flutter3d_core
@@ -1087,6 +1089,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   FramePass from flutter3d_core
   FramePipelineStall from flutter3d_core
   FrameResourceIds from flutter3d_core
+  FrameResourceUse from flutter3d_core
   FrameResources from flutter3d_core
   FrameResult from flutter3d_core
   FrameTextureSource from flutter3d_core
@@ -1095,6 +1098,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   FreeLook from flutter3d_core
   FullscreenDraw from flutter3d_core
   FullscreenEffect from flutter3d_core
+  GeneratedTangents from flutter3d_core
   GeometryBuffer from flutter3d_hardware
   GeometryUsage from flutter3d_hardware
   GlbContainer from flutter3d_core
@@ -1121,6 +1125,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   InputAttribute from flutter3d_hardware
   InstanceHandle from flutter3d_core
   InstancedMeshNode from flutter3d_core
+  IrradianceAtlas from flutter3d_core
   IrradianceField from flutter3d_core
   JitteredProjection from flutter3d_core
   Ktx2FormatException from flutter3d_core
@@ -1157,6 +1162,9 @@ export package:flutter3d/flutter3d.dart (whole library)
   MaterialHintKind from flutter3d_core
   MaterialMap from flutter3d_core
   MaterialParameter from flutter3d_core
+  MaterialParameterException from flutter3d_core
+  MaterialParameterSchema from flutter3d_core
+  MaterialParameters from flutter3d_core
   MaterialProgram from flutter3d_core
   MaterialSortIds from flutter3d_core
   MaterialStatement from flutter3d_core
@@ -1165,6 +1173,8 @@ export package:flutter3d/flutter3d.dart (whole library)
   MaterialTextureSlot from flutter3d_core
   MaterialType from flutter3d_core
   MaterialVariant from flutter3d_core
+  MemoryBudget from flutter3d_core
+  MemoryBudgetCrossing from flutter3d_core
   MemoryCategory from flutter3d_core
   MemoryEntry from flutter3d_core
   MemoryReport from flutter3d_core
@@ -1233,6 +1243,9 @@ export package:flutter3d/flutter3d.dart (whole library)
   PackedIndices from flutter3d_core
   PagedSplatOctree from flutter3d_core
   PanoramaFormatException from flutter3d_core
+  ParameterDeclaration from flutter3d_core
+  ParameterKey from flutter3d_core
+  ParameterType from flutter3d_core
   ParameterWrite from flutter3d_core
   PassContribution from flutter3d_core
   PassContributor from flutter3d_core
@@ -1244,9 +1257,11 @@ export package:flutter3d/flutter3d.dart (whole library)
   PhotoCaptureReport from flutter3d_core
   PhotoFilter from flutter3d_core
   PhotoFinish from flutter3d_core
+  PhotoSettings from flutter3d_core
   Photometric from flutter3d_core
   PhysicalCamera from flutter3d_core
   PhysicalSky from flutter3d_core
+  PhysicalSkyRay from flutter3d_core
   PipelineGeometry from flutter3d_core
   PipelineHandle from flutter3d_hardware
   PipelineStall from flutter3d_core
@@ -1254,6 +1269,8 @@ export package:flutter3d/flutter3d.dart (whole library)
   PlanarReflectionSettings from flutter3d_core
   PlanarReflectorNode from flutter3d_core
   PlaneShape from flutter3d_core
+  PlatformFeature from flutter3d_core
+  PlayheadStep from flutter3d_core
   PluginException from flutter3d_foundation
   PointerTargets from flutter3d_core
   PolygonMode from flutter3d_hardware
@@ -1296,7 +1313,10 @@ export package:flutter3d/flutter3d.dart (whole library)
   ResourceException from flutter3d_foundation
   ResourceHandle from flutter3d_core
   ResourceId from flutter3d_core
+  ResourceLoadCancelled from flutter3d_core
   ResourceOrigin from flutter3d_core
+  ResourcePriority from flutter3d_core
+  ResourceRequest from flutter3d_core
   ResourceSize from flutter3d_core
   ResourceVersion from flutter3d_core
   Rgba8Image from flutter3d_core
@@ -1366,6 +1386,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   SurfaceMaterial from flutter3d_core
   SynchronousBufferReadback from flutter3d_hardware
   TangentMethod from flutter3d_core
+  TelemetryLevel from flutter3d_core
   TemporalClip from flutter3d_core
   TemporalSettings from flutter3d_core
   TextureAllocator from flutter3d_hardware
@@ -1384,23 +1405,27 @@ export package:flutter3d/flutter3d.dart (whole library)
   TextureType from flutter3d_hardware
   TextureUsage from flutter3d_hardware
   TextureWrap from flutter3d_core
+  ThinLens from flutter3d_core
   TiledProjection from flutter3d_core
   TonemapCurve from flutter3d_core
   TorusShape from flutter3d_core
   TransferEncoder from flutter3d_hardware
   TransparencyMode from flutter3d_core
   TriangleBvh from flutter3d_core
+  TriangleHit from flutter3d_core
   TriggerCondition from flutter3d_core
   TwoBoneIk from flutter3d_core
   UniformBlock from flutter3d_hardware
   UniformMemberLayout from flutter3d_hardware
   UniversalTarget from flutter3d_core
+  UnknownDeviceClassException from flutter3d_core
   UnsupportedCapability from flutter3d_foundation
   UsdzModelWriter from flutter3d_core
   UsdzWriter from flutter3d_core
   Vector3Foundation from flutter3d_foundation
   Vector4Foundation from flutter3d_foundation
   VertexAttribute from flutter3d_core
+  VertexFetchOrder from flutter3d_core
   VertexFormat from flutter3d_hardware
   VertexLayout from flutter3d_core
   VertexLayoutDescriptor from flutter3d_hardware

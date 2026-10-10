@@ -73,7 +73,7 @@ final class SplatBudgetDemo extends ShowcaseDemo {
 
     return Scene()
       ..ambientColor = LinearColor(0.4, 0.46, 0.6)
-      ..ambientIntensity = 1389.74005872;
+      ..ambientIntensity = 0.24 * LightNode.defaultIntensity;
   }
 
   @override

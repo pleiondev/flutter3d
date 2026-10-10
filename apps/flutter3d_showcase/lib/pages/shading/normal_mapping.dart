@@ -90,7 +90,7 @@ final class NormalMappingDemo extends ShowcaseDemo {
     );
     // #endregion tangents
 
-    _sun = LightNode(name: 'sun', intensity: 17371.750734);
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity);
     return Scene()
       ..add(ball)
       ..add(_sun);

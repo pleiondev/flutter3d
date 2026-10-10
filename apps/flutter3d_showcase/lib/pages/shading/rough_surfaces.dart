@@ -29,7 +29,7 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 579.0583578;
+      ..ambientIntensity = 0.1 * LightNode.defaultIntensity;
 
     // #region metals
     for (var i = 0; i < _metalRoughness.length; i++) {
@@ -68,7 +68,7 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
 
     // #region light
     return scene..add(
-      LightNode(name: 'key', intensity: 17371.750734)
+      LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.4, -1.0).normalized()),
     );
     // #endregion light

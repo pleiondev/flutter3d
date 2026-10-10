@@ -29,7 +29,7 @@ double _brightness({required double roughness, required bool compensate}) {
       roughness: roughness,
     ),
   );
-  final light = LightNode(intensity: 17371.750734)
+  final light = LightNode(intensity: 3.0 * LightNode.defaultIntensity)
     ..setRotationYawPitchRoll(0.3, -0.4, 0.0);
   final scene = Scene()
     ..add(sphere)

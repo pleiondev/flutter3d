@@ -48,7 +48,7 @@ final class DebugViewsDemo extends ShowcaseDemo {
         name: 'lantern',
         baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.2, 1.0),
         emissive: LinearColor(0.3, 0.9, 0.5),
-        emissiveStrength: 3686.4,
+        emissiveStrength: 2.0 * RenderMaterial.defaultEmissiveStrength,
       ),
       name: 'lantern',
     )..setPosition(0.0, 0.2, 1.6);

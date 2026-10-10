@@ -91,7 +91,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(_lens)
       ..add(
         MeshNode(
@@ -107,7 +107,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 14476.458944999998)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
     for (final (int i, (double, double) at) in _pillars.indexed) {

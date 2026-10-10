@@ -61,11 +61,7 @@ final class ParticleLightsDemo extends ShowcaseDemo {
     );
 
     // #region light
-    _glow = LightNode(
-      name: 'glow',
-      type: LightType.point,
-      intensity: 0.0,
-    );
+    _glow = LightNode(name: 'glow', type: LightType.point, intensity: 0.0);
     // #endregion light
 
     return Scene()..add(_glow);
@@ -81,7 +77,7 @@ final class ParticleLightsDemo extends ShowcaseDemo {
     final ParticleGlow glow = _torch.glow;
     if (glow.isLocated) {
       _glow.setPositionFrom(glow.center);
-      _glow.intensity = glow.power * 3474.3501468;
+      _glow.intensity = glow.power * 0.6 * LightNode.defaultIntensity;
     }
     // #endregion follow
   }

@@ -86,7 +86,7 @@ Future<({int pixels, int width, int height, double tall})> _shoot(
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 11581.167156,
+      intensity: 2.0 * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.3, -0.9, 0.2)),
   );
   final camera = CameraNode()

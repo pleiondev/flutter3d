@@ -34,7 +34,7 @@ const int _size = 48;
     DeviceMesh.upload(device, const SphereShape().build()),
     material(device),
   );
-  final light = LightNode(intensity: 17371.750734)
+  final light = LightNode(intensity: 3.0 * LightNode.defaultIntensity)
     ..setRotationYawPitchRoll(0.3, -0.4, 0.0);
   final scene = Scene()
     ..add(sphere)
@@ -67,7 +67,7 @@ const int _size = 48;
         mipLevels: EnvironmentMap.prefilter(faces, size: cube, levels: levels),
       )
       ..environmentLevels = levels
-      ..ambientIntensity = 5790.583578;
+      ..ambientIntensity = 1.0 * LightNode.defaultIntensity;
   }
   final result = Renderer.create(device: device).render(
     width: _size,

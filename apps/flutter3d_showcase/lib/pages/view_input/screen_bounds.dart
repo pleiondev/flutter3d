@@ -73,7 +73,7 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 1447.6458945
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -88,7 +88,7 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
       ..add(_sphere)
       ..add(_pillar)
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
     _place();

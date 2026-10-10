@@ -78,7 +78,7 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
     scene.add(
       LightNode(
         name: 'sun',
-        intensity: 17371.750734,
+        intensity: 3.0 * LightNode.defaultIntensity,
         castsShadow: true,
       )..setLocalForward(Vector3(-0.5, -0.9, -0.4)),
     );

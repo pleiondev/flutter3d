@@ -100,7 +100,7 @@ final class TextureTransformsDemo extends ShowcaseDemo {
       math.pi / 2,
     );
     return Scene()
-      ..ambientIntensity = 1447.6458945
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(plate, asIs, name: 'as is')
           ..setRotation(upright)
@@ -112,7 +112,7 @@ final class TextureTransformsDemo extends ShowcaseDemo {
           ..setPosition(0.95, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.2, -0.3, -1.0).normalized()),
       );
   }

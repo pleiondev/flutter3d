@@ -58,7 +58,7 @@ List<LightNode> _corridor() => <LightNode>[
   for (var i = 0; i < 40; i++)
     LightNode(
       type: LightType.point,
-      intensity: 23162.334312,
+      intensity: 4.0 * LightNode.defaultIntensity,
       range: 6.0,
     )..setPosition(i.toDouble() - 19.5, 1.6, 0.0),
 ];
@@ -76,7 +76,7 @@ List<LightNode> _longCorridor() => <LightNode>[
   for (var i = 0; i < 80; i++)
     LightNode(
       type: LightType.point,
-      intensity: 23162.334312,
+      intensity: 4.0 * LightNode.defaultIntensity,
       range: 25.0,
     )..setPosition(i.toDouble() - 39.5, 1.6, 0.0),
 ];
@@ -144,7 +144,7 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 463.24668624,
+        intensity: 0.08 * LightNode.defaultIntensity,
         range: 20.0,
       )..setPosition(at + (i - 15) * 0.2, 2.0, 0.0),
     );
@@ -153,7 +153,7 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 868587.5366999999,
+        intensity: 150.0 * LightNode.defaultIntensity,
         range: 40.0,
       )..setPosition(x, 2.0, 0.0),
     );
@@ -232,7 +232,7 @@ void main() {
         for (var i = 0; i < 4; i++)
           LightNode(
             type: LightType.point,
-            intensity: 23162.334312,
+            intensity: 4.0 * LightNode.defaultIntensity,
             range: 6.0,
           )..setPosition(i.toDouble(), 1.6, 0.0),
       ];
@@ -314,7 +314,7 @@ void main() {
       final lights = <LightNode>[
         LightNode(
           type: LightType.directional,
-          intensity: 11581.167156,
+          intensity: 2.0 * LightNode.defaultIntensity,
         )..lookAt(Vector3(0.0, -1.0, 0.0)),
         ..._corridor(),
       ];
@@ -343,7 +343,7 @@ void main() {
           for (var i = 0; i < torches; i++)
             LightNode(
               type: LightType.point,
-              intensity: 14476.458944999998,
+              intensity: 2.5 * LightNode.defaultIntensity,
               range: 3.5,
             )..setPosition(
               math.cos(i / torches * 2 * math.pi) * 6.0,

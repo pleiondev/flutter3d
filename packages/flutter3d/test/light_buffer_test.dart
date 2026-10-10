@@ -22,7 +22,7 @@ void main() {
         LightNode(
           type: LightType.directional,
           color: LinearColor(1.0, 0.5, 0.25),
-          intensity: 11581.167156,
+          intensity: 2.0 * LightNode.defaultIntensity,
           name: 'key',
         ),
       );

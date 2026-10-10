@@ -79,13 +79,13 @@ final class SoftShadowsDemo extends ShowcaseDemo {
     // #region lights
     _sun = LightNode(
       name: 'sun',
-      intensity: 17371.750734,
+      intensity: 3.0 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.55, -0.7, -0.35));
     _lamp = LightNode(
       name: 'lamp',
       type: LightType.point,
-      intensity: 347435.01467999996,
+      intensity: 60.0 * LightNode.defaultIntensity,
       range: 20.0,
     )..setPosition(2.5, 3.2, 2.5);
     scene

@@ -55,7 +55,7 @@ final class Reel
   final int width
 
 final class ReelShot
-  Future<PhotoTaken> film({required Scene scene, required CameraNode camera, RenderSettings settings = const RenderSettings(), Vector4? clearColorSrgb})
+  Future<PhotoTaken> film({required Scene scene, required CameraNode camera, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
   String get folder
   final Reel reel
   final String name
@@ -484,7 +484,7 @@ final class Reel
   final int width
 
 final class ReelShot
-  Future<PhotoTaken> film({required Scene scene, required CameraNode camera, RenderSettings settings = const RenderSettings(), Vector4? clearColorSrgb})
+  Future<PhotoTaken> film({required Scene scene, required CameraNode camera, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
   String get folder
   final Reel reel
   final String name

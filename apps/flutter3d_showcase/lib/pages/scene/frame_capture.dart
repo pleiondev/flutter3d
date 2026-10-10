@@ -33,7 +33,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 17371.750734)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     final CameraNode probeCamera = CameraNode()
@@ -60,7 +60,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.48, 0.64)
-      ..ambientIntensity = 926.49337248
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -76,7 +76,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 18529.8674496)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.34)),
       );
     // #endregion scene

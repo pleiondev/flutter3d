@@ -73,7 +73,7 @@ _Room _room() {
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 231623.34311999998,
+        intensity: 40.0 * LightNode.defaultIntensity,
         range: 12.0,
       )..setPosition(0.0, 0.0, 0.0),
     )

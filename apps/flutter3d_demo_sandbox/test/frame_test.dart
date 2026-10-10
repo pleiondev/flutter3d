@@ -27,7 +27,7 @@ void main() {
     final run = SandboxRun.fresh(backend: const DartPhysics());
     final camera = CameraNode(name: 'eye');
     final scene = Scene()
-      ..ambientIntensity = 2026.7042522999998
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(LightNode(name: 'sun')..setLocalForward(Vector3(-0.4, -1, -0.3)))
       ..add(camera);
     final meshes = ChunkMeshes(it.device, scene, run.blocks);

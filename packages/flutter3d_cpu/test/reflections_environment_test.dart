@@ -109,7 +109,7 @@ Float32List _render({
     ..add(floor)
     ..add(cube)
     ..add(camera)
-    ..ambientIntensity = 5790.583578;
+    ..ambientIntensity = 1.0 * LightNode.defaultIntensity;
   if (sky) {
     const size = 8;
     const levels = 3;

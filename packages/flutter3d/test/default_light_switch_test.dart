@@ -68,7 +68,7 @@ void main() {
     for (final unlitDefault in <bool>[true, false]) {
       final scene = _scene()
         ..defaultLightWhenUnlit = unlitDefault
-        ..add(LightNode(intensity: 11581.167156));
+        ..add(LightNode(intensity: 2.0 * LightNode.defaultIntensity));
       expect(_framedLights(scene).count, 1);
     }
   });

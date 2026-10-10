@@ -165,7 +165,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
       LightNode(
         type: LightType.directional,
         color: LinearColor(1.0, 0.97, 0.9),
-        intensity: 17371.750734,
+        intensity: 3.0 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.3, -1.0, 0.4)),
     );
