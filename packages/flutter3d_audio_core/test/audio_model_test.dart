@@ -46,7 +46,7 @@ Matrix4 _at(double x, double y, double z, {double yaw = 0.0}) =>
 
 /// A backend that also mixes buses and places voices, recording both.
 final class _Opted extends AudioBackend
-    implements MixingBackend, DirectionalBackend {
+    with MixingBackend, DirectionalBackend {
   final SilentBackend inner = SilentBackend();
   final Map<VoiceId, AudioBus> routed = <VoiceId, AudioBus>{};
   final Map<AudioBus, double> busGains = <AudioBus, double>{};

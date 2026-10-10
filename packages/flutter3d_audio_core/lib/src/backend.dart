@@ -20,8 +20,8 @@ typedef VoiceId = Object;
 /// bodies that do nothing, which is right for a backend with no device, and a
 /// member added in a minor release arrives with a body too, so a backend
 /// written against 1.0 keeps compiling. A capability that changes what the
-/// scene hands a backend arrives beside it instead, as an interface the
-/// backend opts into: [MixingBackend], [DirectionalBackend].
+/// scene hands a backend arrives beside it instead, as a mixin the backend
+/// opts into: [MixingBackend], [DirectionalBackend].
 abstract base class AudioBackend {
   /// A backend; a subclass starts nothing here, [open] does.
   AudioBackend();
@@ -98,40 +98,45 @@ abstract base class AudioBackend {
 /// A backend that mixes the bus tree itself: what [AudioBackend] grows into
 /// for buses, beside it rather than inside it.
 ///
-/// **Opt-in, and an interface on its own**: a backend `extends AudioBackend`
-/// and `implements MixingBackend`, and the scene asks `backend is
-/// MixingBackend`. It is not an [AudioBackend] itself, so it does not grow
-/// when the base class does. A backend that implements this as well is told which bus each
-/// voice is on and handed each bus's own gain and effects every mix, and is
-/// then handed a voice's gain *without* its buses' and its muffle without
-/// theirs — the buses are its to apply, reverb included. One that does not
-/// gets what it always got: a flat voice with the bus folded into its gain
-/// and a bus's low-pass folded into its muffle.
-abstract interface class MixingBackend {
-  /// Puts [voice], just started, on [bus].
-  void routeVoice(VoiceId voice, AudioBus bus);
+/// **Opt-in, as a mixin**: a backend writes `extends AudioBackend with
+/// MixingBackend`, and the scene asks `backend is MixingBackend`. It is not
+/// an [AudioBackend] itself, so it does not grow when the base class does.
+/// A backend that mixes this in is told which bus each voice is on and
+/// handed each bus's own gain and effects every mix, and is then handed a
+/// voice's gain *without* its buses' and its muffle without theirs — the
+/// buses are its to apply, reverb included. One that does not gets what it
+/// always got: a flat voice with the bus folded into its gain and a bus's
+/// low-pass folded into its muffle.
+///
+/// **A `base mixin class` with bodies that do nothing**, so a member added
+/// in a minor arrives with a body and a backend written against 1.0 keeps
+/// compiling; a backend that opts in overrides what it mixes.
+abstract base mixin class MixingBackend {
+  /// Puts [voice], just started, on [bus]. Nothing by default.
+  void routeVoice(VoiceId voice, AudioBus bus) {}
 
   /// What [bus] does this mix: routes into [parent] (null for the master),
   /// at [gain] linear — its volume and level, not its parents' — through
-  /// [effects] in order.
+  /// [effects] in order. Nothing by default.
   void mixBus(
     AudioBus bus, {
     required AudioBus? parent,
     required double gain,
     required List<BusEffect> effects,
-  });
+  }) {}
 }
 
 /// A backend that places a voice in three dimensions itself: where a
 /// binaural (HRTF) or multichannel backend comes in.
 ///
-/// **Opt-in**, and an interface on its own, as [MixingBackend] is. After each start and update, a voice
-/// is handed the whole [SpatialResult] its renderer decided — azimuth,
-/// elevation and distance in the listener's frame — and the backend may
-/// render from those instead of from the stereo pan, which it still gets.
-abstract interface class DirectionalBackend {
-  /// Where [voice] is heard from this mix.
-  void placeVoice(VoiceId voice, SpatialResult spatial);
+/// **Opt-in, as a mixin**, as [MixingBackend] is, with a body that does
+/// nothing. After each start and update, a voice is handed the whole
+/// [SpatialResult] its renderer decided — azimuth, elevation and distance in
+/// the listener's frame — and the backend may render from those instead of
+/// from the stereo pan, which it still gets.
+abstract base mixin class DirectionalBackend {
+  /// Where [voice] is heard from this mix. Nothing by default.
+  void placeVoice(VoiceId voice, SpatialResult spatial) {}
 }
 
 /// A backend that makes no sound and records everything.
@@ -186,9 +191,17 @@ final class SilentBackend extends AudioBackend {
     double muffle = 0.0,
   }) {
     // Held from the start while paused, as [AudioBackend.pause] asks.
-    final voice = SilentVoice(_next++, asset, gain, pan, rate, loop)
-      ..muffle = muffle
-      ..isPaused = _paused;
+    final voice =
+        SilentVoice(
+            id: _next++,
+            asset: asset,
+            gain: gain,
+            pan: pan,
+            rate: rate,
+            loop: loop,
+          )
+          ..muffle = muffle
+          ..isPaused = _paused;
     started.add(voice);
     return voice;
   }
@@ -223,7 +236,14 @@ final class SilentBackend extends AudioBackend {
 /// One recorded voice. Public because a test reads it, and a type a test has
 /// to reach for is part of the interface whether or not it looks like one.
 final class SilentVoice {
-  SilentVoice(this.id, this.asset, this.gain, this.pan, this.rate, this.loop);
+  SilentVoice({
+    required this.id,
+    required this.asset,
+    required this.gain,
+    required this.pan,
+    required this.rate,
+    required this.loop,
+  });
 
   final int id;
   final String asset;

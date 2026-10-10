@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`MixingBackend` and `DirectionalBackend` are `base mixin class`es with
+  bodies that do nothing.** A backend opts in with `extends AudioBackend
+  with MixingBackend`, not `implements`, and a member added in a minor
+  arrives with a body instead of breaking it.
+- **Breaking: `SilentVoice` takes named arguments** (`id:`, `asset:`,
+  `gain:`, `pan:`, `rate:`, `loop:`); `SilentBackend` is what makes one.
+
 - **Breaking: `AudioListener.placeAt` and `AudioEmitter.placeAt` require
   `origin`.** It defaulted to the world's origin, which was right only until
   the loop moved its own; then every sound was heard from where the camera
