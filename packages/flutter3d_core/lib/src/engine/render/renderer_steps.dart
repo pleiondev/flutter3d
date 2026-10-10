@@ -595,6 +595,9 @@ final class _SteppedNode extends RenderNode {
   List<ResourceId> get keeps => _node.keeps;
 
   @override
+  void setup(FrameGraphBuilder builder) => _node.setup(builder);
+
+  @override
   bool get isActive => _step.isOn(_settings) && _node.isActive;
 
   @override

@@ -91,20 +91,34 @@ final class FrameGraph {
   /// changed nothing asks the same question. [clear] keeps what the last
   /// compile was, so one graph cleared and refilled each frame is the way
   /// to use it.
+  ///
+  /// **What a node declares is what its [FrameGraphNode.setup] hands the
+  /// builder**, asked once per compile; the getters are what the default
+  /// `setup` hands it. Resources a node made with [FrameGraphBuilder.create]
+  /// are in [CompiledFrameGraph.created]; a node that asked where it runs
+  /// ([FrameGraphBuilder.place]) is placed by [placer] — the hook the compute
+  /// placement plugs into — and one nobody places is dropped as
+  /// [PassSkip.unsupported].
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
     Set<String> switchedOff = const <String>{},
+    FramePlacer? placer,
   }) {
-    final key = _inputsOf(outputs, disabled, switchedOff);
+    final declared = <FrameGraphNode, NodeDeclarations>{
+      for (final node in _nodes) node: NodeDeclarations.of(node),
+    };
+    final key = _inputsOf(declared, outputs, disabled, switchedOff, placer);
     final last = _lastCompiled;
     if (last != null && _sameInputs(key, _lastInputs)) {
       return _lastCompiled = _overNodes(last, _nodes);
     }
     final compiled = _compileAfresh(
+      declared: declared,
       outputs: outputs,
       disabled: disabled,
       switchedOff: switchedOff,
+      placer: placer,
     );
     _lastInputs = key;
     _lastNodes = List<FrameGraphNode>.of(_nodes);
@@ -120,9 +134,11 @@ final class FrameGraph {
   /// length followed by its members, so two inputs are the same exactly when
   /// the flattened lists are.
   List<Object?> _inputsOf(
+    Map<FrameGraphNode, NodeDeclarations> declared,
     List<ResourceId> outputs,
     Set<String> disabled,
     Set<String> switchedOff,
+    FramePlacer? placer,
   ) {
     final key = <Object?>[_external.length, ..._external];
     void ids(List<ResourceId> list) {
@@ -134,16 +150,24 @@ final class FrameGraph {
 
     key.add(_nodes.length);
     for (final node in _nodes) {
+      final d = declared[node]!;
       key
         ..add(node.name)
         ..add(node.isActive)
         ..add(node.isSupported);
-      ids(node.reads);
-      ids(node.optionalReads);
-      ids(node.writes);
-      ids(node.keeps);
+      ids(d.reads);
+      ids(d.optionalReads);
+      ids(d.writes);
+      ids(d.keeps);
+      key
+        ..add(d.created.length)
+        ..addAll(d.created)
+        ..add(d.placement);
     }
     ids(outputs);
+    // A placer answers per compile, and the same placer asked the same
+    // questions answers the same; a different one may not.
+    key.add(placer);
     key
       ..add(disabled.length)
       ..addAll(disabled)
@@ -190,28 +214,33 @@ final class FrameGraph {
       ],
       outputs: compiled.outputs,
       skipped: compiled.skipped,
+      created: compiled._created,
+      placements: compiled._placements,
     );
   }
 
   CompiledFrameGraph _compileAfresh({
+    required Map<FrameGraphNode, NodeDeclarations> declared,
     required List<ResourceId> outputs,
     required Set<String> disabled,
     required Set<String> switchedOff,
+    required FramePlacer? placer,
   }) {
     // Known at all, whether or not it runs this frame. The difference between
     // this and the active set is the difference between a misspelled name and
     // a feature somebody switched off, and those must not report the same way.
     final known = <String>{..._external};
     for (final node in _nodes) {
-      for (final id in <ResourceId>[...node.writes, ...node.keeps]) {
+      final d = declared[node]!;
+      for (final id in <ResourceId>[...d.writes, ...d.keeps]) {
         known.add(id.name);
       }
       // Two opposite promises about one name. Checked here rather than trusted,
       // because the reader that would suffer is in another package and the
       // symptom — a texture that is sometimes this frame's and sometimes not —
       // is the kind that gets diagnosed as a driver problem.
-      for (final id in node.keeps) {
-        if (!node.writes.any((w) => w.name == id.name)) continue;
+      for (final id in d.keeps) {
+        if (!d.writes.any((w) => w.name == id.name)) continue;
         throw FrameGraphError(
           '"${node.name}" both writes and keeps "$id". A write says the pixels '
           'are this frame\'s and a keep says they may not be; one name cannot '
@@ -221,7 +250,8 @@ final class FrameGraph {
     }
 
     for (final node in _nodes) {
-      for (final id in <ResourceId>[...node.reads, ...node.optionalReads]) {
+      final d = declared[node]!;
+      for (final id in <ResourceId>[...d.reads, ...d.optionalReads]) {
         if (known.contains(id.name)) continue;
         throw FrameGraphError(
           '"${node.name}" reads "$id", which nothing writes and which is not '
@@ -277,8 +307,30 @@ final class FrameGraph {
     // `gfx-50n` adds the third clause, beside rather than inside `isActive`:
     // a pass this device cannot run is dropped the same way, and the reason
     // it is reported by is the one thing about it a caller cannot fix.
+    // A node that asked where it runs is placed here, before anything is
+    // versioned: one nobody can place is as absent as one this device
+    // cannot run, and is reported the same way.
+    final placements = <String, Object>{};
+    final unplaced = <FrameGraphNode>{};
+    for (final node in _nodes) {
+      final request = declared[node]!.placement;
+      if (request == null || !node.isActive || disabled.contains(node.name)) {
+        continue;
+      }
+      final placed = placer?.place(
+        FramePlacementContext._(node, request, declared[node]!),
+      );
+      if (placed == null) {
+        unplaced.add(node);
+      } else {
+        placements[node.name] = placed;
+      }
+    }
+    bool supported(FrameGraphNode node) =>
+        node.isSupported && !unplaced.contains(node);
+
     final active = _nodes
-        .where((n) => n.isActive && n.isSupported && !disabled.contains(n.name))
+        .where((n) => n.isActive && supported(n) && !disabled.contains(n.name))
         .toList();
 
     // Versions, in registration order rather than in the order the frame turns
@@ -290,14 +342,15 @@ final class FrameGraph {
     final writes = <Map<String, int>>[];
     final kept = <ResourceVersion>{};
     for (final node in active) {
+      final d = declared[node]!;
       final read = <String, int>{};
       final hard = <String, int>{};
-      for (final id in node.reads) {
+      for (final id in d.reads) {
         final version = current[id.name] ?? 0;
         read[id.name] = version;
         hard[id.name] = version;
       }
-      for (final id in node.optionalReads) {
+      for (final id in d.optionalReads) {
         read[id.name] ??= current[id.name] ?? 0;
       }
       // Reads first, then writes: a node that does both consumes v and
@@ -311,12 +364,12 @@ final class FrameGraph {
       // it. Only the promise about the pixels differs, and that is recorded
       // beside the version rather than changing how it is assigned.
       final write = <String, int>{};
-      for (final id in node.writes) {
+      for (final id in d.writes) {
         final version = (current[id.name] ?? 0) + 1;
         current[id.name] = version;
         write[id.name] = version;
       }
-      for (final id in node.keeps) {
+      for (final id in d.keeps) {
         final version = (current[id.name] ?? 0) + 1;
         current[id.name] = version;
         write[id.name] = version;
@@ -489,7 +542,7 @@ final class FrameGraph {
             // that cannot run a pass makes its settings beside the point.
             null => switch (node) {
               _ when disabled.contains(node.name) => PassSkip.disabled,
-              _ when !node.isSupported => PassSkip.unsupported,
+              _ when !supported(node) => PassSkip.unsupported,
               _ when switchedOff.contains(node.name) => PassSkip.switchedOff,
               _ => PassSkip.settings,
             },
@@ -522,9 +575,16 @@ final class FrameGraph {
 
     final readers = <String>{
       for (final node in order) ...<String>[
-        for (final id in node.reads) id.name,
-        for (final id in node.optionalReads) id.name,
+        for (final id in declared[node]!.reads) id.name,
+        for (final id in declared[node]!.optionalReads) id.name,
       ],
+    };
+
+    // What the surviving nodes make, in the order they run; a node that
+    // did not run makes nothing, and its resource is never allocated.
+    final created = <String, ResourceDesc>{
+      for (final node in order)
+        for (final desc in declared[node]!.created) desc.id.name: desc,
     };
 
     return CompiledFrameGraph(
@@ -537,6 +597,10 @@ final class FrameGraph {
       culled: culled,
       outputs: List<ResourceId>.unmodifiable(outputs),
       skipped: List<SkippedPass>.unmodifiable(skipped),
+      created: Map<String, ResourceDesc>.unmodifiable(created),
+      placements: Map<String, Object>.unmodifiable(<String, Object>{
+        for (final node in order) node.name: ?placements[node.name],
+      }),
     );
   }
 

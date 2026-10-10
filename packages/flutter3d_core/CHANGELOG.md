@@ -27,6 +27,20 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **A node declares itself into a builder.** `FrameGraphNode.setup` hands a
+  `FrameGraphBuilder` what the node reads, writes and keeps — by default
+  the getters, so every node written before it is unchanged — and
+  `FrameGraph.compile` works the frame out from those declarations.
+  `FrameGraphBuilder.create(ResourceDesc)` is how a plugin's node makes a
+  resource of its own, or several for a pass with several colour outputs:
+  the frame knows its description before the node runs
+  (`CompiledFrameGraph.created`, `descriptorOf`), makes it at its first
+  use, retires it after its last reader and, with `FrameResources.alias`,
+  lends it a texture that finished earlier in the frame.
+  `FrameResources.declare` from inside `execute` stays as the documented
+  exception. `FrameGraphBuilder.place` and the `FramePlacer` handed to
+  `compile` are where a compute step's placement is decided; a node no
+  placer places is skipped as `PassSkip.unsupported`.
 - **What loads in the background goes into a scene in the order it was
   asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
   starts; the loader awaits `ready`, attaches what it loaded and calls

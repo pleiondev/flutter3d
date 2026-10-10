@@ -56,7 +56,12 @@ final class FrameResources {
     this.alias = false,
     this.onRetire,
     this.recordUses = false,
-  });
+  }) {
+    // What the surviving nodes made through `FrameGraphBuilder.create`: known
+    // before the first node runs, made at its first use, and retired at its
+    // last like everything else the graph names.
+    graph.created.forEach(declare);
+  }
 
   final FrameTextureSource source;
   final CompiledFrameGraph graph;
@@ -124,19 +129,18 @@ final class FrameResources {
 
   /// What each resource of the frame stood on, in the order the frame first
   /// bound each — `FrameResult.resources`. Empty unless [recordUses].
-  List<FrameResourceUse> get uses => List<FrameResourceUse>.unmodifiable(
-    <FrameResourceUse>[
-      for (final use in _uses.values)
-        FrameResourceUse(
-          id: use.id,
-          versions: use.versions.length,
-          width: use.last.width,
-          height: use.last.height,
-          format: use.last.format,
-          bytes: textureBytes(use.last),
-        ),
-    ],
-  );
+  List<FrameResourceUse> get uses =>
+      List<FrameResourceUse>.unmodifiable(<FrameResourceUse>[
+        for (final use in _uses.values)
+          FrameResourceUse(
+            id: use.id,
+            versions: use.versions.length,
+            width: use.last.width,
+            height: use.last.height,
+            format: use.last.format,
+            bytes: textureBytes(use.last),
+          ),
+      ]);
 
   /// Textures retired this frame and free to be lent again before it ends,
   /// by spec. Empty unless [alias] is on.
