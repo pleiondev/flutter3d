@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **`Light3D.sun()` and `Light3D.lamp()`, in lux and candela.** The sun is
+  a warm directional light of 15 000 lux (`Light3D.sunIlluminance`, the sun
+  through a thin haze, which the default camera exposes as daylight) that
+  casts shadows and shines down when given no direction; the lamp is an
+  800-lumen bulb, `800 / 4π` candela (`Light3D.lampIntensity`), warm white.
+  The plain constructors default to the same numbers instead of the
+  pre-1.0 unit (about 5 790 lux, or a 73 000-lumen floodlight for a point),
+  and a directional light given no direction shines down rather than along
+  the horizon.
+
 - **`HotSwap.loadTexture` and `loadEnvironment` throw instead of answering
   null.** A path the bundle does not hold is an `AssetNotFoundException`
   naming it; bytes that are no image an `ImageFormatException`; an

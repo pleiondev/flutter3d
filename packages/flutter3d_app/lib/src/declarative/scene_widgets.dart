@@ -567,13 +567,19 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
 }
 
 /// A light: directional by default, or a point or a spot.
-class Light3D extends Spatial3D {
+///
+/// **Brightness in photometric units** (docs/CONTRACTS.md): [intensity] is
+/// lux for a directional light and candela for the others. The defaults are
+/// lights the default camera (f/4, 1/60 s, ISO 100) shows well:
+/// [sunIlluminance] for a sun, [lampIntensity] — an ordinary 800-lumen bulb —
+/// for a lamp. [Light3D.sun] and [Light3D.lamp] say which one a light is.
+final class Light3D extends Spatial3D {
   const Light3D({
     super.key,
     this.type = LightType.directional,
     this.direction,
     this.color,
-    this.intensity = Photometric.legacyUnit,
+    this.intensity = sunIlluminance,
     this.range = 0.0,
     this.castsShadow,
     this.outerConeAngle,
@@ -586,7 +592,7 @@ class Light3D extends Spatial3D {
     super.key,
     required this.direction,
     this.color,
-    this.intensity = Photometric.legacyUnit,
+    this.intensity = sunIlluminance,
     this.castsShadow,
   }) : type = LightType.directional,
        range = 0.0,
@@ -598,12 +604,70 @@ class Light3D extends Spatial3D {
     super.key,
     required super.position,
     this.color,
-    this.intensity = Photometric.legacyUnit,
+    this.intensity = lampIntensity,
     this.range = 0.0,
     this.castsShadow,
   }) : type = LightType.point,
        direction = null,
        outerConeAngle = null;
+
+  /// The sun: a directional light shining along [direction] (null shines
+  /// down and a little across, [sunDirection]), [intensity] lux on a
+  /// surface facing it, casting shadows, slightly warm.
+  ///
+  /// [sunIlluminance] by default, the sun through a thin haze, which the
+  /// default camera exposes as daylight. A clear noon sun is about
+  /// 100 000 lux; give that and expose for it (`PhysicalCamera` at f/16,
+  /// 1/125 s — the sunny-sixteen rule — or `autoExposure`).
+  const Light3D.sun({
+    super.key,
+    this.direction,
+    this.color = sunColor,
+    this.intensity = sunIlluminance,
+    this.castsShadow = true,
+  }) : type = LightType.directional,
+       range = 0.0,
+       outerConeAngle = null,
+       super(position: null);
+
+  /// A lamp: a point light at [position], [intensity] candela in every
+  /// direction, reaching [range] metres (nought is unbounded), warm white.
+  ///
+  /// [lampIntensity] by default, an 800-lumen household bulb. A room lit by
+  /// bulbs is about a hundredth as bright as daylight: open the camera up
+  /// (`PhysicalCamera` at f/2, 1/30 s, ISO 800) or turn `autoExposure` on, as
+  /// a photographer would indoors. `Photometric.fromLumens` gives the candela
+  /// for what another bulb's box says.
+  const Light3D.lamp({
+    super.key,
+    required super.position,
+    this.color = lampColor,
+    this.intensity = lampIntensity,
+    this.range = 0.0,
+    this.castsShadow,
+  }) : type = LightType.point,
+       direction = null,
+       outerConeAngle = null;
+
+  /// What [Light3D.sun] and a directional light shine with by default, in
+  /// lux: 15 000, the sun through a thin haze.
+  static const double sunIlluminance = 15000.0;
+
+  /// What [Light3D.lamp] and a point light shine with by default, in
+  /// candela: an 800-lumen bulb, `800 / 4π`.
+  static const double lampIntensity = 63.66197723675813;
+
+  /// Which way a directional light — [Light3D.sun] among them — first
+  /// shines when it is given no [direction]: down from high up, from behind
+  /// and to the right of a camera looking down −Z. Left as it is after, so a
+  /// game may turn the node itself.
+  static Vector3 get sunDirection => Vector3(-0.4, -1.0, -0.3);
+
+  /// The colour of [Light3D.sun]: daylight, a little warm (about 5 500 K).
+  static const LinearColor sunColor = LinearColor(1.0, 0.94, 0.86);
+
+  /// The colour of [Light3D.lamp]: a warm-white bulb (about 2 700 K).
+  static const LinearColor lampColor = LinearColor(1.0, 0.72, 0.42);
 
   final LightType type;
 
@@ -614,8 +678,8 @@ class Light3D extends Spatial3D {
   final LinearColor? color;
 
   /// How bright the light is: lux for a directional light, candela for a
-  /// point or spot (since 1.0). The default is the light a default
-  /// `LightNode` is.
+  /// point or spot (since 1.0). [sunIlluminance] by default for a
+  /// directional light, [lampIntensity] for a point.
   final double intensity;
 
   /// How far the light reaches, in metres; nought is unbounded.
@@ -633,8 +697,13 @@ class Light3D extends Spatial3D {
 
 class _Light3DState extends _SpatialState<Light3D, LightNode> {
   @override
-  LightNode createNode(_Scene3DScope scope) =>
-      LightNode(type: widget.type, castsShadow: widget.castsShadow);
+  LightNode createNode(_Scene3DScope scope) {
+    final node = LightNode(type: widget.type, castsShadow: widget.castsShadow);
+    if (widget.direction == null && widget.type == LightType.directional) {
+      node.setLocalForward(Light3D.sunDirection.normalized());
+    }
+    return node;
+  }
 
   @override
   void apply(LightNode node, _Scene3DScope scope) {
