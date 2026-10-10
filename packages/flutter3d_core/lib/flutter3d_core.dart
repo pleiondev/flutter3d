@@ -70,6 +70,7 @@ export 'src/engine/assets/device_class.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/image_decoder.dart';
 export 'src/engine/assets/ktx2/ktx2.dart';
+export 'src/engine/assets/memory_budget.dart';
 export 'src/engine/assets/model_loader.dart';
 export 'src/engine/assets/model_part.dart';
 export 'src/engine/assets/model_writer.dart';

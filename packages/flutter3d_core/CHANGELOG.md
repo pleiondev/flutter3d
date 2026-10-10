@@ -8,6 +8,17 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **A resource cache streams: a budget, a queue, priorities and
+  cancellation.** `MemoryBudget` holds limits per `MemoryCategory` and in
+  all, is charged and refunded, and tells `onCrossed` each time a limit is
+  crossed either way. A `ResourceCache` given a `budget` and `sizeOf`
+  charges each value to its `categoryOf` and, while the budget is over,
+  evicts what nobody holds, least wanted and longest released first. With
+  `maxConcurrentLoads` the loads wait in a queue the most wanted leaves
+  first. `request` hands back a `ResourceRequest` whose `priority` can
+  change while it waits and which `cancel` calls off (its handle completes
+  with `ResourceLoadCancelled`); a `ResourceHandle`'s `priority` can change
+  while it is held. `acquire` takes a `priority` and works as before.
 - **`RenderSettings.telemetry` says how much of a frame is measured.**
   `TelemetryLevel.off` keeps the frame's totals and nothing per node;
   `counters` keeps a `FramePass` per node and a `FrameResourceUse` per

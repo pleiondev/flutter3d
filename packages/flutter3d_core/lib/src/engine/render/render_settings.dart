@@ -16,8 +16,8 @@ import 'physical_camera.dart';
 import 'render_step.dart';
 import 'shadow_settings.dart';
 import 'sky_settings.dart';
-import 'telemetry.dart';
 import 'tables/kdop_axes.dart';
+import 'telemetry.dart';
 
 // Re-exported so that `render_settings.dart` stays the one import an
 // application needs: what moved out is still part of the same vocabulary.
