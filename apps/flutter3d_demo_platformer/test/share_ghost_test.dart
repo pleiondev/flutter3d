@@ -1,9 +1,13 @@
 /// N10's line done: a run shared from one window, opened by its code in
-/// another and raced as a ghost — through the reference server, started here
-/// under `dart run`.
+/// another and raced as a ghost — through the reference server, built and
+/// started here.
 ///
 ///     flutter test test/share_ghost_test.dart
+///
+/// Twenty minutes because setUpAll builds the server first, and on a cold
+/// checkout that is minutes of native compilation (see `_builtServer`).
 @TestOn('vm')
+@Timeout(Duration(minutes: 20))
 library;
 
 import 'dart:async';
@@ -96,22 +100,78 @@ Map<String, Object?> _document() =>
   );
 }
 
+/// The reference server's package, outside the workspace.
+const String _serverPackage = '../../cloud/server';
+
+/// Where the server is built for this test, under the package's ignored
+/// `build/`.
+const String _serverBuild = 'build/share_ghost_test';
+
+/// Runs `dart` with [arguments] in the server's package to the end, and
+/// fails naming [what] and everything it printed when it does not succeed.
+Future<void> _dart(List<String> arguments, String what) async {
+  // `dart`, not this process's own executable, which under `flutter test`
+  // is the tester rather than the VM.
+  final result = await Process.run(
+    'dart',
+    arguments,
+    workingDirectory: _serverPackage,
+  );
+  if (result.exitCode != 0) {
+    fail(
+      '$what in cloud/server failed (${result.exitCode}):\n'
+      '${result.stdout}${result.stderr}',
+    );
+  }
+}
+
+/// The server, resolved and built, ready to start in a moment.
+///
+/// **Outside the clock that waits for it to listen.** On a checkout that has
+/// never built it, the native build hooks the server's packages carry take
+/// minutes (477 s measured on a cold machine, 24 s warm), and a startup timeout
+/// that also had to cover them was red on every fresh machine. Resolving and
+/// building here, then starting the built executable, leaves the clock timing
+/// only the start. The server is outside the workspace, so the repository's
+/// `pub get` does not resolve it.
+Future<String> _builtServer() async {
+  if (!File('$_serverPackage/.dart_tool/package_config.json').existsSync()) {
+    await _dart(<String>['pub', 'get'], '`dart pub get`');
+  }
+  await _dart(<String>[
+    'build',
+    'cli',
+    '--target',
+    'tool/share_server.dart',
+    '--output',
+    _serverBuild,
+  ], '`dart build cli` of tool/share_server.dart');
+  final executable = File(
+    '$_serverPackage/$_serverBuild/bundle/bin/share_server'
+    '${Platform.isWindows ? '.exe' : ''}',
+  );
+  if (!executable.existsSync()) {
+    fail('`dart build cli` wrote no ${executable.path}');
+  }
+  return executable.absolute.path;
+}
+
 void main() {
   Process? server;
   late String address;
 
   setUpAll(() async {
-    // `dart`, not this process's own executable, which under `flutter test`
-    // is the tester rather than the VM.
-    final started = await Process.start('dart', <String>[
-      'run',
-      'tool/share_server.dart',
-    ], workingDirectory: '../../cloud/server');
+    final executable = await _builtServer();
+    final started = await Process.start(
+      executable,
+      const <String>[],
+      workingDirectory: _serverPackage,
+    );
     server = started;
     final listening = Completer<String>();
-    // What the server said, for when it stops before it listens: a server
-    // whose packages do not resolve exits in seconds, and waiting out the
-    // timeout for it said only that nothing happened.
+    // What the server said, for when it stops before it listens: waiting out
+    // the timeout for a server that has exited says only that nothing
+    // happened.
     final said = StringBuffer();
     started.stdout
         .transform(utf8.decoder)
@@ -129,8 +189,7 @@ void main() {
         if (listening.isCompleted) return;
         listening.completeError(
           StateError(
-            'the share server exited ($code) before it listened — has '
-            '`dart pub get` been run in cloud/server?\n$said',
+            'the share server exited ($code) before it listened:\n$said',
           ),
         );
       }),
