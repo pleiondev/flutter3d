@@ -291,7 +291,7 @@ final class ViewResolution {
 /// one it can open — the software rasteriser where Impeller is off — and
 /// says so in a banner over the picture, which can be closed and which
 /// `DeviceSettings.fallbackBanner` turns off. The reasons go to [log].
-class Flutter3dView extends StatefulWidget {
+final class Flutter3dView extends StatefulWidget {
   /// A view of [scene] (a new, empty one by default) through [camera] (one
   /// at `(0, 1, 5)` looking at the origin by default).
   const Flutter3dView({

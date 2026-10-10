@@ -39,7 +39,7 @@
 
 - **Breaking: the widgets are `final`.** `DidNotStart`, `LevelLoadFailed`,
   `LoadingScreen`, `MemoryPressureRelease`, `RendererFailure` and
-  `SceneSurface`, and every widget of a `Scene3D` (`Scene3D`, `Node3D`,
+  `SceneSurface`, `Flutter3dView`, and every widget of a `Scene3D` (`Scene3D`, `Node3D`,
   `Mesh3D`, `Model3D`, `Light3D`, `Camera3D`, `Material3D`, `Mirror3D`,
   `Decal3D`, `ReflectionProbe3D`, `Particles3D`, `Contributor3D`), are
   final classes, and `Spatial3D` is an `abstract base class`: a widget is
