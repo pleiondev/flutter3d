@@ -492,6 +492,15 @@ step "benchmarks compile" bash -c '
   (cd packages/flutter3d && dart compile exe tool/bench/bench.dart -o "$out/engine" >/dev/null)
 '
 
+# **The benchmarks that are tests, run where they are asked for by name.**
+# Every suite above holds a test to a minute, and a benchmark is minutes by
+# nature, so each package's dart_test.yaml skips the `benchmark` tag and the
+# loops above report those tests as skipped. This runs them, so what they
+# assert — a redraw costs more than a skip, a repeated stroke costs what the
+# first did — is still checked on every commit. The 4K frame's own threshold
+# is for one named machine and skips itself where CI is set.
+step "benchmarks" bash tool/benchmarks.sh
+
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "all green"

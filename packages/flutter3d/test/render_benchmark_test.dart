@@ -42,6 +42,11 @@
 /// to actually execute the compiled module and time it — a second real piece
 /// of infrastructure this row's own size does not budget for. Recorded here
 /// as not measured, not silently assumed to pass.
+///
+/// **Tagged `benchmark`, which this package's `dart_test.yaml` skips.** A
+/// test that is minutes by nature does not belong in the run somebody starts
+/// to find out whether they broke something; `tool/benchmarks.sh` runs it.
+@Tags(<String>['benchmark'])
 library;
 
 import 'dart:io' show Platform;
@@ -119,6 +124,23 @@ void main() {
   test(
     "pro-rn-01's own acceptance: 4K at 2x supersampling under 3 minutes",
     () {
+      // **Not on CI.** The threshold is the row's own, "under 3 minutes on
+      // an M3", and a shared Linux runner is not that machine: it took 235 s
+      // there on 2026-09-22 against 138 s here, which says how busy the
+      // runner was and nothing about the renderer. `.github/workflows/ci.yml`
+      // says the same about its own benchmark step: a threshold on a shared
+      // machine gates a merge on whoever else is using it.
+      //
+      // Asked in the body rather than through `skip:`, because the
+      // `benchmark` tag is itself a skip that `tool/benchmarks.sh` lifts with
+      // `--run-skipped`, and that flag would lift this one with it.
+      if (Platform.environment['CI'] == 'true') {
+        markTestSkipped(
+          'a timing threshold for an M3, not for a shared CI runner',
+        );
+        return;
+      }
+
       // Ambient occlusion defaults off (`gfx-08n`, not yet done this
       // session); shadows and bloom already default on.
       const settings = RenderSettings(
@@ -148,19 +170,10 @@ void main() {
         reason: "the row's own threshold: under 3 minutes",
       );
     },
-    // The three renders together run a little over three minutes on the
-    // machine this was measured on; a timeout tighter than that would fail
-    // on its own overhead rather than on anything this test is checking.
+    // The three renders together run a little over two minutes on the
+    // machine this was measured on (7.62 + 26.68 + 105.34 s, the table
+    // above); a timeout tighter than that would fail on its own overhead
+    // rather than on anything this test is checking.
     timeout: const Timeout(Duration(minutes: 5)),
-    // **Not on CI.** The threshold is the row's own, "under 3 minutes on an
-    // M3", and a shared Linux runner is not that machine: it took 235 s there
-    // on 2026-09-22 against 138 s here, which says how busy the runner was
-    // and nothing about the renderer. `.github/workflows/ci.yml` says the same
-    // about its own benchmark step: a threshold on a shared machine gates a
-    // merge on whoever else is using it. It also spent five of CI's minutes
-    // on every push.
-    skip: Platform.environment['CI'] == 'true'
-        ? 'a timing threshold for an M3, not for a shared CI runner'
-        : false,
   );
 }

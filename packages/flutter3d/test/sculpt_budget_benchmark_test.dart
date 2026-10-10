@@ -128,6 +128,10 @@
 ///   second and third time costs the same as the first, which a scheme that
 ///   allocated for every touched vertex or for the mesh's whole normal
 ///   buffer, every stroke, would not do.
+///
+/// Tagged `benchmark`, which this package's `dart_test.yaml` skips:
+/// `tool/benchmarks.sh` runs it.
+@Tags(<String>['benchmark'])
 library;
 
 import 'dart:math' as math;
