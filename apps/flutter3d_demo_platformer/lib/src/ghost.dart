@@ -23,11 +23,7 @@ import 'staging.dart';
 ///
 /// [hz] samples a second, and the track is interpolated between them —
 /// see [Playback].
-({Tape? ghost, GhostNote note}) ghostOf(
-  Level level,
-  Demo demo, {
-  double hz = 30.0,
-}) => ghostOfRun(
+RunGhost ghostOf(Level level, Demo demo, {double hz = 30.0}) => ghostOfRun(
   level,
   demo,
   body: runnerBody,

@@ -25,7 +25,7 @@ void main() {
         (EntityDef it) => it.type.contains('spawn'),
       );
 
-      final spawn = LevelWalk.spawnIn(level);
+      final SpawnPoint spawn = LevelWalk.spawnIn(level);
 
       expect(spawn.at.y, closeTo(authored.position.y + 0.9, 1e-5));
       expect(spawn.at.x, closeTo(authored.position.x, 1e-5));

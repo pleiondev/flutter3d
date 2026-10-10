@@ -4,6 +4,21 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// Where a body starts in a level, and which way it faces: what
+/// [LevelWalk.spawnIn] reads from the level's first spawn.
+///
+/// **A class, not a record**, so it can say more in a minor release (the
+/// spawn's entity, a pitch) without breaking a caller that reads it.
+final class SpawnPoint {
+  const SpawnPoint({required this.at, this.yaw = 0.0});
+
+  /// Where the body's centre goes, in the level's space.
+  final Vector3 at;
+
+  /// Which way it faces, in radians about world up; nought looks down -Z.
+  final double yaw;
+}
+
 /// A body that walks a level: it collides, jumps and runs, turns where it is
 /// dragged, and carries a camera at eye height.
 ///
@@ -31,11 +46,11 @@ final class LevelWalk {
   /// A spawn is authored at the feet, which is the only place an author can
   /// see, and a body put there starts inside the floor. The first entity whose
   /// type names a spawn wins; a level with none starts at the origin.
-  static ({Vector3 at, double yaw}) spawnIn(Level level, {double lift = 0.9}) {
+  static SpawnPoint spawnIn(Level level, {double lift = 0.9}) {
     final spawn = level.entities
         .where((EntityDef it) => it.type.contains('spawn'))
         .firstOrNull;
-    return (
+    return SpawnPoint(
       at: (spawn?.position ?? Vector3.zero()) + Vector3(0.0, lift, 0.0),
       yaw: spawn?.yaw ?? 0.0,
     );

@@ -127,7 +127,7 @@ void main() {
   group('ext.flutter3d.level.apply', () {
     test('applies a document whose hash matches, and reports how', () async {
       final game = _game();
-      final (:result, :error) = await answerLevelApply(
+      final LevelExtensionAnswer(:result, :error) = await answerLevelApply(
         game.live,
         _send(_level(fog: 0.04)),
       );
@@ -142,7 +142,10 @@ void main() {
       final parameters = _send(_level(fog: 0.04))
         ..['hash'] = _level().digestHex;
 
-      final (:result, :error) = await answerLevelApply(game.live, parameters);
+      final LevelExtensionAnswer(:result, :error) = await answerLevelApply(
+        game.live,
+        parameters,
+      );
 
       expect(result, isNull);
       expect(error, contains('changed on the way'));
@@ -151,7 +154,7 @@ void main() {
 
     test('builds the level ahead, then swaps it in', () async {
       final game = _game(prepares: true);
-      final (:result, :error) = await answerLevelApply(
+      final LevelExtensionAnswer(:result, :error) = await answerLevelApply(
         game.live,
         _send(_level(wallAt: 8.0)),
       );
@@ -167,7 +170,7 @@ void main() {
 
     test('keeps the level it had when the new one does not build', () async {
       final game = _game(prepareFails: 'no texture stone.png');
-      final (:result, :error) = await answerLevelApply(
+      final LevelExtensionAnswer(:result, :error) = await answerLevelApply(
         game.live,
         _send(_level(wallAt: 8.0)),
       );
@@ -192,10 +195,13 @@ void main() {
       final game = _game();
       final patch = LevelPatch.between(_level(), _level(wallAt: 8.0));
 
-      final (:result, :error, :stale) = await answerLevelPatch(
-        game.live,
-        <String, String>{'patch': jsonEncode(patch.toJson())},
-      );
+      final LevelExtensionAnswer(
+        :result,
+        :error,
+        isStale: stale,
+      ) = await answerLevelPatch(game.live, <String, String>{
+        'patch': jsonEncode(patch.toJson()),
+      });
 
       expect(error, isNull);
       expect(stale, isFalse);
@@ -215,10 +221,13 @@ void main() {
           _level(wallAt: 8.0),
         );
 
-        final (:result, :error, :stale) = await answerLevelPatch(
-          game.live,
-          <String, String>{'patch': jsonEncode(patch.toJson())},
-        );
+        final LevelExtensionAnswer(
+          :result,
+          :error,
+          isStale: stale,
+        ) = await answerLevelPatch(game.live, <String, String>{
+          'patch': jsonEncode(patch.toJson()),
+        });
 
         expect(result, isNull);
         expect(stale, isTrue);
@@ -231,10 +240,13 @@ void main() {
       final game = _game(prepareFails: 'no texture stone.png');
       final patch = LevelPatch.between(_level(), _level(wallAt: 8.0));
 
-      final (:result, :error, :stale) = await answerLevelPatch(
-        game.live,
-        <String, String>{'patch': jsonEncode(patch.toJson())},
-      );
+      final LevelExtensionAnswer(
+        :result,
+        :error,
+        isStale: stale,
+      ) = await answerLevelPatch(game.live, <String, String>{
+        'patch': jsonEncode(patch.toJson()),
+      });
 
       expect(stale, isFalse);
       expect(error, contains('did not build'));
