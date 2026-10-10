@@ -61,7 +61,7 @@ final class AssignOrder extends StrategyOrder
   final int dropOff
   final int node
   final int unit
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 final class AttackOrder extends StrategyOrder
   Map<String, Object?> toJson()
@@ -69,7 +69,7 @@ final class AttackOrder extends StrategyOrder
   factory AttackOrder.fromJson(Map<String, Object?> from)
   final List<int> units
   final int target
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 final class Bot
   Bot({required this.side, required this.base, this.thinkEvery = 30, this.plan = const ArmyPlan()})
@@ -210,7 +210,7 @@ final class MoveOrder extends StrategyOrder
   final Formation formation
   final List<int> units
   final Vector3 goal
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 final class OrderQueue
   List<Object?> save()
@@ -219,9 +219,9 @@ final class OrderQueue
   OrderTapeRecorder? recorder
   void add(StrategyOrder order)
   void addAll(Iterable<StrategyOrder> orders)
-  void assign(Unit unit, {required ResourceNode node, required Building dropOff, double capacity = 10.0, double rate = 8.0})
-  void attackWith(Iterable<Unit> units, Unit target)
-  void moveTo(Iterable<Unit> units, Vector3 goal, {Formation formation = const Formation.block()})
+  void assign(StrategyUnit unit, {required ResourceNode node, required Building dropOff, double capacity = 10.0, double rate = 8.0})
+  void attackWith(Iterable<StrategyUnit> units, StrategyUnit target)
+  void moveTo(Iterable<StrategyUnit> units, Vector3 goal, {Formation formation = const Formation.block()})
   void obey()
   void restore(List<Map<String, Object?>> saved)
   void train(Producer producer, UnitType type, {int count = 1})
@@ -272,7 +272,7 @@ final class ResourceNode
 final class Squad
   Squad(this.units, {this.formation = const Formation.block()})
   final Formation formation
-  final List<Unit> units
+  final List<StrategyUnit> units
   void hold()
   void moveTo(Vector3 goal)
 
@@ -316,13 +316,13 @@ abstract final class StrategyLevelTypes
 final class StrategyOpening
   StrategySimulation get simulation
   const StrategyOpening({required this.match, required this.mine})
-  final List<Unit> mine
+  final List<StrategyUnit> mine
   final Match match
 
 sealed class StrategyOrder
   Map<String, Object?> toJson()
   const StrategyOrder()
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 abstract final class StrategyPhases
   static const StepPhase afterFight = StepPhase('afterFight')
@@ -350,7 +350,7 @@ final class StrategySimulation
   ResourceNode addResource(ResourceNode node)
   Snapshot save()
   StrategySimulation({required this.ground, required this.random, double cellSize = 2.0, double maxSlope = 0.698, double fogCellSize = 4.0, this.fogEvery = 6, this.sides = 2, EcsWorld? entities})
-  Unit add(Unit unit)
+  StrategyUnit add(StrategyUnit unit)
   UnitPace? pace
   final EcsWorld entities
   final FogOfWar fog
@@ -360,7 +360,7 @@ final class StrategySimulation
   final List<Producer> producers
   final List<ResourceNode> resources
   final List<Stockpile> stock
-  final List<Unit> units
+  final List<StrategyUnit> units
   final List<double> delivered
   final List<void Function(double dt)> afterStep
   final StepSystems systems
@@ -371,20 +371,11 @@ final class StrategySimulation
   void restore(Snapshot snapshot)
   void step(double dt)
 
-final class TrainOrder extends StrategyOrder
-  Map<String, Object?> toJson()
-  const TrainOrder({required this.producer, required this.type, this.count = 1})
-  factory TrainOrder.fromJson(Map<String, Object?> from)
-  final UnitType type
-  final int count
-  final int producer
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd)
-
-final class Unit
+final class StrategyUnit
   Entity entity
   HarvestJob? job
   Map<String, Object?> save()
-  Unit({required this.position, this.type = UnitType.worker, this.side = 0, UnitOrder? order, double? health})
+  StrategyUnit({required this.position, this.type = UnitType.worker, this.side = 0, UnitOrder? order, double? health})
   UnitOrder order
   bool get isAlive
   double cooldown
@@ -392,11 +383,20 @@ final class Unit
   double get sight
   double get speed
   double health
-  factory Unit.fromSnapshot(Map<String, Object?> from)
+  factory StrategyUnit.fromSnapshot(Map<String, Object?> from)
   final UnitType type
   final Vector3 position
   final int side
   void hurt(double amount)
+
+final class TrainOrder extends StrategyOrder
+  Map<String, Object?> toJson()
+  const TrainOrder({required this.producer, required this.type, this.count = 1})
+  factory TrainOrder.fromJson(Map<String, Object?> from)
+  final UnitType type
+  final int count
+  final int producer
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 final class UnitFired extends GameEvent
   String get name
@@ -411,26 +411,26 @@ final class UnitFired extends GameEvent
 
 final class UnitOrder
   Map<String, Object?> save()
-  UnitOrder.attack(Unit this.target)
+  UnitOrder.attack(StrategyUnit this.target)
   const UnitOrder.hold()
   const UnitOrder.moveTo(Vector3 this.goal, {this.slot})
   factory UnitOrder.fromSnapshot(Map<String, Object?> from)
-  final Unit? target
+  final StrategyUnit? target
   final Vector3? goal
   final Vector3? slot
 
-typedef UnitPace = double Function(Unit unit, double towardX, double towardZ);
+typedef UnitPace = double Function(StrategyUnit unit, double towardX, double towardZ);
 
 final class UnitSelection
-  List<Unit> unitsWithin(Vector3 corner, Vector3 opposite)
-  Unit? unitAt(Vector3 origin, Vector3 direction, {double reach = 1000.0})
+  List<StrategyUnit> unitsWithin(Vector3 corner, Vector3 opposite)
+  StrategyUnit? unitAt(Vector3 origin, Vector3 direction, {double reach = 1000.0})
   const UnitSelection(this.units)
-  final List<Unit> units
+  final List<StrategyUnit> units
 
 final class UnitShot
   const UnitShot(this.shooter, this.mark)
-  final Unit mark
-  final Unit shooter
+  final StrategyUnit mark
+  final StrategyUnit shooter
 
 final class UnitType
   Map<String, Object?> toJson()

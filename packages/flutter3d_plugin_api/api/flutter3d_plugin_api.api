@@ -165,7 +165,6 @@ abstract base class LoopContext
   const LoopContext()
 
 final class LoopPhase
-  @Deprecated('Use LoopPhase.fields. Deprecated in 1.0.0, removed in 2.0.0.') static const LoopPhase elements = fields
   LoopPhase get current
   String toString()
   bool operator ==(Object other)

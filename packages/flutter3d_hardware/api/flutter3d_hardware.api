@@ -178,7 +178,8 @@ final class DepthTarget
   final int mipLevel
   final int stencilClearValue
 
-@immutable final class DeviceFeature
+@immutable final class DeviceFeature extends Capability
+  String get askedBy
   String toString()
   final FeatureStability stability
   final String name
@@ -964,14 +965,6 @@ abstract base class UniformBlock
   final String name
 
 typedef UniformMemberLayout = ({int offset, int byteLength, int elements, String type});
-
-final class UnsupportedCapability extends CapabilityException
-  String get message
-  String toString()
-  const UnsupportedCapability(this.feature, {required this.backend, this.reason})
-  final DeviceFeature feature
-  final String backend
-  final String? reason
 
 final class VertexFormat
   String toString()

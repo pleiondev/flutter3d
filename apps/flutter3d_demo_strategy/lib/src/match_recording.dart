@@ -51,7 +51,7 @@ const int matchPoseEvery = 60;
 /// already gives it, and one a unit made later never shares with one that
 /// died. A unit has no facing, so none is written.
 Iterable<BodyPose> unitPoses(StrategySimulation simulation) => <BodyPose>[
-  for (final Unit unit in simulation.units)
+  for (final StrategyUnit unit in simulation.units)
     BodyPose(
       'unit.${unit.entity.packed}',
       unit.position,

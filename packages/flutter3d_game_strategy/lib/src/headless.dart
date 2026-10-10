@@ -170,17 +170,17 @@ final class _StrategyRun extends RestorableRun {
     }
   }
 
-  static bool _within(Unit unit, double x, double z, double radius) {
+  static bool _within(StrategyUnit unit, double x, double z, double radius) {
     final dx = unit.position.x - x;
     final dz = unit.position.z - z;
     return dx * dx + dz * dz <= radius * radius;
   }
 
   /// The selection as it stands: those picked out who are still on the map.
-  List<Unit> _chosen() {
-    if (_selected.isEmpty) return const <Unit>[];
+  List<StrategyUnit> _chosen() {
+    if (_selected.isEmpty) return const <StrategyUnit>[];
     final picked = _selected.toSet();
-    return <Unit>[
+    return <StrategyUnit>[
       for (final unit in _sim.units)
         if (unit.side == _side &&
             unit.isAlive &&
@@ -190,8 +190,8 @@ final class _StrategyRun extends RestorableRun {
   }
 
   /// The enemy unit nearest x, z; the first in the crowd's order on a tie.
-  Unit? _nearestEnemy(double x, double z) {
-    Unit? nearest;
+  StrategyUnit? _nearestEnemy(double x, double z) {
+    StrategyUnit? nearest;
     var best = double.infinity;
     for (final unit in _sim.units) {
       if (unit.side == _side || !unit.isAlive) continue;
@@ -246,12 +246,12 @@ final class _StrategyRun extends RestorableRun {
     ).toWorldPosition(origin: WorldPosition.origin);
   }
 
-  List<Unit> _units(int side) => <Unit>[
+  List<StrategyUnit> _units(int side) => <StrategyUnit>[
     for (final unit in _sim.units)
       if (unit.side == side && unit.isAlive) unit,
   ];
 
-  static Vector3 _middle(List<Unit> units) {
+  static Vector3 _middle(List<StrategyUnit> units) {
     final sum = Vector3.zero();
     if (units.isEmpty) return sum;
     for (final unit in units) {

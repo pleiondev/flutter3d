@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`UnsupportedCapability` moved to `flutter3d_foundation`**, and
+  `DeviceFeature` extends the foundation's `Capability`. Import the
+  refusal from the foundation (or `package:flutter3d/flutter3d.dart`, which
+  still exports it); its constructor, fields and sentence are unchanged.
+
 - **A whole sRGB texture is refused for readback, not converted.**
   `readbackConverts` answers false for an sRGB format, so a backend sends
   it to `readbackRegionOf`, which refuses it with its own reason, as it

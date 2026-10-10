@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1551 places,
+only in a major version. To get there, 0.8's API changed in 1566 places,
 344 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -220,7 +220,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1551 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 275 nothing to do, 455 `dart fix`, 380 gone internal.*
+*Generated from `flutter3d_build/lib/migrations/` — 1566 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 289 nothing to do, 456 `dart fix`, 380 gone internal.*
 
 ### `flame_flutter3d`
 
@@ -644,16 +644,16 @@ carried out:
 - <a id="f2-core-RenderSettings-undisablePasses"></a>**`RenderSettings.undisablePasses`** (by hand). The names `disabledPasses` refused, `scene`, `composite` and `object ids`, are not steps, so no `without` can switch them off and there is nothing to subtract.
 - <a id="core-RenderView-clearColor-parameter"></a>**`RenderView.RenderView`** (`dart fix`). `RenderView(clearColor: ...)` is `RenderView(clearColorSrgb: ...)`, the same sRGB `Vector4`; `RenderView.texture` takes it under the same name.
 - <a id="core-RenderView-clearColor"></a>**`RenderView.clearColor`** (`dart fix`). `RenderView.clearColor` is `clearColorSrgb`. The clear colour is the one colour the engine takes sRGB-encoded, and since 1.0 a colour that is not linear says so in its name. Same `Vector4`, same values.
-- <a id="core-Renderer"></a>**`Renderer`** (nothing to do). `releaseTransientTargets` returns the bytes it handed back instead of nothing. A call that ignores the result is unchanged; only a tear-off stored as `void Function()` has to take the `int` or ignore it, and `Renderer` is final, so nothing overrides it.
-- <a id="core-Renderer-internals"></a>**`Renderer`** (by hand). The renderer's own stages and test hooks are not its API since 1.0, so a shader change is not a major release. A stage is looked up by name, `renderer.shaders['DebugLineVertex']!`; the `debug*` hooks are for the engine's own tests, through `package:flutter3d_core/src/engine/render/renderer.dart`.
 - <a id="core-Renderer-extension-points"></a>**`Renderer`** (by hand). One way into the frame since 1.0, `renderer.renderSteps`: `addContributor`, `removeContributor` and `contributors` moved there unchanged; `addNode(node, phase: ...)` is `renderSteps.addNode(node, at: anchor)` (`FramePhase.overlay` is `RenderAnchor.afterScene`, `FramePhase.present` is `RenderAnchor.beforePresent`, no `at` uses the node's `defaultAnchor`), and it hands back a `Registration` whose `cancel` is what `removeNode` was.
+- <a id="core-Renderer-internals"></a>**`Renderer`** (by hand). The renderer's own stages and test hooks are not its API since 1.0, so a shader change is not a major release. A stage is looked up by name, `renderer.shaders['DebugLineVertex']!`; the `debug*` hooks are for the engine's own tests, through `package:flutter3d_core/src/engine/render/renderer.dart`.
+- <a id="core-Renderer"></a>**`Renderer`** (nothing to do). `releaseTransientTargets` returns the bytes it handed back instead of nothing. A call that ignores the result is unchanged; only a tear-off stored as `void Function()` has to take the `int` or ignore it, and `Renderer` is final, so nothing overrides it.
 - <a id="f2-core-Renderer-addMaterials"></a>**`Renderer.addMaterials`** (`migrate`). `Renderer.addMaterials` becomes `x.renderSteps.addMaterials({0})`. One way to add a bundle of materials: `renderer.renderSteps.addMaterials`, which a plugin already used. It returns the `Registration` that takes the library out again.
 - <a id="4a-core-Renderer-kShadowedLights"></a>**`Renderer.kShadowedLights`** (`dart fix`). `Renderer.kShadowedLights` is `shadowedLights`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="f2-core-Renderer-removeMaterials"></a>**`Renderer.removeMaterials`** (by hand). Keep the `Registration` that `renderer.renderSteps.addMaterials(library)` returned and `cancel()` it; that takes the library out, as this did.
 - <a id="f2-core-Renderer-shadowedLights"></a>**`Renderer.shadowedLights`** (nothing to do). A static getter now, with the same value (6), so a later minor can change the shadow atlas without a constant compiled into callers.
 - <a id="4a-core-ResourceDesc-resolve"></a>**`ResourceDesc.resolve`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.
-- <a id="core-Scene-origin"></a>**`Scene`** (nothing to do). Additions: `origin`, `shiftOrigin`, `rebaseAround`, `onOriginShift`, `toScene` and `toWorld`, for a world bigger than float32 holds. A node's transform is relative to the origin, which stays at the world origin unless something shifts it, so a scene that never shifts draws as it did.
 - <a id="core-Scene"></a>**`Scene`** (by hand). A node joins its scene's lists when it is added (`Scene.add`); the `register*` calls are the nodes' own since 1.0. `ambientColor` is a `LinearColor`: `scene.ambientColor = const LinearColor(r, g, b)`, or `vector.toLinearColor()`. `addRenderTexture` is `addTextureView`, `renderTextures` is `textureViews`.
+- <a id="core-Scene-origin"></a>**`Scene`** (nothing to do). Additions: `origin`, `shiftOrigin`, `rebaseAround`, `onOriginShift`, `toScene` and `toWorld`, for a world bigger than float32 holds. A node's transform is relative to the origin, which stays at the world origin unless something shifts it, so a scene that never shifts draws as it did.
 - <a id="f2-core-Scene-ambientIntensity"></a>**`Scene.ambientIntensity`** (by hand). `Scene.ambientIntensity` is lux since 1.0, about 347 by default (the 0.06 it was). Multiply a pre-1.0 number by `Photometric.legacyUnit`: `scene.ambientIntensity = 0.3` is `scene.ambientIntensity = 0.3 * Photometric.legacyUnit`.
 - <a id="core-SceneBvh"></a>**`SceneBvh`** (nothing to do). Only the float32 ray in its signature changed: `Ray` is `LocalRay` (`core-Ray-LocalRay` renames it).
 - <a id="core-SceneNode"></a>**`SceneNode`** (by hand). The scene graph's change counter is the engine's own since 1.0; a world position is `node.worldPosition` (double precision) and `setWorldPosition`.
@@ -686,6 +686,7 @@ carried out:
 - <a id="core-SplatSpzException"></a>**`SplatSpzException`** (nothing to do). `SplatSpzException` is still a final class with the same members; it now extends `Flutter3dFormatException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on SplatSpzException` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="f2-core-SurfaceMaterial-colours"></a>**`SurfaceMaterial`** (by hand). `SurfaceMaterial.baseColor` and `emissive` are linear `LinearColor`s. `baseColor` held the authored sRGB-encoded tint as a `Vector4`; it is `LinearColor.fromSrgb(r, g, b, a)` of the same numbers. Files keep what they stored: each reader and writer converts.
 - <a id="core-TonemapCurve-agxFull"></a>**`TonemapCurve.agxFull`** (`dart fix`). `TonemapCurve.agxFull` is `agx`. `TonemapCurve.agx` is the full AgX transform since 0.7.4; `agxFull` is the same curve under its old name.
+- <a id="core-TonemapCurve-values"></a>**`TonemapCurve.values`** (nothing to do). The list no longer holds `agxFull`, which is gone; it drew the same picture as `agx`. Code that walks the list sees five curves where it saw six.
 - <a id="core-TransparencyMode"></a>**`TransparencyMode`** (by hand). An open set since 1.0: a `switch` over it needs a `_ =>` case. `values`, `name`, `index` and `byName` are there.
 - <a id="core-TriangleBvh"></a>**`TriangleBvh`** (nothing to do). Only the float32 ray in its signature changed: `Ray` is `LocalRay` (`core-Ray-LocalRay` renames it).
 - <a id="core-TriggerCondition"></a>**`TriggerCondition`** (by hand). `AnimationCondition` has a new case, `TriggerCondition`: a `switch` over a `AnimationCondition` that names every case needs one for it, or a wildcard.
@@ -709,8 +710,8 @@ carried out:
 - <a id="core-ensureSphereCapacity"></a>**`ensureSphereCapacity`** (`dart fix`). `ensureSphereCapacity` is imported from `package:flutter3d_core/flutter3d_core.dart`.
 - <a id="core-escapesAssetBase"></a>**`escapesAssetBase`** (`dart fix`). `escapesAssetBase` is imported from `package:flutter3d_core/flutter3d_core.dart`.
 - <a id="f2-core-gather-sky"></a>**`gather`** (by hand). `gather(..., sky:)` and `gatherProbe(..., sky:)` take a linear `LinearColor`, black by default: `sky: Vector3(r, g, b)` is `sky: LinearColor(r, g, b)`.
-- <a id="core-gatherProbe"></a>**`gatherProbe`** (`dart fix`). `gatherProbe` is imported from `package:flutter3d_core/flutter3d_core.dart`.
 - <a id="f2-core-gatherProbe-sky"></a>**`gatherProbe`** (by hand). `sky:` is a linear `LinearColor`; see `f2-core-gather-sky`.
+- <a id="core-gatherProbe"></a>**`gatherProbe`** (`dart fix`). `gatherProbe` is imported from `package:flutter3d_core/flutter3d_core.dart`.
 - <a id="4a-core-impostorCard"></a>**`impostorCard`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
 - <a id="core-impostorDecode"></a>**`impostorDecode`** (`dart fix`). `impostorDecode` is imported from `package:flutter3d_core/flutter3d_core.dart`.
 - <a id="core-impostorEncode"></a>**`impostorEncode`** (`dart fix`). `impostorEncode` is imported from `package:flutter3d_core/flutter3d_core.dart`.
@@ -719,8 +720,8 @@ carried out:
 - <a id="4a-core-kF3dHeaderBytes"></a>**`kF3dHeaderBytes`** (`dart fix`). `kF3dHeaderBytes` is `f3dHeaderBytes`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="4a-core-kF3dMagic"></a>**`kF3dMagic`** (`dart fix`). `kF3dMagic` is `f3dMagic`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="4a-core-kF3dSectionEntryBytes"></a>**`kF3dSectionEntryBytes`** (`dart fix`). `kF3dSectionEntryBytes` is `f3dSectionEntryBytes`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
-- <a id="4a-core-kF3dVersion"></a>**`kF3dVersion`** (`dart fix`). `kF3dVersion` is `f3dVersion`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix.
 - <a id="core-kF3dVersion"></a>**`kF3dVersion`** (nothing to do). It is the newest `.f3d` version this build reads, now 2 (the directory flags word and per-section stride). Every version-1 file still reads, and the writer still writes version 1 unless extra sections are given.
+- <a id="4a-core-kF3dVersion"></a>**`kF3dVersion`** (`dart fix`). `kF3dVersion` is `f3dVersion`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix.
 - <a id="4a-core-kFmatVersion"></a>**`kFmatVersion`** (`dart fix`). `kFmatVersion` is `fmatVersion`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="4a-core-kImpostorGrid"></a>**`kImpostorGrid`** (`dart fix`). `kImpostorGrid` is `impostorGrid`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="core-kIrradianceReach"></a>**`kIrradianceReach`** (`dart fix`). `kIrradianceReach` is imported from `package:flutter3d_core/flutter3d_core.dart`.
@@ -1074,6 +1075,8 @@ carried out:
 
 ### `flutter3d_game_strategy`
 
+- <a id="game_strategy-AssignOrder-obey-StrategyUnit"></a>**`AssignOrder.obey`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-AttackOrder-obey-StrategyUnit"></a>**`AttackOrder.obey`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
 - <a id="4a-game_strategy-Building-Building"></a>**`Building.Building`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-game_strategy-Building-centre"></a>**`Building.centre`** (`dart fix`). `Building.centre` is `center`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-game_strategy-FogOfWar-centreOf"></a>**`FogOfWar.centreOf`** (`dart fix`). `FogOfWar.centreOf` is `centerOf`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
@@ -1083,8 +1086,20 @@ carried out:
 - <a id="4a-game_strategy-MapCamera-tuning"></a>**`MapCamera.tuning`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.
 - <a id="4a-game_strategy-MapCameraTuning"></a>**`MapCameraTuning`** (`dart fix`). `MapCameraTuning` is `MapCameraSettings`. Settings classes have one suffix in 1.0, Settings (a HAL type's is Descriptor), and each is final, const, with a copyWith that covers every field. The class is the same under the new name.
 - <a id="game_strategy-MatchDemo"></a>**`MatchDemo`** (nothing to do). Only the value of the constant moved; code that reads `MatchDemo` gets the new one. It is a version or a layout size the engine stamps and checks itself.
+- <a id="game_strategy-MoveOrder-obey-StrategyUnit"></a>**`MoveOrder.obey`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-OrderQueue-assign-StrategyUnit"></a>**`OrderQueue.assign`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-OrderQueue-attackWith-StrategyUnit"></a>**`OrderQueue.attackWith`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-OrderQueue-moveTo-StrategyUnit"></a>**`OrderQueue.moveTo`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
 - <a id="4a-game_strategy-ResourceNode-take"></a>**`ResourceNode.take`** (`dart fix`). `ResourceNode.take` is `harvest`. Creation and teardown verbs follow one convention in 1.0: create (synchronous), open (a device or a session), load (an asset), decode (bytes), parse (text), dispose (teardown), close (a connection or a stream), and drain for a read that empties what it reads. The behaviour is the same under the new name.
 - <a id="f1-rename-strategy-Selection"></a>**`Selection`** (`dart fix`). `Selection` is `UnitSelection`. The strategy's ray-and-rectangle picking is `UnitSelection`, so it no longer shares a name with the modeller's element `Selection` in `flutter3d_mesh`.
+- <a id="game_strategy-Squad-units-StrategyUnit"></a>**`Squad.units`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-StrategyOrder-obey-StrategyUnit"></a>**`StrategyOrder.obey`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-StrategySimulation-add-StrategyUnit"></a>**`StrategySimulation.add`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-StrategySimulation-units-StrategyUnit"></a>**`StrategySimulation.units`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-TrainOrder-obey-StrategyUnit"></a>**`TrainOrder.obey`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-Unit"></a>**`Unit`** (`dart fix`). `Unit` is `StrategyUnit`. `Unit` is the foundation's unit of measurement since 1.0, and a public name has one home, so a unit on the map is a `StrategyUnit`. Nothing else about it changed.
+- <a id="game_strategy-UnitOrder-UnitOrder-attack-StrategyUnit"></a>**`UnitOrder.UnitOrder.attack`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
+- <a id="game_strategy-UnitOrder-target-StrategyUnit"></a>**`UnitOrder.target`** (nothing to do). The signature names `StrategyUnit`, the new name of `Unit` (`game_strategy-Unit`); `dart fix` renames the type where the caller spells it, and a call is unchanged.
 
 ### `flutter3d_hardware`
 

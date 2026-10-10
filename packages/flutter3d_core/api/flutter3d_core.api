@@ -4394,11 +4394,10 @@ final class TiledProjection extends Projection
   final int tilesY
 
 final class TonemapCurve
-  @Deprecated('Use TonemapCurve.agx, which is now the full AgX transform. ' 'Deprecated in 0.7.4, removed in 2.0.0.') static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0)
   String toString()
   final String name
   final double code
-  static const List<TonemapCurve> values = <TonemapCurve>[neutral, aces, agx, reinhard, agxFull, aces2]
+  static const List<TonemapCurve> values = <TonemapCurve>[neutral, aces, agx, reinhard, aces2]
   static const TonemapCurve aces = TonemapCurve._('aces', 2.0)
   static const TonemapCurve aces2 = TonemapCurve._('aces2', 6.0)
   static const TonemapCurve agx = TonemapCurve._('agx', 3.0)

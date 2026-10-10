@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `TonemapCurve.agxFull` is gone.** It drew the same picture
+  as `TonemapCurve.agx` since 0.7.4; `dart fix` renames it. `values` lists
+  five curves, and a frame that still carries code 5 draws as `agx`.
+
 - **Hashed alpha stays put through a shift of the origin.** The renderer
   carries the scene's origin in a hashed material's cutoff, below the -2
   that says "hashed", so the noise is counted from the world's start and

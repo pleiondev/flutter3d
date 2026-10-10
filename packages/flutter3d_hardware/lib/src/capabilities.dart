@@ -26,7 +26,7 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show CapabilityException;
+    show Capability, CapabilityException, UnsupportedCapability;
 import 'package:meta/meta.dart';
 
 import 'formats.dart';
@@ -53,13 +53,21 @@ enum FeatureStability {
 /// added later is not a breaking change to every `switch` written against the
 /// list — the same shape `LightingModel` has, and for the same reason. Compare
 /// by identity or by [name]; both are stable.
+///
+/// **A [Capability]**, so that a refusal of one is the foundation's
+/// [UnsupportedCapability], the one every layer throws.
 @immutable
-final class DeviceFeature {
+final class DeviceFeature extends Capability {
   const DeviceFeature._(this.name, this.stability);
 
   /// The stable identifier: WebGPU's spelling where WebGPU has the feature,
   /// the engine's own otherwise. Used in reports, snapshots and refusals.
+  @override
   final String name;
+
+  /// A device answers through its features, so a caller asks there first.
+  @override
+  String get askedBy => '`GraphicsDevice.features`';
 
   /// Whether its calls are promised, still moving, or not built anywhere.
   final FeatureStability stability;
@@ -670,46 +678,6 @@ final class DeviceFeatures {
   @override
   String toString() =>
       'DeviceFeatures(${all.map((DeviceFeature f) => f.name).join(', ')})';
-}
-
-/// The refusal every feature-gated call throws on a device without the
-/// feature: a [CapabilityException] that names what was asked for and who
-/// refused it.
-///
-/// **One type, so that a caller and the conformance suite can tell a refusal
-/// the contract promised from a backend falling over.** Before 0.9 each
-/// backend wrote its own sentence into a bare [UnsupportedError], and a check
-/// that wanted to know whether a throw was *the* refusal had only the message
-/// to go on.
-///
-/// **An exception and not an [UnsupportedError] since 1.0**, because a
-/// caller meets it in a correct program: a device that lacks a feature is a
-/// fact about the hardware, not a mistake in the code that asked. A caller
-/// who asks `GraphicsDevice.features` first never sees it.
-final class UnsupportedCapability extends CapabilityException {
-  const UnsupportedCapability(
-    this.feature, {
-    required this.backend,
-    this.reason,
-  });
-
-  /// What was asked for.
-  final DeviceFeature feature;
-
-  /// Who refused, as a person would name the backend.
-  final String backend;
-
-  /// Why this backend does not have it, when it can say.
-  final String? reason;
-
-  @override
-  String get message =>
-      '$backend does not support ${feature.name}'
-      '${reason == null ? '' : ': $reason'}. Ask whether '
-      '`GraphicsDevice.features` has it before calling.';
-
-  @override
-  String toString() => 'UnsupportedCapability: $message';
 }
 
 /// How much of everything a device has: sizes, counts and alignments.

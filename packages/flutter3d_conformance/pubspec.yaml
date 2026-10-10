@@ -33,6 +33,9 @@ dependencies:
   # them take it as a dev dependency of their own.
   test: ^1.25.0
   flutter3d_hardware: ^1.0.0-rc.1
+  # The refusal the capability checks hold every backend to,
+  # `UnsupportedCapability`, which every layer throws.
+  flutter3d_foundation: ^1.0.0-rc.1
   vector_math: ^2.2.0
   # The list of entry points a bundle must answer to.
   flutter3d_shaders: ^1.0.0-rc.1

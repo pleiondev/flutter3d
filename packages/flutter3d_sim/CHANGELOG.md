@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`Level` no longer takes `gravity:` or answers `gravity`.** Both were
+  added on the way to 1.0 and deprecated at once in favor of the level's
+  `world`: write `world: {'gravity': g}`, and read
+  `worldOver(game).gravity`. A level file with a top-level `gravity` still
+  lifts into `world` as before.
+
 - **Breaking: a save from a newer codec is refused.** `EcsWorld.restore`
   throws a `SnapshotFormatException` naming a component or resource written
   at a version past the one this build registers, before it changes

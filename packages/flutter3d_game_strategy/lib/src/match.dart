@@ -197,7 +197,7 @@ final class Match {
 
     for (final int mortal in standing) {
       if (_makesUnits(simulation, mortal)) continue;
-      for (final Unit unit in simulation.units) {
+      for (final StrategyUnit unit in simulation.units) {
         if (unit.side != mortal && unit.type.isArmed) return true;
       }
     }
@@ -241,7 +241,7 @@ final class Match {
 
   /// Whether [side] has anything left to act with in [simulation].
   static bool _canAct(StrategySimulation simulation, int side) {
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side == side) return true;
     }
     return _makesUnits(simulation, side);
@@ -314,7 +314,7 @@ final class Match {
     for (final ResourceNode node in simulation.resources) {
       if (!node.isEmpty) return true;
     }
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if ((unit.job?.carried ?? 0.0) > 0.0) return true;
     }
     return false;

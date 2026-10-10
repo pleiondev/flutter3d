@@ -65,13 +65,6 @@ final class FluidMedium {
   /// on.
   static final FluidMedium oliveOil = FluidMedium.of(Materials.oliveOil);
 
-  /// [oliveOil], by the name it had.
-  @Deprecated(
-    'Use FluidMedium.oliveOil, the catalogue\'s f3d.oliveOil. '
-    'Deprecated in 1.0.0, removed in 2.0.0.',
-  )
-  static FluidMedium get oil => oliveOil;
-
   /// Ethanol ([Materials.ethanol]): wets glass completely and pulls weakly.
   static final FluidMedium ethanol = FluidMedium.of(Materials.ethanol);
 

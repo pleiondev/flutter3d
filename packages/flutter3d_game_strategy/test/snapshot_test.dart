@@ -59,7 +59,7 @@ typedef Camp = ({
   Building hall,
   ResourceNode seam,
   Producer maker,
-  Unit worker,
+  StrategyUnit worker,
 });
 
 Camp _camp({
@@ -86,7 +86,7 @@ Camp _camp({
   final maker = sim.addProducer(
     Producer(building: hall, cost: cost)..order(UnitType.worker, count: 20),
   );
-  final worker = sim.add(Unit(position: Vector3(21.0, 0.0, 16.0)))
+  final worker = sim.add(StrategyUnit(position: Vector3(21.0, 0.0, 16.0)))
     ..job = HarvestJob(node: seam, dropOff: hall);
   return (sim: sim, hall: hall, seam: seam, maker: maker, worker: worker);
 }
@@ -99,10 +99,10 @@ Camp _camp({
 /// a fog cell. A slower unit would move a tenth of a cell in that time and two
 /// runs a beat apart would light the same cells anyway, which would make the
 /// test below pass whatever it was measuring.
-({StrategySimulation sim, Unit scout}) _walker() {
+({StrategySimulation sim, StrategyUnit scout}) _walker() {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final scout = sim.add(
-    Unit(
+    StrategyUnit(
       position: Vector3(4.0, 0.0, 4.0),
       type: UnitType.worker.copyWith(speed: 20.0),
     )..order = UnitOrder.moveTo(Vector3(76.0, 0.0, 76.0)),
@@ -116,24 +116,25 @@ Camp _camp({
 /// The quarry is given far more health than its kind has so that it is still
 /// standing at the moment every test below takes its save: a unit that has been
 /// buried is a unit whose health is not in the document to be compared.
-({StrategySimulation sim, Unit hunter, Unit quarry}) _skirmish() {
+({StrategySimulation sim, StrategyUnit hunter, StrategyUnit quarry})
+_skirmish() {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final quarry = sim.add(
-    Unit(
+    StrategyUnit(
       position: Vector3(24.0, 0.0, 20.0),
       side: 1,
       type: UnitType.worker.copyWith(name: 'stubborn', health: 400.0),
     ),
   );
   final hunter = sim.add(
-    Unit(position: Vector3(20.0, 0.0, 20.0), type: UnitType.soldier),
+    StrategyUnit(position: Vector3(20.0, 0.0, 20.0), type: UnitType.soldier),
   );
   hunter.order = UnitOrder.attack(quarry);
   return (sim: sim, hunter: hunter, quarry: quarry);
 }
 
-Unit _sideOf(StrategySimulation sim, int side) =>
-    sim.units.firstWhere((Unit it) => it.side == side);
+StrategyUnit _sideOf(StrategySimulation sim, int side) =>
+    sim.units.firstWhere((StrategyUnit it) => it.side == side);
 
 /// What a side can see this instant, cell by cell.
 List<bool> _visible(StrategySimulation sim) => <bool>[
@@ -257,7 +258,7 @@ void main() {
     // Not the handle taken above: a restore builds the crowd rather than
     // filling it in, so the unit staged by `_camp` is not the unit that came
     // back. See `StrategySimulation.restore`.
-    final Unit came = loaded.sim.units.single;
+    final StrategyUnit came = loaded.sim.units.single;
     expect(came.job, isNotNull, reason: 'it came back with no job at all');
     expect(came.job!.carried, closeTo(it.worker.job!.carried, 1e-9));
     expect(
@@ -373,7 +374,7 @@ void main() {
     expect(it.hall.covers(16.0, 16.0), isTrue, reason: 'not buried after all');
 
     final loaded = _camp()..sim.restore(roundTrip(it.sim.save()));
-    final Unit came = loaded.sim.units.single;
+    final StrategyUnit came = loaded.sim.units.single;
 
     expect(
       loaded.hall.covers(came.position.x, came.position.z),
@@ -449,7 +450,7 @@ void main() {
   test('and a unit that has been shot comes back as hurt as it was', () {
     // **Health is the one number the fight moves, and aliveness is derived
     // from it rather than kept beside it** — so this assertion is both halves
-    // at once. Mutation: drop `health` from `Unit.save`. Every restored unit
+    // at once. Mutation: drop `health` from `StrategyUnit.save`. Every restored unit
     // comes back at full, which is not a rounding error but a battle undone:
     // the side that was one shot from winning has to fight the whole thing
     // again, and `match_test`'s replay parts company at the first exchange.
@@ -463,7 +464,7 @@ void main() {
     expect(it.quarry.health, greaterThan(0.0), reason: 'it is already buried');
 
     final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
-    final Unit came = _sideOf(loaded.sim, 1);
+    final StrategyUnit came = _sideOf(loaded.sim, 1);
 
     expect(came.health, closeTo(it.quarry.health, 1e-9));
     expect(came.isAlive, isTrue);
@@ -477,7 +478,7 @@ void main() {
   test('and a reload half spent is still half spent', () {
     // The same argument the fog's beat and a bot's thinking count make, in the
     // one place where being a fraction of a second early wins a fight. Mutation:
-    // drop `cooldown` from `Unit.save`. The restored soldier fires the instant
+    // drop `cooldown` from `StrategyUnit.save`. The restored soldier fires the instant
     // it comes back, and the two runs are a shot apart within one step and
     // further apart every step after.
     final it = _skirmish();
@@ -489,7 +490,7 @@ void main() {
     );
 
     final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
-    final Unit shot = _sideOf(loaded.sim, 1);
+    final StrategyUnit shot = _sideOf(loaded.sim, 1);
 
     for (var i = 0; i < 40; i++) {
       it.sim.step(_step);
@@ -513,8 +514,8 @@ void main() {
     _steps(it.sim, 60);
 
     final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
-    final Unit came = _sideOf(loaded.sim, 1);
-    final Unit shooter = _sideOf(loaded.sim, 0);
+    final StrategyUnit came = _sideOf(loaded.sim, 1);
+    final StrategyUnit shooter = _sideOf(loaded.sim, 0);
 
     expect(shooter.order.target, same(came), reason: 'it is hunting a ghost');
     expect(

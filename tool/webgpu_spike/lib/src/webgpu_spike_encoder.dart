@@ -13,6 +13,8 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;

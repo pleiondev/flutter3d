@@ -39,12 +39,14 @@ void main() {
       // a gallop — and nothing in the document says so, because a tape of four
       // entries is a perfectly well formed tape of four entries.
       final sim = StrategySimulation(random: GameRandom(1), ground: flat());
-      final unit = sim.add(Unit(position: Vector3(20.0, 0.0, 20.0)));
+      final unit = sim.add(StrategyUnit(position: Vector3(20.0, 0.0, 20.0)));
       final recorder = OrderTapeRecorder(seed: sim.random.state);
       sim.orders.recorder = recorder;
 
       for (var i = 0; i < 10; i++) {
-        if (i == 7) sim.orders.moveTo(<Unit>[unit], Vector3(60.0, 0.0, 60.0));
+        if (i == 7) {
+          sim.orders.moveTo(<StrategyUnit>[unit], Vector3(60.0, 0.0, 60.0));
+        }
         sim.step(1.0 / 30.0);
       }
 

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`UnsupportedCapability` comes from `flutter3d_foundation`**, where it
+  moved; this library exports it as before.
+
 - **Breaking: a missing asset is an `AssetNotFoundException`.**
   `BundleAssetSource.read` and the files a model names through it throw one
   naming the key, with the platform's `FlutterError` message as its `cause`,

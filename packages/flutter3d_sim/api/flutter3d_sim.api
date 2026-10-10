@@ -1322,11 +1322,10 @@ final class KeyRing with KeyHolder
 typedef LeafBuilder = BehaviorLeaf Function(BehaviorParameters params);
 
 final class Level extends FormatDocument
-  @Deprecated('Use worldOver(game).gravity. Deprecated in 1.0.0, removed in ' '2.0.0.') double? get gravity
   EntityDef? named(String name)
   FormatSpec get spec
   Iterable<EntityDef> ofType(String type)
-  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, Vector3? fogColor, this.fogDensity = 0.0, @Deprecated('Use world: {"gravity": g}. Deprecated in 1.0.0, removed in 2.0.0.') double? gravity, Map<String, Object?>? world, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, Map<String, Object?>? renderSettings, Map<String, Object?> source = const <String, Object?>{}})
+  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, Vector3? fogColor, this.fogDensity = 0.0, Map<String, Object?>? world, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, Map<String, Object?>? renderSettings, Map<String, Object?> source = const <String, Object?>{}})
   LevelMaterial materialFor(Brush brush)
   List<String> get requires
   Map<String, Object?> toJson()

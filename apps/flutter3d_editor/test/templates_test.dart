@@ -419,7 +419,7 @@ void main() {
       expect(worker, isNotNull);
       expect(
         worker!.x,
-        closeTo(Unit(position: Vector3.zero()).radius * 2.0, 1e-6),
+        closeTo(StrategyUnit(position: Vector3.zero()).radius * 2.0, 1e-6),
       );
       expect(worker.y, closeTo(unit.height, 1e-6));
     });

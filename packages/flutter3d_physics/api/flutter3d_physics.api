@@ -364,7 +364,6 @@ final class FloatingBody
   final RigidBody body
 
 final class FluidMedium
-  @Deprecated('Use FluidMedium.oliveOil, the catalogue\'s f3d.oliveOil. ' 'Deprecated in 1.0.0, removed in 2.0.0.') static FluidMedium get oil
   FluidMedium copyWith({String? name, double? density, double? viscosity, double? surfaceTension, double? contactAngle})
   String toString()
   const FluidMedium({required this.name, required this.density, required this.viscosity, required this.surfaceTension, this.contactAngle = 0.0})

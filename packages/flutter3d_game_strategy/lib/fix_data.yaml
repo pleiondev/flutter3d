@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 8cec3352cd9b7e0b
+# table-stamp: 851e473e44d8136d
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -77,3 +77,11 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'UnitSelection'
+  - title: 'flutter3d 1.0.0-rc.1: game_strategy-Unit'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      class: 'Unit'
+    changes:
+      - kind: 'rename'
+        newName: 'StrategyUnit'

@@ -369,7 +369,6 @@ final class NativeLiquidHeat
   final double temperature
 
 final class NativeLiquidProperties
-  @Deprecated('Use NativeLiquidProperties.oliveOil, the catalogue\'s f3d.oliveOil. ' 'Deprecated in 1.0.0, removed in 2.0.0.') static NativeLiquidProperties get oil
   NativeLiquidProperties copyWith({double? density, double? viscosity, double? tension})
   String toString()
   const NativeLiquidProperties({required this.density, required this.viscosity, required this.tension})

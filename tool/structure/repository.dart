@@ -1996,9 +1996,9 @@ const Map<String, String> exceptionNamePending = <String, String>{
       '`flutter3d_model_core`: a picture the modeller cannot draw headless; '
       'renamed with the render-snapshot work',
   'UnsupportedCapability':
-      '`flutter3d_hardware`: the HAL contract CONTRIBUTING.md names by '
-      'this word, fifty uses across the backends; renamed with the HAL '
-      'pass that owns them',
+      '`flutter3d_foundation` (from `flutter3d_hardware`): the HAL contract '
+      'CONTRIBUTING.md names by this word, fifty uses across the backends; '
+      'renamed with the HAL pass that owns them',
 };
 
 // ------------------------------------------------------------ 1.0: naming

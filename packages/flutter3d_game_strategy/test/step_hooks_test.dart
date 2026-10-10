@@ -32,7 +32,7 @@ StrategySimulation _world() => StrategySimulation(
 double _walked({UnitPace? pace, int steps = 30}) {
   final sim = _world()..pace = pace;
   final unit = sim.add(
-    Unit(position: Vector3(20.0, 0.0, 40.0), type: UnitType.worker),
+    StrategyUnit(position: Vector3(20.0, 0.0, 40.0), type: UnitType.worker),
   )..order = UnitOrder.moveTo(Vector3(60.0, 0.0, 40.0));
   for (var i = 0; i < steps; i++) {
     sim.step(_dt);
@@ -45,7 +45,7 @@ void main() {
     final dry = _walked();
     final headings = <(double, double)>[];
     final wading = _walked(
-      pace: (Unit unit, double x, double z) {
+      pace: (StrategyUnit unit, double x, double z) {
         headings.add((x, z));
         return 0.5;
       },
@@ -68,10 +68,14 @@ void main() {
   test('a step says which shots it fired, and at whom', () {
     final sim = _world();
     final shooter = sim.add(
-      Unit(position: Vector3(40.0, 0.0, 40.0), type: UnitType.soldier),
+      StrategyUnit(position: Vector3(40.0, 0.0, 40.0), type: UnitType.soldier),
     );
     final mark = sim.add(
-      Unit(position: Vector3(42.0, 0.0, 40.0), side: 1, type: UnitType.worker),
+      StrategyUnit(
+        position: Vector3(42.0, 0.0, 40.0),
+        side: 1,
+        type: UnitType.worker,
+      ),
     );
     sim.step(_dt);
     // Mutation: the shot not written down in `_fight` — the list is empty
@@ -90,7 +94,7 @@ void main() {
   test('what hangs after the step runs once a step, after the crowd', () {
     final sim = _world();
     final unit = sim.add(
-      Unit(position: Vector3(20.0, 0.0, 40.0), type: UnitType.worker),
+      StrategyUnit(position: Vector3(20.0, 0.0, 40.0), type: UnitType.worker),
     )..order = UnitOrder.moveTo(Vector3(60.0, 0.0, 40.0));
     final seen = <double>[];
     sim.afterStep.add((double dt) => seen.add(unit.position.x));

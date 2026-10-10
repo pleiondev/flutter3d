@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A compile refusal says where.** `compileWebGlShader` fills the
+  `ShaderCompileException`'s `stage`, `target` (`webgl`) and
+  `diagnostics`, read from the driver's log with the source line of each
+  error, so a tool can point at it; a link refusal carries the `target`.
+
 - **Breaking: a shader that will not compile or link is a
   `ShaderCompileException`.** `compileWebGlShader` and the program link
   throw one naming the stage (or `vertex with fragment`), the backend and

@@ -45,7 +45,7 @@ final class StrategyOpening {
   final Match match;
 
   /// The units side nought opened with.
-  final List<Unit> mine;
+  final List<StrategyUnit> mine;
 
   /// The crowd and the ground it walks on.
   StrategySimulation get simulation => match.simulation;
@@ -122,7 +122,7 @@ StrategyOpening openStrategyLevel(
     simulation.stock[it.integer('side') ?? 0].amount = it.number('amount')!;
   }
 
-  final mine = <Unit>[];
+  final mine = <StrategyUnit>[];
   for (final EntityDef it in level.ofType(StrategyLevelTypes.worker)) {
     final side = it.integer('side') ?? 0;
     final count = workers ?? it.integer('count')!;
@@ -132,7 +132,7 @@ StrategyOpening openStrategyLevel(
     final home = halls[it.string('home')]!;
     for (var i = 0; i < count; i++) {
       final unit = simulation.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(
             it.position.x + (i % across) * spacing,
             0.0,

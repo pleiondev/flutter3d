@@ -76,7 +76,9 @@ Match _mirror({
       ),
     );
     for (var i = 0; i < workers; i++) {
-      sim.add(Unit(position: Vector3(22.0, 0.0, z - 1.0 + i), side: side));
+      sim.add(
+        StrategyUnit(position: Vector3(22.0, 0.0, z - 1.0 + i), side: side),
+      );
     }
     if (produce) {
       sim.addProducer(Producer(building: base));

@@ -10,6 +10,10 @@
   tape, which the engine writes at the lowest version that holds it so
   older builds still play it. `--dry-run` writes nothing; `--backup` keeps `<file>.v<N>.bak`.
   `doctor`, run in a project, names the files that are behind.
+- **`legacyPluginMarkerKey` is no longer public.** A pubspec that
+  declares its plugins under `flutter3d: plugin:` is still read, with the
+  same warning; the constant was the reader's, not the API's.
+
 - **A converted document reads only inside its own folder.** A glTF buffer
   or image, an OBJ `mtllib`, a USD reference or texture, a Godot `res://`
   path or a MaterialX image that climbs out with `..` or is absolute is

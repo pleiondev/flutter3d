@@ -2519,17 +2519,6 @@ final class TonemapCurve {
   /// Reinhard, extended so white reaches white.
   static const TonemapCurve reinhard = TonemapCurve._('reinhard', 4.0);
 
-  /// The same transform as [agx] — `gfx-26n`.
-  ///
-  /// Added as the rotated variant while [agx] was the bare sigmoid; now that
-  /// [agx] is the whole of AgX the two draw the same picture. Kept so a
-  /// setting that names it keeps working.
-  @Deprecated(
-    'Use TonemapCurve.agx, which is now the full AgX transform. '
-    'Deprecated in 0.7.4, removed in 2.0.0.',
-  )
-  static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0);
-
   /// The ACES 2.0 tonescale through the engine's display transform table —
   /// `L2`. See `EngineTables.aces2Display` for what the table holds and does
   /// not: the SDR tonescale applied with the hue held, not the reference
@@ -2545,7 +2534,6 @@ final class TonemapCurve {
     aces,
     agx,
     reinhard,
-    agxFull,
     aces2,
   ];
 

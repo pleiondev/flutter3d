@@ -7,6 +7,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
@@ -527,12 +529,9 @@ abstract base class GraphicsDevice with TextureAllocator {
   // ------------------------------------------------------------------------
   // 1.0: capabilities as one answer, and the rest of a modern GPU.
   //
-  // **The `supportsX` getters above are superseded by [features] and
-  // [limits]**, and every backend answers them from those through
-  // `DeviceCapabilityForwarders`, so the two cannot disagree. They are
-  // `@Deprecated` from 1.0.0 and go in 2.0.0; nothing in this repository asks
-  // them any more, and a caller outside it keeps a working answer until then —
-  // see "Capabilities and stability" in this package's README.
+  // **[features] and [limits] replaced the `supportsX` getters** of 0.8,
+  // which are gone since 1.0 — see "Capabilities and stability" in this
+  // package's README.
   //
   // Everything a [DeviceFeature] gates throws `UnsupportedCapability` on a
   // device without it. All of it is the 1.0 contract under strict semver: a

@@ -5,6 +5,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_shader.dart';

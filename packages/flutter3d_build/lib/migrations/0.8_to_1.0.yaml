@@ -18165,3 +18165,154 @@ entries:
       dropped and counted in `droppedEarly` rather than held without bound,
       and a frame that arrives from a room maps its sender to the session's
       own slot, so two peers of a room no longer drop each other's input.
+
+  - id: game_strategy-Unit
+    package: flutter3d_game_strategy
+    symbol: Unit
+    kind: rename
+    to: StrategyUnit
+    wave: 2
+    guidance: >-
+      `Unit` is the foundation's unit of measurement since 1.0, and a public
+      name has one home, so a unit on the map is a `StrategyUnit`. Nothing
+      else about it changed.
+
+  - id: core-TonemapCurve-values
+    package: flutter3d_core
+    symbol: TonemapCurve.values
+    kind: none
+    wave: 2
+    reason: >-
+      The list no longer holds `agxFull`, which is gone; it drew the same
+      picture as `agx`. Code that walks the list sees five curves where it
+      saw six.
+
+  - id: game_strategy-AssignOrder-obey-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: AssignOrder.obey
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-AttackOrder-obey-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: AttackOrder.obey
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-MoveOrder-obey-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: MoveOrder.obey
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-OrderQueue-assign-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: OrderQueue.assign
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-OrderQueue-attackWith-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: OrderQueue.attackWith
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-OrderQueue-moveTo-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: OrderQueue.moveTo
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-Squad-units-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: Squad.units
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-StrategyOrder-obey-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: StrategyOrder.obey
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-StrategySimulation-add-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: StrategySimulation.add
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-StrategySimulation-units-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: StrategySimulation.units
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-TrainOrder-obey-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: TrainOrder.obey
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-UnitOrder-UnitOrder-attack-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: UnitOrder.UnitOrder.attack
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.
+
+  - id: game_strategy-UnitOrder-target-StrategyUnit
+    package: flutter3d_game_strategy
+    symbol: UnitOrder.target
+    kind: none
+    wave: 2
+    reason: >-
+      The signature names `StrategyUnit`, the new name of `Unit`
+      (`game_strategy-Unit`); `dart fix` renames the type where the caller
+      spells it, and a call is unchanged.

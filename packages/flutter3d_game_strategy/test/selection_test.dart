@@ -19,7 +19,7 @@ Heightfield _flat() => Heightfield(
 StrategySimulation _row(int count) {
   final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
   for (var i = 0; i < count; i++) {
-    sim.add(Unit(position: Vector3(4.0 + i * 4.0, 0.0, 10.0)));
+    sim.add(StrategyUnit(position: Vector3(4.0 + i * 4.0, 0.0, 10.0)));
   }
   return sim;
 }
@@ -52,9 +52,9 @@ void main() {
       // one line then resolve by which is nearer to the *centre*, and a unit
       // standing behind a wider one wins the click it should have lost.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
-      final near = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
+      final near = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0)));
       sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 10.0),
           type: UnitType.worker.copyWith(radius: 1.5),
         ),

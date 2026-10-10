@@ -63,7 +63,7 @@ final class Staged {
   /// than about the document, and `CommandPost` in `command.dart` is what holds
   /// the answer. What this is still good for is a test that wants the crowd the
   /// map staged.
-  List<Unit> get mine => start.mine;
+  List<StrategyUnit> get mine => start.mine;
 }
 
 /// Builds a run from [map] and puts a picture over it.

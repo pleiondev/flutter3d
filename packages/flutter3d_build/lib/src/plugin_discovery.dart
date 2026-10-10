@@ -107,12 +107,9 @@ const String pluginMarkerKey = 'flutter3d_plugins';
 /// The key plugins were declared under before 1.0, as `flutter3d: plugin:`.
 ///
 /// Still read, with a warning, so a plugin published against 0.8 keeps
-/// being discovered.
-@Deprecated(
-  'Use pluginMarkerKey: declare plugins under `flutter3d_plugins:`. '
-  'Deprecated in 1.0.0, removed in 2.0.0.',
-)
-const String legacyPluginMarkerKey = 'flutter3d';
+/// being discovered. The pubspec's word, not the API's: the constant was
+/// public until 1.0.0-rc.1.
+const String _legacyPluginMarkerKey = 'flutter3d';
 
 /// What [discoverPlugins] found, and every file it read to find it.
 final class PluginDiscovery {
@@ -378,8 +375,7 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
 /// pubspec has both.
 (Object, {bool legacy})? markerOf(Map<Object?, Object?> pubspec) => switch ((
   pubspec[pluginMarkerKey],
-  // ignore: deprecated_member_use_from_same_package
-  pubspec[legacyPluginMarkerKey],
+  pubspec[_legacyPluginMarkerKey],
 )) {
   ({'plugin': final Object value}, _) => (value, legacy: false),
   (_, {'plugin': final Object value}) => (value, legacy: true),

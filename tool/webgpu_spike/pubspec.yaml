@@ -22,6 +22,8 @@ dependencies:
   # The contract under test, and the only dependency that matters. A spike that
   # reached for `flutter3d` would be measuring the renderer instead.
   flutter3d_hardware: ^1.0.0-rc.1
+  # The refusal a missing feature throws, which lives under the hardware.
+  flutter3d_foundation: ^1.0.0-rc.1
 
   # `package:web` carries WebGPU's flag constants and none of its interfaces —
   # see `webgpu_interop.dart`, which declares the slice a triangle needs.
