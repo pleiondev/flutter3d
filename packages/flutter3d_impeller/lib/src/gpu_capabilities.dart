@@ -3,10 +3,13 @@
 ///
 /// **Every answer here is either a flutter_gpu query or a statement about what
 /// its Dart API exposes**, and each "no" names what flutter_gpu lacks at the
-/// place it is decided. The legacy `supportsX` getters read these through
-/// `DeviceCapabilityForwarders`, and each of them answers exactly what it
-/// answered before 1.0.
+/// place it is decided. The one exception is [metalOnMac], which is a statement
+/// about the platform and says so. The legacy `supportsX` getters read these
+/// through `DeviceCapabilityForwarders`, and each of them answers exactly what
+/// it answered before 1.0.
 library;
+
+import 'dart:io' show Platform;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
@@ -15,6 +18,32 @@ import 'gpu_formats.dart';
 
 /// The name this backend refuses in, as `UnsupportedCapabilityException.backend`.
 const String impellerBackendName = 'Impeller';
+
+/// Whether this context is Impeller's Metal backend on a Mac, where every GPU
+/// family Metal runs on — Apple silicon and the Intel and AMD parts alike —
+/// samples `r32Float` and `rgba32Float` with linear filtering, renders into
+/// them and blends them. Metal's feature-set tables promise all three for the
+/// `Mac2` family, and Impeller on macOS runs on nothing but Metal.
+///
+/// **Inferred, and that is stated rather than hidden**, the way the
+/// attachment limit in [impellerLimits] is: flutter_gpu names no backend. The
+/// platform is the main half. The other two are what Metal answers and the
+/// paths a Mac could otherwise be on do not both answer: render-to-mip, which
+/// flutter_gpu documents as false on its OpenGL ES path, and a float
+/// depth-stencil, which is what the Metal context chooses.
+///
+/// iOS is left out on purpose. Its Apple families filter 32-bit floats only
+/// from some chips on, and flutter_gpu does not say which family it is on;
+/// Vulkan on Android or Linux varies by driver, so neither is claimed.
+// TODO(impeller): a per-format capability query in flutter_gpu (filterable,
+// renderable and blendable per PixelFormat) would replace this inference and
+// give iOS and Vulkan their answers too.
+bool get metalOnMac {
+  final context = gpu.gpuContext;
+  return Platform.isMacOS &&
+      context.doesSupportFramebufferRenderMipmap &&
+      context.defaultDepthStencilFormat == gpu.PixelFormat.d32FloatS8UInt;
+}
 
 /// The features flutter_gpu exposes on the running context.
 ///
@@ -64,8 +93,19 @@ DeviceFeatures impellerFeatures({required bool cubesWork}) {
     // float32Filterable / float32Renderable / float32Blendable: flutter_gpu
     // answers `supportsTextureFormat` true for every uncompressed format
     // without asking the device, so it has no per-format answer to give.
-    // TODO(impeller): unblocked by a per-format capability query in
-    // flutter_gpu (filterable / renderable / blendable per PixelFormat).
+    // Claimed on Metal on a Mac, where the hardware promises all three —
+    // see [metalOnMac] — and nowhere else. A sun map in 32-bit floats is
+    // what turns on, and it is the map the browser's WebGPU draws on the
+    // same Mac; with only half floats here the two stored their depth at
+    // different precisions and disagreed on every shadow's edge.
+    // TODO(impeller): the rest is unblocked by a per-format capability
+    // query in flutter_gpu (filterable / renderable / blendable per
+    // PixelFormat).
+    if (metalOnMac) ...<DeviceFeature>[
+      DeviceFeature.float32Filterable,
+      DeviceFeature.float32Renderable,
+      DeviceFeature.float32Blendable,
+    ],
     //
     // `R8`: flutter_gpu takes a `colorAttachmentIndex` on both blend setters,
     // and `GpuCommandEncoder.setBlend` has always passed the index through.
@@ -191,8 +231,9 @@ DeviceLimits impellerLimits({required bool renderToMip, required bool msaa}) =>
 /// yes today because the capability surface does not vary by format there;
 /// that is flutter_gpu's statement, and this repeats it rather than restating
 /// it as a table of its own. The other uses follow from the format and from
-/// [features]; a 32-bit float format is neither filterable nor renderable
-/// here, for the reason `impellerFeatures` gives.
+/// [features]: a 32-bit float format is filterable, renderable and blendable
+/// exactly where [features] lists the three float32 features, for the reason
+/// `impellerFeatures` gives.
 TextureFormatSupport impellerFormatSupport(
   TextureFormat format,
   DeviceFeatures features,
@@ -209,7 +250,7 @@ TextureFormatSupport impellerFormatSupport(
   final color = !format.isDepthOrStencil && !format.isCompressed;
   final renderable =
       color &&
-      !float32 &&
+      (!float32 || features.has(DeviceFeature.float32Renderable)) &&
       gpu.gpuContext.supportsTextureFormat(pixel, renderTarget: true);
   final depthStencil =
       format.isDepthOrStencil &&
@@ -217,9 +258,15 @@ TextureFormatSupport impellerFormatSupport(
   final msaa = features.has(DeviceFeature.offscreenMultisample);
   return TextureFormatSupport(
     sampled: true,
-    filterable: !format.isDepthOrStencil && !format.isInteger && !float32,
+    filterable:
+        !format.isDepthOrStencil &&
+        !format.isInteger &&
+        (!float32 || features.has(DeviceFeature.float32Filterable)),
     renderable: renderable,
-    blendable: renderable && !format.isInteger,
+    blendable:
+        renderable &&
+        !format.isInteger &&
+        (!float32 || features.has(DeviceFeature.float32Blendable)),
     multisample: msaa && (renderable || depthStencil),
     resolve: msaa && renderable,
     depthStencil: depthStencil,

@@ -168,7 +168,7 @@ That is the whole of the capability half; the rest of this page is resources and
 |---|---|---|---|---|
 | `supportsCompute` | false | false | true | true |
 | `supportsGpuTimestamps` | false | false | where the adapter grants `timestamp-query` | false |
-| `supportsFloat32Filtering` | false | where `OES_texture_float_linear` was granted | where `float32-filterable` was granted | true |
+| `supportsFloat32Filtering` | on Metal on a Mac | where `OES_texture_float_linear` was granted | where `float32-filterable` was granted | true |
 | `supportsIndependentBlend` | true | where the context offers `OES_draw_buffers_indexed` | true | true for its first two attachments, unless the constructor says otherwise |
 | `hdrOutputFormats` | empty | empty | `rgba16float` on a display the browser reports as high dynamic range | empty, unless the constructor is handed formats |
 
