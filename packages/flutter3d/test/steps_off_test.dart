@@ -84,7 +84,8 @@ void main() {
         RenderStep.bloom,
       });
 
-      expect(settings.switchedOffSteps, contains(RenderStep.lensFlare));
+      expect(settings.stepsOff, contains(RenderStep.lensFlare));
+      expect(RenderStep.lensFlare.isOn(settings), isFalse);
     });
   });
 

@@ -3323,7 +3323,7 @@ final class Renderer with RenderServices {
     // already made them inactive; this only names who asked, so the skip
     // reads "switched off" rather than "settings". A node added with a step
     // is that step's pass whether or not the step lists it.
-    final stepsOff = RenderStep.switchedOffIn(s, also: renderSteps.added);
+    final stepsOff = RenderStepInternals.switchedOffIn(s, also: renderSteps.added);
     return graph.compile(
       switchedOff: stepsOff.isEmpty
           ? const <String>{}
@@ -5424,7 +5424,7 @@ final class Renderer with RenderServices {
       // Then what the frame declined, which the fields above already say
       // one convention at a time.
       skipped: <SkippedPass>[
-        ...RenderStep.reportSkips(
+        ...RenderStepInternals.reportSkips(
           settings,
           frameGraph.skipped,
           also: renderSteps.added,

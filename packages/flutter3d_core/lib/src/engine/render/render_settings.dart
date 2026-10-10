@@ -2000,8 +2000,8 @@ final class RenderSettings {
   /// `FrameResult.skipped` calls the result — [PassSkip.switchedOff] rather
   /// than [PassSkip.settings], and an entry under the step's own name for a
   /// step with no pass of its own. A step listed here whose setting a later
-  /// [copyWith] turned back on is drawn and not reported: see
-  /// [switchedOffSteps].
+  /// [copyWith] turned back on is drawn and not reported: ask
+  /// [RenderStep.isOn] whether a step is on now.
   final Set<RenderStep> stepsOff;
 
   /// The camera's aperture, shutter and sensitivity — `B6.22`. See
@@ -2057,19 +2057,12 @@ final class RenderSettings {
       ? slot._writeInto(this, value)
       : copyWith(extensions: extensions.put(slot, value));
 
-  /// The steps in [stepsOff] whose own switch is still off — what this frame
-  /// reports as switched off.
-  Set<RenderStep> get switchedOffSteps => <RenderStep>{
-    for (final step in stepsOff)
-      if (!step.isOn(this)) step,
-  };
-
   /// These settings with every step in [steps] switched off — and every step
   /// that needs one of them, since it cannot run without it.
   ///
   /// The one call for "this frame without bloom, the fog and the shadows",
   /// for any set of steps in any combination. Each step is switched off by
-  /// its own setting — [RenderStep.switchOff] is a `copyWith` of the field
+  /// its own setting — a `copyWith` of the field
   /// that already gates it — so the frame is the one a caller would get by
   /// turning those settings off by hand, and every golden recorded against a
   /// setting describes it. The steps are also recorded in [stepsOff], so
@@ -2080,8 +2073,7 @@ final class RenderSettings {
   /// `without({RenderStep.bloom})` also switches the flare off, and the
   /// flare is listed in [stepsOff] and reported as switched off beside the
   /// glow. Nothing is refused: every set of steps is a frame that can be
-  /// drawn. [RenderStep.withDependants] is the closure, for a caller who
-  /// wants to know beforehand.
+  /// drawn.
   ///
   /// Additive: a step already off stays off, and the record grows.
   ///
@@ -2090,17 +2082,21 @@ final class RenderSettings {
   /// renderer has registered as [also] — `renderer.renderSteps.added` — and
   /// those that need one of [steps] are switched off and recorded with it.
   /// Left out, they are still off in the frame, which takes them down with
-  /// what they need and reports them; see `RenderStep.switchedOffIn`.
+  /// what they need and reports them.
   RenderSettings without(
     Set<RenderStep> steps, {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
-    final off = RenderStep.withDependants(steps, also: also);
-    final switched = <RenderStep>[
-      ...RenderStep.values.where(off.contains),
-      for (final step in off)
-        if (!step.isBuiltIn) step,
-    ].fold<RenderSettings>(this, (s, step) => step.switchOff(s));
+    final off = RenderStepInternals.withDependants(steps, also: also);
+    final switched =
+        <RenderStep>[
+          ...RenderStep.values.where(off.contains),
+          for (final step in off)
+            if (!step.isBuiltIn) step,
+        ].fold<RenderSettings>(
+          this,
+          (s, step) => RenderStepInternals.switchOff(step, s),
+        );
     return switched.copyWith(stepsOff: <RenderStep>{...stepsOff, ...off});
   }
 
@@ -2119,7 +2115,7 @@ final class RenderSettings {
     Set<RenderStep> steps, {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
-    final keep = RenderStep.withPrerequisites(steps);
+    final keep = RenderStepInternals.withPrerequisites(steps);
     return without(<RenderStep>{
       for (final step in <RenderStep>[...RenderStep.values, ...also])
         if (!keep.contains(step)) step,

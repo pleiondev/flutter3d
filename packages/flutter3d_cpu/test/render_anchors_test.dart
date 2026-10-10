@@ -25,6 +25,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/render_step.dart'
+    show RenderStepInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -195,7 +197,7 @@ String _line(_Stage it, String label, RenderSettings settings) {
     'order': <String>[for (final n in plan.order) n.name],
     'culled': <String>[for (final n in plan.culled) n.name],
     'skipped': <String>[
-      for (final s in RenderStep.reportSkips(settings, plan.skipped))
+      for (final s in RenderStepInternals.reportSkips(settings, plan.skipped))
         '${s.name}:${s.reason.name}',
     ],
   });
@@ -251,7 +253,7 @@ List<String> _ran(_Stage it, [RenderSettings s = const RenderSettings()]) =>
 
 /// What a frame reports switched off, by name.
 List<String> _switchedOff(_Stage it, RenderSettings s) => <String>[
-  for (final skip in RenderStep.reportSkips(
+  for (final skip in RenderStepInternals.reportSkips(
     s,
     _plan(it, s).skipped,
     also: it.renderer.renderSteps.added,

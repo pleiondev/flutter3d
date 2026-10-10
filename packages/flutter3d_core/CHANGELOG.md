@@ -8,6 +8,14 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **One vocabulary for a step that is off.** `RenderSettings.without` and
+  `only` switch steps, `RenderSettings.stepsOff` records what was asked
+  off, and `RenderStep.isOn` says whether a step's own switch is on now.
+  The rest were the renderer's own arithmetic and left the API:
+  `RenderSettings.switchedOffSteps`, `RenderStep.switchOff`,
+  `switchedOffIn`, `reportSkips`, `withDependants` and
+  `withPrerequisites`. `settings.without({step})` is what `step.switchOff`
+  did, recorded.
 - **Breaking: what the core answers as several values is a class, not a
   record.** A record's shape cannot grow without breaking every caller, a
   class's can. `ClusterDraws.indicesFor` answers a `ClusterIndices`,

@@ -135,7 +135,7 @@ void main() {
     // that `without` left on would be a photograph of the numbers where the
     // numbers were asked for.
     expect(
-      _everything.forMeasurement().switchedOffSteps,
+      _everything.forMeasurement().stepsOff,
       containsAll(RenderSettings.pixelAlteringSteps),
     );
   });

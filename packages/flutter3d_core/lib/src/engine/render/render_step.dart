@@ -145,12 +145,7 @@ final class RenderStep {
   /// one a plugin or an application defined.
   bool get isBuiltIn => _builtIn;
 
-  /// [settings] with this step's own switch off and everything else as it
-  /// was. A built-in step, or an added one with a setting of its own, leaves
-  /// [RenderSettings.stepsOff] alone: that is [RenderSettings.without]'s to
-  /// keep. An added step with no setting is switched by that set, so for it
-  /// this adds the step to it.
-  RenderSettings switchOff(RenderSettings settings) => switch (_off) {
+  RenderSettings _switchOff(RenderSettings settings) => switch (_off) {
     final off? => off(settings),
     null => settings.copyWith(
       stepsOff: <RenderStep>{...settings.stepsOff, this},
@@ -545,6 +540,30 @@ final class RenderStep {
     highContrast,
     viewportShading,
   ];
+}
+
+/// The renderer's own arithmetic over steps, which a caller has no use for:
+/// [RenderSettings.without] and [RenderSettings.only] are the way to switch
+/// steps, and [RenderSettings.stepsOff] the record of what was asked off.
+///
+/// **Not exported**: `flutter3d_core.dart` hides it, so one vocabulary for
+/// a step off is all an application sees.
+abstract final class RenderStepInternals {
+  /// [settings] with [step]'s own switch off and everything else as it was.
+  /// A built-in step, or an added one with a setting of its own, leaves
+  /// [RenderSettings.stepsOff] alone: that is [RenderSettings.without]'s to
+  /// keep. An added step with no setting is switched by that set, so for it
+  /// this adds the step to it.
+  static RenderSettings switchOff(RenderStep step, RenderSettings settings) =>
+      step._switchOff(settings);
+
+  /// The steps in [RenderSettings.stepsOff] whose own switch is still off —
+  /// what [settings] reports as switched off.
+  static Set<RenderStep> switchedOffSteps(RenderSettings settings) =>
+      <RenderStep>{
+        for (final step in settings.stepsOff)
+          if (!step.isOn(settings)) step,
+      };
 
   /// [steps] and every step that needs one of them, transitively — what
   /// switching [steps] off actually switches off.
@@ -558,7 +577,7 @@ final class RenderStep {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
     final among = <RenderStep>[
-      ...values,
+      ...RenderStep.values,
       for (final step in also)
         if (!step.isBuiltIn) step,
     ];
@@ -577,19 +596,19 @@ final class RenderStep {
 
   /// The steps [settings] reports as switched off: the ones
   /// [RenderSettings.without] recorded whose switch is still off
-  /// ([RenderSettings.switchedOffSteps]), and every step of [also] that
+  /// ([switchedOffSteps]), and every step of [also] that
   /// needs one of those, transitively.
   ///
   /// The second half is the take-down for steps the settings never heard
   /// of. `without({RenderStep.bloom})` cannot record a plugin's glow step it
   /// was not told about, and that step is off all the same — it needs the
   /// bloom — so the frame names it beside the bloom, as it names the lens
-  /// flare. With no [also] this is [RenderSettings.switchedOffSteps].
+  /// flare. With no [also] this is [switchedOffSteps].
   static Set<RenderStep> switchedOffIn(
     RenderSettings settings, {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
-    final off = settings.switchedOffSteps;
+    final off = switchedOffSteps(settings);
     if (off.isEmpty || also.isEmpty) return off;
     final added = <RenderStep>[
       for (final step in also)
@@ -627,7 +646,7 @@ final class RenderStep {
   /// since been turned back on through `copyWith` is not listed: the
   /// switch is what decides the frame, and the list reports the frame.
   ///
-  /// The built-in steps come first, in the order of [values]; then the
+  /// The built-in steps come first, in the order of [RenderStep.values]; then the
   /// added ones — those [settings] recorded, and those of [also] taken down
   /// with a step they need (see [switchedOffIn]).
   static List<SkippedPass> reportSkips(
@@ -641,7 +660,7 @@ final class RenderStep {
     return List<SkippedPass>.unmodifiable(<SkippedPass>[
       ...nodeSkips,
       for (final step in <RenderStep>[
-        ...values,
+        ...RenderStep.values,
         for (final step in off)
           if (!step.isBuiltIn) step,
       ])

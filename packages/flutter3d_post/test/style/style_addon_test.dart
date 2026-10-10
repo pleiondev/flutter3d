@@ -44,7 +44,7 @@ void main() {
     expect(outlinesStep.isOn(on), isTrue);
     // Mutation: switch the outlines off with the look itself, and switching
     // the rings off takes the whole look with them.
-    final off = outlinesStep.switchOff(on);
+    final off = on.without(<RenderStep>{outlinesStep});
     expect(off.highContrast.outlineWidth, 0.0);
     expect(off.highContrast.enabled, isTrue);
     expect(outlinesStep.isOn(const RenderSettings()), isFalse);

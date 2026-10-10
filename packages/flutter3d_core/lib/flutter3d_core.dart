@@ -119,7 +119,8 @@ export 'src/engine/render/render_list.dart' hide DrawItem, RenderList;
 export 'src/engine/render/render_node.dart' hide FrameContextInternals;
 export 'src/engine/render/render_step_addon.dart';
 export 'src/engine/render/render_view.dart' hide RenderViewInternals;
-export 'src/engine/render/renderer.dart' hide RendererInternals;
+export 'src/engine/render/renderer.dart'
+    hide RendererInternals, RenderStepInternals;
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/sky_settings.dart';
 export 'src/engine/render/splat_contributor.dart';
