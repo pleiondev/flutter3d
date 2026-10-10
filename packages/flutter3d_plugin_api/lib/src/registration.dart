@@ -51,4 +51,13 @@ abstract base class PluginRegistry {
   /// against its manifest. Must return the same type the registry is looked
   /// up by.
   PluginRegistry forPlugin(PluginScope scope);
+
+  /// The registries that come with this one, found by `PluginHost.registry`
+  /// as if each had been handed to the host itself.
+  ///
+  /// How one handle brings a subsystem's several registries: a renderer's
+  /// render steps bring its lighting models, its light types and its
+  /// draw-list hooks, so an engine that hands the host
+  /// `renderer.renderSteps` gives a plugin all of them. None by default.
+  Iterable<PluginRegistry> get companions => const <PluginRegistry>[];
 }

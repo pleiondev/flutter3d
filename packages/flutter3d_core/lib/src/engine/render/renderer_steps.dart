@@ -74,6 +74,15 @@ final class RendererSteps extends RenderStepRegistry {
   String get _owner =>
       _scope == null ? 'the application' : 'plugin "${_scope.manifest.id}"';
 
+  /// Refuses, with a [PluginException], a [name] a plugin registers as
+  /// [what] outside its namespace (`PluginManifest.nameProblem`). The
+  /// application's own registrations, and the engine's packages', are not
+  /// held to one.
+  void _inNamespace(String name, String what) {
+    final problem = _scope?.manifest.nameProblem(name, what: what);
+    if (problem != null) throw PluginException(problem);
+  }
+
   /// The steps added to this renderer, in the order they were added.
   List<RenderStep> get added => List<RenderStep>.unmodifiable(<RenderStep>[
     for (final entry in _store.steps) entry.step,
@@ -105,7 +114,11 @@ final class RendererSteps extends RenderStepRegistry {
   /// Throws an [ArgumentError] for a built-in step, for a name another step
   /// already has, and for a step that needs one this renderer does not know
   /// — add the need first.
+  ///
+  /// Through a plugin's view, a [PluginException] for a step named outside
+  /// the plugin's namespace, `<namespace>.<name>` (D23).
   Registration addStep(RenderStep step) {
+    _inNamespace(step.name, 'the render step');
     if (step.isBuiltIn) {
       throw ArgumentError.value(
         step.name,
@@ -151,7 +164,9 @@ final class RendererSteps extends RenderStepRegistry {
   /// Throws an [ArgumentError] for a node named as one of the engine's
   /// passes (`RenderSettings.passOrder`, or a `reflection probe N`), for a
   /// name another added node has, for a step this renderer does not know,
-  /// and for a plugin's anchor nobody added with [addAnchor].
+  /// and for a plugin's anchor nobody added with [addAnchor]. Through a
+  /// plugin's view, a [PluginException] for a node, or a resource it makes
+  /// (`FrameGraphBuilder.create`), named outside the plugin's namespace.
   Registration addNode(
     RenderNode node, {
     RenderAnchor? at,
@@ -160,6 +175,10 @@ final class RendererSteps extends RenderStepRegistry {
     List<String> before = const <String>[],
   }) {
     final anchor = at ?? node.defaultAnchor;
+    _inNamespace(node.name, 'the node');
+    for (final desc in NodeDeclarations.of(node).created) {
+      _inNamespace(desc.id.name, 'the resource');
+    }
     if (!anchor.isEngine && !_store.anchors.any((e) => e.anchor == anchor)) {
       throw ArgumentError.value(
         anchor.name,
@@ -236,6 +255,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// anchor has, and for an anchor following one this renderer does not
   /// know — add that one first.
   Registration addAnchor(RenderAnchor anchor) {
+    if (!anchor.isEngine) _inNamespace(anchor.name, 'the anchor');
     if (anchor.isEngine) {
       throw ArgumentError.value(
         anchor.name,
@@ -390,6 +410,11 @@ final class RendererSteps extends RenderStepRegistry {
   /// share one. Throws an [ArgumentError] for a different slot under an id
   /// already taken.
   Registration addSettings(SettingsSlot<Object> slot) {
+    // The engine's own slots are what an addon of the engine's family
+    // provides the settings of; any other is the plugin's, in its namespace.
+    if (!SettingsSlot.builtIn.contains(slot)) {
+      _inNamespace(slot.id, 'the settings slot');
+    }
     final taken = settingsNamed(slot.id);
     if (taken != null && !identical(taken, slot)) {
       throw ArgumentError.value(
@@ -430,31 +455,14 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
-  /// Makes [model] one a material may name, through [LightingModels], until
-  /// the result is cancelled — the lighting-model half of a
-  /// `LightingModelAddon`. The stages are not this call's: a model whose
-  /// stages the backend's bundle does not carry comes with [addMaterials].
-  Registration addLightingModel(LightingModel model) {
-    final shared = LightingModels.register(model);
-    _store.lightingModels.add(model);
-    final registration = Registration(() {
-      _store.lightingModels.remove(model);
-      shared.cancel();
-    });
-    _scope?.track(registration);
-    return registration;
-  }
-
-  /// The lighting models this renderer draws: the built-in ones, then those
-  /// added to it with [addLightingModel], in the order they were added —
-  /// this engine's own, where `LightingModels.all` is every engine's in the
-  /// process (the table a document is read against).
-  List<LightingModel> get lightingModels =>
-      List<LightingModel>.unmodifiable(<LightingModel>[
-        ...LightingModel.builtIn,
-        for (final model in _store.lightingModels)
-          if (!LightingModel.builtIn.contains(model)) model,
-      ]);
+  /// The registries that come with this one, so a plugin host handed
+  /// `renderer.renderSteps` finds them too: the renderer's
+  /// [LightingModels], the one entrance a plugin's lighting model comes in
+  /// by (`host.registry<LightingModels>()`).
+  @override
+  Iterable<PluginRegistry> get companions => <PluginRegistry>[
+    _store.lightingModels,
+  ];
 
   /// [settings] without the [withdrawn] steps — [settings] itself, the same
   /// object, while nothing is withdrawn, so a frame with every provider on
@@ -476,7 +484,7 @@ final class _StepStore {
   final Set<RenderStep> withdrawn = <RenderStep>{};
   final List<SettingsSlot<Object>> settings = <SettingsSlot<Object>>[];
   final List<_AddedAnchor> anchors = <_AddedAnchor>[];
-  final List<LightingModel> lightingModels = <LightingModel>[];
+  final LightingModels lightingModels = LightingModels();
   final ContributorRegistry contributors = ContributorRegistry();
   int sequence = 0;
 

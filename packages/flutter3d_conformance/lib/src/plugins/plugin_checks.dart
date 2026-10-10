@@ -21,6 +21,7 @@ typedef PluginCheck = ({
 final List<PluginCheck> pluginChecks = <PluginCheck>[
   (name: 'manifest', run: _manifest),
   (name: 'switch', run: _switch),
+  (name: 'names', run: _names),
   (name: 'determinism', run: _determinism),
   (name: 'backends', run: _backends),
   (name: 'budget', run: _budget),
@@ -248,6 +249,60 @@ Object? _sorted(Object? value) => switch (value) {
 };
 
 // -------------------------------------------------------------------- switch
+
+/// Every name the plugin adds to the loop — its systems, its phases, the
+/// events it declares — is in its namespace, `<namespace>.<name>` (D23), so
+/// a name the engine or another plugin adds later cannot be one it took.
+///
+/// The registries the renderer fills refuse a name outside the namespace at
+/// install, which [_switch] reports as a refused install; this reads what
+/// the loop holds, which no registry checks name by name. The engine's own
+/// packages register the engine's names and are not held to one.
+List<PluginCheckOutcome> _names(PluginSession session) {
+  PluginCheckOutcome outcome(bool passed, String says) =>
+      PluginCheckOutcome(check: 'names', passed: passed, says: says);
+  try {
+    final manifest = session.manifest;
+    final before = _named(session.build(withPlugin: false));
+    final added = _named(session.build()).difference(before);
+    final outside = <String>[
+      for (final (what, name) in added)
+        if (manifest.nameProblem(name, what: what) != null) '$what "$name"',
+    ];
+    if (outside.isNotEmpty) {
+      return <PluginCheckOutcome>[
+        outcome(
+          false,
+          'it adds ${outside.join(', ')} outside its namespace; every name a '
+          'plugin registers is "${manifest.namespace}.<name>"',
+        ),
+      ];
+    }
+    return <PluginCheckOutcome>[
+      outcome(
+        true,
+        added.isEmpty
+            ? 'it adds no name to the loop'
+            : 'its ${added.length} '
+                  '${added.length == 1 ? 'name is' : 'names are'} in '
+                  '"${manifest.namespace}."',
+      ),
+    ];
+  } on PluginException catch (refused) {
+    return <PluginCheckOutcome>[outcome(false, refused.message)];
+  }
+}
+
+/// What [loop] holds by name: each phase, each system and each declared
+/// event, with what kind of name it is.
+Set<(String, String)> _named(EngineLoop loop) => <(String, String)>{
+  for (final kind in <PhaseKind>[PhaseKind.step, PhaseKind.frame])
+    for (final phase in loop.phases(kind)) ...<(String, String)>[
+      ('the phase', phase.name),
+      for (final system in loop.systemsIn(phase)) ('the system', system),
+    ],
+  for (final declared in loop.events.declared) ('the event', declared.name),
+};
 
 List<PluginCheckOutcome> _switch(PluginSession session) {
   List<PluginCheckOutcome> fail(String says) => <PluginCheckOutcome>[

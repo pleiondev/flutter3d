@@ -79,8 +79,8 @@ const LightingModel toonLighting = LightingModel('Toon', 'Toon');
 ///
 /// Not a render step and not in [styleAddons]: a lighting model is compiled
 /// into the scene's own stages and picked per material, not switched per
-/// frame. Its stages come with the backend's bundle, so [stagesFor] answers
-/// null; a third-party model's addon answers with its own.
+/// frame. Its stages come with the backend's bundle, so it brings no
+/// `stages`; a third-party model's addon brings its own.
 final class ToonLightingAddon extends LightingModelAddon {
   const ToonLightingAddon()
     : super(

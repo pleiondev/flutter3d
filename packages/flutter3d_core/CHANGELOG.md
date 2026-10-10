@@ -27,6 +27,23 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **A plugin's registrations are in its namespace, and its lighting
+  models are its engine's.** Through a plugin's view, `RendererSteps`
+  refuses with a `PluginException` a step, a node, a resource the node
+  makes, an anchor or a settings slot of its own named outside
+  `<namespace>.` (`PluginManifest.namespace`); the application's own and
+  the engine's packages' are not held to one. `LightingModels` is one table
+  per engine rather than per process: `Renderer.lightingModels`, reached by
+  a plugin as `host.registry<LightingModels>()` through the render steps'
+  companions — the one entrance, so `RendererSteps.addLightingModel` and
+  `lightingModels` are gone and `LightingModelAddon` takes its `stages` as
+  a field that goes to `addMaterials` instead of answering `stagesFor`. A
+  plugin's model is named `<namespace>_<Name>`, since a shader's name has
+  no dot. Names compare exactly: `named('pbr')` is no model.
+  `LightingModels.shipped` is the built-in models alone, what a document
+  read with no engine at hand is read against; `readFmat`, `writeFmat`,
+  `surfaceMaterialFromJson` and `surfaceMaterialToJson` take an engine's
+  table as `lightingModels`.
 - **Every view of a frame, and the velocity on its own.**
   `FrameContext.views` lists the frame's views as `FrameView`s — the
   matrices each draws through, its viewport, its index and

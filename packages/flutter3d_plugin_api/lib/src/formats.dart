@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
+import 'manifest.dart';
 import 'registration.dart';
 
 /// A format a [FormatRegistry] would not take: an id, alias or suffix that is
@@ -155,15 +156,18 @@ final class _PluginFormats extends FormatRegistry {
   @override
   Registration add(FormatSpec spec) {
     final plugin = _scope.manifest.id;
+    final namespace = _scope.manifest.namespace;
     // The aliases too: an alias is an id a document may carry, and one
     // outside the plugin's namespace would take a name the engine, or
-    // another plugin, may want.
+    // another plugin, may want. The namespace every registry holds a plugin
+    // to (`PluginManifest.namespace`), which the plugin's own id is in.
     for (final name in <String>[spec.id, ...spec.aliases]) {
-      if (!name.startsWith('$plugin.')) {
+      if (!name.startsWith('$namespace.') ||
+          namespace == PluginManifest.reservedNamespace) {
         throw FormatRegistrationException(
           'plugin "$plugin" registered format "${spec.id}"'
           '${name == spec.id ? '' : ' with the alias "$name"'}: a plugin\'s '
-          'format ids and aliases start with its own id, "$plugin.<kind>"',
+          'format ids and aliases are in its namespace, "$namespace.<kind>"',
         );
       }
     }

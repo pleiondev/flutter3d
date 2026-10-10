@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **Every name a plugin registers is in its namespace.**
+  `PluginManifest.namespace` is the id up to its first dot — the package
+  that ships the plugin — and `nameProblem` says why a name outside
+  `<namespace>.` may not be registered; `f3d` is the engine's own, and the
+  engine's packages (`isEngine`) register the engine's names. The format
+  registry holds a plugin to the same namespace (it held it to the whole id
+  before, which every id it took is still in). Names compare
+  case-sensitively everywhere.
+- **A registry brings its companions.** `PluginRegistry.companions` lists
+  the registries that come with one, and `PluginHost.registry` finds them
+  as if each had been handed to the host: an engine that hands it
+  `renderer.renderSteps` gives a plugin the renderer's `LightingModels` too.
 - **`PluginGroup`: plugins taken whole and adjusted.** `set` puts a
   configured plugin in place of the member with its id, `add` appends one,
   `without<T>()` and `withoutId` take members out, each answering a new

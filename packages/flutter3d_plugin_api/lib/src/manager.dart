@@ -401,7 +401,14 @@ final class PluginManager {
       ));
 
   R? _registry<R extends PluginRegistry>(PluginScope scope) {
-    final registry = _registries.whereType<R>().firstOrNull;
+    Iterable<PluginRegistry> withCompanions(Iterable<PluginRegistry> of) =>
+        of.expand(
+          (registry) => <PluginRegistry>[
+            registry,
+            ...withCompanions(registry.companions),
+          ],
+        );
+    final registry = withCompanions(_registries).whereType<R>().firstOrNull;
     if (registry == null) return null;
     final scoped = registry.forPlugin(scope);
     if (scoped is! R) {

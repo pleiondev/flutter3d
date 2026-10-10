@@ -11,6 +11,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         LinearColor,
+        PluginException,
+        PluginRegistry,
         PluginScope,
         Registration,
         RenderAnchor,
@@ -319,6 +321,13 @@ final class Renderer with RenderServices {
   /// `renderSteps.addContributor`, and each hands back the [Registration]
   /// that takes it out again.
   final RendererSteps renderSteps;
+
+  /// The lighting models this renderer's documents may name: the built-in
+  /// ones and every one a plugin registered with this engine (D23). A
+  /// plugin reaches it as `host.registry<LightingModels>()`, through
+  /// [renderSteps]; a material file read for this renderer is read against
+  /// it (`readFmat(bytes, lightingModels: renderer.lightingModels)`).
+  LightingModels get lightingModels => renderSteps._store.lightingModels;
 
   final ShaderHandle _vertexShader;
 
