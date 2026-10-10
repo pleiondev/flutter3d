@@ -1206,8 +1206,16 @@ extension _ShadowPasses on Renderer {
     // Turned round, a tile is reset through the copy stage rather than the
     // cube atlas's reset, which writes the ordinary far plane — see
     // `resetTile` — so a bundle without the copy draws from a clear.
+    //
+    // **And not when every tile is being redrawn**: there is nothing left to
+    // keep, and the clear does in one step what the resets do as a full-tile
+    // draw each. Turned round, that draw is the copy stage reading a texture
+    // for every texel of every tile; on the software device it was nine
+    // tenths of a frame for any renderer whose casters changed each frame —
+    // an impostor bake, four frames to a view, from a fresh scene each.
     final keep =
         !fresh &&
+        dirty.contains(false) &&
         !transmits &&
         resetShader != null &&
         resetVertexShader != null &&

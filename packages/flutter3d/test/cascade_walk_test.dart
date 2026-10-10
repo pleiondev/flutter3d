@@ -137,6 +137,48 @@ void main() {
     expect(moved, lessThan(first));
   });
 
+  test('a frame that redraws every tile clears rather than resets', () {
+    final device = CpuDevice(
+      width: _size,
+      height: _size,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    FrameResult frame(Renderer renderer, Scene scene, CameraNode camera) =>
+        renderer.render(
+          width: _size,
+          height: _size,
+          scene: scene,
+          views: <RenderView>[RenderView(camera: camera)],
+          settings: _settings,
+        );
+
+    final kept = Renderer.create(device: device);
+    final built = _scene(device);
+    _place(built.camera, 0);
+    frame(kept, built.scene, built.camera);
+    // A sun that turned moves every tile's matrix, so nothing is left to keep.
+    void turn(Scene scene) => scene.lights.single
+      ..setPosition(-4.0, 6.0, 1.0)
+      ..lookAt(Vector3.zero());
+    turn(built.scene);
+    final redrawn = cascadeDraws(frame(kept, built.scene, built.camera));
+
+    final fresh = _scene(device);
+    _place(fresh.camera, 0);
+    turn(fresh.scene);
+    // As many draws as a renderer drawing the same frame from nothing: the
+    // casters, and no reset per tile on top of them.
+    // Mutation: drop `dirty.contains(false)` from `keep`. Three more — one
+    // full-tile reset each, which on the software device was nine tenths of
+    // an impostor bake.
+    expect(
+      redrawn,
+      cascadeDraws(
+        frame(Renderer.create(device: device), fresh.scene, fresh.camera),
+      ),
+    );
+  });
+
   test('eight frames of a walk are the frames drawn from nothing', () async {
     final device = CpuDevice(
       width: _size,
