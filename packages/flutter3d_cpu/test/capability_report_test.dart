@@ -225,7 +225,14 @@ void main() {
     () {
       // Mutation: looking at the bytes or the stage before the compute gate,
       // which the conformance probe calls with handles no device made.
-      final d = device(withhold: const <DeviceFeature>[DeviceFeature.compute]);
+      // A storage buffer is `createBuffer`'s since 1.0, which a render stage
+      // may bind as well, so it is refused only without both.
+      final d = device(
+        withhold: const <DeviceFeature>[
+          DeviceFeature.compute,
+          DeviceFeature.renderStageStorage,
+        ],
+      );
       expect(
         () => d.createBuffer(
           const BufferDescriptor(
