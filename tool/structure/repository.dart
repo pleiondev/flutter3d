@@ -1718,6 +1718,7 @@ const Map<String, String> openedSets = <String, String>{
   'MapMode': 'flutter3d_hardware: a class with constants',
   'MaterialHintKind': 'flutter3d_core: an abstract final hierarchy',
   'MaterialMap': 'flutter3d_core: a class with constants',
+  'MaterialStatement': 'flutter3d_core: an abstract base class with a visitor',
   'MeshAttribute': 'flutter3d_mesh: a class with constants',
   'MeshDomain': 'flutter3d_mesh: a class with constants',
   'MinMagFilter': 'flutter3d_hardware: a class with constants',
@@ -1747,6 +1748,7 @@ const Map<String, String> openedSets = <String, String>{
   'Resimulation': 'flutter3d_sim: an abstract final hierarchy',
   'ResizeFilter': 'flutter3d_model_core: a class with constants',
   'ResourceOrigin': 'flutter3d_core: a class with constants',
+  'ResourceSize': 'flutter3d_core: an abstract base class with a visitor',
   'RunStatus': 'flutter3d_game: an abstract final hierarchy',
   'SamplerAddressMode': 'flutter3d_hardware: a class with constants',
   'SamplerBorderColor': 'flutter3d_hardware: a class with constants',
@@ -1784,15 +1786,7 @@ const Map<String, String> openedSets = <String, String>{
 /// **A to-do list, not an exemption**, like [interfaceClassPending]: the rule
 /// passes these while they are sealed and fails on an entry once its type is
 /// not, so the list only shrinks. A new closed set is not added here.
-const Map<String, String> closedSetPending = <String, String>{
-  'MaterialStatement':
-      'the material AST becomes an abstract base class with a visitor and '
-      '`visitUnknown`, with its three translators on it, in the frame '
-      'extension-point work (D24)',
-  'ResourceSize':
-      'an abstract base class with a visitor, beside the material AST, in '
-      'the same work (D24)',
-};
+const Map<String, String> closedSetPending = <String, String>{};
 
 // ------------------------------------------------------------ 1.0: naming
 

@@ -563,16 +563,36 @@ void _statements(
   List<MaterialStatement> body,
   String Function(MaterialExpression value) returns,
 ) {
+  final writer = _GlslStatements(returns);
   for (final statement in body) {
-    switch (statement) {
-      case MaterialLet(:final name, :final value):
-        out.writeln('  ${value.type.name} $name = ${_glsl(value)};');
-      case MaterialReturn(:final value):
-        out.writeln(returns(value));
-      case MaterialOutput(:final output, :final value):
-        out.writeln('  ${output.glsl} = ${_glsl(value)};');
-    }
+    out.writeln(statement.accept(writer));
   }
+}
+
+/// One statement as a line of GLSL.
+final class _GlslStatements extends MaterialStatementVisitor<String> {
+  const _GlslStatements(this.returns);
+
+  final String Function(MaterialExpression value) returns;
+
+  @override
+  String visitLet(MaterialLet statement) =>
+      '  ${statement.value.type.name} ${statement.name} = '
+      '${_glsl(statement.value)};';
+
+  @override
+  String visitReturn(MaterialReturn statement) => returns(statement.value);
+
+  @override
+  String visitOutput(MaterialOutput statement) =>
+      '  ${statement.output.glsl} = ${_glsl(statement.value)};';
+
+  @override
+  String visitUnknown(MaterialStatement statement) => throw ArgumentError.value(
+    statement,
+    'statement',
+    'not a statement this build of the material language knows',
+  );
 }
 
 /// What the engine may bind to [program]'s compiled shader.
@@ -744,68 +764,97 @@ final class MaterialBindings {
   }
 }
 
-String _glsl(MaterialExpression expression) {
-  switch (expression) {
-    case MaterialConstant(:final value, :final type):
-      if (type == MaterialType.float) return _number(value.single);
-      return '${type.name}(${value.map(_number).join(', ')})';
-    case MaterialInputRef(:final input):
-      return input.glsl;
-    case MaterialLocalRef(:final name):
-      return name;
-    case MaterialParamRef(:final parameter) when parameter.uniform:
-      return 'material_params.${parameter.name}';
-    case MaterialParamRef(:final parameter):
-      // Reachable only for a program nothing specialised, which is a caller
-      // skipping a step rather than a shape this emitter supports: a
-      // parameter has no GLSL, because it is not a uniform.
-      throw StateError(
-        'The parameter "${parameter.name}" has no value. Call '
-        'specialiseMaterial before emitting.',
-      );
-    case MaterialConstruct(:final arguments, :final type):
-      return '${type.name}(${arguments.map(_glsl).join(', ')})';
-    case MaterialSwizzle(:final target, :final components):
-      const letters = 'xyzw';
-      final field = components.map((i) => letters[i]).join();
-      return '${_glsl(target)}.$field';
-    case MaterialNegate(:final operand):
-      return '-(${_glsl(operand)})';
-    case MaterialBinary(:final op, :final left, :final right):
-      // Fully parenthesised rather than tracking precedence a second time:
-      // the parser already decided the shape, and an emitter that re-derived
-      // it could put the brackets somewhere the tree does not mean.
-      return '(${_glsl(left)} $op ${_glsl(right)})';
-    case MaterialCall(:final builtin, :final arguments):
-      // The language spreads a float beside a vector for every component-wise
-      // builtin, and `broadcastArguments` evaluates it that way; GLSL does only
-      // for some positions of some of them — `pow(vec3, float)`,
-      // `mix(float, vec3, float)` and `min(float, vec3)` do not compile. So the
-      // spread is written out, which every overload accepts and which says
-      // what the software backend computes.
-      var width = 1;
-      for (final argument in arguments) {
-        if (argument.type.components > width) width = argument.type.components;
-      }
-      String spread(MaterialExpression argument) {
-        final text = _glsl(argument);
-        return builtin.componentWise &&
-                width > 1 &&
-                argument.type.components == 1
-            ? '${MaterialType.numeric[width]!.name}($text)'
-            : text;
-      }
+String _glsl(MaterialExpression expression) =>
+    expression.accept(const _GlslExpressions());
 
-      return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
-    case MaterialSample(:final slot, :final uv):
-      return 'texture(${slot.bindingName}, ${_glsl(uv)})';
-    default:
+/// One expression as GLSL text.
+final class _GlslExpressions extends MaterialExpressionVisitor<String> {
+  const _GlslExpressions();
+
+  @override
+  String visitConstant(MaterialConstant expression) {
+    final MaterialConstant(:value, :type) = expression;
+    if (type == MaterialType.float) return _number(value.single);
+    return '${type.name}(${value.map(_number).join(', ')})';
+  }
+
+  @override
+  String visitInputRef(MaterialInputRef expression) => expression.input.glsl;
+
+  @override
+  String visitLocalRef(MaterialLocalRef expression) => expression.name;
+
+  @override
+  String visitParamRef(MaterialParamRef expression) {
+    final parameter = expression.parameter;
+    if (parameter.uniform) return 'material_params.${parameter.name}';
+    // Reachable only for a program nothing specialised, which is a caller
+    // skipping a step rather than a shape this emitter supports: a
+    // parameter has no GLSL, because it is not a uniform.
+    throw StateError(
+      'The parameter "${parameter.name}" has no value. Call '
+      'specialiseMaterial before emitting.',
+    );
+  }
+
+  @override
+  String visitConstruct(MaterialConstruct expression) =>
+      '${expression.type.name}(${expression.arguments.map(_glsl).join(', ')})';
+
+  @override
+  String visitSwizzle(MaterialSwizzle expression) {
+    const letters = 'xyzw';
+    final field = expression.components.map((i) => letters[i]).join();
+    return '${_glsl(expression.target)}.$field';
+  }
+
+  @override
+  String visitNegate(MaterialNegate expression) =>
+      '-(${_glsl(expression.operand)})';
+
+  // Fully parenthesised rather than tracking precedence a second time: the
+  // parser already decided the shape, and an emitter that re-derived it
+  // could put the brackets somewhere the tree does not mean.
+  @override
+  String visitBinary(MaterialBinary expression) =>
+      '(${_glsl(expression.left)} ${expression.op} '
+      '${_glsl(expression.right)})';
+
+  @override
+  String visitCall(MaterialCall expression) {
+    final MaterialCall(:builtin, :arguments) = expression;
+    // The language spreads a float beside a vector for every component-wise
+    // builtin, and `broadcastArguments` evaluates it that way; GLSL does only
+    // for some positions of some of them — `pow(vec3, float)`,
+    // `mix(float, vec3, float)` and `min(float, vec3)` do not compile. So the
+    // spread is written out, which every overload accepts and which says
+    // what the software backend computes.
+    final width = arguments.fold(
+      1,
+      (int widest, argument) =>
+          argument.type.components > widest ? argument.type.components : widest,
+    );
+    String spread(MaterialExpression argument) {
+      final text = _glsl(argument);
+      return builtin.componentWise && width > 1 && argument.type.components == 1
+          ? '${MaterialType.numeric[width]!.name}($text)'
+          : text;
+    }
+
+    return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
+  }
+
+  @override
+  String visitSample(MaterialSample expression) =>
+      'texture(${expression.slot.bindingName}, ${_glsl(expression.uv)})';
+
+  @override
+  String visitUnknown(MaterialExpression expression) =>
       throw ArgumentError.value(
         expression,
         'expression',
         'not an expression this build of the material language knows',
       );
-  }
 }
 
 /// A GLSL float literal, which always has a decimal point.
