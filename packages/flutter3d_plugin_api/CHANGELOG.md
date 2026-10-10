@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **`PluginGroup`: plugins taken whole and adjusted.** `set` puts a
+  configured plugin in place of the member with its id, `add` appends one,
+  `without<T>()` and `withoutId` take members out, each answering a new
+  group. A package's own group is a class extending it (`StandardPlugins()`),
+  and the project's generated `installedPlugins` is one. A member a later
+  release drops is not an error to `set` or `without`.
+- **`SimulationProfile`, what a simulation promises about its numbers.**
+  `deterministic` (bit-exact on every platform) and `accurate` (double
+  precision, adaptive steps), with wire names of their own and an open set:
+  code asks a capability (`isBitExact`, `usesDoublePrecision`,
+  `allowsAdaptiveSteps`), never which profile it is. `parse` refuses a name
+  it does not know.
+
 - **`LoopPhase.elements` is gone**; use `LoopPhase.fields`. A loop still
   finds the phase by the name `elements` (`LoopPhase.formerNames`).
 
