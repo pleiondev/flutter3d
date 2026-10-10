@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "platformer start",
   "generatedBy": "tool/make_templates.py",
   "editor": {
@@ -52,7 +55,8 @@
         1.0,
         16.0
       ],
-      "material": "floor"
+      "material": "floor",
+      "id": "b692e4b6"
     },
     {
       "at": [
@@ -65,7 +69,8 @@
         1.0,
         16.0
       ],
-      "material": "ceiling"
+      "material": "ceiling",
+      "id": "eb1a07f0"
     },
     {
       "at": [
@@ -78,7 +83,8 @@
         4.0,
         1.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "c4a2cec3"
     },
     {
       "at": [
@@ -91,7 +97,8 @@
         4.0,
         1.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "fdf6b743"
     },
     {
       "at": [
@@ -104,7 +111,8 @@
         4.0,
         18.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "3f8e29f9"
     },
     {
       "at": [
@@ -117,7 +125,8 @@
         4.0,
         18.0
       ],
-      "material": "wall"
+      "material": "wall",
+      "id": "a206ad79"
     }
   ],
   "lights": [
@@ -133,8 +142,9 @@
         0.92,
         0.78
       ],
-      "intensity": 9.0,
-      "range": 16.0
+      "intensity": 52115.252201999996,
+      "range": 16.0,
+      "id": "88ce8d88"
     }
   ],
   "entities": [
@@ -145,7 +155,8 @@
         0.0,
         5.0
       ],
-      "yaw": 0.0
+      "yaw": 0.0,
+      "id": "a33a6d7d"
     },
     {
       "type": "lamp",
@@ -155,11 +166,14 @@
         -6.0
       ],
       "yaw": 0.0,
-      "size": [
-        0.4,
-        1.6,
-        0.4
-      ]
+      "props": {
+        "size": [
+          0.4,
+          1.6,
+          0.4
+        ]
+      },
+      "id": "1d3e2a52"
     },
     {
       "type": "collectible",
@@ -168,7 +182,10 @@
         0.8,
         0.0
       ],
-      "what": "coin"
+      "props": {
+        "what": "coin"
+      },
+      "id": "d2770ab7"
     },
     {
       "type": "collectible",
@@ -177,7 +194,10 @@
         0.8,
         0.0
       ],
-      "what": "coin"
+      "props": {
+        "what": "coin"
+      },
+      "id": "284f1283"
     },
     {
       "type": "exit",
@@ -187,11 +207,14 @@
         -6.0
       ],
       "yaw": 0.0,
-      "size": [
-        5.0,
-        3.0,
-        5.0
-      ]
+      "props": {
+        "size": [
+          5.0,
+          3.0,
+          5.0
+        ]
+      },
+      "id": "0902236d"
     }
   ]
 }

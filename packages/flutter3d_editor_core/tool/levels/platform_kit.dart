@@ -18,6 +18,8 @@ library;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 typedef Row = Map<String, Object?>;
 
 /// A rectangle on the ground, `(x0, x1, z0, z1)`, that filling may not stand
@@ -591,6 +593,6 @@ final class PlatformKit {
       'entities': <Row>[...entities, ..._filling],
       if (next != null && next.isNotEmpty) 'next': next,
     };
-    return '${DocumentText.compact(document)}\n';
+    return '${DocumentText.compact(asWritten(document))}\n';
   }
 }

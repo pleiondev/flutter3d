@@ -30,6 +30,8 @@ import 'dart:convert';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 typedef _Row = Map<String, Object?>;
 
 const String _templates = 'apps/flutter3d_editor/assets/templates';
@@ -83,7 +85,7 @@ Map<String, String> templates(GeneratorSource source) {
     };
     out['$where/editor.json'] = _dump(types);
     out['$where/level.first.json'] = _dump(
-      template.level(genre, template, source),
+      asWritten(template.level(genre, template, source)),
     );
     for (final MapEntry(key: name, value: (from, _)) in _app.entries) {
       out['$where/$name'] = source.read(from);
@@ -152,6 +154,10 @@ List<_Row> _room({double size = 16.0, double height = 4.0}) {
 /// in the order `Level.toJson` writes them, with what the format does not
 /// know — `generatedBy`, `editor`, strategy's `goal` — where it should stay.
 /// [before] and [after] put a genre's own section somewhere and keep it there.
+///
+/// [version] is the format version the rows are spelled in: 1 for the rows
+/// authored here, and the copied document's own for rows read out of one, so
+/// the reader does not lift a light's strength that was lifted already.
 _Row _level(
   String name,
   String template, {
@@ -161,10 +167,11 @@ _Row _level(
   required Object? entities,
   required Object? fog,
   num density = 0.0,
+  int version = 1,
   _Row before = const <String, Object?>{},
   _Row after = const <String, Object?>{},
 }) => <String, Object?>{
-  'version': 1,
+  'version': version,
   'name': name,
   'generatedBy': 'tool/make_templates.py',
   // Which template this came from, so the palette can be rebuilt if
@@ -342,6 +349,7 @@ _Row _strategyLevel(String genre, _Template template, GeneratorSource source) {
     // Open air under one sun and no density: a map this size read through
     // fog is a map nobody can command from above.
     fog: const <double>[0.58, 0.66, 0.74],
+    version: Level.format.versionOf(played),
     before: <String, Object?>{'goal': played['goal']},
     after: <String, Object?>{'heightfield': played['heightfield']},
   );

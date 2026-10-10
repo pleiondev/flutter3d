@@ -26,6 +26,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 const String _tracks = 'apps/flutter3d_demo_racing/assets/tracks';
 const String _tool = 'tool/make_track.py';
 
@@ -184,7 +186,7 @@ Map<String, String> _write(_Circuit circuit) {
   final points = _centreLine(circuit);
   final length = _lapLength(points);
   final sky = _skyPresets[circuit.preset]!;
-  final level = <String, Object?>{
+  final level = asWritten(<String, Object?>{
     'version': 1,
     'name': circuit.name,
     'generatedBy': _tool,
@@ -197,7 +199,7 @@ Map<String, String> _write(_Circuit circuit) {
     'brushes': _ground(circuit, points),
     'lights': _lights(sky),
     'entities': const <Object?>[],
-  };
+  });
   // The lap length is a sum over points that came out of libm, so it is
   // rounded to a centimetre before anything is written from it.
   // No `format`/`requires`/`generator` envelope yet: it is additive at

@@ -22,6 +22,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 typedef Row = Map<String, Object?>;
 
 /// One level's worth of rooms, lights and things in them.
@@ -499,6 +501,6 @@ final class CryptKit {
       'next': ?next,
       if (behaviors.isNotEmpty) 'behaviours': behaviors,
     };
-    return '${DocumentText.compact(document)}\n';
+    return '${DocumentText.compact(asWritten(document))}\n';
   }
 }

@@ -17,6 +17,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 /// How many samples across the field, and how far apart: a hundred and sixty
 /// metres of hillside, about as far as this camera sees and as much ground as
 /// a crowd of a hundred can fill.
@@ -80,7 +82,7 @@ Map<String, String> map(GeneratorSource _) {
   };
   return <String, String>{
     'apps/flutter3d_demo_strategy/assets/levels/map_a.json':
-        '${DocumentText.compact(document)}\n',
+        '${DocumentText.compact(asWritten(document))}\n',
   };
 }
 
