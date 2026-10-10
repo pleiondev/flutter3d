@@ -108,6 +108,22 @@ _computeDescriptor(GPUDevice gpu, WebGpuComputeShader shader) {
       add(t.group, entry);
     }
   }
+  // 1.0: a kernel's texture, read with `textureLoad` and no sampler. Any
+  // float format may be loaded, filterable or not.
+  for (final t in stage.loadedTextures) {
+    add(
+      t.group,
+      GPUBindGroupLayoutEntry.texture(
+        binding: t.binding,
+        visibility: GpuShaderStage.compute,
+        texture: GPUTextureBindingLayout(
+          sampleType: 'unfilterable-float',
+          viewDimension: '2d',
+          multisampled: false,
+        ),
+      ),
+    );
+  }
   for (final t in stage.storageTextures) {
     add(
       t.group,
@@ -298,6 +314,15 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     webgpuCheckSampler(_features, sampler);
     final pipeline = _pipeline;
     if (pipeline == null) return false;
+    // A kernel's texture has no sampler slot: the view alone is bound.
+    for (final loaded in pipeline.shader.stage.loadedTextures) {
+      if (loaded.name != name) continue;
+      _bound[(loaded.group, loaded.binding)] = GPUBindGroupEntry.textureView(
+        binding: loaded.binding,
+        resource: (texture.backend as WebGpuTexture).sampledView,
+      );
+      return true;
+    }
     final declared = pipeline.shader.stage.textures.where(
       (WebGpuSampler t) => t.name == name,
     );

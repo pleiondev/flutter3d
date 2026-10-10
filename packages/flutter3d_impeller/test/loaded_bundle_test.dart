@@ -75,4 +75,30 @@ void main() {
       ),
     );
   });
+
+  test('a bundle of compute kernels is refused for what it is', () {
+    // Mutation: refuse it as a bundle missing its section, and the reader
+    // looks for an impellerc step that could never make one.
+    final kernels = ShaderBundle(
+      name: 'kernels',
+      sdk: '',
+      stages: const <ShaderBundleStage>[
+        ShaderBundleStage('Blur', fragment: false),
+      ],
+      sections: <String, ByteData>{
+        ShaderBundle.kernelSection: encodeKernelSection(<String, String>{
+          'Blur': 'compute Blur { kernel { } }',
+        }),
+      },
+    );
+    expect(
+      () => impellerSectionOf(kernels, running: '3.13.0'),
+      throwsA(
+        isA<ShaderBundleException>()
+            .having((r) => r.name, 'name', 'kernels')
+            .having((r) => r.reason, 'reason', contains('no compute'))
+            .having((r) => r.reason, 'reason', contains('sidecar')),
+      ),
+    );
+  });
 }

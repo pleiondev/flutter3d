@@ -32,6 +32,19 @@ String get runningSdk => Platform.version.split(' ').first;
 /// likely to meet, and the messages are what it will read.
 ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
   final section = bundle.section(ShaderBundle.impellerSection);
+  // 1.0: a bundle of compute kernels is refused for what it is. flutter_gpu
+  // has no compute yet, so a frame on Impeller places its compute steps on
+  // the wgpu sidecar or the CPU, which load the same bundle.
+  if (section == null && bundle.section(ShaderBundle.kernelSection) != null) {
+    throw ShaderBundleException(
+      name: bundle.name,
+      reason:
+          'it carries compute kernels, and flutter_gpu has no compute '
+          'pipelines yet (flutter/flutter#188474), so Impeller runs none. A '
+          'frame places its compute steps on the wgpu sidecar or on the CPU, '
+          'which load this bundle as it is.',
+    );
+  }
   if (section == null) {
     throw ShaderBundleException(
       name: bundle.name,
