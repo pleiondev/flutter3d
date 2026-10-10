@@ -66,6 +66,13 @@ export 'src/surface/scene_surface.dart';
 export 'src/surface/status_screens.dart';
 export 'src/view/flutter3d_view.dart';
 export 'src/view/frame_info.dart';
+export 'src/view/view_settings.dart'
+    show
+        DeviceSettings,
+        LoopSettings,
+        PluginSettings,
+        SimulationPlacement,
+        ViewSettings;
 export 'src/widget_surface/widget_surface.dart';
 export 'src/widget_surface/widget_surface_pipeline.dart';
 export 'src/widget_surface/widget_surface_visuals.dart';

@@ -83,6 +83,18 @@ base class Flutter3dAppLocalizations {
   /// What a `Flutter3dView` shows when no device would open.
   String viewDidNotStart(Object error) => 'The 3D view could not start: $error';
 
+  /// What a `Flutter3dView` says over its picture when the GPU backend
+  /// would not start and [backend] draws instead.
+  String drawingWithFallback(String backend) =>
+      'Drawing with $backend: the GPU backend would not start, so this is '
+      'slower than it should be. Impeller may be off — on iOS and macOS set '
+      'FLTEnableImpeller to true in Info.plist, on Android set '
+      'io.flutter.embedding.android.EnableImpeller in the manifest, on the '
+      'desktop run with --enable-impeller.';
+
+  /// The label of a button that closes what it is on.
+  String get close => 'Close';
+
   /// A stereo lesson's button back one step.
   String get previousStep => 'Previous step';
 
@@ -109,6 +121,15 @@ final class _Russian extends Flutter3dAppLocalizations {
   String get startOver => 'Бросить забег и начать заново';
   @override
   String viewDidNotStart(Object error) => '3D-вид не запустился: $error';
+  @override
+  String drawingWithFallback(String backend) =>
+      'Рисует $backend: GPU-бэкенд не запустился, поэтому всё медленнее, чем '
+      'должно быть. Возможно, выключен Impeller — на iOS и macOS задайте '
+      'FLTEnableImpeller = true в Info.plist, на Android — '
+      'io.flutter.embedding.android.EnableImpeller в манифесте, на десктопе '
+      'запустите с --enable-impeller.';
+  @override
+  String get close => 'Закрыть';
   @override
   String get previousStep => 'Предыдущий шаг';
   @override

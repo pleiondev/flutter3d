@@ -45,6 +45,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import '../surface/scene_surface.dart' show FramePresenter;
 import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
+import '../view/view_settings.dart';
 
 part 'scene_widgets_features.dart';
 part 'scene_widgets_mount.dart';
@@ -268,20 +269,24 @@ class _Scene3DState extends State<Scene3D> implements _SceneHost {
         Flutter3dView(
           scene: _scene,
           camera: _defaultCamera,
-          device: widget.device,
-          settings: widget.settings,
-          views: controller == null ? null : <RenderView>[_viewFor(_camera)],
-          continuous: widget.continuous,
-          frameRateCap: widget.frameRateCap,
-          presenter: widget.presenter,
-          placeholder: widget.placeholder,
-          failure: (Object error) =>
-              ErrorWidget('the scene could not open a device: $error'),
+          device: DeviceSettings(
+            device: widget.device,
+            presenter: widget.presenter,
+            onDeviceRestored: (Flutter3dEngine engine) =>
+                setState(() => _generation++),
+          ),
+          view: ViewSettings(
+            settings: widget.settings,
+            views: controller == null ? null : <RenderView>[_viewFor(_camera)],
+            continuous: widget.continuous,
+            frameRateCap: widget.frameRateCap,
+            placeholder: widget.placeholder,
+            failure: (Object error) =>
+                ErrorWidget('the scene could not open a device: $error'),
+          ),
           onCreated: _created,
           onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
               _beforeFrame(frame),
-          onDeviceRestored: (Flutter3dEngine engine) =>
-              setState(() => _generation++),
         ),
       ],
     );
