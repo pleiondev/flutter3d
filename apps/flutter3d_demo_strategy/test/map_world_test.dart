@@ -32,8 +32,12 @@ StrategyMap _map() =>
 /// The pace that balances c·m·(v₀ − v) = ½ρ·C_d·A·v³/η in still water,
 /// found by Newton's method rather than the bisection the game uses: the
 /// same law solved a second way.
+///
+/// m is ICRP 89's reference man, 73 kg, the body every person in the engine
+/// weighs (`referenceBodyMass`); the walker was 70 kg of its own before the
+/// engine had one body, which made the paces about one percent slower.
 double _balanced(double area, double dry) {
-  const double budget = costOfTransport * 70.0;
+  const double budget = costOfTransport * 73.0;
   final double k =
       0.5 * NativeLiquidProperties.water.density * 1.2 * area / 0.25;
   var v = dry;

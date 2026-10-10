@@ -158,7 +158,15 @@ void main() {
       player.body.halfExtents.y,
     );
     expect(depth, greaterThan(0.15), reason: 'a hand of water over the flags');
-    final share = CryptHarm.wadingShare(depth, flow: flow);
+    // At the gravity of the world the vault is in, the shooter's 24 m/s², as
+    // the crypt asks it: the flow's share of the water's force, v²d/g, is
+    // smaller there than at the laboratory's 9.81, and the walk a little
+    // faster.
+    final share = CryptHarm.wadingShare(
+      depth,
+      flow: flow,
+      g: crypt.world.gravityMagnitude,
+    );
     _step(level, input);
     final v = player.body.velocity;
     final speed = Vector2(v.x, v.z).length;
