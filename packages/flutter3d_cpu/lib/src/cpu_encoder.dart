@@ -314,7 +314,13 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   /// bind.
   @override
   void bindPipeline(PipelineHandle pipeline) {
-    _pipeline = pipeline.backend as CpuPipeline;
+    // A refused pipeline holds its refusal where a `CpuPipeline` would be
+    // (see `CpuDevice.createPipeline`), and with no pipeline bound every
+    // draw until the next bind draws nothing.
+    _pipeline = switch (pipeline.backend) {
+      PipelineRefused() => null,
+      final other => other as CpuPipeline,
+    };
     clearBindings();
   }
 

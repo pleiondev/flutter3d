@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A layout with an integer attribute is a refused pipeline, not a
+  throw.** `createPipeline` reports a `PipelineRefused` with
+  `PipelineRefusalReason.unsupportedFormat` to
+  `GraphicsDevice.pipelineRefusals`, left refused at once, and the draws
+  with it draw nothing. It threw an `UnsupportedError`, which failed every
+  frame that drew the mesh.
 - **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`: a storage buffer is
   `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
