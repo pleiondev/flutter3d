@@ -540,12 +540,14 @@ String generateDataGuide() {
     0,
     (int n, List<FormatSpec> l) => n + l.length,
   );
+  final note =
+      '*Generated from the `FormatSpec`s `migrate --data` loads — $loaded '
+      'formats, and ${formatsOutOfReach.length} it leaves to the package '
+      'that reads them.*';
   return <String>[
     dataGuideStart,
     '',
-    '*Generated from the `FormatSpec`s `migrate --data` loads — $loaded '
-        'formats, and ${formatsOutOfReach.length} it leaves to the package that '
-        'reads them.*',
+    note,
     '',
     '| Format | Files | Package | This build reads | `migrate --data` |',
     '|---|---|---|---|---|',
