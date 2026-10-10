@@ -16,6 +16,8 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -117,6 +119,9 @@ void main() {
     await run.begin();
     final start = run.level!.sim.save();
     final demo = DemoRecording(
+      // The backend the run is on, as `main.dart` names it: a replay plays
+      // on what the file says it was recorded on, and refuses another.
+      physics: usePhysics(),
       level: _first,
       levelHash: run.level!.loaded.level.digestHex,
       start: start,
