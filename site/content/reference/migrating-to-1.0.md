@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1547 places,
+only in a major version. To get there, 0.8's API changed in 1551 places,
 344 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -125,7 +125,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1547 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 271 nothing to do, 455 `dart fix`, 380 gone internal.*
+*Generated from `flutter3d_build/lib/migrations/` — 1551 entries from 0.8.5 to 1.0.0-rc.1, 344 by hand: 97 `migrate`, 344 by hand, 275 nothing to do, 455 `dart fix`, 380 gone internal.*
 
 ### `flame_flutter3d`
 
@@ -186,6 +186,7 @@ carried out:
 - <a id="flame_multiplayer-RollbackPlay"></a>**`RollbackPlay`** (by hand). Use `RollbackSession` with `localSlot`, `inputDelay: 3` and `maxRollbackFrames: 20` (`RollbackPlay`'s defaults); `captureLocalFrame` is `capture`, `applyAndStep` reads `frames[0]`/`frames[1]` where it read `bySlot`, and `endsAt`, `agreedEnd` and `connected` are on the session.
 - <a id="flame_multiplayer-RollbackSession"></a>**`RollbackSession`** (by hand). `RollbackSession` is the one rollback, for two to thirty-two machines: it takes `localSlot` (the wire's `slot` by default) and `players`, its `applyAndStep` receives every slot's frame by slot, and `onSettled` also receives the frames.
 - <a id="f1-net-RollbackSession-moved"></a>**`RollbackSession`** (nothing to do). Declared by `flutter3d_net` now and re-exported here, as `PeerWire`.
+- <a id="multiplayer-RollbackSession-early"></a>**`RollbackSession`** (nothing to do). A frame more than `maxStepsAhead` (600) steps ahead of the session is dropped and counted in `droppedEarly` rather than held without bound, and a frame that arrives from a room maps its sender to the session's own slot, so two peers of a room no longer drop each other's input.
 - <a id="f1-net-WireHello-moved"></a>**`WireHello`** (nothing to do). Declared by `flutter3d_net` now and re-exported here, as `PeerWire`.
 - <a id="f1-net-protocol-3"></a>**`WireHello.currentProtocolMajor`** (nothing to do). Protocol 3: a rollback's frames carry the reserved key `"f3d": "rollback"` (`PeerWire.engineKey`). A machine on protocol 2 is refused in the hello with the version to update to, and a game's own message never sets `f3d`.
 - <a id="f1-net-WireState-moved"></a>**`WireState`** (nothing to do). Declared by `flutter3d_net` now and re-exported here, as `PeerWire`.
@@ -1276,6 +1277,7 @@ carried out:
 
 ### `flutter3d_physics`
 
+- <a id="physics-CharacterController-steep"></a>**`CharacterController`** (nothing to do). Signatures are unchanged; two outcomes move. A face too steep to stand on stops sideways and rising motion as a wall, where walking into it used to climb it; falling onto it still slides down. A body caught between a static collider and a moving one is pushed out by the static one, so a closing platform no longer sets it into the floor. A level tuned against the old slide may need its slopes looked at.
 - <a id="4a-physics-CharacterController-1"></a>**`CharacterController.1`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.
 - <a id="4a-physics-CharacterController-tuning"></a>**`CharacterController.tuning`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.
 - <a id="physics-ClothSettings"></a>**`ClothSettings`** (nothing to do). The default `gravity` is written as `standardGravity`, which is the same 9.81 m/s²; every call means what it meant.
@@ -1332,6 +1334,7 @@ carried out:
 - <a id="sim-DemoFormatException"></a>**`DemoFormatException`** (nothing to do). `DemoFormatException` is still a final class with the same members; it now extends `Flutter3dFormatException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on DemoFormatException` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="sim-DigestTraceFormatException"></a>**`DigestTraceFormatException`** (nothing to do). `DigestTraceFormatException` is still a final class with the same members; it now extends `Flutter3dFormatException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on DigestTraceFormatException` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="sim-DualAxisAction"></a>**`DualAxisAction`** (nothing to do). `InputAction` is new in 1.0, the sealed family of the action kinds: `GameAction` is its button, and `DualAxisAction` is one of the two new kinds beside it. No 0.8 code has a `switch` over `InputAction` to be missing a case, and `GameAction` is unchanged for everything that names it.
+- <a id="sim-EcsWorld-restore-strict"></a>**`EcsWorld`** (nothing to do). `restore` refuses a component written by a newer codec with a `SnapshotFormatException` before it touches the world, and removes a resource that has a codec but is not in the save, where it used to keep the old one. A save this build wrote restores as before.
 - <a id="4a-sim-EcsWorld-alive"></a>**`EcsWorld.alive`** (`dart fix`). `EcsWorld.alive` is `isAlive`. A boolean query reads as a question in 1.0: `alive(entity)` is `isAlive(entity)`, as on `SimWorld`.
 - <a id="f1-sim-EcsWorld-exclude"></a>**`EcsWorld.exclude`** (by hand). `world.exclude<T>(because)` is `world.components.exclude<T>(because)`, the registry's own, which returns a `Registration`.
 - <a id="sim-EcsWorld-query"></a>**`EcsWorld.query`** (by hand). `query()` is the query builder now (`world.query().having<A>() .without<B>().entities`, in index order). The type-parameter form that walked one component's entities in the order they were added is `queryOf<A>()`.
@@ -1360,6 +1363,7 @@ carried out:
 - <a id="4a-sim-KeyRing-take"></a>**`KeyRing.take`** (`dart fix`). `KeyRing.take` is `add`. Creation and teardown verbs follow one convention in 1.0: create (synchronous), open (a device or a session), load (an asset), decode (bytes), parse (text), dispose (teardown), close (a connection or a stream), and drain for a read that empties what it reads. The behaviour is the same under the new name.
 - <a id="sim-level-format-3"></a>**`Level`** (nothing to do). Level documents are written at format 3: an `id` on every brush, light and entity, an entity's properties under `props`, overrides keyed by id paths, and the format envelope. Older documents still read and are upgraded on save; code that reads entity rows from `toJson()` finds properties under `props`. `Level` now extends `FormatDocument`.
 - <a id="sim-Level"></a>**`Level`** (nothing to do). Only the constant's value moved, to 2 for prefabs and depth layers. `Level.fromJson` reads version 1 as before, and a level that uses neither is still written as version 1; code that reads `Level` gets the new number without a change.
+- <a id="sim-Level-digestHex-content"></a>**`Level.digestHex`** (nothing to do). Nothing in code changes. The digest is now of the level's content, not of its format envelope, so a hash 0.8.5 stored differs from the one 1.0 computes for the same level: `resimulate` answers a run recorded by 0.8.5 with `ResimulationLevelChanged`, and a verifying server refuses it. Record such runs again. Format changes never move the digest again.
 - <a id="sim-LevelFormatException"></a>**`LevelFormatException`** (nothing to do). `LevelFormatException` is still a final class with the same members; it now extends `Flutter3dFormatException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on LevelFormatException` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="rc-sim-LevelMaterial-baseColor"></a>**`LevelMaterial`** (by hand). `LevelMaterial.baseColor` is a linear `LinearColor`. The `Vector4` held the sRGB numbers a level stores, and a level still stores them (read and written through `storedBaseColor`), so a material made in code is `baseColor: LinearColor.fromSrgb(r, g, b)` of the old numbers and draws as it did.
 - <a id="4a-sim-LevelMaterial-LevelMaterial"></a>**`LevelMaterial.LevelMaterial`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use. A level file keeps its `texelsPerMetre` key; only the Dart name changed.

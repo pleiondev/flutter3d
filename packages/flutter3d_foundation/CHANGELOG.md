@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **`ShaderCompileException` and `AssetNotFoundException`**, the two
+  failures every backend and loader share. The first, a
+  `Flutter3dFormatException`, names the `shader` (or the pair a linker
+  refused), the `backend` and the compiler's `log`; the second, a
+  `ResourceException`, names the asset's `key` with an optional `detail`,
+  and keeps the platform's own failure as its `cause`.
+- **`FormatSpec.open` refuses a version below 1**, saying `"version"
+  counts from 1`; `versionOf` returns the 0 or negative number the document
+  holds where it used to answer 1.
+
 - **The first release: the types every package shares, in a package of
   their own.** `Flutter3dException` and its four families,
   `DocumentFormatException`, `WorldPosition`, `LinearColor`, `Issue` and

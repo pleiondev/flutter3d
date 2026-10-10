@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **The headless run's `position` is measured from the world's origin.**
+  The units live in a frame no origin shift moves, so their middle is
+  converted against `WorldPosition.origin` rather than the loop's current
+  origin, and stays right after the world is rebased.
+
 - **The bridge takes `meshDataOf` from `flutter3d_level_scene`** and no
   longer depends on `flutter3d_app`.
 

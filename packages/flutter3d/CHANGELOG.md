@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a missing asset is an `AssetNotFoundException`.**
+  `BundleAssetSource.read` and the files a model names through it throw one
+  naming the key, with the platform's `FlutterError` message as its `cause`,
+  where the `FlutterError` itself came through; `loadModelAsset` throws one
+  for a generated model it cannot find outside debug mode or on the web,
+  where it threw a `StateError`. Catch `AssetNotFoundException`, or the
+  engine's root `Flutter3dException`.
+- **`AssetNotFoundException` and `ShaderCompileException` are exported**
+  with the other exceptions from `flutter3d_foundation`.
+
 - **Breaking: the simulation, the physics and the audio are not re-exported.**
   `EngineLoop`, `EntityDef`, `InputState`, `Level`, `LevelCollision`,
   `LevelFormatException`, `LevelMaterial`, `Collider`, `CollisionWorld`,

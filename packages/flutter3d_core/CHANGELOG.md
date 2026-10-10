@@ -1,5 +1,38 @@
 ## 1.0.0-rc.1
 
+- **Hashed alpha stays put through a shift of the origin.** The renderer
+  carries the scene's origin in a hashed material's cutoff, below the -2
+  that says "hashed", so the noise is counted from the world's start and
+  `Scene.shiftOrigin` no longer re-rolls every leaf. The noise is a
+  `sin`-free hash that repeats every eight metres, so a hashed surface draws
+  a different pattern than before, the same on every GPU.
+- **A crowded light cell keeps its strongest lamps.** A cell holding more
+  lights than the shader reads ranks them by the per-draw selection's score
+  rather than scene order, and whether the cells fit the light list is
+  settled before any draw chooses its lights, so a crowded view keeps its
+  fade instead of popping at the eighth slot. `LightBuffer.relevanceTo` is
+  that score.
+- **Render bundles under reversed depth.**
+  `ContributorFrame.createRenderBundleEncoder` records a bundle with its
+  depth tests turned while `reversedDepth` is true; a bundle with a depth
+  attachment replayed into a reversed pass without it fails an assert in a
+  debug build.
+- **The reversed-depth near fit is tighter and safer.** It is made only
+  when the device really draws reversed, not whenever the setting asks; a
+  sky dome (a negative `drawBucket` without depth writes) is left out of it
+  and drawn through the camera's own near plane; `MeshOverlay` and a
+  `SplatContributor` without a tree report their bounds to it.
+- **`viewAxisOf` reads a perspective matrix's bottom row**, so an infinite
+  or reversed projection gives the camera's axis rather than dividing by
+  the far plane's w of nought.
+- **Warm-up links the opaque stage play draws with**, for every lit model
+  and not only the one the warm-up frames saw, and an application's own
+  `Unlit` with no `UnlitOpaque` of its own now draws opaque meshes too,
+  where the backend's opaque variant stood in for it.
+- **`.fmat` keeps a texture slot's transform.** A slot's `transform`
+  (`offset`, `scale`, `rotation`) is read and written, so a
+  `KHR_texture_transform` survives a material file.
+
 - **Breaking: the graphics vocabulary, the foundation and the plugin API are
   not re-exported.** `package:flutter3d_core/flutter3d_core.dart` handed on
   the hardware's types (all of `flutter3d_hardware` in 0.8), `LinearColor`,

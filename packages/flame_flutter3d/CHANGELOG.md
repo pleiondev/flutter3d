@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Flame components turn through the portable maths.** `Rotate3dEffect`,
+  `CurvilinearSpace` and `BridgePlane.rotationFor` build their quaternions
+  from `Portable.sinCos` rather than `setAxisAngle` and `Quaternion.axisAngle`,
+  which asked `dart:math`, so a turn a game steps on comes out the same on
+  every platform.
+
 - **Breaking: the bridge's colours are `LinearColor`s.**
   `HasFlutter3d.clearColor` is a linear colour assigned whole, encoded to
   sRGB for the view once a frame, where it was a `Vector4` of sRGB numbers

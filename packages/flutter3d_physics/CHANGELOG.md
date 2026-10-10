@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A face too steep to stand on is a wall.** `CharacterController`
+  strips a move into such a face along its horizontal normal when the body
+  is not falling, so walking or jumping into a steep slope no longer
+  carries the body up it; falling onto one, it still slides down.
+- **A platform closing on a body no longer flips it through the floor.**
+  `CollisionWorld.depenetrate` lets a static's push win over a mover's on
+  the same axis, and checks a push that only a mover made against the
+  statics where it would leave the body. Pushes between two statics, or
+  between two movers, still both apply.
+
 - **Breaking: what a world is made of moved to `flutter3d_matter`**, which
   this package does not re-export; a file that names it imports that
   package: `WorldProperties`, the material catalogue

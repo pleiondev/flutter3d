@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A selected object is tinted as it was in 0.8.** `renderProject` mixed
+  the linear base color with the selection orange as if both were sRGB
+  numbers; it now encodes the color to sRGB, mixes 60% of the way to the
+  orange there and decodes the result.
+
 - **Breaking: `WeightPair` is not re-exported.** What `bindWeights` hands back
   is `flutter3d_mesh`'s, and a caller that spells it depends on that package.
 

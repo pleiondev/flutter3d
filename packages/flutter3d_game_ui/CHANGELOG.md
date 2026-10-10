@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Photo mode's sprint flies faster again.** `ActionPhotoControls` and
+  `KeyPhotoControls` scale the time by `PhotoControls.fastFactor` rather
+  than the intent, which `PhotoCamera.fly` cut back to length one, so the
+  sprint key had no effect.
+
 - **Every widget around a game is here.** The touch controls, the settings
   panel and its sections, the privacy questions, the automap, the credits,
   the loss screen, `GameUiTheme` and `Flutter3dGameLocalizations` come from

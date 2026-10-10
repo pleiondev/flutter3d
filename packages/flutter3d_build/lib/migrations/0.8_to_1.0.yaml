@@ -18112,3 +18112,46 @@ entries:
       frame: `ShaderCompileException` for WGSL it would not compile,
       `DeviceResourceException` for anything else. Nothing is thrown once the
       device is lost, and a frame with nothing refused behaves as before.
+
+  - id: sim-Level-digestHex-content
+    package: flutter3d_sim
+    symbol: Level.digestHex
+    kind: none
+    reason: >-
+      Nothing in code changes. The digest is now of the level's content, not
+      of its format envelope, so a hash 0.8.5 stored differs from the one
+      1.0 computes for the same level: `resimulate` answers a run recorded by
+      0.8.5 with `ResimulationLevelChanged`, and a verifying server refuses
+      it. Record such runs again. Format changes never move the digest again.
+
+  - id: physics-CharacterController-steep
+    package: flutter3d_physics
+    symbol: CharacterController
+    kind: none
+    reason: >-
+      Signatures are unchanged; two outcomes move. A face too steep to stand
+      on stops sideways and rising motion as a wall, where walking into it
+      used to climb it; falling onto it still slides down. A body caught
+      between a static collider and a moving one is pushed out by the static
+      one, so a closing platform no longer sets it into the floor. A level
+      tuned against the old slide may need its slopes looked at.
+
+  - id: sim-EcsWorld-restore-strict
+    package: flutter3d_sim
+    symbol: EcsWorld
+    kind: none
+    reason: >-
+      `restore` refuses a component written by a newer codec with a
+      `SnapshotFormatException` before it touches the world, and removes a
+      resource that has a codec but is not in the save, where it used to
+      keep the old one. A save this build wrote restores as before.
+
+  - id: multiplayer-RollbackSession-early
+    package: flame_multiplayer
+    symbol: RollbackSession
+    kind: none
+    reason: >-
+      A frame more than `maxStepsAhead` (600) steps ahead of the session is
+      dropped and counted in `droppedEarly` rather than held without bound,
+      and a frame that arrives from a room maps its sender to the session's
+      own slot, so two peers of a room no longer drop each other's input.

@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Hashed alpha is anchored on the world.** `surface.glsl` and
+  `depth_predraw.frag` share `HashedAlphaNoise`, which takes the scene's
+  origin out of the cutoff, so a shift of the origin keeps every speck, and
+  replaces `fract(sin(…) · 43758)` with a `sin`-free hash that every GPU
+  computes alike. Hashed surfaces draw a different pattern than before.
+- **Lambert's opaque stage declares no metallic-roughness sampler.**
+  `F3D_NO_METALLIC_ROUGHNESS_MAP` leaves it out, since a declared but
+  unread sampler was dropped by Metal's compiler while its reflection still
+  listed the slot.
+
 - **Depends on `flutter3d_foundation` instead of the plugin API**, for the
   exceptions its refusals extend.
 

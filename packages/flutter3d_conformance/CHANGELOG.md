@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **The readback check asks for the HDR target whole.** A backend has to
+  hand back the whole of its `hdrColorFormat` texture as eight-bit RGBA
+  through its converting path, cleared green and still green, and refuse a
+  region of it with an `ArgumentError`; it used to have to refuse the whole
+  texture.
+- **The cube-face check draws with ten floats a vertex**, the depth after
+  the corner, as `sky_cube.vert` takes it.
+
 - **Breaking: a sixth plugin check, `materials`.** `pluginCheckNames` names
   it: every physical material a plugin declares has a source for each group,
   plausible SI numbers and an id in the plugin's namespace, and goes when the

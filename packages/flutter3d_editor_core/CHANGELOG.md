@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`EditorPieces.addComponent` refuses one of the editor's own kinds**
+  with an `ArgumentError`, so an entity can no longer gain a second copy of
+  a built-in component.
+- **A project made from the scaffold templates depends on
+  `flutter3d_plugin_api`**, which its seed genre is written against, so it
+  compiles as generated.
+
 - **Breaking: `AddLight` is `AddLevelLight`, `MoveBy` is
   `MoveSelectionBy`, `Listed` is `ListedPiece`, and `contentsOf` is
   `piecesOf`.** The modeller's commands and listing in

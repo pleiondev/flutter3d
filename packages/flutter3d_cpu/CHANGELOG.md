@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`CpuDevice.dispose` is reported as a device loss.** The first call sets
+  `isLost` and sends one `DeviceLossReason.destroyed` on `lost`, then
+  closes the stream; it used to do nothing, and `lost` never fired.
+- **Hashed alpha follows the GPU stages' new noise**, operation for
+  operation: a `sin`-free hash on the world, with the scene's origin taken
+  out of the cutoff, in the surface read and the depth pre-draw alike.
+
 - **`builtin.dart`'s `encodeOctahedral` and `decodeOctahedral` are
   `encodeSurfaceNormal` and `decodeSurfaceNormal`**, the port of the
   surface buffer's packing; the engine's functions of the old names are

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A Wasm module's state is checked before it is restored.** The
+  interpreter and the browser runtime refuse with a `WasmFormatException`
+  a negative or out-of-range page count, memory that is not base64 or does
+  not fit its pages, and globals of the wrong count or not whole numbers,
+  and leave the module's memory and globals as they were; they used to
+  wipe the memory first.
+
 - **Breaking: the subsystems read their own sections.** `effects`,
   `physicalMaterials` and `materialPairs` are read by the sections
   `flutter3d_particles` and `flutter3d_matter` register in a

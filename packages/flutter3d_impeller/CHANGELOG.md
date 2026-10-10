@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`GpuRenderBackend.dispose` is reported as a device loss.** The first
+  call sets `isLost` and sends one `DeviceLossReason.destroyed` on `lost`,
+  then closes it; `lost` used to be empty. A context the platform takes
+  away is still not reported, since flutter_gpu does not say.
+
 - **Depends on `flutter3d_foundation` instead of the plugin API**, for the
   exceptions its refusals extend.
 

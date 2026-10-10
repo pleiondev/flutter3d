@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A whole sRGB texture is refused for readback, not converted.**
+  `readbackConverts` answers false for an sRGB format, so a backend sends
+  it to `readbackRegionOf`, which refuses it with its own reason, as it
+  already refused a region of one.
+- **`GraphicsDevice.lost` is every backend's.** Its contract now says each
+  backend reports there what its API lets it see, and at least its own
+  `dispose` as `DeviceLossReason.destroyed`, with `isLost` answering for a
+  caller that subscribed late.
+
 - **Breaking: `Registration` is not re-exported.** It is
   `flutter3d_foundation`'s, imported from there.
 

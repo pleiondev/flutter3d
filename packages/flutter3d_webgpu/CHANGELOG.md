@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `beginFrame` throws what the browser refused.** Every error
+  a validation scope caught, each `uncapturederror` and each WGSL
+  compilation error is held and thrown once at the next `beginFrame`: a
+  `ShaderCompileException` for WGSL that did not compile, a
+  `DeviceResourceException` for anything else, after the frame arenas are
+  rewound. Nothing is thrown once the device is lost. `debugDrainErrors`
+  still reads the same complaints sooner, and takes them.
+- **Device loss is watched from the start, and `dispose` is reported.**
+  `isLost` turns true when the GPU goes even if nobody listened to `lost`,
+  and `dispose` sends `DeviceLossReason.destroyed` before closing it.
+- **The package builds for the web again.** Interop members that were
+  torn off are wrapped in closures, which the web compilers require.
+- **The engine's shaders carry the new hashed-alpha noise**, anchored on
+  the world and free of `sin`.
+
 - **Breaking: `engineShaders` is `webGpuEngineShaders`.** `flutter3d_webgl`
   had the same name for its own table, so an application that opens WebGPU
   and falls back to WebGL could not import both libraries.

@@ -1,5 +1,26 @@
 ## 1.0.0-rc.1
 
+- **A converted document reads only inside its own folder.** A glTF buffer
+  or image, an OBJ `mtllib`, a USD reference or texture, a Godot `res://`
+  path or a MaterialX image that climbs out with `..` or is absolute is
+  refused and reported, where it used to be read. `flutter3d convert` holds
+  each input to its own directory and `convertFiles` to the upload;
+  `decodeModelFile` and `fileUriResolverFor` take a `root:`, and
+  `ConvertContext` a `root`.
+- **The migration table names what went internal.** A new `internal` kind
+  (380 entries) marks a symbol a package no longer exports, listed in the
+  guide on one line per package, so the 344 `manual` entries are the ones a
+  person has to carry. The table and the lints plugin also understand
+  `regroup`, `enumToClass`, `recordToClass` and `nullToThrow` entries, and
+  the guide says how many entries are left by hand.
+- **`migrate` fixes.** Removing a renamed dependency no longer deletes the
+  line after it, the URIs of a conditional import or export are rewritten
+  and counted, and `--help` (or `-h`) prints the usage to stdout with exit
+  code 0.
+- **`flutter3d convert` reports a relative glob's files as they were
+  typed**, without a leading `./`, and plugin discovery no longer sorts the
+  dependency graph's own lists in place.
+
 - **Breaking: `DeviceClass` and `deviceClassPath` are not re-exported, nor is
   `flutter3d_build_hooks`.** The device classes are `flutter3d_core`'s, and
   `compileMaterial`, `MaterialCompilers` and `MaterialBuildException` are the

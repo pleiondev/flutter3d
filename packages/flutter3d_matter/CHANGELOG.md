@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`WorldProperties.gravityMagnitude` recognizes standard gravity.** It
+  compared the float32 `y` of the gravity vector with the double -9.81,
+  which never matched, and answered 9.8100004…; standard gravity now gives
+  `standardGravity` exactly.
+
 - **`physicalMaterialsSection` and `materialPairsSection` read a data
   plugin's substances**, registered in the engine's `DataSectionRegistry`,
   and install them into the `MaterialCatalog`; a document that has them

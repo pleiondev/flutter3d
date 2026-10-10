@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a shader that will not compile or link is a
+  `ShaderCompileException`.** `compileWebGlShader` and the program link
+  throw one naming the stage (or `vertex with fragment`), the backend and
+  the driver's log, where they threw a `StateError`, so
+  `on Flutter3dException` catches it.
+- **The engine's shaders carry the new hashed-alpha noise**, anchored on
+  the world and free of `sin`.
+
 - **Breaking: `WebGlSectionSources`, `decodeWebGlSection` and
   `encodeWebGlSection` are not re-exported.** They are
   `package:flutter3d_shaders/translate.dart`'s, where a build hook writes the
