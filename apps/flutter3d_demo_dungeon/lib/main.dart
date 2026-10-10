@@ -32,7 +32,6 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pad_input/pad_input.dart';
 
 import 'src/backend.dart';
 import 'src/credits.dart';
@@ -539,9 +538,9 @@ class _GameScreenState extends State<GameScreen>
       addShooterKeysTo(controls.buttons);
     } else {
       controls.buttons
-        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
+        ..bind(InputSource.pad(GamePadButton.triggerRight.id), ShooterActions.fire)
         ..bind(
-          InputSource.pad(PadButton.shoulderRight.id),
+          InputSource.pad(GamePadButton.shoulderRight.id),
           ShooterActions.fire,
         );
     }
@@ -1314,11 +1313,11 @@ class _GameScreenState extends State<GameScreen>
     if (_presses.offer(
           _pad,
           _settings,
-          menuButton: PadButton.start,
+          menuButton: GamePadButton.start,
           opening: _openSettings,
         ) &&
         _runIsOver &&
-        _pad.heldButtons.contains(PadButton.start)) {
+        _pad.heldButtons.contains(GamePadButton.start)) {
       unawaited(_run.restart());
     }
     // The shared gate, which this game used to write out by hand. Two things

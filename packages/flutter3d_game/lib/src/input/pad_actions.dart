@@ -1,11 +1,11 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../config/game_config.dart';
 import 'action_input.dart';
 import 'action_map.dart';
 import 'bindings.dart' show InputSource, SlotActions;
+import 'pad_device.dart';
 
 /// Feeds an [InputState] from a gamepad.
 ///
@@ -24,8 +24,8 @@ import 'bindings.dart' show InputSource, SlotActions;
 /// input changes mid-step is the kind of bug that only shows up on somebody
 /// else's machine.
 ///
-/// [Gamepad.connectionChanges] is still there for a menu that wants to say a
-/// controller appeared; this class does not use it.
+/// The platform's own connection events are still there for a menu that wants
+/// to say a controller appeared; this class does not use them.
 ///
 /// ## Two devices, one action, and who wins
 ///
@@ -61,12 +61,12 @@ final class PadInput {
   /// defaults — see [addDefaultsTo].
   PadInput({
     required this.state,
-    Gamepad? pad,
+    PadDevice? pad,
     ActionMap? actions,
     this.lookRate = defaultLookRate,
     this.pressAt = 0.5,
     this.releaseAt = 0.35,
-  }) : pad = pad ?? Gamepad.instance,
+  }) : pad = pad ?? PadDevice.platform(),
        actions = actions ?? addDefaultsTo(ActionMap(actions: ActionSet.common)),
        assert(releaseAt < pressAt, 'a threshold without a gap chatters') {
     _actionInput = ActionInput(state: state, map: this.actions);
@@ -104,19 +104,19 @@ final class PadInput {
     // The d-pad walks. Free, because `_recomputeMoveAxis` already sums held
     // directions with the stick and clamps the total — and useful, because a
     // menu driven by the same actions needs something discrete.
-    _bindButtons(map, <PadButton, GameAction>{
-      PadButton.dpadUp: GameAction.moveForward,
-      PadButton.dpadDown: GameAction.moveBack,
-      PadButton.dpadLeft: GameAction.moveLeft,
-      PadButton.dpadRight: GameAction.moveRight,
+    _bindButtons(map, <GamePadButton, GameAction>{
+      GamePadButton.dpadUp: GameAction.moveForward,
+      GamePadButton.dpadDown: GameAction.moveBack,
+      GamePadButton.dpadLeft: GameAction.moveLeft,
+      GamePadButton.dpadRight: GameAction.moveRight,
       // Where a thumb finds them, not what is printed on them: on an Xbox pad
       // this is `A` and on a PlayStation pad it is Cross, and the file says
       // `pad:face.south` either way.
-      PadButton.faceSouth: GameAction.jump,
-      PadButton.faceWest: GameAction.use,
+      GamePadButton.faceSouth: GameAction.jump,
+      GamePadButton.faceWest: GameAction.use,
       // Clicking the stick you are already pushing, which is where every
       // console game of the last fifteen years has put running.
-      PadButton.stickLeftClick: GameAction.sprint,
+      GamePadButton.stickLeftClick: GameAction.sprint,
     });
     // Up is negative on a pad, as in the browser and on Apple's platforms;
     // forward is positive in the simulation, so the flip is the binding's.
@@ -150,7 +150,7 @@ final class PadInput {
     required GameAction steerLeft,
     required GameAction steerRight,
   }) {
-    final axis = PadAxis.leftStickX.name;
+    final axis = GamePadAxis.leftStickX.name;
     for (final (source, action) in <(InputSource, GameAction)>[
       (InputSource.padHalfAxis(axis, positive: false), steerLeft),
       (InputSource.padHalfAxis(axis, positive: true), steerRight),
@@ -167,18 +167,21 @@ final class PadInput {
   /// one a player can guess. Offered rather than default because a game that
   /// walks with the d-pad cannot also select with it.
   static ActionMap addSlotDefaultsTo(ActionMap map) {
-    for (final (index, button) in <PadButton>[
-      PadButton.dpadUp,
-      PadButton.dpadRight,
-      PadButton.dpadDown,
-      PadButton.dpadLeft,
+    for (final (index, button) in <GamePadButton>[
+      GamePadButton.dpadUp,
+      GamePadButton.dpadRight,
+      GamePadButton.dpadDown,
+      GamePadButton.dpadLeft,
     ].indexed) {
       map.buttons.bind(InputSource.pad(button.id), SlotActions.of(index));
     }
     return map;
   }
 
-  static void _bindButtons(ActionMap map, Map<PadButton, GameAction> buttons) {
+  static void _bindButtons(
+    ActionMap map,
+    Map<GamePadButton, GameAction> buttons,
+  ) {
     for (final MapEntry(key: button, value: action) in buttons.entries) {
       final source = InputSource.pad(button.id);
       if (map.buttons[source] == null) map.buttons.bind(source, action);
@@ -201,7 +204,11 @@ final class PadInput {
       .any((InputSource source) => source.id.startsWith(InputSource.padPrefix));
 
   final InputState state;
-  final Gamepad pad;
+
+  /// Where this reads the pad from: the platform's first controller unless a
+  /// caller hands in another, such as `PadDevice.platform(slot: 1)` for a
+  /// second player.
+  final PadDevice pad;
 
   /// How far the view turns per second at full deflection of a stick bound
   /// to [DualAxisAction.look], **in the mouse's units**.
@@ -232,7 +239,7 @@ final class PadInput {
   /// fraction of its travel from nought to one.
   final double releaseAt;
 
-  final PadSnapshot _snapshot = PadSnapshot();
+  final PadReading _snapshot = PadReading();
 
   /// What the pad is holding, and the only thing it is allowed to release.
   ///
@@ -267,7 +274,7 @@ final class PadInput {
   /// the next press, a game-over screen offering a restart: none of those are
   /// verbs the simulation has, and inventing an action for each would put words
   /// in the binding table that no game logic ever reads.
-  Iterable<PadButton> get heldButtons => _snapshot.held;
+  Iterable<GamePadButton> get heldButtons => _snapshot.held;
 
   /// Reads the pad and writes what it says into the state.
   ///
@@ -292,7 +299,7 @@ final class PadInput {
     _integrateLook(dt);
     _halfAxes();
 
-    for (final button in PadButton.known) {
+    for (final button in GamePadButton.known) {
       final action = actions.buttons[InputSource.pad(button.id)];
       if (action == null) continue;
 
@@ -308,10 +315,11 @@ final class PadInput {
         continue;
       }
 
-      if (button == PadButton.triggerLeft || button == PadButton.triggerRight) {
-        final axis = button == PadButton.triggerLeft
-            ? PadAxis.triggerLeft
-            : PadAxis.triggerRight;
+      if (button == GamePadButton.triggerLeft ||
+          button == GamePadButton.triggerRight) {
+        final axis = button == GamePadButton.triggerLeft
+            ? GamePadAxis.triggerLeft
+            : GamePadAxis.triggerRight;
         _analogue(button.id, action, _snapshot.axis(axis));
         continue;
       }
@@ -398,14 +406,14 @@ final class PadInput {
     }
   }
 
-  static final Map<String, PadAxis> _axes = <String, PadAxis>{
-    for (final axis in PadAxis.values) axis.name: axis,
+  static final Map<String, GamePadAxis> _axes = <String, GamePadAxis>{
+    for (final axis in GamePadAxis.values) axis.name: axis,
   };
 
-  static const List<(String, PadAxis, PadAxis)> _sticks =
-      <(String, PadAxis, PadAxis)>[
-        ('left', PadAxis.leftStickX, PadAxis.leftStickY),
-        ('right', PadAxis.rightStickX, PadAxis.rightStickY),
+  static const List<(String, GamePadAxis, GamePadAxis)> _sticks =
+      <(String, GamePadAxis, GamePadAxis)>[
+        ('left', GamePadAxis.leftStickX, GamePadAxis.leftStickY),
+        ('right', GamePadAxis.rightStickX, GamePadAxis.rightStickY),
       ];
 
   /// Hands the pad's state to the action map's non-button bindings: each
@@ -413,14 +421,14 @@ final class PadInput {
   /// names. Nothing is read for a source no binding mentions.
   void _routeActions() {
     final input = _actionInput;
-    for (final button in PadButton.known) {
+    for (final button in GamePadButton.known) {
       final source = InputSource.pad(button.id);
       if (!input.routes(source)) continue;
       _snapshot.down(button)
           ? input.sourceDown(source)
           : input.sourceUp(source);
     }
-    for (final axis in PadAxis.values) {
+    for (final axis in GamePadAxis.values) {
       final source = InputSource.padAxis(axis.name);
       if (input.routes(source)) input.sourceValue(source, _snapshot.axis(axis));
     }
@@ -440,7 +448,7 @@ final class PadInput {
   /// three times slightly differently.
   void applySettings(GameSettings settings) {
     lookRate = settings.valueOf(GameSettingKeys.padLook);
-    pad.deadzone = Deadzone(
+    pad.setDeadZones(
       stick: settings.valueOf(GameSettingKeys.stickDeadZone),
       trigger: settings.valueOf(GameSettingKeys.triggerDeadZone),
     );

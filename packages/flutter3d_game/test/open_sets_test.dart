@@ -27,6 +27,19 @@ void main() {
       (v) => (v as ConflictPolicy).name,
       ConflictPolicy.byName,
     ),
+    'GamePadAxis': (
+      GamePadAxis.values,
+      <String>[
+        'leftStickX',
+        'leftStickY',
+        'rightStickX',
+        'rightStickY',
+        'triggerLeft',
+        'triggerRight',
+      ],
+      (v) => (v as GamePadAxis).name,
+      GamePadAxis.byName,
+    ),
   };
 
   for (final MapEntry(key: type, value: (values, names, nameOf, byName))

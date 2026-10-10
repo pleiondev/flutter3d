@@ -18,9 +18,6 @@ dependencies:
   flutter3d_app:
     path: ../../packages/flutter3d_app
 
-  # The gamepad's buttons, which the controls name directly.
-  pad_input:
-    path: ../../packages/pad_input
 
   flutter3d:
     path: ../../packages/flutter3d

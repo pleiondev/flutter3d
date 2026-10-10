@@ -9,30 +9,16 @@
 /// one, in the one place a controller can be rebound from the controller.
 library;
 
-import 'dart:async';
-
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pad_input/pad_input.dart';
 
-final class _FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..isConnected = true;
-  final StreamController<PadConnection> _connections =
-      StreamController<PadConnection>.broadcast();
+final class _FakePad extends PadDevice {
+  final PadReading state = PadReading()..isConnected = true;
 
   @override
-  bool get isSupported => true;
-
-  @override
-  Stream<PadConnection> get connectionChanges => _connections.stream;
-
-  @override
-  void read(PadSnapshot out) => out.copyFrom(state);
-
-  @override
-  Future<void> dispose() async => _connections.close();
+  void read(PadReading out) => out.copyFrom(state);
 }
 
 final class _Storage extends Storage {
@@ -58,13 +44,7 @@ GameSettingsController _settings() => GameSettingsController(
 
 ({_FakePad fake, PadInput pad}) _pad() {
   final fake = _FakePad();
-  return (
-    fake: fake,
-    pad: PadInput(
-      state: InputState(),
-      pad: Gamepad(platform: fake),
-    ),
-  );
+  return (fake: fake, pad: PadInput(state: InputState(), pad: fake));
 }
 
 void main() {
@@ -73,7 +53,7 @@ void main() {
     final presses = PadPresses();
     final settings = _settings();
 
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
     expect(presses.offer(it.pad, settings), isTrue);
 
@@ -93,15 +73,15 @@ void main() {
     final presses = PadPresses();
     final settings = _settings();
 
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
     presses.offer(it.pad, settings);
 
-    it.fake.state.setDown(PadButton.start, down: false);
+    it.fake.state.setDown(GamePadButton.start, down: false);
     it.pad.tick(1 / 60);
     presses.offer(it.pad, settings);
 
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
     expect(presses.offer(it.pad, settings), isTrue);
   });
@@ -119,13 +99,13 @@ void main() {
     final it = _pad();
     final settings = _settings()..rebind(GameAction.jump);
 
-    it.fake.state.setDown(PadButton.faceSouth, down: true);
+    it.fake.state.setDown(GamePadButton.faceSouth, down: true);
     it.pad.tick(1 / 60);
     final left = PadPresses().offer(it.pad, settings);
 
     expect(left, isFalse, reason: 'the screen acted on a rebinding press');
     expect(
-      settings.actions.buttons[InputSource.pad(PadButton.faceSouth.id)],
+      settings.actions.buttons[InputSource.pad(GamePadButton.faceSouth.id)],
       GameAction.jump,
     );
     expect(settings.value.waitingFor, isNull);
@@ -139,7 +119,7 @@ void main() {
     final it = _pad();
     final settings = _settings();
 
-    it.fake.state.setDown(PadButton.faceSouth, down: true);
+    it.fake.state.setDown(GamePadButton.faceSouth, down: true);
     it.pad.tick(1 / 60);
     PadPresses().offer(it.pad, settings);
 
@@ -170,23 +150,23 @@ void main() {
     final settings = _settings();
     final presses = PadPresses();
 
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
     expect(
-      presses.offer(it.pad, settings, menuButton: PadButton.start),
+      presses.offer(it.pad, settings, menuButton: GamePadButton.start),
       isFalse,
     );
     expect(settings.value.isOpen, isTrue);
 
     // Offered on the release frame too: that is the call that notices the
     // button went up, exactly as it was when this was a single bool.
-    it.fake.state.setDown(PadButton.start, down: false);
+    it.fake.state.setDown(GamePadButton.start, down: false);
     it.pad.tick(1 / 60);
-    presses.offer(it.pad, settings, menuButton: PadButton.start);
+    presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
-    presses.offer(it.pad, settings, menuButton: PadButton.start);
+    presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     expect(settings.value.isOpen, isFalse);
   });
@@ -202,14 +182,14 @@ void main() {
     final settings = _settings();
     final presses = PadPresses();
 
-    it.fake.state.setDown(PadButton.triggerRight, down: true);
+    it.fake.state.setDown(GamePadButton.triggerRight, down: true);
     it.pad.tick(1 / 60);
-    presses.offer(it.pad, settings, menuButton: PadButton.start);
+    presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     // Start, without letting go of the trigger.
-    it.fake.state.setDown(PadButton.start, down: true);
+    it.fake.state.setDown(GamePadButton.start, down: true);
     it.pad.tick(1 / 60);
-    presses.offer(it.pad, settings, menuButton: PadButton.start);
+    presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     expect(settings.value.isOpen, isTrue);
   });

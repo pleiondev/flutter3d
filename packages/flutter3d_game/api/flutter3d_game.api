@@ -358,7 +358,7 @@ final class DemoReplay
   final int steps
 
 final class DesktopInput
-  DesktopInput({required this.state, PointerLock? capture, ActionMap? actions})
+  DesktopInput({required this.state, MouseCapture? capture, ActionMap? actions})
   Future<void> captureMouse()
   Future<void> dispose()
   Future<void> releaseMouse()
@@ -368,7 +368,7 @@ final class DesktopInput
   bool pointerUp(int button)
   final ActionMap actions
   final InputState state
-  final PointerLock capture
+  final MouseCapture capture
   static ActionMap addDefaultsTo(ActionMap map)
   static ActionMap addSlotsTo(ActionMap map, List<LogicalKeyboardKey> keys)
   static ActionMap defaultActionMap([ActionSet set = ActionSet.common])
@@ -438,6 +438,43 @@ final class GameCloud
   final Consents consents
   final RunService? shares
   final TelemetryUploader? uploader
+
+final class GamePadAxis
+  String toString()
+  final String name
+  static GamePadAxis? byName(String name)
+  static const GamePadAxis leftStickX = GamePadAxis._('leftStickX')
+  static const GamePadAxis leftStickY = GamePadAxis._('leftStickY')
+  static const GamePadAxis rightStickX = GamePadAxis._('rightStickX')
+  static const GamePadAxis rightStickY = GamePadAxis._('rightStickY')
+  static const GamePadAxis triggerLeft = GamePadAxis._('triggerLeft')
+  static const GamePadAxis triggerRight = GamePadAxis._('triggerRight')
+  static const List<GamePadAxis> values = <GamePadAxis>[leftStickX, leftStickY, rightStickX, rightStickY, triggerLeft, triggerRight]
+
+final class GamePadButton
+  String toString()
+  bool operator ==(Object other)
+  const GamePadButton(this.id)
+  final String id
+  int get hashCode
+  static const GamePadButton back = GamePadButton('back')
+  static const GamePadButton dpadDown = GamePadButton('dpad.down')
+  static const GamePadButton dpadLeft = GamePadButton('dpad.left')
+  static const GamePadButton dpadRight = GamePadButton('dpad.right')
+  static const GamePadButton dpadUp = GamePadButton('dpad.up')
+  static const GamePadButton faceEast = GamePadButton('face.east')
+  static const GamePadButton faceNorth = GamePadButton('face.north')
+  static const GamePadButton faceSouth = GamePadButton('face.south')
+  static const GamePadButton faceWest = GamePadButton('face.west')
+  static const GamePadButton guide = GamePadButton('guide')
+  static const GamePadButton shoulderLeft = GamePadButton('shoulder.left')
+  static const GamePadButton shoulderRight = GamePadButton('shoulder.right')
+  static const GamePadButton start = GamePadButton('start')
+  static const GamePadButton stickLeftClick = GamePadButton('stick.left.click')
+  static const GamePadButton stickRightClick = GamePadButton('stick.right.click')
+  static const GamePadButton triggerLeft = GamePadButton('trigger.left')
+  static const GamePadButton triggerRight = GamePadButton('trigger.right')
+  static const List<GamePadButton> known = …
 
 abstract final class GameSettingKeys
   static SettingKey<int> colorRole(String name)
@@ -574,15 +611,34 @@ final class LiveLevel
   final void Function(Level next, LevelDiff diff) present
   final void Function(Level next, int step)? swapped
 
+abstract base class MouseCapture
+  abstract Future<void> capture()
+  abstract Future<void> release()
+  abstract Offset drainDelta()
+  abstract Stream<bool> get changes
+  abstract bool get isCaptured
+  bool get isSupported
+  const MouseCapture()
+  factory MouseCapture.platform()
+
+abstract base class PadDevice
+  abstract void read(PadReading out)
+  bool get isSupported
+  const PadDevice()
+  double get stickDeadZone
+  double get triggerDeadZone
+  factory PadDevice.platform({int slot = 0})
+  void setDeadZones({required double stick, required double trigger})
+
 final class PadInput
-  Iterable<PadButton> get heldButtons
-  PadInput({required this.state, Gamepad? pad, ActionMap? actions, this.lookRate = defaultLookRate, this.pressAt = 0.5, this.releaseAt = 0.35})
+  Iterable<GamePadButton> get heldButtons
+  PadInput({required this.state, PadDevice? pad, ActionMap? actions, this.lookRate = defaultLookRate, this.pressAt = 0.5, this.releaseAt = 0.35})
   bool get isConnected
   bool get isSupported
   double lookRate
   final ActionMap actions
-  final Gamepad pad
   final InputState state
+  final PadDevice pad
   final double pressAt
   final double releaseAt
   static ActionMap addDefaultsTo(ActionMap map)
@@ -595,7 +651,18 @@ final class PadInput
   void tick(double dt)
 
 final class PadPresses
-  bool offer(PadInput pad, GameSettingsController settings, {PadButton? menuButton, void Function()? opening})
+  bool offer(PadInput pad, GameSettingsController settings, {GamePadButton? menuButton, void Function()? opening})
+
+final class PadReading
+  Iterable<GamePadButton> get held
+  bool down(GamePadButton button)
+  bool isConnected
+  double axis(GamePadAxis axis)
+  void clear()
+  void copyFrom(PadReading other)
+  void disconnect()
+  void setAxis(GamePadAxis axis, double value)
+  void setDown(GamePadButton button, {required bool down})
 
 final class PlatformCloudSaves extends CloudSaveStore
   Future<CloudFetch> fetch(String slot)

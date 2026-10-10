@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:pointer_lock/pointer_lock.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'action_input.dart';
 import 'action_map.dart';
 import 'bindings.dart' show InputSource, SlotActions;
+import 'mouse_capture.dart';
 import 'pad_actions.dart';
 
 /// Feeds an [InputState] from a keyboard and a captured mouse.
@@ -25,11 +25,11 @@ final class DesktopInput {
   /// A keyboard reading [actions]: its buttons, its composites on keys, and
   /// the `pointer:motion` look binding that shapes [drainLook]. Without one,
   /// a map holding only the keyboard's defaults — see [addDefaultsTo].
-  DesktopInput({required this.state, PointerLock? capture, ActionMap? actions})
-    : capture = capture ?? PointerLock.instance,
+  DesktopInput({required this.state, MouseCapture? capture, ActionMap? actions})
+    : capture = capture ?? MouseCapture.platform(),
       actions = actions ?? addDefaultsTo(ActionMap(actions: ActionSet.common)) {
     _actionInput = ActionInput(state: state, map: this.actions);
-    _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
+    _stateSubscription = this.capture.changes.listen(_onCaptureChanged);
   }
 
   /// WASD and the rest as an [ActionMap] over [set] — the keyboard's
@@ -126,7 +126,10 @@ final class DesktopInput {
   }
 
   final InputState state;
-  final PointerLock capture;
+
+  /// The pointer this keyboard takes and gives back; the platform's unless
+  /// a caller hands in another.
+  final MouseCapture capture;
 
   /// The action map this keyboard reads. Mutable, and saved by the
   /// application: see [ActionMap.toJson]. The same object the pad and the
@@ -135,7 +138,7 @@ final class DesktopInput {
 
   late final ActionInput _actionInput;
 
-  late final StreamSubscription<CaptureState> _stateSubscription;
+  late final StreamSubscription<bool> _stateSubscription;
 
   bool get isCaptured => capture.isCaptured;
 
@@ -245,8 +248,8 @@ final class DesktopInput {
 
   Future<void> releaseMouse() => capture.release();
 
-  void _onCaptureChanged(CaptureState captureState) {
-    if (captureState == CaptureState.released) {
+  void _onCaptureChanged(bool captured) {
+    if (!captured) {
       // A key that was down when the window went away never sends its key-up,
       // so without this the player keeps walking forward after alt-tabbing.
       state.clear();
