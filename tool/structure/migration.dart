@@ -73,6 +73,35 @@ const int manualCeiling = 341;
 /// `manual` entries past [manualCeiling], each with why no kind carries it
 /// out. Entry id to reason.
 const Map<String, String> manualAllowlist = <String, String>{
+  'particles-ParticleGradient-color':
+      'a colour argument changes type from a vector to a linear colour; no '
+      'kind rewrites an argument\'s type yet',
+  'particles-ParticleColorOverLife-color':
+      'a colour argument changes type from a vector to a linear colour; no '
+      'kind rewrites an argument\'s type yet',
+  '2f-game_racing-SkyPreset-colors':
+      'colour fields change type from a vector to a linear colour; no kind '
+      'rewrites a field\'s type where it is read',
+  '2a-hardware-RecordedBlendColor':
+      'a field of a test-only record changes type; a trace reader is '
+      'written by hand',
+  '2a-hardware-TraceSetBlendColor':
+      'a field of a trace event changes type; a trace reader is written by '
+      'hand',
+  'sim-StepSystems':
+      'a genre\'s step moves into named systems with an order; which '
+      'moments a game had is the person\'s to say',
+  'sim-StepPhase':
+      'a phase becomes a named system placed before or after another; the '
+      'name is new',
+  '2f-game_shooter-GameSimulation-systems':
+      'moving a rule out of the step needs a name it never had and a '
+      'different context type',
+  'sim-LevelLight-constructor':
+      'positional arguments become named and the colour changes type, in '
+      'one call',
+  'sim-RoomDoor-named':
+      'positional arguments become named ones, whose order a person reads',
   'build-convert-confined':
       'where a model\'s files live is the user\'s layout, not a shape a '
       'program can rewrite: the files move, or the call passes `root:`',

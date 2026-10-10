@@ -506,7 +506,6 @@ export 'package:flutter3d/flutter3d.dart'
         StoreAction,
         SurfaceAlphaMode,
         SurfaceMaterial,
-        SynchronousBufferReadback,
         TangentMethod,
         TemporalClip,
         TemporalSettings,

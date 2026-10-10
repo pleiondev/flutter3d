@@ -261,9 +261,6 @@ const Map<String, String> devDependencyPublishedLater = <String, String>{
   'flutter3d_webgpu -> flutter3d':
       'the same: a reflection probe is checked as a picture the engine draws '
       'through this backend',
-  'flutter3d_webgpu -> flutter3d_plugin_runtime':
-      '`runtime_material_test.dart` hands naga a material `RuntimeShaders` '
-      'spliced into this backend\'s stage at run time',
   // The simulation stands on the physics, which stands on the material
   // catalogue since `flutter3d_matter` came out of it (1.0.0-rc.1), so the
   // simulation and what needs it at run time moved up past the backends and
@@ -1947,25 +1944,7 @@ const Map<String, String> notAVersionedFormat = <String, String>{
 /// and value shapes, which have nothing to add and have to be implementable
 /// beside a base class the implementer already extends. Keep this short:
 /// every entry is a type that can never grow.
-const Map<String, String> interfaceClassAllowed = <String, String>{
-  'PlacedEvent':
-      'a value shape, two getters saying where an effect goes, implemented '
-      'by game events that already extend `BusEvent`, a base class; a class '
-      'has one superclass, so this cannot be one',
-  'StepClock':
-      'implemented by Flame `Component`s, and `HasFixedStep` is a mixin on '
-      '`FlameGame`; a base class would force every game class that mixes it '
-      'in to be `base` or `final`. It does not grow: a new capability '
-      'arrives as a type beside it (wave 3d decision)',
-  'MixingBackend':
-      'a capability an audio backend opts into beside `AudioBackend`, a '
-      'base class (`extends AudioBackend implements MixingBackend`); a '
-      'class has one superclass. A new capability is a new type beside it '
-      '(wave 3d decision)',
-  'DirectionalBackend':
-      'a capability an audio backend opts into beside `AudioBackend`, as '
-      '`MixingBackend` is (wave 3d decision)',
-};
+const Map<String, String> interfaceClassAllowed = <String, String>{};
 
 /// `interface class` types that wave 3 has not converted yet, by package.
 ///
@@ -2041,7 +2020,9 @@ const Map<String, String> settingsAllowed = <String, String>{
   'ToolSpec':
       'an MCP tool\'s declaration (decision 10 names it), not a setting',
   'WasmSystemSpec': 'a script system\'s declaration to the Wasm host',
-  'ScriptSystemSpec': 'a script system\'s declaration to the runtime',
+  'ExpressionSystemSpec':
+      'an expression system\'s declaration to the runtime, read from a '
+      '`.f3dplugin`',
   'WasmFieldSpec': 'a field\'s declaration to the Wasm host',
   'DebrisSettings':
       'its defaults come from the world it is given (`world.gravity`), which '

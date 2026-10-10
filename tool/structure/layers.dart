@@ -283,7 +283,9 @@ const Set<String> pluginContractRoots = <String>{
 /// `DataSectionRegistry` (move 14), so that a subsystem reads its own
 /// section of a `.f3dplugin` and the runtime that reads the document
 /// depends on none of them.
-const int pluginApiTypeBudget = 57;
+/// Two more since 1.0.0-rc.1: `PluginGroup`, the set a host installs in
+/// order, and `SimulationProfile`, what a step promises about its numbers.
+const int pluginApiTypeBudget = 59;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

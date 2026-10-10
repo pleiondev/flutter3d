@@ -188,11 +188,7 @@ const Map<String, String> reexportsAllowed = <String, String>{
 /// list, each with why. Every other allowed re-export names what it
 /// admits, so a name added to the package underneath is not the facade's
 /// until somebody lists it.
-const Map<String, String> reexportedWhole = <String, String>{
-  'flutter3d_game -> flutter3d':
-      'the shell\'s barrel is itself a list of names, and the facade is the '
-      'shell and more',
-};
+const Map<String, String> reexportedWhole = <String, String>{};
 
 /// The `export 'package:…'` directives of [source], as each one's URI and
 /// whether it names what it admits (`show`). Only directives at the start

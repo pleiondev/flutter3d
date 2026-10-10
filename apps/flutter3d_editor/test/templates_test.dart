@@ -88,11 +88,9 @@ Set<String> _strategyWords() =>
 /// The map the strategy demo plays, which is what its template starts from.
 Level _playedMap() => Level.fromJson(
   jsonDecode(
-        File(
-          '../flutter3d_demo_strategy/assets/levels/map_a.json',
-        ).readAsStringSync(),
-      )
-      as Map<String, Object?>,
+    File('../flutter3d_demo_strategy/assets/levels/map_a.json')
+        .readAsStringSync(),
+  ) as Map<String, Object?>,
 );
 
 /// A kind that accepts anything, for a genre whose validator this application
@@ -164,8 +162,7 @@ void main() {
       expect(
         Directory(template.where).existsSync(),
         isTrue,
-        reason:
-            'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
+        reason: 'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
       );
     }
   });
@@ -223,9 +220,8 @@ void main() {
       test('and it survives being written back exactly as it is', () {
         // Otherwise the first save in a new project rewrites the whole file,
         // and the diff hides the one thing that changed.
-        final text = File(
-          '${template.where}/level.first.json',
-        ).readAsStringSync();
+        final text = File('${template.where}/level.first.json')
+            .readAsStringSync();
 
         expect(Editing.parse(text, path: 'x').write(), text);
       });

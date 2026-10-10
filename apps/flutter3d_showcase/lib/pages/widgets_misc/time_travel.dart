@@ -263,7 +263,7 @@ final class TimeTravelDemo extends ShowcaseDemo {
     final List<TrackSample> door = tracks.samples('door', 'open');
     final TrackSample? hpAt150 = tracks.at('target', 'hp', 150);
     // #endregion tracks
-    if (tracks.span != (first: 0, last: _length)) {
+    if (tracks.span != const StepSpan(first: 0, last: _length)) {
       throw StateError('the lanes cover ${tracks.span}, not 0 to $_length');
     }
     if (door.length < 3) {
