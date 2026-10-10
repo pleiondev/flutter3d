@@ -4,6 +4,7 @@
 library;
 
 import 'package:flame_flutter3d/flame_flutter3d.dart' show ActorComponent;
+import 'package:flame_test/flame_test.dart' show initializeGame;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_arcade/src/arcade_game.dart';
@@ -230,13 +231,17 @@ void main() {
     expect(game.elapsed, closeTo(3 / 60, 1e-12), reason: 'whole steps only');
   });
 
-  test('a blink runs down in the steps, not the frames', () {
+  test('a blink runs down in the steps, not the frames', () async {
     // Whether the ship can be hit again is read in the steps, so the blink
     // that guards it is counted there: a stalled frame of a whole second
     // runs at most five steps, and the blink lasts half a second of them.
     //
+    // Mounted, as `GameWidget` mounts it: the game steps the components in
+    // its tree, and a game nothing mounted has none there, so the ship of
+    // one never counts a step down at all.
+    //
     // Mutation: count the blink down in `ShipComponent.update`.
-    final game = _newGame();
+    final game = await initializeGame(_newGame);
     _run(game, 1);
     game.ship.flash();
 
