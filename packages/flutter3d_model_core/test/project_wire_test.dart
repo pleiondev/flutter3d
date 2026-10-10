@@ -14,7 +14,7 @@ import 'package:flutter3d_model_core/src/project_wire.dart';
 import 'package:test/test.dart';
 
 void main() {
-  void holds<T extends Enum>(
+  void holds<T extends Object>(
     List<T> values,
     String Function(T) write,
     T? Function(Object?) read,

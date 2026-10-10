@@ -144,8 +144,14 @@ class NumberField extends StatefulWidget
   static String show(double value)
   static double? parse(String said, {NumberUnit unit = NumberUnit.plain})
 
-enum NumberUnit
-  values: plain, meters, degrees
+final class NumberUnit
+  String toString()
+  final String name
+  static NumberUnit? byName(String name)
+  static const List<NumberUnit> values = <NumberUnit>[plain, meters, degrees]
+  static const NumberUnit degrees = NumberUnit._('degrees')
+  static const NumberUnit meters = NumberUnit._('meters')
+  static const NumberUnit plain = NumberUnit._('plain')
 
 final class NumbersRow extends StatelessWidget
   Widget build(BuildContext context)

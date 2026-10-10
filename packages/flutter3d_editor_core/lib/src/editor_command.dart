@@ -33,16 +33,16 @@ import 'palette_items.dart';
 /// "commands carry their own inverse" and finds none here has found this
 /// paragraph rather than an oversight.
 ///
-/// **Two families.** The editor's own commands are [EditorCommand], sealed: a
-/// `switch` over them is exhaustive, and the day another arrives the compiler
-/// names every place that has to grow. A plugin's are [PluginCommand], open,
-/// registered by name with `EditorPieces.addCommand` and read back through
-/// `EditorPieces.readCommand`. A `switch` over a [DocumentCommand] has the two
-/// cases, `EditorCommand()` and `PluginCommand()`, and is exhaustive too.
+/// **Two families.** The editor's own commands are [EditorCommand], grown
+/// only by this package. A plugin's are [PluginCommand], open, registered by
+/// name with `EditorPieces.addCommand` and read back through
+/// `EditorPieces.readCommand`. Neither family is sealed, so a command a later
+/// release adds breaks no `switch` outside: one over a [DocumentCommand] names
+/// `EditorCommand()` and `PluginCommand()` and ends with a wildcard.
 ///
 /// Everything else — [EditorHistory.run], a step of undo named by [says] — takes
 /// either family alike.
-sealed class DocumentCommand {
+abstract final class DocumentCommand {
   const DocumentCommand();
 
   /// What this is called on the wire, and in a list of tools.
@@ -92,11 +92,10 @@ abstract base class PluginCommand extends DocumentCommand {
 
 /// One of the editor's own commands — the ones [editorCommandNames] lists.
 ///
-/// Sealed, in the shape the rest of the repository uses for a closed set: a
-/// `switch` over the kinds is exhaustive, and the day a twelfth arrives the
-/// compiler names every place that has to grow. A plugin's commands are
-/// [PluginCommand]s instead, so opening the editor left this switch closed.
-sealed class EditorCommand extends DocumentCommand {
+/// `abstract final`, so only this package adds one, and not sealed, so the
+/// one it adds in a minor release breaks no `switch` outside: a `switch` over
+/// the kinds ends with a wildcard. A plugin's commands are [PluginCommand]s.
+abstract final class EditorCommand extends DocumentCommand {
   const EditorCommand();
 
   /// What this is called on the wire, and in a list of tools.
@@ -273,8 +272,8 @@ sealed class EditorCommand extends DocumentCommand {
 /// **The list belongs here rather than to whatever builds the tools.** A server
 /// that kept its own copy would be a server that silently cannot call the
 /// eleventh command, and nothing would say so until somebody asked for it. This
-/// is the one place that knows the set is closed, because the set is a sealed
-/// hierarchy in this file.
+/// is the one place that knows the whole set, because the set is an
+/// `abstract final` hierarchy in this file.
 const List<String> editorCommandNames = <String>[
   'moveBy',
   'resize',

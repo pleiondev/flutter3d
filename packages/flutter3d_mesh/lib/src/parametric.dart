@@ -37,7 +37,7 @@ import 'edit_mesh.dart';
 
 /// A primitive a document can hold by its parameters rather than by its
 /// geometry.
-sealed class ParametricShape {
+abstract final class ParametricShape {
   const ParametricShape();
 
   /// What to call it.

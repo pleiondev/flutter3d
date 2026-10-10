@@ -57,6 +57,10 @@ OpResult deleteSelection(EditMesh mesh, Selection selection) {
           if (selection.contains(mesh.edgeOf(half))) doomed.add(face);
         });
       }
+    default:
+      throw UnsupportedError(
+        'a half-edge mesh has no ${selection.level} elements',
+      );
   }
 
   for (final face in doomed) {

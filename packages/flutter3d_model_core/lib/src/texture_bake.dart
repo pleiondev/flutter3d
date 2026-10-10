@@ -253,6 +253,7 @@ _Raster _evaluate(
       size,
     ),
     OutputTextureNode() => colorInput('result'),
+    _ => throw UnsupportedError('no bake for a ${node.kind} node'),
   };
   cache._byKey[key] = raster;
   return raster;
@@ -338,6 +339,7 @@ double _blendOne(TextureBlendMode mode, double base, double overlay) =>
       TextureBlendMode.multiply => base * overlay,
       TextureBlendMode.add => base + overlay,
       TextureBlendMode.screen => 1 - (1 - base) * (1 - overlay),
+      _ => throw UnsupportedError('no blend recipe for $mode'),
     };
 
 _Raster _evalBlend(

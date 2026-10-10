@@ -36,14 +36,40 @@ import 'project.dart';
 import 'texture_budget.dart';
 
 /// Whether an issue stops the export or spoils the result.
-enum ExportSeverity {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ExportSeverity {
+  const ExportSeverity._(this.name);
+
   /// It will load, and somebody will be disappointed by it: a model over
   /// budget, a shell inside out, a quad cut the way the exporter felt like.
-  warning,
+  static const ExportSeverity warning = ExportSeverity._('warning');
 
   /// It will not load, or it will load as nothing: an empty mesh, a face with
   /// no area.
-  error,
+  static const ExportSeverity error = ExportSeverity._('error');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ExportSeverity> values = <ExportSeverity>[warning, error];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ExportSeverity? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ExportSeverity.$name';
 }
 
 /// One thing wrong with a project, before it leaves.
@@ -232,6 +258,7 @@ List<ExportIssue> _issuesWith(
     // Deliberately nothing, and for the same reason the check above exempts
     // it: a socket has no faces on purpose.
     SocketGeometry() => const <ExportIssue>[],
+    _ => throw UnsupportedError('no export check for ${object.geometry}'),
   },
 ];
 

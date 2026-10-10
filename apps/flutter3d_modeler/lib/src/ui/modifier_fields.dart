@@ -181,6 +181,8 @@ class ModifierFields extends StatelessWidget {
             ),
           ],
         );
+      default:
+        return Text('$label: no control for $hint');
     }
   }
 }

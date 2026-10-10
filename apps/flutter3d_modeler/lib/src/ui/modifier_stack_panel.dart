@@ -122,6 +122,7 @@ final class ModifierStackPanel extends StatelessWidget {
     SmoothModifier() => 'Smooth',
     SubdivisionModifier() => 'Subdivision',
     BooleanModifier() => 'Boolean',
+    _ => 'Modifier',
   };
 
   @override

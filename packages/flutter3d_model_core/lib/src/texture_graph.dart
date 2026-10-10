@@ -6,11 +6,10 @@
 ///
 /// **Eleven kinds and no others.** `Image`, `Color`, `Blend`, `Channels`,
 /// `Levels`, `Invert`, `UvTransform`, `Checker`, `Noise`, `NormalFromHeight`
-/// and `Output` — the plan's own list — each a sealed [TextureNode]
+/// and `Output` — the plan's own list — each a `final` [TextureNode]
 /// subclass. A shader-graph feature request has a wall to hit here: adding
-/// a twelfth kind means a new `final class` and a compiler-checked switch
-/// arm everywhere one exists, not a string a node's own JSON happens to
-/// carry.
+/// a twelfth kind means a new `final class` and a method on
+/// [TextureNodeVisitor], not a string a node's own JSON happens to carry.
 ///
 /// **Two socket types, not one per node kind.** [TextureValueType.color] is
 /// four channels — what a texture slot samples — and
@@ -52,13 +51,42 @@ final class TextureGraphFormatException extends Flutter3dFormatException {
 }
 
 /// What one socket on a [TextureNode] carries.
-enum TextureValueType {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureValueType {
+  const TextureValueType._(this.name);
+
   /// Four channels, 0..1 each — what a texture slot samples, and what
   /// [TextureGraph]'s own [OutputTextureNode] always takes.
-  color,
+  static const TextureValueType color = TextureValueType._('color');
 
   /// One channel, 0..1 — a mask or a height, never sampled on its own.
-  scalar,
+  static const TextureValueType scalar = TextureValueType._('scalar');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureValueType> values = <TextureValueType>[
+    color,
+    scalar,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureValueType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureValueType.$name';
 }
 
 /// One thing [TextureGraph.validate] found wrong, named by the node it is
@@ -81,9 +109,15 @@ final class TextureGraphIssue {
 /// node is wired into it.
 typedef TextureInputSocket = ({TextureValueType type, int? from});
 
-/// One node in a [TextureGraph]. Sealed — see the library comment for why
-/// eleven kinds and no others.
-sealed class TextureNode {
+/// One node in a [TextureGraph].
+///
+/// **An `abstract base class` with a visitor, not a sealed one.** The kinds
+/// are this package's (see the library comment), but a kind added in a minor
+/// release must not break a pass written against this one, so code outside
+/// that reads every kind goes through [accept] and a [TextureNodeVisitor],
+/// whose [TextureNodeVisitor.visitUnknown] answers for a kind it has no
+/// method for. A `switch` over nodes ends with a wildcard.
+abstract base class TextureNode {
   const TextureNode({required this.id});
 
   /// Stable within one [TextureGraph], the way `ModelObject.id` is stable
@@ -194,6 +228,49 @@ sealed class TextureNode {
       ),
     };
   }
+
+  /// Calls the [visitor]'s method for this node's kind. A kind the visitor
+  /// predates reaches [TextureNodeVisitor.visitUnknown].
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitUnknown(this);
+}
+
+/// What a pass over a [TextureGraph] does with each kind of node, a method a
+/// kind.
+///
+/// **How to read every kind without a `switch` a later kind would break.**
+/// Each `visit…` method answers [visitUnknown] unless overridden, so a node a
+/// later release adds lands there in a visitor written against this one,
+/// which keeps compiling and decides in one place what an unknown kind means
+/// to it: skip it, draw it blank, or refuse.
+abstract base class TextureNodeVisitor<R> {
+  const TextureNodeVisitor();
+
+  R visitImage(ImageTextureNode node) => visitUnknown(node);
+
+  R visitColor(ColorTextureNode node) => visitUnknown(node);
+
+  R visitBlend(BlendTextureNode node) => visitUnknown(node);
+
+  R visitChannels(ChannelsTextureNode node) => visitUnknown(node);
+
+  R visitLevels(LevelsTextureNode node) => visitUnknown(node);
+
+  R visitInvert(InvertTextureNode node) => visitUnknown(node);
+
+  R visitUvTransform(UvTransformTextureNode node) => visitUnknown(node);
+
+  R visitChecker(CheckerTextureNode node) => visitUnknown(node);
+
+  R visitNoise(NoiseTextureNode node) => visitUnknown(node);
+
+  R visitNormalFromHeight(NormalFromHeightTextureNode node) =>
+      visitUnknown(node);
+
+  R visitOutput(OutputTextureNode node) => visitUnknown(node);
+
+  /// A node this visitor has no method of its own for: a kind a later release
+  /// adds, or one a method above leaves to it.
+  R visitUnknown(TextureNode node);
 }
 
 int _int(Map<String, Object?> json, int id, String field) =>
@@ -284,6 +361,9 @@ final class ImageTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'imageId': imageId};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitImage(this);
 }
 
 /// A flat colour, painted everywhere. No inputs.
@@ -308,10 +388,52 @@ final class ColorTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'value': _vec4Json(value)};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitColor(this);
 }
 
 /// How [BlendTextureNode] combines its two colour inputs.
-enum TextureBlendMode { normal, multiply, add, screen }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureBlendMode {
+  const TextureBlendMode._(this.name);
+
+  static const TextureBlendMode normal = TextureBlendMode._('normal');
+
+  static const TextureBlendMode multiply = TextureBlendMode._('multiply');
+
+  static const TextureBlendMode add = TextureBlendMode._('add');
+
+  static const TextureBlendMode screen = TextureBlendMode._('screen');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureBlendMode> values = <TextureBlendMode>[
+    normal,
+    multiply,
+    add,
+    screen,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureBlendMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureBlendMode.$name';
+}
 
 /// Two colours combined by [mode], mixed by [factor].
 final class BlendTextureNode extends TextureNode {
@@ -361,9 +483,16 @@ final class BlendTextureNode extends TextureNode {
     'mode': textureBlendModeWord(mode),
     'factor': factor,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitBlend(this);
 }
 
 /// One RGBA channel to read out of a colour input.
+///
+/// **Closed for good**: r, g, b and a: the four channels of an RGBA colour. No
+/// member can be added without changing what the type means, so it stays an
+/// enum and a `switch` over it may name every case.
 enum TextureChannel { r, g, b, a }
 
 /// One channel of a colour input, alone, as a mask.
@@ -403,6 +532,9 @@ final class ChannelsTextureNode extends TextureNode {
     'source': source,
     'channel': textureChannelWord(channel),
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitChannels(this);
 }
 
 /// A mask remapped between [blackPoint] and [whitePoint], then [gamma].
@@ -451,6 +583,9 @@ final class LevelsTextureNode extends TextureNode {
     'whitePoint': whitePoint,
     'gamma': gamma,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitLevels(this);
 }
 
 /// A mask flipped: 1 minus its input.
@@ -475,6 +610,9 @@ final class InvertTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'source': source};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitInvert(this);
 }
 
 /// A colour input resampled at a moved, scaled and turned UV.
@@ -518,6 +656,9 @@ final class UvTransformTextureNode extends TextureNode {
     'scale': _vec2Json(scale),
     'rotation': rotation,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitUvTransform(this);
 }
 
 /// A flat two-colour grid, [scale] squares across. No inputs.
@@ -558,6 +699,9 @@ final class CheckerTextureNode extends TextureNode {
     'colorB': _vec4Json(colorB),
     'scale': scale,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitChecker(this);
 }
 
 /// Deterministic noise, by [seed] — never `Random`, the same reason
@@ -586,6 +730,9 @@ final class NoiseTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'seed': seed, 'scale': scale};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitNoise(this);
 }
 
 /// A height mask read as a slope and written back as a tangent-space normal.
@@ -619,6 +766,10 @@ final class NormalFromHeightTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'height': height, 'strength': strength};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) =>
+      visitor.visitNormalFromHeight(this);
 }
 
 /// The graph's own result — what `mat-11`'s bake reads. A graph may hold more
@@ -653,6 +804,9 @@ final class OutputTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'result': result, 'slot': slot};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitOutput(this);
 }
 
 /// An immutable network of [TextureNode]s.

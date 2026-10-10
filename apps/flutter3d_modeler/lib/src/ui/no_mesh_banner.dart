@@ -52,6 +52,7 @@ class NoMeshBanner extends StatelessWidget {
           button: null,
         ),
         EditedGeometry() => (said: '', button: null),
+        _ => (said: 'This object cannot be edited as a mesh', button: null),
       };
 
   @override

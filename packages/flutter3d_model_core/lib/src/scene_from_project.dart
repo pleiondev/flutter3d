@@ -379,6 +379,7 @@ MeshData _meshDataOf(Geometry geometry, VertexLayout layout) =>
       ImportedGeometry(:final data) => data,
       // A socket draws nothing — see `SocketGeometry`'s own doc comment.
       SocketGeometry() => _emptyMesh,
+      _ => throw UnsupportedError('no mesh data for $geometry'),
     };
 
 final MeshData _emptyMesh = MeshData(

@@ -68,11 +68,10 @@ final class ModifierContext {
 /// One step of a modifier stack.
 ///
 /// **Every concrete modifier lives in this same library**, `part` files
-/// included, because [Modifier] is `sealed`: a stack's `evaluate` can `switch`
-/// over every kind that exists without an `else`, and adding a new modifier
-/// anywhere outside this file is a compile error rather than a case silently
-/// falling through.
-sealed class Modifier {
+/// included, because [Modifier] is `abstract final`: nobody outside adds a
+/// kind a project could not read back. It is not sealed, so a modifier a
+/// later release adds breaks no `switch` outside, which ends with a wildcard.
+abstract final class Modifier {
   const Modifier();
 
   /// The mesh this modifier's own change gives, applied to [base] under

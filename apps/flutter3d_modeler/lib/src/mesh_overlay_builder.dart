@@ -488,6 +488,10 @@ final class MeshOverlayBuilder {
             overlay.ribbon(_from, _to, colors.selected.ink);
           });
         }
+      default:
+        throw UnsupportedError(
+          'a half-edge mesh has no ${selection.level} elements',
+        );
     }
   }
 
@@ -533,6 +537,10 @@ final class MeshOverlayBuilder {
             mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
             overlay.ribbon(_from, _to, colors.hovered.ink);
           });
+        default:
+          throw UnsupportedError(
+            'a half-edge mesh has no ${hovered.level} elements',
+          );
       }
     }
   }

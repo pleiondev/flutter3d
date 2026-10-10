@@ -431,6 +431,8 @@ bool _middleOf(EditMesh mesh, ElementLevel level, int id, Vector3 out) {
       if (corners == 0) return false;
       out.scale(1.0 / corners);
       return true;
+    default:
+      throw UnsupportedError('a half-edge mesh has no $level elements');
   }
 }
 

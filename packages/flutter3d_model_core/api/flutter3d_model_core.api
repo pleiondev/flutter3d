@@ -224,8 +224,16 @@ final class AssignMaterial extends ModelCommand
 
 typedef AtlasCell = ({double x, double y, double width, double height});
 
-enum AuditCheck
-  values: units, pivot, readiness, materials, mesh
+final class AuditCheck
+  String toString()
+  final String name
+  static AuditCheck? byName(String name)
+  static const AuditCheck materials = AuditCheck._('materials')
+  static const AuditCheck mesh = AuditCheck._('mesh')
+  static const AuditCheck pivot = AuditCheck._('pivot')
+  static const AuditCheck readiness = AuditCheck._('readiness')
+  static const AuditCheck units = AuditCheck._('units')
+  static const List<AuditCheck> values = <AuditCheck>[units, pivot, readiness, materials, mesh]
 
 final class AuditFinding
   String toString()
@@ -422,6 +430,7 @@ final class BlendTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const BlendTextureNode({required super.id, this.base, this.overlay, this.mode = TextureBlendMode.normal, this.factor = 1.0})
@@ -489,6 +498,7 @@ final class ChannelsTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const ChannelsTextureNode({required super.id, this.source, this.channel = TextureChannel.r})
@@ -500,6 +510,7 @@ final class CheckerTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   final Vector4 colorA
@@ -514,6 +525,7 @@ final class ColorTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const ColorTextureNode({required super.id, required this.value})
@@ -667,14 +679,22 @@ final class ExportFile
   final String name
   final Uint8List bytes
 
-enum ExportFormat
-  values: f3d, obj, glb, stl, stlAscii, usdz
+final class ExportFormat
   String get label
   String get says
   String get suffix
+  String toString()
   bool get carriesLods
-  const ExportFormat(this.writer)
   final ModelWriter writer
+  final String name
+  static ExportFormat? byName(String name)
+  static const ExportFormat f3d = ExportFormat._('f3d', F3dModelWriter())
+  static const ExportFormat glb = ExportFormat._('glb', GlbModelWriter())
+  static const ExportFormat obj = ExportFormat._('obj', ObjModelWriter())
+  static const ExportFormat stl = ExportFormat._('stl', StlModelWriter())
+  static const ExportFormat stlAscii = ExportFormat._('stlAscii', StlModelWriter(ascii: true))
+  static const ExportFormat usdz = ExportFormat._('usdz', UsdzModelWriter())
+  static const List<ExportFormat> values = <ExportFormat>[f3d, obj, glb, stl, stlAscii, usdz]
 
 final class ExportIssue
   String toString()
@@ -696,11 +716,16 @@ final class ExportRefused extends ExportResult
   const ExportRefused(this.because)
   final String because
 
-sealed class ExportResult
+abstract final class ExportResult
   const ExportResult()
 
-enum ExportSeverity
-  values: warning, error
+final class ExportSeverity
+  String toString()
+  final String name
+  static ExportSeverity? byName(String name)
+  static const ExportSeverity error = ExportSeverity._('error')
+  static const ExportSeverity warning = ExportSeverity._('warning')
+  static const List<ExportSeverity> values = <ExportSeverity>[warning, error]
 
 final class ExportWritten extends ExportResult
   const ExportWritten(this.files, this.warnings)
@@ -734,10 +759,10 @@ final class FillHoles extends ModelCommand
 
 ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget})
 
-sealed class Geometry
+abstract final class Geometry
+  abstract int get triangleCount
+  abstract int get vertexCount
   const Geometry()
-  int get triangleCount
-  int get vertexCount
 
 final class GrowSelection extends ModelCommand
   Map<String, Object?> get arguments
@@ -776,6 +801,7 @@ final class ImageTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const ImageTextureNode({required super.id, required this.imageId})
@@ -860,6 +886,7 @@ final class InvertTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const InvertTextureNode({required super.id, this.source})
@@ -932,6 +959,7 @@ final class LevelsTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const LevelsTextureNode({required super.id, this.source, this.blackPoint = 0.0, this.whitePoint = 1.0, this.gamma = 1.0})
@@ -1057,14 +1085,14 @@ final class MirrorJoints extends ModelCommand
   final int axis
   final int skeletonIndex
 
-sealed class ModelCommand
-  Map<String, Object?> get arguments
+abstract final class ModelCommand
   Map<String, Object?> toJson()
   Map<String, ParamHint> get hints
-  Outcome apply(ModelProject project, ProjectSelection selection)
-  String get name
-  String get says
   String toString()
+  abstract Map<String, Object?> get arguments
+  abstract Outcome apply(ModelProject project, ProjectSelection selection)
+  abstract String get name
+  abstract String get says
   bool get isJournaled
   const ModelCommand()
 
@@ -1198,6 +1226,7 @@ final class NoiseTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const NoiseTextureNode({required super.id, this.seed = 0, this.scale = 1.0})
@@ -1208,16 +1237,22 @@ final class NormalFromHeightTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const NormalFromHeightTextureNode({required super.id, this.height, this.strength = 1.0})
   final double strength
   final int? height
 
-enum OriginPlacement
-  values: boundsCenter, boundsBottom, worldOrigin
-  const OriginPlacement(this.wire)
+final class OriginPlacement
+  String toString()
+  final String name
   final String wire
+  static OriginPlacement? byName(String name)
+  static const List<OriginPlacement> values = <OriginPlacement>[boundsCenter, boundsBottom, worldOrigin]
+  static const OriginPlacement boundsBottom = OriginPlacement._('boundsBottom', 'boundsBottom')
+  static const OriginPlacement boundsCenter = OriginPlacement._('boundsCenter', 'boundsCentre')
+  static const OriginPlacement worldOrigin = OriginPlacement._('worldOrigin', 'worldOrigin')
 
 final class Outcome
   bool get isOk
@@ -1233,6 +1268,7 @@ final class OutputTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   const OutputTextureNode({required super.id, this.result, this.slot})
@@ -1339,7 +1375,7 @@ final class PanoramaSync
   bool get didRebuildLast
   void sync(GraphicsDevice device, Scene scene, ModelProject project)
 
-sealed class ParamHint
+abstract final class ParamHint
   const ParamHint()
 
 final class ParametricGeometry extends Geometry
@@ -1370,8 +1406,14 @@ final class ProfileBudgetReport
   final BudgetUsage triangles
   final bool wireframeDeclined
 
-enum ProfileTarget
-  values: desktop, mobile, web
+final class ProfileTarget
+  String toString()
+  final String name
+  static ProfileTarget? byName(String name)
+  static const List<ProfileTarget> values = <ProfileTarget>[desktop, mobile, web]
+  static const ProfileTarget desktop = ProfileTarget._('desktop')
+  static const ProfileTarget mobile = ProfileTarget._('mobile')
+  static const ProfileTarget web = ProfileTarget._('web')
 
 final class ProjectClip
   String toString()
@@ -1730,8 +1772,13 @@ final class ReplaceDocument extends ModelCommand
   final ModelProject next
   final String says
 
-enum ResizeFilter
-  values: box, bilinear
+final class ResizeFilter
+  String toString()
+  final String name
+  static ResizeFilter? byName(String name)
+  static const List<ResizeFilter> values = <ResizeFilter>[box, bilinear]
+  static const ResizeFilter bilinear = ResizeFilter._('bilinear')
+  static const ResizeFilter box = ResizeFilter._('box')
 
 final class RetargetClipJobRequest
   Future<ProjectClip> run()
@@ -1948,8 +1995,13 @@ final class SelectNone extends ModelCommand
   String get says
   const SelectNone()
 
-enum SelectionMode
-  values: object, mesh
+final class SelectionMode
+  String toString()
+  final String name
+  static SelectionMode? byName(String name)
+  static const List<SelectionMode> values = <SelectionMode>[object, mesh]
+  static const SelectionMode mesh = SelectionMode._('mesh')
+  static const SelectionMode object = SelectionMode._('object')
 
 final class Separate extends ModelCommand
   Map<String, Object?> get arguments
@@ -2302,8 +2354,13 @@ final class SocketGeometry extends Geometry
 
 typedef SourceLink = ({String path, String sha});
 
-enum StepAuthor
-  values: person, agent
+final class StepAuthor
+  String toString()
+  final String name
+  static StepAuthor? byName(String name)
+  static const List<StepAuthor> values = <StepAuthor>[person, agent]
+  static const StepAuthor agent = StepAuthor._('agent')
+  static const StepAuthor person = StepAuthor._('person')
 
 final class SubdivideMesh extends ModelCommand
   Map<String, Object?> get arguments
@@ -2318,8 +2375,15 @@ final class SubdivideMesh extends ModelCommand
 final class TextureBakeCache
   void clear()
 
-enum TextureBlendMode
-  values: normal, multiply, add, screen
+final class TextureBlendMode
+  String toString()
+  final String name
+  static TextureBlendMode? byName(String name)
+  static const List<TextureBlendMode> values = <TextureBlendMode>[normal, multiply, add, screen]
+  static const TextureBlendMode add = TextureBlendMode._('add')
+  static const TextureBlendMode multiply = TextureBlendMode._('multiply')
+  static const TextureBlendMode normal = TextureBlendMode._('normal')
+  static const TextureBlendMode screen = TextureBlendMode._('screen')
 
 final class TextureBudget
   String toString()
@@ -2342,11 +2406,26 @@ final class TextureBudgetUsage
 enum TextureChannel
   values: r, g, b, a
 
-enum TextureEncoding
-  values: png, ktx2
+final class TextureEncoding
+  String toString()
+  final String name
+  static TextureEncoding? byName(String name)
+  static const List<TextureEncoding> values = <TextureEncoding>[png, ktx2]
+  static const TextureEncoding ktx2 = TextureEncoding._('ktx2')
+  static const TextureEncoding png = TextureEncoding._('png')
 
-enum TextureFileFormat
-  values: rgba8, bc1, bc3, bc7, etc2Rgba8, astc4x4, other
+final class TextureFileFormat
+  String toString()
+  final String name
+  static TextureFileFormat? byName(String name)
+  static const List<TextureFileFormat> values = <TextureFileFormat>[rgba8, bc1, bc3, bc7, etc2Rgba8, astc4x4, other]
+  static const TextureFileFormat astc4x4 = TextureFileFormat._('astc4x4')
+  static const TextureFileFormat bc1 = TextureFileFormat._('bc1')
+  static const TextureFileFormat bc3 = TextureFileFormat._('bc3')
+  static const TextureFileFormat bc7 = TextureFileFormat._('bc7')
+  static const TextureFileFormat etc2Rgba8 = TextureFileFormat._('etc2Rgba8')
+  static const TextureFileFormat other = TextureFileFormat._('other')
+  static const TextureFileFormat rgba8 = TextureFileFormat._('rgba8')
 
 final class TextureGraph
   List<TextureGraphIssue> validate()
@@ -2381,18 +2460,39 @@ final class TextureInfo
 
 typedef TextureInputSocket = ({TextureValueType type, int? from});
 
-sealed class TextureNode
-  Map<String, MaterialHint> get hints
-  Map<String, Object?> toJson()
-  Map<String, TextureInputSocket> get inputs
-  String get kind
-  TextureValueType get outputType
+abstract base class TextureNode
+  R accept<R>(TextureNodeVisitor<R> visitor)
+  abstract Map<String, MaterialHint> get hints
+  abstract Map<String, Object?> toJson()
+  abstract Map<String, TextureInputSocket> get inputs
+  abstract String get kind
+  abstract TextureValueType get outputType
   const TextureNode({required this.id})
   final int id
   static TextureNode fromJson(Map<String, Object?> json)
 
-enum TextureValueType
-  values: color, scalar
+abstract base class TextureNodeVisitor<R>
+  R visitBlend(BlendTextureNode node)
+  R visitChannels(ChannelsTextureNode node)
+  R visitChecker(CheckerTextureNode node)
+  R visitColor(ColorTextureNode node)
+  R visitImage(ImageTextureNode node)
+  R visitInvert(InvertTextureNode node)
+  R visitLevels(LevelsTextureNode node)
+  R visitNoise(NoiseTextureNode node)
+  R visitNormalFromHeight(NormalFromHeightTextureNode node)
+  R visitOutput(OutputTextureNode node)
+  R visitUvTransform(UvTransformTextureNode node)
+  abstract R visitUnknown(TextureNode node)
+  const TextureNodeVisitor()
+
+final class TextureValueType
+  String toString()
+  final String name
+  static TextureValueType? byName(String name)
+  static const List<TextureValueType> values = <TextureValueType>[color, scalar]
+  static const TextureValueType color = TextureValueType._('color')
+  static const TextureValueType scalar = TextureValueType._('scalar')
 
 typedef TileDevice = GraphicsDevice Function(int width, int height);
 
@@ -2426,11 +2526,21 @@ final class TransformElements extends ModelCommand
   final TransformPivot pivot
   final TransformSpace space
 
-enum TransformPivot
-  values: median, individual
+final class TransformPivot
+  String toString()
+  final String name
+  static TransformPivot? byName(String name)
+  static const List<TransformPivot> values = <TransformPivot>[median, individual]
+  static const TransformPivot individual = TransformPivot._('individual')
+  static const TransformPivot median = TransformPivot._('median')
 
-enum TransformSpace
-  values: global, local
+final class TransformSpace
+  String toString()
+  final String name
+  static TransformSpace? byName(String name)
+  static const List<TransformSpace> values = <TransformSpace>[global, local]
+  static const TransformSpace global = TransformSpace._('global')
+  static const TransformSpace local = TransformSpace._('local')
 
 final class Triangulate extends ModelCommand
   Map<String, Object?> get arguments
@@ -2479,13 +2589,19 @@ final class UnwrapMethod
   final String name
   static const UnwrapMethod lscm = UnwrapMethod._('lscm')
 
-enum UpAxis
-  values: y, z
+final class UpAxis
+  String toString()
+  final String name
+  static UpAxis? byName(String name)
+  static const List<UpAxis> values = <UpAxis>[y, z]
+  static const UpAxis y = UpAxis._('y')
+  static const UpAxis z = UpAxis._('z')
 
 final class UvTransformTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
+  R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
   UvTransformTextureNode({required super.id, this.source, Vector2? offset, Vector2? scale, this.rotation = 0.0})

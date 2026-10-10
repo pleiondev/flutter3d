@@ -41,7 +41,43 @@ import 'texture_budget.dart';
 /// person typed — "Store demo build" — and a rule that wants to know whether
 /// it is looking at a phone has no business parsing that string. `target` is
 /// the three words a rule can switch on; the name is the one a person reads.
-enum ProfileTarget { desktop, mobile, web }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ProfileTarget {
+  const ProfileTarget._(this.name);
+
+  static const ProfileTarget desktop = ProfileTarget._('desktop');
+
+  static const ProfileTarget mobile = ProfileTarget._('mobile');
+
+  static const ProfileTarget web = ProfileTarget._('web');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ProfileTarget> values = <ProfileTarget>[
+    desktop,
+    mobile,
+    web,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ProfileTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ProfileTarget.$name';
+}
 
 /// The limits a project is being built against.
 ///
@@ -172,7 +208,7 @@ final class ProjectProfile {
   ///
   /// **`doc-13`'s row asks for this "from `MaterialHint`"; that reference went
   /// stale the moment Г4/Ж2 (2026-09-09) closed `MaterialHint` to the material
-  /// panel and put a new sealed `ParamHint` in core for everything else** —
+  /// panel and put a new `ParamHint` in core for everything else** —
   /// see `syn-01`. Built from `ParamHint` instead, the same type
   /// `ModelCommand.hints` uses, rather than the type the row names. Named
   /// `profileHints` rather than `hints` to match the plan row's own
@@ -297,7 +333,7 @@ final class ProjectProfile {
 
 /// What an object is made of.
 ///
-/// **Three cases and a compiler that asks about all of them.** A cylinder that
+/// **A case per kind of geometry, and an operation per case.** A cylinder that
 /// still knows it is a cylinder can have its segment count changed; the same
 /// cylinder after somebody has pulled one of its faces cannot, and there is no
 /// honest way to answer "set segments to 32" for it. A model read out of a glTF
@@ -307,8 +343,9 @@ final class ProjectProfile {
 ///
 /// The alternative — one geometry class with three nullable fields — is a class
 /// where every operation begins by working out which of the three it is holding
-/// and half of them get it wrong.
-sealed class Geometry {
+/// and half of them get it wrong. The set is open (a curve or a volume could
+/// be next), so a `switch` over a geometry ends with a wildcard that refuses.
+abstract final class Geometry {
   const Geometry();
 
   /// How many triangles this draws as, for the budget.

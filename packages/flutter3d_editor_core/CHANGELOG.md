@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Piece` is an open set and `EditorCommand` is
+  `abstract final`.** `Piece` is a class with constants rather than an
+  enum, and `EditorCommand` and `DocumentCommand` are no longer sealed, so
+  a fourth kind of thing in a level, or a command a later minor adds,
+  breaks no `switch`: one over them ends with a wildcard.
 - **Breaking: a new light's strength is candela.** `AddLevelLight` and
   `Editing.addLight` put a light down at `AddLevelLight.defaultIntensity`,
   four pre-1.0 units (about 23 000 cd), where the default was 4 in the old

@@ -149,6 +149,7 @@ String _materialFieldHelp(String field) {
       'doubleSided' || 'unlit' => 'a bool',
       _ => 'a number',
     },
+    _ => 'a value',
   };
   final String? help = hint?.help;
   return help == null ? shape : '$shape — $help';

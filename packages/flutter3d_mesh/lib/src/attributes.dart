@@ -28,31 +28,109 @@ import 'package:vector_math/vector_math.dart';
 
 /// Where an attribute lives.
 ///
-/// Machinery rather than content: these are the four things a half-edge mesh is
-/// made of, and a fifth is not a value somebody adds — it would be a different
-/// data structure. Named in `boundaryEnumExempt` for that reason.
-enum MeshDomain {
+/// The four things a half-edge mesh is made of. A domain over the whole mesh,
+/// which other tools keep attributes on, would be a fifth, so the set is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MeshDomain {
+  const MeshDomain._(this.name);
+
   /// One value per vertex. Positions, skin weights.
-  vertex,
+  static const MeshDomain vertex = MeshDomain._('vertex');
 
   /// One value per half-edge, so the faces meeting at a vertex may disagree.
   /// Texture coordinates, vertex colours.
-  corner,
+  static const MeshDomain corner = MeshDomain._('corner');
 
   /// One value per edge, mirrored onto both half-edges of the pair. Sharpness,
   /// seams, crease weight.
-  edge,
+  static const MeshDomain edge = MeshDomain._('edge');
 
   /// One value per face. RenderMaterial slot, shading flag.
-  face,
+  static const MeshDomain face = MeshDomain._('face');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MeshDomain> values = <MeshDomain>[
+    vertex,
+    corner,
+    edge,
+    face,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MeshDomain? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'MeshDomain.$name';
 }
 
 /// Which attribute, within a domain.
 ///
-/// Machinery for the same reason [MeshDomain] is: the set is what this mesh
-/// stores, and a caller adding to it would be adding a layer to `EditMesh`
-/// rather than passing a new value.
-enum MeshAttribute { uv0, color, weights, joints, crease, flags, materialSlot }
+/// The set is what this mesh stores, and a caller cannot add to it: a new
+/// attribute is a layer in `EditMesh`, which a later release can add, so the
+/// set is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MeshAttribute {
+  const MeshAttribute._(this.name);
+
+  static const MeshAttribute uv0 = MeshAttribute._('uv0');
+
+  static const MeshAttribute color = MeshAttribute._('color');
+
+  static const MeshAttribute weights = MeshAttribute._('weights');
+
+  static const MeshAttribute joints = MeshAttribute._('joints');
+
+  static const MeshAttribute crease = MeshAttribute._('crease');
+
+  static const MeshAttribute flags = MeshAttribute._('flags');
+
+  static const MeshAttribute materialSlot = MeshAttribute._('materialSlot');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MeshAttribute> values = <MeshAttribute>[
+    uv0,
+    color,
+    weights,
+    joints,
+    crease,
+    flags,
+    materialSlot,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MeshAttribute? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'MeshAttribute.$name';
+}
 
 /// Bits packed into the per-half-edge flag layer.
 ///

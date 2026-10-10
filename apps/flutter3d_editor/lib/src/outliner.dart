@@ -238,6 +238,7 @@ final class _Row extends StatelessWidget {
                 Piece.brush => Icons.crop_square,
                 Piece.light => Icons.lightbulb_outline,
                 Piece.entity => Icons.place_outlined,
+                _ => Icons.help_outline,
               },
               size: 13,
               color: scheme.onSurfaceVariant,

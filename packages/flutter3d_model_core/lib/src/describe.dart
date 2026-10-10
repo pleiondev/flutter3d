@@ -95,6 +95,8 @@ Iterable<int> liveElements(EditMesh mesh, ElementLevel level) sync* {
           if (seen.add(edge)) yield edge;
         }
       }
+    default:
+      throw UnsupportedError('a half-edge mesh has no $level elements');
   }
 }
 
@@ -115,6 +117,7 @@ Vector3? elementCenter(EditMesh mesh, ElementLevel level, int id) =>
       ElementLevel.face =>
         _liveFace(mesh, id) ? _center(mesh, mesh.verticesOf(id)) : null,
       ElementLevel.edge => _edgeMidpoint(mesh, id),
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 /// Which way [id] of [level] faces, or null when nothing decides it: a vertex
@@ -125,6 +128,7 @@ Vector3? elementNormal(EditMesh mesh, ElementLevel level, int id) =>
         _liveVertex(mesh, id) ? _vertexNormal(mesh, id) : null,
       ElementLevel.face => _liveFace(mesh, id) ? mesh.normalOf(id) : null,
       ElementLevel.edge => _describeEdge(mesh, id)?.normal,
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 bool _liveVertex(EditMesh mesh, int id) =>
@@ -158,6 +162,7 @@ DescribedElement? _describe(EditMesh mesh, ElementLevel level, int id) =>
                 length: null,
               ),
       ElementLevel.edge => _describeEdge(mesh, id),
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 DescribedElement? _describeEdge(EditMesh mesh, int id) {

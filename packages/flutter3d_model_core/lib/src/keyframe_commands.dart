@@ -142,6 +142,7 @@ List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
     ],
     AnimationPath.scale => <double>[scale.x, scale.y, scale.z],
     AnimationPath.weights || AnimationPath.pointer => null,
+    _ => throw UnsupportedError('a transform has no $path channel'),
   };
 }
 

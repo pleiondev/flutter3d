@@ -141,17 +141,47 @@ final class Outcome {
 /// rather than being read fresh. An agent driving the modeller has no toolbar
 /// at all and has to be able to say which point it means.
 ///
-/// Machinery: these are the pivots the arithmetic in `object_commands.dart` has
-/// a branch for. A pivot somebody works out for themselves is a `Vector3`
-/// handed over, not a name added here.
-enum TransformPivot {
+/// These are the pivots the arithmetic in `object_commands.dart` has a branch
+/// for. A pivot somebody works out for themselves is a `Vector3` handed over,
+/// not a name added here; the cursor as a pivot would be a name, so the set
+/// is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TransformPivot {
+  const TransformPivot._(this.name);
+
   /// The middle of everything selected. Three objects turned together swing
   /// round each other, which is what a person watching the gizmo expects.
-  median,
+  static const TransformPivot median = TransformPivot._('median');
 
   /// Each object about its own origin, which leaves the objects where they are
   /// and points them somewhere else.
-  individual,
+  static const TransformPivot individual = TransformPivot._('individual');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TransformPivot> values = <TransformPivot>[
+    median,
+    individual,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TransformPivot? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TransformPivot.$name';
 }
 
 /// Whose axes a transform is expressed in.
@@ -162,17 +192,43 @@ enum TransformPivot {
 /// tool that offers only the first leaves the second to do the arithmetic by
 /// hand.
 ///
-/// Machinery, for the reason [TransformPivot] is: two is what a basis can be
-/// taken from — the world, or the thing being moved — and a third would be
-/// somebody else's matrix, which is a matrix rather than a name.
-enum TransformSpace {
+/// Two is what a basis is taken from today — the world, or the thing being
+/// moved. The parent's axes or the view's would be a third, so the set is
+/// open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TransformSpace {
+  const TransformSpace._(this.name);
+
   /// The world's axes: the same X for everything selected, whatever each of
   /// them is facing.
-  global,
+  static const TransformSpace global = TransformSpace._('global');
 
   /// The axes of the object being transformed, so two objects in one selection
   /// can go different ways under one command.
-  local,
+  static const TransformSpace local = TransformSpace._('local');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TransformSpace> values = <TransformSpace>[global, local];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TransformSpace? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TransformSpace.$name';
 }
 
 /// [by] wrapped so that it happens at [about], along [basis]'s axes when one is
@@ -210,7 +266,7 @@ Matrix4 _basisOf(Matrix4 transform) {
 }
 
 /// One change, as a value.
-sealed class ModelCommand {
+abstract final class ModelCommand {
   const ModelCommand();
 
   /// The name this is written down and looked up under. Stable: it is in files

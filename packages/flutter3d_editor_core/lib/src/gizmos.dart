@@ -8,31 +8,58 @@ import 'looks.dart';
 /// **Three, and a material is deliberately not a fourth.** A material is the
 /// other thing an editor authors — it is what a brush's `material` names, and
 /// the panel that edits one is `material_panel.dart` — so the question of
-/// adding it here was asked and answered no. Everything this enum reaches is
+/// adding it here was asked and answered no. Everything this set reaches is
 /// *a list and an index into it*: [Handle] carries an `index`, `Editing`
 /// selects with an `int`, and its `switch`es turn a kind into `brushes`,
 /// `lights` or `entities` and then call `removeAt` on one. A level's materials
 /// are a map keyed by name, with no position, nothing to draw, nothing to
-/// point at and nothing to nudge — so a fourth member would be a member every
-/// one of those `switch`es had to answer "not that one" to, and the enum would
-/// stop meaning what [Handle]'s own doc says it means: something in the
-/// document that can be pointed at and moved.
+/// point at and nothing to nudge — so a material as a fourth member would be
+/// one every one of those `switch`es had to answer "not that one" to, and the
+/// set would stop meaning what [Handle]'s own doc says it means: something in
+/// the document that can be pointed at and moved. A fourth list in a level
+/// that *can* be pointed at is another matter, and why the set is open.
 ///
 /// So the material panel selects by name instead, and that selection is the
 /// panel's own: nothing else in the editor — no gizmo, no arrow key, no click
 /// — needs to know which material is open, which is exactly the difference
 /// from a selected brush.
-enum Piece {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class Piece {
+  const Piece._(this.name);
+
   /// Geometry. The only one of the three that is drawn by the game.
-  brush,
+  static const Piece brush = Piece._('brush');
 
   /// A light: a lamp, the sun, a torch's flame.
-  light,
+  static const Piece light = Piece._('light');
 
   /// Everything else the document names — a monster, a lift, a door, a
   /// pickup, the point the player starts at. What any of those *are* belongs
   /// to the game; where they are does not.
-  entity,
+  static const Piece entity = Piece._('entity');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<Piece> values = <Piece>[brush, light, entity];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static Piece? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'Piece.$name';
 }
 
 /// Something in the document that can be pointed at and moved.

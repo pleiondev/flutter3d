@@ -1,9 +1,8 @@
 /// The commands over one object's own [ShapeSet] — `anim-19`'s own row.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **What is not here.** The row's own "строки экрана 15" (a panel) and
 /// the golden frame `modeler-morphs` are both app-layer, outside a command

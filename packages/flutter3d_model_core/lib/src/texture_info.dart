@@ -76,20 +76,59 @@ final class TextureInfo {
 }
 
 /// The badge a texture slot shows for what actually samples on the GPU.
-enum TextureFileFormat {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureFileFormat {
+  const TextureFileFormat._(this.name);
+
   /// PNG or JPEG, decoded to `RGBA8` on upload — four bytes a texel, no mip
   /// chain of its own.
-  rgba8,
-  bc1,
-  bc3,
-  bc7,
-  etc2Rgba8,
-  astc4x4,
+  static const TextureFileFormat rgba8 = TextureFileFormat._('rgba8');
+
+  static const TextureFileFormat bc1 = TextureFileFormat._('bc1');
+
+  static const TextureFileFormat bc3 = TextureFileFormat._('bc3');
+
+  static const TextureFileFormat bc7 = TextureFileFormat._('bc7');
+
+  static const TextureFileFormat etc2Rgba8 = TextureFileFormat._('etc2Rgba8');
+
+  static const TextureFileFormat astc4x4 = TextureFileFormat._('astc4x4');
 
   /// A KTX2 `vkFormat` this reader has no badge for. See the library doc
   /// comment: [TextureInfo.bytesOnDevice] is then the level index's own
   /// stored total, not a block-layout sum.
-  other,
+  static const TextureFileFormat other = TextureFileFormat._('other');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureFileFormat> values = <TextureFileFormat>[
+    rgba8,
+    bc1,
+    bc3,
+    bc7,
+    etc2Rgba8,
+    astc4x4,
+    other,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureFileFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureFileFormat.$name';
 }
 
 /// [bytes]' own declared size, format and weight — from a PNG/JPEG header via
@@ -183,6 +222,7 @@ TextureFileFormat? _fileFormatFor(int vkFormat) => switch (vkFormat) {
     bytesPerBlock: 16,
   ),
   TextureFileFormat.rgba8 || TextureFileFormat.other => null,
+  _ => null,
 };
 
 const int _kKtx2HeaderOffset = 12;

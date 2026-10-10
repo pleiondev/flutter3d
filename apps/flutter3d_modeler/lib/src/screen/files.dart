@@ -893,9 +893,7 @@ extension _FileHandling on _ModelerScreenState {
       case ExportRefused(:final String because):
         _cubit.say(because, important: true);
       case ExportBlocked():
-        // Unreachable: the branch above either forced or returned. Named rather
-        // than defaulted, so that adding a case to `ExportResult` is a compile
-        // error here instead of a silent nothing.
+        // Unreachable: the branch above either forced or returned.
         _cubit.say('not exported', important: true);
       case ExportWritten(
         :final List<ExportFile> files,
@@ -928,6 +926,9 @@ extension _FileHandling on _ModelerScreenState {
             _cubit.note(line);
           }
         }
+      default:
+        // A result a later release adds says what it is rather than nothing.
+        _cubit.say('not exported: $planned', important: true);
     }
   }
 

@@ -64,6 +64,7 @@ typedef _MeshTarget = ({ModelObject object, EditMesh mesh, Selection elements});
       target: null,
       refused: '"${object.name}" is a socket and has no topology to edit',
     ),
+    _ => (target: null, refused: 'the selected object is not a mesh'),
   };
 }
 

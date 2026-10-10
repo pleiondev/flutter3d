@@ -12,19 +12,45 @@ import 'project.dart';
 import 'texture_budget.dart';
 
 /// Which algorithm [resizeRgba] samples with.
-enum ResizeFilter {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ResizeFilter {
+  const ResizeFilter._(this.name);
+
   /// Every output pixel is the plain average of the source pixels its own
   /// box covers — the filter that makes a flat 2×2 checker collapse to a
   /// flat grey rather than to whichever corner a nearest-pixel sample
   /// happened to land on. The one to ask for when shrinking, since it is
   /// answering "what does this area look like averaged," which growing an
   /// image has no source area to average.
-  box,
+  static const ResizeFilter box = ResizeFilter._('box');
 
   /// Every output pixel interpolates the four nearest source pixels —
   /// smooth in both directions, the one to ask for when the image is
   /// growing and there is no area to average, only points to sit between.
-  bilinear,
+  static const ResizeFilter bilinear = ResizeFilter._('bilinear');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ResizeFilter> values = <ResizeFilter>[box, bilinear];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ResizeFilter? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ResizeFilter.$name';
 }
 
 /// [rgba] ([width]×[height], four bytes a pixel) resampled to
@@ -49,6 +75,7 @@ Uint8List resizeRgba(
       newWidth,
       newHeight,
     ),
+    _ => throw UnsupportedError('no resampling for $filter'),
   };
 }
 
