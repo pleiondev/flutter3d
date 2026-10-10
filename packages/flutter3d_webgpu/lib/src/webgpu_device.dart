@@ -771,7 +771,7 @@ final class WebGpuDevice extends GraphicsDevice
       _pipelines.forget(signature);
       pipelineRefusals.report(
         handle,
-        PipelineRefused(
+        PipelineRefusedException(
           pipeline: handle.name,
           backend: _backend,
           reason: _isLost

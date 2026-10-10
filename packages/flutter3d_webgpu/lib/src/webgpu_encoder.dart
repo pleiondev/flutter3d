@@ -705,7 +705,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
       // wants this state builds it again.
       refusals.report(
         handle,
-        PipelineRefused(
+        PipelineRefusedException(
           pipeline: handle.name,
           backend: _backend,
           reason: _device.isLost

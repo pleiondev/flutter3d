@@ -1,6 +1,6 @@
 ## 1.0.0-rc.1
 
-- **`PipelineRefused`, `PipelineRefusalReason`, `PipelineRefusals` and
+- **`PipelineRefusedException`, `PipelineRefusalReason`, `PipelineRefusals` and
   `FramePipelineRefused` are exported**, as `flutter3d` exports them: a
   game hears of a pipeline the device would not build through
   `FrameResult.pipelineRefusals` or the bus.

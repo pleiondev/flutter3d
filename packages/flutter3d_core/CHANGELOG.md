@@ -2,7 +2,7 @@
 
 - **A frame with a pipeline the device will not build draws the rest and
   says so once.** `FrameResult.pipelineRefusals` holds the
-  `PipelineRefused` each pipeline met this frame, taken from
+  `PipelineRefusedException` each pipeline met this frame, taken from
   `GraphicsDevice.pipelineRefusals`; `RenderListener.refused` is called for
   each, `RenderListener.toBus` publishes it as `FramePipelineRefused`, and
   it goes to `developer.log` under `flutter3d.pipelineRefused`. The draws

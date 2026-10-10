@@ -260,7 +260,7 @@ void main() {
       ),
     );
     final pipeline = device.createPipeline(loaded['Writes']!, loaded['Reads']!);
-    final refusal = device.pipelineRefusals.take().single;
+    final refusal = device.pipelineRefusals.drain().single;
     expect(refusal.pipeline, 'Writes+Reads');
     expect(refusal.reason, PipelineRefusalReason.link);
     expect(
@@ -287,7 +287,7 @@ void main() {
       ..draw()
       ..submit();
     expect(device.pipelineRefusals.failuresOf(pipeline), 2);
-    expect(device.pipelineRefusals.take(), isEmpty);
+    expect(device.pipelineRefusals.drain(), isEmpty);
   });
 
   test('the engine\'s own sources load as a bundle and link', () async {

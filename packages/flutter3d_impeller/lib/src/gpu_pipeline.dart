@@ -70,8 +70,8 @@ final class GpuPipeline<T extends Object> {
     refusals.report(handle, _refusal(error, deviceLost: deviceLost));
   }
 
-  PipelineRefused _refusal(Object error, {required bool deviceLost}) =>
-      PipelineRefused(
+  PipelineRefusedException _refusal(Object error, {required bool deviceLost}) =>
+      PipelineRefusedException(
         pipeline: name,
         backend: impellerBackendName,
         // flutter_gpu says only that it failed, never why: a compile and a

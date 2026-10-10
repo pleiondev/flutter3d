@@ -1302,10 +1302,10 @@ final class WebGlDevice extends GraphicsDevice
     }
   }
 
-  PipelineRefused _linkRefusal(
+  PipelineRefusedException _linkRefusal(
     PipelineHandle handle,
     ShaderCompileException error,
-  ) => PipelineRefused(
+  ) => PipelineRefusedException(
     pipeline: handle.name,
     backend: webglBackendName,
     // A context that is gone fails every link with an empty log, and is

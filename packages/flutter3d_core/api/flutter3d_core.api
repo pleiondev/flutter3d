@@ -1576,7 +1576,7 @@ final class FramePassSkipped extends BusEvent
 final class FramePipelineRefused extends BusEvent
   String get name
   const FramePipelineRefused(this.refusal)
-  final PipelineRefused refusal
+  final PipelineRefusedException refusal
 
 final class FramePipelineStall extends BusEvent
   String get name
@@ -1647,12 +1647,12 @@ final class FrameResources
 final class FrameResult
   FrameResult toHeld()
   PassSkip? skipReasonOf(String name)
-  const FrameResult({required this.frame, required this.cpuMicros, required this.submitMicros, required this.drawCalls, required this.triangles, required this.instances, required this.culled, required this.pipelineSwitches, required this.debugLines, required this.lights, required this.lightsDropped, required this.pipelines, required this.shadowCasters, required this.skinnedDraws, this.shadowsDenied = 0, this.batchedDraws = 0, this.wireframeDeclined = false, this.alphaToCoverageDeclined = false, this.targetBytes = 0, this.exposure = RenderSettings.defaultExposure, this.passes = const <FramePass>[], this.resources = const <FrameResourceUse>[], this.skipped = const <SkippedPass>[], this.antiAliasing = const EffectiveAntiAliasing(msaaSamples: 1, fxaa: false, msaaDeclined: null), this.pipelineStalls = const <PipelineStall>[], this.pipelineRefusals = const <PipelineRefused>[], this.held = false})
+  const FrameResult({required this.frame, required this.cpuMicros, required this.submitMicros, required this.drawCalls, required this.triangles, required this.instances, required this.culled, required this.pipelineSwitches, required this.debugLines, required this.lights, required this.lightsDropped, required this.pipelines, required this.shadowCasters, required this.skinnedDraws, this.shadowsDenied = 0, this.batchedDraws = 0, this.wireframeDeclined = false, this.alphaToCoverageDeclined = false, this.targetBytes = 0, this.exposure = RenderSettings.defaultExposure, this.passes = const <FramePass>[], this.resources = const <FrameResourceUse>[], this.skipped = const <SkippedPass>[], this.antiAliasing = const EffectiveAntiAliasing(msaaSamples: 1, fxaa: false, msaaDeclined: null), this.pipelineStalls = const <PipelineStall>[], this.pipelineRefusals = const <PipelineRefusedException>[], this.held = false})
   double get ev100
   final EffectiveAntiAliasing antiAliasing
   final List<FramePass> passes
   final List<FrameResourceUse> resources
-  final List<PipelineRefused> pipelineRefusals
+  final List<PipelineRefusedException> pipelineRefusals
   final List<PipelineStall> pipelineStalls
   final List<SkippedPass> skipped
   final TextureHandle frame
@@ -3686,7 +3686,7 @@ final class RenderListener
   final void Function(FrameResult result)? drawn
   final void Function(FrameResult result)? held
   final void Function(FrameResult result, Duration budget)? overTime
-  final void Function(PipelineRefused refusal)? refused
+  final void Function(PipelineRefusedException refusal)? refused
   final void Function(PipelineStall stall)? stalled
   final void Function(SkippedPass pass)? skipped
   void notify(FrameResult result)

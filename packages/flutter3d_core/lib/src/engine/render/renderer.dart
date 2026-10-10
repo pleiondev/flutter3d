@@ -5483,7 +5483,7 @@ final class Renderer with RenderServices {
     // What the device would not build this frame, each pipeline once. The
     // draws were skipped where the backend met the refusal; the frame drew
     // the rest, and this is where the one thing it could not draw is said.
-    final refusals = device.pipelineRefusals.take();
+    final refusals = device.pipelineRefusals.drain();
     for (final refusal in refusals) {
       developer.log('$refusal', name: 'flutter3d.pipelineRefused');
     }

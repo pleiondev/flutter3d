@@ -769,7 +769,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// what it built and builds again at the pipeline's next use; once
   /// [PipelineRefusals.isRefused], it skips every draw with the pipeline and
   /// builds nothing — whoever reported it, and whatever the backend linked
-  /// before, so the record is asked at every bind or draw. The renderer takes
+  /// before, so the record is asked at every bind or draw. The renderer drains
   /// the reports after each frame, so each refusal is told once and the rest
   /// of the frame draws.
   ///

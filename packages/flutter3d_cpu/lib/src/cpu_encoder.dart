@@ -321,7 +321,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     // draw until the next bind draws nothing. One the device's record leaves
     // refused for any other reason is skipped the same way.
     _pipeline = switch (pipeline.backend) {
-      PipelineRefused() => null,
+      PipelineRefusedException() => null,
       _ when _refusals.isRefused(pipeline) => null,
       final other => other as CpuPipeline,
     };

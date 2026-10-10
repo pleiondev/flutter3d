@@ -1,7 +1,7 @@
 ## 1.0.0-rc.1
 
 - **A layout with an integer attribute is a refused pipeline, not a
-  throw.** `createPipeline` reports a `PipelineRefused` with
+  throw.** `createPipeline` reports a `PipelineRefusedException` with
   `PipelineRefusalReason.unsupportedFormat` to
   `GraphicsDevice.pipelineRefusals`, left refused at once, and the draws
   with it draw nothing. It threw an `UnsupportedError`, which failed every

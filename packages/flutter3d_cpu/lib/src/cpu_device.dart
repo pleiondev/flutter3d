@@ -751,7 +751,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     ];
     if (unreadable.isNotEmpty) {
       final attribute = unreadable.first;
-      final refusal = PipelineRefused(
+      final refusal = PipelineRefusedException(
         pipeline: name,
         backend: cpuBackendName,
         reason: PipelineRefusalReason.unsupportedFormat,

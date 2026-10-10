@@ -32,8 +32,8 @@ FakePass _frame(FakeBackend device, PipelineHandle good, PipelineHandle bad) {
   return pass;
 }
 
-PipelineRefused _refusal([String pipeline = 'MeshVertex+Bad']) =>
-    PipelineRefused(
+PipelineRefusedException _refusal([String pipeline = 'MeshVertex+Bad']) =>
+    PipelineRefusedException(
       pipeline: pipeline,
       backend: 'test',
       reason: PipelineRefusalReason.link,
@@ -58,9 +58,9 @@ void main() {
     });
   });
 
-  group('PipelineRefused', () {
+  group('PipelineRefusedException', () {
     test('is a resource exception naming the pipeline, backend and reason', () {
-      const refusal = PipelineRefused(
+      const refusal = PipelineRefusedException(
         pipeline: 'MeshVertex+Pbr',
         backend: 'Impeller',
         reason: PipelineRefusalReason.link,
@@ -108,10 +108,10 @@ void main() {
       final refusals = PipelineRefusals();
       expect(refusals.report(pipeline, _refusal(), retry: false), isFalse);
       expect(refusals.isRefused(pipeline), isTrue);
-      expect(refusals.take(), hasLength(1));
+      expect(refusals.drain(), hasLength(1));
     });
 
-    test('tells each pipeline once, and take drains what it told', () {
+    test('tells each pipeline once, and drain empties what it told', () {
       // Mutation: queue every report rather than the first, and a refused
       // pipeline is told on every frame that skips it.
       final device = FakeBackend();
@@ -122,24 +122,24 @@ void main() {
         ..report(a, _refusal('MeshVertex+A'))
         ..report(a, _refusal('MeshVertex+A'))
         ..report(b, _refusal('MeshVertex+B'));
-      expect(refusals.take().map((r) => r.pipeline), <String>[
+      expect(refusals.drain().map((r) => r.pipeline), <String>[
         'MeshVertex+A',
         'MeshVertex+B',
       ]);
-      expect(refusals.take(), isEmpty);
+      expect(refusals.drain(), isEmpty);
       refusals.report(a, _refusal('MeshVertex+A'));
-      expect(refusals.take(), isEmpty);
+      expect(refusals.drain(), isEmpty);
       expect(refusals.refusalOf(a)?.pipeline, 'MeshVertex+A');
     });
 
-    test('a device that never reports has nothing to take', () {
+    test('a device that never reports has nothing to drain', () {
       // The default an outside backend inherits: an empty record, which
       // reads as every pipeline built.
       final device = FakeBackend();
       final vertex = device.shaders['MeshVertex']!;
       final good = device.createPipeline(vertex, device.shaders['Good']!);
       _frame(device, good, good);
-      expect(device.pipelineRefusals.take(), isEmpty);
+      expect(device.pipelineRefusals.drain(), isEmpty);
     });
   });
 
@@ -153,11 +153,11 @@ void main() {
       final good = device.createPipeline(vertex, device.shaders['Good']!);
       final bad = device.createPipeline(vertex, device.shaders['Bad']!);
 
-      final told = <PipelineRefused>[];
+      final told = <PipelineRefusedException>[];
       for (var frame = 0; frame < 10; frame++) {
         final pass = _frame(device, good, bad);
         expect(pass.drawCount, 2, reason: 'frame $frame');
-        told.addAll(device.pipelineRefusals.take());
+        told.addAll(device.pipelineRefusals.drain());
       }
       expect(told, hasLength(1));
       expect(told.single.pipeline, 'MeshVertex+Bad');
@@ -200,7 +200,7 @@ void main() {
       expect(_frame(device, good, bad).drawCount, 2);
       expect(_frame(device, good, bad).drawCount, 3);
       expect(_frame(device, good, bad).drawCount, 3);
-      expect(device.pipelineRefusals.take(), hasLength(1));
+      expect(device.pipelineRefusals.drain(), hasLength(1));
       expect(device.pipelineRefusals.isRefused(bad), isFalse);
       expect(device.pipelineBuilds['MeshVertex+Bad'], 2);
     });

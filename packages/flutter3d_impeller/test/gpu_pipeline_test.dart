@@ -38,7 +38,7 @@ void main() {
     });
 
     expect(pipeline.linked(handle, refusals, deviceLost: false), isNull);
-    expect(refusals.take().single.reason, PipelineRefusalReason.link);
+    expect(refusals.drain().single.reason, PipelineRefusalReason.link);
     expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked');
     expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked');
     expect(builds, 2);
@@ -64,7 +64,7 @@ void main() {
       deviceLost: false,
     );
     expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked 2');
-    final told = refusals.take().single;
+    final told = refusals.drain().single;
     expect(told.pipeline, 'MeshVertex+Pbr');
     expect(told.backend, 'Impeller');
     expect(told.detail, contains('Failed to append drawIndexed'));
@@ -86,7 +86,7 @@ void main() {
     }
     expect(builds, PipelineRefusals.maxBuilds);
     expect(refusals.isRefused(handle), isTrue);
-    expect(refusals.take(), hasLength(1));
+    expect(refusals.drain(), hasLength(1));
   });
 
   test('a linked pipeline the record leaves refused is not bound', () {
@@ -102,7 +102,7 @@ void main() {
     expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked');
     refusals.report(
       handle,
-      const PipelineRefused(
+      const PipelineRefusedException(
         pipeline: 'MeshVertex+Pbr',
         backend: 'test',
         reason: PipelineRefusalReason.other,
@@ -120,7 +120,7 @@ void main() {
       'MeshVertex+Pbr',
       () => throw Exception('Failed to create pipeline'),
     ).linked(handle, refusals, deviceLost: true);
-    expect(refusals.take().single.reason, PipelineRefusalReason.deviceLost);
+    expect(refusals.drain().single.reason, PipelineRefusalReason.deviceLost);
   });
 
   test('only a refused draw is taken for a link failure', () {

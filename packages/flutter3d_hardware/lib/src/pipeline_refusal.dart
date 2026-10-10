@@ -23,7 +23,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 
 import 'shader.dart';
 
-/// Why a backend refused a pipeline — [PipelineRefused.reason].
+/// Why a backend refused a pipeline — [PipelineRefusedException.reason].
 ///
 /// **An open set**: a backend from outside this repository, or a later minor,
 /// may name a reason this version does not, so a `switch` over it ends with a
@@ -87,8 +87,8 @@ final class PipelineRefusalReason {
 /// `FrameResult.pipelineRefusals`, once per pipeline. It is an exception
 /// rather than a plain record so that a caller who builds a pipeline by hand
 /// and wants to fail on a refusal can throw the very thing it was told.
-final class PipelineRefused extends ResourceException {
-  const PipelineRefused({
+final class PipelineRefusedException extends ResourceException {
+  const PipelineRefusedException({
     required this.pipeline,
     required this.backend,
     required this.reason,
@@ -120,8 +120,8 @@ final class PipelineRefused extends ResourceException {
 
   @override
   String toString() => cause == null
-      ? 'PipelineRefused: $message'
-      : 'PipelineRefused: $message (caused by $cause)';
+      ? 'PipelineRefusedException: $message'
+      : 'PipelineRefusedException: $message (caused by $cause)';
 }
 
 /// One device's record of the pipelines its backend could not build —
@@ -134,7 +134,7 @@ final class PipelineRefused extends ResourceException {
 /// again at the pipeline's next use; once it is false, [isRefused] is true
 /// and every draw with the pipeline is skipped without a build.
 ///
-/// **What the engine does with it.** The renderer [take]s what was reported
+/// **What the engine does with it.** The renderer [drain]s what was reported
 /// at the end of each frame and puts it on the frame's result, so each
 /// refusal is told once, on the frame that met it.
 ///
@@ -155,11 +155,11 @@ final class PipelineRefusals {
   final Expando<_Refusals> _byPipeline = Expando<_Refusals>(
     'pipeline refusals',
   );
-  final List<PipelineRefused> _untold = <PipelineRefused>[];
+  final List<PipelineRefusedException> _untold = <PipelineRefusedException>[];
 
   /// Records that [pipeline] would not build, for [refusal]'s reason.
   ///
-  /// The first refusal of a pipeline is kept for [take]; a later one is
+  /// The first refusal of a pipeline is kept for [drain]; a later one is
   /// counted and not told again. Answers whether the backend may build the
   /// pipeline once more at its next use — false from the [maxBuilds]th
   /// failure on, when the pipeline is left refused.
@@ -170,7 +170,7 @@ final class PipelineRefusals {
   /// fail.
   bool report(
     PipelineHandle pipeline,
-    PipelineRefused refusal, {
+    PipelineRefusedException refusal, {
     bool retry = true,
   }) {
     final refusals = _byPipeline[pipeline] ??= _Refusals(refusal);
@@ -189,14 +189,14 @@ final class PipelineRefusals {
 
   /// The first refusal reported for [pipeline], or null when it was never
   /// refused.
-  PipelineRefused? refusalOf(PipelineHandle pipeline) =>
+  PipelineRefusedException? refusalOf(PipelineHandle pipeline) =>
       _byPipeline[pipeline]?.first;
 
   /// The refusals reported since the last call, one per pipeline, oldest
   /// first. Each is answered once.
-  List<PipelineRefused> take() {
-    if (_untold.isEmpty) return const <PipelineRefused>[];
-    final taken = List<PipelineRefused>.unmodifiable(_untold);
+  List<PipelineRefusedException> drain() {
+    if (_untold.isEmpty) return const <PipelineRefusedException>[];
+    final taken = List<PipelineRefusedException>.unmodifiable(_untold);
     _untold.clear();
     return taken;
   }
@@ -206,6 +206,6 @@ final class PipelineRefusals {
 final class _Refusals {
   _Refusals(this.first);
 
-  final PipelineRefused first;
+  final PipelineRefusedException first;
   int failures = 0;
 }

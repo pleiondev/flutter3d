@@ -2,7 +2,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show PipelineRefused;
+    show PipelineRefusedException;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show BusEvent, EventDigestSink, EventRegistry;
 
@@ -61,7 +61,7 @@ final class RenderListener {
   /// [stalled]: a pipeline the device would not build, whose draws the
   /// frame skipped. Once per pipeline over the renderer's life, so a
   /// listener can log it as it comes.
-  final void Function(PipelineRefused refusal)? refused;
+  final void Function(PipelineRefusedException refusal)? refused;
 
   /// Called once for each entry of [FrameResult.pipelineStalls], before
   /// [skipped]: a pipeline build over `FramePacing.stallThreshold`, with the
@@ -179,7 +179,7 @@ final class FramePassSkipped extends BusEvent {
 final class FramePipelineRefused extends BusEvent {
   const FramePipelineRefused(this.refusal);
 
-  final PipelineRefused refusal;
+  final PipelineRefusedException refusal;
 
   @override
   String get name => 'render.pipelineRefused';

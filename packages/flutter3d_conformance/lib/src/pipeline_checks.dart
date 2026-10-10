@@ -178,10 +178,10 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
     'a skipped draw from a refused build',
   );
   refusals
-    ..take()
+    ..drain()
     ..report(
       refused,
-      PipelineRefused(
+      PipelineRefusedException(
         pipeline: refused.name,
         backend: device.backendName,
         reason: PipelineRefusalReason.other,
@@ -200,7 +200,7 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
   final identity = Float32List.fromList(Matrix4.identity().storage);
 
-  final told = <PipelineRefused>[];
+  final told = <PipelineRefusedException>[];
   for (var frame = 0; frame < 4; frame++) {
     final target = device.createTexture(
       const RenderTargetDescriptor(
@@ -234,7 +234,7 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
         ..draw();
     }
     pass.submit();
-    told.addAll(refusals.take());
+    told.addAll(refusals.drain());
 
     final pixels = (await device.readback(target)).buffer.asUint8List();
     final at = ((size ~/ 2) * size + size ~/ 2) * 4;
@@ -254,6 +254,6 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
   require(
     told.length == 1 && told.single.pipeline == refused.name,
     'the refusal was told ${told.length} times over four passes: each '
-    'pipeline is told once, at the first take after it was refused',
+    'pipeline is told once, at the first drain after it was refused',
   );
 }

@@ -37,7 +37,7 @@ void main() {
       device.shaders['Unlit']!,
       layout: _integerJoints,
     );
-    final told = device.pipelineRefusals.take().single;
+    final told = device.pipelineRefusals.drain().single;
     expect(told.pipeline, 'MeshVertex+Unlit');
     expect(told.reason, PipelineRefusalReason.unsupportedFormat);
     expect(told.backend, device.backendName);

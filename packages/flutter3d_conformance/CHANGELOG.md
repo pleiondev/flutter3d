@@ -4,7 +4,7 @@
   shader check that refuses a pipeline through
   `GraphicsDevice.pipelineRefusals` and holds the backend to it over four
   passes: the refused pipeline's draws are skipped, the draw before them in
-  the same pass still lands, and the refusal is taken once. `a stage pair
+  the same pass still lands, and the refusal is drained once. `a stage pair
   the engine links does link` asks the record as well as the call, since a
   refused link is reported rather than thrown.
 - **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a

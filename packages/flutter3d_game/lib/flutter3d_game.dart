@@ -393,7 +393,7 @@ export 'package:flutter3d/flutter3d.dart'
         PipelineHandle,
         PipelineRefusalReason,
         PipelineRefusals,
-        PipelineRefused,
+        PipelineRefusedException,
         PipelineStall,
         PlainModelDocument,
         PlanarReflectionSettings,

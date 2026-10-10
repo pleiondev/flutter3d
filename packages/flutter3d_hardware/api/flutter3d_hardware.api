@@ -654,17 +654,17 @@ final class PipelineRefusalReason
   static const PipelineRefusalReason unsupportedFormat = PipelineRefusalReason._('unsupportedFormat')
 
 final class PipelineRefusals
-  List<PipelineRefused> take()
-  PipelineRefused? refusalOf(PipelineHandle pipeline)
+  List<PipelineRefusedException> drain()
+  PipelineRefusedException? refusalOf(PipelineHandle pipeline)
   bool isRefused(PipelineHandle pipeline)
-  bool report(PipelineHandle pipeline, PipelineRefused refusal, {bool retry = true})
+  bool report(PipelineHandle pipeline, PipelineRefusedException refusal, {bool retry = true})
   int failuresOf(PipelineHandle pipeline)
   static const int maxBuilds = 3
 
-final class PipelineRefused extends ResourceException
+final class PipelineRefusedException extends ResourceException
   String get message
   String toString()
-  const PipelineRefused({required this.pipeline, required this.backend, required this.reason, this.detail = '', this.cause})
+  const PipelineRefusedException({required this.pipeline, required this.backend, required this.reason, this.detail = '', this.cause})
   final Object? cause
   final PipelineRefusalReason reason
   final String backend

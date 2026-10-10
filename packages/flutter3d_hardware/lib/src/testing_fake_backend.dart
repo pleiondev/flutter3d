@@ -746,7 +746,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     }
     pipelineRefusals.report(
       pipeline,
-      PipelineRefused(
+      PipelineRefusedException(
         pipeline: pipeline.name,
         backend: _name,
         reason: PipelineRefusalReason.link,

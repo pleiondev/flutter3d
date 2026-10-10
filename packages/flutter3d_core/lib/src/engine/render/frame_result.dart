@@ -198,7 +198,7 @@ final class FrameResult {
       msaaDeclined: null,
     ),
     this.pipelineStalls = const <PipelineStall>[],
-    this.pipelineRefusals = const <PipelineRefused>[],
+    this.pipelineRefusals = const <PipelineRefusedException>[],
     this.held = false,
   });
 
@@ -212,7 +212,7 @@ final class FrameResult {
   /// draws for good after that, without telling this list again. Empty on
   /// every frame of a device whose driver builds everything, and on every
   /// frame of a backend that does not report.
-  final List<PipelineRefused> pipelineRefusals;
+  final List<PipelineRefusedException> pipelineRefusals;
 
   /// Pipelines this frame built that took longer than
   /// `FramePacing.stallThreshold`, each with the material and geometry that

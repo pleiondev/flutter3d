@@ -48,11 +48,11 @@ void main() {
           ..setPosition(1.0, 0.0, -5.0),
       )
       ..add(CameraNode());
-    final told = <PipelineRefused>[];
+    final told = <PipelineRefusedException>[];
     final renderer = Renderer.create(device: device)
       ..listener = RenderListener(refused: told.add);
 
-    final perFrame = <List<PipelineRefused>>[];
+    final perFrame = <List<PipelineRefusedException>>[];
     for (var frame = 0; frame < 12; frame++) {
       final before = device.passes.length;
       final result = renderer.render(
@@ -79,7 +79,7 @@ void main() {
     // published.
     final published = <Object>[];
     final listener = RenderListener(refused: published.add);
-    const refusal = PipelineRefused(
+    const refusal = PipelineRefusedException(
       pipeline: _refused,
       backend: 'FakeBackend',
       reason: PipelineRefusalReason.link,
@@ -107,7 +107,7 @@ void main() {
       pipelines: 1,
       shadowCasters: 0,
       skinnedDraws: 0,
-      pipelineRefusals: const <PipelineRefused>[refusal],
+      pipelineRefusals: const <PipelineRefusedException>[refusal],
     );
     listener.notify(result);
     expect(published, <Object>[refusal]);
@@ -115,6 +115,8 @@ void main() {
     // A held frame repeats the result it stands for, and tells nothing.
     listener.notify(result.toHeld());
     expect(published, hasLength(1));
-    expect(result.toHeld().pipelineRefusals, <PipelineRefused>[refusal]);
+    expect(result.toHeld().pipelineRefusals, <PipelineRefusedException>[
+      refusal,
+    ]);
   });
 }

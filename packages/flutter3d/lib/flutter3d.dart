@@ -643,7 +643,7 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart'
         PipelineHandle,
         PipelineRefusalReason,
         PipelineRefusals,
-        PipelineRefused,
+        PipelineRefusedException,
         PolygonMode,
         PrimitiveType,
         QuerySet,

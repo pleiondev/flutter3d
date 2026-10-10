@@ -1,6 +1,6 @@
 ## 1.0.0-rc.1
 
-- **`PipelineRefused`, `PipelineRefusalReason`, `PipelineRefusals` and
+- **`PipelineRefusedException`, `PipelineRefusalReason`, `PipelineRefusals` and
   `FramePipelineRefused` are exported**: a pipeline the device will not
   build is skipped and told once on `FrameResult.pipelineRefusals`, rather
   than failing every frame.
