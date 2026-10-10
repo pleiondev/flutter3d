@@ -123,11 +123,19 @@ final class ComputeRefusalReason {
     'kernelRefused',
   );
 
+  /// Nothing has placed the step yet: a frame-graph step is placed before
+  /// the frame (`ComputeStep.prepare`), because loading a kernel waits on
+  /// the device and a frame does not.
+  static const ComputeRefusalReason notPlaced = ComputeRefusalReason._(
+    'notPlaced',
+  );
+
   /// Every reason this version names. A later version appends.
   static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[
     noExecutor,
     placementUnavailable,
     kernelRefused,
+    notPlaced,
   ];
 
   /// The reason called [name], or null for one this version does not know.
@@ -190,6 +198,7 @@ final class ComputePlacementRefused extends CapabilityException {
       ComputeRefusalReason.placementUnavailable =>
         'that executor is missing or has no compute',
       ComputeRefusalReason.kernelRefused => 'its kernel did not load there',
+      ComputeRefusalReason.notPlaced => 'nothing has placed it yet',
       _ => reason.name,
     };
     return '$what: $why${tried.isEmpty ? '' : ' (${tried.join('; ')})'}';
