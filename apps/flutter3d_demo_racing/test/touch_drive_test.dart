@@ -43,7 +43,7 @@ void main() {
     final game = File('lib/main.dart').readAsStringSync();
     expect(
       game,
-      contains("corner: const TouchAction(Drive.tyres, 'pit')"),
+      contains("corner: const TouchAction(Drive.tireSet, 'pit')"),
       reason: 'no way to call a pit stop',
     );
   });

@@ -100,9 +100,11 @@ void main() {
         simulation: racingSimulationVersion,
       ),
     );
+    // The relay holds the simulation's description, as `WireHello` carries
+    // it, where it once held the folded number below.
     expect(
       address.queryParameters['simulation'],
-      '${NetRaceSession.relayVersion}',
+      racingSimulationVersion.describe(),
     );
     expect(address.pathSegments, <String>['room', 'ABCDE']);
     // Mutation: fold only the genre's number in. A new engine version that

@@ -25,18 +25,25 @@ EffectDocument _read(String name) =>
 /// [effect] started at a torch's height and stepped [seconds] a frame at a
 /// time, in a world pulling down at [gravity]: position, colour and size of
 /// every live particle.
+///
+/// A burning effect is stepped 0.6 s by default; a burst for half its
+/// shortest life, while every particle it threw is still alive. Stepped as
+/// long as the torch, the blast's core, the sparks, the splinters and the
+/// splash, none of which lives past 0.6 s, were all gone, and two empty
+/// lists agree whatever the documents said.
 Float32List _run(
   ParticleEffect effect, {
   required bool burning,
-  double seconds = 0.6,
+  double? seconds,
   double gravity = 9.81,
 }) {
+  final window = seconds ?? (burning ? 0.6 : effect.lifetime.min / 2.0);
   final system = ParticleSystem(capacity: 2048, seed: 11)..gravity = gravity;
   final at = Vector3(1.0, 1.5, -2.0);
   final up = Vector3(0.0, 1.0, 0.0);
   if (!burning) system.burst(effect, at, direction: up);
   final key = Object();
-  for (var t = 0.0; t < seconds; t += 1.0 / 60.0) {
+  for (var t = 0.0; t < window; t += 1.0 / 60.0) {
     if (burning) system.emit(key, effect, at, perSecond: 150.0, direction: up);
     system.advance(1.0 / 60.0);
   }

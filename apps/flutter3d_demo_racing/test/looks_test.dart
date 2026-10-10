@@ -90,7 +90,7 @@ void main() {
       expect(chassis.material.baseColor, equals(color));
       // White, because `baseColor` multiplies the atlas and one is the tint
       // that changes nothing.
-      expect(tyre.material.baseColor, equals(Vector4(1.0, 1.0, 1.0, 1.0)));
+      expect(tyre.material.baseColor, equals(LinearColor.white));
     });
 
     test('and painting it twice leaves the colour asked for', () {
@@ -152,7 +152,7 @@ void main() {
 
       Looks.paint(<MeshNode>[mine], Looks.carPaint(1));
 
-      expect(theirs.material.baseColor, equals(Vector4(1.0, 1.0, 1.0, 1.0)));
+      expect(theirs.material.baseColor, equals(LinearColor.white));
     });
   });
 }

@@ -214,12 +214,15 @@ void main() {
     expect(storage.documents.keys, contains('ghost-ring.json'));
   });
 
-  test('and a file that will not read costs a lap, not the game', () {
+  test('and a file that will not read costs a lap, not the game', () async {
     final storage = _Storage();
     storage.documents['ghost-ring.json'] = 'this is not a lap';
 
+    // `load` reads through `Storage`, which is asynchronous: what it leaves
+    // behind is only there once it has completed, and completing rather than
+    // failing is the "not the game" half.
     final keeper = _keeper(storage);
-    expect(keeper.load, returnsNormally);
+    await expectLater(keeper.load(), completes);
 
     expect(keeper.best, isNull);
     expect(

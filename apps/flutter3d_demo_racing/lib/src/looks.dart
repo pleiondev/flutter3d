@@ -69,7 +69,10 @@ abstract final class Looks {
   ///
   /// One list, read by both, so a rival does not change colour at the moment
   /// its model arrives — the box it replaces was already wearing this.
-  static Vector4 carPaint(int index) {
+  ///
+  /// The palette is written sRGB-encoded, as a painter picks it, and handed
+  /// out as the linear colour a material holds.
+  static LinearColor carPaint(int index) {
     const palette = <List<double>>[
       <double>[0.85, 0.16, 0.12],
       <double>[0.12, 0.35, 0.85],
@@ -78,7 +81,7 @@ abstract final class Looks {
       <double>[0.70, 0.20, 0.75],
     ];
     final color = palette[index % palette.length];
-    return Vector4(color[0], color[1], color[2], 1.0);
+    return LinearColor.fromSrgb(color[0], color[1], color[2]);
   }
 
   /// What a car is before its model has loaded.
@@ -89,7 +92,7 @@ abstract final class Looks {
   /// is only ever seen for a moment still has to be the right colour, or the
   /// field appears to change livery as it loads.
   static RenderMaterial rival(int index) => RenderMaterial(
-    baseColor: _fromSrgb(carPaint(index)),
+    baseColor: carPaint(index),
     roughness: 0.4,
     metallic: 0.2,
     lighting: LightingModel.pbr,
@@ -113,10 +116,10 @@ abstract final class Looks {
   /// Set rather than multiplied, so that painting the same instance twice
   /// leaves it the colour asked for instead of a darker one. Nothing does that
   /// today; it is a cheap property to have and an unpleasant bug to find.
-  static void paint(List<MeshNode> meshes, Vector4 color) {
+  static void paint(List<MeshNode> meshes, LinearColor color) {
     for (final mesh in meshes) {
       if (isBodywork(mesh.material.name)) {
-        mesh.material.baseColor = _fromSrgb(color);
+        mesh.material.baseColor = color;
       }
     }
   }
@@ -191,6 +194,3 @@ MeshNode carBox(
   material,
   name: name,
 );
-
-/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
-LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

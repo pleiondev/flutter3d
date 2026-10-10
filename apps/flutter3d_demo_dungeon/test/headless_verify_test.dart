@@ -128,7 +128,15 @@ void main() {
       extra: const <EntityKind>[WidgetSurfaceKind()],
       dress: clips.hangOn,
     );
-    final found = resimulate(game: game, level: document, demo: sent);
+    // On the physics it was recorded on, as a host replays it: `resimulate`
+    // runs the Dart backend unless told otherwise, and refuses a native run
+    // there rather than reporting a divergence nobody could explain.
+    final found = resimulate(
+      game: game,
+      level: document,
+      demo: sent,
+      physics: usePhysics(),
+    );
     // Mutation: `ShooterHeadlessGame.start` standing no crypt — the fresh
     // run starts with no elements and is `ResimulationStartDiffers`.
     // Mutation: `dress` left out — the headless monsters have no strides
