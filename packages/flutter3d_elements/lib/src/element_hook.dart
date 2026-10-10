@@ -3,7 +3,13 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show WorldPositionVector;
+    show
+        Capability,
+        Quantity,
+        Unit,
+        UnitMismatchException,
+        UnsupportedCapability,
+        WorldPositionVector;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:vector_math/vector_math.dart';
@@ -40,67 +46,178 @@ extension type const ElementBody(int id) {
 /// [WorldPosition]s, in the world; directions, velocities and forces are
 /// float32 vectors.
 ///
-/// Made by the engine: `base`, so a member added later arrives with a
-/// default.
+/// **Extended outside this package: an `abstract base class` with a body
+/// for every member.** A backend overrides what its world has; anything
+/// else is refused with an [UnsupportedCapability] naming the member, so a
+/// member added in a minor breaks no backend written against 1.0, and a
+/// backend with no water says so when water is asked for rather than
+/// failing to compile.
+///
+/// **By quantity, too** ([quantityOf], [addQuantity]): a field named by a
+/// [FieldQuantity] and carried as a foundation [Quantity], in its unit. The
+/// fields above answer through it by default; a field this class has no
+/// member for — humidity, pressure, a concentration — arrives as a new
+/// [FieldQuantity] a backend answers, without a new member here.
 abstract base class ElementFields {
   const ElementFields();
+
+  /// The refusal of [member], which this backend does not answer.
+  UnsupportedCapability _refuse(String member) => UnsupportedCapability(
+    _Member('ElementFields.$member'),
+    backend: '$runtimeType',
+  );
 
   // Air and wind.
 
   /// The air's temperature, K: kelvins, degrees Celsius plus 273.15.
-  double get airTemperature;
+  double get airTemperature => throw _refuse('airTemperature');
 
   /// The air's density, kg/m³.
-  double get airDensity;
+  double get airDensity => throw _refuse('airDensity');
 
   /// The wind at [at], m/s.
-  Vector3 windAt(WorldPosition at);
+  Vector3 windAt(WorldPosition at) => throw _refuse('windAt');
 
   /// The wind everywhere, unless a wind grid says otherwise.
-  set wind(Vector3 value);
+  set wind(Vector3 value) => throw _refuse('wind');
 
   // Heat.
 
   /// [body]'s mean temperature, K.
-  double temperatureOf(ElementBody body);
+  double temperatureOf(ElementBody body) => throw _refuse('temperatureOf');
 
   /// [body]'s surface temperature over the last step, K.
-  double surfaceTemperatureOf(ElementBody body);
+  double surfaceTemperatureOf(ElementBody body) =>
+      throw _refuse('surfaceTemperatureOf');
 
-  void setTemperature(ElementBody body, double kelvin);
+  void setTemperature(ElementBody body, double kelvin) =>
+      throw _refuse('setTemperature');
 
   /// Joules into [body] over the next step, or out of it.
-  void addHeat(ElementBody body, double joules);
+  void addHeat(ElementBody body, double joules) => throw _refuse('addHeat');
 
   /// Joules into [body] where [point] is.
-  void addHeatAt(ElementBody body, WorldPosition point, double joules);
+  void addHeatAt(ElementBody body, WorldPosition point, double joules) =>
+      throw _refuse('addHeatAt');
 
   // Water.
 
   /// Kilograms of water on [body].
-  double waterOf(ElementBody body);
+  double waterOf(ElementBody body) => throw _refuse('waterOf');
 
   /// Kilograms of water onto [body], or off it.
-  void addWater(ElementBody body, double kilograms);
+  void addWater(ElementBody body, double kilograms) =>
+      throw _refuse('addWater');
 
   // Forces.
 
   /// A force on [body] over the next step, N.
-  void addForce(ElementBody body, Vector3 force);
+  void addForce(ElementBody body, Vector3 force) => throw _refuse('addForce');
 
   /// An impulse on [body] now, N s, at [at] or through its middle.
-  void applyImpulse(ElementBody body, Vector3 impulse, {WorldPosition? at});
+  void applyImpulse(ElementBody body, Vector3 impulse, {WorldPosition? at}) =>
+      throw _refuse('applyImpulse');
 
   /// Where [body] is, in the world.
-  WorldPosition positionOf(ElementBody body);
+  WorldPosition positionOf(ElementBody body) => throw _refuse('positionOf');
 
   /// [body]'s velocity, m/s.
-  Vector3 velocityOf(ElementBody body);
+  Vector3 velocityOf(ElementBody body) => throw _refuse('velocityOf');
 
   /// The bodies whose boxes meet the box from [lo] to [hi]: for whoever
   /// writes an element that acts on a region — a gust over a field, frost
   /// creeping across a floor.
-  List<ElementBody> bodiesIn(WorldPosition lo, WorldPosition hi);
+  List<ElementBody> bodiesIn(WorldPosition lo, WorldPosition hi) =>
+      throw _refuse('bodiesIn');
+
+  // By quantity.
+
+  /// [quantity] of [body], in the quantity's unit.
+  ///
+  /// By default [FieldQuantity.temperature] is [temperatureOf],
+  /// [FieldQuantity.surfaceTemperature] [surfaceTemperatureOf] and
+  /// [FieldQuantity.water] [waterOf]; anything else is refused with an
+  /// [UnsupportedCapability] naming it. A backend with more fields answers
+  /// them here and hands the rest to `super`.
+  Quantity quantityOf(ElementBody body, FieldQuantity quantity) =>
+      Quantity(switch (quantity) {
+        FieldQuantity.temperature => temperatureOf(body),
+        FieldQuantity.surfaceTemperature => surfaceTemperatureOf(body),
+        FieldQuantity.water => waterOf(body),
+        _ => throw UnsupportedCapability(quantity, backend: '$runtimeType'),
+      }, quantity.unit);
+
+  /// [amount] of [quantity] into [body] over the next step, or out of it.
+  ///
+  /// [amount] is taken in its own unit and converted to the quantity's; one
+  /// that measures something else is refused with a
+  /// [UnitMismatchException]. By default [FieldQuantity.heat] is [addHeat]
+  /// and [FieldQuantity.water] [addWater]; anything else is refused with an
+  /// [UnsupportedCapability] naming it.
+  void addQuantity(ElementBody body, FieldQuantity quantity, Quantity amount) =>
+      switch (quantity) {
+        FieldQuantity.heat => addHeat(body, amount.valueIn(quantity.unit)),
+        FieldQuantity.water => addWater(body, amount.valueIn(quantity.unit)),
+        _ => throw UnsupportedCapability(quantity, backend: '$runtimeType'),
+      };
+}
+
+/// A field of the elements' world an element reads or adds to by name: what
+/// it is, and the unit [ElementFields] keeps it in.
+///
+/// **An open set**: the constants are the fields every backend of 1.0 has,
+/// and a backend with humidity, pressure or a concentration names its own
+/// (`FieldQuantity('humidity', Unit.percent)`) and answers it in
+/// [ElementFields.quantityOf]. Two are the same field when their [name]s
+/// are. A [Capability], so a backend that lacks one refuses it by name.
+final class FieldQuantity extends Capability {
+  const FieldQuantity(this.name, this.unit);
+
+  /// A body's mean temperature, in kelvin.
+  static const FieldQuantity temperature = FieldQuantity(
+    'temperature',
+    Unit.kelvin,
+  );
+
+  /// A body's surface temperature over the last step, in kelvin.
+  static const FieldQuantity surfaceTemperature = FieldQuantity(
+    'surfaceTemperature',
+    Unit.kelvin,
+  );
+
+  /// Heat into or out of a body, in joules: added, not read.
+  static const FieldQuantity heat = FieldQuantity('heat', Unit.joule);
+
+  /// Water on a body, in kilograms.
+  static const FieldQuantity water = FieldQuantity('water', Unit.kilogram);
+
+  /// The field's word in a file and a refusal.
+  @override
+  final String name;
+
+  /// The unit [ElementFields] reads and adds it in.
+  final Unit unit;
+
+  @override
+  String? get askedBy => 'ElementFields.quantityOf';
+
+  @override
+  bool operator ==(Object other) =>
+      other is FieldQuantity && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => 'FieldQuantity($name, ${unit.symbol})';
+}
+
+/// A member of [ElementFields] as the capability a backend refuses.
+final class _Member extends Capability {
+  const _Member(this.name);
+
+  @override
+  final String name;
 }
 
 /// The physics core's world as [ElementFields], with what only the core

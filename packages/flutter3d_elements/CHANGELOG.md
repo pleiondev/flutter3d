@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **`ElementFields` has a body for every member**: what a backend does not
+  override is refused with an `UnsupportedCapability` naming the member,
+  so a member added in a minor breaks no backend.
+- **Fields by quantity.** `ElementFields.quantityOf(body, FieldQuantity)`
+  reads a field as a foundation `Quantity` in its unit, and `addQuantity`
+  adds one in any unit of the same dimension (a `UnitMismatchException`
+  otherwise). `FieldQuantity` is an open set — `temperature`,
+  `surfaceTemperature`, `heat` and `water` to begin with — so humidity,
+  pressure or a concentration arrive as a backend's own quantity, not as a
+  new member.
+- **`ElementExploded` mixes `PlacedEvent` in** (`with`), which foundation
+  made a `base mixin class`.
+
 - **The first release: the elements' simulation, out of
   `flutter3d_effects`.** `ElementsSimulation`, `Fires`, `Igniter`,
   `WaterBody`, `Follower`, `TrackedBody`, `Solid`, `Bed`,
