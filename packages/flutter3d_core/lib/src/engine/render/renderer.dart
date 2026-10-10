@@ -3005,6 +3005,10 @@ final class Renderer with RenderServices {
   final List<int?> _faceSignatures = <int?>[];
   final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
+  /// The graph [_compileFrameGraph] fills each frame, kept so a frame that
+  /// asks what the last one did gets the last compile back.
+  final FrameGraph _frameGraph = FrameGraph();
+
   /// The frame, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
@@ -3311,7 +3315,10 @@ final class Renderer with RenderServices {
         }
       }
     }
-    final graph = FrameGraph();
+    // One graph for every frame, cleared and filled again: a frame that
+    // registers what the last one did is not compiled again (see
+    // `FrameGraph.compile`).
+    final graph = _frameGraph..clear();
     for (final node in schedule.ordered()) {
       graph.addNode(node);
     }

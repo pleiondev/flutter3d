@@ -8,6 +8,13 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **A frame graph is compiled once while nothing changes.**
+  `FrameGraph.compile` gives the last compile back when the nodes (by
+  name, declarations, `isActive` and `isSupported`), the externals, the
+  outputs and the switched-off passes are what they were: the same object
+  for the same nodes, the same order over this frame's nodes otherwise. The
+  renderer keeps one graph, cleared and filled each frame, so a steady
+  frame skips the search over every declaration.
 - **A held frame keeps its pipeline stalls.** `FrameResult.toHeld` copied
   every field but `pipelineStalls`, so the frame handed back while the GPU
   was behind reported none where the frame it repeats had some.
