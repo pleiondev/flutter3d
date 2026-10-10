@@ -101,8 +101,18 @@ void main(List<String> args) {
         name: File('${dir.path}/api/$name.api').readAsStringSync(),
   };
 
+  // One `fix_data.yaml` per package holds the transforms of every table, in
+  // the order a project crosses them.
+  final List<MigrationTable> chain;
+  try {
+    chain = MigrationTable.chain(tables);
+  } on StateError catch (e) {
+    stderr.writeln(e.message);
+    exitCode = 1;
+    return;
+  }
   final fixData = generateFixData(
-    tables,
+    chain,
     released: released,
     current: current,
     stamp: stamp,
@@ -115,13 +125,13 @@ void main(List<String> args) {
     for (final MapEntry(key: name, value: text) in fixData.files.entries)
       '${homes[name]!.path}/lib/fix_data.yaml': text,
     '${root.path}/packages/flutter3d_lints/lib/src/migration/table.g.dart':
-        generateLintsTable(tables, stamp: stamp),
+        generateLintsTable(chain, stamp: stamp),
   };
   final guide = File('${root.path}/site/content/reference/migrating-to-1.0.md');
   if (guide.existsSync()) {
     final spliced = spliceGuide(
       guide.readAsStringSync(),
-      generateGuideTable(tables),
+      generateGuideTable(chain),
     );
     if (spliced == null) {
       problems.add('${guide.path} has no $guideStart … $guideEnd markers');

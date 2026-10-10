@@ -138,9 +138,8 @@ final class MigrationTable {
     );
   }
 
-  /// The table that migrates from [from] (`0.8`, or `0.8.5`), shipped in
-  /// this package's `lib/migrations/`.
-  static Future<MigrationTable> shipped({String from = '0.8'}) async {
+  /// Every table shipped in this package's `lib/migrations/`, as a [chain].
+  static Future<List<MigrationTable>> shipped() async {
     final lib = await Isolate.resolvePackageUri(
       Uri.parse('package:flutter3d_build/migrations/'),
     );
@@ -148,14 +147,121 @@ final class MigrationTable {
       throw StateError('flutter3d_build is not resolvable from here');
     }
     final dir = Directory.fromUri(lib);
-    final wanted = from.split('.').take(2).join('.');
-    for (final file in dir.listSync().whereType<File>()) {
-      final name = file.uri.pathSegments.last;
-      if (name.startsWith('${wanted}_to_') && name.endsWith('.yaml')) {
-        return MigrationTable.parse(file.readAsStringSync(), source: file.path);
+    return chain(<MigrationTable>[
+      for (final file in dir.listSync().whereType<File>())
+        if (file.path.endsWith('.yaml'))
+          MigrationTable.parse(file.readAsStringSync(), source: file.path),
+    ]);
+  }
+
+  /// [tables] in the order a project crosses them: each one's `from` is the
+  /// one before's `to`. The file names do not decide it, since
+  /// `1.0.0-rc.10_to_…` sorts before `1.0.0-rc.2_to_…`.
+  ///
+  /// Throws a [StateError] naming the release where the chain breaks: a
+  /// table that starts where no other ends would leave a project on that
+  /// release with nothing to cross.
+  static List<MigrationTable> chain(Iterable<MigrationTable> tables) {
+    final ordered = tables.toList()
+      ..sort(
+        (MigrationTable a, MigrationTable b) => compareReleases(a.from, b.from),
+      );
+    for (var i = 1; i < ordered.length; i++) {
+      if (compareReleases(ordered[i - 1].to, ordered[i].from) != 0) {
+        throw StateError(
+          'the migration tables do not chain: one ends at '
+          '${ordered[i - 1].to} and the next starts at ${ordered[i].from}',
+        );
       }
     }
-    throw StateError('no migration table from $from in ${dir.path}');
+    return ordered;
+  }
+
+  /// The tables of [chain] a project on [release] still has to cross: every
+  /// one whose `to` is newer. A release the first table's `from` names only
+  /// by its minor (`0.8.3` under `from: 0.8.5`) crosses it too.
+  static List<MigrationTable> after(
+    String release,
+    List<MigrationTable> chain,
+  ) => <MigrationTable>[
+    for (final table in chain)
+      if (compareReleases(table.to, release) > 0) table,
+  ];
+
+  /// [chain] read as one table, the way a project several releases behind
+  /// crosses it in one run: the newest constraint and versions, every entry
+  /// in order, and renames and moved libraries followed to where they end,
+  /// so a package renamed twice goes straight to its last name.
+  static MigrationTable merge(List<MigrationTable> chain) {
+    if (chain.length == 1) return chain.single;
+    final renamed = <String, String>{
+      for (final table in chain) ...table.renamedPackages,
+    };
+    String follow(String name) {
+      final seen = <String>{name};
+      var at = name;
+      for (var next = renamed[at]; next != null && seen.add(next);) {
+        at = next;
+        next = renamed[at];
+      }
+      return at;
+    }
+
+    final composed = <String, String>{
+      for (final key in renamed.keys) key: follow(key),
+    };
+    final removed = <String, String>{
+      for (final table in chain) ...table.removedPackages,
+    };
+    for (final MapEntry(:key, :value) in composed.entries) {
+      if (removed[value] case final why?) removed[key] = why;
+    }
+    final last = chain.last;
+    final merged = MigrationTable(
+      format: last.format,
+      from: chain.first.from,
+      to: last.to,
+      guide: last.guide,
+      date: last.date,
+      constraint: last.constraint,
+      versions: <String, String>{for (final table in chain) ...table.versions},
+      renamedPackages: composed,
+      removedPackages: removed,
+      entries: <MigrationEntry>[for (final table in chain) ...table.entries],
+    );
+    // An import moved by one table and moved again, or renamed with its
+    // package, by a later one lands where the last one put it.
+    return MigrationTable(
+      format: merged.format,
+      from: merged.from,
+      to: merged.to,
+      guide: merged.guide,
+      date: merged.date,
+      constraint: merged.constraint,
+      versions: merged.versions,
+      renamedPackages: merged.renamedPackages,
+      removedPackages: merged.removedPackages,
+      entries: <MigrationEntry>[
+        for (final e in merged.entries)
+          if (e.kind == 'import' && e.to != null)
+            MigrationEntry(<String, Object?>{
+              ...e.fields,
+              'to': merged._settled(e.to!),
+            })
+          else
+            e,
+      ],
+    );
+  }
+
+  /// [uri] moved by [movedUri] until nothing moves it further.
+  String _settled(String uri) {
+    final seen = <String>{uri};
+    var at = uri;
+    for (var next = movedUri(at); seen.add(next); next = movedUri(at)) {
+      at = next;
+    }
+    return at;
   }
 
   final int format;
@@ -222,6 +328,67 @@ final class MigrationTable {
 
   /// The link to [entry]'s line in the guide.
   String linkFor(MigrationEntry entry) => '$guide#${entry.id}';
+}
+
+/// Two release numbers in semver's order: by the three numbers (a missing
+/// one is 0, so `0.8` is `0.8.0`), then a pre-release below its release,
+/// its parts compared as numbers where both are (`rc.2` < `rc.10`).
+int compareReleases(String a, String b) {
+  (List<int>, List<String>) parts(String v) {
+    final core = v.trim().split('+').first;
+    final pre = core.indexOf('-');
+    final numbers = (pre < 0 ? core : core.substring(0, pre)).split('.');
+    return (
+      <int>[
+        for (var i = 0; i < 3; i++)
+          int.tryParse(numbers.elementAtOrNull(i) ?? '') ?? 0,
+      ],
+      pre < 0 ? const <String>[] : core.substring(pre + 1).split('.'),
+    );
+  }
+
+  final (x, xPre) = parts(a);
+  final (y, yPre) = parts(b);
+  for (var i = 0; i < 3; i++) {
+    if (x[i] != y[i]) return x[i].compareTo(y[i]);
+  }
+  if (xPre.isEmpty || yPre.isEmpty) {
+    return (xPre.isEmpty ? 1 : 0) - (yPre.isEmpty ? 1 : 0);
+  }
+  for (var i = 0; i < xPre.length && i < yPre.length; i++) {
+    final c = switch ((int.tryParse(xPre[i]), int.tryParse(yPre[i]))) {
+      (final int l, final int r) => l.compareTo(r),
+      (int(), null) => -1,
+      (null, int()) => 1,
+      _ => xPre[i].compareTo(yPre[i]),
+    };
+    if (c != 0) return c;
+  }
+  return xPre.length.compareTo(yPre.length);
+}
+
+/// The release a project is on, read from its `pubspec.lock`: the oldest
+/// version it resolves of a package [tables] move with the engine's number.
+/// A package on its own number (`pad_input`) says nothing about the
+/// engine's. Null for a lock that names none, or is no lock.
+String? lockedRelease(String lock, List<MigrationTable> tables) {
+  final Object? doc;
+  try {
+    doc = loadYaml(lock);
+  } on YamlException {
+    return null;
+  }
+  if (doc is! Map || doc['packages'] is! Map) return null;
+  final own = <String>{for (final t in tables) ...t.versions.keys};
+  final found = <String>[
+    for (final MapEntry(:key, :value) in (doc['packages'] as Map).entries)
+      if (value is Map &&
+          value['version'] != null &&
+          !own.contains('$key') &&
+          tables.any((MigrationTable t) => t.owns('$key')))
+        '${value['version']}',
+  ]..sort(compareReleases);
+  return found.firstOrNull;
 }
 
 /// [node] with YAML's wrappers taken off.

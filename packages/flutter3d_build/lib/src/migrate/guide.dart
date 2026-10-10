@@ -51,10 +51,11 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
   _ => '',
 };
 
-/// The Markdown between [guideStart] and [guideEnd].
+/// The Markdown between [guideStart] and [guideEnd]: every table, newest
+/// first, since a reader on the last candidate wants the last table.
 String generateGuideTable(List<MigrationTable> tables) {
   final out = StringBuffer()..writeln(guideStart);
-  for (final table in tables) {
+  for (final table in MigrationTable.chain(tables).reversed) {
     final byPackage = <String, List<MigrationEntry>>{};
     for (final e in table.entries) {
       final package = e.kind == 'import'

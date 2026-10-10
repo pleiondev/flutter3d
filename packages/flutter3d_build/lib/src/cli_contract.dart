@@ -262,7 +262,8 @@ changes whose picture stays close to the original.
 
 /// What `flutter3d help migrate` prints.
 const String migrateUsage = '''
-Moves a project written against flutter3d 0.8 to 1.0.0-rc.1.
+Moves a project written against an earlier flutter3d (0.8 or later) to
+this release, through every migration table after the one it is on.
 
   dart pub global run flutter3d_build:migrate [options] <project dir>
 
@@ -272,7 +273,8 @@ Moves a project written against flutter3d 0.8 to 1.0.0-rc.1.
                       reports `file: vN → vM` and what was not carried over
   --backup            with --data, keep each file as it was as
                       <file>.v<N>.bak
-  --from <version>    the release the project is on (default 0.8)
+  --from <version>    the release the project is on (default: what its
+                      pubspec.lock resolves); every table after it applies
   --no-pub-get        only the pubspec and the imports
   --lints-from <dir>  run flutter3d_lints:migrate from that checkout
 ''';

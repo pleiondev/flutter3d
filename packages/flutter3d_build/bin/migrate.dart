@@ -21,8 +21,11 @@
 ///  6. adds the dependencies the new imports need, and gets them;
 ///  7. prints what changed and what is left, each item with the guide's link.
 ///
-/// All of it comes from one table, `lib/migrations/0.8_to_1.0.yaml`, which
-/// also generates the fix data and the plugin's rules.
+/// All of it comes from the tables in `lib/migrations/`, which also generate
+/// the fix data and the plugin's rules. They are a chain, `0.8_to_1.0.yaml`
+/// then `1.0.0-rc.1_to_rc.2.yaml` and on: the project's `pubspec.lock` says
+/// which release it is on, and every table after that release is applied
+/// in one run, read as one table (`MigrationTable.merge`).
 ///
 /// `--data` does something else: it lifts the project's data files (levels,
 /// runs, effects, data plugins…) to the version this build writes, in
@@ -36,7 +39,8 @@
 ///   --dry-run           make the changes in a copy beside the project, print
 ///                       the report, and remove the copy (with --data: write
 ///                       nothing, and report)
-///   --from <version>    the release the project is on (default 0.8)
+///   --from <version>    the release the project is on (default: what its
+///                       pubspec.lock resolves, else the first table's)
 ///   --no-pub-get        skip `pub get` (and so steps 4–6, which need it)
 ///   --lints-from <dir>  run `dart run flutter3d_lints:migrate` from a
 ///                       checkout of flutter3d instead of the global one
@@ -57,7 +61,7 @@ Future<void> main(List<String> args) async {
     return i >= 0 && i + 1 < args.length ? args[i + 1] : null;
   }
 
-  final from = valueOf('--from') ?? '0.8';
+  final fromFlag = valueOf('--from');
   final lintsFrom = valueOf('--lints-from');
   final positional = <String>[
     for (var i = 0; i < args.length; i++)
@@ -97,14 +101,32 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  final MigrationTable table;
+  final List<MigrationTable> chain;
   try {
-    table = await MigrationTable.shipped(from: from);
+    chain = await MigrationTable.shipped();
   } on StateError catch (e) {
     stderr.writeln(e.message);
     exitCode = 2;
     return;
   }
+  // The release the project is on: what `--from` says, else what its
+  // `pubspec.lock` resolves, else the release the first table starts at.
+  final lock = File('${project.path}/pubspec.lock');
+  final from =
+      fromFlag ??
+      (lock.existsSync()
+          ? lockedRelease(lock.readAsStringSync(), chain)
+          : null) ??
+      chain.first.from;
+  final tables = MigrationTable.after(from, chain);
+  if (tables.isEmpty) {
+    stdout.writeln(
+      'The project is on $from, and the newest migration table goes to '
+      '${chain.last.to}: nothing to migrate.',
+    );
+    return;
+  }
+  final table = MigrationTable.merge(tables);
 
   // A dry run works on a copy at the same depth, so relative path
   // dependencies still resolve.
