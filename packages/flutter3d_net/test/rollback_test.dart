@@ -172,7 +172,7 @@ _play(
 
 void main() {
   test('two peers 120ms apart with 5% loss converge on the same digests', () {
-    final (transportA, transportB) = LoopbackWire.pair(
+    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
       delaySteps: 7,
       lossRate: 0.05,
       seed: 20260912,
@@ -205,7 +205,7 @@ void main() {
   test(
     'a frame rewritten in flight on one side gives a desync, named by step',
     () {
-      final (transportA, transportB) = LoopbackWire.pair(
+      final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
         delaySteps: 7,
         seed: 5,
       );
@@ -243,7 +243,7 @@ void main() {
     // first and is corrected once the real frame lands — exercising
     // `RollbackSession.receive`'s rollback path on nearly every step, rather than
     // on none of them by accident of favourable timing.
-    final (transportA, transportB) = LoopbackWire.pair(delaySteps: 9, seed: 1);
+    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(delaySteps: 9, seed: 1);
     final result = _play(
       (transportA, transportB),
       steps: 400,
@@ -261,7 +261,7 @@ void main() {
 
   test('two engine loops kept in step by EngineRollback settle on the same '
       'state, rewound through their snapshots', () {
-    final (wireA, wireB) = LoopbackWire.pair(delaySteps: 5, seed: 3);
+    final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 5, seed: 3);
     final digests = <DigestTrace>[DigestTrace(), DigestTrace()];
     final rollbacks = <EngineRollback>[];
     for (final slot in <int>[0, 1]) {
@@ -322,7 +322,7 @@ void main() {
 
   test('a frame for a step far ahead is dropped and counted, one near is '
       'kept for its step', () {
-    final (ours, theirs) = LoopbackWire.pair();
+    final LoopbackPair(first: ours, second: theirs) = LoopbackWire.pair();
     final applied = <Map<int, Map<String, Object?>>>[];
     final session = RollbackSession<int>(
       wire: ours,

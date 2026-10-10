@@ -361,7 +361,7 @@ final class ElementBurnerOut extends ElementBodyEvent {
 ///
 /// A [PlacedEvent], so an effect document triggered by `elements.exploded`
 /// goes off where the charge did with no code in between.
-final class ElementExploded extends BusEvent implements PlacedEvent {
+final class ElementExploded extends BusEvent with PlacedEvent {
   ElementExploded(Vector3 at, this.pushed) : at = at.clone();
 
   @override

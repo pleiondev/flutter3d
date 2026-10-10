@@ -26,8 +26,8 @@ import 'package:vector_math/vector_math.dart';
 
 /// [color] as the buffer holds it: encoded for the display, in float32.
 Vector4 _drawn(LinearColor color) {
-  final (:r, :g, :b, :a) = color.toSrgb();
-  return Vector4(r, g, b, a);
+  final shown = color.toSrgb();
+  return Vector4(shown.r, shown.g, shown.b, shown.a);
 }
 
 void main() {

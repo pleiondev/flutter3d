@@ -189,6 +189,18 @@ abstract base class PeerWire {
   Future<void> close() async {}
 }
 
+/// The two ends [LoopbackWire.pair] joins: [first] in slot nought, [second]
+/// in slot one. Taken apart as `final LoopbackPair(:first, :second) = …`.
+final class LoopbackPair {
+  const LoopbackPair._(this.first, this.second);
+
+  /// The end in slot nought.
+  final LoopbackWire first;
+
+  /// The end in slot one.
+  final LoopbackWire second;
+}
+
 /// Two [PeerWire]s joined to each other in one process, as late and as lossy
 /// as a test asks, and repeatable from its seed.
 ///
@@ -203,7 +215,7 @@ final class LoopbackWire extends PeerWire {
 
   /// Two ends of one wire, slot nought and slot one. [delaySteps] calls of
   /// [tick] a message takes; [lossRate] the share of unreliable ones lost.
-  static (LoopbackWire, LoopbackWire) pair({
+  static LoopbackPair pair({
     int delaySteps = 0,
     double lossRate = 0.0,
     int seed = 1,
@@ -218,7 +230,7 @@ final class LoopbackWire extends PeerWire {
     final b = LoopbackWire._(delaySteps, lossRate, random, 1);
     a._peer = b;
     b._peer = a;
-    return (a, b);
+    return LoopbackPair._(a, b);
   }
 
   final int _delaySteps;

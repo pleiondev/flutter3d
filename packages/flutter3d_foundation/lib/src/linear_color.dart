@@ -56,8 +56,8 @@ final class LinearColor {
   /// (a swatch, a hex code). Each channel goes through the sRGB curve; one
   /// above 1 is encoded past 1 rather than clipped, so nothing is lost before
   /// the caller decides how to show it.
-  ({double r, double g, double b, double a}) toSrgb() =>
-      (r: linearToSrgb(r), g: linearToSrgb(g), b: linearToSrgb(b), a: a);
+  SrgbColor toSrgb() =>
+      SrgbColor(linearToSrgb(r), linearToSrgb(g), linearToSrgb(b), a);
 
   /// This colour with its coverage replaced by [alpha], for a caller fading
   /// something in or out.
@@ -114,4 +114,45 @@ final class LinearColor {
 
   @override
   String toString() => 'LinearColor($r, $g, $b, $a)';
+}
+
+/// A colour encoded for display, as [LinearColor.toSrgb] gives it: what a
+/// swatch, a hex code or a file a person edits holds.
+///
+/// **Not a second colour of the engine.** Nothing draws with it; it is the
+/// form a [LinearColor] leaves in for a person and comes back from
+/// ([toLinear]). Each channel is the sRGB curve of the linear one, above 1
+/// where the light is, and [a] is the same coverage.
+final class SrgbColor {
+  /// A colour from sRGB-encoded components; [a] defaults to opaque.
+  const SrgbColor(this.r, this.g, this.b, [this.a = 1]);
+
+  /// Red, sRGB-encoded.
+  final double r;
+
+  /// Green, sRGB-encoded.
+  final double g;
+
+  /// Blue, sRGB-encoded.
+  final double b;
+
+  /// Coverage, 0 to 1.
+  final double a;
+
+  /// The light this encodes.
+  LinearColor toLinear() => LinearColor.fromSrgb(r, g, b, a);
+
+  @override
+  bool operator ==(Object other) =>
+      other is SrgbColor &&
+      other.r == r &&
+      other.g == g &&
+      other.b == b &&
+      other.a == a;
+
+  @override
+  int get hashCode => Object.hash(r, g, b, a);
+
+  @override
+  String toString() => 'SrgbColor($r, $g, $b, $a)';
 }

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`LoopbackWire.pair()` returns a `LoopbackPair`**, `first` in slot
+  nought and `second` in slot one, where it returned a record: take it apart
+  as `final LoopbackPair(first: a, second: b) = LoopbackWire.pair()`.
+
 - **Breaking: a party has an owner, and only who it invites watches.** The
   relay welcomes the machine that opens a party with an `owner` token,
   `PartySeat.owner`; `joinParty(watching: true, owner:)` presents it, and a

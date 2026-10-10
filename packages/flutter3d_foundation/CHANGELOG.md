@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **`PlacedEvent` is a `base mixin class`**: an event mixes it in beside
+  the `BusEvent` it extends (`extends BusEvent with PlacedEvent`), and
+  `direction` is null unless the event says otherwise.
+- **`LinearColor.toSrgb()` returns an `SrgbColor`**, a final class with
+  `r`, `g`, `b`, `a`, value equality and `toLinear()`, where it returned a
+  record: the fields read as before, and a destructuring pattern names the
+  class (`final SrgbColor(:r, :g, :b, :a) = color.toSrgb()`).
+  `Portable.sinCos` and `WorldPosition.relativeTo` keep their records: a
+  sine and a cosine, an offset's three components, maths that never grows.
+
 - **`FormatSpecs`, the formats one program knows.** A registry the
   packages that own formats add their `FormatSpec`s to, found by id, alias
   or the longest suffix of a path; a second format under a taken id or

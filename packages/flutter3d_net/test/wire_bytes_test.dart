@@ -37,7 +37,7 @@ void main() {
   test('a loopback carries bytes as bytes, late and in order', () {
     // Mutation: deliver due bytes before due messages — the order the two
     // were sent in is lost.
-    final (a, b) = LoopbackWire.pair(delaySteps: 2);
+    final LoopbackPair(first: a, second: b) = LoopbackWire.pair(delaySteps: 2);
     final order = <Object>[];
     b
       ..listen(order.add)
@@ -103,7 +103,7 @@ void main() {
   test('a party over a relay carries bytes inside its envelope', () {
     // Mutation: let the relay's `{from, body}` envelope carry the frame
     // unread — the bytes arrive as a message with the engine's key.
-    final (a, b) = LoopbackWire.pair();
+    final LoopbackPair(first: a, second: b) = LoopbackWire.pair();
     final left = PeerWire.party(a, slot: 0);
     final right = PeerWire.party(b, slot: 1);
     final heard = <List<Object>>[];
@@ -123,7 +123,7 @@ void main() {
   });
 
   test('a cancelled byte listener hears nothing more', () {
-    final (a, b) = LoopbackWire.pair();
+    final LoopbackPair(first: a, second: b) = LoopbackWire.pair();
     final heard = <List<int>>[];
     final listening = b.listenBytes((_, data) => heard.add(data.toList()));
     a.sendBytes(Uint8List.fromList(<int>[1]));

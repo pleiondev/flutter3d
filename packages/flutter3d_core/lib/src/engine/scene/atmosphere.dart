@@ -112,8 +112,8 @@ final class Atmosphere {
         ..color = sunColor
         ..intensity = sunIntensity;
     }
-    final (:r, :g, :b, a: _) = sky.toSrgb();
-    clearColorSrgb?.setValues(r, g, b, 1.0);
+    final shown = sky.toSrgb();
+    clearColorSrgb?.setValues(shown.r, shown.g, shown.b, 1.0);
   }
 }
 

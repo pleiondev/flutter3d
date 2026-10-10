@@ -54,7 +54,7 @@ Map<String, Object?> _hands(int slot, int i) => <String, Object?>{
 void main() {
   group('PeerRoom', () {
     test('meets a machine that joined late, and hears what it plays', () {
-      final (wireA, wireB) = LoopbackWire.pair(
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
         delaySteps: 3,
         lossRate: 0.5,
         seed: 2,
@@ -83,7 +83,7 @@ void main() {
     });
 
     test('a channel hears only what was said on it', () {
-      final (wireA, wireB) = LoopbackWire.pair();
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair();
       final a = PeerRoom(wireA, slot: 0);
       final b = PeerRoom(wireB, slot: 1);
       final heardOne = <Object?>[];
@@ -102,7 +102,7 @@ void main() {
 
     test('machines on the same simulation version meet, and each hears the '
         'other\'s versions', () {
-      final (wireA, wireB) = LoopbackWire.pair(delaySteps: 2);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 2);
       final a = PeerRoom(wireA, slot: 0, simulation: _sim(3));
       final b = PeerRoom(wireB, slot: 1, simulation: _sim(3));
       for (var i = 0; i < 60 && !(a.hasMet && b.hasMet); i++) {
@@ -120,7 +120,7 @@ void main() {
 
     test('machines on different simulation versions refuse each other, say '
         'which to update to, and fall quiet', () {
-      final (wireA, wireB) = LoopbackWire.pair(delaySteps: 2);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 2);
       final sentA = _Counting(wireA);
       final sentB = _Counting(wireB);
       final older = PeerRoom(sentA, slot: 0, simulation: _sim(2));
@@ -222,7 +222,7 @@ void main() {
   group('RollbackSession for two', () {
     test('both machines settle every step on the run that was played, and '
         'on the same ending', () {
-      final (wireA, wireB) = LoopbackWire.pair(
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
         delaySteps: 6,
         lossRate: 0.1,
         seed: 5,
@@ -283,7 +283,7 @@ void main() {
     });
 
     test('hands the frames over by slot, the same on both machines', () {
-      final (wireA, _) = LoopbackWire.pair();
+      final LoopbackPair(first: wireA, second: _) = LoopbackWire.pair();
       final seen = <List<Map<String, Object?>>>[];
       final game = _Walk();
       RollbackSession<Map<String, Object?>>(
@@ -306,7 +306,7 @@ void main() {
   group('BatonStream', () {
     test('the watcher replays a turn in order and at its pace, and the '
         'turn goes across with its state', () {
-      final (wireA, wireB) = LoopbackWire.pair(delaySteps: 6);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 6);
       final watched = <String>[];
       Map<String, Object?>? handedB;
       Map<String, Object?>? handedA;
@@ -370,7 +370,7 @@ void main() {
     });
 
     test('a watcher far behind catches up rather than staying late', () {
-      final (wireA, wireB) = LoopbackWire.pair();
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair();
       final shown = <Object?>[];
       final a = BatonStream(
         wireA,
@@ -402,7 +402,7 @@ void main() {
 
   group('PeerFeed', () {
     test('keeps the latest word, and sends every so many steps', () {
-      final (wireA, wireB) = LoopbackWire.pair(
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
         delaySteps: 3,
         lossRate: 0.3,
         seed: 9,
@@ -460,7 +460,7 @@ void main() {
   });
 
   test('the loopback loses unreliable messages only', () {
-    final (a, b) = LoopbackWire.pair(lossRate: 0.5, seed: 4);
+    final LoopbackPair(first: a, second: b) = LoopbackWire.pair(lossRate: 0.5, seed: 4);
     final heard = <Object?>[];
     b.listen((m) => heard.add(m['n']));
     for (var n = 0; n < 200; n++) {

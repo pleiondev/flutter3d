@@ -1,5 +1,7 @@
 ## 0.3.0
 
+- **`LoopbackPair` is exported beside `LoopbackWire`**, the two ends
+  `LoopbackWire.pair()` now returns (see `flutter3d_net`).
 - **A spectator presents the party owner's token.** See `flutter3d_net`:
   `joinParty(watching: true, owner: host.owner)`.
 

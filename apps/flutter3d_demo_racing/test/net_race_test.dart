@@ -182,7 +182,7 @@ void main() {
     // confirmed by anyone. `LoopbackWire` with zero delay makes
     // this reproduce in a few milliseconds rather than needing the real
     // relay above to catch it again.
-    final (transportA, transportB) = LoopbackWire.pair();
+    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair();
     final deviceA = _stageTwoCars();
     final deviceB = _stageTwoCars();
     final digestsA = DigestTrace(every: 1);

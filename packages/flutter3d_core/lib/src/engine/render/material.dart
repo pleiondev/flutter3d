@@ -553,7 +553,14 @@ extension RenderMaterialInternals on RenderMaterial {
   /// [RenderMaterial.baseColor] with red, green and blue sRGB-encoded, the
   /// form every material shader's `toLinear(tint)` takes.
   ({double r, double g, double b, double a}) get baseColorEncoded =>
-      _baseColorEncoded ??= _baseColor.toSrgb();
+      _baseColorEncoded ??= switch (_baseColor.toSrgb()) {
+        SrgbColor(:final r, :final g, :final b, :final a) => (
+          r: r,
+          g: g,
+          b: b,
+          a: a,
+        ),
+      };
 }
 
 extension BundledMaterialLooks on BundledMaterials {

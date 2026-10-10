@@ -249,11 +249,11 @@ final class DebugDraw {
   ) {
     if (_floats + floatsPerLine > _data.length) _grow();
     if (!identical(color, _encodedFrom) && color != _encodedFrom) {
-      final (:r, :g, :b, :a) = color.toSrgb();
-      _er = r;
-      _eg = g;
-      _eb = b;
-      _ea = a;
+      final shown = color.toSrgb();
+      _er = shown.r;
+      _eg = shown.g;
+      _eb = shown.b;
+      _ea = shown.a;
       _encodedFrom = color;
     }
     final d = _data;

@@ -120,7 +120,7 @@ final class _Bus extends EventRegistry {
   EventRegistry forPlugin(PluginScope scope) => this;
 }
 
-final class _Blast extends BusEvent implements PlacedEvent {
+final class _Blast extends BusEvent with PlacedEvent {
   _Blast(this.at);
 
   @override

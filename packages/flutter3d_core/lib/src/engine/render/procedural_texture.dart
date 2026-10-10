@@ -57,7 +57,9 @@ final class SolidColorTexture extends ProceduralTexture {
   /// [color], in linear light, stored sRGB-encoded as a base-colour
   /// texture's texels are.
   SolidColorTexture(LinearColor color, {this.size = 1})
-    : texel = color.toSrgb();
+    : texel = switch (color.toSrgb()) {
+        final shown => (r: shown.r, g: shown.g, b: shown.b, a: shown.a),
+      };
 
   /// Texels holding [r], [g], [b] and [a] exactly as given, each 0..1: for a
   /// texture of data rather than colour (a normal map's, a mask's), or for

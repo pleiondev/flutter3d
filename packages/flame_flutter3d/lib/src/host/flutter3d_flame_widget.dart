@@ -187,8 +187,8 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
   /// `clearColorSrgb`: the widget's, the game's, or the default.
   Vector4 _clearSrgb(Vector4 out) {
     final linear = _config.clearColor ?? _owner?.clearColor ?? _defaultClear;
-    final (:r, :g, :b, :a) = linear.toSrgb();
-    return out..setValues(r, g, b, a);
+    final shown = linear.toSrgb();
+    return out..setValues(shown.r, shown.g, shown.b, shown.a);
   }
 
   /// The camera this state put in the scene, to take out again when a

@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 void main() {
   test('a hello with no body is answered, so the older machine hears which '
       'version to update to', () {
-    final (ours, theirs) = LoopbackWire.pair();
+    final LoopbackPair(first: ours, second: theirs) = LoopbackWire.pair();
     final room = PeerRoom(ours, slot: 0);
     final heard = <Map<String, Object?>>[];
     theirs.listen(heard.add);
@@ -36,7 +36,7 @@ void main() {
   });
 
   test('a frame with no body on a channel is dropped, not thrown on', () {
-    final (ours, theirs) = LoopbackWire.pair();
+    final LoopbackPair(first: ours, second: theirs) = LoopbackWire.pair();
     final room = PeerRoom(ours, slot: 0);
     final heard = <Map<String, Object?>>[];
     room.channel('play').listen(heard.add);

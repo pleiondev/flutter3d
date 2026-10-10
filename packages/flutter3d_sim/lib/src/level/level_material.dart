@@ -111,8 +111,8 @@ final class LevelMaterial {
   /// [baseColor] as the document stores it: sRGB-encoded, in single
   /// precision, which is what a level file has always said.
   Vector4 get storedBaseColor {
-    final (:r, :g, :b, :a) = baseColor.toSrgb();
-    return Vector4(r, g, b, a);
+    final stored = baseColor.toSrgb();
+    return Vector4(stored.r, stored.g, stored.b, stored.a);
   }
 
   /// Whether anything here has to be loaded from disk.
