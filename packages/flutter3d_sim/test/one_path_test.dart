@@ -188,6 +188,32 @@ void main() {
       ]);
     });
 
+    test('drops what it is handed while a tape plays', () {
+      // The tape is the whole input of a step it plays. What was submitted
+      // meanwhile waited, then all fired on the first live step and onto the
+      // recording. Mutation: keep `_pending` across the tape's steps — the
+      // live step applies 'during'.
+      final input = InputState();
+      final loop = EngineLoop(input: input)
+        ..playback = InputTapePlayback(
+          InputTape(
+            seed: 0,
+            frames: <InputFrame>[const InputFrame(), const InputFrame()],
+          ),
+        );
+      final applied = <Object?>[];
+      final handle = LocalSimulation(
+        loop,
+        applyInput: (_, value) => applied.add(value),
+      );
+      handle.submit('during');
+      loop.runSteps(2);
+      expect(applied, isEmpty);
+      handle.submit('after');
+      loop.runSteps(1);
+      expect(applied, <Object?>['after']);
+    });
+
     test('answers a question by name, and refuses one it does not know', () {
       final loop = EngineLoop(input: InputState());
       loop.queries.add('test.count', (world, _) => world.length);

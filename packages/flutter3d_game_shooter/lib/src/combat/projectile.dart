@@ -46,9 +46,15 @@ final class ProjectileSystem {
           decode: (data, _) => InFlight.fromJson(data),
         ),
       )
-      ..exclude<FiredBy>(
-        'a collider is a live object in one process, and the field stops '
-        'mattering the moment the rocket has cleared its own launcher',
+      ..register<FiredBy>(
+        ComponentCodec<FiredBy>.of(
+          id: 'firedBy',
+          encode: (value) => _ownerKey(value.collider),
+          decode: (data, _) => switch (_ownerNamed(data)) {
+            final Collider owner => FiredBy(owner),
+            null => null,
+          },
+        ),
       );
   }
 
@@ -73,6 +79,45 @@ final class ProjectileSystem {
   final double radius;
 
   final BlastResolver _resolver;
+
+  final Map<String, Collider> _named = <String, Collider>{};
+
+  /// Gives [owner] a [name] a save can carry, for a launcher that is not an
+  /// actor in [entities]: the player, a turret the game built itself.
+  ///
+  /// **Why a rocket's owner is saved at all.** It was excluded, as a live
+  /// object in one process; a restore then cleared it, and after a rollback
+  /// or a rewind a rocket in the air met its own launcher a step out of the
+  /// muzzle and credited nobody, so the resimulated step was not the step
+  /// that was recorded. An actor's collider is named by its entity, whose
+  /// body a restore keeps in place; anything else is named here, and an
+  /// owner with no name is still left out, as before.
+  void nameOwner(String name, Collider owner) => _named[name] = owner;
+
+  /// What a save writes for [owner]: `{"named": …}`, `{"entity": [index,
+  /// generation]}`, or null for an owner nobody named.
+  Object? _ownerKey(Collider owner) {
+    for (final MapEntry(:key, :value) in _named.entries) {
+      if (identical(value, owner)) return <String, Object?>{'named': key};
+    }
+    if (owner.userData case final Actor actor) {
+      final body = entities.get<Body>(actor.entity);
+      if (identical(body?.controller.collider, owner)) {
+        return <String, Object?>{
+          'entity': <int>[actor.entity.index, actor.entity.generation],
+        };
+      }
+    }
+    return null;
+  }
+
+  /// The collider [key], one [_ownerKey] wrote, names here, or null.
+  Collider? _ownerNamed(Object? key) => switch (key) {
+    {'named': final String name} => _named[name],
+    {'entity': [final int index, final int generation]} =>
+      entities.get<Body>(Entity.of(index, generation))?.controller.collider,
+    _ => null,
+  };
 
   /// Explosions produced by the last [step], for the game to react to.
   ///

@@ -3,6 +3,8 @@ import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../actors/actor_hurt.dart' show ActorDied, ActorHurt;
+import '../cinema/sequence_player.dart' show SequenceSignal;
 import '../ecs/ecs_world.dart';
 import '../ecs/snapshots.dart';
 import '../input/input_state.dart';
@@ -398,6 +400,10 @@ final class EngineLoop extends LoopRegistry {
   /// Throws a [StateError] when [snapshot] holds none of this loop's parts —
   /// a run's own `save()` handed to the loop, say — rather than leaving the
   /// state where it was.
+  ///
+  /// An origin [snapshot] puts back somewhere else runs every
+  /// [onOriginShift] hook and publishes [OriginShifted] on the frame
+  /// channel, as [shiftOrigin] does.
   void restore(Snapshot snapshot) {
     snapshots.restore(snapshot);
     _readOrigin();
@@ -470,7 +476,11 @@ final class EngineLoop extends LoopRegistry {
   // ---------------------------------------------------------------------------
   // What the view reads.
 
-  PublishedState _published = PublishedState.empty;
+  // Null until the first state is built. A listener that registers before
+  // any step (a `LocalSimulation` does, in its constructor) must not turn the
+  // first read into `PublishedState.empty`: the isolate's handle published
+  // that across as its step 0, with none of the components the world held.
+  PublishedState? _published;
   final List<void Function(PublishedState state)> _publishedListeners =
       <void Function(PublishedState state)>[];
 
@@ -489,12 +499,13 @@ final class EngineLoop extends LoopRegistry {
   /// listener ([onPublished]) does. A loop nothing reads encodes nothing for
   /// a view.
   PublishedState get published {
-    if (!_publishing) {
-      _read = true;
-      events._collecting = true;
-      _published = _build();
-    }
-    return _published;
+    final built = _published;
+    if (built != null && _publishing) return built;
+    _read = true;
+    events._collecting = true;
+    final state = _build();
+    _published = state;
+    return state;
   }
 
   /// Calls [listener] with the state every step publishes from now on, and
@@ -615,8 +626,28 @@ final class EngineLoop extends LoopRegistry {
     }
   }
 
-  void _readOrigin() {
+  /// Reads the origin a restore put back and, when it moved, tells what
+  /// follows it: every [onOriginShift] hook, then the view, on the frame
+  /// channel, unless [announce] is false.
+  ///
+  /// **Without this a rewind across a shift left the scene, the particles and
+  /// the audio in the frame it was rewound from.** A hook that moves to
+  /// `shift.to` (`CollisionWorld.moveOriginTo`) finds itself there already,
+  /// since the physics origin is a part restored first; a hook that holds
+  /// what no snapshot holds moves it back.
+  ///
+  /// The double-step check restores between its two runs with [announce]
+  /// false: the first run's events were discarded, so the view never heard
+  /// the shift it undoes.
+  void _readOrigin({bool announce = true}) {
+    final was = _origin;
     _origin = world.resource<WorldOrigin>()?.at ?? WorldPosition.origin;
+    if (_origin == was) return;
+    final shift = OriginShifted(from: was, to: _origin);
+    for (final hook in List.of(_originHooks)) {
+      hook(shift);
+    }
+    if (announce) events.publishFrame(shift);
   }
 
   /// Forgets the time the clock holds that no step has run yet: a level that
@@ -835,7 +866,7 @@ final class EngineLoop extends LoopRegistry {
         check.restore ??
         (Object? state) {
           snapshots.restore(state! as Snapshot);
-          _readOrigin();
+          _readOrigin(announce: false);
         };
     final digestState = check.digest ?? snapshots.digest;
     final before = capture();

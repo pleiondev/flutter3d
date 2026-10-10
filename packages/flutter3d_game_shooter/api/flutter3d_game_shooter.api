@@ -454,6 +454,7 @@ final class ProjectileSystem
   int get activeCount
   int get dropped
   void clear()
+  void nameOwner(String name, Collider owner)
   void step(double dt)
 
 final class Secret extends Mechanism with CollisionListener

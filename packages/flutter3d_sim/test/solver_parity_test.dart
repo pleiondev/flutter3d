@@ -164,7 +164,9 @@ CollisionWorld _room() {
 /// everywhere — `determinism_test.dart` is that proof — so the scene is
 /// identical on both platforms even though it is not a literal.
 Dynamics _pile(CollisionWorld world) {
-  final dynamics = Dynamics(world: world);
+  // The gravity the digests below were recorded under: 22 m/s², what
+  // `Dynamics` fell by before it fell by its world's.
+  final dynamics = Dynamics(world: world, gravity: Vector3(0.0, -22.0, 0.0));
   final dice = GameRandom(20260906);
 
   // A tower, straight up and slightly out of line. It only stands if warm

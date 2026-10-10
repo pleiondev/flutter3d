@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -51,16 +52,72 @@ Level _levelOf(
 });
 
 void main() {
+  test('a yawed instance turns its entities with the portable sine', () {
+    // The same level must expand to the same bits in the VM and in a
+    // browser, from step 0. Mutation: `Matrix3.rotationY(yaw)` again — libm's
+    // sine and cosine, rounded to Float32 in the matrix — and the places
+    // differ from the portable ones in the last bits.
+    for (final yaw in <double>[0.3, 1.1, 2.7, -0.9, 5.5]) {
+      final level = expandPrefabs(
+        Level.fromJson(<String, Object?>{
+          'version': 2,
+          'prefabs': <String, Object?>{
+            'a': <String, Object?>{
+              'entities': <Object?>[
+                <String, Object?>{
+                  'type': 'marker',
+                  'name': 'm',
+                  'at': <double>[3.1, 0.5, 7.3],
+                },
+              ],
+            },
+          },
+          'entities': <Object?>[
+            <String, Object?>{
+              'type': 'prefab',
+              'prefab': 'a',
+              'name': 'it',
+              'at': <double>[1.0, 0.0, -2.0],
+              'yaw': yaw,
+            },
+          ],
+        }),
+      );
+      final (:sin, :cos) = Portable.sinCos(yaw);
+      final local = Vector3(3.1, 0.5, 7.3);
+      final expected =
+          Vector3(1.0, 0.0, -2.0) +
+          Vector3(
+            cos * local.x + sin * local.z,
+            local.y,
+            cos * local.z - sin * local.x,
+          );
+      expect(
+        _named(level, 'it/m').position.storage,
+        expected.storage,
+        reason: 'at yaw $yaw',
+      );
+    }
+  });
+
   group('the v2 fixture', () {
-    test('reads, and the v3 fixture writes back exactly as it arrived', () {
+    test('reads, and the newest fixture writes back exactly as it arrived', () {
       final level = Level.fromJson(_fixture(2));
 
       expect(level.prefabs.keys, <String>['lamp', 'post']);
       expect(level.materials['paint']!.depthLayer, 1);
       expect(level.brushes.last.depthLayer, 2);
       // Mutation: drop `prefabs` from `toJson`, or write `depthLayer` always.
-      final json = _fixture(3);
+      final json = _fixture(Level.formatVersion);
       expect(jsonEncode(Level.fromJson(json).toJson()), jsonEncode(json));
+      // The v3 one, lifted, is the same level at the newest version: only
+      // the envelope's number moves, since it said nothing about the world.
+      final lifted = Level.fromJson(_fixture(3)).toJson();
+      expect(lifted['version'], Level.formatVersion);
+      expect(
+        jsonEncode(<String, Object?>{...lifted}..remove('version')),
+        jsonEncode(_fixture(3)..remove('version')),
+      );
     });
 
     test('expands its nested instance with the nearest override winning', () {
@@ -94,12 +151,12 @@ void main() {
       expect(identical(expandPrefabs(level), level), isTrue);
     });
 
-    test('a version-1 document is written back as version 3, with ids', () {
-      // Every level has ids, so every level is written at the version that
-      // has them; what the old document said is kept.
+    test('a version-1 document is written back as the newest, with ids', () {
+      // Every level has ids, so every level is written at a version that
+      // has them (3 and up); what the old document said is kept.
       final json = _fixture(1);
       final written = Level.fromJson(json).toJson();
-      expect(written['version'], 3);
+      expect(written['version'], Level.formatVersion);
       expect(written['format'], 'f3d.level');
       expect(written['generatedBy'], json['generatedBy']);
       final rows = written['entities']! as List<Object?>;
@@ -107,7 +164,7 @@ void main() {
         rows.every((Object? r) => (r! as Map<String, Object?>)['id'] is String),
         isTrue,
       );
-      expect(Level().toJson()['version'], 3);
+      expect(Level().toJson()['version'], Level.formatVersion);
     });
   });
 

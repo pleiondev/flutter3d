@@ -100,7 +100,7 @@ void main() {
           isA<DemoFormatException>().having(
             (e) => e.message,
             'message',
-            contains('newer build'),
+            contains('newer than this build reads'),
           ),
         ),
       );
@@ -439,4 +439,159 @@ void main() {
       expect(replayed.moveAxis, Vector2(0.0, 1.0));
     });
   });
+
+  group('version 5', () {
+    test('is written for a start that carries change stamps', () {
+      // A version-4 build restores the world without them, and a system on
+      // `query().changed<T>()` replays another run: it must refuse the file
+      // by its number. Mutation: leave `writtenVersion` at the tape's rule —
+      // this writes 1.
+      final loop = EngineLoop(input: InputState());
+      loop.world.components.register<_Count>(_Count.codec);
+      loop.world.set(loop.world.spawn(), _Count(1));
+      final run = Demo(
+        level: 'assets/levels/crypt.json',
+        levelHash: 'deadbeef',
+        start: loop.capture(),
+        tape: InputTape(seed: 7, frames: const <InputFrame>[InputFrame()]),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(every: 1),
+      );
+      expect(run.toJson()['version'], 5);
+      expect(_demo().toJson()['version'], 1, reason: 'a run of its own state');
+    });
+
+    test('keeps the probes and the external inputs a later build writes', () {
+      // Reserved for wave 3: probe readings are outputs an older build may
+      // skip, external inputs are not. Mutation: write external inputs at
+      // the version the rest asks for — a version-4 build replays without
+      // them.
+      final probes = <Object?>[
+        <String, Object?>{'step': 1, 'probe': 'p', 'value': 2.5},
+      ];
+      final external = <Object?>[
+        <String, Object?>{'step': 2, 'at': 0.03, 'kind': 'k'},
+      ];
+      final read = Demo.fromJson(
+        _demo().toJson()
+          ..['version'] = 5
+          ..['probes'] = probes
+          ..['externalInputs'] = external,
+      );
+      final written = read.toJson();
+      expect(written['probes'], probes);
+      expect(written['externalInputs'], external);
+      expect(written['version'], 5);
+      expect(
+        Demo.fromJson(
+          _demo().toJson()..['probes'] = probes,
+        ).toJson()['version'],
+        1,
+        reason: 'probes alone are skipped correctly by an older build',
+      );
+    });
+
+    test('refuses a reserved field that is not a list of steps', () {
+      for (final bad in <Object?>[
+        'nope',
+        <Object?>[3],
+        <Object?>[
+          <String, Object?>{'step': 9},
+        ],
+        <Object?>[
+          <String, Object?>{'step': 2},
+          <String, Object?>{'step': 1},
+        ],
+      ]) {
+        expect(
+          () => Demo.fromJson(_demo().toJson()..['externalInputs'] = bad),
+          throwsA(isA<DemoFormatException>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('keeps the run a branch starts from, and what an external input '
+        'says of itself', () {
+      // Reserved for branching runs on the timeline and for inputs from
+      // outside, read and written back as they were. Mutation: drop
+      // `parent` from what is read — it does not come back.
+      const parent = <String, Object?>{'digest': '1a2b3c4d', 'step': 120};
+      final external = <Object?>[
+        <String, Object?>{
+          'step': 1,
+          'sourceTime': 12.5,
+          'receivedTime': 12.75,
+          'quality': 'uncertain',
+          'tag': 'pump.3',
+          'unit': 'kPa',
+        },
+        // A quality this build has no word for is kept, not refused: the
+        // set is open.
+        <String, Object?>{'step': 2, 'quality': 'interpolated'},
+      ];
+      final written = Demo.fromJson(
+        _demo().toJson()
+          ..['parent'] = parent
+          ..['externalInputs'] = external,
+      ).toJson();
+      expect(written['parent'], parent);
+      expect(written['externalInputs'], external);
+    });
+
+    test('refuses a parent or an external input field of the wrong '
+        'shape', () {
+      // Mutation: pass them through unread — a run naming a parent with no
+      // digest, or a time that is text, opens and misleads whoever branches
+      // from it.
+      for (final bad in <Map<String, Object?>>[
+        <String, Object?>{'parent': 'nope'},
+        <String, Object?>{
+          'parent': <String, Object?>{'step': 3},
+        },
+        <String, Object?>{
+          'parent': <String, Object?>{'digest': 'x', 'step': -1},
+        },
+        for (final field in <String, Object?>{
+          'sourceTime': 'noon',
+          'receivedTime': double.nan,
+          'quality': 3,
+          'tag': <Object?>[],
+          'unit': 1,
+        }.entries)
+          <String, Object?>{
+            'externalInputs': <Object?>[
+              <String, Object?>{'step': 1, field.key: field.value},
+            ],
+          },
+      ]) {
+        expect(
+          () => Demo.fromJson(<String, Object?>{..._demo().toJson(), ...bad}),
+          throwsA(isA<DemoFormatException>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('keeps a top-level key it does not know', () {
+      // A run a later minor wrote survives being opened and saved here.
+      // Mutation: write only the known keys.
+      final written = Demo.fromJson(
+        _demo().toJson()..['laterMinor'] = <String, Object?>{'a': 1},
+      ).toJson();
+      expect(written['laterMinor'], <String, Object?>{'a': 1});
+    });
+  });
+}
+
+final class _Count {
+  _Count(this.value);
+
+  final int value;
+
+  static final ComponentCodec<_Count> codec = ComponentCodec<_Count>.of(
+    id: 'test.count',
+    encode: (count) => count.value,
+    decode: (data, _) => data is int ? _Count(data) : null,
+  );
 }

@@ -255,6 +255,20 @@ void main() {
     expect(() => loop.runSteps(1), throwsStateError);
   });
 
+  test('and so does a genre that has no run to step', () {
+    // The genre's part captures null with no simulation set, and counted as
+    // holding something, so a level-less genre made the empty-world check
+    // pass trivially. Mutation: `holdsNothing` counting only world parts.
+    var outside = 0;
+    final loop = EngineLoop(
+      input: InputState(),
+      determinismCheck: DeterminismCheck(),
+      plugins: <Flutter3dPlugin>[_Idle()],
+    )..addSystem('clocked', LoopPhase.rules, (_) => outside++);
+    expect(loop.snapshots.parts, contains('test.idle'));
+    expect(() => loop.runSteps(1), throwsStateError);
+  });
+
   test("a check left to the loop's snapshots covers a part", () {
     // The world here is a snapshot part, so the default check — no
     // functions of its own — captures and restores it, and finds the
@@ -294,4 +308,27 @@ void main() {
     loop.runSteps(3);
     expect(calls, 3);
   });
+}
+
+/// A genre installed between levels: its part is there, its run is not.
+final class _Idle extends GenrePlugin<Object> {
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: 'test.idle',
+    apiVersion: PluginApiVersion.current,
+    touches: PluginTouches.simulation,
+  );
+
+  @override
+  String get systemName => 'test.idle.step';
+
+  @override
+  void stepSimulation(Object simulation, LoopContext context) {}
+
+  @override
+  Snapshot captureSimulation(Object simulation) =>
+      const Snapshot(<String, Object?>{});
+
+  @override
+  void restoreSimulation(Object simulation, Snapshot state) {}
 }

@@ -252,8 +252,9 @@ void main() {
       expect(at.z, greaterThan(5.0));
       expect(Vector2(at.x, at.z).length, greaterThan(7.5));
       // Mutation: interpolating the field of view by the next key's step
-      // rather than the fraction between the two.
-      expect(fovY, closeTo(42.5, 1e-9));
+      // rather than the fraction between the two. The file says 42.5 degrees
+      // halfway; the reader hands the engine radians.
+      expect(fovY, closeTo(radians(42.5), 1e-9));
     });
 
     test('the subtitles read the one that started last', () {

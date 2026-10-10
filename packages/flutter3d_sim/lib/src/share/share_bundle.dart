@@ -1,6 +1,7 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show FormatDocument, FormatMigration, FormatSpec, Flutter3dFormatException;
 
+import '../level/level.dart';
 import '../save/demo.dart';
 import '../save/state_digest.dart';
 
@@ -8,11 +9,10 @@ import '../save/state_digest.dart';
 /// code stands for.
 ///
 /// **A level, its hash and a `.f3drun`, and nothing a server could make up.**
-/// The level is a document rather than a parsed [Level] so that any genre's
-/// own format travels the same way — a level here, a track there — the way
-/// [Demo.levelHash] already compares [contentDigestHex] of whatever document
-/// recorded it. A reader that knows the format parses [level]; a server that
-/// does not can still check the hash and store the bytes.
+/// The level travels as the document it was, so it is written back byte for
+/// byte; it is hashed as the [Level] it reads as, the way a run records
+/// [Demo.levelHash]. A level this build cannot read is refused, since there
+/// is then no saying which version of it the bundle holds.
 ///
 /// **The run is checked against the level before anything leaves.** A bundle
 /// whose run was recorded in another version of the level is a ghost running
@@ -31,9 +31,10 @@ final class ShareBundle extends FormatDocument {
     this.run,
     this.title,
     super.unknown,
-  }) : levelHash = contentDigestHex(level) {
+  }) : levelHash = _hashOf(level),
+       _documentHash = contentDigestHex(level) {
     final run = this.run;
-    if (run != null && run.levelHash != levelHash) {
+    if (run != null && !_names(run.levelHash)) {
       throw ShareFormatException(
         'the run was recorded in another version of the level '
         '(${run.levelHash}; the level being shared is $levelHash) — record '
@@ -77,8 +78,32 @@ final class ShareBundle extends FormatDocument {
   /// The level document, as its own `toJson()` wrote it.
   final Map<String, Object?> level;
 
-  /// [contentDigestHex] of [level]: which version of it this is.
+  /// [Level.digestHex] of [level] read as a [Level]: which version of it this
+  /// is, the same number a run records ([Demo.levelHash]).
+  ///
+  /// **The level as read, not the document as it came.** A bundle hashed the
+  /// document, a run hashes the level: for any document not already in this
+  /// build's shape — a version-1 level in a game's assets — the two never
+  /// met, and a run of it could not be shared.
   final String levelHash;
+
+  /// [contentDigestHex] of the document as it came: what a bundle or a run
+  /// written before 1.0.0-rc.1 named the level by, and still names it,
+  /// since the same document is the same level.
+  final String _documentHash;
+
+  bool _names(String hash) => hash == levelHash || hash == _documentHash;
+
+  static String _hashOf(Map<String, Object?> level) {
+    try {
+      return Level.fromJson(level).digestHex;
+    } on LevelFormatException catch (error) {
+      throw ShareFormatException(
+        'the level in the bundle cannot be read by this build, so there is no '
+        'telling which version of it it is: ${error.message}',
+      );
+    }
+  }
 
   /// A run through [level], or null for a level shared on its own.
   final Demo? run;
@@ -143,7 +168,7 @@ final class ShareBundle extends FormatDocument {
       unknown: FormatDocument.unknownIn(json, known: _known),
     );
     final claimed = json['levelHash'];
-    if (claimed != bundle.levelHash) {
+    if (claimed is! String || !bundle._names(claimed)) {
       throw ShareFormatException(
         'the bundle says its level is $claimed, and the level in it is '
         '${bundle.levelHash}',

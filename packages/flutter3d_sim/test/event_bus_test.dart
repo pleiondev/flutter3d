@@ -97,6 +97,29 @@ final class _Genre extends GenrePlugin<_Run> {
   void restoreSimulation(_Run simulation, Snapshot state) {}
 }
 
+/// A second genre in the same engine, with no events of its own.
+final class _Second extends GenrePlugin<_Run> {
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: 'test.second',
+    apiVersion: PluginApiVersion.current,
+    touches: PluginTouches.simulation,
+  );
+
+  @override
+  String get systemName => 'test.second.step';
+
+  @override
+  void stepSimulation(_Run simulation, LoopContext context) {}
+
+  @override
+  Snapshot captureSimulation(_Run simulation) =>
+      const Snapshot(<String, Object?>{});
+
+  @override
+  void restoreSimulation(_Run simulation, Snapshot state) {}
+}
+
 /// A plugin that subscribes [label] to the step channel.
 final class _Listens extends Flutter3dPlugin {
   _Listens(this.id, this.log);
@@ -341,6 +364,36 @@ void main() {
     expect(
       loop.events.declared.map((d) => d.name),
       containsAll(<String>[ActorHurt.eventName, SequenceSignal.eventName]),
+    );
+  });
+
+  test("the events every genre shares are the engine's, not the first "
+      "genre's", () {
+    // Mutation: declare them through the genre's scoped bus, as before —
+    // they carry the first genre's id, so a genre's own "every event I
+    // declare is prefixed with me" fails on `actor.hurt`, and disabling that
+    // genre takes them from the second one with it.
+    final loop = EngineLoop(
+      input: InputState(),
+      plugins: <Flutter3dPlugin>[_Genre(), _Second()],
+    );
+    const shared = <String>[
+      ActorHurt.eventName,
+      ActorDied.eventName,
+      SequenceSignal.eventName,
+    ];
+    expect(
+      <String>[
+        for (final d in loop.events.declared)
+          if (shared.contains(d.name)) d.declaredBy,
+      ],
+      <String>['app', 'app', 'app'],
+    );
+    loop.plugins.disable('test.genre');
+    expect(
+      loop.events.declared.map((d) => d.name),
+      containsAll(shared),
+      reason: 'the second genre still publishes them',
     );
   });
 

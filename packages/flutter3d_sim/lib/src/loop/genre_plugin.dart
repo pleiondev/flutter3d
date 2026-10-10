@@ -1,11 +1,10 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
-import '../actors/actor_hurt.dart';
-import '../cinema/sequence_player.dart';
 import '../ecs/ecs_world.dart';
 import '../level/entity_kind.dart';
 import '../level/entity_kinds.dart';
 import '../save/snapshot.dart';
+import 'engine_loop.dart' show declareSimulationEvents;
 import 'headless_run.dart';
 import 'published_worlds.dart';
 
@@ -241,38 +240,6 @@ Map<String, HeadlessGame> headlessGamesOf(Iterable<GenrePlugin> genres) =>
       for (final game in genres.map((genre) => genre.headless).nonNulls)
         game.name: game,
     };
-
-/// Declares the events every genre shares, the engine's rather than any
-/// one genre's — [ActorHurt], [ActorDied] and [SequenceSignal] — with their
-/// codecs, each one not already declared on [events].
-///
-/// Called by every [GenrePlugin] as it is installed, so the first genre in
-/// an engine declares them and a second finds them there. A game that steps
-/// actors or a cutscene without a genre calls it itself.
-void declareSimulationEvents(EventRegistry events) {
-  bool declared(String name) => events.declared.any((d) => d.name == name);
-  if (!declared(ActorHurt.eventName)) {
-    events.declare<ActorHurt>(
-      ActorHurt.eventName,
-      description: 'An actor took damage and survived it.',
-      codec: ActorHurt.codec,
-    );
-  }
-  if (!declared(ActorDied.eventName)) {
-    events.declare<ActorDied>(
-      ActorDied.eventName,
-      description: "An actor's health reached zero.",
-      codec: ActorDied.codec,
-    );
-  }
-  if (!declared(SequenceSignal.eventName)) {
-    events.declare<SequenceSignal>(
-      SequenceSignal.eventName,
-      description: "A cutscene's signal fired.",
-      codec: SequenceSignal.codec,
-    );
-  }
-}
 
 /// A genre's run as one part of the loop's snapshots, under the genre's
 /// plugin id: what [GenrePlugin.install] adds.

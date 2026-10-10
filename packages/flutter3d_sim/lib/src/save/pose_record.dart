@@ -186,12 +186,16 @@ final class PoseRecord {
         final values = frame.bodies[index];
         if (values == null) continue;
         rotation.setValues(values[3], values[4], values[5], values[6]);
-        final forward = rotation.rotated(Vector3(0.0, 0.0, 1.0));
+        // Through the matrix, not `Quaternion.rotated`: vector_math 2.4
+        // turns a vector the other way round there, so a body yawed by
+        // `axisAngle(up, a)` came back facing -a and its ghost ran mirrored.
+        final turn = rotation.asRotationMatrix();
+        final forward = turn.transformed(Vector3(0.0, 0.0, 1.0));
         final pose = Pose(
           time: frame.step * stepSeconds,
           yaw: Portable.atan2(forward.x, forward.z),
         )..position.setValues(values[0], values[1], values[2]);
-        pose.up.setFrom(rotation.rotated(Vector3(0.0, 1.0, 0.0)));
+        pose.up.setFrom(turn.transformed(Vector3(0.0, 1.0, 0.0)));
         poses.add(pose);
       }
     }

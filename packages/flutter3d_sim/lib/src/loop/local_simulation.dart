@@ -26,6 +26,10 @@ import 'simulation_handle.dart';
 /// between two steps are both seen, in that order, rather than the release
 /// alone.
 ///
+/// **While a tape plays (`EngineLoop.playback`) a submission is dropped**:
+/// the tape is the whole input of each step it plays, and what arrives then
+/// belongs to no step of the run.
+///
 /// ## Questions
 ///
 /// [ask] answers the questions registered by name in the loop's
@@ -44,6 +48,7 @@ final class LocalSimulation extends SimulationHandle {
     if (history > 0) loop.keep(window: history);
     _publishing = loop.onPublished(_published);
     _input = loop.onStepInput((_) => _applyPending());
+    _stepEnd = loop.onStepEnd(_dropUnapplied);
   }
 
   /// The loop this handle drives.
@@ -56,7 +61,9 @@ final class LocalSimulation extends SimulationHandle {
 
   late final Registration _publishing;
   late final Registration _input;
+  late final Registration _stepEnd;
   final List<(int, Object?)> _pending = <(int, Object?)>[];
+  bool _appliedThisStep = false;
   final List<void Function(PublishedState state)> _listeners =
       <void Function(PublishedState state)>[];
   bool _disposed = false;
@@ -137,11 +144,23 @@ final class LocalSimulation extends SimulationHandle {
     _disposed = true;
     _publishing.cancel();
     _input.cancel();
+    _stepEnd.cancel();
     _listeners.clear();
     _pending.clear();
   }
 
+  // A live step whose input was not asked for played a tape
+  // (`EngineLoop.playback`), which is the whole of that step's input. What
+  // was submitted meanwhile is dropped there: kept, it all fired on the first
+  // live step after the tape and went onto the recording as if pressed then.
+  // A resimulated step asks for nothing either, and keeps what is pending.
+  void _dropUnapplied(StepEventSummary summary) {
+    if (!summary.resimulated && !_appliedThisStep) _pending.clear();
+    _appliedThisStep = false;
+  }
+
   void _applyPending() {
+    _appliedThisStep = true;
     if (_pending.isEmpty) return;
     final submitted = List<(int, Object?)>.of(_pending);
     _pending.clear();

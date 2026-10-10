@@ -47,12 +47,16 @@ final class Snapshots extends SnapshotRegistry {
   /// Whether no part is registered.
   bool get isEmpty => _parts.isEmpty;
 
-  /// Whether there is nothing to capture: no part but a world with no
-  /// entity and no resource in it. What a determinism check refuses to
-  /// pass, since a check of nothing agrees with itself whatever the systems
-  /// do.
-  bool get holdsNothing =>
-      _parts.every((part) => part is WorldSnapshotPart && part.world.isEmpty);
+  /// Whether there is nothing to capture: every part a world with no entity
+  /// and no resource in it, or a part whose capture is null — a genre with no
+  /// run set. What a determinism check refuses to pass, since a check of
+  /// nothing agrees with itself whatever the systems do.
+  bool get holdsNothing => _parts.every(
+    (part) => switch (part) {
+      WorldSnapshotPart(:final world) => world.isEmpty,
+      _ => part.capture() == null,
+    },
+  );
 
   @override
   Registration add(SnapshotPart part) {
@@ -144,8 +148,21 @@ final class Snapshots extends SnapshotRegistry {
 }
 
 /// An [EcsWorld] as a [SnapshotPart]: its `save()` and `restore()`.
+///
+/// **With the change stamps since [changesVersion]**: the step each component
+/// was last set at (`EcsWorld.save(withChanges: true)`), so a system asking
+/// `query().changed<T>(since:)` sees on a resimulated step what it saw on the
+/// live one. A version-1 part restores with no stamps, as it always did; a
+/// build that reads only 1 refuses a part at 2 rather than drop them.
+///
+/// **The digest leaves them out** ([digest]): every checkpoint a run recorded
+/// before the stamps were captured is a digest of the world's `save()`, and
+/// those keep verifying.
 final class WorldSnapshotPart extends SnapshotPart {
   const WorldSnapshotPart(this.world);
+
+  /// The part version from which the capture holds the change stamps.
+  static const int changesVersion = 2;
 
   final EcsWorld world;
 
@@ -153,7 +170,13 @@ final class WorldSnapshotPart extends SnapshotPart {
   String get id => 'world';
 
   @override
-  Object? capture() => world.save();
+  int get version => changesVersion;
+
+  @override
+  Object? capture() => world.save(withChanges: true);
+
+  @override
+  int? digest() => StateDigest.of(world.save());
 
   @override
   void restore(Object? data, int version) {

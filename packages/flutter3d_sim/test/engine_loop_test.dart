@@ -430,8 +430,65 @@ void main() {
       }
       expect(
         () => LoopChange.fromJson(<String, Object?>{'kind': 'warp', 'step': 0}),
-        throwsFormatException,
+        throwsA(isA<LoopChangeFormatException>()),
       );
+    });
+  });
+
+  group('the origin', () {
+    const far = WorldPosition(100, 0, 0);
+    const dt = 1.0 / 60.0;
+
+    test('a rewind across a shift moves back what the hooks hold, and says '
+        'so', () {
+      // Mutation: read the origin back without calling the hooks or
+      // publishing — the loop is at the old origin, the particles and the
+      // view are still at the new one.
+      final loop = EngineLoop(input: InputState())..keep(window: 10);
+      var particles = 0.0;
+      loop.onOriginShift((shift) => particles -= shift.offset.x);
+      final heard = <OriginShifted>[];
+      loop.events.onFrame<OriginShifted>('view', (d) => heard.add(d.event));
+      loop.addSystem('drift', LoopPhase.rules, (c) {
+        if (c.step == 1) loop.shiftOrigin(far);
+      });
+      for (var i = 0; i < 3; i++) {
+        loop.frame(dt);
+      }
+      expect(loop.origin, far);
+      expect(particles, -100.0);
+      expect(heard.map((e) => e.to), <WorldPosition>[far]);
+
+      loop.rewindTo(0);
+      loop.frame(0.0);
+      expect(loop.origin, WorldPosition.origin);
+      expect(particles, 0.0);
+      expect(heard.map((e) => e.to), <WorldPosition>[
+        far,
+        WorldPosition.origin,
+      ]);
+    });
+
+    test('a checked step that shifts moves the hooks once, and the view '
+        'hears it once', () {
+      // The double-step check restores between its two runs. Mutation: no
+      // hooks on that restore — the particles move by the shift twice.
+      final loop = EngineLoop(
+        input: InputState(),
+        determinismCheck: DeterminismCheck(),
+      );
+      loop.world.spawn();
+      var particles = 0.0;
+      loop.onOriginShift((shift) => particles -= shift.offset.x);
+      final heard = <OriginShifted>[];
+      loop.events.onFrame<OriginShifted>('view', (d) => heard.add(d.event));
+      loop.addSystem('drift', LoopPhase.rules, (c) {
+        if (c.step == 0) loop.shiftOrigin(far);
+      });
+      loop.frame(dt);
+      expect(loop.checksDeterminism, isTrue);
+      expect(particles, -100.0);
+      expect(heard, hasLength(1));
     });
   });
 }

@@ -177,7 +177,7 @@ void main() {
           isA<VisibilityFormatException>().having(
             (e) => e.message,
             'message',
-            contains('newer build'),
+            contains('newer than this build reads'),
           ),
         ),
       );

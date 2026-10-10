@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A rocket's launcher survives a rewind.** `FiredBy` is saved under
+  `firedBy`, where it was excluded. An actor's launcher is named by its
+  entity; anything else is named through `ProjectileSystem.nameOwner`, and
+  `GameSimulation` names the player. After a rollback a rocket in the air
+  used to hit its own launcher a step out of the muzzle and credit nobody,
+  so the resimulated step differed from the live one. A save with a rocket
+  in flight is one component longer, and a checkpoint taken then moves.
+
 - **`shooterWorld`, the shooter's world at 24 m/s²**, the gravity its
   characters always had, now the crypt's bodies, fire and sparks' too.
 - **`ShooterPlugin.headless` is the base's nullable field**, passed as

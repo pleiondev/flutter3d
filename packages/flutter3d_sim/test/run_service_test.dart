@@ -91,6 +91,53 @@ void main() {
       );
     });
 
+    test('hashes its level the way a run does', () {
+      // A run records `Level.digestHex`, the level as read; the bundle hashed
+      // the document as it came. For any document not already in this
+      // build's shape — a version-1 level in a game's assets — the two never
+      // met, and sharing a run of it was refused as another version of the
+      // level. Mutation: `contentDigestHex(level)` again.
+      final old = <String, Object?>{
+        'version': 1,
+        'name': 'yard',
+        'brushes': <Object?>[
+          <String, Object?>{
+            'at': <double>[0, -0.5, 0],
+            'size': <double>[10, 1, 10],
+          },
+        ],
+      };
+      final played = Level.fromJson(old).digestHex;
+      final bundle = ShareBundle(
+        game: 'walk',
+        level: old,
+        run: _run(levelHash: played),
+      );
+      expect(bundle.levelHash, played);
+      expect(
+        ShareBundle.fromJson(
+          jsonDecode(jsonEncode(bundle.toJson())) as Map<String, Object?>,
+        ).levelHash,
+        played,
+      );
+    });
+
+    test('refuses a level it cannot read, saying why', () {
+      expect(
+        () => ShareBundle(
+          game: 'walk',
+          level: <String, Object?>{'version': 1, 'brushes': 'none'},
+        ),
+        throwsA(
+          isA<ShareFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('the level'),
+          ),
+        ),
+      );
+    });
+
     test('refuses a newer format by saying so', () {
       final json = ShareBundle(game: 'walk', level: _level()).toJson()
         ..['version'] = 99;
@@ -101,7 +148,7 @@ void main() {
           isA<ShareFormatException>().having(
             (e) => e.message,
             'message',
-            contains('newer build'),
+            contains('newer than this build reads'),
           ),
         ),
       );

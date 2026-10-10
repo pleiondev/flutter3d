@@ -41,6 +41,7 @@ library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
+import '../save/snapshot.dart' show SnapshotFormatException;
 import 'component_store.dart';
 
 /// The simulation's world. See the library doc.
@@ -281,8 +282,15 @@ final class EcsWorld extends SimWorld {
   /// number under `componentVersions`, and a resource with a codec is written
   /// under `resources`; a world with neither writes the same bytes it always
   /// did, so a recorded run's digests still hold.
-  Map<String, Object?> save() {
+  ///
+  /// [withChanges] adds `changedAt`: by codec id, the step each entity's
+  /// component was last set at, what `query().changed<T>(since:)` reads. The
+  /// loop's own capture writes them (`WorldSnapshotPart`), so a resimulated
+  /// step sees the changes the live one saw; a save a game writes for itself,
+  /// and every digest taken of one, stays without them.
+  Map<String, Object?> save({bool withChanges = false}) {
     final components = <String, Object?>{};
+    final changed = <String, Object?>{};
     final versions = <String, Object?>{};
     for (final entry in _stores.entries) {
       final store = entry.value;
@@ -303,6 +311,13 @@ final class EcsWorld extends SimWorld {
       }
       components[codec.id] = rows;
       if (codec.version != 1) versions[codec.id] = codec.version;
+      if (withChanges) {
+        final stamps = <String, Object?>{
+          for (final MapEntry(:key, :value) in store.changedAt.entries)
+            if (store.values.containsKey(key)) '$key': value,
+        };
+        if (stamps.isNotEmpty) changed[codec.id] = stamps;
+      }
     }
     final resources = <String, Object?>{};
     for (final MapEntry(:key, :value) in _resources.entries) {
@@ -317,6 +332,7 @@ final class EcsWorld extends SimWorld {
       'components': components,
       if (versions.isNotEmpty) 'componentVersions': versions,
       if (resources.isNotEmpty) 'resources': resources,
+      if (changed.isNotEmpty) 'changedAt': changed,
     };
   }
 
@@ -330,11 +346,47 @@ final class EcsWorld extends SimWorld {
   /// Replaces everything with what [from] describes.
   ///
   /// **Lenient, because a save from another build is expected.** A row it
-  /// cannot read, a component type it has never heard of and a component
-  /// written by a newer codec version than this build's are all left
-  /// unrestored rather than thrown about: a save from a newer build is refused
-  /// by its version, and one from an older build simply has less in it.
+  /// cannot read and a component type it has never heard of are left
+  /// unrestored rather than thrown about: one from an older build simply has
+  /// less in it.
+  ///
+  /// **Except for a newer codec.** A component or resource written at a
+  /// version past the one this build registers throws a
+  /// [SnapshotFormatException] naming it, before anything is changed: left
+  /// out, a 1.1 save opened in 1.0 came up without those entities' state, and
+  /// the next save wrote it out for good (decisions 8 and 9 of
+  /// `tasks/1.0-stability.md`).
+  ///
+  /// `changedAt`, when [from] has it ([save]'s `withChanges`), puts back the
+  /// step each component was last set at; without it no component counts as
+  /// changed until it is set again.
   void restore(Map<String, Object?> from) {
+    final versions = switch (from['componentVersions']) {
+      final Map<Object?, Object?> map => map,
+      _ => const <Object?, Object?>{},
+    };
+    int versionOf(String name) => switch (versions[name]) {
+      final num n => n.toInt(),
+      _ => 1,
+    };
+    final components = from['components'];
+    final resources = from['resources'];
+    for (final name in <Object?>{
+      if (components is Map) ...components.keys,
+      if (resources is Map) ...resources.keys,
+    }) {
+      final codec = _stores[_byName['$name']]?.codec;
+      if (codec == null) continue;
+      final version = versionOf('$name');
+      if (version > codec.version) {
+        throw SnapshotFormatException(
+          'the component "$name" was written at version $version and this '
+          'build reads up to ${codec.version}: update the plugin or the '
+          'flutter3d release that registers it',
+        );
+      }
+    }
+
     _generations
       ..clear()
       ..addAll(_integers(from['generations']));
@@ -350,15 +402,6 @@ final class EcsWorld extends SimWorld {
       // throw away the only one there is.
       if (!store.inPlace) store.values.clear();
     }
-    final versions = switch (from['componentVersions']) {
-      final Map<Object?, Object?> map => map,
-      _ => const <Object?, Object?>{},
-    };
-    int versionOf(String name) => switch (versions[name]) {
-      final num n => n.toInt(),
-      _ => 1,
-    };
-    final components = from['components'];
     if (components is Map) {
       for (final entry in components.entries) {
         final type = _byName[entry.key];
@@ -366,7 +409,6 @@ final class EcsWorld extends SimWorld {
         final codec = store?.codec;
         if (store == null || codec == null) continue;
         final version = versionOf('${entry.key}');
-        if (version > codec.version) continue;
         final rows = entry.value;
         if (rows is! Map) continue;
         for (final row in rows.entries) {
@@ -387,17 +429,20 @@ final class EcsWorld extends SimWorld {
         }
       }
     }
-    final resources = from['resources'];
     for (final store in _stores.values) {
       final codec = store.codec;
       if (codec == null || codec is InPlaceCodec<Object>) continue;
       if (!_resources.containsKey(store.type)) continue;
-      if (resources is Map && resources.containsKey(codec.id)) {
-        final version = versionOf(codec.id);
-        if (version > codec.version) continue;
-        final value = codec.decode(resources[codec.id], version);
-        if (value != null) _resources[store.type] = value;
+      // A resource with a codec that the save does not hold is one the world
+      // did not have when it was saved: the origin, written only while it is
+      // away from the world origin, stayed far after a rewind to before the
+      // shift.
+      if (resources is! Map || !resources.containsKey(codec.id)) {
+        _resources.remove(store.type);
+        continue;
       }
+      final value = codec.decode(resources[codec.id], versionOf(codec.id));
+      if (value != null) _resources[store.type] = value;
     }
     if (resources is Map) {
       for (final entry in resources.entries) {
@@ -405,10 +450,22 @@ final class EcsWorld extends SimWorld {
         if (type == null || _resources.containsKey(type)) continue;
         final codec = _stores[type]?.codec;
         if (codec == null || codec is InPlaceCodec<Object>) continue;
-        final version = versionOf('${entry.key}');
-        if (version > codec.version) continue;
-        final value = codec.decode(entry.value, version);
+        final value = codec.decode(entry.value, versionOf('${entry.key}'));
         if (value != null) _resources[type] = value;
+      }
+    }
+    if (from['changedAt'] case final Map<Object?, Object?> changed) {
+      for (final MapEntry(:key, :value) in changed.entries) {
+        final store = _stores[_byName['$key']];
+        if (store == null || value is! Map) continue;
+        for (final row in value.entries) {
+          final index = int.tryParse('${row.key}');
+          final step = row.value;
+          if (index == null || step is! num) continue;
+          if (store.values.containsKey(index)) {
+            store.changedAt[index] = step.toInt();
+          }
+        }
       }
     }
   }

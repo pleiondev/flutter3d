@@ -11,6 +11,10 @@ import 'dart:convert';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ComponentCodec, Entity;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
+import 'package:flutter3d_sim/src/ecs/snapshots.dart';
+import 'package:flutter3d_sim/src/save/snapshot.dart'
+    show SnapshotFormatException;
+import 'package:flutter3d_sim/src/save/state_digest.dart' show StateDigest;
 import 'package:test/test.dart';
 
 final class _Position {
@@ -293,6 +297,114 @@ void main() {
       final saved = world.save();
       (saved['components']! as Map)['ghost'] = <String, Object?>{'0': 1};
       expect(() => _world().restore(saved), returnsNormally);
+    });
+
+    test('a component a newer codec wrote is refused, and nothing moves', () {
+      // A 1.1 save opened in 1.0 used to come up without that component's
+      // entities, and a save from there wrote them out for good. Mutation:
+      // `continue` past the newer version again — no throw, and the name is
+      // gone from the world it was restored into.
+      final world = _world();
+      world.set(world.spawn(), _Name('kept'));
+      final saved = world.save()
+        ..['componentVersions'] = <String, Object?>{'position': 2};
+      (saved['components']! as Map)['position'] = <String, Object?>{
+        '0': <double>[1.0, 2.0],
+      };
+
+      final into = _world();
+      final here = into.spawn();
+      into.set(here, _Name('here'));
+      expect(
+        () => into.restore(saved),
+        throwsA(
+          isA<SnapshotFormatException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"position"'), contains('version 2')),
+          ),
+        ),
+      );
+      expect(into.get<_Name>(here)!.value, 'here');
+    });
+
+    test('a resource set after the save is gone after the restore', () {
+      // The origin is a resource, written only while it is away from the
+      // world origin. Mutation: leave a resource the save does not hold
+      // where it is — a rewind across a shift keeps the far origin.
+      final world = _world();
+      final saved = world.save();
+      world.setResource<_Name>(_Name('later'));
+      world.restore(saved);
+      expect(world.resource<_Name>(), isNull);
+    });
+
+    test('the step a component changed at comes back with it', () {
+      // `query().changed<T>(since:)` read stamps a restore had cleared, so a
+      // resimulated step saw nothing changed where the live one had. Mutation:
+      // drop `changedAt` from `save(withChanges: true)` — the query after the
+      // restore is empty.
+      final world = _world();
+      final early = world.spawn();
+      final late = world.spawn();
+      world
+        ..beginStep(3)
+        ..set(early, _Position(0.0, 0.0))
+        ..beginStep(7)
+        ..set(late, _Position(1.0, 1.0));
+      final saved = jsonDecode(jsonEncode(world.save(withChanges: true)));
+
+      final read = _world()
+        ..restore(saved as Map<String, Object?>)
+        ..beginStep(8);
+      expect(read.query().changed<_Position>(since: 5).entities, <Entity>[
+        late,
+      ]);
+      expect(read.query().changed<_Position>(since: 0).entities, <Entity>[
+        early,
+        late,
+      ]);
+      // And a save written without them is the bytes it always was.
+      expect(world.save().containsKey('changedAt'), isFalse);
+    });
+  });
+
+  group("the loop's capture of a world", () {
+    test('carries the change stamps, at the part version that has them', () {
+      // Mutation: capture `world.save()` without them — a rewind clears every
+      // stamp and a resimulated `changed<T>()` query finds nothing.
+      final world = _world();
+      final entity = world.spawn();
+      world
+        ..beginStep(4)
+        ..set(entity, _Position(0.0, 0.0));
+      final snapshots = Snapshots(world: world);
+      final captured = snapshots.capture();
+      expect(
+        (captured.data['world']! as Map<String, Object?>)['version'],
+        WorldSnapshotPart.changesVersion,
+      );
+
+      world
+        ..beginStep(9)
+        ..set(entity, _Position(1.0, 1.0));
+      snapshots.restore(captured);
+      world.beginStep(5);
+      expect(world.query().changed<_Position>(since: 4).entities, <Entity>[
+        entity,
+      ]);
+      expect(world.query().changed<_Position>(since: 5).entities, isEmpty);
+    });
+
+    test('and digests the world without them', () {
+      // Every checkpoint recorded before the stamps were captured is a digest
+      // of `save()` alone. Mutation: digest the capture — each of those
+      // checkpoints moves and every recorded run stops verifying.
+      final world = _world();
+      world
+        ..beginStep(2)
+        ..set(world.spawn(), _Name('n'));
+      expect(WorldSnapshotPart(world).digest(), StateDigest.of(world.save()));
     });
   });
 

@@ -90,7 +90,9 @@ void main() {
       ).toJson()['version'],
       3,
     );
-    expect(Demo.formatVersion, 3);
+    // Later versions (the tape's own 2, the change stamps) sit above 3; the
+    // point here is only that 3 exists for this and is not written for less.
+    expect(Demo.formatVersion, greaterThanOrEqualTo(3));
   });
 
   test('a run written before loop changes still reads, with none', () {

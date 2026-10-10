@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
 import 'entity_types.dart';
@@ -410,7 +411,16 @@ List<EntityDef> _expand(
 /// two copies of one prefab expand into entities with ids of their own, and
 /// the id of an expanded entity is the path an override of it is written to.
 EntityDef _placed(EntityDef entity, EntityDef parent) {
-  final turned = Matrix3.rotationY(parent.yaw).transformed(entity.position);
+  // Turned by `Portable`'s sine and cosine, not `Matrix3.rotationY`, which
+  // asks libm: a yawed instance expanded to other bits in a browser than in
+  // the VM, from step 0, under the same `SimulationVersion`.
+  final (:sin, :cos) = Portable.sinCos(parent.yaw);
+  final local = entity.position;
+  final turned = Vector3(
+    cos * local.x + sin * local.z,
+    local.y,
+    cos * local.z - sin * local.x,
+  );
   final name = switch ((parent.name, entity.name)) {
     (final String outer, final String inner) => '$outer/$inner',
     (_, final inner) => inner,

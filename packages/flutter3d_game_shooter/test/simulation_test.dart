@@ -358,6 +358,35 @@ void main() {
     });
   });
 
+  test('a rewind across a rocket in the air replays the same steps', () {
+    // Mutation: drop `nameOwner('player', …)` from the constructor — the
+    // restored rocket no longer knows its launcher, meets the player a step
+    // out and the second pass is another run.
+    final world = _ground()
+      ..addBox(Vector3(0.0, 1.0, 8.0), Vector3(6.0, 4.0, 0.5));
+    final h = _harness(world);
+    h.sim.projectiles!.spawn(
+      position: Vector3(0.0, 0.9, -1.0),
+      direction: Vector3(0.0, 0.0, 1.0),
+      speed: 30.0,
+      blast: const Blast(radius: 1.0, damage: 40.0),
+      owner: h.player.body.collider,
+    );
+    final start = h.sim.save();
+    int play() {
+      for (var i = 0; i < 30; i++) {
+        h.sim.step(_dt);
+      }
+      return StateDigest.of(h.sim.save().toJson());
+    }
+
+    final first = play();
+    h.sim.restore(start);
+    expect(play(), first);
+    final health = h.player.inventory.health;
+    expect(health.current, health.maximum);
+  });
+
   group('the outcome every game shares', () {
     test('says the same three things this enum says', () {
       expect(GameState.playing.outcome, RunOutcome.playing);

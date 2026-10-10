@@ -156,7 +156,7 @@ void main() {
       expect(
         () => PoseRecord.fromJson(json),
         throwsA(
-          isA<FormatException>().having(
+          isA<PoseRecordFormatException>().having(
             (e) => e.message,
             'message',
             contains('step 9'),

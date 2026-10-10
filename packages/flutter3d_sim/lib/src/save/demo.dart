@@ -6,6 +6,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         FormatSpec,
         SimulationVersion;
 
+import '../ecs/snapshots.dart' show WorldSnapshotPart;
 import '../input/input_tape.dart';
 import '../level/level.dart';
 import '../loop/loop_change.dart';
@@ -126,7 +127,32 @@ final class Demo {
   /// recorded an [AxisAction] or a [DualAxisAction] beyond moving and
   /// looking (`InputTape.writtenVersion`). An older build would drop those
   /// values and replay the run with the axis at rest.
-  static const int formatVersion = 4;
+  ///
+  /// **5 is written by a run whose [start] is a loop capture with the change
+  /// stamps** (`WorldSnapshotPart.changesVersion`): the step each component
+  /// was last set at. A version-4 build restores that world without them, and
+  /// a system on `query().changed<T>()` replays another run. 5 also reserves
+  /// two optional fields, each a list of objects with an integer `step`, in
+  /// step order, within the tape, the rest of each object the later build's:
+  ///
+  /// * `probes` — what probes read while the run was recorded. Outputs, so
+  ///   an older build that skips them plays the run correctly, and a run
+  ///   with only these is written at the version the rest asks for;
+  /// * `externalInputs` — state that arrived from outside the simulation,
+  ///   stamped with the step it was fed in. Inputs: a run with any is written
+  ///   at 5, since skipping them replays another run. Each entry may also
+  ///   say `sourceTime` and `receivedTime` (seconds), `quality` (`good`,
+  ///   `uncertain`, `bad`, `stale` — an open set by wire name, so a name this
+  ///   build does not know is kept), `tag` and `unit` (text).
+  ///
+  /// And one more optional field, `parent`: `{"digest": …, "step": …}`, the
+  /// run a branch on the timeline starts from. Provenance only — the branch's
+  /// own start is [start] — so an older build that skips it plays the run
+  /// correctly and it asks for no version.
+  ///
+  /// All three are checked for shape when read, and written back as they
+  /// were ([unknown]), as is any top-level key this build does not know.
+  static const int formatVersion = 5;
 
   /// The extension a run is written under — `.f3drun`, wherever it becomes an
   /// actual file: attached to a bug report, downloaded from the cloud, or
@@ -148,8 +174,12 @@ final class Demo {
     version: formatVersion,
     suffixes: <String>[fileExtension],
     fixture: 'test/fixtures/v<N>/run.f3drun',
-    migrations: <FormatMigration>[_identity, _identity, _identity],
+    migrations: <FormatMigration>[_identity, _identity, _identity, _identity],
   );
+
+  /// The fields version 5 reserves for a later build to fill; see
+  /// [formatVersion].
+  static const List<String> _reserved = <String>['probes', 'externalInputs'];
 
   /// The keys this reader takes; everything else in a run is [unknown].
   static const Set<String> _known = <String>{
@@ -275,13 +305,26 @@ final class Demo {
 
   /// The version this run is written at: the lowest that says what it
   /// holds, so an older build opens every run it can play correctly.
-  int get writtenVersion => tape.writtenVersion > 1
+  int get writtenVersion => _startsWithChanges || _hasExternalInputs
+      ? 5
+      : tape.writtenVersion > 1
       ? 4
       : loopChanges.any((c) => c.affectsSimulation)
       ? 3
       : levelSwaps.isEmpty
       ? 1
       : 2;
+
+  bool get _startsWithChanges => switch (start.data['world']) {
+    {'version': final num version} =>
+      version >= WorldSnapshotPart.changesVersion,
+    _ => false,
+  };
+
+  bool get _hasExternalInputs => switch (unknown['externalInputs']) {
+    final List<Object?> inputs => inputs.isNotEmpty,
+    _ => false,
+  };
 
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(version: writtenVersion),
@@ -314,9 +357,10 @@ final class Demo {
   /// next: entry `n - 1` reads `n` and writes `n + 1`.
   ///
   /// **Identities, and kept as steps anyway.** 2 added the level swaps, 3
-  /// the loop changes that change the simulation and 4 is the tape's own
-  /// version 2, which the tape reads by itself; none changed what an older
-  /// field means, so an older document already is a newer one. The chain is
+  /// the loop changes that change the simulation, 4 is the tape's own
+  /// version 2, which the tape reads by itself, and 5 the change stamps in a
+  /// loop capture, which the capture's own part version reads; none changed
+  /// what an older field means, so an older document already is a newer one. The chain is
   /// here so that the day a field does change meaning, its migration has a
   /// place to go and every older version reaches it through the steps after
   /// its own (decision 8).
@@ -434,6 +478,10 @@ final class Demo {
     } on Flutter3dFormatException catch (error) {
       throw DemoFormatException(error.message);
     }
+    for (final key in _reserved) {
+      _checkSteps(key, json[key], steps: readTape.steps);
+    }
+    _checkParent(json['parent']);
     return Demo(
       level: level,
       levelHash: levelHash,
@@ -452,6 +500,71 @@ final class Demo {
       poses: poses,
       unknown: FormatDocument.unknownIn(json, known: _known),
     );
+  }
+
+  /// A reserved field ([formatVersion] 5), when there: a list of objects
+  /// with an integer `step` from 0 to [steps], in step order. What else each
+  /// holds is the later build's, and kept as it was.
+  static void _checkSteps(String key, Object? raw, {required int steps}) {
+    if (raw == null) return;
+    if (raw is! List) {
+      throw DemoFormatException('"$key" is not a list');
+    }
+    var last = 0;
+    for (final entry in raw) {
+      final step = switch (entry) {
+        {'step': final int step} => step,
+        _ => throw DemoFormatException(
+          'an entry of "$key" is not an object with a whole-number step',
+        ),
+      };
+      if (step < last || step > steps) {
+        throw DemoFormatException(
+          'an entry of "$key" names step $step, after step $last and within '
+          'the tape\'s 0 to $steps; entries are written in step order',
+        );
+      }
+      if (key == 'externalInputs') _checkExternal(entry, step);
+      last = step;
+    }
+  }
+
+  /// The fields an external input reserves beside its `step`, each optional:
+  /// `sourceTime` and `receivedTime` in seconds, `quality` by wire name (the
+  /// set is open, so a name this build does not know is kept), `tag` and
+  /// `unit` as text.
+  static void _checkExternal(Map<Object?, Object?> entry, int step) {
+    for (final time in <String>['sourceTime', 'receivedTime']) {
+      final value = entry[time];
+      if (value != null && (value is! num || !value.isFinite)) {
+        throw DemoFormatException(
+          'the external input at step $step gives "$time" as $value, not a '
+          'number of seconds',
+        );
+      }
+    }
+    for (final text in <String>['quality', 'tag', 'unit']) {
+      final value = entry[text];
+      if (value != null && value is! String) {
+        throw DemoFormatException(
+          'the external input at step $step gives "$text" as $value, not text',
+        );
+      }
+    }
+  }
+
+  /// `parent`, when there: the run a branch starts from, as an object with a
+  /// text `digest` and a whole-number `step`, nought or more. Kept as it was.
+  static void _checkParent(Object? raw) {
+    switch (raw) {
+      case null:
+      case {'digest': String(), 'step': final int step} when step >= 0:
+        return;
+      default:
+        throw DemoFormatException(
+          '"parent" is not {"digest": text, "step": a step}: $raw',
+        );
+    }
   }
 
   static List<LoopChange> _readLoopChanges(Object? raw) {
@@ -546,9 +659,18 @@ final class DemoLevelSwap {
         'the level swapped in at step $step: ${error.message}',
       );
     }
-    if (level.digestHex != hash) {
+    // The level's digest, or the document's as it was written: a swap
+    // recorded while the digest still held the level's version (before
+    // 1.0.0-rc.1) carries that digest, and the bump 3 → 4 would refuse it as
+    // edited when nothing in it had changed.
+    final written = contentDigestHex(<String, Object?>{
+      for (final MapEntry(:key, :value) in document.entries)
+        if (key == 'version' || !FormatSpec.envelopeKeys.contains(key))
+          key: value,
+    });
+    if (written != hash && level.digestHex != hash) {
       throw DemoFormatException(
-        'the level swapped in at step $step digests to ${level.digestHex}, '
+        'the level swapped in at step $step digests to $written, '
         'not $hash; the document changed after it was written',
       );
     }

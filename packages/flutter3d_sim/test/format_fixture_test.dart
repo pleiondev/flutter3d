@@ -19,6 +19,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -98,6 +99,27 @@ void main() {
         );
       },
     );
+
+    test("a level's digest is its content, whatever version wrote it", () {
+      // The version is the format's, not the level's: holding it moved every
+      // stored `levelHash` on every bump of the format (3 → 4 did), and every
+      // recorded run of an unchanged level stopped verifying. Mutation: keep
+      // `version` in the digest — it differs from the body's digest.
+      final level = Level.fromJson(_json('first.level.json', 3));
+      final body = <String, Object?>{
+        for (final MapEntry(:key, :value) in level.toJson().entries)
+          if (!FormatSpec.envelopeKeys.contains(key)) key: value,
+      };
+      expect(level.digestHex, contentDigestHex(body));
+      expect(
+        Level.fromJson(_json('first.level.json', 3)..['version'] = 4).digestHex,
+        level.digestHex,
+        reason: 'the same document stamped with another version',
+      );
+      // Any content still moves it.
+      final edited = _json('first.level.json', 3)..['fogDensity'] = 0.5;
+      expect(Level.fromJson(edited).digestHex, isNot(level.digestHex));
+    });
 
     test('a v2 level is given the same ids on every load, and its '
         'overrides become id paths', () {

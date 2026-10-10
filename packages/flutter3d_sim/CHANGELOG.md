@@ -1,5 +1,70 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a save from a newer codec is refused.** `EcsWorld.restore`
+  throws a `SnapshotFormatException` naming a component or resource written
+  at a version past the one this build registers, before it changes
+  anything. It used to skip it, so a 1.1 save opened in 1.0 came up without
+  those entities' state and the next save lost it for good. A codec'd
+  resource the save does not hold is removed on restore: the origin stayed
+  far after a rewind to before a shift.
+- **A rewind keeps what changed when.** The loop's capture of its world
+  (`WorldSnapshotPart`, part version 2) holds each component's change step
+  (`EcsWorld.save(withChanges: true)`), so `query().changed<T>(since:)`
+  answers on a resimulated step what it answered on the live one. Its digest
+  leaves them out, so every recorded checkpoint still verifies. A build that
+  reads part version 1 refuses a version-2 capture.
+- **`.f3drun` version 5**, written by a run whose start carries those stamps
+  or that has `externalInputs`. It also reserves `probes` and
+  `externalInputs`, lists of objects stamped with a step, for the probes
+  and external frames a later build writes. An external input may carry
+  `sourceTime`, `receivedTime`, `quality` (`good`, `uncertain`, `bad`,
+  `stale`, an open set), `tag` and `unit`. A top-level `parent`
+  (`{digest, step}`) names the run a branch starts from. All of them are
+  checked for shape and written back as read, and so is any top-level key
+  this build does not know. A v4 run reads as before; the fixture is
+  `test/fixtures/v5/run.f3drun`.
+- **A share bundle hashes its level as a run does**: `Level.digestHex` of
+  the level read, not the digest of the document as it came, so a run of a
+  version-1 level can be shared. A bundle whose level this build cannot read
+  is refused with the reason. A bundle or run that names the level by the
+  document's own digest, as one written before 1.0.0-rc.1 does, still reads.
+- **A level's digest is its content.** `Level.digestHex` no longer holds the
+  format's version, so every stored `levelHash` moves once, and a format
+  bump never moves it again.
+- **`EngineLoop.restore` and `rewindTo` move the origin back properly**:
+  every `onOriginShift` hook runs, and `OriginShifted` goes to the view on
+  the frame channel. A rewind across a shift used to leave the particles,
+  the audio and the scene in the frame it came from. The double-step check
+  runs the hooks between its two runs too, so they no longer move twice.
+- **A yawed prefab instance expands to the same bits everywhere.** It turns
+  through `Portable.sinCos` rather than `Matrix3.rotationY`, which asked
+  libm.
+- **A genre with no run holds nothing** (`Snapshots.holdsNothing`), so the
+  determinism check refuses an empty world beside a level-less genre
+  instead of passing it trivially.
+- **The events every genre shares are the engine's.** `actor.hurt`,
+  `actor.died` and `sequence.signal` are declared by `app`, not by whichever
+  genre installed first, and disabling that genre no longer takes them away
+  from the others.
+- **`LocalSimulation` drops what is submitted while a tape plays.** It used
+  to fire on the first live step after the tape, and land on the recording
+  as if it had been pressed then.
+- **`EngineLoop.published` builds its first state** when something
+  registered a listener before any step. A `LocalSimulation` does exactly
+  that, so an `IsolateSimulation` published `PublishedState.empty` as its
+  step 0.
+- **`FrameCadence`**: a `cap` of nought, less or not finite is no cap, and so
+  is a `refreshRate` of nought or less (it reads as not known). `cap` is a
+  guarded getter and setter now, where it was a field. A display that drops
+  from 120 to 60 Hz is measured in half a second, not eleven, and a late
+  frame no longer pulls the rate down.
+- **`PoseRecord.track` turns through the rotation matrix.** vector_math 2.4's
+  `Quaternion.rotated` turns the other way, and a ghost yawed by `a` came
+  back facing `-a`.
+- **A level swap in a run is checked against the document as written.** The
+  level's own version bump (3 → 4) had moved the digest of every swap
+  recorded before it.
+
 - **Breaking: this package re-exports nothing of another's.** The physics (all
   of 0.8's `flutter3d_physics`: `CollisionWorld`, `CharacterController`,
   `Collider`, `RigidBody`, the queries, the cloth and the fluids), the plugin

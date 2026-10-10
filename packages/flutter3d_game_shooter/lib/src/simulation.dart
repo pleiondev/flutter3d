@@ -114,7 +114,11 @@ final class GameSimulation {
     required this.random,
     this.zones = const HitZones(),
     this.difficulty = Difficulty.normal,
-  });
+  }) {
+    // So a rocket the player fired is still the player's after a rewind: a
+    // monster's is named by its entity, the player is in no world.
+    projectiles?.nameOwner('player', player.body.collider);
+  }
 
   /// How hard this game is being.
   ///

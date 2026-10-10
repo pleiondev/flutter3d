@@ -18,6 +18,19 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+/// The component the v5 fixture's world holds.
+final class _Count {
+  _Count(this.value);
+
+  final int value;
+
+  static final ComponentCodec<_Count> codec = ComponentCodec<_Count>.of(
+    id: 'test.count',
+    encode: (count) => count.value,
+    decode: (data, _) => data is int ? _Count(data) : null,
+  );
+}
+
 Demo fixture(int version) => Demo.fromJson(
   jsonDecode(File('test/fixtures/v$version/run.f3drun').readAsStringSync())
       as Map<String, Object?>,
@@ -47,7 +60,9 @@ void main() {
     final run = fixture(2);
 
     // Mutation: drop the identity step 1 → 2 from the chain and the reader
-    // indexes past the end of it on every v2 file.
+    // indexes past the end of it on every v2 file. Mutation: check the
+    // swap's hash against the level as this build writes it back, and the
+    // level's own version bump refuses this run as edited.
     expect(run.levelSwaps.single.step, 2);
     expect(run.levelSwaps.single.level.name, 'crypt');
   });
@@ -64,6 +79,42 @@ void main() {
     // the frame as a fixed stride and the crate's numbers land on the runner.
     expect(poses.frames.first.bodies, hasLength(1));
     expect(poses.frames[1].bodies[1]!.sublist(0, 3), <double>[1, 2, 3]);
+  });
+
+  test('the v5 run starts with its change stamps and keeps what is '
+      'reserved', () {
+    final run = fixture(5);
+
+    // Restored through a loop, the stamps say which count changed when.
+    // Mutation: drop `changedAt` from `EcsWorld.restore` — both are new.
+    final loop = EngineLoop(input: InputState());
+    loop.world.components.register<_Count>(_Count.codec);
+    loop.restore(run.start);
+    loop.world.beginStep(6);
+    expect(
+      loop.world.query().changed<_Count>(since: 3).entities.map((e) => e.index),
+      <int>[1],
+    );
+    expect(run.unknown['probes'], hasLength(1));
+    expect(run.unknown['externalInputs'], hasLength(1));
+    expect(run.unknown['parent'], <String, Object?>{
+      'digest': '9a8b7c6d',
+      'step': 120,
+    });
+    final external =
+        (run.unknown['externalInputs']! as List<Object?>).single!
+            as Map<String, Object?>;
+    expect(external, <String, Object?>{
+      'step': 3,
+      'at': 0.05,
+      'kind': 'sensor.pressure',
+      'sourceTime': 12.5,
+      'receivedTime': 12.75,
+      'quality': 'uncertain',
+      'tag': 'pump.3',
+      'unit': 'kPa',
+    });
+    expect(run.toJson()['version'], 5);
   });
 
   test('every fixture directory is a version this build reads, and every '

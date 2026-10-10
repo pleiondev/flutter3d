@@ -537,7 +537,7 @@ final class Demo
   int get writtenVersion
   static const FormatSpec format = …
   static const String fileExtension = '.f3drun'
-  static const int formatVersion = 4
+  static const int formatVersion = 5
   void checkSimulation(SimulationVersion running)
 
 final class DemoFormatException extends Flutter3dFormatException
@@ -650,7 +650,7 @@ final class EcsWorld extends SimWorld
   Iterable<Entity> queryOf<A extends Object>()
   Map<Entity, WorldPosition> publishedPositions()
   Map<String, Map<Entity, Object?>> publishedComponents()
-  Map<String, Object?> save()
+  Map<String, Object?> save({bool withChanges = false})
   R? resource<R extends Object>()
   SimCommands get commands
   SimQuery query()
@@ -953,12 +953,13 @@ final class FlowField
 typedef FocusPoint = ({Vector3 at, Collider? body});
 
 final class FrameCadence
-  FrameCadence({this.cap, double? refreshRate})
+  FrameCadence({double? cap, double? refreshRate})
   double get refreshRate
-  double? cap
   double? due(Duration vsync)
+  double? get cap
   int get interval
   int get skipped
+  set cap(double? perSecond)
   set refreshRate(double? hertz)
   void reset()
 
@@ -2786,6 +2787,9 @@ final class WorldSnapshotPart extends SnapshotPart
   String get id
   const WorldSnapshotPart(this.world)
   final EcsWorld world
+  int get version
+  int? digest()
+  static const int changesVersion = 2
   void restore(Object? data, int version)
 
 final class WorldStep

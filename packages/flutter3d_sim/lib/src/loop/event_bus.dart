@@ -412,6 +412,46 @@ final class EventBus extends EventRegistry {
   EventRegistry forPlugin(PluginScope scope) => _ScopedBus(this, scope);
 }
 
+/// Declares the events every genre shares, the engine's rather than any
+/// one genre's — [ActorHurt], [ActorDied] and [SequenceSignal] — with their
+/// codecs, each one not already declared on [events].
+///
+/// Called by every `GenrePlugin` as it is installed, so the first genre in
+/// an engine declares them and a second finds them there. A game that steps
+/// actors or a cutscene without a genre calls it itself.
+///
+/// **On the engine's bus even when handed a plugin's view of it**, and that
+/// is why this lives beside the bus: declared through the first genre's
+/// scope, they were named as that genre's (`actor.hurt` "declared by
+/// shooter", against the rule that a genre's names carry its prefix) and
+/// went with it when it was disabled, out from under the genre still
+/// stepping actors.
+void declareSimulationEvents(EventRegistry events) {
+  final engine = events is _ScopedBus ? events._bus : events;
+  bool declared(String name) => engine.declared.any((d) => d.name == name);
+  if (!declared(ActorHurt.eventName)) {
+    engine.declare<ActorHurt>(
+      ActorHurt.eventName,
+      description: 'An actor took damage and survived it.',
+      codec: ActorHurt.codec,
+    );
+  }
+  if (!declared(ActorDied.eventName)) {
+    engine.declare<ActorDied>(
+      ActorDied.eventName,
+      description: "An actor's health reached zero.",
+      codec: ActorDied.codec,
+    );
+  }
+  if (!declared(SequenceSignal.eventName)) {
+    engine.declare<SequenceSignal>(
+      SequenceSignal.eventName,
+      description: "A cutscene's signal fired.",
+      codec: SequenceSignal.codec,
+    );
+  }
+}
+
 final class _ScopedBus extends EventRegistry {
   _ScopedBus(this._bus, this._scope);
 

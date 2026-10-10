@@ -378,14 +378,15 @@ final class Level extends FormatDocument {
   /// edited — a question a modification time cannot answer, because a level
   /// saved with no change still gets a new one.
   ///
-  /// **The envelope is not part of it.** `format`, `requires` and
-  /// `generator` say how the document was written, not what the level is, and
-  /// a digest that moved when a tool's name did would refuse every run
-  /// recorded against the level.
+  /// **The envelope is not part of it**, the version included. `format`,
+  /// `version`, `requires` and `generator` say how the document was written,
+  /// not what the level is. A digest that moved when a tool's name did would
+  /// refuse every run recorded against the level, and one that held the
+  /// version did exactly that on every bump of the format: 3 → 4 moved the
+  /// hash of every level, edited or not.
   String get digestHex => contentDigestHex(<String, Object?>{
     for (final MapEntry(:key, :value) in toJson().entries)
-      if (key == 'version' || !FormatSpec.envelopeKeys.contains(key))
-        key: value,
+      if (!FormatSpec.envelopeKeys.contains(key)) key: value,
   });
 
   /// Reads a level document, in any format version up to [formatVersion].
