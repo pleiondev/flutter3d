@@ -51,7 +51,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sky_presets.dart';
@@ -276,12 +275,17 @@ final class SkyPreset {
     // each component that was not a number became nought on its own. The
     // shared reader takes all three or none, which for a preset means the time
     // of day it was falling back to anyway.
-    LinearColor color(String key, LinearColor fallbackValue) {
-      final out = Vector3.zero();
-      return readVector(json[key], out)
-          ? LinearColor(out.x, out.y, out.z)
-          : fallbackValue;
-    }
+    // Read as doubles, not through a float32 `Vector3`: the file's 0.1 is the
+    // colour's 0.1.
+    LinearColor color(String key, LinearColor fallbackValue) =>
+        switch (json[key]) {
+          [final num r, final num g, final num b, ...] => LinearColor(
+            r.toDouble(),
+            g.toDouble(),
+            b.toDouble(),
+          ),
+          _ => fallbackValue,
+        };
 
     final name = json['name'];
     return SkyPreset(
