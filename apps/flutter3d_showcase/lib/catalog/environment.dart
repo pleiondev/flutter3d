@@ -195,9 +195,11 @@ const List<Feature> environmentFeatures = <Feature>[
         'Indirect light baked into a texture ahead of time and read '
         'through a second coordinate the vertex colour carries.',
     since: '0.4.2',
+    // A quote of the 0.4.2 record, which still calls the class `Material`:
+    // the rename to `RenderMaterial` does not reach history.
     evidence:
         '`MeshNode.lightmapped` picks a vertex stage that reads the '
-        'colour attribute as a place in `RenderMaterial.lightmap`',
+        'colour attribute as a place in `Material.lightmap`',
     keywords: <String>['lightmapped'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',

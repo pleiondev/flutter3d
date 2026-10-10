@@ -162,7 +162,9 @@ const List<Feature> widgetsMiscFeatures = <Feature>[
     since: '1.0.0-rc.1',
     evidence: 'The relay holds parties.',
     evidenceFile: 'packages/flutter3d_net/CHANGELOG.md',
-    keywords: <String>['RollbackSession', 'PeerWire.party'],
+    // Not `RollbackSession`: two machines rolled back together long before
+    // parties, and 0.8.1 already names it. What is new here is the party.
+    keywords: <String>['joinParty', 'LoopbackParty', 'PeerWire.party'],
     packages: <String>['flame_multiplayer'],
     engineFiles: <String>['packages/flame_multiplayer/lib/src/party.dart'],
   ),
