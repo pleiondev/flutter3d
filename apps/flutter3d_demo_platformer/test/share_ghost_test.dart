@@ -109,16 +109,32 @@ void main() {
     ], workingDirectory: '../../cloud/server');
     server = started;
     final listening = Completer<String>();
+    // What the server said, for when it stops before it listens: a server
+    // whose packages do not resolve exits in seconds, and waiting out the
+    // timeout for it said only that nothing happened.
+    final said = StringBuffer();
     started.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((String line) {
+          said.writeln(line);
           final port = RegExp(r'listening on (\d+)').firstMatch(line);
           if (port != null && !listening.isCompleted) {
             listening.complete('http://127.0.0.1:${port.group(1)}/');
           }
         });
-    unawaited(started.stderr.drain<void>());
+    started.stderr.transform(utf8.decoder).listen(said.write);
+    unawaited(
+      started.exitCode.then((int code) {
+        if (listening.isCompleted) return;
+        listening.completeError(
+          StateError(
+            'the share server exited ($code) before it listened — has '
+            '`dart pub get` been run in cloud/server?\n$said',
+          ),
+        );
+      }),
+    );
     address = await listening.future.timeout(const Duration(minutes: 4));
   });
 
