@@ -514,24 +514,38 @@ String generateDataGuide() {
       'lifted to v${spec.version} by its reader',
     _ => 'lifted to v${spec.version} through its chain',
   };
+  String row(List<String> cells) => '| ${cells.join(' | ')} |';
   final rows = <String>[
     for (final MapEntry(key: package, value: specs) in formatsByPackage.entries)
       for (final spec in specs)
-        '| `${spec.id}` | ${suffixes(spec.suffixes)} | `$package` | '
-            '${spec.since == spec.version ? 'v${spec.version}' : 'v${spec.since}–v${spec.version}'} | '
-            '${how(spec)} |',
+        row(<String>[
+          '`${spec.id}`',
+          suffixes(spec.suffixes),
+          '`$package`',
+          spec.since == spec.version
+              ? 'v${spec.version}'
+              : 'v${spec.since}–v${spec.version}',
+          how(spec),
+        ]),
     for (final away in formatsOutOfReach)
-      '| `${away.id}` | ${suffixes(away.suffixes)} | `${away.package}` | '
-          'every version | left as it is: '
-          '${away.why == _flutterOwned ? 'its package needs Flutter, and the game reads every version' : away.why} |',
+      row(<String>[
+        '`${away.id}`',
+        suffixes(away.suffixes),
+        '`${away.package}`',
+        'every version',
+        'left as it is: ${away.why == _flutterOwned ? 'its package needs Flutter, and the game reads every version' : away.why}',
+      ]),
   ];
+  final loaded = formatsByPackage.values.fold(
+    0,
+    (int n, List<FormatSpec> l) => n + l.length,
+  );
   return <String>[
     dataGuideStart,
     '',
-    '*Generated from the `FormatSpec`s `migrate --data` loads — '
-        '${formatsByPackage.values.fold(0, (int n, List<FormatSpec> l) => n + l.length)} '
-        'formats, and ${formatsOutOfReach.length} it leaves to the package '
-        'that reads them.*',
+    '*Generated from the `FormatSpec`s `migrate --data` loads — $loaded '
+        'formats, and ${formatsOutOfReach.length} it leaves to the package that '
+        'reads them.*',
     '',
     '| Format | Files | Package | This build reads | `migrate --data` |',
     '|---|---|---|---|---|',
