@@ -731,23 +731,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
   }) {
-    // Every format this backend can read is floats. The integer ones exist in
-    // the vocabulary because flutter_gpu has them; a stage here receives one
-    // `Float32List`, so a `uint32` attribute would have to be reinterpreted,
-    // and reinterpreting it silently is how a joint index becomes 1.4e-45.
-    if (layout != null) {
-      for (final buffer in layout.buffers) {
-        for (final attribute in buffer.attributes) {
-          if (!attribute.format.name.startsWith('float')) {
-            throw UnsupportedError(
-              'attribute "${attribute.name}" is ${attribute.format.name}. This '
-              'backend hands a vertex stage a list of floats, so it reads only '
-              'the float formats.',
-            );
-          }
-        }
-      }
-    }
+    final name = '${vertex.name}+${fragment.name}';
     final v = (vertex.backend as CpuStage).vertex;
     final f = (fragment.backend as CpuStage).fragment;
     if (v == null || f == null) {
@@ -757,10 +741,39 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         'as.',
       );
     }
+    // Every format this backend can read is floats. The integer ones exist in
+    // the vocabulary because flutter_gpu has them; a stage here receives one
+    // `Float32List`, so a `uint32` attribute would have to be reinterpreted,
+    // and reinterpreting it silently is how a joint index becomes 1.4e-45.
+    //
+    // A pipeline this backend cannot build, so it is refused the way every
+    // backend refuses one: reported, its draws skipped (`_drawOnce` draws
+    // nothing without a `CpuPipeline`), and never built again, since the
+    // format will be the same format at the next frame.
+    final unreadable = <InputAttribute>[
+      for (final buffer in layout?.buffers ?? const <BufferLayout>[])
+        ...buffer.attributes.where((a) => !a.format.name.startsWith('float')),
+    ];
+    if (unreadable.isNotEmpty) {
+      final attribute = unreadable.first;
+      final refusal = PipelineRefusedException(
+        pipeline: name,
+        backend: cpuBackendName,
+        reason: PipelineRefusalReason.unsupportedFormat,
+        detail:
+            'attribute "${attribute.name}" is ${attribute.format.name}. This '
+            'backend hands a vertex stage a list of floats, so it reads only '
+            'the float formats: reinterpreting an integer as one turns a '
+            'joint index into 1.4e-45.',
+      );
+      final handle = wrapPipeline(owner: this, backend: refusal, name: name);
+      pipelineRefusals.report(handle, refusal, retry: false);
+      return handle;
+    }
     return wrapPipeline(
       owner: this,
       backend: CpuPipeline(v, f, layout),
-      name: '${vertex.name}+${fragment.name}',
+      name: name,
     );
   }
 
@@ -807,6 +820,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       features: features,
       support: textureFormatSupport,
       clock: _clock,
+      refusals: pipelineRefusals,
     );
   }
 

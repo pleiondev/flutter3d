@@ -198,8 +198,21 @@ final class FrameResult {
       msaaDeclined: null,
     ),
     this.pipelineStalls = const <PipelineStall>[],
+    this.pipelineRefusals = const <PipelineRefusedException>[],
     this.held = false,
   });
+
+  /// Pipelines the device would not build that this frame met for the first
+  /// time, one entry per pipeline — taken from
+  /// `GraphicsDevice.pipelineRefusals`.
+  ///
+  /// **Told once, on the frame that met it.** The draws that needed one were
+  /// skipped and the rest of the frame drew; the backend builds it again at
+  /// its next use, at most `PipelineRefusals.maxBuilds` times, and skips its
+  /// draws for good after that, without telling this list again. Empty on
+  /// every frame of a device whose driver builds everything, and on every
+  /// frame of a backend that does not report.
+  final List<PipelineRefusedException> pipelineRefusals;
 
   /// Pipelines this frame built that took longer than
   /// `FramePacing.stallThreshold`, each with the material and geometry that
@@ -248,6 +261,7 @@ final class FrameResult {
     skipped: skipped,
     antiAliasing: antiAliasing,
     pipelineStalls: pipelineStalls,
+    pipelineRefusals: pipelineRefusals,
     held: true,
   );
 

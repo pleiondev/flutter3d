@@ -26,6 +26,7 @@ import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../gpu_timings.dart';
 import '../graphics_device.dart';
+import '../pipeline_refusal.dart';
 import '../render_target_pool.dart';
 import '../resources.dart';
 import '../sampler.dart';
@@ -51,6 +52,11 @@ final class RecordingDevice extends GraphicsDevice
 
   @override
   bool get isLost => inner.isLost;
+
+  /// The inner device's: its encoders are the ones that report, and a
+  /// renderer drawing through this recorder takes the reports from here.
+  @override
+  PipelineRefusals get pipelineRefusals => inner.pipelineRefusals;
 
   /// Passed through, and written into the trace for a texture, a geometry
   /// buffer, a pipeline or a storage buffer the trace made, so a replay

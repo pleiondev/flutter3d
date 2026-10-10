@@ -104,6 +104,26 @@ final class WebGlQuerySet {
   final Set<int> written = <int>{};
 }
 
+/// What a [PipelineHandle] carries when the pair would not link: the pair,
+/// to link again at the next bind, and the program once a link takes.
+///
+/// A driver's linker is not obliged to agree with every other driver's, and
+/// a pair one browser refuses threw from `createPipeline` and failed every
+/// frame. It is reported to `GraphicsDevice.pipelineRefusals` instead, and
+/// the encoder's bind links it again until the record says it is left
+/// refused.
+final class WebGlUnlinkedPipeline {
+  WebGlUnlinkedPipeline(this.vertex, this.fragment, this.layout);
+
+  final ShaderHandle vertex;
+  final ShaderHandle fragment;
+  final VertexLayoutDescriptor? layout;
+
+  /// The program a later link made, kept so the next bind does not link
+  /// again; null until one does.
+  WebGlProgram? linked;
+}
+
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
   WebGlProgram(

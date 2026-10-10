@@ -18,6 +18,7 @@ import 'device_exceptions.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
 import 'gpu_timings.dart';
+import 'pipeline_refusal.dart';
 import 'render_target_pool.dart';
 import 'resources.dart';
 import 'sampler.dart';
@@ -219,6 +220,11 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// pair. Two layouts over one stage pair are two different pipelines, and
   /// handing back the first for the second is a draw that reads instance data
   /// as vertices — which draws a picture rather than raising anything.
+  ///
+  /// **A pair the driver will not build is reported, not thrown** — see
+  /// [pipelineRefusals]. The handle comes back anyway, and every draw with it
+  /// is skipped until a rebuild succeeds. What still throws is a mistake in
+  /// the call: the stages the wrong way round, a stage from another device.
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
@@ -751,6 +757,33 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// backend whose pipelines are reclaimed with their last reference is
   /// right to.
   void releasePipeline(PipelineHandle pipeline) {}
+
+  /// The pipelines this device could not build or link, and what to do with
+  /// a draw that needs one.
+  ///
+  /// **The contract, for a backend from outside this repository as for the
+  /// four here:** a pipeline the API refuses — at [createPipeline], or at
+  /// the first draw where a lazy driver links it — is a
+  /// [PipelineRefusals.report], never a throw from the draw. The draw that
+  /// needed it is skipped. While the report answers true the backend drops
+  /// what it built and builds again at the pipeline's next use; once
+  /// [PipelineRefusals.isRefused], it skips every draw with the pipeline and
+  /// builds nothing — whoever reported it, and whatever the backend linked
+  /// before, so the record is asked at every bind or draw. The renderer drains
+  /// the reports after each frame, so each refusal is told once and the rest
+  /// of the frame draws.
+  ///
+  /// Before 1.0 a refused link threw from `PassEncoder.draw` and the renderer
+  /// rethrew it: one pair of stages one driver would not link failed every
+  /// frame of the application. Held by the conformance check
+  /// `a pipeline the backend refuses skips its draws and is told once`.
+  ///
+  /// A record kept here by default. A backend that never reports leaves it
+  /// empty, which reads as "every pipeline built" — what such a backend said
+  /// before this existed — and a backend that wraps another (a recorder)
+  /// answers with the inner device's.
+  PipelineRefusals get pipelineRefusals => _pipelineRefusals;
+  final PipelineRefusals _pipelineRefusals = PipelineRefusals();
 
   /// Releases a pipeline [createComputePipeline] made, as [releasePipeline].
   void releaseComputePipeline(ComputePipelineHandle pipeline) {}

@@ -337,6 +337,11 @@ final class WebGpuPipelineCache<T extends Object> {
   T offer(WebGpuPipelineSignature signature, T pipeline) =>
       _built.putIfAbsent(signature, () => pipeline);
 
+  /// Forgets the pipeline built for [signature], so the next draw that asks
+  /// builds it again: what a pipeline the browser refused on its error scope
+  /// leaves behind.
+  void forget(WebGpuPipelineSignature signature) => _built.remove(signature);
+
   /// Forgets everything. Called from `dispose`, where the device that owns the
   /// pipelines is going: a `GPURenderPipeline` has no `destroy` of its own and
   /// dies with its device.

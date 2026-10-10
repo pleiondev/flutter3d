@@ -14,6 +14,15 @@
   window through a crop, as before. A window with a render scale, an
   upscale or temporal anti-aliasing is refused, as is one whose view does
   not fill its target.
+- **A frame with a pipeline the device will not build draws the rest and
+  says so once.** `FrameResult.pipelineRefusals` holds the
+  `PipelineRefusedException` each pipeline met this frame, taken from
+  `GraphicsDevice.pipelineRefusals`; `RenderListener.refused` is called for
+  each, `RenderListener.toBus` publishes it as `FramePipelineRefused`, and
+  it goes to `developer.log` under `flutter3d.pipelineRefused`. The draws
+  that needed the pipeline are skipped by the backend, where a lazily
+  linked pipeline used to throw from the draw and `Renderer.render` rethrew
+  it on every frame.
 - **Breaking: `AnimationInterpolation`, `AnimationPath`,
   `AnimationPointerProperty`, `AnimationPointerTarget`, `AnimationWrap`,
   `MaterialMap`, `ModelWriteFormat`, `ObjNormals`, `ReactiveShape`,

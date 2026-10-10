@@ -5591,6 +5591,13 @@ final class Renderer with RenderServices {
     // rather than about anything that happened during the frame.
     final wireframeDeclined =
         settings.wireframe && !device.features.has(DeviceFeature.wireframe);
+    // What the device would not build this frame, each pipeline once. The
+    // draws were skipped where the backend met the refusal; the frame drew
+    // the rest, and this is where the one thing it could not draw is said.
+    final refusals = device.pipelineRefusals.drain();
+    for (final refusal in refusals) {
+      developer.log('$refusal', name: 'flutter3d.pipelineRefused');
+    }
     final result = FrameResult(
       frame: frame,
       wireframeDeclined: wireframeDeclined,
@@ -5651,6 +5658,7 @@ final class Renderer with RenderServices {
       ],
       targetBytes: resources.targetBytes,
       pipelineStalls: List<PipelineStall>.unmodifiable(_frameStalls),
+      pipelineRefusals: refusals,
     );
     // What a held frame answers with, until the next one is drawn.
     _lastResult = result;

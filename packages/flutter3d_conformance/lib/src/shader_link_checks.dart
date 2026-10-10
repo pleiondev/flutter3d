@@ -236,12 +236,23 @@ Future<void> checkLinking(GraphicsDevice device) async {
       vertex != null && fragment != null,
       '$vertexName + $fragmentName: one of the stages is missing',
     );
+    // A refused link is reported, not thrown, since 1.0 (see
+    // `GraphicsDevice.pipelineRefusals`), so the record is asked as well as
+    // the call. A throw still fails: it is what a backend that predates the
+    // record does.
+    final PipelineHandle pipeline;
     try {
-      device.createPipeline(vertex!, fragment!);
+      pipeline = device.createPipeline(vertex!, fragment!);
     } catch (error) {
       throw ConformanceFailureException(
         '$vertexName + $fragmentName does not link: '
         '$error',
+      );
+    }
+    final refusal = device.pipelineRefusals.refusalOf(pipeline);
+    if (refusal != null) {
+      throw ConformanceFailureException(
+        '$vertexName + $fragmentName does not link: ${refusal.message}',
       );
     }
   }

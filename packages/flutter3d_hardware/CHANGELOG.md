@@ -5,6 +5,20 @@
   what falls on the target. The software rasteriser and WebGL2 list it;
   WebGPU, whose viewport must lie inside the attachment, and Impeller do
   not. Appended to `DeviceFeature.values`.
+- **A pipeline the driver will not build skips its draws instead of
+  failing the frame.** `PipelineRefusedException`, a `ResourceException` with an
+  open `PipelineRefusalReason` (`compile`, `link`, `unsupportedFormat`,
+  `deviceLost`, `other`), is reported to the device's new
+  `GraphicsDevice.pipelineRefusals` rather than thrown from
+  `PassEncoder.draw` or `createPipeline`. The draw is skipped, the backend
+  builds the pipeline again at its next use, and after
+  `PipelineRefusals.maxBuilds` (three) failed builds it stops trying. Each
+  refusal is told once, through `PipelineRefusals.drain`. A lazily linking
+  OpenGL ES driver refused one pair at the first draw, and that one pair
+  failed every frame. The record has a default body, so a backend from
+  outside this repository compiles as before and reports nothing until it
+  calls `report`. `FakeBackend` takes `refusingPipelines` and
+  `refusedBuilds` to play such a driver.
 - **Breaking (for outside backends): `BlendFactor`, `BlendOperation`,
   `CullMode`, `DepthRange`, `GeometryUsage`, `IndexType`, `LoadAction`,
   `MinMagFilter`, `MipFilter`, `PolygonMode`, `PrimitiveType`,

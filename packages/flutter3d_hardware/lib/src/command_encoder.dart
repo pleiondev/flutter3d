@@ -425,6 +425,14 @@ abstract base mixin class PassEncoder {
   /// software rasteriser would read past its bytes and throw from somewhere
   /// that names none of them. Held by the conformance check
   /// `a window of the index buffer draws that window`.
+  ///
+  /// **A draw whose pipeline would not build is skipped, never thrown** —
+  /// every backend, and one from outside this repository owes the same. A
+  /// driver that links lazily refuses here, at the first draw; the backend
+  /// reports it to `GraphicsDevice.pipelineRefusals` and returns, and the
+  /// draws that follow with a pipeline left refused do nothing. A throw here
+  /// fails the frame, and a frame that fails for a driver's reason fails
+  /// again at the next one.
   void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount});
 
   // ------------------------------------------------------------------------

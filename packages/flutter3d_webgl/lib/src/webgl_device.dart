@@ -20,9 +20,9 @@ import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapabilityException;
+    show ShaderCompileException, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart'
-    show SynchronousBufferReadback, UniformScratch;
+    show SynchronousBufferReadback, UniformScratch, wrapPipeline;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -1260,12 +1260,68 @@ final class WebGlDevice extends GraphicsDevice
             'has no upload for the format',
       ));
 
+  /// Links the pair, and a pair the browser's linker refuses is reported to
+  /// [pipelineRefusals] rather than thrown: the handle carries a
+  /// [WebGlUnlinkedPipeline], its draws are skipped, and [_linkRefused] tries
+  /// again at its next bind.
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
-  }) => _library.link(vertex, fragment, layout: layout);
+  }) {
+    try {
+      return _library.link(vertex, fragment, layout: layout);
+    } on ShaderCompileException catch (error) {
+      final handle = wrapPipeline(
+        backend: WebGlUnlinkedPipeline(vertex, fragment, layout),
+        name: '${vertex.name}+${fragment.name}',
+      );
+      pipelineRefusals.report(handle, _linkRefusal(handle, error));
+      return handle;
+    }
+  }
+
+  /// The program for [handle], whose pair would not link at
+  /// [createPipeline], linking it again now — or null when it still will
+  /// not (reported), or the record says it is left refused.
+  WebGlProgram? _linkRefused(
+    PipelineHandle handle,
+    WebGlUnlinkedPipeline unlinked,
+  ) {
+    final linked = unlinked.linked;
+    if (linked != null) return linked;
+    if (pipelineRefusals.isRefused(handle)) return null;
+    try {
+      return unlinked.linked =
+          _library
+                  .link(
+                    unlinked.vertex,
+                    unlinked.fragment,
+                    layout: unlinked.layout,
+                  )
+                  .backend
+              as WebGlProgram;
+    } on ShaderCompileException catch (error) {
+      pipelineRefusals.report(handle, _linkRefusal(handle, error));
+      return null;
+    }
+  }
+
+  PipelineRefusedException _linkRefusal(
+    PipelineHandle handle,
+    ShaderCompileException error,
+  ) => PipelineRefusedException(
+    pipeline: handle.name,
+    backend: webglBackendName,
+    // A context that is gone fails every link with an empty log, and is
+    // reported on `lost` as well.
+    reason: isLost
+        ? PipelineRefusalReason.deviceLost
+        : PipelineRefusalReason.link,
+    detail: error.log,
+    cause: error,
+  );
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) =>
@@ -1979,4 +2035,8 @@ extension WebGlDeviceInternals on WebGlDevice {
       _compressedTextureSupport;
   bool get supportsFloatLinearFiltering => _supportsFloatLinearFiltering;
   void reportUnbound(String what) => _reportUnbound(what);
+  WebGlProgram? linkRefused(
+    PipelineHandle handle,
+    WebGlUnlinkedPipeline unlinked,
+  ) => _linkRefused(handle, unlinked);
 }

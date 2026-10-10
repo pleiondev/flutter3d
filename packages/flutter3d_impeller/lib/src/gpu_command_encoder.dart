@@ -18,6 +18,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'gpu_device.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
+import 'gpu_pipeline.dart';
 import 'gpu_texture.dart';
 
 /// [CommandEncoder] over one flutter_gpu command buffer with its one open
@@ -276,8 +277,23 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     _pass.clearBindings();
     _indexCount = 0;
     _indexView = null;
-    _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
+    // Linked again here when a refusal dropped it, and null when it cannot
+    // be: the draws until the next bind are skipped rather than drawn with
+    // whatever pipeline the pass had before.
+    final linked = (pipeline.backend as GpuPipeline<gpu.RenderPipeline>).linked(
+      pipeline,
+      _backend.pipelineRefusals,
+      deviceLost: _backend.isLost,
+    );
+    _pipeline = pipeline;
+    _pipelineRefused = linked == null;
+    if (linked != null) _pass.bindPipeline(linked);
   }
+
+  /// The pipeline last bound, and whether it is refused: the draws until the
+  /// next bind are skipped while it is.
+  PipelineHandle? _pipeline;
+  bool _pipelineRefused = false;
 
   /// How many indices the last index bind described.
   ///
@@ -458,6 +474,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     );
     final view = _indexView;
     if (window.count == 0 || instanceCount <= 0 || view == null) return;
+    if (_pipelineRefused) return;
     if (window.first != _boundFirstIndex) {
       final skip = window.first * (_indexType == IndexType.int16 ? 2 : 4);
       _pass.bindIndexBuffer(
@@ -470,7 +487,31 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       );
       _boundFirstIndex = window.first;
     }
-    _pass.drawIndexed(window.count, instanceCount: instanceCount);
+    _drawOrRefuse(
+      () => _pass.drawIndexed(window.count, instanceCount: instanceCount),
+    );
+  }
+
+  /// Runs flutter_gpu's [draw], and takes a refused link for what it is.
+  ///
+  /// The field case: OpenGL ES links lazily, at the first draw, and a pair its
+  /// driver will not link fails there as "Failed to append drawIndexed".
+  /// Thrown, it failed every frame; reported, the draw is skipped and the
+  /// frame goes on. The pipeline is dropped and linked again at its next bind.
+  void _drawOrRefuse(void Function() draw) {
+    try {
+      draw();
+    } on Exception catch (error) {
+      final pipeline = _pipeline;
+      if (pipeline == null || !isRefusedDraw(error)) rethrow;
+      (pipeline.backend as GpuPipeline<gpu.RenderPipeline>).refusedAtDraw(
+        pipeline,
+        _backend.pipelineRefusals,
+        error,
+        deviceLost: _backend.isLost,
+      );
+      _pipelineRefused = true;
+    }
   }
 
   /// The refusal for a sampler [SamplerDescriptor.usesExtendedState] says
@@ -704,8 +745,8 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
         'drawNonIndexed: $vertexCount vertices, $instanceCount instances',
       );
     }
-    if (vertexCount == 0 || instanceCount == 0) return;
-    _pass.draw(vertexCount, instanceCount: instanceCount);
+    if (vertexCount == 0 || instanceCount == 0 || _pipelineRefused) return;
+    _drawOrRefuse(() => _pass.draw(vertexCount, instanceCount: instanceCount));
   }
 
   @override

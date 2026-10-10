@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A pipeline the browser will not build is a refused pipeline.** A
+  `createRenderPipeline` the browser refuses on its error scope is reported
+  to `GraphicsDevice.pipelineRefusals` (`link`) instead of becoming a
+  complaint the next `beginFrame` throws, and the object leaves the cache so
+  the next draw in that state builds it again; one it throws in the calling
+  turn is reported the same way and its draw skipped. Once the record leaves
+  the pipeline refused, every draw with it is skipped.
 - **A WGSL refusal says where.** The `ShaderCompileException` thrown at
   the next `beginFrame` carries `target` (`webgpu`) and a `ShaderDiagnostic`
   for each error the browser's compiler gave, with its line, column and the

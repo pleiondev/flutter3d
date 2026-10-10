@@ -19,13 +19,15 @@ import 'cpu_vertex_fetch.dart';
 ///
 /// [features] is the device's answer, which every gated member asks before
 /// doing anything; [support] answers per format, for storage bindings; and
-/// [clock] is what the pass's timestamps are read from.
+/// [clock] is what the pass's timestamps are read from; [refusals] is the
+/// device's record of the pipelines whose draws are skipped.
 final class CpuEncoder extends PassEncoder with CommandEncoder {
   CpuEncoder(
     this._descriptor, {
     required DeviceFeatures features,
     required this._support,
     required this._clock,
+    required this._refusals,
   }) : _features = features,
        _independentBlend = features.has(DeviceFeature.independentBlend) {
     final occlusion = _descriptor.occlusionQuerySet;
@@ -314,9 +316,19 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   /// bind.
   @override
   void bindPipeline(PipelineHandle pipeline) {
-    _pipeline = pipeline.backend as CpuPipeline;
+    // A refused pipeline holds its refusal where a `CpuPipeline` would be
+    // (see `CpuDevice.createPipeline`), and with no pipeline bound every
+    // draw until the next bind draws nothing. One the device's record leaves
+    // refused for any other reason is skipped the same way.
+    _pipeline = switch (pipeline.backend) {
+      PipelineRefusedException() => null,
+      _ when _refusals.isRefused(pipeline) => null,
+      final other => other as CpuPipeline,
+    };
     clearBindings();
   }
+
+  final PipelineRefusals _refusals;
 
   @override
   void bindVertexBuffer(

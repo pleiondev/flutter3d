@@ -10,6 +10,12 @@
   read each centre a few hundred-thousandths of a texel off, by an amount
   that depended on the target's size, and the composite of a photo's tile
   differed from the frame's by a step at bright edges.
+- **A layout with an integer attribute is a refused pipeline, not a
+  throw.** `createPipeline` reports a `PipelineRefusedException` with
+  `PipelineRefusalReason.unsupportedFormat` to
+  `GraphicsDevice.pipelineRefusals`, left refused at once, and the draws
+  with it draw nothing. It threw an `UnsupportedError`, which failed every
+  frame that drew the mesh.
 - **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`: a storage buffer is
   `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or

@@ -442,6 +442,7 @@ abstract base class GraphicsDevice with TextureAllocator
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
   List<TextureFormat> get hdrOutputFormats
+  PipelineRefusals get pipelineRefusals
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
@@ -641,6 +642,35 @@ final class PipelineHandle
   final Object backend
   final String name
   void dispose()
+
+final class PipelineRefusalReason
+  String toString()
+  final String name
+  static PipelineRefusalReason? byName(String name)
+  static const List<PipelineRefusalReason> values = <PipelineRefusalReason>[compile, link, unsupportedFormat, deviceLost, other]
+  static const PipelineRefusalReason compile = PipelineRefusalReason._('compile')
+  static const PipelineRefusalReason deviceLost = PipelineRefusalReason._('deviceLost')
+  static const PipelineRefusalReason link = PipelineRefusalReason._('link')
+  static const PipelineRefusalReason other = PipelineRefusalReason._('other')
+  static const PipelineRefusalReason unsupportedFormat = PipelineRefusalReason._('unsupportedFormat')
+
+final class PipelineRefusals
+  List<PipelineRefusedException> drain()
+  PipelineRefusedException? refusalOf(PipelineHandle pipeline)
+  bool isRefused(PipelineHandle pipeline)
+  bool report(PipelineHandle pipeline, PipelineRefusedException refusal, {bool retry = true})
+  int failuresOf(PipelineHandle pipeline)
+  static const int maxBuilds = 3
+
+final class PipelineRefusedException extends ResourceException
+  String get message
+  String toString()
+  const PipelineRefusedException({required this.pipeline, required this.backend, required this.reason, this.detail = '', this.cause})
+  final Object? cause
+  final PipelineRefusalReason reason
+  final String backend
+  final String detail
+  final String pipeline
 
 final class PipelineStatistic
   String toString()
@@ -1252,7 +1282,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
   DepthRange get depthRange
   DeviceFeatures get features
-  FakeBackend({Set<String> missingShaders = const <String>{}, bool supportsWireframe = true, bool supportsAlphaToCoverage = true, bool supportsStencil = true, bool supportsRenderToMip = true, this.unsupportedFormats = const <TextureFormat>{}, int maxAnisotropy = 16, int maxColorAttachments = 2, this.stageBindings, this.framebufferOrigin = FramebufferOrigin.topLeft, Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[]})
+  FakeBackend({Set<String> missingShaders = const <String>{}, bool supportsWireframe = true, bool supportsAlphaToCoverage = true, bool supportsStencil = true, bool supportsRenderToMip = true, this.unsupportedFormats = const <TextureFormat>{}, int maxAnisotropy = 16, int maxColorAttachments = 2, this.stageBindings, this.framebufferOrigin = FramebufferOrigin.topLeft, Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[], this.refusingPipelines = const <String>{}, this.refusedBuilds})
   Future<ByteData> readBuffer(StorageBuffer buffer)
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
@@ -1300,7 +1330,10 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   final List<TextureHandle> releasedTextures
   final List<void Function()> pendingFrames
   final Map<String, StageBindings>? stageBindings
+  final Map<String, int> pipelineBuilds
+  final Set<String> refusingPipelines
   final Set<TextureFormat> unsupportedFormats
+  final int? refusedBuilds
   int frames
   int get liveHandleCount
   int get preferredSampleCount
@@ -1338,7 +1371,7 @@ final class FakePass extends PassEncoder with CommandEncoder, RenderBundleEncode
   ColorTarget get color
   CompareFunction? depthCompare
   CullMode? cullMode
-  FakePass(this.descriptor, {this.stageBindings, List<String>? violations, DeviceFeatures? features})
+  FakePass(this.descriptor, {this.stageBindings, List<String>? violations, DeviceFeatures? features, bool Function(PipelineHandle pipeline)? links})
   FakePass.bundle(RenderBundleDescriptor this.bundleDescriptor, {DeviceFeatures? features})
   Iterable<T> recordedOf<T extends Recorded>()
   PolygonMode? polygonMode
@@ -1541,6 +1574,7 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats
   PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
+  PipelineRefusals get pipelineRefusals
   QuerySet createQuerySet(QueryType type, int count)
   RecordingDevice(this.inner)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)

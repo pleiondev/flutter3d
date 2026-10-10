@@ -2,6 +2,13 @@
 
 - **`viewport-beyond-target` is named among the features no call refuses**:
   a device without it is never handed such a viewport.
+- **`a pipeline the backend refuses skips its draws and is told once`.** A
+  shader check that refuses a pipeline through
+  `GraphicsDevice.pipelineRefusals` and holds the backend to it over four
+  passes: the refused pipeline's draws are skipped, the draw before them in
+  the same pass still lands, and the refusal is drained once. `a stage pair
+  the engine links does link` asks the record as well as the call, since a
+  refused link is reported rather than thrown.
 - **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
   transform a later minor adds to the fuzzer breaks no `switch` over them.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,

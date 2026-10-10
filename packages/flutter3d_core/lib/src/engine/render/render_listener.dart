@@ -1,6 +1,8 @@
 /// What a renderer tells whoever is listening after each frame.
 library;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show PipelineRefusedException;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show BusEvent, EventDigestSink, EventRegistry;
 
@@ -40,6 +42,7 @@ final class RenderListener {
         overTime: (result, budget) =>
             bus.publish(FrameOverTime(result, budget)),
         stalled: (stall) => bus.publish(FramePipelineStall(stall)),
+        refused: (refusal) => bus.publish(FramePipelineRefused(refusal)),
         held: (result) => bus.publish(FrameHeld(result)),
         frameBudget: frameBudget,
       );
@@ -51,7 +54,14 @@ final class RenderListener {
     this.stalled,
     this.held,
     this.frameBudget,
+    this.refused,
   });
+
+  /// Called once for each entry of [FrameResult.pipelineRefusals], before
+  /// [stalled]: a pipeline the device would not build, whose draws the
+  /// frame skipped. Once per pipeline over the renderer's life, so a
+  /// listener can log it as it comes.
+  final void Function(PipelineRefusedException refusal)? refused;
 
   /// Called once for each entry of [FrameResult.pipelineStalls], before
   /// [skipped]: a pipeline build over `FramePacing.stallThreshold`, with the
@@ -92,6 +102,12 @@ final class RenderListener {
     if (result.held) {
       held?.call(result);
       return;
+    }
+    final onRefused = refused;
+    if (onRefused != null) {
+      for (final refusal in result.pipelineRefusals) {
+        onRefused(refusal);
+      }
     }
     final onStalled = stalled;
     if (onStalled != null) {
@@ -152,6 +168,21 @@ final class FramePassSkipped extends BusEvent {
   void digestInto(EventDigestSink sink) => sink
     ..add(pass.name)
     ..add(pass.reason.name);
+}
+
+/// A pipeline the device would not build, its draws skipped:
+/// [RenderListener.refused], on the bus.
+///
+/// Nothing goes into the event digest, for the reason [FramePipelineStall]
+/// gives: whether a driver links a pair is a fact about the machine, and a
+/// replay on another one must not differ by it.
+final class FramePipelineRefused extends BusEvent {
+  const FramePipelineRefused(this.refusal);
+
+  final PipelineRefusedException refusal;
+
+  @override
+  String get name => 'render.pipelineRefused';
 }
 
 /// A frame took longer than its budget on the CPU:

@@ -3,6 +3,13 @@
 - **Lists `DeviceFeature.viewportBeyondTarget`**: `glViewport` takes a
   negative corner and a size past the framebuffer's, and the scissor holds
   the draw to it.
+- **A pair the browser will not link is a refused pipeline, not a throw.**
+  `createPipeline` reports a `PipelineRefusedException` (`link`, with the linker's
+  `ShaderCompileException` as its cause) to
+  `GraphicsDevice.pipelineRefusals` and hands the handle back; the draws
+  with it are skipped, and it is linked again at its next bind until it is
+  left refused. A caller that wants the old throw reads
+  `pipelineRefusals.refusalOf(handle)`.
 - **A uniform block costs no allocation.** `bindUniformBlock` and
   `bindUniformBytes` fill the device's `UniformScratch` for the block's
   size, which `bufferData` copies, where each made a fresh list per draw.

@@ -27,6 +27,7 @@ import 'gpu_device_loss.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
 import 'gpu_loaded_shaders.dart';
+import 'gpu_pipeline.dart';
 import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
@@ -519,24 +520,39 @@ final class GpuRenderBackend extends GraphicsDevice {
     enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
   );
 
+  /// Linked here, as it always was, but a link flutter_gpu refuses is
+  /// reported to [pipelineRefusals] rather than thrown: the handle comes back,
+  /// its draws are skipped, and the encoder links it again at its next bind.
+  /// See [GpuPipeline].
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
-  }) => wrapPipeline(
-    owner: this,
-    backend: gpu.gpuContext.createRenderPipeline(
-      vertex.backend as gpu.Shader,
-      fragment.backend as gpu.Shader,
-      // Null is passed through rather than replaced with a layout derived
-      // from the shader. flutter_gpu does that derivation itself, and doing
-      // it here as well would be a second answer to the question the
-      // reflection already answers.
-      vertexLayout: layout?.toGpu(),
-    ),
-    name: '${vertex.name}+${fragment.name}',
-  );
+  }) {
+    final vertexStage = vertex.backend as gpu.Shader;
+    final fragmentStage = fragment.backend as gpu.Shader;
+    // Null is passed through rather than replaced with a layout derived from
+    // the shader. flutter_gpu does that derivation itself, and doing it here
+    // as well would be a second answer to the question the reflection
+    // already answers.
+    final vertexLayout = layout?.toGpu();
+    final pipeline = GpuPipeline<gpu.RenderPipeline>(
+      '${vertex.name}+${fragment.name}',
+      () => gpu.gpuContext.createRenderPipeline(
+        vertexStage,
+        fragmentStage,
+        vertexLayout: vertexLayout,
+      ),
+    );
+    final handle = wrapPipeline(
+      owner: this,
+      backend: pipeline,
+      name: pipeline.name,
+    );
+    pipeline.linked(handle, pipelineRefusals, deviceLost: isLost);
+    return handle;
+  }
 
   /// [usage] is ignored here, and that is not laziness.
   ///

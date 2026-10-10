@@ -418,5 +418,23 @@ void main() {
       cache.clear();
       expect(cache.length, 0);
     });
+
+    test('forgets one state the browser refused, and builds it again', () {
+      // A pipeline the browser would not build is answered on the error
+      // scope after the draw; it leaves the cache so the next draw in that
+      // state asks again, and the other states keep what they built.
+      //
+      // Mutation: make `forget` do nothing, and the refused object is handed
+      // to every later draw in the state.
+      var builds = 0;
+      String build() => 'pipeline ${builds++}';
+      final cache = WebGpuPipelineCache<String>()
+        ..get(_signature(), build)
+        ..get(_signature(layout: _perInstance), build);
+      cache.forget(_signature());
+      expect(cache.contains(_signature()), isFalse);
+      expect(cache.get(_signature(), build), 'pipeline 2');
+      expect(cache.get(_signature(layout: _perInstance), build), 'pipeline 1');
+    });
   });
 }

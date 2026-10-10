@@ -224,12 +224,18 @@ void main() {
     );
   });
 
-  test('a pair that does not link is a ShaderCompileException', () async {
+  test('a pair that does not link is refused, carrying the linker\'s '
+      'ShaderCompileException', () async {
     // The fragment stage reads a varying the vertex stage never writes, which
     // compiles on its own and fails only when the two are joined.
     //
-    // Mutation: throw the old `StateError` from the linker, and this fails
-    // on the type.
+    // A refusal and not a throw since 1.0: thrown, it failed every frame of a
+    // renderer that drew the pair. Reported, the draws with it are skipped
+    // and the rest of the frame draws.
+    //
+    // Mutation: let `createPipeline` rethrow, and this fails at the call;
+    // throw the old `StateError` from the linker, and it fails on the cause's
+    // type.
     final loaded = await device.loadShaders(
       _bundle(
         <String, String>{
@@ -253,14 +259,35 @@ void main() {
         },
       ),
     );
+    final pipeline = device.createPipeline(loaded['Writes']!, loaded['Reads']!);
+    final refusal = device.pipelineRefusals.drain().single;
+    expect(refusal.pipeline, 'Writes+Reads');
+    expect(refusal.reason, PipelineRefusalReason.link);
     expect(
-      () => device.createPipeline(loaded['Writes']!, loaded['Reads']!),
-      throwsA(
-        isA<ShaderCompileException>()
-            .having((e) => e.shader, 'shader', 'Writes with Reads')
-            .having((e) => e.backend, 'backend', 'WebGL2'),
+      refusal.cause,
+      isA<ShaderCompileException>()
+          .having((e) => e.shader, 'shader', 'Writes with Reads')
+          .having((e) => e.backend, 'backend', 'WebGL2'),
+    );
+    // Bound, it is linked again and refused again, and a draw draws nothing
+    // rather than throwing or drawing with the previous program.
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r8g8b8a8UNormInt,
       ),
     );
+    device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[ColorTarget(texture: target)],
+        ),
+      )
+      ..bindPipeline(pipeline)
+      ..draw()
+      ..submit();
+    expect(device.pipelineRefusals.failuresOf(pipeline), 2);
+    expect(device.pipelineRefusals.drain(), isEmpty);
   });
 
   test('the engine\'s own sources load as a bundle and link', () async {
