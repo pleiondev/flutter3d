@@ -322,6 +322,8 @@ final class LightOptimizer {
         LevelLightType.spot =>
           a.direction.normalized().dot(b.direction.normalized()) >= 0.9,
         LevelLightType.directional => false,
+        // A kind this optimizer has no rule for is left alone.
+        _ => false,
       };
 
   /// One light where two were: at the middle of their strengths, as strong

@@ -383,6 +383,11 @@ final class LevelScene {
         LevelLightType.directional => LightType.directional,
         LevelLightType.point => LightType.point,
         LevelLightType.spot => LightType.spot,
+        final other => throw ArgumentError.value(
+          other,
+          'light.type',
+          'a level light of this type has no light node here',
+        ),
       },
       color: light.color.toLinearColor(),
       intensity: light.intensity * Photometric.legacyUnit,

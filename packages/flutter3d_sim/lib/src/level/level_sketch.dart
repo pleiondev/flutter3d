@@ -367,8 +367,18 @@ final class LevelSketch {
 /// [offset] is along that wall from its middle. [sill] is where the opening
 /// starts, for a room whose floor is lower than its neighbour's; null is the
 /// room's own floor.
+///
+/// **Named arguments**, because three of them are metres side by side: a
+/// door written `RoomDoor('north', 1.2, 0.9, 2.1)` swaps its width and its
+/// height without a word from the analyzer.
 final class RoomDoor {
-  const RoomDoor(this.side, this.offset, this.width, this.height, {this.sill});
+  const RoomDoor({
+    required this.side,
+    required this.offset,
+    required this.width,
+    required this.height,
+    this.sill,
+  });
 
   /// `north`, `south`, `east` or `west`.
   final String side;

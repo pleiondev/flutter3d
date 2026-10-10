@@ -77,7 +77,7 @@ List<OutlineGroup> outlineOf(Level level, {String filter = ''}) {
         kind: Piece.light,
         index: i,
         label: level.lights[i].name ?? 'light $i',
-        detail: level.lights[i].type.name,
+        detail: level.lights[i].type.wireName,
       ),
   ];
   final types = <String>{for (final e in level.entities) e.type};

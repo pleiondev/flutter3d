@@ -460,11 +460,12 @@ List<RoomDoor> _doors(Map<String, Object?> params) => <RoomDoor>[
   for (final door in (params['doors'] as List<Object?>?) ?? const <Object?>[])
     switch (door) {
       final Map<String, Object?> d => RoomDoor(
-        d['side'] as String? ??
+        side:
+            d['side'] as String? ??
             (throw const LevelFormatException('a door has no "side"')),
-        _number(d, 'offset', 0.0),
-        _number(d, 'width', 2.0),
-        _number(d, 'height', 3.0),
+        offset: _number(d, 'offset', 0.0),
+        width: _number(d, 'width', 2.0),
+        height: _number(d, 'height', 3.0),
         sill: (d['sill'] as num?)?.toDouble(),
       ),
       _ => throw LevelFormatException('a door is $door, not an object'),

@@ -230,7 +230,7 @@ final class Editing {
   String get says => switch (piece) {
     final Brush it => 'brush $selected · ${it.material}',
     final LevelLight it =>
-      'light $selected · ${it.type.name} · ${it.intensity.toStringAsFixed(1)}',
+      'light $selected · ${it.type.wireName} ·${it.intensity.toStringAsFixed(1)}',
     final EntityDef it =>
       'entity $selected · ${it.type}${it.name == null ? '' : ' "${it.name}"'}',
     _ => 'nothing selected — click something',

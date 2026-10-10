@@ -8,34 +8,49 @@ import 'level_ids.dart';
 final Vector3 _origin = Vector3.zero();
 final Vector3 _white = Vector3(1.0, 1.0, 1.0);
 
-enum LevelLightType {
-  directional,
-  point,
-  spot;
+/// What kind of light a level places.
+///
+/// **An open set, not an enum** (ARCHITECTURE.md §13.1): a later minor may
+/// add a kind — an area light, a sky portal — and a `switch` written against
+/// three values would stop compiling on it. A `switch` over these ends with
+/// a wildcard.
+///
+/// **Its word in a document is [wireName]**, a table of the format's and
+/// not a Dart identifier, so a rename here never changes what a saved level
+/// says.
+final class LevelLightType {
+  const LevelLightType._(this.wireName);
+
+  /// The sun: parallel rays from [LevelLight.direction], in lux.
+  static const LevelLightType directional = LevelLightType._('directional');
+
+  /// A bulb: light in every direction from [LevelLight.position], in
+  /// candela.
+  static const LevelLightType point = LevelLightType._('point');
+
+  /// A bulb with a cone along [LevelLight.direction], in candela.
+  static const LevelLightType spot = LevelLightType._('spot');
+
+  /// Every type this build knows, in the order the format lists them.
+  static const List<LevelLightType> values = <LevelLightType>[
+    directional,
+    point,
+    spot,
+  ];
 
   /// The word a level document writes for this type.
-  ///
-  /// **A table, not [name]**: the Dart identifier is free to be renamed, and
-  /// a rename must not change what every saved level says. The words are the
-  /// format's and stay as they are.
-  String get wireName => _wireNames[this]!;
+  final String wireName;
 
   /// The type a document's word names, or null for a word that is not one.
-  static LevelLightType? fromWireName(String word) => _byWireName[word];
+  static LevelLightType? fromWireName(String word) {
+    for (final type in values) {
+      if (type.wireName == word) return type;
+    }
+    return null;
+  }
 
-  static const Map<LevelLightType, String> _wireNames =
-      <LevelLightType, String>{
-        LevelLightType.directional: 'directional',
-        LevelLightType.point: 'point',
-        LevelLightType.spot: 'spot',
-      };
-
-  static const Map<String, LevelLightType> _byWireName =
-      <String, LevelLightType>{
-        'directional': LevelLightType.directional,
-        'point': LevelLightType.point,
-        'spot': LevelLightType.spot,
-      };
+  @override
+  String toString() => wireName;
 }
 
 /// A light placed by the level rather than by the renderer.

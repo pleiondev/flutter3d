@@ -207,6 +207,10 @@ final class LightmapBaker {
                 toLight.scale(1.0 / distance);
                 reach = distance - _lift;
                 attenuation = _punctualAttenuation(distance, light.range);
+              default:
+                // A kind of light this baker has no model of bakes nothing,
+                // and the renderer lights it at run time like any other.
+                continue;
             }
             final cosine = n.dot(toLight);
             if (cosine <= 0.0 || attenuation <= 0.0) continue;
