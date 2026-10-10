@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: 32 of the 44 link stages and draw. A new
-/// backend following the old promise would have met 32 shader checks
+/// pipeline: 33 of the 45 link stages and draw. A new
+/// backend following the old promise would have met 33 shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -250,7 +250,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit 32 shader checks it had no way to act on yet. Clears,
+/// have hit 33 shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
