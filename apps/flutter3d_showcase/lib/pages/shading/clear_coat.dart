@@ -49,11 +49,11 @@ final class ClearCoatDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.15 * Photometric.legacyUnit
+      ..ambientIntensity = 868.5875367
       ..add(MeshNode(ball, _bare, name: 'bare')..setPosition(-0.6, 0.0, 0.0))
       ..add(MeshNode(ball, _coated, name: 'coated')..setPosition(0.6, 0.0, 0.0))
       ..add(
-        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
     // #endregion spheres

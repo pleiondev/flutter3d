@@ -60,7 +60,7 @@ final class FlameHordeDemo extends ShowcaseDemo {
     _context = context;
     _scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -75,7 +75,7 @@ final class FlameHordeDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.2 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 12739.2838716)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     _game = _Horde(context.camera)..open3d(context.device, scene: _scene);
@@ -174,7 +174,7 @@ final class _Horde extends FlameGame with HasFlutter3d {
           name: 'player $i',
           baseColor: _fromSrgb(_playerColours[i]),
           emissive: _playerColours[i].xyz.toLinearColor(),
-          emissiveStrength: 1.5 * Photometric.legacyNits,
+          emissiveStrength: 2764.8,
         ),
         name: 'player $i',
       );

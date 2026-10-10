@@ -165,7 +165,7 @@ final class CutscenesDemo extends ShowcaseDemo {
     _lamp = LightNode(
       name: 'altar lamp',
       type: LightType.point,
-      intensity: 0.0 * Photometric.legacyUnit,
+      intensity: 0.0,
     )..setPosition(0.0, 2.2, -4.0);
     _gate = box(
       Vector3(0.0, 1.5, -7.0),
@@ -181,9 +181,9 @@ final class CutscenesDemo extends ShowcaseDemo {
     );
     _show();
     return Scene()
-      ..ambientIntensity = 0.25 * Photometric.legacyUnit
+      ..ambientIntensity = 1447.6458945
       ..add(
-        LightNode(name: 'moon', intensity: 1.2 * Photometric.legacyUnit)
+        LightNode(name: 'moon', intensity: 6948.7002936)
           ..setLocalForward(Vector3(-0.2, -0.8, -0.5)),
       )
       ..add(_lamp)
@@ -209,7 +209,7 @@ final class CutscenesDemo extends ShowcaseDemo {
 
   /// The game's state drawn: the lamp, the flame on the altar and the gate.
   void _show() {
-    _lamp.intensity = _stage.lampLit ? 30.0 * Photometric.legacyUnit : 0.0;
+    _lamp.intensity = _stage.lampLit ? 173717.50733999998 : 0.0;
     _flame.material.baseColor = LinearColor.fromSrgb(
       _stage.lampLit ? 1.0 : 0.3,
       _stage.lampLit ? 0.7 : 0.3,

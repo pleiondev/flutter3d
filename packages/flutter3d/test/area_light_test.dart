@@ -144,7 +144,7 @@ List<Vector3> _cornersFrom(
   scene.add(
     LightNode(
         type: LightType.area,
-        intensity: 12.0 * Photometric.legacyUnit,
+        intensity: 69487.002936,
         name: 'window',
       )
       ..width = panelWidth

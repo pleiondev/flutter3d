@@ -73,7 +73,7 @@ _Room _room() {
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 40.0 * Photometric.legacyUnit,
+        intensity: 231623.34311999998,
         range: 12.0,
       )..setPosition(0.0, 0.0, 0.0),
     )

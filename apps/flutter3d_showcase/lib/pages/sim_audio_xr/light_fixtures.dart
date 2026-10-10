@@ -35,7 +35,7 @@ final class LightFixturesDemo extends ShowcaseDemo {
     );
     _torchLight = LightNode(
       name: 'torch',
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 23162.334312,
     )..setLocalForward(Vector3(-0.2, -1.0, -0.1));
     return Scene()
       ..add(ball)
@@ -46,7 +46,7 @@ final class LightFixturesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _fixture.step(dt);
-    _torchLight.intensity = 4.0 * _fixture.brightness * Photometric.legacyUnit;
+    _torchLight.intensity = 4.0 * _fixture.brightness * LightNode.defaultIntensity;
     _torchMaterial.emissive = LinearColor(
       _fixture.brightness,
       _fixture.brightness * 0.6,

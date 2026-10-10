@@ -95,7 +95,7 @@ abstract final class GoldenStages {
     double intensity = 3.0,
     bool castsShadow = false,
   }) => LightNode(
-    intensity: intensity * Photometric.legacyUnit,
+    intensity: intensity * LightNode.defaultIntensity,
     castsShadow: castsShadow,
   )..setLocalForward(forward.normalized());
 
@@ -280,7 +280,7 @@ abstract final class GoldenStages {
   /// back — `energy_compensation_test.dart`'s sphere, five times.
   static Future<GoldenStaged> roughMetals(GoldenStage stage) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.3 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1737.1750734;
     return GoldenStaged(
       nodes: <SceneNode>[
         ..._sphereRow(stage.device, Vector4(1.0, 0.78, 0.34, 1.0)),
@@ -301,7 +301,7 @@ abstract final class GoldenStages {
   /// sphere, the last one drawn by the layered model.
   static Future<GoldenStaged> roughDielectrics(GoldenStage stage) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.05 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 289.5291789;
     final device = stage.device;
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -390,7 +390,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> irradianceRoom(GoldenStage stage) async {
     stage.sun.isVisible = false;
     stage.scene
-      ..ambientIntensity = 1.0 * Photometric.legacyUnit
+      ..ambientIntensity = 5790.583578
       ..irradianceField = _redWallField();
     final device = stage.device;
     final white = RenderMaterial(
@@ -465,7 +465,7 @@ abstract final class GoldenStages {
   /// foot reddens by what the wall bounces, and the crease darkens.
   static Future<GoldenStaged> ssilRoom(GoldenStage stage) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.05 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 289.5291789;
     final device = stage.device;
     RenderMaterial lambert(Vector4 color) => RenderMaterial(
       lighting: LightingModel.lambert,
@@ -485,7 +485,7 @@ abstract final class GoldenStages {
           Vector3(0.0, 1.0, -1.0),
           lambert(Vector4(0.9, 0.1, 0.08, 1.0)),
         ),
-        LightNode(intensity: 1.0 * Photometric.legacyUnit, castsShadow: false)
+        LightNode(intensity: 5790.583578, castsShadow: false)
           ..setRotationYawPitchRoll(0.0, -0.6, 0.0),
       ],
       everyFrame: (_, _) =>
@@ -523,7 +523,7 @@ abstract final class GoldenStages {
       for (var j = 0; j < 8; j++)
         LightNode(
             type: LightType.point,
-            intensity: intensity * Photometric.legacyUnit,
+            intensity: intensity * LightNode.defaultIntensity,
             range: range,
             color: _hue((i * 8 + j) / 64.0).toLinearColor(),
           )
@@ -555,7 +555,7 @@ abstract final class GoldenStages {
     required double range,
   }) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 173.71750734;
     return GoldenStaged(
       nodes: _lightGrid(stage.device, intensity: intensity, range: range),
       everyFrame: (_, _) =>
@@ -588,7 +588,7 @@ abstract final class GoldenStages {
   /// direction points.
   static Future<GoldenStaged> areaLightGloss(GoldenStage stage) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 173.71750734;
     final device = stage.device;
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -608,7 +608,7 @@ abstract final class GoldenStages {
           ),
         LightNode(
             type: LightType.area,
-            intensity: 12.0 * Photometric.legacyUnit,
+            intensity: 69487.002936,
             name: 'panel',
           )
           ..width = 2.6
@@ -764,7 +764,7 @@ abstract final class GoldenStages {
     List<RenderMaterial> materials,
   ) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.15 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 868.5875367;
     final device = stage.device;
     final spacing = 1.2;
     return GoldenStaged(
@@ -841,7 +841,7 @@ abstract final class GoldenStages {
   /// wall and pane, three times.
   static Future<GoldenStaged> transmissionGlass(GoldenStage stage) async {
     stage.sun.setLocalForward(Vector3(-0.3, -0.6, -1.0).normalized());
-    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1158.1167156;
     final device = stage.device;
     final pane = DeviceMesh.upload(
       device,
@@ -998,7 +998,7 @@ abstract final class GoldenStages {
   /// difference between two backends' pictures is then only the drawing.
   static Future<GoldenStaged> impostorForest(GoldenStage stage) async {
     stage.sun.setLocalForward(Vector3(-0.4, -1.0, -0.5).normalized());
-    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1158.1167156;
     final baked = await bakeImpostors(_tree(), cell: 32);
     final lod = baked.nodes.single.lods.single;
     final impostor = lod.impostor!;
@@ -1480,7 +1480,7 @@ abstract final class GoldenStages {
   /// `P10` adds draws in it, through the graph the imperative scenes use.
   static Future<GoldenStaged> widgetScene(GoldenStage stage) async {
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
-    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1158.1167156;
     final mount = SceneWidgets.mount(
       scene: stage.scene,
       renderer: stage.renderer,
@@ -1650,7 +1650,7 @@ abstract final class GoldenStages {
     stage.sun
       ..intensity = 6.0
       ..setLocalForward(Vector3(0.25, -0.55, 1.0).normalized());
-    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 173.71750734;
     final device = stage.device;
     final plaster = RenderMaterial(
       baseColor: LinearColor.fromSrgb(0.75, 0.72, 0.68, 1.0),
@@ -1838,7 +1838,7 @@ abstract final class GoldenStages {
   /// `texture_transform_test.dart`'s plane and maps.
   static Future<GoldenStaged> textureTransforms(GoldenStage stage) async {
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1447.6458945;
     final device = stage.device;
     final plane = DeviceMesh.upload(
       device,
@@ -1905,7 +1905,7 @@ abstract final class GoldenStages {
             },
           ),
         ),
-        LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: false)
+        LightNode(intensity: 17371.750734, castsShadow: false)
           ..setRotationYawPitchRoll(0.4, -1.0, 0.0),
       ],
       everyFrame: (_, _) => _look(
@@ -1966,7 +1966,7 @@ abstract final class GoldenStages {
           Vector3(-0.9, 0.0, 1.4),
           RenderMaterial(baseColor: LinearColor.fromSrgb(0.3, 0.35, 0.4, 1.0)),
         )..occluder = true,
-        LightNode(intensity: 1.2 * Photometric.legacyUnit, castsShadow: false)
+        LightNode(intensity: 6948.7002936, castsShadow: false)
           ..setRotationYawPitchRoll(0.4, -0.7, 0.0),
       ],
       // The test's first eye, drawn back a little: the slab hides the
@@ -2031,7 +2031,7 @@ abstract final class GoldenStages {
     LightNode point(Vector3 at, Vector3 color) =>
         LightNode(
             type: LightType.point,
-            intensity: 12.0 * Photometric.legacyUnit,
+            intensity: 69487.002936,
             color: color.toLinearColor(),
           )
           ..castsShadow = false
@@ -2062,7 +2062,7 @@ abstract final class GoldenStages {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.9, -1.0, -0.3).normalized());
     // Enough sky in the shadow for the ring's colours to show there too.
-    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1447.6458945;
     const size = 64;
     final pixels = Uint8List(size * size * 4);
     for (var y = 0; y < size; y++) {
@@ -2194,7 +2194,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> planarMirror(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
-    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1158.1167156;
     final mirror = MeshNode(
       DeviceMesh.upload(
         device,
@@ -2237,7 +2237,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> renderTexture(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
-    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1158.1167156;
     final watcher = CameraNode(name: 'watcher')
       ..projection = const PerspectiveProjection(
         fovY: math.pi / 4,
@@ -2342,7 +2342,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> highContrast(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
-    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 1447.6458945;
     // Thirty-two stones a side, so a stone is under half a metre of the
     // slab: a slab's face runs its coordinate once across, and the
     // texture transforms are the layered model's, not the plain ones'.
@@ -2423,7 +2423,7 @@ abstract final class GoldenStages {
     stage.sun
       ..setLocalForward(-toSun)
       ..color = _air.sunlight(toSun).toLinearColor()
-      ..intensity = 3.0 * Photometric.legacyUnit;
+      ..intensity = 17371.750734;
     final grey = RenderMaterial(
       baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.55, 1.0),
       roughness: 0.8,
@@ -2463,7 +2463,7 @@ abstract final class GoldenStages {
       directionToSun: _duskSun,
       sunAngularRadius: 1.2 * math.pi / 180.0,
       sunSoftness: 0.3 * math.pi / 180.0,
-      sunIntensity: 2.0 * Photometric.legacyUnit,
+      sunIntensity: 11581.167156,
       physical: _air,
     );
     // The fog fades to the sky across the camera's line of sight, so the far
@@ -2487,7 +2487,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> skyPhysicalNight(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.isVisible = false;
-    stage.scene.ambientIntensity = 0.02 * Photometric.legacyUnit;
+    stage.scene.ambientIntensity = 115.81167156;
     return GoldenStaged(
       nodes: <SceneNode>[
         _slab(

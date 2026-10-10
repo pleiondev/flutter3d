@@ -249,7 +249,7 @@ class _SandboxScreenState extends State<SandboxScreen>
       // typed for either.
       _run.day.light(sun: _sun, moon: _moon);
       final scene = Scene()
-        ..ambientIntensity = 0.35 * Photometric.legacyUnit
+        ..ambientIntensity = 2026.7042522999998
         ..add(_sun)
         ..add(_moon)
         ..add(_camera);

@@ -60,7 +60,7 @@ void main() {
   test('a scene at zero intensity counts as unlit too', () {
     final scene = _scene()
       ..defaultLightWhenUnlit = false
-      ..add(LightNode(intensity: 0.0 * Photometric.legacyUnit));
+      ..add(LightNode(intensity: 0.0));
     expect(_framedLights(scene).count, 0);
   });
 
@@ -68,7 +68,7 @@ void main() {
     for (final unlitDefault in <bool>[true, false]) {
       final scene = _scene()
         ..defaultLightWhenUnlit = unlitDefault
-        ..add(LightNode(intensity: 2.0 * Photometric.legacyUnit));
+        ..add(LightNode(intensity: 11581.167156));
       expect(_framedLights(scene).count, 1);
     }
   });

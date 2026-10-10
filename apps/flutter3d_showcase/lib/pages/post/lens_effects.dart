@@ -77,7 +77,7 @@ final class LensEffectsDemo extends ShowcaseDemo {
         name: 'lamp',
         baseColor: LinearColor.fromSrgb(0.1, 0.1, 0.1, 1.0),
         emissive: LinearColor(1.0, 0.85, 0.6),
-        emissiveStrength: 40.0 * Photometric.legacyNits,
+        emissiveStrength: 73728.0,
       ),
       name: 'lamp',
     )..setPosition(-3.2, 2.8, -2.0);

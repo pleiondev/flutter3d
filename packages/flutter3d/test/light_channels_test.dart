@@ -60,7 +60,7 @@ Future<Uint8List> _draw({
   scene.add(quad('left', -1.0, leftChannels));
   scene.add(quad('right', 1.0, rightChannels));
 
-  final lamp = LightNode(intensity: 6.0 * Photometric.legacyUnit)
+  final lamp = LightNode(intensity: 34743.501468)
     ..setPosition(0.0, 0.0, 3.0)
     ..channels = lampChannels;
   lamp.lookAt(Vector3.zero());
@@ -221,7 +221,7 @@ void main() {
         for (var i = 0; i < 9; i++)
           LightNode(
               type: LightType.point,
-              intensity: 5.0 * Photometric.legacyUnit,
+              intensity: 28952.917889999997,
               range: 50.0,
             )
             ..setPosition(i.toDouble(), 0.0, 0.0)
@@ -250,7 +250,7 @@ void main() {
         for (var i = 0; i < 4; i++)
           LightNode(
               type: LightType.point,
-              intensity: 5.0 * Photometric.legacyUnit,
+              intensity: 28952.917889999997,
               range: 50.0,
             )
             ..setPosition(i.toDouble(), 0.0, 0.0)

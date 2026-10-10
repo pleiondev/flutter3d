@@ -225,7 +225,7 @@ final class HotSwapDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _scene
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit;
+      ..ambientIntensity = 1737.1750734;
     return _scene;
   }
 

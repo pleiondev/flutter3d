@@ -29,9 +29,9 @@ final class Atmosphere {
     this.fogHeightFalloff = 0.0,
     this.fogBaseHeight = 0.0,
     required this.sunColor,
-    this.sunIntensity = 2.0 * Photometric.legacyUnit,
+    this.sunIntensity = 11581.167156,
     this.ambientColor = LinearColor.white,
-    this.ambientIntensity = 0.3 * Photometric.legacyUnit,
+    this.ambientIntensity = 1737.1750734,
     // A named parameter may not be private, and the field stays private so
     // [fogColor] can fall back to the sky.
     // ignore: prefer_initializing_formals
@@ -61,7 +61,8 @@ final class Atmosphere {
   final LinearColor sunColor;
 
   /// The sun's illuminance, in lux (since 1.0) — what [applyTo] sets a
-  /// directional light's `intensity` to.
+  /// directional light's `intensity` to. About 11 581 lux by default, an
+  /// overcast day, the 2 it was in the engine's own unit.
   final double sunIntensity;
 
   /// The ambient light's colour.

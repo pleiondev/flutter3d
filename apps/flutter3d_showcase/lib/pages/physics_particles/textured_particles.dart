@@ -83,7 +83,7 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
     // #endregion contributor
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 11581.167156)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

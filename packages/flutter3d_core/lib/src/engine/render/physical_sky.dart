@@ -19,7 +19,6 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import '../scene/light_node.dart' show Photometric;
 import 'engine_light_units.dart';
 
 /// What [PhysicalSky.look] sees along one ray: the light the air sends
@@ -94,7 +93,7 @@ final class PhysicalSky {
     this.planetRadius = 6360000.0,
     this.atmosphereHeight = 60000.0,
     this.altitude = 200.0,
-    this.sunIlluminance = 20.0 * Photometric.legacyUnit,
+    this.sunIlluminance = 115811.67155999999,
     this.groundAlbedo = 0.3,
     this.starBrightness = 1.0,
     this.starDensity = 0.02,
@@ -140,7 +139,7 @@ final class PhysicalSky {
   final double altitude;
 
   /// The sunlight entering the air, in **lux** (since 1.0; the engine's own
-  /// unit before, which `Photometric.legacyUnit` converts). The default, about
+  /// unit before, which `LightNode.defaultIntensity` converts). The default, about
   /// 116 000 lux, is the real sun's order before the air, and the sky it
   /// makes at noon is several thousand nits: far brighter than white under the
   /// reference camera, as a real noon sky is at f/4 and a sixtieth. Meter it
@@ -148,7 +147,7 @@ final class PhysicalSky {
   final double sunIlluminance;
 
   /// The sunlight as the renderer's number for scattered light: the
-  /// illuminance over `Photometric.legacyNits`, so that it times a per-metre
+  /// illuminance over `RenderMaterial.defaultEmissiveStrength`, so that it times a per-metre
   /// coefficient and a per-steradian phase function is luminance on the
   /// renderer's scale.
   double get _sun => nitsToEngine(sunIlluminance);

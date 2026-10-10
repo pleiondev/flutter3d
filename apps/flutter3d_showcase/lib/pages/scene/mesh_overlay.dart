@@ -49,10 +49,10 @@ final class MeshOverlayDemo extends ShowcaseDemo {
     );
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.52, 0.68)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 926.49337248
       ..add(cube)
       ..add(
-        LightNode(name: 'key', intensity: 3.6 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 20846.1008808)
           ..setLocalForward(Vector3(-0.45, -0.8, -0.35)),
       );
     // #endregion surface

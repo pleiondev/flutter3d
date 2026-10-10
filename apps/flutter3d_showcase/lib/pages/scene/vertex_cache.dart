@@ -75,7 +75,7 @@ final class VertexCacheDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.44, 0.5, 0.66)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 926.49337248
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, reordered),
@@ -88,7 +88,7 @@ final class VertexCacheDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 18529.8674496)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.36)),
       );
     return scene;

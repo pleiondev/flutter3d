@@ -86,7 +86,7 @@ final class XrayDemo extends ShowcaseDemo {
       ..add(wall)
       ..add(monster)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.6)),
       );
   }

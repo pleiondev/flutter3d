@@ -35,7 +35,7 @@ _stage() {
         RenderMaterial(lighting: LightingModel.lambert),
       )..setPosition(0.0, 0.0, -4.0),
     )
-    ..add(LightNode(intensity: 2.0 * Photometric.legacyUnit));
+    ..add(LightNode(intensity: 11581.167156));
   final camera = scene.add(CameraNode());
   return (renderer: renderer, device: device, scene: scene, camera: camera);
 }
@@ -172,12 +172,12 @@ void main() {
       closeTo(14.644, 1e-3),
     );
     // The reference camera draws white at 1.6 × 1.2 × 2^EV100 nits, the
-    // number `Photometric.legacyNits` names.
+    // number `RenderMaterial.defaultEmissiveStrength` names.
     expect(
       PhysicalCamera.referenceExposure *
           1.2 *
           math.pow(2.0, PhysicalCamera.referenceEv100),
-      closeTo(Photometric.legacyNits, 1e-6),
+      closeTo(RenderMaterial.defaultEmissiveStrength, 1e-6),
     );
     expect(
       PhysicalCamera.ev100ForExposure(RenderSettings.defaultExposure),

@@ -139,7 +139,7 @@ final class SkyPreset {
   /// What the renderer is told about the light that is not the sun, and how much
   /// light the camera is set for.
   /// [ambientIntensity] is in the pre-1.0 engine unit (times
-  /// `Photometric.legacyUnit` it is lux); [exposure] is a linear multiplier, as
+  /// `LightNode.defaultIntensity` it is lux); [exposure] is a linear multiplier, as
   /// `RenderSettings.exposure` takes it.
   final double ambientIntensity;
 

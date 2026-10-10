@@ -66,7 +66,7 @@ const double _reach = 6.0;
       LightNode(
         type: LightType.point,
         color: LinearColor(0.1, 0.2, 1.0),
-        intensity: 4.0 * Photometric.legacyUnit,
+        intensity: 23162.334312,
         range: _reach,
         name: 'blue$i',
       )..setPosition(-_apart + (i - 4) * 0.05, 0.0, -3.5),
@@ -77,7 +77,7 @@ const double _reach = 6.0;
     LightNode(
       type: LightType.point,
       color: LinearColor(1.0, 0.15, 0.05),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 23162.334312,
       range: _reach,
       name: 'red',
     )..setPosition(_apart, 0.0, -3.5),

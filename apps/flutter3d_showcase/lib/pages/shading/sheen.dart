@@ -57,11 +57,11 @@ final class SheenDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     return Scene()
-      ..ambientIntensity = 0.15 * Photometric.legacyUnit
+      ..ambientIntensity = 868.5875367
       ..add(MeshNode(ball, bare, name: 'bare')..setPosition(-0.6, 0.0, 0.0))
       ..add(MeshNode(ball, _cloth, name: 'sheen')..setPosition(0.6, 0.0, 0.0))
       ..add(
-        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
   }

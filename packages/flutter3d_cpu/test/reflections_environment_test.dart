@@ -109,7 +109,7 @@ Float32List _render({
     ..add(floor)
     ..add(cube)
     ..add(camera)
-    ..ambientIntensity = 1.0 * Photometric.legacyUnit;
+    ..ambientIntensity = 5790.583578;
   if (sky) {
     const size = 8;
     const levels = 3;

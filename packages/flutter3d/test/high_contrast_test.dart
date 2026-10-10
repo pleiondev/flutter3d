@@ -91,12 +91,12 @@ const HighContrastSettings _neutral = HighContrastSettings(
     name: 'ball',
   )..setPosition(0.7, 0.4, 0.2);
   final scene = Scene()
-    ..ambientIntensity = 0.3 * Photometric.legacyUnit
+    ..ambientIntensity = 1737.1750734
     ..add(floor)
     ..add(box)
     ..add(ball)
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 17371.750734)
         ..setLocalForward(Vector3(-0.5, -1.0, -0.4).normalized()),
     )
     ..add(

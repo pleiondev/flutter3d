@@ -72,7 +72,7 @@ final class LightingSync {
           _ => LightType.directional,
         },
         color: light.color.toLinearColor(),
-        intensity: light.intensity * Photometric.legacyUnit,
+        intensity: light.intensity,
         range: light.range,
         // A directional light casts whatever the project says, as it always
         // drew. The renderer reads the flag on the sun since 0.7.1, and every

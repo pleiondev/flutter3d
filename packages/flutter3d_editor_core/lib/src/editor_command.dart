@@ -403,7 +403,7 @@ final class AddLevelLight extends EditorCommand {
   final Vector3 at;
 
   /// The light's strength in the level's units, as [LevelLight.intensity]:
-  /// a pre-1.0 multiple that `Photometric.legacyUnit` turns into candela.
+  /// a pre-1.0 multiple that `LightNode.defaultIntensity` turns into candela.
   final double intensity;
 
   /// How far the light reaches, in metres.

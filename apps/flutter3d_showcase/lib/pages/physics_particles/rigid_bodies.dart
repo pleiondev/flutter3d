@@ -60,7 +60,7 @@ final class RigidBodiesDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25 * Photometric.legacyUnit
+      ..ambientIntensity = 1447.6458945
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -75,7 +75,7 @@ final class RigidBodiesDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.5, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

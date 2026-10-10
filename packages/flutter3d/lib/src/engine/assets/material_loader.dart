@@ -226,7 +226,7 @@ Future<RenderMaterial> bindMaterial(
     emissive: surface.emissive,
     // A file's strength is glTF's, a multiple of the factor; the material's
     // is nits, and one of the file's was always drawn at the old unit's.
-    emissiveStrength: surface.emissiveStrength * Photometric.legacyNits,
+    emissiveStrength: surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (surface.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
@@ -363,7 +363,7 @@ Future<RenderMaterial> bindSurfaceMaterial(
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
     emissive: source.emissive,
-    emissiveStrength: source.emissiveStrength * Photometric.legacyNits,
+    emissiveStrength: source.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (source.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,

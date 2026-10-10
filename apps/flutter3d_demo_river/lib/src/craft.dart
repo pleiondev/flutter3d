@@ -98,7 +98,7 @@ final class _Kit {
     name: 'glow',
     baseColor: LinearColor.fromSrgb(1.0, 0.85, 0.4, 1.0),
     emissive: LinearColor(1.0, 0.75, 0.3),
-    emissiveStrength: 4.0 * Photometric.legacyNits,
+    emissiveStrength: 7372.8,
   );
 
   /// A helicopter's bullet: red, so it reads as the enemy's and not a
@@ -107,7 +107,7 @@ final class _Kit {
     name: 'tracer',
     baseColor: LinearColor.fromSrgb(1.0, 0.2, 0.15, 1.0),
     emissive: LinearColor(1.0, 0.15, 0.1),
-    emissiveStrength: 6.0 * Photometric.legacyNits,
+    emissiveStrength: 11059.2,
   );
 
   /// A bridge's shield, while the level's task is not done.
@@ -115,7 +115,7 @@ final class _Kit {
     name: 'shield',
     baseColor: LinearColor.fromSrgb(0.3, 0.95, 1.0, 1.0),
     emissive: LinearColor(0.2, 0.9, 1.0),
-    emissiveStrength: 5.0 * Photometric.legacyNits,
+    emissiveStrength: 9216.0,
   );
 
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>

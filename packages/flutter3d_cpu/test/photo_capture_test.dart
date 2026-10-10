@@ -28,7 +28,7 @@ const int _height = 360;
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.0 * Photometric.legacyUnit
+        ..intensity = 17371.750734
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     )
     ..add(

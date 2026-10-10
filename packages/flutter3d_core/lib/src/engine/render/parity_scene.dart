@@ -267,7 +267,7 @@ enum ParityScene {
       // Above and to the right, so the lit side of both spheres is up.
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 3.5 * Photometric.legacyUnit
+          ..intensity = 20267.042523
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -278,7 +278,7 @@ enum ParityScene {
       // and a comparison that cannot see it cannot disagree about it.
       scene.root.add(
         LightNode(name: 'sun', type: LightType.directional)
-          ..intensity = 4.0 * Photometric.legacyUnit
+          ..intensity = 23162.334312
           ..castsShadow = true
           ..setPosition(2.5, 3.0, 1.5)
           ..lookAt(Vector3.zero()),
@@ -289,7 +289,7 @@ enum ParityScene {
     case ParityScene.pointShadowStaticMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
-          ..intensity = 12.0 * Photometric.legacyUnit
+          ..intensity = 69487.002936
           ..range = 12.0
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
@@ -299,7 +299,7 @@ enum ParityScene {
     case ParityScene.look:
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 3.5 * Photometric.legacyUnit
+          ..intensity = 20267.042523
           ..setPosition(1.5, 3.0, 2.0)
           ..lookAt(Vector3.zero()),
       );
@@ -313,7 +313,7 @@ enum ParityScene {
         scene.environment = environment.texture;
         scene.environmentLevels = environment.levels;
       }
-      scene.ambientIntensity = Photometric.legacyUnit;
+      scene.ambientIntensity = LightNode.defaultIntensity;
   }
 
   final camera = CameraNode(name: 'eye')
@@ -420,7 +420,7 @@ const List<(double, double, double)> _torchStandoffs =
         : _torchStandoffs[(i - 1) % _torchStandoffs.length];
     scene.root.add(
       LightNode(name: 'torch$i', type: LightType.point)
-        ..intensity = (i == 0 ? 8.0 : 4.0) * Photometric.legacyUnit
+        ..intensity = (i == 0 ? 8.0 : 4.0) * LightNode.defaultIntensity
         ..range = 13.0
         ..castsShadow = true
         ..setPosition(at.$1, at.$2, at.$3),
@@ -503,5 +503,5 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
 const SkySettings _paritySky = SkySettings(
   enabled: true,
   glowStrength: 0.35,
-  sunIntensity: 2.0 * Photometric.legacyUnit,
+  sunIntensity: 11581.167156,
 );

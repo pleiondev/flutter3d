@@ -110,7 +110,7 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
       scene.add(
         LightNode(
           type: LightType.point,
-          intensity: 2.0 * Photometric.legacyUnit,
+          intensity: 11581.167156,
           range: 1.5,
         )..setPosition(i - 3.5, 0.3, j - 3.5),
       );
@@ -172,7 +172,7 @@ Float32List _torchBehindWall({
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 20.0 * Photometric.legacyUnit,
+        intensity: 115811.67155999999,
         range: 8.0,
         castsShadow: castsShadow,
       )..setPosition(0.0, 0.0, -6.0),
@@ -182,7 +182,7 @@ Float32List _torchBehindWall({
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 0.5 * Photometric.legacyUnit,
+        intensity: 2895.291789,
         range: 0.5,
       )..setPosition(30.0 + i, 0.0, -10.0),
     );

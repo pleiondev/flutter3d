@@ -51,7 +51,7 @@ Future<List<int>> _frame({
       )..setPosition(-0.6, 0.0, 0.0),
     )
     ..add(
-      LightNode(intensity: 8.0 * Photometric.legacyUnit, castsShadow: shadows)
+      LightNode(intensity: 46324.668624, castsShadow: shadows)
         ..setPosition(3.0, 3.0, 3.0)
         ..lookAt(Vector3.zero()),
     )

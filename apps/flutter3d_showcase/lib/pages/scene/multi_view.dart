@@ -53,11 +53,11 @@ final class MultiViewDemo extends ShowcaseDemo {
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 926.49337248
       ..add(leftCube)
       ..add(rightCube)
       ..add(
-        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
 

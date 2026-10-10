@@ -94,7 +94,7 @@ Future<Uint8List> _render(
     // catch it, so the shadow is drawn through the stage under test too.
     scene
       ..add(
-        LightNode(intensity: 2.0 * Photometric.legacyUnit, castsShadow: true)
+        LightNode(intensity: 11581.167156, castsShadow: true)
           ..setLocalForward(Vector3(0.5, -1.0, 0.6).normalized()),
       )
       ..add(

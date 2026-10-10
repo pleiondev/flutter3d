@@ -63,7 +63,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       )
       ..add(wallNode)
       ..add(
-        LightNode(name: 'sun', intensity: 4.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 23162.334312)
           ..setLocalForward(Vector3(-0.6, -0.7, 0.15)),
       );
 
@@ -88,7 +88,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _scene.irradianceField = baked ? _field : null;
-    _scene.ambientIntensity = ambient * Photometric.legacyUnit;
+    _scene.ambientIntensity = ambient * LightNode.defaultIntensity;
   }
   // #endregion live
 

@@ -84,7 +84,7 @@ final class PostStage {
 
     final LightNode sun = LightNode(
       name: 'sun',
-      intensity: sunIntensity * Photometric.legacyUnit,
+      intensity: sunIntensity * LightNode.defaultIntensity,
       castsShadow: shadows,
     )..setLocalForward(Vector3(-0.5, -0.8, -0.35));
 

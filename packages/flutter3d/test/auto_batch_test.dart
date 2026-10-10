@@ -74,7 +74,7 @@ Scene _field(
   }
   return scene
     ..add(
-      LightNode(intensity: 4.0 * Photometric.legacyUnit)
+      LightNode(intensity: 23162.334312)
         ..setPosition(2.0, 4.0, 6.0)
         ..lookAt(Vector3.zero()),
     )

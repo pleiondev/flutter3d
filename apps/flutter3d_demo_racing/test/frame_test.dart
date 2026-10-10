@@ -107,11 +107,11 @@ final class _Shown {
     scene.add(
       LightNode(
         color: hour.sunColor.toLinearColor(),
-        intensity: hour.sunIntensity * Photometric.legacyUnit,
+        intensity: hour.sunIntensity * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(hour.sunDirection),
     );
-    scene.ambientIntensity = hour.ambientIntensity * Photometric.legacyUnit;
+    scene.ambientIntensity = hour.ambientIntensity * LightNode.defaultIntensity;
 
     // The shipped assembly, not this file's own. What is left here is the half
     // that needs a device.

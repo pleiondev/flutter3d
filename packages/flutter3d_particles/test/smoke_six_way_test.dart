@@ -98,7 +98,7 @@ Float32List _render(
 LightNode _point(Vector3 at, Vector3 color, {double intensity = 12.0}) =>
     LightNode(
         type: LightType.point,
-        intensity: intensity * Photometric.legacyUnit,
+        intensity: intensity * LightNode.defaultIntensity,
       )
       ..color = color.toLinearColor()
       ..setPosition(at.x, at.y, at.z);

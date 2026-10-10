@@ -247,12 +247,12 @@ final class ModelerStage {
   static void _light(Scene scene) {
     scene.add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2 * Photometric.legacyUnit
+        ..intensity = 18529.8674496
         ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
     );
     scene.add(
       LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1 * Photometric.legacyUnit
+        ..intensity = 6369.6419358
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
   }

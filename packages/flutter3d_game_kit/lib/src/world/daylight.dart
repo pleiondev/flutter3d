@@ -48,10 +48,10 @@ final class Daylight {
   static const double defaultSecondsPerHour = 50.0;
 
   /// The sun at noon, in lux: about 15 000, the 2.6 of the renderer's own
-  /// unit it was before 1.0 (times `Photometric.legacyUnit`). A real noon is
+  /// unit it was before 1.0 (times `LightNode.defaultIntensity`). A real noon is
   /// nearer 100 000; this is the sun that reads as daylight under the
   /// reference camera without metering for it.
-  static const double defaultSunIntensity = 2.6 * Photometric.legacyUnit;
+  static const double defaultSunIntensity = 15055.517302799999;
 
   /// The moon's light as a share of the sun's; see the class comment.
   static const double defaultMoonShare = 0.12;

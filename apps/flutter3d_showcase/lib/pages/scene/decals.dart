@@ -46,7 +46,7 @@ final class DecalsDemo extends ShowcaseDemo {
     // #region room
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 2026.7042522999998
       ..add(
         _slab(
           context,
@@ -79,7 +79,7 @@ final class DecalsDemo extends ShowcaseDemo {
       ..add(
         LightNode(
           name: 'sun',
-          intensity: 2.0 * Photometric.legacyUnit,
+          intensity: 11581.167156,
           castsShadow: true,
         )..setLocalForward(Vector3(-0.4, -0.8, -0.35)),
       );

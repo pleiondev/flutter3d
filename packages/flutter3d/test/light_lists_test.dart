@@ -70,14 +70,14 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
   for (var i = 0; i < LightNode.maxLights; i++) {
     scene.add(
       LightNode(name: 'west$i', type: LightType.point)
-        ..intensity = 5.0 * Photometric.legacyUnit
+        ..intensity = 28952.917889999997
         ..range = 6.0
         ..setPosition(-40.0 + i * 0.25, 2.0, 0.0),
     );
   }
   scene.add(
     LightNode(name: 'east', type: LightType.point)
-      ..intensity = 5.0 * Photometric.legacyUnit
+      ..intensity = 28952.917889999997
       ..range = 6.0
       ..setPosition(0.0, 2.0, 0.0),
   );

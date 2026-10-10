@@ -78,10 +78,10 @@ Future<void> _film() async {
   );
   final camera = CameraNode(name: 'eye');
   final scene = Scene()
-    ..ambientIntensity = 0.45 * Photometric.legacyUnit
+    ..ambientIntensity = 2605.7626101
     ..ambientColor = LinearColor(0.70, 0.80, 1.0)
     ..add(
-      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 11581.167156)
         ..setLocalForward(_sunAlong),
     )
     ..add(camera);

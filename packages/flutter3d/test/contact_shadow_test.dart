@@ -56,7 +56,7 @@ const int _height = 64;
   required bool sun,
   bool sunCasts = true,
 }) {
-  final scene = Scene()..ambientIntensity = 0.35 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 2026.7042522999998;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -82,7 +82,7 @@ const int _height = 64;
     scene.add(
       LightNode(
           type: LightType.directional,
-          intensity: 2.0 * Photometric.legacyUnit,
+          intensity: 11581.167156,
           castsShadow: sunCasts,
           name: 'sun',
         )
@@ -97,7 +97,7 @@ const int _height = 64;
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 8.0 * Photometric.legacyUnit,
+        intensity: 46324.668624,
         range: 12.0,
         name: 'lamp',
       )..setPosition(-2.0, 2.5, -1.0),
@@ -118,7 +118,7 @@ const int _height = 64;
 /// from a different offset of the 4 x 4 pattern, and with nothing to average
 /// them the edge is exactly as ragged as the pattern.
 ({Scene scene, CameraNode camera}) _plateOverFloor() {
-  final scene = Scene()..ambientIntensity = 0.35 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 2026.7042522999998;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -142,7 +142,7 @@ const int _height = 64;
     ..add(
       LightNode(
           type: LightType.directional,
-          intensity: 1.0 * Photometric.legacyUnit,
+          intensity: 5790.583578,
           castsShadow: false,
           name: 'sun',
         )

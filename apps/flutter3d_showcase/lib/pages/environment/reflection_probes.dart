@@ -69,7 +69,7 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
           );
 
     return Scene()
-      ..ambientIntensity = 0.15 * Photometric.legacyUnit
+      ..ambientIntensity = 868.5875367
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -92,7 +92,7 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
         )..setPosition(0.0, 0.9, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.5, -0.7, -0.35)),
       )
       ..add(_probe);

@@ -69,7 +69,7 @@ const int _height = 72;
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0 * Photometric.legacyUnit,
+        intensity: 347435.01467999996,
         range: 20.0,
         castsShadow: castsShadow,
         name: 'torch',

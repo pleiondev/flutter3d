@@ -47,7 +47,7 @@ final class RenderPostDemo extends ShowcaseDemo {
             name: 'bar',
             baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
             emissive: LinearColor(1.0, 0.55, 0.2),
-            emissiveStrength: 6.0 * Photometric.legacyNits,
+            emissiveStrength: 11059.2,
           ),
           name: 'bar',
         ),

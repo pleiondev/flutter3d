@@ -71,7 +71,7 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
     );
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -88,7 +88,7 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
       ..add(_leader)
       ..add(follower)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

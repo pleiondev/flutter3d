@@ -81,11 +81,11 @@ void main() {
     scene.add(
       LightNode(
         color: LinearColor(1.0, 1.0, 1.0),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 17371.750734,
         name: 'sun',
       )..lookAt(Vector3(0.2, -1.0, 0.3)),
     );
-    scene.ambientIntensity = 0.6 * Photometric.legacyUnit;
+    scene.ambientIntensity = 3474.3501468;
 
     // Where the board is looking. A plane's face is its +Y before anything is
     // rotated, so the world normal is that vector through the node's rotation.

@@ -69,20 +69,20 @@ final class SceneGraphDemo extends ShowcaseDemo {
         name: 'star',
         baseColor: LinearColor.fromSrgb(1.0, 0.56, 0.12, 1.0),
         emissive: LinearColor(1.0, 0.28, 0.04),
-        emissiveStrength: 1.8 * Photometric.legacyNits,
+        emissiveStrength: 3317.76,
         roughness: 0.5,
       ),
       name: 'star',
     )..setUniformScale(1.15);
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.2, 0.26, 0.42)
-      ..ambientIntensity = 0.12 * Photometric.legacyUnit
+      ..ambientIntensity = 694.87002936
       ..add(star)
       ..add(_systemPivot)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 24.0 * Photometric.legacyUnit,
+          intensity: 138974.005872,
           range: 12.0,
           name: 'starlight',
         ),

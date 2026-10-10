@@ -298,7 +298,7 @@ final class SharingGhostsDemo extends ShowcaseDemo {
     final Brush strip = _level.brushes.first;
     return Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 2026.7042522999998
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -328,7 +328,7 @@ final class SharingGhostsDemo extends ShowcaseDemo {
       ..add(_you)
       ..add(_ghostNode)
       ..add(
-        LightNode(name: 'sun', intensity: 2.6 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 15055.517302799999)
           ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
       );
   }

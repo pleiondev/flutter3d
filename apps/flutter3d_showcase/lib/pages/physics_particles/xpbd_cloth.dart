@@ -90,11 +90,11 @@ final class XpbdClothDemo extends ShowcaseDemo {
 
     return Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(_sheet)
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.3, -0.5, -0.6)),
       );
   }

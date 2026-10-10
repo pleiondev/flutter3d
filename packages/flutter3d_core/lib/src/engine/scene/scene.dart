@@ -251,10 +251,11 @@ final class Scene {
   /// scales the environment when there is one, so the same knob dials indirect
   /// light either way and the two are alternatives rather than a sum.
   ///
-  /// About 347 lux by default — `0.06 × Photometric.legacyUnit`, the 0.06 it
+  /// About 347 lux by default — `0.06 × LightNode.defaultIntensity`, the 0.06 it
   /// was in the engine's own unit before 1.0, so a scene that never set it
-  /// looks as it did. Multiply a pre-1.0 number by `Photometric.legacyUnit`.
-  double ambientIntensity = 0.06 * Photometric.legacyUnit;
+  /// looks as it did. Multiply a pre-1.0 number by
+  /// `LightNode.defaultIntensity`.
+  double ambientIntensity = 347.43501468;
 
   LinearColor ambientColor = LinearColor.white;
 

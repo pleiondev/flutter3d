@@ -225,9 +225,9 @@ final class HeatAndFireDemo extends ShowcaseDemo {
       ..setPosition(_apart, 0.1, 0.0);
     final Scene scene = (_scene ?? Scene())
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(
-        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 11581.167156)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(
@@ -253,7 +253,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
             name: 'heater',
             baseColor: LinearColor.fromSrgb(0.4, 0.2, 0.15, 1.0),
             emissive: LinearColor(1.0, 0.35, 0.08),
-            emissiveStrength: 2.0 * Photometric.legacyNits,
+            emissiveStrength: 3686.4,
           ),
           name: 'heater',
         )..setPosition(0.0, 0.15, 0.0),
@@ -291,7 +291,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
     look.emissive =
         (color * (y > 0.0 ? nits / Photometric.bulbAtOneMeter / y : 0.0))
             .toLinearColor();
-    look.emissiveStrength = 1.0 * Photometric.legacyNits;
+    look.emissiveStrength = 1843.2;
   }
   // #endregion glow
 

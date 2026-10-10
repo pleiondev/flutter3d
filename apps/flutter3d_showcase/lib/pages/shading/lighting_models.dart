@@ -53,7 +53,7 @@ final class LightingModelsDemo extends ShowcaseDemo {
     // #region light
     _sun = LightNode(
       name: 'sun',
-      intensity: sunIntensity * Photometric.legacyUnit,
+      intensity: sunIntensity * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.4, -0.6, -0.7));
     scene.add(_sun);
     // #endregion light
@@ -66,7 +66,7 @@ final class LightingModelsDemo extends ShowcaseDemo {
     for (final RenderMaterial material in _materials) {
       material.roughness = roughness;
     }
-    _sun.intensity = sunIntensity * Photometric.legacyUnit;
+    _sun.intensity = sunIntensity * LightNode.defaultIntensity;
     // #endregion live
   }
 

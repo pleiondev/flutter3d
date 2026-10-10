@@ -30,7 +30,7 @@ void main() {
       const <String, TextureHandle?>{},
       name: 'hazard',
     );
-    expect(material.emissiveStrength, 0.5 * Photometric.legacyNits);
+    expect(material.emissiveStrength, 921.6);
     // The base colour, not white: the level says how much a surface glows,
     // never in what colour, so the colour can only be the one it is painted.
     expect(material.emissive.r, closeTo(0.75, 1e-6));
@@ -65,7 +65,7 @@ void main() {
       ),
       const <String, TextureHandle?>{},
     );
-    expect(material.emissiveStrength, 0.7 * Photometric.legacyNits);
+    expect(material.emissiveStrength, 1290.24);
     expect(material.albedoSampler, SamplerDescriptor.trilinearRepeat);
   });
 }

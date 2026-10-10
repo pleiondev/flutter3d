@@ -71,7 +71,7 @@ abstract final class Roadside {
     baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     albedo: face,
     emissiveTexture: face,
-    emissiveStrength: 0.35 * Photometric.legacyNits,
+    emissiveStrength: 645.12,
     roughness: 0.6,
     // **Both sides, or half the signs are two posts holding nothing.** A plane
     // has one face, and which way it points depends on the sign of the pitch

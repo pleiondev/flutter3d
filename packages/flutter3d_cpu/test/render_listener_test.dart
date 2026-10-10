@@ -37,7 +37,7 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 2.0 * Photometric.legacyUnit)
+      LightNode(intensity: 11581.167156)
         ..setPosition(1.0, 2.0, 2.0),
     )
     ..add(camera);

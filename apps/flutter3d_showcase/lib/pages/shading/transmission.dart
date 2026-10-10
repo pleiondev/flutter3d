@@ -46,7 +46,7 @@ final class TransmissionDemo extends ShowcaseDemo {
       const PlaneShape(width: 0.08, depth: 4.0).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.2 * Photometric.legacyUnit
+      ..ambientIntensity = 1158.1167156
       ..add(
         MeshNode(half, flat(Vector4(0.8, 0.1, 0.1, 1.0)), name: 'red wall')
           ..setRotation(upright)
@@ -106,7 +106,7 @@ final class TransmissionDemo extends ShowcaseDemo {
         )..setPosition(0.6, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.3, -0.6, -1.0).normalized()),
       );
     // #endregion glass

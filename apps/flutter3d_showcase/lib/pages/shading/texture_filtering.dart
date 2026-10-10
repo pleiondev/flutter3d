@@ -61,7 +61,7 @@ final class TextureFilteringDemo extends ShowcaseDemo {
     return Scene()
       ..add(ground)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
   }

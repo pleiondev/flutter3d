@@ -60,7 +60,7 @@ _room() {
     height: _height,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final scene = Scene()..ambientIntensity = 1.0 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 5790.583578;
 
   final ball = MeshNode(
     DeviceMesh.upload(
@@ -100,7 +100,7 @@ _room() {
     ..add(
       LightNode(
         type: LightType.directional,
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 17371.750734,
       )..setLocalForward(Vector3(0.0, -1.0, -0.3)),
     )
     ..add(ReflectionProbeNode(faceSize: 32, levels: 2)..excluded.add(ball));

@@ -8,6 +8,17 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **The pre-1.0 light unit is no longer named; the defaults are.**
+  `Photometric.legacyUnit` and `legacyNits` are gone from the API: a light
+  is lux or candela and an emissive is nits, and a number in the old unit
+  has no place in new code. What a default-made light, sun and glow are
+  stays as it was, and has a name: `LightNode.defaultIntensity` (5 790.6,
+  lux for a sun, candela for a lamp) and
+  `RenderMaterial.defaultEmissiveStrength` (1 843.2 nits). A reader of a
+  format that stores a multiple of the default (a glTF emissive strength, a
+  level's light) multiplies by them. `Scene.ambientIntensity` defaults to
+  347.4 lux and `Atmosphere` to an 11 581-lux sun and a 1 737-lux ambient,
+  the numbers they were, so every picture is the same.
 - **One vocabulary for a step that is off.** `RenderSettings.without` and
   `only` switch steps, `RenderSettings.stepsOff` records what was asked
   off, and `RenderStep.isOn` says whether a step's own switch is on now.
@@ -147,7 +158,8 @@
 - **A volume's thickness scales with its node**: the geometric mean of the
   node's axis scales, applied where the material is bound for the draw, as
   glTF's `KHR_materials_volume` says a transform applies.
-- **Docs**: `Photometric.legacyNits` is drawn at 1.6 by the reference camera,
+- **Docs**: `RenderMaterial.defaultEmissiveStrength` is drawn at 1.6 by the
+  reference camera,
   whose white is 1152 nits; an overcast day is 1 000 to 10 000 lux; the
   auto exposure's default limits are EV100 7.6 to 12.6, and its 0.18 target
   is about 0.8 of a stop above a K = 12.5 meter; `PointerTargets` passes a
@@ -262,15 +274,16 @@
   numbers draws the old picture. Files keep what they stored: each reader
   and writer converts. `formats.dart` exports `LinearColor`.
 - **Breaking: emissive is nits, ambient and the sky's sun disc are lux.**
-  `RenderMaterial.emissiveStrength` defaults to `Photometric.legacyNits`
-  (1 843.2, what one stood for); `Scene.ambientIntensity` to
-  `0.06 * Photometric.legacyUnit`, `Atmosphere.ambientIntensity` to
-  `0.3 * Photometric.legacyUnit`; `SkySettings.sunIntensity` is lux. A
+  `RenderMaterial.emissiveStrength` defaults to
+  `RenderMaterial.defaultEmissiveStrength` (1 843.2, what one stood for);
+  `Scene.ambientIntensity` to 347.4 lux (0.06 of the old unit),
+  `Atmosphere.ambientIntensity` to 1 737.2 lux (0.3 of it);
+  `SkySettings.sunIntensity` is lux. A
   file's emissive strength stays a plain multiple and is converted where the
   material is made. `Photometric.toEngine`, `PhysicalCamera.nitsPerUnit` and
   `luxPerUnit` are gone: the renderer's own scale is internal, and
-  `Photometric.legacyNits` beside `legacyUnit` carries a pre-1.0 number
-  over.
+  `RenderMaterial.defaultEmissiveStrength` beside
+  `LightNode.defaultIntensity` carries a pre-1.0 number over.
 - **Breaking: a view's past is its own, so views drawn by separate
   `render` calls keep their velocity and their temporal resolve.**
   `FrameHistory.of(node)` is `of(node, view)` and `moved(node)` is
@@ -446,9 +459,10 @@
 - **Breaking: light is photometric.** `LightNode.intensity` is lux for a
   directional light and candela for the others; `LightNode.lumens` rates a
   lamp off its box; `PhysicalSky.sunIlluminance` and
-  `Atmosphere.sunIntensity` are lux. The renderer divides by
-  `Photometric.legacyUnit` (about 5 790.6, the physical camera's lux per
-  pre-1.0 unit) on the way to the shaders, and every default is its
+  `Atmosphere.sunIntensity` are lux. The renderer divides by about
+  5 790.6 (the physical camera's lux per pre-1.0 unit,
+  `LightNode.defaultIntensity`) on the way to the shaders, and every default
+  is its
   pre-1.0 value in the new unit, so a picture does not change; a pre-1.0
   literal is multiplied by it. `Photometric.fromLux`, `fromCandela`,
   `toLux`, `toCandela` and `referenceIlluminance` went with the old unit.

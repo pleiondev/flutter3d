@@ -80,12 +80,12 @@ Scene sceneFromProject(
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2 * Photometric.legacyUnit
+        ..intensity = 18529.8674496
         ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
     )
     ..add(
       LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1 * Photometric.legacyUnit
+        ..intensity = 6369.6419358
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
   // Additive over the fixed pair above — see [LightingSync.sync]'s own doc
@@ -502,7 +502,7 @@ RenderMaterial _materialOf(ModelProject project, ModelObject object) {
     roughness: surface.roughness,
     emissive: surface.emissive,
     // The project's strength is a file's, a plain multiple; nits here.
-    emissiveStrength: surface.emissiveStrength * Photometric.legacyNits,
+    emissiveStrength: surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     doubleSided: surface.doubleSided,
     extensions: surface.extensions,
   );

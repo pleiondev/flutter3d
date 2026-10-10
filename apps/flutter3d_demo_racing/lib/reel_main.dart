@@ -135,7 +135,7 @@ Future<_Circuit?> _open(
     cars.add((car: car, node: node, lift: lift));
   }
   scene.ambientIntensity =
-      document.sky.ambientIntensity * Photometric.legacyUnit;
+      document.sky.ambientIntensity * LightNode.defaultIntensity;
   if (EnvironmentMap.isSupportedOn(device)) {
     final environment = EnvironmentMap.fromSky(device, _skyOf(document.sky));
     scene

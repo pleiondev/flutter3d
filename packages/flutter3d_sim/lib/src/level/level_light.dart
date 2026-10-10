@@ -84,7 +84,7 @@ final class LevelLight {
   final Vector3 color;
 
   /// The light's strength as the level file stores it: a pre-1.0 unitless
-  /// multiple that `Photometric.legacyUnit` turns into candela for a point
+  /// multiple that `LightNode.defaultIntensity` turns into candela for a point
   /// or spot light and lux for a directional one.
   final double intensity;
 

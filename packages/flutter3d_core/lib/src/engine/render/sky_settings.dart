@@ -144,7 +144,7 @@ final class SkySettings {
   /// white Lambertian surface shows the disc's luminance, `E/π` nits — the
   /// same unit as `Atmosphere.sunIntensity` and a directional light's
   /// intensity. Before 1.0 it was the engine's own unit; multiply such a
-  /// number by `Photometric.legacyUnit`. Zero, the default, draws no disc.
+  /// number by `LightNode.defaultIntensity`. Zero, the default, draws no disc.
   final double sunIntensity;
 
   /// A cube map to sample instead of evaluating the gradient.

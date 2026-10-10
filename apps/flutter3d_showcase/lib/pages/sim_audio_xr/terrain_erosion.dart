@@ -99,12 +99,12 @@ final class TerrainErosionDemo extends ShowcaseDemo {
     )..setPosition(_apart / 2, 0.0, 0.0);
     return Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(_left)
       ..add(_right)
       ..add(
         // Low, so the gullies throw shadows of their own.
-        LightNode(name: 'sun', intensity: 2.8 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 16213.634018399998)
           ..setLocalForward(Vector3(-0.8, -0.5, -0.3)),
       );
   }

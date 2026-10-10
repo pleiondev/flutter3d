@@ -39,7 +39,7 @@ const int _height = 32;
         ..setRotationYawPitchRoll(0.6, 0.0, 0.0),
     )
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 17371.750734)
         ..setPosition(2.0, 4.0, 3.0)
         ..lookAt(Vector3.zero()),
     )

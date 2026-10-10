@@ -47,7 +47,7 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
       roughness: 0.35,
     );
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit);
+    _sun = LightNode(name: 'sun', intensity: 17371.750734);
     // #endregion sun
 
     // #region dome
@@ -65,7 +65,7 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
     // #endregion dome
 
     return Scene()
-      ..ambientIntensity = 0.4 * Photometric.legacyUnit
+      ..ambientIntensity = 2316.2334312
       ..add(
         MeshNode(
           DeviceMesh.upload(

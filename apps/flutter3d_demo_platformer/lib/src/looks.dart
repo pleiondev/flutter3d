@@ -193,6 +193,6 @@ final class PlatformerLooks with FixtureAppearance {
       material.baseColor.toSrgb().b,
     );
     material.emissiveStrength =
-        (reached ? 0.85 : 0.30) * Photometric.legacyNits;
+        (reached ? 0.85 : 0.30) * RenderMaterial.defaultEmissiveStrength;
   }
 }

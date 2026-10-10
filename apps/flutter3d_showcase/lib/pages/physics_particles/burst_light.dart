@@ -57,7 +57,7 @@ final class BurstLightDemo extends ShowcaseDemo {
     _glow = LightNode(
       name: 'flash',
       type: LightType.point,
-      intensity: 0.0 * Photometric.legacyUnit,
+      intensity: 0.0,
     );
     return Scene()..add(_glow);
   }
@@ -70,7 +70,7 @@ final class BurstLightDemo extends ShowcaseDemo {
     final ParticleGlow glow = _flash.glow;
     if (glow.isLocated) {
       _glow.setPositionFrom(glow.center);
-      _glow.intensity = glow.power * 0.6 * Photometric.legacyUnit;
+      _glow.intensity = glow.power * 3474.3501468;
     }
     // #endregion follow
 

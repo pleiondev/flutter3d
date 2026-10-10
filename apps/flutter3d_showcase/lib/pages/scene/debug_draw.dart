@@ -65,13 +65,13 @@ final class DebugDrawDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.38, 0.46, 0.62)
-      ..ambientIntensity = 0.14 * Photometric.legacyUnit
+      ..ambientIntensity = 810.68170092
       ..add(hip)
       ..add(body)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 14.0 * Photometric.legacyUnit,
+          intensity: 81068.170092,
           range: 8.0,
           name: 'debugged light',
         )..setPosition(-2.2, 3.2, 2.0),

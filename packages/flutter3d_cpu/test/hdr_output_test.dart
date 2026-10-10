@@ -38,7 +38,7 @@ const int _size = 48;
       ),
     )
     ..add(
-      LightNode(intensity: 12.0 * Photometric.legacyUnit)
+      LightNode(intensity: 69487.002936)
         ..setRotationYawPitchRoll(0.0, -0.2, 0.0),
     )
     ..add(camera);

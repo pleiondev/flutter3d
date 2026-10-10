@@ -84,7 +84,7 @@ final class _AoProbe extends RenderNode {
     )
     ..add(slab(Vector3(0.0, 1.0, -1.0), Vector3(8.0, 2.0, 0.2), wall))
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 17371.750734)
         ..setRotationYawPitchRoll(0.0, -0.6, 0.0),
     )
     ..add(camera);

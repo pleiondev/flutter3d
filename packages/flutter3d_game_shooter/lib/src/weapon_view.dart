@@ -50,7 +50,7 @@ final class WeaponView {
     _scene.add(
       LightNode(
           color: LinearColor(1.0, 0.92, 0.82),
-          intensity: 4.5 * Photometric.legacyUnit,
+          intensity: 26057.626100999998,
           name: 'key',
         )
         ..setPosition(1.0, 1.4, 0.8)
@@ -60,7 +60,7 @@ final class WeaponView {
       LightNode(
         type: LightType.point,
         color: LinearColor(1.0, 0.7, 0.4),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 17371.750734,
         range: 5.0,
         name: 'fill',
       )..setPosition(-0.8, -0.4, 0.6),

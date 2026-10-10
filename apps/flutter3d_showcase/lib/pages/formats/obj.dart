@@ -58,7 +58,7 @@ f 2 4 3
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 17371.750734)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

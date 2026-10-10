@@ -1153,7 +1153,7 @@ class _RaceScreenState extends State<RaceScreen>
       // around are the same sun by construction rather than by agreement.
       // The sky document's number is in the engine's old unit; lux here.
       scene.ambientIntensity =
-          document.sky.ambientIntensity * Photometric.legacyUnit;
+          document.sky.ambientIntensity * LightNode.defaultIntensity;
 
       // **The circuit reflects the sky it is raced under, and costs nothing to
       // do it.** A sky is already a function from direction to colour, which is

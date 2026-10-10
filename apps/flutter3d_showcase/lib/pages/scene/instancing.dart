@@ -71,10 +71,10 @@ final class InstancingDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.45, 0.52, 0.68)
-      ..ambientIntensity = 0.13 * Photometric.legacyUnit
+      ..ambientIntensity = 752.77586514
       ..add(_field)
       ..add(
-        LightNode(name: 'sun', intensity: 3.2 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 18529.8674496)
           ..setLocalForward(Vector3(-0.5, -0.8, -0.32)),
       );
     // #endregion scene

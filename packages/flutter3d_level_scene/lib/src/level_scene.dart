@@ -319,7 +319,7 @@ final class LevelScene {
       emissive: switch (source.storedBaseColor) {
         final stored => LinearColor(stored.x, stored.y, stored.z),
       },
-      emissiveStrength: source.emissive * Photometric.legacyNits,
+      emissiveStrength: source.emissive * RenderMaterial.defaultEmissiveStrength,
     );
     if (!source.hasMaps) return material;
 
@@ -385,7 +385,7 @@ final class LevelScene {
         LevelLightType.spot => LightType.spot,
       },
       color: light.color.toLinearColor(),
-      intensity: light.intensity * Photometric.legacyUnit,
+      intensity: light.intensity * LightNode.defaultIntensity,
       range: light.range,
       // The second place this flag was dropped. It travels from the document
       // to LevelLight and stopped here, so a light marked as a caster in the
@@ -489,7 +489,7 @@ final class LevelScene {
         ..emissive = LinearColor(1.0, 1.0, 1.0)
         ..emissiveStrength = math.max(
           shown.emissiveStrength,
-          Photometric.legacyNits,
+          RenderMaterial.defaultEmissiveStrength,
         );
     }
     return screen;

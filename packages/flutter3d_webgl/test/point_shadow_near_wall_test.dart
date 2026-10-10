@@ -86,7 +86,7 @@ void main() {
         LightNode(
           type: LightType.point,
           color: LinearColor(1.0, 1.0, 1.0),
-          intensity: (i == 0 ? 6.0 : 2.0) * Photometric.legacyUnit,
+          intensity: (i == 0 ? 6.0 : 2.0) * LightNode.defaultIntensity,
           range: 13.0,
           castsShadow: true,
           name: 'torch$i',

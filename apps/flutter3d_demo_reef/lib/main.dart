@@ -210,10 +210,10 @@ class _ReefScreenState extends State<ReefScreen>
             ..sun(along: _sunAlong, light: _sunLight)
             ..optics = LiquidOptics.pureWater;
       final scene = Scene()
-        ..ambientIntensity = 0.5 * Photometric.legacyUnit
+        ..ambientIntensity = 2895.291789
         ..ambientColor = LinearColor(0.75, 0.85, 1.0)
         ..add(
-          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+          LightNode(name: 'sun', intensity: 11581.167156)
             ..setLocalForward(_sunAlong),
         )
         ..add(_camera);

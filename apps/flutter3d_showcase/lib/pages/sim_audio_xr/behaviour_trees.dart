@@ -141,9 +141,9 @@ final class BehaviourTreesDemo extends ShowcaseDemo {
     // #endregion overlay
     _place();
     return Scene()
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 2026.7042522999998
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.3, -0.8, -0.4)),
       )
       ..add(

@@ -223,9 +223,9 @@ final class ConvexShapesDemo extends ShowcaseDemo {
     _bodies = _build();
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     DeviceMesh upload(MeshData data) => DeviceMesh.upload(context.device, data);

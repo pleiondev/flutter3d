@@ -101,7 +101,7 @@ Future<Uint8List> forest(
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, castsShadow: false)
-        ..intensity = 2.5 * Photometric.legacyUnit
+        ..intensity = 14476.458944999998
         ..setLocalForward(Vector3(-0.4, -1.0, -0.5)),
     );
   for (final (x, z, yaw) in kForest) {

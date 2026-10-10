@@ -102,9 +102,9 @@ Float32List _render(
   final scene = Scene()
     ..add(place(device))
     ..add(camera)
-    ..ambientIntensity = 0.25 * Photometric.legacyUnit
+    ..ambientIntensity = 1447.6458945
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 17371.750734)
         ..setRotationYawPitchRoll(0.4, fromBelow ? 0.7 : -0.7, 0.0),
     );
   final result = Renderer.create(device: device).render(

@@ -42,7 +42,7 @@ final class SpecularScaleDemo extends ShowcaseDemo {
     );
 
     // #region light
-    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+    _sun = LightNode(name: 'sun', intensity: 17371.750734)
       ..setLocalForward(Vector3(-0.3, -0.6, -0.7));
     // #endregion light
 

@@ -87,7 +87,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
       LightNode(
         name: 'lamp',
         type: LightType.point,
-        intensity: 50.0 * Photometric.legacyUnit,
+        intensity: 289529.1789,
         range: 16.0,
         castsShadow: true,
       )..setPosition(1.5, 3.2, 1.0),
@@ -99,7 +99,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
       LightNode(
           name: 'spot',
           type: LightType.spot,
-          intensity: 90.0 * Photometric.legacyUnit,
+          intensity: 521152.52202,
           range: 16.0,
           innerConeAngle: 0.2,
           outerConeAngle: 0.5,

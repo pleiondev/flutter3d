@@ -32,13 +32,13 @@ Float32List _render({required bool local}) {
     ..add(MeshNode(cube, RenderMaterial())..setPosition(-1.6, 0.0, 0.0))
     ..add(MeshNode(cube, RenderMaterial())..setPosition(1.6, 0.0, 0.0))
     ..add(
-      LightNode(intensity: 0.08 * Photometric.legacyUnit)
+      LightNode(intensity: 463.24668624)
         ..setRotationYawPitchRoll(0.3, -0.5, 0.0),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0 * Photometric.legacyUnit,
+        intensity: 347435.01467999996,
         range: 3.0,
       )..setPosition(1.6, 0.8, 1.4),
     )

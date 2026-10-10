@@ -92,7 +92,7 @@ class _IncidentScreenState extends State<IncidentScreen>
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 8.0 * Photometric.legacyUnit,
+        intensity: 46324.668624,
         name: 'sun',
       )..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
     );

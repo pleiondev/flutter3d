@@ -55,7 +55,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
     // #region sun
     final LightNode sun = LightNode(
       name: 'sun',
-      intensity: 6.0 * Photometric.legacyUnit,
+      intensity: 34743.501468,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.3, -0.6, 0.7));
     // #endregion sun

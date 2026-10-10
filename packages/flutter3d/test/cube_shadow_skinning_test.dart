@@ -118,7 +118,7 @@ final class _CountingJoint extends SceneNode {
 
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 12.0 * Photometric.legacyUnit
+      ..intensity = 69487.002936
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),

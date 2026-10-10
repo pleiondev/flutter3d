@@ -187,12 +187,12 @@ material ToonInstances {
 
   Scene _scene(GraphicsDevice device) => Scene()
     ..ambientColor = LinearColor(0.6, 0.65, 0.8)
-    ..ambientIntensity = 0.08 * Photometric.legacyUnit
+    ..ambientIntensity = 463.24668624
     ..add(_batch(device))
     ..add(
       LightNode(
         name: 'sun',
-        intensity: 1.4 * Photometric.legacyUnit,
+        intensity: 8106.817009199999,
         castsShadow: false,
       )..setLocalForward(Vector3(0.55, -0.45, -0.7)),
     );

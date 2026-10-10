@@ -37,7 +37,7 @@ final class HighContrastDemo extends ShowcaseDemo {
       dark: 0x5E6B48,
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 2026.7042522999998
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -54,7 +54,7 @@ final class HighContrastDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 14476.458944999998)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     final DeviceMesh crate = DeviceMesh.upload(

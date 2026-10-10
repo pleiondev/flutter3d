@@ -69,7 +69,7 @@ Future<({List<int> pixels, FrameResult frame})> _draw({
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 6.0 * Photometric.legacyUnit,
+        intensity: 34743.501468,
         range: 12.0,
         // Every lamp a different hue, so a frame that lost some of them is a
         // frame of a different colour rather than one of a different

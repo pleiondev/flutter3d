@@ -115,12 +115,12 @@ void main() {
       for (var i = 0; i < 30; i++)
         LightNode(
           type: LightType.point,
-          intensity: 0.08 * Photometric.legacyUnit,
+          intensity: 463.24668624,
           range: 20.0,
         )..setPosition((i - 15) * 0.1, 1.5, 0.0),
       LightNode(
         type: LightType.point,
-        intensity: 150.0 * Photometric.legacyUnit,
+        intensity: 868587.5366999999,
         range: 40.0,
       )..setPosition(3.0, 1.5, 0.0),
     ];

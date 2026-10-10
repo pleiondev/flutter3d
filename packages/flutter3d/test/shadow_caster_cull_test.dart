@@ -82,7 +82,7 @@ Scene _scene(
 
   return scene
     ..add(
-      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 34743.501468, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -156,7 +156,7 @@ Future<({List<int> pixels, int shadowDraws})> _pointFrame({
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 40.0 * Photometric.legacyUnit,
+        intensity: 231623.34311999998,
         range: 20.0,
         castsShadow: true,
       )..setPosition(0.0, 3.0, 0.0),

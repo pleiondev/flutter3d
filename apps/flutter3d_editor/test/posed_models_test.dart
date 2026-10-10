@@ -56,7 +56,7 @@ Future<({int width, int height, int pixels})> _shapeOf(
   scene.add(
     LightNode(
       color: LinearColor(1.0, 1.0, 1.0),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 23162.334312,
     )..lookAt(Vector3(-0.3, -0.6, -1.0)),
   );
   final camera = CameraNode(

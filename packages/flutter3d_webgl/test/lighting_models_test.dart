@@ -52,7 +52,7 @@ const int _height = 96;
   );
   scene.root.add(
     LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 3.5 * Photometric.legacyUnit
+      ..intensity = 20267.042523
       ..setPosition(1.5, 3.0, 2.0)
       ..lookAt(Vector3.zero()),
   );

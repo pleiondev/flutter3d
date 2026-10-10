@@ -39,7 +39,7 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
       )..setPosition(0.0, -0.05, 0.0),
     )
     ..add(
-      LightNode(intensity: 0.4 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 2316.2334312, castsShadow: true)
         ..setLocalForward(Vector3(0.0, -1.0, 0.02)),
     )
     ..add(

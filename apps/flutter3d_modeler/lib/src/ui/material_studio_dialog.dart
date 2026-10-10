@@ -74,7 +74,7 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
           nadir: LinearColor(0.05, 0.06, 0.08),
           directionToSun: Vector3(0.35, 0.75, 0.4),
           sunColor: LinearColor(1.0, 0.97, 0.9),
-          sunIntensity: 6.0 * Photometric.legacyUnit,
+          sunIntensity: 34743.501468,
           glowStrength: 0.4,
         ),
       ),
@@ -87,7 +87,7 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
           nadir: LinearColor(0.05, 0.04, 0.06),
           directionToSun: Vector3(0.8, 0.1, 0.2),
           sunColor: LinearColor(1.0, 0.6, 0.3),
-          sunIntensity: 3.0 * Photometric.legacyUnit,
+          sunIntensity: 17371.750734,
           glowStrength: 0.9,
           glowExponent: 3.0,
         ),
@@ -124,7 +124,7 @@ final class MaterialStudioEnvironment {
     scene.environment = built?.texture;
     scene.environmentLevels = built?.levels ?? 0;
     scene.ambientIntensity =
-        (built == null ? 0.06 : 1.0) * Photometric.legacyUnit;
+        (built == null ? 0.06 : 1.0) * LightNode.defaultIntensity;
     _handle = built?.texture;
     if (old != null) device.releaseTexture(old);
   }

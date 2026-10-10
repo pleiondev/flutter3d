@@ -125,12 +125,12 @@ class _WaterScreenState extends State<WaterScreen>
       final device = await openDevice(width: 1280, height: 800);
       final renderer = Renderer.create(device: device);
       final scene = Scene()
-        ..ambientIntensity = 0.45 * Photometric.legacyUnit
+        ..ambientIntensity = 2605.7626101
         ..ambientColor = LinearColor(0.70, 0.80, 1.0)
         ..add(
           // From over the pond's side, so the falls and the cliff behind them
           // are in the sun.
-          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+          LightNode(name: 'sun', intensity: 11581.167156)
             ..setLocalForward(_sunAlong),
         )
         ..add(_camera);

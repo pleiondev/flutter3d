@@ -291,7 +291,7 @@ void main() {
       Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
       Light3D.directional(
         direction: Vector3(-1.0, -2.0, -1.5),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 17371.750734,
       ),
       Mesh3D(
         shape: CuboidShape(),
@@ -329,7 +329,7 @@ void main() {
     scene
       ..add(camera)
       ..add(
-        LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(intensity: 17371.750734)
           ..setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized()),
       )
       ..add(
@@ -557,7 +557,7 @@ void main() {
           Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
           Light3D.directional(
             direction: Vector3(-1.0, -2.0, -1.5),
-            intensity: 3.0 * Photometric.legacyUnit,
+            intensity: 17371.750734,
           ),
           Material3D(
             baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
@@ -574,7 +574,7 @@ void main() {
       scene
         ..add(camera)
         ..add(
-          LightNode(intensity: 3.0 * Photometric.legacyUnit)
+          LightNode(intensity: 17371.750734)
             ..setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized()),
         )
         ..add(

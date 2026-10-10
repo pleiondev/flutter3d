@@ -87,7 +87,7 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
     _scene
       ..environment = lit ? chosen?.texture : null
       ..environmentLevels = chosen?.levels ?? 0
-      ..ambientIntensity = strength * Photometric.legacyUnit;
+      ..ambientIntensity = strength * LightNode.defaultIntensity;
     // #endregion use
     for (final RenderMaterial ball in _balls) {
       ball.metallic = metallic;

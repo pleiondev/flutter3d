@@ -42,7 +42,7 @@ final class ProceduralShapesDemo extends ShowcaseDemo {
     // #region build
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.62, 0.78)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit;
+      ..ambientIntensity = 926.49337248;
     for (var i = 0; i < descriptions.length; i++) {
       final (String name, Shape shape) = descriptions[i];
       final MeshData data = shape.build();
@@ -71,13 +71,13 @@ final class ProceduralShapesDemo extends ShowcaseDemo {
     // #region lighting
     scene
       ..add(
-        LightNode(name: 'key', intensity: 3.4 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 19687.9841652)
           ..setLocalForward(Vector3(-0.45, -0.8, -0.38)),
       )
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 10.0 * Photometric.legacyUnit,
+          intensity: 57905.835779999994,
           range: 12.0,
           name: 'fill',
         )..setPosition(-3.0, 3.5, 3.0),

@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a project's lights are lux and candela, in `.f3dproj`
+  version 2.** `ProjectLight.intensity` holds what `LightNode.intensity`
+  holds, lux for a directional light and candela for the others, and
+  `LightingSync` hands it over as it is; a new light is
+  `LightNode.defaultIntensity`, about 5 790.6, the light it always drew
+  as. A version 1 file held the engine's pre-1.0 unit and is lifted as it
+  is read, so an old project opens as bright as it was; it is saved back at
+  version 2. `test/fixtures/v2/workshop.f3dproj` is the file this build
+  writes, a lamp of 800 cd in it.
 - **A selected object is tinted as it was in 0.8.** `renderProject` mixed
   the linear base color with the selection orange as if both were sRGB
   numbers; it now encodes the color to sRGB, mixes 60% of the way to the

@@ -4,7 +4,6 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import '../scene/light_node.dart' show Photometric;
 
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.
 ///
@@ -127,7 +126,7 @@ final class RenderMaterial {
     this.emissiveTexture,
     this.emissiveSampler,
     this.emissive = LinearColor.black,
-    this.emissiveStrength = Photometric.legacyNits,
+    this.emissiveStrength = defaultEmissiveStrength,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.alphaToCoverage = false,
@@ -340,13 +339,18 @@ final class RenderMaterial {
   /// How bright [emissive] is, in **nits** (cd/m²) since 1.0: an emissive of
   /// white shines at this luminance, and a colour at its share of it.
   ///
-  /// 1 843.2 by default, `Photometric.legacyNits`, the luminance the old
-  /// default of one stood for, so a glowing surface looks as it did; a
-  /// material loaded from a file multiplies the file's own strength
-  /// (`KHR_materials_emissive_strength`, a plain multiple) by it. A screen
-  /// is a few hundred nits, a lit sign a few thousand. Multiply a pre-1.0
-  /// strength by `Photometric.legacyNits`.
+  /// [defaultEmissiveStrength] by default.
   double emissiveStrength;
+
+  /// The luminance an emissive of white shines at when nothing says
+  /// otherwise: 1 843.2 nits.
+  ///
+  /// The luminance the old default of one stood for, so a glowing surface
+  /// looks as it did; a material loaded from a file multiplies the file's
+  /// own strength (`KHR_materials_emissive_strength`, a plain multiple) by
+  /// it, and so does a pre-1.0 strength carried over. A screen is a few
+  /// hundred nits, a lit sign a few thousand.
+  static const double defaultEmissiveStrength = 1843.2;
 
   MaterialAlphaMode alphaMode;
 

@@ -101,7 +101,7 @@ const int _height = 128;
 
   scene.root.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 14.0 * Photometric.legacyUnit
+      ..intensity = 81068.170092
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),

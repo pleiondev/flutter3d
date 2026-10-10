@@ -34,7 +34,7 @@ final class ClusteredLightsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region floor
     final Scene scene = Scene()
-      ..ambientIntensity = 0.03 * Photometric.legacyUnit
+      ..ambientIntensity = 173.71750734
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -53,7 +53,7 @@ final class ClusteredLightsDemo extends ShowcaseDemo {
         final LightNode light = LightNode(
           name: 'lamp $i $j',
           type: LightType.point,
-          intensity: 1.5 * Photometric.legacyUnit,
+          intensity: 8685.875367,
           range: range,
           color: _hue((i * 8 + j) / 64.0).toLinearColor(),
         )..setPosition(i - 3.5, 0.3, j - 3.5);

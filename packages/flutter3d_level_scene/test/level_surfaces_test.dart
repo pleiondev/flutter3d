@@ -114,7 +114,7 @@ void main() {
       expect(node.material.emissiveTexture, same(screen.texture));
       expect(
         node.material.emissiveStrength,
-        greaterThanOrEqualTo(Photometric.legacyNits),
+        greaterThanOrEqualTo(RenderMaterial.defaultEmissiveStrength),
       );
       expect(screen.excluded, contains(node));
     }

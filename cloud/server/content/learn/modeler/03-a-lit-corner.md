@@ -87,7 +87,7 @@ Switch to Scene mode. Its four panels each set one part of the project's own
   last vase and the box, the
   panel's own colour and intensity fields warm it slightly and raise it
   (`SetLightField('color', (1.0, 0.92, 0.78))`,
-  `SetLightField('intensity', 4.5)`), and this same panel's own **Casts
+  `SetLightField('intensity', 26000)`, in candela), and this same panel's own **Casts
   shadow** checkbox turns it on for this light
   (`SetLightField('castsShadow', true)`).
 - **Shadows** — the scene-wide toggle

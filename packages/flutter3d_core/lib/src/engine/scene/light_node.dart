@@ -120,7 +120,7 @@ final class LightNode extends SceneNode {
   LightNode({
     this.type = LightType.directional,
     this.color = LinearColor.white,
-    this.intensity = Photometric.legacyUnit,
+    this.intensity = defaultIntensity,
     this.range = 0.0,
     bool? castsShadow,
     this.innerConeAngle = 0.0,
@@ -198,15 +198,24 @@ final class LightNode extends SceneNode {
 
   /// How bright this light is: **lux** for a directional light, **candela**
   /// for a point, spot or area light — see [Photometric] (since 1.0; the
-  /// engine's own unit before it, which [Photometric.legacyUnit] converts).
+  /// engine's own unit before it, one of which is [defaultIntensity]).
   ///
-  /// The default is [Photometric.legacyUnit], the light a default-made node
-  /// always was, kept so a scene of default lights draws as it did: about
-  /// 5 790.6 lux, a bright overcast day, for a sun, and for a lamp about
-  /// 5 790.6 cd — some 73 000 lumens, a stadium floodlight rather than a
-  /// bulb. Say what a lamp is: [LightNode.lumens] makes one from what its box
-  /// says, and about 100 cd is a household bulb.
+  /// The default is [defaultIntensity].
   double intensity;
+
+  /// The intensity a light is made with when none is given: 5 790.583578,
+  /// lux for a sun and candela for a lamp.
+  ///
+  /// The light a default-made node always was, kept so a scene of default
+  /// lights draws as it did: about 5 790.6 lux is a bright overcast day, and
+  /// about 5 790.6 cd for a lamp is some 73 000 lumens, a stadium floodlight
+  /// rather than a bulb. Say what a lamp is: [LightNode.lumens] makes one
+  /// from what its box says, and about 100 cd is a household bulb.
+  ///
+  /// It is also what one unit of the engine's pre-1.0 intensity is worth
+  /// (`π × 1.6 × 1.2 × 960`): a light, an ambient or a sun written before
+  /// 1.0 with `x` is `x * LightNode.defaultIntensity` now.
+  static const double defaultIntensity = 5790.583578; // π × 1843.2
 
   /// Distance at which a point or spot light stops contributing. Zero means
   /// unbounded, matching glTF's default.
@@ -298,30 +307,17 @@ final class LightNode extends SceneNode {
 ///
 /// **The unit before 1.0, and why a picture does not change.** Until 1.0
 /// [LightNode.intensity] was the engine's own number, and the physical
-/// camera fixed what it was worth: one unit of illuminance is about
-/// 5 790.6 lux (one unit of luminance is 1 843.2 cd/m², [legacyNits], and a
-/// white Lambertian surface shows `E/π`). That is [legacyUnit]. A light written before 1.0 with intensity `x` is the same
-/// light at `x * Photometric.legacyUnit` now — what `migrate` writes — and
-/// the renderer divides by it on the way to the shaders, so the picture is
-/// the picture it was. (`gfx-13n`'s own exchange rate, 800 lm to one unit,
-/// went with the old unit: it was a matter of taste, and the physical
-/// camera's is a matter of arithmetic.)
+/// camera fixed what it was worth: one unit of illuminance was about
+/// 5 790.6 lux (one unit of luminance 1 843.2 cd/m², and a white Lambertian
+/// surface shows `E/π`). A light written before 1.0 with intensity `x` is
+/// the same light at `x` times [LightNode.defaultIntensity] now, which is
+/// that number, and the renderer divides by it on the way to the shaders,
+/// so the picture is the picture it was. An emissive strength of `x` is
+/// `x` times `RenderMaterial.defaultEmissiveStrength` nits.
+/// (`gfx-13n`'s own exchange rate, 800 lm to one unit, went with the old
+/// unit: it was a matter of taste, and the physical camera's is a matter of
+/// arithmetic.)
 abstract final class Photometric {
-  /// Lux (for a directional light) or candela (for the others) in one unit
-  /// of the engine's pre-1.0 intensity: `π × 1.6 × 1.2 × 960`, about 5 790.6.
-  /// Multiply a pre-1.0 intensity by it to keep a light as bright as it was;
-  /// the same for a pre-1.0 `Scene.ambientIntensity`,
-  /// `Atmosphere.ambientIntensity` or `SkySettings.sunIntensity`, which are
-  /// lux since 1.0.
-  static const double legacyUnit = 5790.583578; // π × 1843.2
-
-  /// Nits (cd/m²) in one unit of the engine's pre-1.0 luminance:
-  /// `1.6 × 1.2 × 960`, 1 843.2. The reference camera draws it at 1.6, past
-  /// white: its white, the brightest luminance it records, is `1.2 × 960`,
-  /// 1 152 nits. Multiply a pre-1.0 `RenderMaterial.emissiveStrength` by it
-  /// to keep a surface glowing as it did; it is nits since 1.0.
-  static const double legacyNits = 1843.2;
-
   /// The illuminance an 800-lumen lamp — an ordinary bulb — gives a surface
   /// a metre away: `800 / 4π`, about 63.66 lux. A yardstick for scaling an
   /// emissive colour by a brightness someone stated in lux or nits; it was

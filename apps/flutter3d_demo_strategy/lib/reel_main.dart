@@ -82,13 +82,13 @@ class _ReelState extends State<_Reel> {
   Future<void> _film() async {
     final device = await openDevice(width: _width, height: _height);
     final scene = Scene(name: 'map')
-      ..ambientIntensity = 0.12 * Photometric.legacyUnit
+      ..ambientIntensity = 694.87002936
       ..ambientColor = LinearColor(0.38, 0.45, 0.70);
     scene.add(
       LightNode(
         type: LightType.directional,
         color: LinearColor(1.0, 0.52, 0.28),
-        intensity: 0.35 * Photometric.legacyUnit,
+        intensity: 2026.7042522999998,
         name: 'sun',
       )..lookAt(_sunAlong),
     );

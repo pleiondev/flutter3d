@@ -64,7 +64,7 @@ const int _size = 64;
 
   scene
     ..add(
-      LightNode(intensity: 5.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 28952.917889999997, castsShadow: true)
         ..setPosition(3.0, 5.0, 2.0)
         ..lookAt(Vector3.zero()),
     )

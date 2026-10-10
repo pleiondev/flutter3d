@@ -42,7 +42,7 @@ void main() {
     scene.add(
       LightNode(
         color: LinearColor(1.0, 1.0, 1.0),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 17371.750734,
       )..lookAt(Vector3(-0.2, -0.4, -1.0)),
     );
     final camera = CameraNode(

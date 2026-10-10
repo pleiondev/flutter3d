@@ -47,7 +47,7 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.48, 0.6)
-      ..ambientIntensity = 0.18 * Photometric.legacyUnit
+      ..ambientIntensity = 1042.30504404
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -63,7 +63,7 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
         )..setPosition(0.0, 0.0, -0.5),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 17371.750734)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.45)),
       );
 

@@ -216,7 +216,7 @@ final class _Glows extends ParticleAffector {
     final color = Blackbody.color(t);
     final y = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
     final scale = y > 0
-        ? nits * _emissiveGain / Photometric.legacyNits / y
+        ? nits * _emissiveGain / RenderMaterial.defaultEmissiveStrength / y
         : 0.0;
     final alpha = life < 0.12 ? life / 0.12 : (1.0 - life) / 0.88;
     particle.color.setValues(
@@ -241,7 +241,7 @@ final class _Glows extends ParticleAffector {
 /// the true luminance a flame would look as dim against them as a candle
 /// in the sun.
 const double _emissiveGain =
-    Photometric.legacyNits / Photometric.bulbAtOneMeter;
+    RenderMaterial.defaultEmissiveStrength / Photometric.bulbAtOneMeter;
 
 /// Tongues of flame standing on a fire's base: each from a point of a disc
 /// [radius] across the flame's axis, lifted [lift] along it so the root of
@@ -670,7 +670,7 @@ final class FireView {
                     (glowing *
                         nits *
                         _emissiveGain /
-                        Photometric.legacyNits /
+                        RenderMaterial.defaultEmissiveStrength /
                         y))
                 .toLinearColor()
           : LinearColor.black;
@@ -681,7 +681,7 @@ final class FireView {
   /// to what the renderer divides by now: `legacyUnit / bulbAtOneMeter`,
   /// about 91. Its counterpart for the flame's own glow is [_emissiveGain].
   static const double _firelightGain =
-      Photometric.legacyUnit / Photometric.bulbAtOneMeter;
+      LightNode.defaultIntensity / Photometric.bulbAtOneMeter;
 
   /// The firelight: each fire's radiant power as lumens, gathered as
   /// [lights] says, from the middle of their light, in the colour of the
@@ -748,7 +748,7 @@ final class FireView {
     while (_lights.length < placed.length) {
       final node = LightNode(
         type: LightType.point,
-        intensity: 0.0 * Photometric.legacyUnit,
+        intensity: 0.0,
         castsShadow: false,
         name: 'firelight',
       );

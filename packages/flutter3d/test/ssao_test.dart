@@ -50,7 +50,7 @@ const int _height = 64;
 /// ambient is turned well up for the same reason — the default 0.06 is what
 /// made this effect impossible to see before there was anything to see it in.
 ({Scene scene, CameraNode camera}) _corner() {
-  final scene = Scene()..ambientIntensity = 0.9 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 5211.5252202;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -93,7 +93,7 @@ RenderSettings _settings({required bool ao}) => RenderSettings(
 /// Convex and isolated, so a correct occlusion pass has nothing to find on it —
 /// which makes any darkening a defect rather than a matter of degree.
 ({Scene scene, CameraNode camera}) _lone() {
-  final scene = Scene()..ambientIntensity = 0.9 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 5211.5252202;
   final device = CpuDevice(
     width: 4,
     height: 4,

@@ -511,7 +511,7 @@ class _EditorScreenState extends State<EditorScreen>
         type: LightType.point,
         color: LinearColor(1.0, 0.98, 0.94),
         intensity:
-            (ready.lampOn ? _kLampIntensity : 0.0) * Photometric.legacyUnit,
+            (ready.lampOn ? _kLampIntensity : 0.0) * LightNode.defaultIntensity,
         range: _kLampRange,
       )..setPosition(_fly.position.x, _fly.position.y, _fly.position.z);
       loaded.scene.add(_lamp!);

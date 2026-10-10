@@ -100,7 +100,7 @@ LightNode _panel({
 }) =>
     LightNode(
         type: LightType.area,
-        intensity: intensity * Photometric.legacyUnit,
+        intensity: intensity * LightNode.defaultIntensity,
       )
       ..width = size
       ..height = size

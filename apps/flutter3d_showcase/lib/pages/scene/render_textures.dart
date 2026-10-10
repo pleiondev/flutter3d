@@ -45,7 +45,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     _renderer = context.renderer;
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 1737.1750734
       ..add(
         _slab(
           context,
@@ -65,7 +65,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 11581.167156)
           ..setLocalForward(Vector3(-0.6, -1.0, -0.4)),
       );
     _spinner = _slab(

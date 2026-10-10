@@ -148,10 +148,10 @@ void main() {
       // What `migrate` multiplies a pre-1.0 literal by, and what the renderer
       // divides by on the way to the shaders, so the picture does not move.
       expect(
-        Photometric.legacyUnit,
-        closeTo(math.pi * Photometric.legacyNits, 1e-3),
+        LightNode.defaultIntensity,
+        closeTo(math.pi * RenderMaterial.defaultEmissiveStrength, 1e-3),
       );
-      expect(LightNode().intensity, Photometric.legacyUnit);
+      expect(LightNode().intensity, LightNode.defaultIntensity);
     });
 
     test('every conversion comes back', () {
@@ -175,9 +175,9 @@ void main() {
         // two lamps below are the same lamp said two ways.
         final tuned = LightNode(
           type: LightType.point,
-          intensity: 1.0 * Photometric.legacyUnit,
+          intensity: 5790.583578,
         )..setPosition(0.0, 0.0, 5.1);
-        final rated = LightNode.lumens(Photometric.legacyUnit * 4.0 * math.pi)
+        final rated = LightNode.lumens(23162.334312 * math.pi)
           ..setPosition(0.0, 0.0, 5.1);
 
         expect(_middle(await _draw(rated)), _middle(await _draw(tuned)));
@@ -203,7 +203,7 @@ void main() {
       // 200 to 1600 lm is candela since 1.0, and five metres from a wall at
       // an exposure of one it lies below the first step of an 8-bit pixel,
       // so the three walls were the ambient alone and the same.
-      const tuned = Photometric.legacyUnit * 4.0 * math.pi;
+      const tuned = 23162.334312 * math.pi;
       expect(await litBy(tuned * 0.4), greaterThan(await litBy(tuned * 0.2)));
       expect(await litBy(tuned * 0.2), greaterThan(await litBy(tuned * 0.05)));
     });

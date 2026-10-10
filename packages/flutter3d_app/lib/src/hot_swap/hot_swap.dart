@@ -794,7 +794,7 @@ final class HotSwap {
       case 'emissiveStrength':
         // A material file's strength, a plain multiple; the material's is
         // nits.
-        material.emissiveStrength = v[0] * Photometric.legacyNits;
+        material.emissiveStrength = v[0] * RenderMaterial.defaultEmissiveStrength;
       case 'roughness':
         material.roughness = v[0];
       case 'metallic':
