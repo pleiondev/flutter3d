@@ -2707,7 +2707,218 @@ List<Finding> proveDetectorsWork() {
         'and the package\'s own are not asked about',
   );
 
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn(
+      'library;\n@Timeout(Duration(minutes: 20))\nlibrary;',
+    ).any((LongTimeout t) => t.line == 2),
+    'a file given twenty minutes',
+  );
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn(
+      '  }, timeout: const Timeout(Duration(seconds: 90)));',
+    ).isNotEmpty,
+    'a test given ninety seconds',
+  );
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn(
+      'const Timeout _slow = Timeout(\n  Duration(minutes: 1, seconds: 1),\n);',
+    ).isNotEmpty,
+    'a minute and a second, wrapped by the formatter',
+  );
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn('timeout: Timeout.factor(2),').isNotEmpty,
+    'twice the minute, as a factor',
+  );
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn('timeout: Timeout.none,').isNotEmpty,
+    'no timeout at all',
+  );
+  fires(
+    'a timeout past a minute',
+    longTimeoutsIn('timeout: Timeout(budget),').isNotEmpty,
+    'a duration it cannot read, which it has to ask about',
+  );
+  quiet(
+    'a timeout past a minute',
+    longTimeoutsIn(
+      '}, timeout: const Timeout(Duration(seconds: 60)));\n'
+      'defaultTestTimeout = const Timeout.factor(1);\n'
+      'await done.future.timeout(const Duration(minutes: 4));',
+    ).isEmpty,
+    'a minute, a factor of one, and a future\'s own timeout',
+    'only a test given more than the minute is the claim to read',
+  );
+  quiet(
+    'a timeout past a minute',
+    longTimeoutsIn(
+      '/// Once had `@Timeout(Duration(minutes: 20))` on it.\n'
+      '// timeout: const Timeout(Duration(minutes: 5)),',
+    ).isEmpty,
+    'a comment recalling a timeout',
+    'prose explaining the rule must not break it',
+  );
+  fires(
+    'a package timeout past a minute',
+    longYamlTimeoutsIn(
+      'timeout: 1m\ntags:\n  slow:\n    timeout: 2m\n',
+    ).any((LongTimeout t) => t.line == 4),
+    'a tag given two minutes',
+  );
+  quiet(
+    'a package timeout past a minute',
+    longYamlTimeoutsIn(
+      'timeout: 1m\n# timeout: 5m\ntags:\n  a:\n    '
+      'timeout: 30s\n',
+    ).isEmpty,
+    'the minute, a comment and a shorter tag',
+    'only more than the minute is the claim to read',
+  );
+
   return broken;
+}
+
+// ------------------------------------------------------------- a test's minute
+
+/// One place a test or a package is given longer than a minute.
+typedef LongTimeout = ({int line, String says});
+
+/// The longest a test may run without its reason being written down.
+const Duration testMinute = Duration(minutes: 1);
+
+/// Where [source], a Dart file under a `test/` directory, gives a test or a
+/// file longer than [testMinute]: a `Timeout` of a longer `Duration`, a
+/// `Timeout.factor` above one, or `Timeout.none`.
+///
+/// **A duration it cannot read is reported too**, as a duration it cannot
+/// read. `Timeout(budget)` could be anything, and a rule that let it through
+/// would be a rule with a door in it.
+///
+/// Comments are left out, so a doc comment recalling the allowance a test
+/// once had is not the allowance. A future's own `.timeout(...)` is not a
+/// test's and is not read.
+List<LongTimeout> longTimeoutsIn(String source) {
+  final code = <String>[
+    for (final line in source.split('\n')) _codeOf(line),
+  ].join('\n');
+  int lineAt(int offset) =>
+      '\n'.allMatches(code.substring(0, offset)).length + 1;
+
+  final found = <LongTimeout>[];
+  for (final match in RegExp(r'\bTimeout\s*\(').allMatches(code)) {
+    // To the parenthesis that closes this one, counted rather than matched:
+    // `Timeout(Duration(minutes: 3))` ends on its second, and the formatter
+    // is free to put a line break anywhere inside it.
+    var depth = 1;
+    var at = match.end;
+    while (at < code.length && depth > 0) {
+      final char = code[at];
+      if (char == '(') depth++;
+      if (char == ')') depth--;
+      at++;
+    }
+    final inside = code
+        .substring(match.end, depth == 0 ? at - 1 : at)
+        .trim()
+        .replaceAll(RegExp(r',$'), '')
+        .trim();
+    final duration = RegExp(
+      r'^(?:const\s+)?Duration\s*\(([^)]*)\)$',
+    ).firstMatch(inside);
+    final Duration? given = duration == null
+        ? null
+        : _durationOf(duration.group(1)!);
+    if (given == null) {
+      found.add((
+        line: lineAt(match.start),
+        says: 'Timeout($inside), a duration this cannot read',
+      ));
+    } else if (given > testMinute) {
+      found.add((
+        line: lineAt(match.start),
+        says: 'Timeout of ${given.inSeconds} s',
+      ));
+    }
+  }
+  for (final match in RegExp(
+    r'\bTimeout\.factor\s*\(\s*([0-9.]+)\s*\)',
+  ).allMatches(code)) {
+    final factor = double.tryParse(match.group(1)!);
+    if (factor == null || factor > 1) {
+      found.add((
+        line: lineAt(match.start),
+        says: 'Timeout.factor(${match.group(1)})',
+      ));
+    }
+  }
+  for (final match in RegExp(r'\bTimeout\.none\b').allMatches(code)) {
+    found.add((line: lineAt(match.start), says: 'Timeout.none'));
+  }
+  return found;
+}
+
+/// The `Duration` a list of named literal arguments describes, or null for
+/// one written any other way.
+Duration? _durationOf(String arguments) {
+  const Map<String, int> micros = <String, int>{
+    'days': Duration.microsecondsPerDay,
+    'hours': Duration.microsecondsPerHour,
+    'minutes': Duration.microsecondsPerMinute,
+    'seconds': Duration.microsecondsPerSecond,
+    'milliseconds': Duration.microsecondsPerMillisecond,
+    'microseconds': 1,
+  };
+  final parts = arguments
+      .split(',')
+      .map((String part) => part.trim())
+      .where((String part) => part.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return null;
+  var total = 0;
+  for (final part in parts) {
+    final named = RegExp(r'^(\w+)\s*:\s*([0-9]+)$').firstMatch(part);
+    final unit = named == null ? null : micros[named.group(1)!];
+    if (named == null || unit == null) return null;
+    total += int.parse(named.group(2)!) * unit;
+  }
+  return Duration(microseconds: total);
+}
+
+/// Where [yaml], a `dart_test.yaml`, gives longer than [testMinute]: the
+/// package's own `timeout:`, or one in a tag, a preset or a platform.
+///
+/// `1m`, `60s` and `1x` are the minute; `none` is not a minute at all. A
+/// value it cannot read is reported, for the reason [longTimeoutsIn] gives.
+List<LongTimeout> longYamlTimeoutsIn(String yaml) {
+  final lines = yaml.split('\n');
+  final found = <LongTimeout>[];
+  for (var i = 0; i < lines.length; i++) {
+    final match = RegExp(
+      r'^\s*timeout:\s*(\S+)',
+    ).firstMatch(lines[i].split('#').first);
+    if (match == null) continue;
+    final value = match.group(1)!.replaceAll(RegExp('["\']'), '');
+    final unit = RegExp(r'^([0-9.]+)(ms|s|m|h|x)$').firstMatch(value);
+    final bool long;
+    if (unit == null) {
+      long = true;
+    } else {
+      final amount = double.parse(unit.group(1)!);
+      long = switch (unit.group(2)!) {
+        'ms' => amount > 60000,
+        's' => amount > 60,
+        'm' => amount > 1,
+        'h' => amount > 0,
+        _ => amount > 1, // a factor of the minute
+      };
+    }
+    if (long) found.add((line: i + 1, says: 'timeout: $value'));
+  }
+  return found;
 }
 
 /// The 1-based lines of [source] that write or read a Dart enum by its

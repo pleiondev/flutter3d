@@ -1,0 +1,14 @@
+# **A test that runs longer than a minute is a bug until proven otherwise.**
+# The proof is a `timeout:` on the test or a `@Timeout` on its file, with
+# the reason and the measured time beside it, listed in `slowTestsAllowed`
+# in tool/structure/repository.dart; the structure rule "a test runs in a
+# minute unless its reason is listed" fails on one that is not.
+timeout: 1m
+
+tags:
+  # Minutes by nature: a frame at 4K, a stroke over a million triangles.
+  # Skipped here so that the run somebody starts to see whether they broke
+  # something stays inside its minutes; tool/benchmarks.sh runs them with
+  # `--tags benchmark --run-skipped`.
+  benchmark:
+    skip: "a benchmark: tool/benchmarks.sh runs it"

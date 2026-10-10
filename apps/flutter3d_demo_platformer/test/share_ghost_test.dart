@@ -1,13 +1,10 @@
 /// N10's line done: a run shared from one window, opened by its code in
-/// another and raced as a ghost — through the reference server, built and
-/// started here.
+/// another and raced as a ghost — through the reference server, started here
+/// from the executable `tool/build_share_server.sh` builds.
 ///
+///     tool/build_share_server.sh           # from the repository root, once
 ///     flutter test test/share_ghost_test.dart
-///
-/// Twenty minutes because setUpAll builds the server first, and on a cold
-/// checkout that is minutes of native compilation (see `_builtServer`).
 @TestOn('vm')
-@Timeout(Duration(minutes: 20))
 library;
 
 import 'dart:async';
@@ -103,152 +100,156 @@ Map<String, Object?> _document() =>
 /// The reference server's package, outside the workspace.
 const String _serverPackage = '../../cloud/server';
 
-/// Where the server is built for this test, under the package's ignored
-/// `build/`.
-const String _serverBuild = 'build/share_ghost_test';
+/// Where `tool/build_share_server.sh` puts the server, under the package's
+/// ignored `build/`.
+const String _serverBuild = 'build/share_server';
 
-/// Runs `dart` with [arguments] in the server's package to the end, and
-/// fails naming [what] and everything it printed when it does not succeed.
-Future<void> _dart(List<String> arguments, String what) async {
-  // `dart`, not this process's own executable, which under `flutter test`
-  // is the tester rather than the VM.
-  final result = await Process.run(
-    'dart',
-    arguments,
-    workingDirectory: _serverPackage,
-  );
-  if (result.exitCode != 0) {
-    fail(
-      '$what in cloud/server failed (${result.exitCode}):\n'
-      '${result.stdout}${result.stderr}',
-    );
-  }
+/// What to run when the server is missing or older than its sources.
+const String _howToBuild =
+    'build it from the repository root with tool/build_share_server.sh';
+
+/// The server's own sources, any of which being newer than the executable
+/// means the executable is not the server this checkout describes.
+Iterable<File> _serverSources() sync* {
+  yield File('$_serverPackage/tool/share_server.dart');
+  final lock = File('$_serverPackage/pubspec.lock');
+  if (lock.existsSync()) yield lock;
+  yield* Directory('$_serverPackage/lib')
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((File f) => f.path.endsWith('.dart'));
 }
 
-/// The server, resolved and built, ready to start in a moment.
+/// The server, built beforehand, ready to start in a moment.
 ///
-/// **Outside the clock that waits for it to listen.** On a checkout that has
-/// never built it, the native build hooks the server's packages carry take
-/// minutes (477 s measured on a cold machine, 24 s warm), and a startup timeout
-/// that also had to cover them was red on every fresh machine. Resolving and
-/// building here, then starting the built executable, leaves the clock timing
-/// only the start. The server is outside the workspace, so the repository's
-/// `pub get` does not resolve it.
-Future<String> _builtServer() async {
-  if (!File('$_serverPackage/.dart_tool/package_config.json').existsSync()) {
-    await _dart(<String>['pub', 'get'], '`dart pub get`');
-  }
-  await _dart(<String>[
-    'build',
-    'cli',
-    '--target',
-    'tool/share_server.dart',
-    '--output',
-    _serverBuild,
-  ], '`dart build cli` of tool/share_server.dart');
+/// **Built by a script and not by this test.** Building it here put minutes
+/// of native compilation inside a test — 477 s on a machine that had never
+/// built it, 24 s on one that had — for a check that takes a second once the
+/// server is running. `tool/ci.sh` runs the script before the applications'
+/// suites; on a developer's machine it is one command, and this says which.
+///
+/// A missing executable fails rather than skips, and so does a stale one:
+/// a test that quietly raced a ghost through last week's server would be
+/// green about code nobody is shipping.
+String _builtServer() {
   final executable = File(
     '$_serverPackage/$_serverBuild/bundle/bin/share_server'
     '${Platform.isWindows ? '.exe' : ''}',
   );
   if (!executable.existsSync()) {
-    fail('`dart build cli` wrote no ${executable.path}');
+    fail('the share server has not been built: $_howToBuild');
+  }
+  final built = executable.lastModifiedSync();
+  for (final source in _serverSources()) {
+    if (source.lastModifiedSync().isAfter(built)) {
+      fail(
+        'the share server is older than ${source.path}: rebuild it — '
+        '$_howToBuild',
+      );
+    }
   }
   return executable.absolute.path;
 }
 
 void main() {
-  Process? server;
-  late String address;
+  // In a group of its own, so that a server nobody has built fails the one
+  // test that talks to it and not the four beside it that never do.
+  group('through the reference server', () {
+    Process? server;
+    late String address;
 
-  setUpAll(() async {
-    final executable = await _builtServer();
-    final started = await Process.start(
-      executable,
-      const <String>[],
-      workingDirectory: _serverPackage,
-    );
-    server = started;
-    final listening = Completer<String>();
-    // What the server said, for when it stops before it listens: waiting out
-    // the timeout for a server that has exited says only that nothing
-    // happened.
-    final said = StringBuffer();
-    started.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((String line) {
-          said.writeln(line);
-          final port = RegExp(r'listening on (\d+)').firstMatch(line);
-          if (port != null && !listening.isCompleted) {
-            listening.complete('http://127.0.0.1:${port.group(1)}/');
-          }
-        });
-    started.stderr.transform(utf8.decoder).listen(said.write);
-    unawaited(
-      started.exitCode.then((int code) {
-        if (listening.isCompleted) return;
-        listening.completeError(
-          StateError(
-            'the share server exited ($code) before it listened:\n$said',
-          ),
-        );
-      }),
-    );
-    address = await listening.future.timeout(const Duration(minutes: 4));
-  });
+    setUpAll(() async {
+      final executable = _builtServer();
+      final started = await Process.start(
+        executable,
+        const <String>[],
+        workingDirectory: _serverPackage,
+      );
+      server = started;
+      final listening = Completer<String>();
+      // What the server said, for when it stops before it listens: waiting out
+      // the timeout for a server that has exited says only that nothing
+      // happened.
+      final said = StringBuffer();
+      started.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((String line) {
+            said.writeln(line);
+            final port = RegExp(r'listening on (\d+)').firstMatch(line);
+            if (port != null && !listening.isCompleted) {
+              listening.complete('http://127.0.0.1:${port.group(1)}/');
+            }
+          });
+      started.stderr.transform(utf8.decoder).listen(said.write);
+      unawaited(
+        started.exitCode.then((int code) {
+          if (listening.isCompleted) return;
+          listening.completeError(
+            StateError(
+              'the share server exited ($code) before it listened:\n$said',
+            ),
+          );
+        }),
+      );
+      // A built executable listens within a second; this is room for a loaded
+      // machine, inside the minute the whole file has.
+      address = await listening.future.timeout(const Duration(seconds: 30));
+    });
 
-  tearDownAll(() => server?.kill());
+    tearDownAll(() => server?.kill());
 
-  test('shared from one window, raced as a ghost in another', () async {
-    final played = _played(240);
+    test('shared from one window, raced as a ghost in another', () async {
+      final played = _played(240);
 
-    // The first window shares it: the level and the run, as one bundle.
-    final sharing = GameCloud(
-      game: 'platformer',
-      storage: _Storage(),
-      server: address,
-      policy: '2026-10',
-    );
-    final filed = await sharing.shares!.share(
-      ShareBundle(game: 'platformer', level: _document(), run: played.demo),
-    );
-    final code = switch (filed) {
-      ServiceDone<SharedBundle>(:final value) => value.code,
-      ServiceRefused<SharedBundle>(:final reason) => fail(reason),
-    };
+      // The first window shares it: the level and the run, as one bundle.
+      final sharing = GameCloud(
+        game: 'platformer',
+        storage: _Storage(),
+        server: address,
+        policy: '2026-10',
+      );
+      final filed = await sharing.shares!.share(
+        ShareBundle(game: 'platformer', level: _document(), run: played.demo),
+      );
+      final code = switch (filed) {
+        ServiceDone<SharedBundle>(:final value) => value.code,
+        ServiceRefused<SharedBundle>(:final reason) => fail(reason),
+      };
 
-    // The second knows only the code.
-    final watching = GameCloud(
-      game: 'platformer',
-      storage: _Storage(),
-      server: address,
-      policy: '2026-10',
-    );
-    final opened = await watching.shares!.open(code);
-    final bundle = switch (opened) {
-      ServiceDone<ShareBundle>(:final value) => value,
-      ServiceRefused<ShareBundle>(:final reason) => fail(reason),
-    };
-    final RunGhost(:ghost, :note) = ghostOf(
-      Level.fromJson(bundle.level),
-      bundle.run!,
-    );
-    expect(ghost, isNotNull, reason: note.say());
+      // The second knows only the code.
+      final watching = GameCloud(
+        game: 'platformer',
+        storage: _Storage(),
+        server: address,
+        policy: '2026-10',
+      );
+      final opened = await watching.shares!.open(code);
+      final bundle = switch (opened) {
+        ServiceDone<ShareBundle>(:final value) => value,
+        ServiceRefused<ShareBundle>(:final reason) => fail(reason),
+      };
+      final RunGhost(:ghost, :note) = ghostOf(
+        Level.fromJson(bundle.level),
+        bundle.run!,
+      );
+      expect(ghost, isNotNull, reason: note.say());
 
-    // Wherever the ghost was sampled, it is where the runner was, to the bit:
-    // the same steps, played again on the same physics.
-    // Mutation: playing the tape from a fresh level rather than the run's
-    // own start, or one step out of phase — either puts it elsewhere.
-    expect(ghost!.poses.length, greaterThan(100));
-    for (final pose in ghost.poses) {
-      final step = (pose.time / _dt).round();
-      expect(pose.position, played.feet[step], reason: 'step $step');
-    }
-    // And it went somewhere: a ghost that stands at the start races nobody.
-    expect(
-      ghost.poses.last.position.distanceTo(ghost.poses.first.position),
-      greaterThan(3.0),
-    );
+      // Wherever the ghost was sampled, it is where the runner was, to the bit:
+      // the same steps, played again on the same physics.
+      // Mutation: playing the tape from a fresh level rather than the run's
+      // own start, or one step out of phase — either puts it elsewhere.
+      expect(ghost!.poses.length, greaterThan(100));
+      for (final pose in ghost.poses) {
+        final step = (pose.time / _dt).round();
+        expect(pose.position, played.feet[step], reason: 'step $step');
+      }
+      // And it went somewhere: a ghost that stands at the start races nobody.
+      expect(
+        ghost.poses.last.position.distanceTo(ghost.poses.first.position),
+        greaterThan(3.0),
+      );
+    });
   });
 
   test('a run from another simulation races as its pose record', () {

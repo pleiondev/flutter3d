@@ -13,6 +13,10 @@
 /// than skipping one, which is the whole argument for `redrawIfDirty`
 /// existing at all; the actual milliseconds go into `doc/tooling-plan.md` §8
 /// by hand, once per platform, the way `rp-00`'s table did.
+///
+/// Tagged `benchmark`, which this package's `dart_test.yaml` skips:
+/// `tool/benchmarks.sh` runs it.
+@Tags(<String>['benchmark'])
 library;
 
 import 'dart:ui' as ui;
