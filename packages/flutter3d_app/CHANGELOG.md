@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **`HotSwap.loadTexture` and `loadEnvironment` throw instead of answering
+  null.** A path the bundle does not hold is an `AssetNotFoundException`
+  naming it; bytes that are no image an `ImageFormatException`; an
+  environment that does not build throws what `EnvironmentMap.fromEncoded`
+  throws. A swap after a bad save still keeps the last good one. The
+  `HotSwap()` constructor is ordinary API rather than a testing seam: an
+  application with two engines may give each its own.
+
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 
