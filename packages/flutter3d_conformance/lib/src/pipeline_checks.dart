@@ -143,3 +143,117 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
     '(centre came back $particle)',
   );
 }
+
+/// A pipeline the device's record leaves refused draws nothing, the pass it
+/// is bound in draws the rest, and the refusal is told once however many
+/// passes bind it.
+///
+/// The contract is on `GraphicsDevice.pipelineRefusals`. What earns it a
+/// check is the case that made it: an OpenGL ES driver that links lazily
+/// refused a pipeline at its first draw, the draw threw, and one shader on
+/// one phone failed every frame. No real driver can be asked to refuse on
+/// cue, so the check refuses through the record itself, as a backend does
+/// once a pipeline has failed its builds, and holds the encoder to what the
+/// record says: every backend's bind or draw has to ask it.
+///
+/// Two handles over the same pair, so nothing but the record tells them
+/// apart. Each pass clears to black, draws green across the frame with the
+/// pipeline that builds, then red across it with the refused one: a center
+/// that comes back red drew a refused pipeline, and one that comes back
+/// black lost the rest of the pass.
+Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
+  const size = 8;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
+  final drawn = device.createPipeline(vertex!, fragment!);
+  final refused = device.createPipeline(vertex, fragment);
+  final refusals = device.pipelineRefusals;
+  require(
+    refusals.refusalOf(drawn) == null && refusals.refusalOf(refused) == null,
+    'the debug-line pair was refused at createPipeline, so this cannot tell '
+    'a skipped draw from a refused build',
+  );
+  refusals
+    ..take()
+    ..report(
+      refused,
+      PipelineRefused(
+        pipeline: refused.name,
+        backend: device.backendName,
+        reason: PipelineRefusalReason.other,
+        detail: 'refused by the conformance check',
+      ),
+      retry: false,
+    );
+
+  Float32List triangle(double r, double g) => Float32List.fromList(<double>[
+    -1, -1, 0.5, r, g, 0, 1, //
+    3, -1, 0.5, r, g, 0, 1,
+    -1, 3, 0.5, r, g, 0, 1,
+  ]);
+  final green = triangle(0, 1);
+  final red = triangle(1, 0);
+  final indices = Uint16List.fromList(<int>[0, 1, 2]);
+  final identity = Float32List.fromList(Matrix4.identity().storage);
+
+  final told = <PipelineRefused>[];
+  for (var frame = 0; frame < 4; frame++) {
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    )..setCullMode(CullMode.none);
+    for (final (pipeline, color) in <(PipelineHandle, Float32List)>[
+      (drawn, green),
+      (refused, red),
+    ]) {
+      pass
+        ..bindPipeline(pipeline)
+        ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+          'view_projection': identity,
+        })
+        ..bindVertexData(ByteData.sublistView(color), 3)
+        ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+        ..draw();
+    }
+    pass.submit();
+    told.addAll(refusals.take());
+
+    final pixels = (await device.readback(target)).buffer.asUint8List();
+    final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+    final center = pixels.sublist(at, at + 3);
+    require(
+      center[0] < 64,
+      'a draw with a pipeline the device\'s record leaves refused was drawn '
+      '(frame $frame, center came back $center): the bind or the draw has to '
+      'ask GraphicsDevice.pipelineRefusals.isRefused and skip it',
+    );
+    require(
+      center[1] > 128,
+      'the draw before the refused one is missing (frame $frame, center came '
+      'back $center): a refused pipeline skips its own draws, not the pass',
+    );
+  }
+  require(
+    told.length == 1 && told.single.pipeline == refused.name,
+    'the refusal was told ${told.length} times over four passes: each '
+    'pipeline is told once, at the first take after it was refused',
+  );
+}

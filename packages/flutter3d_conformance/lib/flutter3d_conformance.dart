@@ -303,6 +303,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkIndexWindowDraw,
   ),
   (
+    name: 'a pipeline the backend refuses skips its draws and is told once',
+    run: checkRefusedPipelineSkipsDraws,
+  ),
+  (
     name: 'a vertex stage can sample a texture',
     run: checkVertexTextureSampling,
   ),
