@@ -87,6 +87,18 @@ void main() {
         final declared = <String>[for (final d in ours) d.name];
         expect(declared, contains('platformer.landed'));
         expect(declared, contains('platformer.runnerDied'));
+        // The events every genre shares are `flutter3d_sim`'s and the
+        // engine's to declare, so switching a genre off never takes them
+        // from the others; everything this genre declares is named under it.
+        final shared = <String>{
+          ActorHurt.eventName,
+          ActorDied.eventName,
+          SequenceSignal.eventName,
+        };
+        expect(<String>[
+          for (final d in loop.events.declared)
+            if (shared.contains(d.name) && d.declaredBy == 'app') d.name,
+        ], containsAll(shared));
         expect(
           declared.every((name) => name.startsWith('platformer.')),
           isTrue,
@@ -128,7 +140,9 @@ void main() {
         say = false;
       });
       loop.runSteps(1);
-      expect(heard, <String>[RunnerDied.eventName]);
+      // The runner comes down on the floor in this step too, and says so.
+      expect(heard, contains(RunnerDied.eventName));
+      final spoken = heard.length;
 
       // Swapped away, the old run neither steps nor speaks.
       plugin.simulation = null;
@@ -136,9 +150,11 @@ void main() {
       say = true;
       loop.runSteps(5);
       expect(staged.sim.elapsed, before);
-      expect(heard, <String>[
-        RunnerDied.eventName,
-      ], reason: 'the run no longer publishes onto the bus');
+      expect(
+        heard,
+        hasLength(spoken),
+        reason: 'the run no longer publishes onto the bus',
+      );
     });
 
     test('switched off, takes out everything it put in', () {
@@ -238,6 +254,26 @@ void main() {
       final aim = Vector3.zero();
       run.aim(aim);
       expect(aim.length, closeTo(1.0, 1e-9));
+    });
+
+    test('says where the runner is in the world when the origin has moved', () {
+      // Mutation: read the body's position with the default origin, as the
+      // run did — five kilometres from the origin the runner is reported
+      // five kilometres from where it stands.
+      final level = _floor();
+      final world = CollisionWorld();
+      level.addTo(world);
+      final run = const PlatformerHeadlessGame().start(
+        level,
+        world,
+        InputState(),
+      );
+      world.update();
+      final before = run.position;
+      final eye = run.eye;
+      world.moveOriginTo(const WorldPosition(5000.0, 0.0, 0.0));
+      expect(run.position.distanceTo(before), lessThan(1e-3));
+      expect(run.eye.distanceTo(eye), lessThan(1e-3));
     });
   });
 }

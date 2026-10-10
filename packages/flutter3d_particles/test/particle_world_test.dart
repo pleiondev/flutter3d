@@ -66,8 +66,9 @@ void main() {
       const ParticleDrag(3.0).apply(particle, 1.0 / 60.0);
     }
     // Mutation: drag towards rest instead of towards the air and it stays
-    // where it was.
-    expect(particle.velocity.x, closeTo(4.0, 1e-6));
+    // where it was. The velocity is a float32 `Vector3`, and the approach
+    // to the wind stops a few ulps short of 4: 3.9999976 here.
+    expect(particle.velocity.x, closeTo(4.0, 1e-5));
   });
 
   test('in still air drag slows as it always did, to the bit', () {

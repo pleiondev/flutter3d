@@ -949,6 +949,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   AnimationTransition from flutter3d_core
   AnimationWrap from flutter3d_core
   AntiAliasSettings from flutter3d_core
+  AssetNotFoundException from flutter3d_foundation
   AssetRequest from flutter3d_core
   AssetSource from flutter3d_core
   AssetSourceFactory from flutter3d_core
@@ -1310,6 +1311,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   ShaderBundle from flutter3d_hardware
   ShaderBundleException from flutter3d_hardware
   ShaderBundleStage from flutter3d_hardware
+  ShaderCompileException from flutter3d_foundation
   ShaderHandle from flutter3d_hardware
   ShaderLibrary from flutter3d_hardware
   ShadowCasterFaces from flutter3d_core

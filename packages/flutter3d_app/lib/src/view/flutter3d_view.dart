@@ -104,22 +104,33 @@ final class Flutter3dEngine {
   /// engine's scenes, until the registration is cancelled — item 18's hook
   /// for particles, which hold positions in the scene's space and are not
   /// nodes the shift moves.
+  ///
+  /// Through `ParticleSystem.followOrigin` on [scene], and again on the
+  /// scene a game swaps in: the system's one handler per scene, so a system
+  /// a `Particles3D` draws as well moves once a shift, not twice.
   Registration followOrigin(ParticleSystem particles) {
-    _shiftFollowers.add(particles);
-    return Registration(() => _shiftFollowers.remove(particles));
+    final follower = _shiftFollowers.putIfAbsent(
+      particles,
+      () => _Follower(particles.followOrigin(_scene)),
+    );
+    follower.holders++;
+    var cancelled = false;
+    return Registration(() {
+      if (cancelled) return;
+      cancelled = true;
+      if (--follower.holders > 0) return;
+      follower.onScene.cancel();
+      _shiftFollowers.remove(particles);
+    });
   }
 
-  final _Followers _shiftFollowers = _Followers();
+  final Map<ParticleSystem, _Follower> _shiftFollowers =
+      Map<ParticleSystem, _Follower>.identity();
 
   /// What the engine does with an origin shift the loop published: the
-  /// scene's nodes move, then the particles that follow it.
-  void _shiftOrigin(OriginShifted shift) {
-    _scene.shiftOrigin(shift.to);
-    final offset = shift.offset;
-    for (final particles in _shiftFollowers.all) {
-      particles.shiftOrigin(offset.x, offset.y, offset.z);
-    }
-  }
+  /// scene's nodes move, and its handlers move what follows it — the
+  /// particles among them.
+  void _shiftOrigin(OriginShifted shift) => _scene.shiftOrigin(shift.to);
 
   /// The world being drawn: the one the view was given or made, until a
   /// game hands it another.
@@ -138,6 +149,11 @@ final class Flutter3dEngine {
       value.add(eye);
     }
     _scene = value;
+    for (final MapEntry(key: particles, value: follower)
+        in _shiftFollowers.entries) {
+      follower.onScene.cancel();
+      follower.onScene = particles.followOrigin(value);
+    }
   }
 
   Scene _scene;
@@ -265,6 +281,7 @@ class Flutter3dView extends StatefulWidget {
     this.views,
     this.continuous = true,
     this.frameRateCap,
+    this.originShift = defaultOriginShift,
     this.presenter,
     this.onDeviceLost,
     this.onDeviceRestored,
@@ -396,8 +413,40 @@ class Flutter3dView extends StatefulWidget {
   /// Frames a second this view is drawn at most, held to a whole number of
   /// the display's refreshes — `A1.5`: sixty on a 120 Hz screen is every
   /// other refresh. The loop steps by all the time since the last drawn
-  /// frame. Null, the default, draws on every refresh.
+  /// frame. Null, the default, draws on every refresh, and so does a cap of
+  /// nought or less.
   final double? frameRateCap;
+
+  /// How far, in metres, the camera may wander from the origin before the
+  /// view moves the origin to it; null leaves the origin where the game puts
+  /// it. [defaultOriginShift], a kilometre, by default.
+  ///
+  /// **Precision is the camera's, not the origin's.** A scene's nodes, the
+  /// GPU and the simulation's bodies hold float32 offsets from one origin,
+  /// and float32 has a millimetre between neighbours at about 8 km and
+  /// half a metre at 4000 km. So after each frame, when the camera stands
+  /// further than this from the origin, the view calls
+  /// `EngineLoop.shiftOrigin` with the camera's place rounded to whole
+  /// metres: the loop's hooks move the bodies (`EngineLoop.shiftsPhysics`),
+  /// the scene its nodes and the particles that follow it, and nothing
+  /// moves in the world. What is near the camera is then near the origin,
+  /// wherever in the world it is.
+  ///
+  /// **What the game holds in the old frame stays there.** A game that
+  /// copies its bodies' float32 positions onto nodes each frame registers
+  /// its world with `EngineLoop.shiftsPhysics`, so the bodies move with the
+  /// shift; one that does not would draw them a kilometre off after it, and
+  /// passes null here until it does.
+  ///
+  /// The shift happens between steps, at the view's camera, which is not on
+  /// a run's tape: a game that records runs for replay and moves far shifts
+  /// the origin from inside a step itself, and passes null here.
+  final double? originShift;
+
+  /// How far, in metres, the camera wanders before a [Flutter3dView] moves
+  /// the origin to it by default: a kilometre, where float32 still has a
+  /// tenth of a millimetre between neighbours.
+  static const double defaultOriginShift = 1000.0;
 
   /// What shows a drawn frame; null presents it through the registry the
   /// device came from ([devices]). A test without a backend passes its own.
@@ -618,7 +667,10 @@ class _Flutter3dViewState extends State<Flutter3dView>
   void _startTicker() {
     _ticker ??= createTicker(_tick);
     if (!_ticker!.isActive) {
+      // A ticker counts from nought each time it starts, and the cadence
+      // would wait for the old count: forget the last frame it drew.
       _last = Duration.zero;
+      _cadence.reset();
       _ticker!.start();
     }
   }
@@ -633,10 +685,16 @@ class _Flutter3dViewState extends State<Flutter3dView>
       return;
     }
     // A refresh the cap skips is not drawn: the time goes on owing, and the
-    // next frame drawn steps by all of it.
+    // next frame drawn steps by all of it. A cap of nought or less is none,
+    // and a display that says nought hertz does not know its rate: the
+    // cadence measures it from the timestamps.
+    final cap = widget.frameRateCap;
+    final hertz = View.maybeOf(context)?.display.refreshRate;
     _cadence
-      ..cap = widget.frameRateCap
-      ..refreshRate = View.maybeOf(context)?.display.refreshRate;
+      ..cap = cap != null && cap > 0.0 && cap.isFinite ? cap : null
+      ..refreshRate = hertz != null && hertz > 0.0 && hertz.isFinite
+          ? hertz
+          : null;
     if (_cadence.due(elapsed) == null) return;
     final seconds = _owed;
     _owed = 0.0;
@@ -644,6 +702,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
     widget.onBeforeFrame?.call(engine, frame);
     engine.loop.frame(seconds);
     widget.onFrame?.call(engine, frame);
+    _followCamera(engine);
     final listener = widget.onListenerMoved;
     if (listener != null) {
       final m = engine.camera.worldMatrix.storage;
@@ -657,6 +716,25 @@ class _Flutter3dViewState extends State<Flutter3dView>
       );
     }
     setState(() {});
+  }
+
+  /// Moves the origin to the camera when it has wandered further than
+  /// [Flutter3dView.originShift] from it — through the loop, whose hooks move
+  /// the bodies and, through [Flutter3dEngine._shiftOrigin], the scene.
+  /// Rounded to whole metres, as `Scene.rebaseAround` rounds, so a shift
+  /// moves nothing by a fraction float32 would round.
+  void _followCamera(Flutter3dEngine engine) {
+    final beyond = widget.originShift;
+    if (beyond == null) return;
+    final at = engine.camera.worldPosition;
+    if (at.distanceSquaredTo(engine.scene.origin) <= beyond * beyond) return;
+    engine.loop.shiftOrigin(
+      WorldPosition(
+        at.x.roundToDouble(),
+        at.y.roundToDouble(),
+        at.z.roundToDouble(),
+      ),
+    );
   }
 
   void _updatePaused() {
@@ -767,17 +845,12 @@ class _Flutter3dViewState extends State<Flutter3dView>
   }
 }
 
-/// The particle systems an engine moves with an origin shift, in the order
-/// they were added; each added once however often it is asked.
-final class _Followers {
-  final List<ParticleSystem> _list = <ParticleSystem>[];
+/// A particle system an engine moves with its scene's origin: the system's
+/// registration on the scene drawn now, and how many
+/// [Flutter3dEngine.followOrigin] registrations hold it.
+final class _Follower {
+  _Follower(this.onScene);
 
-  void add(ParticleSystem particles) {
-    if (!_list.any((p) => identical(p, particles))) _list.add(particles);
-  }
-
-  void remove(ParticleSystem particles) =>
-      _list.removeWhere((p) => identical(p, particles));
-
-  List<ParticleSystem> get all => List<ParticleSystem>.of(_list);
+  Registration onScene;
+  int holders = 0;
 }

@@ -147,6 +147,12 @@ final class MeshParticleContributor extends PassContributor {
   @override
   bool get isActive => particles.aliveCount > 0;
 
+  /// Every live particle's copy of [mesh]: the mesh's bounds scaled by the
+  /// particle's size and put at its position, as the vertex stage places it
+  /// (`i_position + position * i_scale`).
+  @override
+  vm.Aabb3 boundsFor(RenderView view) => particles.boundsOf(mesh.bounds);
+
   @override
   void encode(ContributorFrame frame) {
     final view = frame.view;

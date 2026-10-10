@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **`Flutter3dView.originShift`: the view moves the origin to the camera.**
+  When the camera is further than this many metres from the origin (a
+  kilometre, `Flutter3dView.defaultOriginShift`, by default) the view calls
+  `EngineLoop.shiftOrigin` with the camera's place, so precision is the
+  camera's wherever it goes. Null turns it off; a game whose bodies do not
+  shift with the loop (`EngineLoop.shiftsPhysics`) passes null.
+- **A capped view draws again after its ticker restarts.** The cadence is
+  reset with the ticker, which counts from nought again; a `frameRateCap` of
+  nought or less is no cap, and a display that reports nought hertz has its
+  rate measured rather than taken.
+- **A particle system followed twice moves once.** `followOrigin` and
+  `Particles3D` share the system's one handler on the scene.
+
 - **Breaking: `Issue` and `IssueSink` are not re-exported.** They are
   `flutter3d_foundation`'s; `IssueLog` and `printIssue` stay here.
 

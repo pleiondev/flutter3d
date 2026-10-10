@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **A corpse is let go when its actor stands again.** `ActorVisuals` kept
+  an actor its `corpses` had taken over for good, so after a rewind to
+  before the death the actor stood frozen and a second death made no
+  ragdoll. It calls `ActorCorpses.end` and animates the actor again once it
+  lives, and hands the next death over as the first.
+
+- **A replay checks its simulation whether or not one is named.**
+  `replayDemoOnLoop` and `rewindBufferFromDemo` refused a run from another
+  simulation only when given `simulation:`; without it a newer tape played
+  and parted at a checkpoint. They check against the loop's
+  `EngineLoop.simulationBase` now. A game whose runs name a genre passes
+  that genre's version, as it did.
+
 - **The one facade, and the list says so.** The level, `EngineLoop` and
   `InputState` (`flutter3d_sim`), `CollisionWorld`, `Collider` and
   `RigidDynamics` (`flutter3d_physics`) and the listener, emitters and sound

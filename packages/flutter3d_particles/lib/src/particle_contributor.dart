@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
@@ -120,6 +121,18 @@ final class ParticleContributor extends PassContributor {
 
   @override
   bool get isActive => particles.aliveCount > 0;
+
+  /// Every live particle's quad, however it faces or turns: a cube of
+  /// half-side √½ of its size about its centre holds the corners — the same
+  /// in every view, since the quads are in scene space.
+  @override
+  vm.Aabb3 boundsFor(RenderView view) => particles.boundsOf(_billboard);
+
+  /// What a billboard of size one can cover: its half-diagonal on each axis.
+  static final vm.Aabb3 _billboard = vm.Aabb3.minMax(
+    vm.Vector3.all(-math.sqrt1_2),
+    vm.Vector3.all(math.sqrt1_2),
+  );
 
   @override
   bool get readsSceneDepth => softness > 0.0;

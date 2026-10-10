@@ -15,6 +15,8 @@
 /// levels.
 library;
 
+import 'package:flutter/cupertino.dart'
+    show CupertinoLocalizations, DefaultCupertinoLocalizations;
 import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -120,6 +122,7 @@ void main() {
           localizationsDelegates: <LocalizationsDelegate<Object>>[
             Flutter3dAppLocalizations.delegate,
             _MaterialInAnyLanguage(),
+            _CupertinoInAnyLanguage(),
           ],
           home: LoadingScreen(),
         ),
@@ -147,4 +150,23 @@ final class _MaterialInAnyLanguage
 
   @override
   bool shouldReload(_MaterialInAnyLanguage old) => false;
+}
+
+/// Cupertino's English words under any locale, for the same reason: a
+/// `MaterialApp` asks for both and warns when a locale has no Cupertino one.
+final class _CupertinoInAnyLanguage
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _CupertinoInAnyLanguage();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) =>
+      SynchronousFuture<CupertinoLocalizations>(
+        const DefaultCupertinoLocalizations(),
+      );
+
+  @override
+  bool shouldReload(_CupertinoInAnyLanguage old) => false;
 }

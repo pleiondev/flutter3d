@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **The blind run's position is read against the world's origin.**
+  `PlatformerHeadlessGame`'s `position` and `eye` took the body's float32
+  position as an offset from the world's origin, which is wrong once the
+  loop has moved its own.
+
 - **Breaking: a swimmer's lift is a share of gravity.**
   `SwimSettings.buoyancy` (6 m/s²) is `SwimSettings.buoyancyRatio`, 0.25 of
   the world's gravity — the same 6 at 24 m/s², and no rising out of the

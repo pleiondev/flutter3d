@@ -450,10 +450,9 @@ class _Particles3DState extends _SpatialState<Particles3D, SceneNode>
     _host = host;
     // The particles live in the scene's space and are not nodes: a floating
     // origin moves them as it moves the nodes, so none jumps in the world.
-    _followsOrigin = host.scene.onOriginShift((OriginShifted shift) {
-      final offset = shift.offset;
-      _system.shiftOrigin(offset.x, offset.y, offset.z);
-    });
+    // Through the system's own handler, which a game following it too
+    // (`Flutter3dEngine.followOrigin`) shares rather than doubles.
+    _followsOrigin = _system.followOrigin(host.scene);
     return SceneNode(name: 'particles');
   }
 

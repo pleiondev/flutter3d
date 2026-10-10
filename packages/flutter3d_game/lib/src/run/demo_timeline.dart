@@ -33,9 +33,10 @@ import 'run_part.dart';
 /// know which level each keyframe belongs to; until it does,
 /// `replayDemoOnLoop` plays such a run and this does not pretend to scrub it.
 ///
-/// So is a run recorded on a simulation other than [simulation], when that is
-/// given: [ReplayException] carries the run's pose record, which scrubs on any
-/// build because nothing in it is simulated.
+/// So is a run recorded on a simulation other than this build's — [simulation]
+/// when given, the loop's `EngineLoop.simulationBase` otherwise; the check is
+/// never skipped. [ReplayException] carries the run's pose record, which
+/// scrubs on any build because nothing in it is simulated.
 RewindBuffer rewindBufferFromDemo({
   required Demo demo,
   required EngineLoop loop,
@@ -44,7 +45,7 @@ RewindBuffer rewindBufferFromDemo({
   double? history,
   SimulationVersion? simulation,
 }) {
-  if (simulation != null) demo.checkSimulation(simulation);
+  demo.checkSimulation(simulation ?? loop.simulationBase);
   if (demo.levelSwaps.isNotEmpty) {
     throw ArgumentError.value(
       demo,

@@ -196,5 +196,20 @@ void main() {
       // second further on.
       expect(run.position.distanceTo(at), lessThan(1e-9));
     });
+
+    test('says where the car is in the world when the origin has moved', () {
+      // Mutation: read the car's position with the default origin, as the
+      // run did — five kilometres from the origin the car is reported five
+      // kilometres from where it stands.
+      final world = CollisionWorld();
+      final run = RacingHeadlessGame(
+        track: ringTrack(),
+      ).start(Level(name: 'ring'), world, InputState());
+      final before = run.position;
+      final eye = run.eye;
+      world.moveOriginTo(const WorldPosition(5000.0, 0.0, 0.0));
+      expect(run.position.distanceTo(before), lessThan(1e-3));
+      expect(run.eye.distanceTo(eye), lessThan(1e-3));
+    });
   });
 }

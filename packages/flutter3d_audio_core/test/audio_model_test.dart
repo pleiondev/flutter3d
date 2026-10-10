@@ -187,7 +187,9 @@ void main() {
       final car = scene.play(_hum, Vector3(0.0, 0.0, -10.0));
       car.velocity.setValues(0.0, 0.0, 34.3); // toward the listener
       scene.update(AudioListener());
-      expect(car.spatial.rate, closeTo(343.0 / (343.0 - 34.3), 1e-9));
+      // The velocity is a float32 `Vector3`, which holds 34.3 as
+      // 34.2999992…: the rate is that close, not the double's.
+      expect(car.spatial.rate, closeTo(343.0 / (343.0 - 34.3), 1e-7));
       expect(backend.live.single.rate, closeTo(car.spatial.rate, 1e-12));
 
       car.velocity.setValues(0.0, 0.0, -34.3); // away
@@ -255,12 +257,20 @@ void main() {
       // Mutation: leave the velocity as it was, as `placeAt` used to. A
       // listener driven by `onListenerMoved` would never hear doppler.
       final listener = AudioListener()
-        ..placeAt(const WorldPosition(0.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       final scene = AudioScene(backend: SilentBackend())
         ..update(listener, dt: 0.1);
       // The first placement measures nothing.
       expect(listener.velocity.length, 0.0);
-      listener.placeAt(const WorldPosition(0.5, 0.0, 0.0), ahead);
+      listener.placeAt(
+        const WorldPosition(0.5, 0.0, 0.0),
+        ahead,
+        origin: WorldPosition.origin,
+      );
       scene.update(listener, dt: 0.1);
       expect(listener.velocity.x, closeTo(5.0, 1e-9));
     });
@@ -269,12 +279,24 @@ void main() {
       // Mutation: measure each call against the one before. Two calls a
       // mix would read half the distance over the whole mix's seconds.
       final listener = AudioListener()
-        ..placeAt(const WorldPosition(0.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       final scene = AudioScene(backend: SilentBackend())
         ..update(listener, dt: 0.5);
       listener
-        ..placeAt(const WorldPosition(0.5, 0.0, 0.0), ahead)
-        ..placeAt(const WorldPosition(1.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.5, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        )
+        ..placeAt(
+          const WorldPosition(1.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       scene.update(listener, dt: 0.5);
       expect(listener.velocity.x, closeTo(2.0, 1e-9));
     });
@@ -283,30 +305,47 @@ void main() {
       // Mutation: ignore `teleport`. A respawn a hundred metres away in one
       // frame would be a thousand metres per second, a shriek of doppler.
       final listener = AudioListener()
-        ..placeAt(const WorldPosition(0.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       final scene = AudioScene(backend: SilentBackend())
         ..update(listener, dt: 0.1);
       listener.placeAt(
         const WorldPosition(100.0, 0.0, 0.0),
         ahead,
+        origin: WorldPosition.origin,
         teleport: true,
       );
       scene.update(listener, dt: 0.1);
       expect(listener.velocity.length, 0.0);
-      listener.placeAt(const WorldPosition(100.2, 0.0, 0.0), ahead);
+      listener.placeAt(
+        const WorldPosition(100.2, 0.0, 0.0),
+        ahead,
+        origin: WorldPosition.origin,
+      );
       scene.update(listener, dt: 0.1);
-      expect(listener.velocity.x, closeTo(2.0, 1e-9));
+      // The position is float32: 100.2 is 100.1999969… there, a hundred
+      // metres from the origin, and the difference over a tenth of a second
+      // carries that.
+      expect(listener.velocity.x, closeTo(2.0, 1e-4));
     });
 
     test('a velocity given outright wins over the difference', () {
       // Mutation: overwrite it with the measured one at the mix.
       final listener = AudioListener()
-        ..placeAt(const WorldPosition(0.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       final scene = AudioScene(backend: SilentBackend())
         ..update(listener, dt: 0.1);
       listener.placeAt(
         const WorldPosition(1.0, 0.0, 0.0),
         ahead,
+        origin: WorldPosition.origin,
         velocity: Vector3(0.0, 0.0, -3.0),
       );
       scene.update(listener, dt: 0.1);
@@ -317,10 +356,18 @@ void main() {
       // Mutation: keep the last measured velocity. A car that parked would
       // keep its doppler shift for ever.
       final listener = AudioListener()
-        ..placeAt(const WorldPosition(0.0, 0.0, 0.0), ahead);
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, 0.0),
+          ahead,
+          origin: WorldPosition.origin,
+        );
       final scene = AudioScene(backend: SilentBackend())
         ..update(listener, dt: 0.1);
-      listener.placeAt(const WorldPosition(1.0, 0.0, 0.0), ahead);
+      listener.placeAt(
+        const WorldPosition(1.0, 0.0, 0.0),
+        ahead,
+        origin: WorldPosition.origin,
+      );
       scene.update(listener, dt: 0.1);
       expect(listener.velocity.x, closeTo(10.0, 1e-9));
       scene.update(listener, dt: 0.1);
@@ -337,11 +384,17 @@ void main() {
       );
       final listener = AudioListener();
       final car = scene.play(_hum, Vector3(0.0, 0.0, -10.0))
-        ..placeAt(const WorldPosition(0.0, 0.0, -10.0));
+        ..placeAt(
+          const WorldPosition(0.0, 0.0, -10.0),
+          origin: WorldPosition.origin,
+        );
       scene.update(listener, dt: 0.1);
       expect(car.spatial.rate, 1.0);
       // 3.43 metres closer in a tenth of a second: 34.3 m/s toward the ears.
-      car.placeAt(const WorldPosition(0.0, 0.0, -6.57));
+      car.placeAt(
+        const WorldPosition(0.0, 0.0, -6.57),
+        origin: WorldPosition.origin,
+      );
       scene.update(listener, dt: 0.1);
       expect(car.velocity.z, closeTo(34.3, 1e-4));
       expect(car.spatial.rate, closeTo(343.0 / (343.0 - 34.3), 1e-4));

@@ -40,7 +40,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show OriginShifted, Registration;
+    show Registration;
 
 import '../surface/scene_surface.dart' show FramePresenter;
 import '../view/flutter3d_view.dart';

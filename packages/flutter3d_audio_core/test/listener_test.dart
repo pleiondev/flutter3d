@@ -54,6 +54,12 @@ void main() {
     // apart.
     //
     // Mutation: narrow `at` to a Vector3 first and subtract the origin after.
+    //
+    // `origin` is required on both `placeAt`s, so a call cannot forget it.
+    // Mutation, checked with `dart analyze`: give it back its default of the
+    // world's origin — the fourteen placements in `audio_model_test.dart`
+    // compiled without naming one, and a game whose loop had moved its origin
+    // would hear every sound from where the camera was kilometres ago.
     const origin = WorldPosition(20000.0, 0.0, -20000.0);
     final ears = AudioListener()
       ..placeAt(

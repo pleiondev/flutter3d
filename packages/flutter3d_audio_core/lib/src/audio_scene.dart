@@ -78,7 +78,9 @@ final class AudioEmitter {
 
   /// Puts the emitter at [at] in the world: [position] becomes [at]'s offset
   /// from [origin], worked out in doubles. [origin] is the one the listener
-  /// is placed against, the scene's origin for a game that draws one.
+  /// is placed against, the scene's origin for a game that draws one —
+  /// required, as the listener's is, so the two cannot drift apart by one
+  /// of them taking the world's origin as a default.
   ///
   /// The velocity comes from the placements, by the rules
   /// `AudioListener.placeAt` gives: the difference since the last mix over
@@ -86,7 +88,7 @@ final class AudioEmitter {
   /// [velocity] when the game gives one.
   void placeAt(
     WorldPosition at, {
-    WorldPosition origin = WorldPosition.origin,
+    required WorldPosition origin,
     Vector3? velocity,
     bool teleport = false,
   }) {

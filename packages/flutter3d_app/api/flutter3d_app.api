@@ -104,7 +104,7 @@ final class Flutter3dEngine
 
 class Flutter3dView extends StatefulWidget
   State<Flutter3dView> createState()
-  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.plugins = const <Flutter3dPlugin>[], this.formats = const <FormatSpec>[], this.registries = const <PluginRegistry>[], this.settings = const RenderSettings(), this.viewOptions = const RenderViewSettings(), this.timing = const WorldTiming(), this.input, this.drainLook, this.device, this.renderer, this.devices, this.focusNode, this.autofocus = false, this.onKeyEvent, this.resolution = ViewResolution.native, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.placeholder = const SizedBox.expand(), this.failure, this.views, this.continuous = true, this.frameRateCap, this.presenter, this.onDeviceLost, this.onDeviceRestored})
+  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.plugins = const <Flutter3dPlugin>[], this.formats = const <FormatSpec>[], this.registries = const <PluginRegistry>[], this.settings = const RenderSettings(), this.viewOptions = const RenderViewSettings(), this.timing = const WorldTiming(), this.input, this.drainLook, this.device, this.renderer, this.devices, this.focusNode, this.autofocus = false, this.onKeyEvent, this.resolution = ViewResolution.native, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.placeholder = const SizedBox.expand(), this.failure, this.views, this.continuous = true, this.frameRateCap, this.originShift = defaultOriginShift, this.presenter, this.onDeviceLost, this.onDeviceRestored})
   final CameraNode? camera
   final DeviceRegistry? devices
   final FocusNode? focusNode
@@ -129,6 +129,7 @@ class Flutter3dView extends StatefulWidget
   final bool autofocus
   final bool continuous
   final double? frameRateCap
+  final double? originShift
   final void Function(Flutter3dEngine engine)? onCreated
   final void Function(Flutter3dEngine engine)? onDeviceRestored
   final void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost
@@ -138,6 +139,7 @@ class Flutter3dView extends StatefulWidget
   final void Function(Object? saved)? restoreState
   final void Function(Vector2 out)? drainLook
   final void Function(bool paused)? onPausedChanged
+  static const double defaultOriginShift = 1000.0
 
 final class FrameClock
   FrameClock({Clock? wallClock})

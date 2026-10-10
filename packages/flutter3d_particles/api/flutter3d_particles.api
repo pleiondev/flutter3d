@@ -163,6 +163,7 @@ final class MeshParticleContributor extends PassContributor
   final DrawableGeometry mesh
   final ParticleSystem particles
   static const BlendState darkening = …
+  vm.Aabb3 boundsFor(RenderView view)
   void encode(ContributorFrame frame)
   void relinkShaders()
 
@@ -205,6 +206,7 @@ final class ParticleContributor extends PassContributor
   final SixWayMaterial? sixWay
   final TextureHandle? texture
   final double softness
+  vm.Aabb3 boundsFor(RenderView view)
   void encode(ContributorFrame frame)
   void encodeReactive(ReactiveFrame frame)
   void relinkShaders()
@@ -318,7 +320,9 @@ final class ParticleSpin extends ParticleAffector
   void apply(Particle particle, double dt)
 
 final class ParticleSystem
+  Aabb3 boundsOf(Aabb3 footprint)
   ParticleSystem({this.capacity = 2048, math.Random? random, int? seed})
+  Registration followOrigin(Scene scene)
   WorldProperties get world
   double boundsInto(Vector3 center)
   double get gravity

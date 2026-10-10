@@ -169,6 +169,9 @@ void main() {
     final it = fresh();
     await it.consents.answerTelemetry(granted: true);
     final reworded = Consents(storage: it.consents.storage, policy: '2027-01');
+    // The storage reads asynchronously: what was answered is known once
+    // `ready` completes, and before it nothing is granted.
+    await reworded.ready;
     expect(reworded.telemetry.isGranted, isTrue);
     expect(reworded.sendsRuns, isFalse);
   });

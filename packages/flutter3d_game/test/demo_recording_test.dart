@@ -304,6 +304,51 @@ void main() {
     );
     expect(same.divergence, isNull);
   });
+
+  test('a replay that names no simulation is checked against the loop\'s', () {
+    final toy = _Toy();
+    final input = InputState();
+    final recording = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: toy.save(),
+      seed: 0,
+      simulation: const SimulationVersion(engine: 2),
+    );
+    for (var step = 0; step < 8; step++) {
+      _play(input, step);
+      recording.recorder.record(input);
+      input.beginStep();
+      toy.step(input);
+      recording.observe(toy.save);
+      input.endStep();
+    }
+    final file = _sent(recording);
+
+    // Mutation: check only when the caller passes `simulation`, as both did —
+    // a tape from a newer engine opens without a word and parts at a
+    // checkpoint, or scrubs into states this build never computed.
+    for (final replay in <void Function()>[
+      () =>
+          replayDemoOnLoop(demo: file, loop: _loopOf(toy, input), part: 'toy'),
+      () => rewindBufferFromDemo(
+        demo: file,
+        loop: _loopOf(toy, input),
+        part: 'toy',
+      ),
+    ]) {
+      expect(
+        replay,
+        throwsA(
+          isA<ReplayException>().having(
+            (r) => r.reason,
+            'reason',
+            contains('newer than this build'),
+          ),
+        ),
+      );
+    }
+  });
 }
 
 /// A backend that is only its name: what the recording reads of it.

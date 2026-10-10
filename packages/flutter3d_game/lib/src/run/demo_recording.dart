@@ -237,9 +237,13 @@ final class DemoReplay {
 /// swap at step K goes in after the checkpoint at K is compared, which is the
 /// order the live run met them in.
 ///
-/// Given [simulation] — the one this build runs — a run recorded on another
-/// is refused before a step is played: [ReplayException] says why and carries
-/// the run's pose record, which a viewer plays instead.
+/// A run recorded on a simulation other than this build's is refused before
+/// a step is played: [ReplayException] says why and carries the run's pose
+/// record, which a viewer plays instead. This build's is [simulation] when
+/// given — a genre's constant, such as `platformerSimulationVersion` — and
+/// the loop's `EngineLoop.simulationBase` otherwise — without the plugins'
+/// numbers, as [DemoRecording] writes its default — and the check is never
+/// skipped.
 ///
 /// Given [actions] — the game's declared [ActionSet] — a tape recorded
 /// before the game read an axis where it once read two buttons is upgraded
@@ -254,7 +258,7 @@ DemoReplay replayDemoOnLoop({
   SimulationVersion? simulation,
   ActionSet? actions,
 }) {
-  if (simulation != null) demo.checkSimulation(simulation);
+  demo.checkSimulation(simulation ?? loop.simulationBase);
   if (demo.levelSwaps.isNotEmpty && swapLevel == null) {
     throw ArgumentError.value(
       demo,

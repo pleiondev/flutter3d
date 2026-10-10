@@ -232,10 +232,18 @@ final class _StrategyRun extends RestorableRun {
 
   /// The middle of the selection, or of every unit of side nought when
   /// nobody is selected.
+  ///
+  /// **Against the world's origin, said outright.** A match keeps its units
+  /// in a frame of its own, on no `CollisionWorld`, and no origin shift moves
+  /// it: the world a tool hands [StrategyHeadlessGame.start] may be rebased
+  /// and the units stay where they were. So their float32 positions are
+  /// offsets from the world's origin, not from the loop's.
   @override
   WorldPosition get position {
     final chosen = _chosen();
-    return _middle(chosen.isEmpty ? _units(_side) : chosen).toWorldPosition();
+    return _middle(
+      chosen.isEmpty ? _units(_side) : chosen,
+    ).toWorldPosition(origin: WorldPosition.origin);
   }
 
   List<Unit> _units(int side) => <Unit>[

@@ -459,11 +459,20 @@ final class ActorVisuals {
     final state = published?.call();
     for (final entry in _players.entries) {
       final actor = entry.key;
-      if (_taken.contains(actor)) continue;
       final row = state == null
           ? null
           : PublishedActor.read(state, actor.entity);
       final alive = _isAlive(actor, row, state);
+      if (_taken.contains(actor)) {
+        // A corpse stays the corpses' until its actor stands again — a
+        // rewind to before the death, a rollback — and then it is let go,
+        // so the actor is animated again and a second death is handed over
+        // again. `end` for a body the corpses already let go (the ragdolls'
+        // own snapshot part) does nothing.
+        if (!alive) continue;
+        _taken.remove(actor);
+        corpses?.end(actor);
+      }
       if (!alive && _takeOver(actor)) continue;
       if (simulated?.call(actor) case final stepped?) {
         _drawnPose(actor, stepped).writeTo(entry.value.targets);

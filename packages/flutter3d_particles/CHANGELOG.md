@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **Particles say where they draw** (`boundsFor` on `ParticleContributor`
+  and `MeshParticleContributor`), so a near plane fitted under reversed
+  depth fits a scene with particles in it and stops in front of the
+  nearest one, rather than falling back to the camera's plane.
+  `ParticleSystem.boundsOf(footprint)` is the box both answer with.
+
+- **`ParticleSystem.followOrigin(scene)`, one handler per scene.** A system
+  drawn by `Particles3D` and also followed through
+  `Flutter3dEngine.followOrigin` moved twice on a shift; both now hold the
+  system's one handler, which goes when the last of them is cancelled.
+
 - **`effectsSection` reads a data plugin's `effects`.** Registered in the
   engine's `DataSectionRegistry`, it reads the `.f3dfx` documents a
   `.f3dplugin` names or carries and installs them into `ParticleEffects`;

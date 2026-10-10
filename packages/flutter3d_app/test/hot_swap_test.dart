@@ -17,6 +17,10 @@ import 'package:flutter3d_hardware/trace.dart'
     show RecordingDevice, TraceReleaseTexture;
 import 'package:flutter_test/flutter_test.dart';
 
+/// A channel at full, read back through `toSrgb`: the sRGB curve's
+/// `1.055 · 1 − 0.055` is 0.9999999999999999 in doubles, not 1.
+final Matcher _full = closeTo(1.0, 1e-12);
+
 /// A renderer in software with one cube in front of it, so a frame links a
 /// material pipeline a reload has to drop.
 ({Renderer renderer, Scene scene, RenderView view}) _stage() {
@@ -429,11 +433,11 @@ material Paint {
       final report = await swap.swap();
 
       expect(report.models.single.instances, 2);
-      expect(blue(a), 1.0);
-      expect(blue(b), 1.0);
+      expect(blue(a), _full);
+      expect(blue(b), _full);
       expect(
         model.instantiate(scene).meshes.single.material.baseColor.toSrgb().b,
-        1.0,
+        _full,
       );
       expect((await swap.swap()).models, isEmpty);
     });
@@ -448,14 +452,14 @@ material Paint {
           Uint8List.fromList(<int>[3]),
         );
         expect(put!.instances, 1);
-        expect(blue(ship), 1.0);
+        expect(blue(ship), _full);
 
         expect((await swap.swap()).models, isEmpty, reason: 'file unchanged');
-        expect(blue(ship), 1.0);
+        expect(blue(ship), _full);
 
         file = Uint8List.fromList(<int>[2]);
         await swap.swap();
-        expect(ship.meshes.single.material.baseColor.toSrgb().g, 1.0);
+        expect(ship.meshes.single.material.baseColor.toSrgb().g, _full);
         expect(await swap.put('assets_src/boat.glb', file), isNull);
       },
     );
@@ -469,7 +473,7 @@ material Paint {
 
       expect(report.refused.single, contains('not a model'));
       expect(model.asset, same(before));
-      expect(ship.meshes.single.material.baseColor.toSrgb().r, 1.0);
+      expect(ship.meshes.single.material.baseColor.toSrgb().r, _full);
     });
   });
 
@@ -501,7 +505,7 @@ material Paint {
 
       expect(touched, 1, reason: 'the two instances share it');
       final material = a.meshes.single.material;
-      expect(material.baseColor.toSrgb().b, 1.0);
+      expect(material.baseColor.toSrgb().b, _full);
       expect(material.roughness, 0.25);
       expect(swap.setMaterial('chrome', <String, Object?>{'metallic': 1}), 0);
     });
@@ -540,7 +544,7 @@ material Paint {
       final material = ship.meshes.single.material;
       expect(
         material.baseColor.toSrgb().b,
-        1.0,
+        _full,
         reason: 'the file\'s new colour',
       );
       expect(material.roughness, 0.1, reason: 'and the drag, kept');

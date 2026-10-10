@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AudioListener.placeAt` and `AudioEmitter.placeAt` require
+  `origin`.** It defaulted to the world's origin, which was right only until
+  the loop moved its own; then every sound was heard from where the camera
+  had been. Pass the scene's origin (`ListenerPose.origin` from
+  `Flutter3dView.onListenerMoved`, `Scene.origin` otherwise).
+
 - **Reads the world's air from `flutter3d_matter`** rather than through the
   physics: `WorldProperties` and `standardSpeedOfSound` are what a world is
   made of, and the mix needs no collision world.

@@ -163,13 +163,15 @@ final class _RacingRun extends RestorableRun {
     return race.positionOf(0) == 1 ? RunOutcome.won : RunOutcome.lost;
   }
 
+  /// The car's float32 position read against the world's origin, which the
+  /// loop moves with its own (`EngineLoop.shiftsPhysics`).
   @override
-  WorldPosition get position => sim.vehicles[0].position.toWorldPosition();
+  WorldPosition get position =>
+      sim.vehicles[0].position.toWorldPosition(origin: sim.collision.origin);
 
   /// A driver's eye: a metre over the car's middle.
   @override
-  WorldPosition get eye =>
-      sim.vehicles[0].position.toWorldPosition().translated(0.0, 1.0, 0.0);
+  WorldPosition get eye => position.translated(0.0, 1.0, 0.0);
 
   /// Where the car is pointing, level.
   @override

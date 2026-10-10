@@ -50,7 +50,7 @@ final class AudioEmitter
   final Vector3 position
   final Vector3 velocity
   void follow(PoseSource? pose)
-  void placeAt(WorldPosition at, {WorldPosition origin = WorldPosition.origin, Vector3? velocity, bool teleport = false})
+  void placeAt(WorldPosition at, {required WorldPosition origin, Vector3? velocity, bool teleport = false})
   void stop()
   void syncPose(double seconds)
 
@@ -65,7 +65,7 @@ final class AudioListener
   void aimAlong(Vector3 at, Vector3 direction)
   void aimAt(Vector3 at, double yaw)
   void follow(PoseSource? pose)
-  void placeAt(WorldPosition at, Vector3 forward, {WorldPosition origin = WorldPosition.origin, Vector3? up, Vector3? velocity, bool teleport = false})
+  void placeAt(WorldPosition at, Vector3 forward, {required WorldPosition origin, Vector3? up, Vector3? velocity, bool teleport = false})
   void placeFrom(Matrix4 world)
   void syncPose(double seconds)
 

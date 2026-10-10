@@ -149,7 +149,10 @@ void main() async {
 
     test('consent is kept, and withdrawing forgets the base', () async {
       expect(await sync.consent(), isTrue);
-      expect(SaveSync(saves: saves, store: store).hasConsent, isTrue);
+      // Read back once the storage has answered (`ready`).
+      final again = SaveSync(saves: saves, store: store);
+      await again.ready;
+      expect(again.hasConsent, isTrue);
 
       await saves.writeRecord(_run(5));
       await sync.sync();

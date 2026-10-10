@@ -31,7 +31,9 @@ abstract base mixin class ActorCorpses {
   /// Once a frame, after the living have been animated, with the frame's dt.
   void step(double dt);
 
-  /// [actor] has been taken out of the scene.
+  /// [actor] has been taken out of the scene, or stands again — a rewind or
+  /// a rollback to before its death — and is animated as the living are.
+  /// May come for an actor this has already let go, and then does nothing.
   void end(Actor actor);
 
   /// The level is over: everything [begin] made goes.

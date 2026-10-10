@@ -213,9 +213,10 @@ void main() {
       visuals
         ..outlineOf = ((Actor it) => ring)
         ..sync();
+      // The ring is the float32 `Vector3` the game named, decoded from sRGB.
       expect(
         scene.meshes.single.outlineColor,
-        LinearColor.fromSrgb(0.84, 0.37, 0.0),
+        LinearColor.fromSrgb(ring.x, ring.y, ring.z),
       );
 
       // A monster that died, say: the game stops naming a colour and the
@@ -346,6 +347,53 @@ void main() {
       expect(corpses.ended, <Actor>[actor]);
       visuals.dispose();
       expect(corpses.disposed, isTrue);
+    });
+
+    test('is let go when a rewind brings the actor back, and taken over again '
+        'when it dies again', () async {
+      // A rewind to before a death (`RagdollCorpses.snapshotPart` lets the
+      // body go) leaves the actor standing; the visuals must stop treating
+      // it as a corpse, or its second death is drawn by nobody.
+      //
+      // Mutation: keep the actor in `_taken` once it was handed over, as it
+      // was — the second death is never handed over, and the standing actor
+      // stays frozen in the pose it first fell in.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final corpses = _Corpses();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        corpses: corpses,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      visuals.animate(1.0 / 60.0);
+      final beforeDeath = actor.health!.save();
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor]);
+
+      // The rewind: the actor stands again.
+      actor.health!.restore(beforeDeath);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.ended, <Actor>[
+        actor,
+      ], reason: 'a body is let go when its actor stands again');
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor, actor]);
+      visuals.dispose();
     });
   });
 

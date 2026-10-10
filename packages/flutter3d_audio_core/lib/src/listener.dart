@@ -91,8 +91,10 @@ final class AudioListener {
   ///
   /// [origin] is the one [position] is relative to, the scene's origin for a
   /// game that draws one; every emitter's position has to be relative to the
-  /// same one. This is the shape `Flutter3dView.onListenerMoved` hands over
-  /// in its `ListenerPose`:
+  /// same one. **Required, with no default**: the world's origin as a default
+  /// was right only until the loop moved its own, and then every sound was
+  /// heard from where the camera had been kilometres ago. This is the shape
+  /// `Flutter3dView.onListenerMoved` hands over in its `ListenerPose`:
   ///
   /// ```dart
   /// onListenerMoved: (ears) => listener.placeAt(
@@ -117,7 +119,7 @@ final class AudioListener {
   void placeAt(
     WorldPosition at,
     Vector3 forward, {
-    WorldPosition origin = WorldPosition.origin,
+    required WorldPosition origin,
     Vector3? up,
     Vector3? velocity,
     bool teleport = false,

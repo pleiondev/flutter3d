@@ -289,7 +289,10 @@ void main() {
     final device = _device();
     final controller = await _pump(tester, device, <Widget>[
       Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
-      Light3D.directional(direction: Vector3(-1.0, -2.0, -1.5), intensity: 3.0),
+      Light3D.directional(
+        direction: Vector3(-1.0, -2.0, -1.5),
+        intensity: 3.0 * Photometric.legacyUnit,
+      ),
       Mesh3D(
         shape: CuboidShape(),
         material: _grey,
@@ -373,7 +376,8 @@ void main() {
         identical(controller!.scene.meshes.first.material, shared),
         isTrue,
       );
-      expect(shared.baseColor.toSrgb().b, 1.0);
+      // `1.055 · 1 − 0.055` is 0.9999999999999999 in doubles, not 1.
+      expect(shared.baseColor.toSrgb().b, closeTo(1.0, 1e-12));
       expect(shared.baseColor.toSrgb().r, 0.0);
     });
 
@@ -553,7 +557,7 @@ void main() {
           Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
           Light3D.directional(
             direction: Vector3(-1.0, -2.0, -1.5),
-            intensity: 3.0,
+            intensity: 3.0 * Photometric.legacyUnit,
           ),
           Material3D(
             baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),

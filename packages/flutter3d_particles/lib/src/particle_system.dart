@@ -49,7 +49,8 @@ export 'particle_effect.dart';
 /// [WorldPosition] in doubles, comes in through [burstInWorld],
 /// [emitInWorld] and [emitTimedInWorld], which narrow it with
 /// `Scene.toScene`. When the scene's origin moves, [shiftOrigin] moves the
-/// particles with it.
+/// particles with it; [followOrigin] calls it on every shift of a scene, once
+/// however many owners ask.
 final class ParticleSystem {
   /// [seed] makes the whole simulation reproducible: the same seed and the
   /// same sequence of `advance` calls give byte-identical particles, which is
@@ -154,6 +155,37 @@ final class ParticleSystem {
       p.setValues(p.x - dx, p.y - dy, p.z - dz);
     }
   }
+
+  /// Moves the particles with every `Scene.shiftOrigin` of [scene], until
+  /// the registration is cancelled: [shiftOrigin] with the shift's offset.
+  ///
+  /// **The one way a system follows an origin.** A system can be wanted by
+  /// two owners at once — the declarative `Particles3D` that draws it and a
+  /// game that bursts into it and asks the engine to follow it too — and two
+  /// handlers on one shift would move it twice. So the handler is this
+  /// system's, one per scene: following a scene it already follows adds a
+  /// holder, not a handler, and the handler goes when the last holder
+  /// cancels.
+  Registration followOrigin(Scene scene) {
+    final following = _following[scene] ??= _Following(
+      scene.onOriginShift((shift) {
+        final offset = shift.offset;
+        shiftOrigin(offset.x, offset.y, offset.z);
+      }),
+    );
+    following.holders++;
+    var cancelled = false;
+    return Registration(() {
+      if (cancelled) return;
+      cancelled = true;
+      if (--following.holders == 0) {
+        following.handler.cancel();
+        _following.remove(scene);
+      }
+    });
+  }
+
+  final Map<Scene, _Following> _following = Map<Scene, _Following>.identity();
 
   /// How many of [_pool] are alive. **The live ones are always `_pool[0.._alive)`.**
   ///
@@ -748,6 +780,42 @@ final class ParticleSystem {
     return high.distanceTo(low) * 0.5 + largest * math.sqrt1_2;
   }
 
+  /// The box every live particle draws in, in scene space: each one's
+  /// [footprint] — the shape a particle of size one covers, about its
+  /// centre — scaled by its size and put at its position. Empty, minimum
+  /// past maximum, when none is alive.
+  ///
+  /// What a contributor answers `PassContributor.boundsFor` with, so a
+  /// near plane fitted under reversed depth stops in front of the nearest
+  /// particle: a billboard's footprint is a cube of half-side √½, which
+  /// holds the quad's corners however it faces and turns; a mesh
+  /// particle's is the mesh's own bounds.
+  Aabb3 boundsOf(Aabb3 footprint) {
+    final min = Vector3.all(double.infinity);
+    final max = Vector3.all(double.negativeInfinity);
+    final low = footprint.min;
+    final high = footprint.max;
+    for (var i = 0; i < _alive; i++) {
+      final particle = _pool[i];
+      final p = particle.position;
+      final s = particle.size;
+      // A negative size mirrors the footprint; the box is the same either way.
+      final a = s >= 0.0 ? low : high;
+      final b = s >= 0.0 ? high : low;
+      min.setValues(
+        math.min(min.x, p.x + a.x * s),
+        math.min(min.y, p.y + a.y * s),
+        math.min(min.z, p.z + a.z * s),
+      );
+      max.setValues(
+        math.max(max.x, p.x + b.x * s),
+        math.max(max.y, p.y + b.y * s),
+        math.max(max.z, p.z + b.z * s),
+      );
+    }
+    return Aabb3.minMax(min, max);
+  }
+
   /// The live particles' pool indices, farthest along [axis] first.
   ///
   /// Kept between frames, and a tie goes to the lower index so the order is a
@@ -768,4 +836,13 @@ final class ParticleSystem {
 
   Float64List? _depth;
   final List<int> _order = <int>[];
+}
+
+/// A system's one handler on a scene's origin shifts, and how many
+/// [ParticleSystem.followOrigin] registrations hold it.
+final class _Following {
+  _Following(this.handler);
+
+  final Registration handler;
+  int holders = 0;
 }

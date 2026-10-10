@@ -344,9 +344,10 @@ void main() {
       it
         ..outlineOf = ((Fixture fixture) => color)
         ..sync(0.0);
+      // The ring is the float32 `Vector3` the game named, decoded from sRGB.
       expect(
         (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        LinearColor.fromSrgb(0.9, 0.6, 0.0),
+        LinearColor.fromSrgb(color.x, color.y, color.z),
       );
 
       // Asked again every frame, so a role colour the player changes in the
@@ -356,7 +357,7 @@ void main() {
       it.sync(0.0);
       expect(
         (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        LinearColor.fromSrgb(0.3, 0.7, 0.9),
+        LinearColor.fromSrgb(color.x, color.y, color.z),
       );
     });
 

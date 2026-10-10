@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **The blind run's position is read against the world's origin.**
+  `RacingHeadlessGame`'s `position` and `eye` took the car's float32
+  position as an offset from the world's origin, which is wrong once the
+  loop has moved its own.
+
 - **Breaking: a car's gravity is the race's world's.** `VehicleSettings.gravity`
   is gone, from `VehicleSettings(` and `VehicleSettings.copyWith` too;
   `racingWorld` (`racingGravity`, 20 m/s²) is the world a race is run in,

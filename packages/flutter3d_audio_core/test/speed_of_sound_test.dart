@@ -24,7 +24,9 @@ void main() {
     final desert = EqualPowerPanner.inWorld(
       WorldProperties(airTemperature: 318.15),
     ).speedOfSound;
-    expect(freezing, closeTo(331.3, 0.1));
+    // 343 m/s at 20 °C scaled by √T: 331.1 at 0 °C. The textbook's 331.3
+    // goes with 343.2 at 20 °C, which the standard rounds to 343.
+    expect(freezing, closeTo(331.1, 0.05));
     expect(desert, closeTo(speedOfSoundAt(318.15), 1e-12));
     expect(desert, greaterThan(speedOfSoundInAir));
   });

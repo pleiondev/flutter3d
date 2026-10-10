@@ -257,11 +257,13 @@ void main() {
           'f3dfx': EffectDocument.formatVersion + 1,
           'effects': <Object?>[],
         }),
-        _refusal('newer engine'),
+        // The format's own sentence (`FormatSpec.open`): "… is newer than
+        // this build reads (2): update flutter3d to open it".
+        _refusal('newer than this build reads'),
       );
       expect(
         () => EffectDocument.parse('{"effects": []}'),
-        _refusal('no "f3dfx" version'),
+        _refusal('has no version in it'),
       );
       expect(() => EffectDocument.parse('[1]'), _refusal('not a JSON object'));
     });

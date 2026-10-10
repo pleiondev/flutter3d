@@ -254,18 +254,18 @@ final class _PlatformerRun extends RestorableRun {
   @override
   RunOutcome get outcome => _sim.state.outcome;
 
+  /// The body's float32 position read against the world's origin, which the
+  /// loop moves with its own (`EngineLoop.shiftsPhysics`).
   @override
-  WorldPosition get position => staged.runner.body.position.toWorldPosition();
+  WorldPosition get position => staged.runner.body.position.toWorldPosition(
+    origin: staged.actors.world.origin,
+  );
 
   /// The runner's head: the top of the body, where a person's eyes are.
   @override
   WorldPosition get eye {
     final body = staged.runner.body;
-    return body.position.toWorldPosition().translated(
-      0.0,
-      body.halfExtents.y,
-      0.0,
-    );
+    return position.translated(0.0, body.halfExtents.y, 0.0);
   }
 
   /// Level, along the way the runner faces.
