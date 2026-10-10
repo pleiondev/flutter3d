@@ -10,6 +10,10 @@ import 'platform_default.dart';
 /// released it: a game needs to tell "the player pressed Escape" from "the
 /// system took focus away and the capture is gone", and the second one usually
 /// means opening a pause menu.
+///
+/// **Closed for good**: captured or released: a yes or a no, kept as two states
+/// for who released it. No member can be added without changing what the type
+/// means, so it stays an enum and a `switch` over it may name every case.
 enum CaptureState { released, captured }
 
 /// The platform side of pointer capture.

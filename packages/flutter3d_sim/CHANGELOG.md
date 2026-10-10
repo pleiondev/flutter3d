@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LevelIssueSeverity` and `ShadowCasting` are open sets.**
+  Classes with constants rather than enums, so a severity or a shadow mode a
+  later minor adds breaks no `switch`; the words a level writes are
+  unchanged. `ActionKind`, `BehaviorStatus` and `SaveResolution`, new in
+  this release, are open too, and `InputAction` and `Resimulation` are
+  `abstract final` rather than sealed. `LevelPatchResult`, `SaveRead`,
+  `SaveUpgrade`, `ServiceAnswer` and `TapeBisection` stay sealed, closed for
+  good: each is the two answers of one question.
 - **A data plugin's entity kinds are read here.**
   `package:flutter3d_sim/data_plugins.dart` has `entityKindsSection`, which
   an engine registers in its `DataSectionRegistry`, and `DataEntityKind`,

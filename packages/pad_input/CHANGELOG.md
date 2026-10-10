@@ -1,5 +1,9 @@
 ## 0.5.0
 
+* **Breaking: `PadAxis` is an open set**, a class with constants rather than
+  an enum: pads report more axes than these six (a gyro, a touchpad). The
+  constants, `values` and `name` are as they were. `PadConnection` stays an
+  enum, closed for good.
 * **Breaking: a boolean reads as a question, and no `bool` is positional.**
   `PadSnapshot.connected` is `isConnected`. `dart fix` carries the renames.
 * **Controllers on Windows and Linux.** Windows asks XInput's four slots

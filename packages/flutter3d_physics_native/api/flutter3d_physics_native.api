@@ -46,7 +46,7 @@ final class DebrisSettings
   final int iterations
   final int substeps
 
-sealed class DebrisStatic
+abstract final class DebrisStatic
   const DebrisStatic()
 
 abstract base mixin class DebrisSystem
@@ -749,7 +749,7 @@ final class RagdollHinge extends RagdollJoint
   final double lower
   final double upper
 
-sealed class RagdollJoint
+abstract final class RagdollJoint
   const RagdollJoint()
 
 const String askedPhysics = String.fromEnvironment('FLUTTER3D_PHYSICS', defaultValue: 'native')

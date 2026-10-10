@@ -43,7 +43,7 @@ final class PlayStarting extends PlayState
   const PlayStarting(this.message)
   final String message
 
-sealed class PlayState
+abstract final class PlayState
   const PlayState()
 
 final class PlayStopped extends PlayState
@@ -164,7 +164,7 @@ final class PlayStarting extends PlayState
   const PlayStarting(this.message)
   final String message
 
-sealed class PlayState
+abstract final class PlayState
   const PlayState()
 
 final class PlayStopped extends PlayState

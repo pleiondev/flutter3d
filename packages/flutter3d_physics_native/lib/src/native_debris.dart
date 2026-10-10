@@ -81,7 +81,7 @@ typedef DebrisBody = ({
 });
 
 /// A still shape debris lands on.
-sealed class DebrisStatic {
+abstract final class DebrisStatic {
   const DebrisStatic();
 }
 
@@ -168,6 +168,10 @@ c.F32s packDebrisStatics(List<DebrisStatic> statics) {
         data[o + 5] = halfExtents.y;
         data[o + 6] = halfExtents.z;
         data[o + 7] = 1.0;
+      default:
+        throw UnsupportedError(
+          'the native core has no static shape for ${statics[i]}',
+        );
     }
   }
   return data;

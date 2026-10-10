@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LtiMessageType` is an open set and `LtiLaunchException` is
+  `abstract final`.** LTI 1.3 has messages this package does not name yet,
+  and a later check is a later refusal, so neither breaks a `switch` when it
+  grows: one over them ends with a wildcard, and `on LtiLaunchException`
+  still catches every refusal. `AgsActivityProgress` and
+  `AgsGradingProgress` stay enums, closed for good: they are the
+  specification's own values.
 - **Depends on `flutter3d_foundation` instead of the plugin API**, for the
   exception families its refusals belong to.
 

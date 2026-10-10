@@ -162,6 +162,7 @@ final class InputState {
             final GameAction button => held(button),
             final AxisAction one => axis(one),
             final DualAxisAction two => dualAxis(two),
+            _ => throw UnsupportedError('no value for $action'),
           }
           as T;
 

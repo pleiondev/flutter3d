@@ -26,16 +26,19 @@ final class BehaviorOverlay {
   static const double _stroke = 0.12;
 
   /// The line colour for [status], linear: the amber, green and red picked
-  /// on screen, which the overlay encodes back to exactly those.
+  /// on screen, which the overlay encodes back to exactly those. A status a
+  /// later release adds is drawn grey until it has a colour of its own.
   static LinearColor colorOf(BehaviorStatus status) => switch (status) {
     BehaviorStatus.running => _running,
     BehaviorStatus.success => _success,
     BehaviorStatus.failure => _failure,
+    _ => _unknown,
   };
 
   static final LinearColor _running = LinearColor.fromSrgb(1.0, 0.75, 0.1);
   static final LinearColor _success = LinearColor.fromSrgb(0.3, 0.9, 0.35);
   static final LinearColor _failure = LinearColor.fromSrgb(0.95, 0.25, 0.2);
+  static final LinearColor _unknown = LinearColor.fromSrgb(0.6, 0.6, 0.6);
 
   void draw(DebugDraw lines) {
     for (final actor in actors.actors) {

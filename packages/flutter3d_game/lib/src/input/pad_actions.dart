@@ -398,7 +398,9 @@ final class PadInput {
     }
   }
 
-  static final Map<String, PadAxis> _axes = PadAxis.values.asNameMap();
+  static final Map<String, PadAxis> _axes = <String, PadAxis>{
+    for (final axis in PadAxis.values) axis.name: axis,
+  };
 
   static const List<(String, PadAxis, PadAxis)> _sticks =
       <(String, PadAxis, PadAxis)>[

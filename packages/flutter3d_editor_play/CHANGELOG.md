@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`PlayState` is `abstract final` rather than sealed**, so a phase a later
+  minor adds breaks no `switch` over it.
 - **A device id is checked before it reaches `flutter run -d`.**
   `isFlutterDeviceId` (new) holds an id to letters, digits, `.`, `_`, `:`
   and `-`; `FlutterRun.start` refuses another, since on Windows `flutter`

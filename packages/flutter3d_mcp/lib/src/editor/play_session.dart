@@ -413,6 +413,7 @@ final class PlaySession {
       'running ${run.projectRoot} on ${run.device ?? 'the default device'}, '
           'VM service $vmService',
     PlayStopped(:final exitCode) => 'stopped (exit code $exitCode)',
+    _ => '${run.state.value}',
   };
 
   static String _tail(FlutterRun run, int lines) {

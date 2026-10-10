@@ -1,6 +1,11 @@
 /// Where the student is in the activity — LTI-AGS's `activityProgress`
 /// (IMS Assignment and Grade Services §A.2.1). Wire names are the spec's own
 /// `PascalCase`, not Dart's `camelCase`.
+///
+/// **Closed for good**: the five values of IMS Assignment and Grade Services
+/// 2.0: the specification carries its own version, and another value is another
+/// version of it. No member can be added without changing what the type means,
+/// so it stays an enum and a `switch` over it may name every case.
 enum AgsActivityProgress {
   initialized('Initialized'),
   started('Started'),
@@ -17,6 +22,11 @@ enum AgsActivityProgress {
 /// coming but not final, which `check`'s own three-attempt design (`doc/
 /// edu-00-interactive-format.md` §10) never needs — every submission this
 /// package sends is already the student's finished attempt.
+///
+/// **Closed for good**: the five values of IMS Assignment and Grade Services
+/// 2.0: the specification carries its own version, and another value is another
+/// version of it. No member can be added without changing what the type means,
+/// so it stays an enum and a `switch` over it may name every case.
 enum AgsGradingProgress {
   fullyGraded('FullyGraded'),
   pending('Pending'),

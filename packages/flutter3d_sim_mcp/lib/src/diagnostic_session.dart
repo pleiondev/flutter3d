@@ -28,6 +28,7 @@ String describePass(DiagnosticView view) => switch (view) {
         'lit view',
   DiagnosticView.shadowMap => 'the point-shadow pass, movers atlas',
   DiagnosticView.staticShadowMap => 'the point-shadow pass, static atlas',
+  _ => throw UnsupportedError('no pass is known to draw $view'),
 };
 
 /// One level open for diagnosis, and the last frame drawn of it — `par-02`.

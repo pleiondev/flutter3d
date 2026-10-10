@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `DiagnosticView` and `PlaytestOutcome` are open sets, and
+  `ReadingPredicate` is `abstract final`**, so a view, an ending or a
+  predicate a later minor adds breaks no `switch`.
 - **Breaking: the sessions read and write inside a root.** `SimSession`
   and `DiagnosticSession` take `root:` (a `ProjectRoot`, the working
   directory when left out); `open`, `writeRun`, `expect`, `verify`,

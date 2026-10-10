@@ -287,11 +287,26 @@ final class ColorVisionLook
   LookSettings of(GameSettings config, [LookSettings base = const LookSettings()])
   final GraphicsDevice device
 
-enum CompositePart
-  values: negative, positive, up, down, left, right
+final class CompositePart
+  String toString()
+  final String name
+  static CompositePart? byName(String name)
+  static const CompositePart down = CompositePart._('down')
+  static const CompositePart left = CompositePart._('left')
+  static const CompositePart negative = CompositePart._('negative')
+  static const CompositePart positive = CompositePart._('positive')
+  static const CompositePart right = CompositePart._('right')
+  static const CompositePart up = CompositePart._('up')
+  static const List<CompositePart> values = <CompositePart>[negative, positive, up, down, left, right]
 
-enum ConflictPolicy
-  values: steal, swap, refuse
+final class ConflictPolicy
+  String toString()
+  final String name
+  static ConflictPolicy? byName(String name)
+  static const ConflictPolicy refuse = ConflictPolicy._('refuse')
+  static const ConflictPolicy steal = ConflictPolicy._('steal')
+  static const ConflictPolicy swap = ConflictPolicy._('swap')
+  static const List<ConflictPolicy> values = <ConflictPolicy>[steal, swap, refuse]
 
 final class Consents
   Consents({required this.storage, required this.policy, this.sync, this.now})
@@ -666,7 +681,7 @@ abstract base class RunSession<L>
   void onLost(L level)
   void startFresh()
 
-sealed class RunStatus<L>
+abstract final class RunStatus<L>
   const RunStatus()
 
 final class RunTimeline

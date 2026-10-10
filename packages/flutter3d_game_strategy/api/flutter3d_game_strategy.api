@@ -319,10 +319,10 @@ final class StrategyOpening
   final List<StrategyUnit> mine
   final Match match
 
-sealed class StrategyOrder
-  Map<String, Object?> toJson()
+abstract final class StrategyOrder
+  abstract Map<String, Object?> toJson()
+  abstract void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
   const StrategyOrder()
-  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 abstract final class StrategyPhases
   static const List<LoopPhase> all = <LoopPhase>[begin, afterOrders, afterMoves, afterFight, afterProduction, end]

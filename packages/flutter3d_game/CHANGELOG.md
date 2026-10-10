@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `RunStatus` is `abstract final` rather than sealed.** A status
+  a later minor adds (paused for a call, say) breaks no screen: a `switch`
+  over a status ends with a wildcard that draws a neutral frame.
+  `CompositePart` and `ConflictPolicy`, new in this release, are open sets.
+  `CloudFetch`, `CloudPut` and `ScrubAnswer` stay sealed, closed for good,
+  and say why.
 - **Breaking: `SynchronousBufferReadback` is not re-exported**, since
   `flutter3d` no longer exports it: the stalling read is a test's or a
   tool's, from `package:flutter3d_hardware/testing.dart`.

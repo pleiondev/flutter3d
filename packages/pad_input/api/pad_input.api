@@ -34,8 +34,17 @@ abstract base class GamepadPlatform extends PlatformInterface
   static set instance(GamepadPlatform instance)
   void readPad(int index, PadSnapshot out)
 
-enum PadAxis
-  values: leftStickX, leftStickY, rightStickX, rightStickY, triggerLeft, triggerRight
+final class PadAxis
+  String toString()
+  final String name
+  static PadAxis? byName(String name)
+  static const List<PadAxis> values = <PadAxis>[leftStickX, leftStickY, rightStickX, rightStickY, triggerLeft, triggerRight]
+  static const PadAxis leftStickX = PadAxis._('leftStickX')
+  static const PadAxis leftStickY = PadAxis._('leftStickY')
+  static const PadAxis rightStickX = PadAxis._('rightStickX')
+  static const PadAxis rightStickY = PadAxis._('rightStickY')
+  static const PadAxis triggerLeft = PadAxis._('triggerLeft')
+  static const PadAxis triggerRight = PadAxis._('triggerRight')
 
 final class PadButton
   String toString()

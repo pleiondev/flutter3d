@@ -1,13 +1,14 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ResourceException;
 
-/// Why `LtiLaunchValidator.verify` refused a launch. A sealed hierarchy, not
-/// one class with a message: a caller (a `cloud/lti` route, deciding what to
+/// Why `LtiLaunchValidator.verify` refused a launch. A hierarchy, not one
+/// class with a message, and an open one, because a later check is a later
+/// reason: a caller (a `cloud/lti` route, deciding what to
 /// tell a browser) can `switch` on which check failed rather than parsing a
 /// string, and `dart_jsonwebtoken`'s own exceptions never leak past this
 /// package's boundary — nothing outside `lti_launch_validator.dart` needs to
 /// import it to catch what it throws.
-sealed class LtiLaunchException extends ResourceException {
+abstract final class LtiLaunchException extends ResourceException {
   const LtiLaunchException(this.message);
 
   @override

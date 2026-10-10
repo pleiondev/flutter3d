@@ -137,6 +137,11 @@ final class ReplaySide {
 }
 
 /// What [bisectTapes] found.
+///
+/// **Closed for good**: agree or diverge: the two answers to whether two tapes
+/// play alike, with where inside the divergence. No case can be added without
+/// changing what the type means, so it stays sealed and a `switch` over it may
+/// name every case.
 sealed class TapeBisection {
   const TapeBisection();
 
