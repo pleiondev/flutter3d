@@ -19,6 +19,8 @@ Future<Elements> _open(Scene scene) {
 }
 
 void main() {
+  setUpAll(buildBundles);
+
   test(
     'a crate floats in a pond it was put over, and its look goes with it',
     () async {

@@ -154,12 +154,22 @@ final class AlphaModesDemo extends ShowcaseDemo {
     if (modes.length != MaterialAlphaMode.values.length) {
       throw StateError('the panels do not cover every alpha mode: $modes');
     }
+    // A masked or hashed panel is drawn twice: a depth pre-draw makes the
+    // cut, and the lit draw follows through the opaque stage, tested equal.
+    // Every other mesh is one draw.
+    final int cut = scene.meshes.where((MeshNode mesh) {
+      final RenderMaterial m = mesh.material;
+      return (m.alphaMode == MaterialAlphaMode.mask && !m.alphaToCoverage) ||
+          m.alphaMode == MaterialAlphaMode.hashed;
+    }).length;
+    final int expected = scene.meshes.length + cut;
     final int sceneDraws = frame.passes
         .where((FramePass pass) => pass.name == 'scene')
         .fold(0, (int sum, FramePass pass) => sum + pass.drawCalls);
-    if (sceneDraws != scene.meshes.length) {
+    if (sceneDraws != expected) {
       throw StateError(
-        'the scene pass drew $sceneDraws of ${scene.meshes.length} meshes',
+        'the scene pass drew $sceneDraws draws for ${scene.meshes.length} '
+        'meshes, $cut of them cut by a pre-draw; $expected expected',
       );
     }
   }

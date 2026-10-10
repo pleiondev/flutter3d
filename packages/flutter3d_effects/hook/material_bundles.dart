@@ -35,9 +35,14 @@ List<File> buildMaterialBundles(Directory package) {
         compilers: compilers,
         scratch: scratch,
       );
-      File(
-        '${package.path}/assets/$name.f3dshaders',
-      ).writeAsBytesSync(bundle.encode().buffer.asUint8List());
+      // Written beside it under a name of this run's own and renamed over, so
+      // a reader never meets half a bundle: the test files that build these
+      // first run side by side, and one may read while another writes.
+      final target = '${package.path}/assets/$name.f3dshaders';
+      final run = scratch.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
+      (File('$target.$run.part')
+            ..writeAsBytesSync(bundle.encode().buffer.asUint8List()))
+          .renameSync(target);
     }
   } finally {
     scratch.deleteSync(recursive: true);

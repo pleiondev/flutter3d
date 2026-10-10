@@ -390,7 +390,7 @@ const List<Feature> sceneFeatures = <Feature>[
     keywords: <String>['RenderTexture'],
     packages: <String>['flutter3d_core'],
     engineFiles: <String>[
-      'packages/flutter3d_core/lib/src/engine/render/render_texture.dart',
+      'packages/flutter3d_core/lib/src/engine/render/render_view.dart',
       'packages/flutter3d_core/lib/src/engine/render/renderer_frame_nodes.dart',
     ],
   ),

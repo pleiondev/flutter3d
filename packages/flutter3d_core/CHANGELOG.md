@@ -8,6 +8,15 @@
   `fullscreenMaterialWgsl`, `RuntimeBackends`), moved from
   `flutter3d_plugin_runtime`, which no longer depends on this package.
 
+- **A photo's tiles draw depth from one near plane.** Under reversed depth
+  each view fits its near plane to the nearest box it holds, and a tile of
+  `capturePhoto` holds only what its crop sees, so the tiles of one photo
+  drew the same surface at different depths and a tie between two coplanar
+  faces settled differently on each side of a seam. `Renderer.depthNearFor`
+  answers the plane a whole view would be fitted to without drawing it,
+  `RenderViewSettings.depthNear` hands a view that plane in place of its
+  own fit, and `capturePhoto` gives every tile the whole photo's.
+
 - **Breaking: `FrameResourceIds.hdrColor` and `FrameResourceIds.sceneColor`
   are `hdr_color` and `scene_color`.** The frame's resources, steps and
   passes are named in American spelling like every identifier:

@@ -100,10 +100,10 @@ final class SoftShadowsDemo extends ShowcaseDemo {
     final bool lamp = lightChoice == 1;
     _sun
       ..castsShadow = !lamp
-      ..intensity = lamp ? 0.0 : 3.0;
+      ..intensity = lamp ? 0.0 : 3.0 * LightNode.defaultIntensity;
     _lamp
       ..castsShadow = lamp
-      ..intensity = lamp ? 60.0 : 0.0;
+      ..intensity = lamp ? 60.0 * LightNode.defaultIntensity : 0.0;
   }
 
   @override

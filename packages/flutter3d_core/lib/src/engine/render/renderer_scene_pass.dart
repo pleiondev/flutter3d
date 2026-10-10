@@ -310,9 +310,15 @@ extension _ScenePasses on Renderer {
       // Fitted only where the frame really is reversed — the device's
       // answer, not the setting's: on a device without reversed depth the
       // fit buys nothing and still risks a stale box being clipped.
-      final near = reversed
-          ? _fittedNear(view, contributors)
-          : camera.projection.near;
+      // A view drawn as part of a larger picture brings the plane the whole
+      // picture was fitted to (`RenderViewSettings.depthNear`), so every
+      // part draws one surface at one depth.
+      final near = !reversed
+          ? camera.projection.near
+          : switch (view.options.depthNear) {
+              final pinned? => math.max(pinned, camera.projection.near),
+              null => _fittedNear(view, contributors),
+            };
       _fittedNears.add(near);
       final drawMatrix = _rasterViewProjection(
         camera,

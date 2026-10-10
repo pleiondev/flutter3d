@@ -55,6 +55,8 @@ final class _Probe extends ElementHook {
 }
 
 void main() {
+  setUpAll(buildBundles);
+
   test('fire and water are the elements every Elements starts with', () async {
     final elements = await _open();
     addTearDown(elements.dispose);

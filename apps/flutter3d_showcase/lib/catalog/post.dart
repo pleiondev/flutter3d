@@ -124,9 +124,18 @@ const List<Feature> postFeatures = <Feature>[
         'Leave steps out of a frame with `without`, and read back that the '
         'frame did as it was told.',
     since: '0.7.0',
-    evidence: 'against each step\'s own passes',
-    keywords: <String>['without', 'renderstep', 'disabledpasses'],
+    evidence: 'against the published `passOrder`',
+    keywords: <String>['disabledpasses'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '1.0.0-rc.1',
+        note:
+            'Steps are switched off by name with `without`, one vocabulary in place of pass names and per-step flags.',
+        evidence: 'One vocabulary for a step that is off.',
+        evidenceFile: _coreChangelog,
+      ),
+    ],
   ),
   Feature(
     id: 'auto-exposure',

@@ -29,8 +29,15 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// What the effects package's build hook runs: its water bundle is built, not
+// committed, so this test builds it rather than hoping a build came first.
+import '../../../packages/flutter3d_effects/hook/material_bundles.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(
+    () => buildMaterialBundles(Directory('../../packages/flutter3d_effects')),
+  );
 
   test(
     'a plank is drawn where the run has it, a second of current on',

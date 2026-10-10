@@ -29,8 +29,12 @@ strong as the copy's fourth number.
 A game keeps this text in `assets_src/` as a `.f3dmat`, and the build hook
 compiles it into a `.f3dshaders` bundle with a section for Impeller, one for
 WebGL2, one for WebGPU, and the source itself for the software rasteriser.
-The showcase does not run the hook, so the bundle beside this page was
-built once with the same compiler and is checked in.
+The showcase has no hook of its own, so the bundle beside this page is
+built from `source` above by the same compiler the hook runs,
+`compileMaterial`, before the page is drawn: `test/pages_test.dart` builds it
+first. It is not checked in. A bundle carries an Impeller section tied to the
+Flutter SDK that built it, so one committed would go stale on the next
+upgrade with nothing to say so.
 
 ## Step 2: Load the bundle on whatever device is open
 
@@ -85,10 +89,9 @@ dither or bloom so that a band is one value from edge to edge.
 
 > **Note.** A `param` is folded when the bundle is built and cannot be moved
 > at run time, and a variant may not set a `uniform`: the language refuses
-> one. The bundle checked in here
-> was compiled under one Flutter SDK, and Impeller refuses a bundle from
-> another; a game does not see this, because its hook compiles on every
-> build, but this page then says why it fell back to the built-in toon
-> model. A `uniform` added by an edit reaches a material through
+> one. The bundle beside this page is compiled under whichever Flutter SDK
+> built it last, and Impeller refuses a bundle from another; a game does not
+> see this, because its hook compiles on every build, but this page then
+> says why it fell back to the built-in toon model. A `uniform` added by an edit reaches a material through
 > `HotMaterials.bind`; one changed by hand in `Material.parameters` must keep
 > the length the source declares.

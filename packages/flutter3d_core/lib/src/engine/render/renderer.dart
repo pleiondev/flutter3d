@@ -1920,6 +1920,48 @@ final class Renderer with RenderServices {
   /// test can watch it climb.
   double get exposure => _lastExposure;
 
+  /// The near plane, in metres, a frame of [width] × [height] would draw
+  /// [view]'s depth from under [settings]: fitted to what [view] sees where
+  /// the frame's depth is reversed, and the camera's own plane elsewhere.
+  /// Nothing is drawn.
+  ///
+  /// **For a picture drawn in parts**, which hands the answer to each part as
+  /// [RenderViewSettings.depthNear]. Each part would otherwise fit the plane
+  /// to the little it sees, and the same surface would be drawn at a
+  /// different depth in each — two coplanar faces then settle their tie one
+  /// way in one tile and the other way in the next. `capturePhoto` asks this
+  /// with the whole photo's camera before drawing a tile.
+  ///
+  /// Occlusion is not asked, so a box the live frame would cull behind
+  /// another still counts, and the plane is never further than the live
+  /// frame's.
+  double depthNearFor({
+    required Scene scene,
+    required RenderView view,
+    required int width,
+    required int height,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    final camera = view.camera;
+    if (!_reversedFor(settings)) return camera.projection.near;
+    final rect = Renderer._viewportPixels(view.viewportFraction, width, height);
+    for (final group in scene.lodGroups) {
+      group.select(camera, viewportHeight: rect.height.toDouble());
+    }
+    _renderList.build(
+      scene,
+      view,
+      viewMatrix: camera.viewMatrix,
+      frustum: _DepthConvention._viewFrustum(
+        _drawViewProjection(camera, rect, settings),
+      ),
+    );
+    return _fittedNear(
+      view,
+      renderSteps._store.contributors.active.toList(growable: false),
+    );
+  }
+
   /// Questions [pickPixel] has been asked since the last frame, answered by
   /// the next one.
   final List<_PickRequest> _pendingPicks = <_PickRequest>[];

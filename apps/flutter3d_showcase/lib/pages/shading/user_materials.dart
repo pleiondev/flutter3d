@@ -19,7 +19,8 @@ import 'package:vector_math/vector_math.dart';
 final class UserMaterialsDemo extends ShowcaseDemo {
   // #region source
   /// The `.f3dmat` this page draws. `user_materials.f3dshaders` beside this
-  /// file is what the build compiled it into, and carries this text in it.
+  /// file is what `compileMaterial` makes of it, and carries this text in it;
+  /// built, not committed.
   static const String source = '''
 material ToonInstances {
   param float bands = 3.0;
@@ -39,7 +40,10 @@ material ToonInstances {
   // #endregion source
 
   static const String _name = 'ToonInstances';
-  static const String _bundlePath =
+
+  /// Where the bundle compiled from [source] sits, as an asset key: built,
+  /// not committed (see `user_materials.md`).
+  static const String bundlePath =
       'lib/pages/shading/user_materials.f3dshaders';
 
   /// Each copy's own four numbers: a colour, and how strongly its rim glows.
@@ -101,7 +105,7 @@ material ToonInstances {
 
   @override
   Future<void> prepare(DemoContext context) async {
-    _bytes = await rootBundle.load(_bundlePath);
+    _bytes = await rootBundle.load(bundlePath);
     // #region bind
     final BundledMaterials materials = BundledMaterials.read(_bytes);
     _toon = RenderMaterial(
