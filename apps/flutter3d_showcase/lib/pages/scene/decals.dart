@@ -107,7 +107,7 @@ final class DecalsDemo extends ShowcaseDemo {
       ..add(_puddle);
     // #endregion floor
 
-    // #region wall().toLinearColor()
+    // #region wall
     // On a wall the box is turned until its up points out of the wall.
     _sign =
         DecalNode(
