@@ -12,6 +12,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -144,7 +146,7 @@ void main() {
       editing.duplicate();
 
       expect(editing.level.lights.length, 2);
-      expect(editing.light!.color.y, closeTo(0.6, 1e-6));
+      expect(editing.light!.color.g, closeTo(0.6, 1e-6));
       expect(editing.light!.range, 9.0);
     });
   });
@@ -200,7 +202,12 @@ void main() {
 
       editing.brighten(1.25);
 
-      expect(editing.light!.intensity, closeTo(5.0, 1e-3));
+      // The document's 4, a version-1 strength, is four of the default in
+      // candela now.
+      expect(
+        editing.light!.intensity,
+        closeTo(5.0 * LevelLight.defaultIntensity, 1e-2),
+      );
     });
 
     test('and never quite goes out', () {
@@ -214,7 +221,7 @@ void main() {
 
       expect(
         editing.light!.intensity,
-        greaterThanOrEqualTo(0.05),
+        greaterThanOrEqualTo(0.05 * LevelLight.defaultIntensity - 1e-3),
         reason:
             'forty presses put it at ${editing.light!.intensity}, which '
             'is a light nobody can find again except by reading the file',
@@ -327,7 +334,7 @@ void main() {
 
     test('and a black light still has a mark somebody can see', () {
       final level = Level(
-        lights: <LevelLight>[LevelLight(color: Vector3.zero())],
+        lights: <LevelLight>[LevelLight(color: LinearColor.black)],
       );
 
       final tint = handlesOf(level).single.tint;

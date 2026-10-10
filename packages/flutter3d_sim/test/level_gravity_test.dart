@@ -48,7 +48,7 @@ void main() {
       'name': 'sea of tranquility',
       'gravity': 1.62,
     });
-    expect(old.world, <String, Object?>{'gravity': 1.62});
+    expect(old.world.toJson(), <String, Object?>{'gravity': 1.62});
     expect(old.worldOver(_game).gravity.y, closeTo(-1.62, 1e-6));
     // Only what the level names: the game's air is still the game's.
     expect(old.worldOver(_game).airPressure, _game.airPressure);

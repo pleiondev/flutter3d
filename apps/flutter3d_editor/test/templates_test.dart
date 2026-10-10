@@ -24,6 +24,8 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -339,10 +341,14 @@ void main() {
       final LevelLight sun = racing.level.lights.single;
 
       expect(sun.type, LevelLightType.directional);
-      expect(sun.intensity, morning.sunIntensity);
-      _closeTo(sun.color, morning.sunColor, 0.001);
+      // The preset's strength is in the pre-1.0 unit; the level's in lux.
+      expect(
+        sun.intensity,
+        closeTo(morning.sunIntensity * LevelLight.defaultIntensity, 1e-6),
+      );
+      _closeTo(_vector(sun.color), morning.sunColor, 0.001);
       _closeTo(sun.direction, morning.sunDirection, 0.001);
-      _closeTo(racing.level.fogColor, morning.horizonFogColor, 0.001);
+      _closeTo(_vector(racing.level.fogColor), morning.horizonFogColor, 0.001);
       expect(racing.level.fogDensity, morning.fogDensity);
     });
   });
@@ -450,6 +456,8 @@ void main() {
 /// Reports [a] and [b] as the same direction or colour, component by
 /// component — a `Vector3` has no matcher of its own and `closeTo` takes a
 /// number.
+Vector3 _vector(LinearColor color) => Vector3(color.r, color.g, color.b);
+
 void _closeTo(Vector3 a, Vector3 b, double slack) {
   expect(a.x, closeTo(b.x, slack));
   expect(a.y, closeTo(b.y, slack));

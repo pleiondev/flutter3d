@@ -1,6 +1,6 @@
 {
   "format": "f3d.level",
-  "version": 4,
+  "version": 5,
   "requires": [],
   "generator": "flutter3d",
   "name": "shooter start",
@@ -142,7 +142,7 @@
         0.92,
         0.78
       ],
-      "intensity": 9.0,
+      "intensity": 52115.252201999996,
       "range": 16.0,
       "id": "88ce8d88"
     }

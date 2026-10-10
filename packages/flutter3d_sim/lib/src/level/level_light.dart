@@ -1,12 +1,14 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'json_reader.dart';
 import 'json_write_through.dart';
+import 'legacy_light_unit.dart';
 import 'level_format_exception.dart';
 import 'level_ids.dart';
 
 final Vector3 _origin = Vector3.zero();
-final Vector3 _white = Vector3(1.0, 1.0, 1.0);
 
 /// What kind of light a level places.
 ///
@@ -60,8 +62,8 @@ final class LevelLight {
     this.type = LevelLightType.point,
     Vector3? position,
     Vector3? direction,
-    Vector3? color,
-    this.intensity = 1.0,
+    this.color = LinearColor.white,
+    this.intensity = defaultIntensity,
     this.range = 0.0,
     bool? castsShadow,
     this.name,
@@ -71,7 +73,6 @@ final class LevelLight {
        direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
        // ignore: prefer_initializing_formals
        _source = source,
-       color = color?.clone() ?? Vector3(1.0, 1.0, 1.0),
        id =
            id ??
            LevelIds.derive(<Object?>[
@@ -96,12 +97,26 @@ final class LevelLight {
   final LevelLightType type;
   final Vector3 position;
   final Vector3 direction;
-  final Vector3 color;
 
-  /// The light's strength as the level file stores it: a pre-1.0 unitless
-  /// multiple that `Photometric.legacyUnit` turns into candela for a point
-  /// or spot light and lux for a directional one.
+  /// The light's colour, in linear light. Its brightness is [intensity]'s:
+  /// white is `LinearColor.white`, and a colour brighter than white is a
+  /// strength written in the wrong field.
+  final LinearColor color;
+
+  /// The light's strength: candela for a point or spot light, lux for a
+  /// directional one — what the renderer's `LightNode.intensity` takes, with
+  /// nothing in between.
+  ///
+  /// **Photometric since format 5.** A document of version 4 or older wrote
+  /// a pre-1.0 unitless multiple, and is lifted by multiplying it by that
+  /// unit (`π × 1843.2`, about 5 790.6), so every saved level draws as
+  /// bright as it did.
   final double intensity;
+
+  /// The strength of a light that does not say one, in candela or lux: one
+  /// pre-1.0 unit, so a light a document left at its default keeps the
+  /// brightness it had across the lift.
+  static const double defaultIntensity = legacyLightUnit;
 
   /// How far a point or spot light reaches, in metres; zero is unbounded.
   final double range;
@@ -139,8 +154,8 @@ final class LevelLight {
       type: type,
       position: json.vector3('at', fallback: Vector3.zero()),
       direction: json.vector3('direction', fallback: Vector3(0.0, -1.0, 0.0)),
-      color: json.vector3('color', fallback: Vector3(1.0, 1.0, 1.0)),
-      intensity: json.numberOr('intensity', 1.0),
+      color: json.linearColor('color', fallback: LinearColor.white),
+      intensity: json.numberOr('intensity', defaultIntensity),
       range: json.numberOr('range', 0.0),
       castsShadow: json.flagOr(
         'castsShadow',
@@ -164,8 +179,16 @@ final class LevelLight {
       direction.toJson(),
       whenAbsent: type != LevelLightType.point,
     ),
-    WriteThroughField('color', color.toJson(), whenAbsent: color != _white),
-    WriteThroughField('intensity', intensity, whenAbsent: intensity != 1.0),
+    WriteThroughField(
+      'color',
+      color.toJson(),
+      whenAbsent: color != LinearColor.white,
+    ),
+    WriteThroughField(
+      'intensity',
+      intensity,
+      whenAbsent: intensity != defaultIntensity,
+    ),
     WriteThroughField('range', range, whenAbsent: range != 0.0),
     WriteThroughField(
       'castsShadow',

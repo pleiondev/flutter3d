@@ -171,7 +171,7 @@ sealed class EditorCommand extends DocumentCommand {
       ),
       'addLight' when at != null => AddLevelLight(
         at,
-        intensity: _number(json['intensity']) ?? 4.0,
+        intensity: _number(json['intensity']) ?? AddLevelLight.defaultIntensity,
         range: _number(json['range']) ?? 8.0,
       ),
       'place' when at != null && kind != null && what != null => Place(
@@ -397,13 +397,20 @@ final class AddBrush extends EditorCommand {
 
 /// Puts a new light down and selects it.
 final class AddLevelLight extends EditorCommand {
-  AddLevelLight(Vector3 at, {this.intensity = 4.0, this.range = 8.0})
-    : at = at.clone();
+  AddLevelLight(
+    Vector3 at, {
+    this.intensity = defaultIntensity,
+    this.range = 8.0,
+  }) : at = at.clone();
+
+  /// The strength a light is put down with when nothing says one: four of
+  /// [LevelLight.defaultIntensity], about 23 000 cd.
+  static const double defaultIntensity = 4.0 * LevelLight.defaultIntensity;
 
   final Vector3 at;
 
   /// The light's strength in the level's units, as [LevelLight.intensity]:
-  /// a pre-1.0 multiple that `Photometric.legacyUnit` turns into candela.
+  /// candela.
   final double intensity;
 
   /// How far the light reaches, in metres.

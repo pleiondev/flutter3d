@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -337,7 +339,8 @@ final class LightOptimizer {
     final weight = ea + eb <= 0.0 ? 0.5 : eb / (ea + eb);
     final at = first.position + (second.position - first.position) * weight;
     final radiance =
-        first.color * first.intensity + second.color * second.intensity;
+        _rgb(first.color) * first.intensity +
+        _rgb(second.color) * second.intensity;
     final reach = first.range <= 0.0 || second.range <= 0.0
         ? 0.0
         : math.max(
@@ -361,7 +364,7 @@ final class LightOptimizer {
 
   static double _energy(LevelLight light) =>
       light.intensity *
-      math.max(light.color.x, math.max(light.color.y, light.color.z));
+      math.max(light.color.r, math.max(light.color.g, light.color.b));
 
   /// The exposure the previews and the difference are judged at: the one a
   /// frame gets when nothing says otherwise.
@@ -513,9 +516,9 @@ final class _Tuned {
     return _withRadiance(
       source,
       Vector3(
-        source.color.x * gain.x,
-        source.color.y * gain.y,
-        source.color.z * gain.z,
+        source.color.r * gain.x,
+        source.color.g * gain.y,
+        source.color.b * gain.z,
       )..scale(source.intensity),
     );
   }
@@ -534,21 +537,22 @@ LevelLight _withRadiance(
 
   /// In the level's light units, as [LevelLight.intensity].
   final double intensity;
+  final sourceColor = _rgb(source.color);
   final sourcePeak = math.max(
-    source.color.x,
-    math.max(source.color.y, source.color.z),
+    sourceColor.x,
+    math.max(sourceColor.y, sourceColor.z),
   );
   // The author's colour, when the new radiance is that colour scaled: the
   // strength moves and the colour stays as written.
   final even =
       sourcePeak > 0.0 &&
-      (radiance - source.color * (peak / sourcePeak)).length <=
+      (radiance - sourceColor * (peak / sourcePeak)).length <=
           1e-6 * math.max(peak, 1.0);
   if (peak <= 0.0) {
-    color = source.color;
+    color = sourceColor;
     intensity = 0.0;
   } else if (even) {
-    color = source.color;
+    color = sourceColor;
     intensity = peak / sourcePeak;
   } else {
     color = radiance / peak;
@@ -561,6 +565,9 @@ LevelLight _withRadiance(
     ...extra,
   });
 }
+
+/// [color]'s channels as a vector, for the arithmetic above.
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
 
 /// Three decimals, as `Editing.brighten` writes a strength: the document is
 /// read in diffs, and a thousandth is below anything a picture shows.

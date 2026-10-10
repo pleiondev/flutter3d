@@ -106,7 +106,14 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
       center: level.lights[i].position,
       size: Vector3.all(gizmoSize),
       // Its own colour, brightened so a dim lamp is still visible as a mark.
-      tint: atLeast(level.lights[i].color, 0.35),
+      tint: atLeast(
+        Vector3(
+          level.lights[i].color.r,
+          level.lights[i].color.g,
+          level.lights[i].color.b,
+        ),
+        0.35,
+      ),
     ),
   for (var i = 0; i < level.entities.length; i++)
     Handle(

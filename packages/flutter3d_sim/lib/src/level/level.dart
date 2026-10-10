@@ -2,8 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show FormatDocument, FormatMigration, FormatSpec;
-import 'package:vector_math/vector_math.dart';
+    show FormatDocument, FormatMigration, FormatSpec, LinearColor;
 
 import '../save/state_digest.dart';
 import 'brush.dart';
@@ -11,12 +10,14 @@ import 'entity_def.dart';
 import 'heightfield.dart';
 import 'json_reader.dart';
 import 'json_write_through.dart';
+import 'legacy_light_unit.dart';
 import 'level_format_exception.dart';
 import 'level_ids.dart';
 import 'level_light.dart';
 import 'level_material.dart';
 import 'level_recipes.dart';
 import 'prefab.dart';
+import 'render_settings_patch.dart';
 
 export 'brush.dart';
 export 'entity_def.dart';
@@ -27,6 +28,7 @@ export 'level_material.dart';
 export 'level_recipes.dart';
 export 'level_sketch.dart';
 export 'prefab.dart';
+export 'render_settings_patch.dart';
 
 /// Everything one playable space is made of.
 ///
@@ -38,15 +40,17 @@ export 'prefab.dart';
 ///
 /// ## The document
 ///
-/// Written in the format envelope, `{"format": "f3d.level", "version": 3,
+/// Written in the format envelope, `{"format": "f3d.level", "version": 5,
 /// "requires": [...], "generator": "flutter3d", ...}` (see [FormatSpec]).
 /// Every brush, light and entity carries an `id` (see [LevelIds]), an
 /// entity's properties sit under its `props`, and a prefab instance's
 /// overrides are keyed by id paths. A document from before format 3 still
 /// reads: ids are derived for what has none, properties at the top of a row
 /// are taken as properties, and overrides by name or `#<index>` are turned
-/// into id paths. It is written back as format 3. A key this build does not
-/// know is kept and written back where it was.
+/// into id paths. Every older document is lifted to the current format as it
+/// is read ([formatVersion] says what each version changed) and written back
+/// in it. A key this build does not know is kept and written back where it
+/// was.
 final class Level extends FormatDocument {
   Level({
     this.name = 'untitled',
@@ -55,20 +59,17 @@ final class Level extends FormatDocument {
     List<LevelLight>? lights,
     Map<String, LevelMaterial>? materials,
     this.heightfield,
-    Vector3? fogColor,
+    this.fogColor = defaultFogColor,
     this.fogDensity = 0.0,
-    Map<String, Object?>? world,
+    this.world = WorldPropertiesPatch.empty,
     this.music,
     this.next,
     List<LevelRecipe>? recipes,
     Map<String, Map<String, Object?>>? behaviors,
     Map<String, Prefab>? prefabs,
-    Map<String, Object?>? renderSettings,
+    this.renderSettings = RenderSettingsPatch.empty,
     Map<String, Object?> source = const <String, Object?>{},
-  }) : renderSettings = Map<String, Object?>.unmodifiable(
-         renderSettings ?? const <String, Object?>{},
-       ),
-       brushes = LevelIds.unique(
+  }) : brushes = LevelIds.unique(
          brushes ?? <Brush>[],
          idOf: (Brush b) => b.id,
          withId: (Brush b, String id) => b.withId(id),
@@ -94,8 +95,6 @@ final class Level extends FormatDocument {
          taken: <String>{},
        ),
        materials = materials ?? <String, LevelMaterial>{},
-       fogColor = fogColor?.clone() ?? _defaultFogColor,
-       world = _worldOf(world),
        super(unknown: FormatDocument.unknownIn(source, known: _knownKeys));
 
   /// The level as a format: `f3d.level`.
@@ -107,7 +106,12 @@ final class Level extends FormatDocument {
     version: formatVersion,
     suffixes: <String>['.level.json'],
     fixture: 'test/fixtures/v<N>/first.level.json',
-    migrations: <FormatMigration>[_identity, _identity, _gravityIntoWorld],
+    migrations: <FormatMigration>[
+      _identity,
+      _identity,
+      _gravityIntoWorld,
+      _toVersion5,
+    ],
   );
 
   @override
@@ -123,12 +127,11 @@ final class Level extends FormatDocument {
     'heightfield',
     'fogColor',
     'fogDensity',
-    'gravity',
     'world',
     'music',
     'next',
     'recipes',
-    'behaviours',
+    'behaviors',
     'prefabs',
     'renderSettings',
   };
@@ -144,9 +147,8 @@ final class Level extends FormatDocument {
       ...entity.components.keys,
   }.toList()..sort();
 
-  /// What [fogColor] is when a document says nothing. A fresh one each time,
-  /// because a `Vector3` is mutable and a shared one could be changed in place.
-  static Vector3 get _defaultFogColor => Vector3(0.05, 0.04, 0.06);
+  /// What [fogColor] is when a document says nothing.
+  static const LinearColor defaultFogColor = LinearColor(0.05, 0.04, 0.06);
 
   /// The document this level was read from. See [writeThrough].
   ///
@@ -182,7 +184,114 @@ final class Level extends FormatDocument {
   /// thin air and play it on the game's own world, a different level, so
   /// the version marks it; a version-3 document's `"gravity": N` is lifted
   /// into `"world": {"gravity": N}`.
-  static const int formatVersion = 4;
+  ///
+  /// **Version 5 is units and spelling**, the format's one change for
+  /// 1.0.0-rc.1:
+  ///
+  /// * a light's `intensity` is candela, or lux for a directional light,
+  ///   where it was a pre-1.0 unitless multiple. A version-4 reader would
+  ///   draw every light thousands of times too bright, so the version marks
+  ///   it; the lift multiplies by the old unit, and a light that never named
+  ///   its strength keeps meaning the same one
+  ///   ([LevelLight.defaultIntensity]);
+  /// * American spelling in the keys: `behaviours` is `behaviors`, an
+  ///   entity's `behaviour` property is `behavior`, and a material's
+  ///   `texelsPerMetre` is `texelsPerMeter`;
+  /// * colours ([fogColor], [LevelLight.color]) are linear `[r, g, b]` as
+  ///   before, now read at double precision;
+  /// * [world] and [renderSettings] are patches, written as they were.
+  ///
+  /// It also reserves two optional fields, which a version-5 document may
+  /// carry and this build keeps as written: `geoOrigin` at the top (where
+  /// the level's origin is on the Earth: `latitude` and `longitude` in
+  /// degrees, `altitude` in metres, an east-north-up frame), and
+  /// `physicalMaterial` on a level material, a brush and an entity (the id
+  /// of a material in the engine's `MaterialCatalog`). A later reader fills
+  /// them in without a version 6.
+  static const int formatVersion = 5;
+
+  /// 4 → 5: lights to photometric units, and the British keys to American.
+  /// Key order is kept, so a lifted document diffs against its source line
+  /// for line.
+  static Map<String, Object?> _toVersion5(Map<String, Object?> document) {
+    final lifted = _renamed(document, 'behaviours', 'behaviors');
+    return <String, Object?>{
+      ...lifted,
+      if (lifted.containsKey('lights'))
+        'lights': _rows(
+          lifted['lights'],
+          (Map<String, Object?> light) => <String, Object?>{
+            ...light,
+            if (light['intensity'] case final num legacy)
+              'intensity': legacy * legacyLightUnit,
+          },
+        ),
+      if (lifted.containsKey('entities'))
+        'entities': _rows(lifted['entities'], _behaviorOf),
+      if (lifted['materials'] case final Map<Object?, Object?> materials)
+        'materials': <String, Object?>{
+          for (final MapEntry(:key, :value) in materials.entries)
+            '$key': value is Map
+                ? _renamed(
+                    value.cast<String, Object?>(),
+                    'texelsPerMetre',
+                    'texelsPerMeter',
+                  )
+                : value,
+        },
+      if (lifted['prefabs'] case final Map<Object?, Object?> prefabs)
+        'prefabs': <String, Object?>{
+          for (final MapEntry(:key, :value) in prefabs.entries)
+            '$key': value is Map
+                ? <String, Object?>{
+                    ...value.cast<String, Object?>(),
+                    if (value.containsKey('entities'))
+                      'entities': _rows(value['entities'], _behaviorOf),
+                  }
+                : value,
+        },
+    };
+  }
+
+  /// [row] with its key [from] called [to], in the same place; [row] itself
+  /// when it has no [from], or has [to] already.
+  static Map<String, Object?> _renamed(
+    Map<String, Object?> row,
+    String from,
+    String to,
+  ) => !row.containsKey(from) || row.containsKey(to)
+      ? row
+      : <String, Object?>{
+          for (final MapEntry(:key, :value) in row.entries)
+            key == from ? to : key: value,
+        };
+
+  /// [list] with [each] applied to every object in it.
+  static Object? _rows(
+    Object? list,
+    Map<String, Object?> Function(Map<String, Object?> row) each,
+  ) => list is List<Object?>
+      ? <Object?>[
+          for (final row in list)
+            row is Map ? each(row.cast<String, Object?>()) : row,
+        ]
+      : list;
+
+  /// An entity row with its `behaviour` property spelled `behavior`, under
+  /// `props` or, before format 3, at the top of the row.
+  static Map<String, Object?> _behaviorOf(Map<String, Object?> row) => _renamed(
+    <String, Object?>{
+      ...row,
+      if (row['props'] case final Map<Object?, Object?> props)
+        'props': _renamed(
+          props.cast<String, Object?>(),
+          'behaviour',
+          'behavior',
+        ),
+    },
+    'behaviour',
+    'behavior',
+  );
 
   /// 3 → 4: the scalar `gravity` moves into `world`, where a reader of
   /// [WorldProperties.fromJson] takes a number as so many m/s² down y.
@@ -231,7 +340,8 @@ final class Level extends FormatDocument {
   final List<LevelLight> lights;
   final Map<String, LevelMaterial> materials;
 
-  final Vector3 fogColor;
+  /// The fog's colour, in linear light.
+  final LinearColor fogColor;
 
   /// Exponential fog per metre. Zero is no fog.
   final double fogDensity;
@@ -254,7 +364,7 @@ final class Level extends FormatDocument {
   ///
   /// Kept as it was written, unknown keys and all, and checked when read: a
   /// value [WorldProperties.fromJson] would refuse is a [LevelFormatException].
-  final Map<String, Object?> world;
+  final WorldPropertiesPatch world;
 
   /// The world this level is played in: [game]'s — the world a game stages
   /// every level in — with what [world] names laid over it.
@@ -267,21 +377,19 @@ final class Level extends FormatDocument {
     WorldProperties game, {
     MaterialCatalog? materials,
   }) {
-    final properties = WorldProperties.fromJson(world, base: game);
+    final properties = world.over(game);
     if (materials != null && properties.medium != 'f3d.air') {
       materials.require(properties.medium);
     }
     return properties;
   }
 
-  static Map<String, Object?> _worldOf(Map<String, Object?>? world) {
-    final merged = <String, Object?>{...?world};
+  static WorldPropertiesPatch _worldPatch(Map<String, Object?> section) {
     try {
-      WorldProperties.fromJson(merged);
+      return WorldPropertiesPatch.fromJson(section);
     } on WorldPropertiesFormatException catch (error) {
       throw LevelFormatException('"world": ${error.message}');
     }
-    return Map<String, Object?>.unmodifiable(merged);
   }
 
   final String? music;
@@ -320,8 +428,8 @@ final class Level extends FormatDocument {
 
   /// Render settings this level asks for, each under its settings slot's id
   /// — the JSON `SettingsExtensions.toJson` writes, read back with
-  /// `SettingsExtensions.fromJson` against the slots a renderer's plugins
-  /// added (`renderer.renderSteps.settings`).
+  /// `SettingsExtensions.fromJson(renderSettings.toJson(), …)` against the
+  /// slots a renderer's plugins added (`renderer.renderSteps.settings`).
   ///
   /// **Kept as JSON, by id.** A level is read before any renderer, and by a
   /// server that has none; what an id means is the addon's that defined it.
@@ -329,7 +437,7 @@ final class Level extends FormatDocument {
   ///
   /// **Additive**, as [heightfield] was: a reader that does not know it
   /// draws the level with the game's own settings.
-  final Map<String, Object?> renderSettings;
+  final RenderSettingsPatch renderSettings;
 
   Iterable<EntityDef> ofType(String type) =>
       entities.where((EntityDef e) => e.type == type);
@@ -360,10 +468,73 @@ final class Level extends FormatDocument {
   /// refuse every run recorded against the level, and one that held the
   /// version did exactly that on every bump of the format: 3 → 4 moved the
   /// hash of every level, edited or not.
-  String get digestHex => contentDigestHex(<String, Object?>{
-    for (final MapEntry(:key, :value) in toJson().entries)
-      if (!FormatSpec.envelopeKeys.contains(key)) key: value,
-  });
+  ///
+  /// **Nor is how a version spells the content.** Format 5 changed the unit
+  /// of a light's strength and three keys' spelling; neither is an edit, so the digest is taken over the
+  /// body as format 4 wrote it ([_asWrittenAtVersion4]) and every run
+  /// recorded against a level before the lift still names it after.
+  String get digestHex => contentDigestHex(
+    _asWrittenAtVersion4(<String, Object?>{
+      for (final MapEntry(:key, :value) in toJson().entries)
+        if (!FormatSpec.envelopeKeys.contains(key)) key: value,
+    }),
+  );
+
+  /// [body], written at format 5, spelled as format 4 wrote the same level:
+  /// a light's strength in the pre-1.0 unit, to the twelve figures a file
+  /// wrote it in, and the British keys. What [digestHex] is taken over. (A
+  /// colour read from a document is written back as it arrived, so its
+  /// precision never reached the digest.)
+  static Map<String, Object?> _asWrittenAtVersion4(Map<String, Object?> body) {
+    Map<String, Object?> entity(Map<String, Object?> row) => <String, Object?>{
+      ...row,
+      if (row['props'] case final Map<Object?, Object?> props)
+        'props': _renamed(
+          props.cast<String, Object?>(),
+          'behavior',
+          'behaviour',
+        ),
+    };
+    final renamed = _renamed(body, 'behaviors', 'behaviours');
+    return <String, Object?>{
+      ...renamed,
+      if (renamed.containsKey('lights'))
+        'lights': _rows(
+          renamed['lights'],
+          (Map<String, Object?> light) => <String, Object?>{
+            ...light,
+            if (light['intensity'] case final num strength)
+              'intensity': double.parse(
+                (strength / legacyLightUnit).toStringAsPrecision(12),
+              ),
+          },
+        ),
+      if (renamed.containsKey('entities'))
+        'entities': _rows(renamed['entities'], entity),
+      if (renamed['materials'] case final Map<Object?, Object?> materials)
+        'materials': <String, Object?>{
+          for (final MapEntry(:key, :value) in materials.entries)
+            '$key': value is Map
+                ? _renamed(
+                    value.cast<String, Object?>(),
+                    'texelsPerMeter',
+                    'texelsPerMetre',
+                  )
+                : value,
+        },
+      if (renamed['prefabs'] case final Map<Object?, Object?> prefabs)
+        'prefabs': <String, Object?>{
+          for (final MapEntry(:key, :value) in prefabs.entries)
+            '$key': value is Map
+                ? <String, Object?>{
+                    ...value.cast<String, Object?>(),
+                    if (value.containsKey('entities'))
+                      'entities': _rows(value['entities'], entity),
+                  }
+                : value,
+        },
+    };
+  }
 
   /// Reads a level document, in any format version up to [formatVersion].
   ///
@@ -472,11 +643,11 @@ final class Level extends FormatDocument {
           '"heightfield" must be an object, not $other',
         ),
       },
-      fogColor: json.vector3('fogColor', fallback: _defaultFogColor),
+      fogColor: json.linearColor('fogColor', fallback: defaultFogColor),
       fogDensity: json.numberOr('fogDensity', 0.0),
       world: switch (json['world']) {
-        null => null,
-        final Map<String, Object?> section => section,
+        null => WorldPropertiesPatch.empty,
+        final Map<String, Object?> section => _worldPatch(section),
         final other => throw LevelFormatException(
           '"world" must be an object, not $other',
         ),
@@ -485,7 +656,7 @@ final class Level extends FormatDocument {
       next: json.textOrNull('next'),
       recipes: json.objects('recipes').map(LevelRecipe.fromJson).toList(),
       behaviors: Map<String, Map<String, Object?>>.of(
-        json.objectMap('behaviours'),
+        json.objectMap('behaviors'),
       ),
       prefabs: version >= 3
           ? prefabs
@@ -502,8 +673,10 @@ final class Level extends FormatDocument {
               ),
             ),
       renderSettings: switch (json['renderSettings']) {
-        null => null,
-        final Map<String, Object?> section => section,
+        null => RenderSettingsPatch.empty,
+        final Map<String, Object?> section => RenderSettingsPatch.fromJson(
+          section,
+        ),
         _ => throw const LevelFormatException(
           '"renderSettings" must be an object of settings by id',
         ),
@@ -522,18 +695,14 @@ final class Level extends FormatDocument {
   Map<String, Object?> _body() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('name', name),
     // Conditional like the fields around it. It used to be written always, so
-    // a document that never named a fog came back with the default in it,
-    // passed through `Vector3`'s float32 storage on the way: 0.05 read back
-    // as 0.05000000074505806. Every generated level names its fog and so
-    // never showed it; the two hand-written lesson levels do not, and failed
-    // the round trip on exactly this key.
+    // a document that never named a fog came back with the default in it.
     WriteThroughField(
       'fogColor',
       fogColor.toJson(),
-      whenAbsent: fogColor != _defaultFogColor,
+      whenAbsent: fogColor != defaultFogColor,
     ),
     WriteThroughField('fogDensity', fogDensity, whenAbsent: fogDensity != 0.0),
-    WriteThroughField('world', world, whenAbsent: world.isNotEmpty),
+    WriteThroughField('world', world.toJson(), whenAbsent: !world.isEmpty),
     WriteThroughField('music', music, whenAbsent: music != null),
     WriteThroughField('next', next, whenAbsent: next != null),
     WriteThroughField('materials', <String, Object?>{
@@ -564,7 +733,7 @@ final class Level extends FormatDocument {
       recipes.map((LevelRecipe r) => r.toJson()).toList(),
       whenAbsent: recipes.isNotEmpty,
     ),
-    WriteThroughField('behaviours', <String, Object?>{
+    WriteThroughField('behaviors', <String, Object?>{
       for (final MapEntry(:key, :value) in behaviors.entries) key: value,
     }, whenAbsent: behaviors.isNotEmpty),
     WriteThroughField('prefabs', <String, Object?>{
@@ -572,8 +741,8 @@ final class Level extends FormatDocument {
     }, whenAbsent: prefabs.isNotEmpty),
     WriteThroughField(
       'renderSettings',
-      renderSettings,
-      whenAbsent: renderSettings.isNotEmpty,
+      renderSettings.toJson(),
+      whenAbsent: !renderSettings.isEmpty,
     ),
   ]);
 }

@@ -2,7 +2,7 @@
 /// cold, damp room keeps its mist.
 library;
 
-import 'package:flutter3d/flutter3d.dart' show FogSettings, LinearColor;
+import 'package:flutter3d/flutter3d.dart' show FogSettings;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 
 /// The fog [level] is drawn with, standing where a player's eye stands
@@ -21,7 +21,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 /// as a pool of mist.
 FogSettings cryptFog(Level level, {required double eye, bool on = true}) =>
     FogSettings(
-      color: LinearColor(level.fogColor.x, level.fogColor.y, level.fogColor.z),
+      color: level.fogColor,
       density: on ? level.fogDensity : 0.0,
       heightFalloff: 1.0 / _depth,
       baseHeight: _floorOf(level) + eye,

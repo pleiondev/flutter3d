@@ -230,7 +230,8 @@ final class Editing {
   String get says => switch (piece) {
     final Brush it => 'brush $selected · ${it.material}',
     final LevelLight it =>
-      'light $selected · ${it.type.wireName} ·${it.intensity.toStringAsFixed(1)}',
+      'light $selected · ${it.type.wireName} · '
+          '${it.intensity.toStringAsFixed(1)}',
     final EntityDef it =>
       'entity $selected · ${it.type}${it.name == null ? '' : ' "${it.name}"'}',
     _ => 'nothing selected — click something',
@@ -602,7 +603,11 @@ final class Editing {
   /// reach — so writing a new one down is not the editor guessing at a game's
   /// vocabulary. What a `monster` needs in it is not knowable here; what a
   /// point light needs is.
-  void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
+  void addLight(
+    Vector3 at, {
+    double intensity = 4.0 * LevelLight.defaultIntensity,
+    double range = 8.0,
+  }) {
     _remember('add a light');
     level.lights.add(
       LevelLight(
@@ -669,15 +674,19 @@ final class Editing {
   /// would be useless at one end and unusable at the other.
   ///
   /// Never quite to nothing: a light of zero is a light that cannot be found
-  /// again except by reading the file.
+  /// again except by reading the file. The bounds are a twentieth and a
+  /// thousand of the strength a light has by default.
   void brighten(double by) {
     final it = light;
     if (it == null) return;
     _remember('brighten');
+    const unit = LevelLight.defaultIntensity;
     level.lights[selected!] = LevelLight.fromJson(<String, Object?>{
       ...it.toJson(),
       'intensity': double.parse(
-        (it.intensity * by).clamp(0.05, 1000.0).toStringAsFixed(3),
+        (it.intensity * by)
+            .clamp(0.05 * unit, 1000.0 * unit)
+            .toStringAsFixed(3),
       ),
     });
   }
@@ -822,7 +831,7 @@ final class Editing {
       },
       Piece.light => const <String, Object?>{
         'type': 'point',
-        'intensity': 1.0,
+        'intensity': LevelLight.defaultIntensity,
         'range': 0.0,
         'color': <double>[1.0, 1.0, 1.0],
         'direction': <double>[0.0, -1.0, 0.0],

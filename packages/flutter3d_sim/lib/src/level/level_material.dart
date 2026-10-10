@@ -133,7 +133,8 @@ final class LevelMaterial {
     roughness: json.numberOr('roughness', 0.85),
     metallic: json.numberOr('metallic', 0.0),
     emissive: json.numberOr('emissive', 0.0),
-    texelsPerMeter: json.numberOr('texelsPerMetre', 1.0),
+    // `texelsPerMetre` until format 5; a level's lift renames it.
+    texelsPerMeter: json.numberOr('texelsPerMeter', 1.0),
     albedo: json.textOrNull('albedo'),
     normal: json.textOrNull('normal'),
     orm: json.textOrNull('orm'),
@@ -152,7 +153,7 @@ final class LevelMaterial {
     WriteThroughField('metallic', metallic, whenAbsent: metallic != 0.0),
     WriteThroughField('emissive', emissive, whenAbsent: emissive != 0.0),
     WriteThroughField(
-      'texelsPerMetre',
+      'texelsPerMeter',
       texelsPerMeter,
       whenAbsent: texelsPerMeter != 1.0,
     ),
