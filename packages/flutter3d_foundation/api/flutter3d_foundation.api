@@ -108,9 +108,9 @@ final class Issue
 typedef IssueSink = void Function(Issue issue);
 
 final class LinearColor
-  ({double r, double g, double b, double a}) toSrgb()
   LinearColor scaled(double factor)
   LinearColor withAlpha(double alpha)
+  SrgbColor toSrgb()
   String toString()
   bool operator ==(Object other)
   const LinearColor(this.r, this.g, this.b, [this.a = 1])
@@ -131,9 +131,9 @@ extension LinearColorVector on LinearColor
   Vector3 toVector3()
   Vector4 toVector4()
 
-abstract interface class PlacedEvent
-  Vector3 get at
+abstract base mixin class PlacedEvent
   Vector3? get direction
+  abstract Vector3 get at
 
 base class PluginException extends Flutter3dException
   String toString()
@@ -208,6 +208,17 @@ final class ShaderDiagnostic
   int get hashCode
   static List<ShaderDiagnostic> parseLog(String log, {String? stage, String? source})
   static ShaderDiagnostic fromJson(Object? json)
+
+final class SrgbColor
+  LinearColor toLinear()
+  String toString()
+  bool operator ==(Object other)
+  const SrgbColor(this.r, this.g, this.b, [this.a = 1])
+  final double a
+  final double b
+  final double g
+  final double r
+  int get hashCode
 
 final class Unit
   Object toJson()

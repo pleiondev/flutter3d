@@ -59,7 +59,7 @@ final class ElementEventKinds extends PluginRegistry
   String? ownerOf(NativeEventKind kind)
   static const List<NativeEventKind> coreKinds = …
 
-final class ElementExploded extends BusEvent implements PlacedEvent
+final class ElementExploded extends BusEvent with PlacedEvent
   ElementExploded(Vector3 at, this.pushed)
   String get name
   Vector3? get direction
@@ -70,23 +70,25 @@ final class ElementExploded extends BusEvent implements PlacedEvent
   void digestInto(EventDigestSink sink)
 
 abstract base class ElementFields
-  abstract List<ElementBody> bodiesIn(WorldPosition lo, WorldPosition hi)
-  abstract Vector3 velocityOf(ElementBody body)
-  abstract Vector3 windAt(WorldPosition at)
-  abstract WorldPosition positionOf(ElementBody body)
-  abstract double get airDensity
-  abstract double get airTemperature
-  abstract double surfaceTemperatureOf(ElementBody body)
-  abstract double temperatureOf(ElementBody body)
-  abstract double waterOf(ElementBody body)
-  abstract set wind(Vector3 value)
-  abstract void addForce(ElementBody body, Vector3 force)
-  abstract void addHeat(ElementBody body, double joules)
-  abstract void addHeatAt(ElementBody body, WorldPosition point, double joules)
-  abstract void addWater(ElementBody body, double kilograms)
-  abstract void applyImpulse(ElementBody body, Vector3 impulse, {WorldPosition? at})
-  abstract void setTemperature(ElementBody body, double kelvin)
+  List<ElementBody> bodiesIn(WorldPosition lo, WorldPosition hi)
+  Quantity quantityOf(ElementBody body, FieldQuantity quantity)
+  Vector3 velocityOf(ElementBody body)
+  Vector3 windAt(WorldPosition at)
+  WorldPosition positionOf(ElementBody body)
   const ElementFields()
+  double get airDensity
+  double get airTemperature
+  double surfaceTemperatureOf(ElementBody body)
+  double temperatureOf(ElementBody body)
+  double waterOf(ElementBody body)
+  set wind(Vector3 value)
+  void addForce(ElementBody body, Vector3 force)
+  void addHeat(ElementBody body, double joules)
+  void addHeatAt(ElementBody body, WorldPosition point, double joules)
+  void addQuantity(ElementBody body, FieldQuantity quantity, Quantity amount)
+  void addWater(ElementBody body, double kilograms)
+  void applyImpulse(ElementBody body, Vector3 impulse, {WorldPosition? at})
+  void setTemperature(ElementBody body, double kelvin)
 
 final class ElementFireLost extends BusEvent
   String get name
@@ -242,6 +244,19 @@ final class ElementsSteps
   final bool sound
   static const ElementsSteps all = ElementsSteps()
   static const ElementsSteps none = ElementsSteps(fire: FireSteps.none, liquid: LiquidSteps.none, sound: false, otherElements: false)
+
+final class FieldQuantity extends Capability
+  String toString()
+  String? get askedBy
+  bool operator ==(Object other)
+  const FieldQuantity(this.name, this.unit)
+  final String name
+  final Unit unit
+  int get hashCode
+  static const FieldQuantity heat = FieldQuantity('heat', Unit.joule)
+  static const FieldQuantity surfaceTemperature = FieldQuantity('surfaceTemperature', Unit.kelvin)
+  static const FieldQuantity temperature = FieldQuantity('temperature', Unit.kelvin)
+  static const FieldQuantity water = FieldQuantity('water', Unit.kilogram)
 
 final class FireSteps
   FireSteps copyWith({bool? flames, bool? smoke, bool? embers, bool? firelight, bool? charring})

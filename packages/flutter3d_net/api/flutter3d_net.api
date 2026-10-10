@@ -13,6 +13,10 @@ final class EngineRollback
 
 typedef LoopState = ({int step, Snapshot state});
 
+final class LoopbackPair
+  final LoopbackWire first
+  final LoopbackWire second
+
 final class LoopbackParty
   LoopbackParty(this.size, {this.delaySteps = 0, this.lossRate = 0.0, int seed = 1})
   PeerWire wire(int slot)
@@ -27,7 +31,7 @@ final class LoopbackWire extends PeerWire
   WireState get state
   final int slot
   int lost
-  static (LoopbackWire, LoopbackWire) pair({int delaySteps = 0, double lossRate = 0.0, int seed = 1})
+  static LoopbackPair pair({int delaySteps = 0, double lossRate = 0.0, int seed = 1})
   void send(Map<String, Object?> message, {bool reliable = true})
   void sendBytes(Uint8List bytes, {bool reliable = true})
   void tick()

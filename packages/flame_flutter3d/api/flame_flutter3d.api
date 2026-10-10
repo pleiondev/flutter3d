@@ -15,7 +15,7 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks imp
   void shiftScene(Vector3 by)
   void update(double dt)
 
-final class ActorSystemComponent extends Component with FixedStepUpdate implements StepClock
+final class ActorSystemComponent extends Component with FixedStepUpdate, StepClock
   ActorSystemComponent({required this.system, this.focus, this.focusBody, this.foci, WorldTiming timing = const WorldTiming(), CatchUp catchUp = const CatchUp.announce(), super.priority = BridgePriority.actors})
   double get alpha
   final ActorSystem system
@@ -476,7 +476,7 @@ class Particles3dComponent extends Component
   void onRemove()
   void update(double dt)
 
-final class PhysicsStepComponent extends Component with FixedStepUpdate implements StepClock
+final class PhysicsStepComponent extends Component with FixedStepUpdate, StepClock
   PhysicsStepComponent({required this.dynamics, required this.world, this.afterStep, WorldTiming timing = const WorldTiming(), CatchUp catchUp = const CatchUp.announce(), super.priority = BridgePriority.physics})
   double get alpha
   final CollisionWorld world
@@ -570,10 +570,10 @@ class SpriteBillboardComponent extends Object3dComponent
   void update(double dt)
   void updateTree(double dt)
 
-abstract interface class StepClock
-  double get alpha
-  void follow(StepFollower follower)
-  void unfollow(StepFollower follower)
+abstract mixin class StepClock
+  abstract double get alpha
+  abstract void follow(StepFollower follower)
+  abstract void unfollow(StepFollower follower)
 
 abstract interface class StepFollower
   void rememberPlace()

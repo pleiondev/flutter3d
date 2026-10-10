@@ -109,7 +109,7 @@ abstract base class BusEffect
   BusEffect? atWeight(double weight)
   const BusEffect()
 
-abstract interface class DirectionalBackend
+abstract base mixin class DirectionalBackend
   void placeVoice(VoiceId voice, SpatialResult spatial)
 
 final class DuckRule
@@ -214,7 +214,7 @@ final class Mixer
   void setParent(AudioBus bus, AudioBus parent)
   void setVolume(AudioBus bus, double volume)
 
-abstract interface class MixingBackend
+abstract base mixin class MixingBackend
   void mixBus(AudioBus bus, {required AudioBus? parent, required double gain, required List<BusEffect> effects})
   void routeVoice(VoiceId voice, AudioBus bus)
 
@@ -251,7 +251,7 @@ final class SilentBackend extends AudioBackend
   void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
 
 final class SilentVoice
-  SilentVoice(this.id, this.asset, this.gain, this.pan, this.rate, this.loop)
+  SilentVoice({required this.id, required this.asset, required this.gain, required this.pan, required this.rate, required this.loop})
   String toString()
   bool isAlive
   bool isPaused

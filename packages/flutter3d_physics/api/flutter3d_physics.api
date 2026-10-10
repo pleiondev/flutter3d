@@ -31,7 +31,17 @@ final class CharacterController
   void suppressFloorSnap()
   void teleport(Vector3 to)
 
-typedef CharacterMoved = ({Vector3 position, bool grounded, bool hitWall, bool hitCeiling, bool stepped, double steppedUp, Vector3 velocity, Vector3 groundNormal, Collider? ground});
+final class CharacterMoved
+  CharacterMoved({required this.position, required this.grounded, required this.velocity, this.hitWall = false, this.hitCeiling = false, this.stepped = false, this.steppedUp = 0.0, Vector3? groundNormal, this.ground})
+  final Collider? ground
+  final Vector3 groundNormal
+  final Vector3 position
+  final Vector3 velocity
+  final bool grounded
+  final bool hitCeiling
+  final bool hitWall
+  final bool stepped
+  final double steppedUp
 
 abstract base class CharacterMover
   abstract CharacterMoved move(CharacterController body, Vector3 delta, {required double stepHeight, required double walkableNormalY, required bool mayStep})
@@ -90,12 +100,12 @@ final class Collider
   ColliderKind kind
   CollisionListener? get listener
   CollisionShape shape
-  CollisionWorld? world
+  CollisionWorld? get world
   Object? userData
-  PhysicalMaterial? material
   bool get isSolid
   bool interactsWith(Collider other)
   final Aabb3 bounds
+  final PhysicalMaterial? material
   final Vector3 delta
   final Vector3 indexedAt
   final Vector3 position
@@ -183,8 +193,11 @@ abstract mixin class CollisionListener
   void onCollisionEnd(Collider self, Collider other)
   void onCollisionStart(Collider self, Collider other)
 
-sealed class CollisionShape
-  Vector3 get boundsHalfExtents
+abstract base class CollisionShape
+  Vector3 inertia(double mass)
+  abstract Vector3 get boundsHalfExtents
+  abstract int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  abstract int get expandedPlaneCount
   bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
   bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
@@ -197,8 +210,6 @@ sealed class CollisionShape
   double raycastBounds(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
   double supportAlong(double nx, double ny, double nz)
   int boundsExpandedPlanes(Vector3 position, Vector3 half, Float64List out)
-  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
-  int get expandedPlaneCount
   int get partPlaneCount
   int partPlanes(int part, Vector3 position, CollisionShape mover, Float64List out)
   int partSeams(int part)
@@ -292,17 +303,10 @@ final class Contact
 typedef ContactFilter = bool Function(SweptContact contact);
 
 abstract base class CustomShape extends CollisionShape
-  Vector3 inertia(double mass)
   abstract void support(double dx, double dy, double dz, Vector3 out)
   bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
-  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
-  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
   bool overlapsCustom(Vector3 position, CustomShape custom, Vector3 customPosition)
-  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
-  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
-  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
   const CustomShape()
-  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
   double supportAlong(double nx, double ny, double nz)
   int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
   int get expandedPlaneCount
@@ -451,7 +455,13 @@ final class Jet
   final double breakupGrowth
   void emit({required double flow, required double dt, required Vector3 point, required Vector3 velocity, required double width, required Vector3 across, FluidMedium? medium, Map<String, double> concentrations = const {}})
 
-typedef JetDrop = ({Vector3 position, Vector3 velocity, double volume, FluidMedium medium, Map<String, double> concentrations});
+final class JetDrop
+  JetDrop({required this.position, required this.velocity, required this.volume, required this.medium, this.concentrations = const <String, double>{}})
+  final FluidMedium medium
+  final Map<String, double> concentrations
+  final Vector3 position
+  final Vector3 velocity
+  final double volume
 
 abstract base mixin class JetObstacle
   abstract ({Vector3 normal, double depth})? touch(Vector3 point, double radius)

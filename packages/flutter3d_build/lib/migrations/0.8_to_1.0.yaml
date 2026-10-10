@@ -3711,13 +3711,13 @@ entries:
   - id: physics-CollisionShape
     package: flutter3d_physics
     symbol: CollisionShape
-    kind: manual
-    wave: 3
+    kind: enumToClass
+    wave: 2
     guidance: >-
-      `CollisionShape` gained a sixth case, `CustomShape`: a convex shape of
-      a game's own, given by its support function. An exhaustive `switch`
-      over the shapes adds a `CustomShape()` case (its `boundsHalfExtents`
-      and `inertia` are the usual stand-ins).
+      `CollisionShape` is an `abstract base class`, open to a game's own
+      shapes (`CustomShape`, or a subclass of it directly), so a `switch`
+      over the shapes needs a default case: `boundsHalfExtents` and
+      `inertia` answer for any shape.
 
   - id: sim-HeadlessGame
     package: flutter3d_sim
@@ -3883,11 +3883,11 @@ entries:
   - id: physics-CustomShape
     package: flutter3d_physics
     symbol: CustomShape
-    kind: manual
+    kind: none
     wave: 3
-    guidance: >-
-      A new case of the sealed `CollisionShape`: an exhaustive `switch` over
-      the shapes adds `CustomShape()` (see `physics-CollisionShape`).
+    reason: >-
+      A new subclass of `CollisionShape`, which is open now; a `switch` over
+      the shapes takes the default case `physics-CollisionShape` adds.
 
   - id: net-WebSocketTransport
     package: flutter3d_net
@@ -18316,3 +18316,85 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  - id: physics-Collider-world
+    package: flutter3d_physics
+    symbol: Collider.world
+    kind: none
+    wave: 2
+    reason: >-
+      The setter is gone: `CollisionWorld.add` sets the world and `remove`
+      clears it, as they always did. Reading it is unchanged.
+
+  - id: audio_core-SilentVoice-named
+    package: flutter3d_audio_core
+    symbol: SilentVoice
+    kind: none
+    wave: 2
+    reason: >-
+      The constructor takes named arguments (`id:`, `asset:`, `gain:`,
+      `pan:`, `rate:`, `loop:`); `SilentBackend` makes every voice, and a
+      test reads them, so no caller builds one.
+
+  - id: particles-Emission-named
+    package: flutter3d_particles
+    symbol: Emission
+    kind: none
+    wave: 2
+    reason: >-
+      The constructor takes named arguments (`effect:`, `origin:`,
+      `perSecond:`, `direction:`, `remaining:`); `ParticleSystem` makes every
+      emission from `emit` and `emitTimed`, and a caller reads them.
+
+  - id: particles-ParticleEffect-color
+    package: flutter3d_particles
+    symbol: ParticleEffect.color
+    kind: manual
+    wave: 2
+    guidance: >-
+      `color` is a `LinearColor`, the engine's one colour type, so an effect
+      can be `const`: `color: Vector4(1.0, 0.5, 0.2, 1.0)` is
+      `color: LinearColor(1.0, 0.5, 0.2, 1.0)`, or `vector.toLinearColor()`.
+      The numbers mean what they did (linear, alpha as brightness); read
+      `.r`, `.g`, `.b`, `.a` where you read `.x`, `.y`, `.z`, `.w`.
+
+  - id: particles-GradientKey-color
+    package: flutter3d_particles
+    symbol: GradientKey
+    kind: manual
+    wave: 2
+    guidance: >-
+      A key's colour is a `LinearColor`: `GradientKey(0.5, Vector4(r, g, b,
+      a))` is `GradientKey(0.5, LinearColor(r, g, b, a))`; see
+      `particles-ParticleEffect-color`.
+
+  - id: particles-ParticleGradient-color
+    package: flutter3d_particles
+    symbol: ParticleGradient
+    kind: manual
+    members: [constant, linear]
+    wave: 2
+    guidance: >-
+      `ParticleGradient.constant` and `.linear` take `LinearColor`s; see
+      `particles-ParticleEffect-color`. `sampleInto` still writes a
+      `Vector4`.
+
+  - id: particles-ParticleColorOverLife-color
+    package: flutter3d_particles
+    symbol: ParticleColorOverLife
+    kind: manual
+    wave: 2
+    guidance: >-
+      Its two colours are `LinearColor`s, and it can be `const`:
+      `ParticleColorOverLife(LinearColor(1, 1, 1, 1), LinearColor(1, 0, 0,
+      1))`; see `particles-ParticleEffect-color`.
+
+  - id: flame_flutter3d-StepClock-mixin
+    package: flame_flutter3d
+    symbol: StepClock
+    kind: none
+    wave: 2
+    reason: >-
+      An `abstract mixin class` where it was an interface: its members never
+      had bodies, and a class that `implements StepClock` compiles as it
+      did. A component may mix it in instead (`with StepClock`).

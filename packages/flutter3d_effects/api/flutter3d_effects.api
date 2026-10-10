@@ -5,14 +5,14 @@
 library package:flutter3d_effects/flutter3d_effects.dart
 
 final class Audible
-  const Audible(this.key, this.at, this.loudness, this.rate)
+  const Audible({required this.key, required this.at, required this.loudness, required this.rate})
   final Vector3 at
   final double loudness
   final double rate
   final int key
 
 abstract final class Blackbody
-  static Vector3 color(double kelvin)
+  static LinearColor color(double kelvin)
   static double efficacy(double kelvin)
 
 final class Elements
@@ -109,7 +109,7 @@ final class FireView
   static double plumeDepth(double kw, double base, double z, {double sootYield = woodSoot})
   void forget(NativeBody body)
   void update(double dt)
-  void watch(NativeBody body, MeshNode look, {Vector4? fresh, Vector4? charred})
+  void watch(NativeBody body, MeshNode look, {LinearColor? fresh, LinearColor? charred})
 
 final class HearingScale
   const HearingScale({required this.quiet, required this.loud, required this.reference, this.pitch = 0.06, this.slowest = 0.7, this.fastest = 1.4})
@@ -233,7 +233,7 @@ final class PhysicsHearing
   void update(double dt, {List<NativeEvent> events = const <NativeEvent>[]})
 
 final class SeabedLook
-  RenderMaterial under(String name, Vector4 baseColor, {double roughness = 0.9})
+  RenderMaterial under(String name, LinearColor baseColor, {double roughness = 0.9})
   factory SeabedLook.of(ByteData bundle)
   final RenderMaterial material
   set optics(LiquidOptics value)

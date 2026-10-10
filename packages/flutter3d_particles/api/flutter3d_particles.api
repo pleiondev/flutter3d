@@ -112,7 +112,7 @@ final class EffectVocabulary
   static const EffectVocabulary standard = EffectVocabulary()
 
 final class Emission
-  Emission(this.effect, this.origin, this.perSecond, this.direction, this.remaining)
+  Emission({required this.effect, required this.origin, required this.perSecond, this.direction, this.remaining})
   bool get isSpent
   double? remaining
   final ParticleEffect effect
@@ -139,7 +139,7 @@ final class FlipbookCell
 final class GradientKey
   const GradientKey(this.at, this.color, {this.ease = KeyEase.linear})
   final KeyEase ease
-  final Vector4 color
+  final LinearColor color
   final double at
 
 final class KeyEase
@@ -194,7 +194,7 @@ final class ParticleColorGradient extends ParticleAffector
   void apply(Particle particle, double dt)
 
 final class ParticleColorOverLife extends ParticleAffector
-  ParticleColorOverLife(Vector4 from, Vector4 to)
+  const ParticleColorOverLife(this._from, this._to)
   void apply(Particle particle, double dt)
 
 final class ParticleContributor extends PassContributor
@@ -225,11 +225,11 @@ final class ParticleDrag extends ParticleAffector
 
 final class ParticleEffect
   const ParticleEffect({required this.count, required this.emitter, required this.lifetime, required this.size, required this.color, this.affectors = const <ParticleAffector>[]})
+  final LinearColor color
   final List<ParticleAffector> affectors
   final ParticleEmitter emitter
   final Range lifetime
   final Range size
-  final Vector4 color
   final int count
 
 final class ParticleEffects extends PluginRegistry
@@ -271,8 +271,8 @@ final class ParticleGlow
 
 final class ParticleGradient
   ParticleGradient(this.keys)
-  ParticleGradient.constant(Vector4 color)
-  ParticleGradient.linear(Vector4 from, Vector4 to)
+  ParticleGradient.constant(LinearColor color)
+  ParticleGradient.linear(LinearColor from, LinearColor to)
   final List<GradientKey> keys
   void sampleInto(Vector4 out, double t)
 
