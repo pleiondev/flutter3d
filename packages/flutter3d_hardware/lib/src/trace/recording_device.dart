@@ -534,10 +534,10 @@ final class RecordingDevice extends GraphicsDevice
   }
 
   /// Every usage a traced storage buffer may have.
-  static final BufferUsage _storageShaped =
-      BufferUsage.standardStorage |
-      BufferUsage.hostReadable |
-      BufferUsage.index;
+  static final BufferUsage _storageShaped = tracedStorageUsage(
+    hostReadable: true,
+    indices: true,
+  );
 
   @override
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) {
@@ -1141,3 +1141,15 @@ final class _RecordingComputeEncoder extends ComputeEncoder {
     _inner.endPipelineStatisticsQuery();
   }
 }
+
+/// The usages of a storage buffer a `createStorageBuffer` event names: the
+/// standard storage ones, with the host read and the index binding where
+/// the event says so. What a replay makes the buffer with.
+BufferUsage tracedStorageUsage({
+  required bool hostReadable,
+  required bool indices,
+}) => <BufferUsage>[
+  BufferUsage.standardStorage,
+  if (hostReadable) BufferUsage.hostReadable,
+  if (indices) BufferUsage.index,
+].reduce((BufferUsage a, BufferUsage b) => a | b);

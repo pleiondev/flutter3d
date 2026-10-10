@@ -4,6 +4,16 @@
 
 library package:flutter3d_hardware/backend.dart
 
+base mixin SynchronousBufferReadback on GraphicsDevice
+  abstract ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+
+final class UniformScratch
+  Float32List zeroed(int sizeInBytes)
+  UniformScratch()
+  int get sizes
+
+void debugCheckLive(Object handle, String operation)
+
 void forgetShader(Map<String, ShaderHandle?> handles, ShaderHandle handle)
 
 ComputePipelineHandle wrapComputePipeline({required Object backend, required ShaderHandle shader, GraphicsDevice? owner})
@@ -127,16 +137,16 @@ enum CompareFunction
 
 abstract base class ComputeEncoder
   abstract bool bindStorageBuffer(ShaderHandle stage, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
-  abstract bool bindStorageTexture(ShaderHandle stage, String name, TextureHandle texture, {int mipLevel = 0, StorageTextureAccess access = StorageTextureAccess.writeOnly})
   abstract bool bindTexture(ShaderHandle stage, String name, TextureHandle texture, {SamplerDescriptor? sampler})
   abstract bool bindUniformBlock(ShaderHandle stage, String block, Map<String, Float32List> members)
-  abstract bool bindUniformBytes(ShaderHandle stage, String block, ByteData bytes)
-  abstract void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex)
   abstract void bindPipeline(ComputePipelineHandle pipeline)
   abstract void dispatch(int x, [int y = 1, int z = 1])
-  abstract void dispatchIndirect(StorageBuffer arguments, {int offsetInBytes = 0})
-  abstract void endPipelineStatisticsQuery()
   abstract void submit()
+  bool bindStorageTexture(ShaderHandle stage, String name, TextureHandle texture, {int mipLevel = 0, StorageTextureAccess access = StorageTextureAccess.writeOnly})
+  bool bindUniformBytes(ShaderHandle stage, String block, ByteData bytes)
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex)
+  void dispatchIndirect(StorageBuffer arguments, {int offsetInBytes = 0})
+  void endPipelineStatisticsQuery()
   void insertDebugMarker(String label)
   void popDebugGroup()
   void pushDebugGroup(String label)
@@ -313,13 +323,13 @@ final class DepthTarget
   static const DeviceLossReason unknown = DeviceLossReason._('unknown')
   static const List<DeviceLossReason> values = <DeviceLossReason>[destroyed, unknown]
 
-final class DeviceRegistry
+final class DeviceRegistry<P extends Object>
   DeviceRegistry()
   Future<GraphicsDevice> open({required int width, required int height, void Function(String message)? onFallback})
   List<String> get backendNames
-  Object? presenterFor(GraphicsDevice device)
+  P? presenterFor(GraphicsDevice device)
   Registration addBackend(String name, BackendOpener open, {bool asFallback = false})
-  Registration addPresenter<T extends GraphicsDevice>(Object presenter)
+  Registration addPresenter<T extends GraphicsDevice>(P presenter)
 
 final class DeviceResourceException extends ResourceException
   String get message
@@ -339,7 +349,7 @@ final class DeviceUnavailableException extends ResourceException
   final String? backend
 
 base mixin EncodedImageUpload on GraphicsDevice
-  abstract Future<TextureHandle?> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
+  abstract Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
 
 enum FeatureStability
   values: stable, reserved
@@ -383,7 +393,6 @@ abstract base class GraphicsDevice with TextureAllocator
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   String get backendName
   String? labelOf(Object resource)
@@ -476,13 +485,8 @@ enum MipFilter
   values: nearest, linear
 
 abstract base mixin class PassEncoder
-  abstract bool bindStorageBuffer(ShaderHandle shader, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
-  abstract bool bindStorageTexture(ShaderHandle shader, String name, TextureHandle texture, {int mipLevel = 0, StorageTextureAccess access = StorageTextureAccess.writeOnly})
   abstract bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerDescriptor? sampler})
   abstract bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
-  abstract bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes)
-  abstract void beginOcclusionQuery(int queryIndex)
-  abstract void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex)
   abstract void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
   abstract void bindIndexData(ByteData bytes, IndexType type, int indexCount)
   abstract void bindPipeline(PipelineHandle pipeline)
@@ -490,21 +494,8 @@ abstract base mixin class PassEncoder
   abstract void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0})
   abstract void clearBindings()
   abstract void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount})
-  abstract void drawIndexed(IndexedDraw draw)
-  abstract void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0})
-  abstract void drawNonIndexed({required int vertexCount, int firstVertex = 0, int instanceCount = 1, int firstInstance = 0})
-  abstract void endOcclusionQuery()
-  abstract void endPipelineStatisticsQuery()
-  abstract void executeBundles(List<RenderBundle> bundles)
-  abstract void multiDraw(List<IndexedDraw> draws)
-  abstract void multiDrawIndirect(StorageBuffer arguments, int drawCount, {int offsetInBytes = 0, StorageBuffer? countBuffer, int countOffsetInBytes = 0})
-  abstract void setAlphaToCoverage({required bool enabled})
   abstract void setBlend(BlendState? state, {int attachment = 0})
-  abstract void setBlendColor(Vector4 color)
-  abstract void setColorWriteMask(ColorWriteMask mask, {int attachment = 0})
   abstract void setCullMode(CullMode mode)
-  abstract void setDepthBias(DepthBias bias)
-  abstract void setDepthClamp({required bool enabled})
   abstract void setDepthCompare(CompareFunction compare)
   abstract void setDepthWrite({required bool enabled})
   abstract void setPolygonMode(PolygonMode mode)
@@ -514,9 +505,27 @@ abstract base mixin class PassEncoder
   abstract void setStencilReference(int value)
   abstract void setViewport(ScreenRect rect)
   abstract void setWindingOrder(WindingOrder order)
+  bool bindStorageBuffer(ShaderHandle shader, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+  bool bindStorageTexture(ShaderHandle shader, String name, TextureHandle texture, {int mipLevel = 0, StorageTextureAccess access = StorageTextureAccess.writeOnly})
+  bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes)
+  void beginOcclusionQuery(int queryIndex)
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex)
+  void drawIndexed(IndexedDraw draw)
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0})
+  void drawNonIndexed({required int vertexCount, int firstVertex = 0, int instanceCount = 1, int firstInstance = 0})
+  void endOcclusionQuery()
+  void endPipelineStatisticsQuery()
+  void executeBundles(List<RenderBundle> bundles)
   void insertDebugMarker(String label)
+  void multiDraw(List<IndexedDraw> draws)
+  void multiDrawIndirect(StorageBuffer arguments, int drawCount, {int offsetInBytes = 0, StorageBuffer? countBuffer, int countOffsetInBytes = 0})
   void popDebugGroup()
   void pushDebugGroup(String label)
+  void setAlphaToCoverage({required bool enabled})
+  void setBlendColor(LinearColor color)
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0})
+  void setDepthBias(DepthBias bias)
+  void setDepthClamp({required bool enabled})
 
 final class PassState
   PassState copyWith({ScreenRect? viewport, ScreenRect? scissor, PrimitiveType? primitiveType, PolygonMode? polygonMode, CullMode? cullMode, WindingOrder? windingOrder, Object? blend = _unsetBlend, int? blendAttachment, bool? depthWrite, CompareFunction? depthCompare, StencilState? stencil, StencilState? stencilBack, int? stencilReference})
@@ -768,9 +777,6 @@ enum StorageTextureAccess
 enum StoreAction
   values: dontCare, store, multisampleResolve, storeAndMultisampleResolve
 
-base mixin SynchronousBufferReadback on GraphicsDevice
-  abstract ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
-
 abstract base mixin class TextureAllocator
   abstract TextureHandle createTexture(TextureDescriptor descriptor)
   abstract void releaseTexture(TextureHandle texture)
@@ -948,16 +954,16 @@ enum TextureType
   static const TextureUsage storage = TextureUsage._(4)
 
 abstract base class TransferEncoder
-  abstract void clearBuffer(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
-  abstract void copyBufferToBuffer(StorageBuffer source, int sourceOffset, StorageBuffer destination, int destinationOffset, int size)
-  abstract void copyBufferToTexture(StorageBuffer source, BufferTextureLayout layout, TextureCopyLocation destination, {required int width, required int height, int depthOrArrayLayers = 1})
-  abstract void copyTextureToBuffer(TextureCopyLocation source, StorageBuffer destination, BufferTextureLayout layout, {required int width, required int height, int depthOrArrayLayers = 1})
-  abstract void copyTextureToTexture(TextureCopyLocation source, TextureCopyLocation destination, {required int width, required int height, int depthOrArrayLayers = 1})
-  abstract void resolveTexture(TextureCopyLocation source, TextureCopyLocation destination)
   abstract void submit()
+  void clearBuffer(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+  void copyBufferToBuffer(StorageBuffer source, int sourceOffset, StorageBuffer destination, int destinationOffset, int size)
+  void copyBufferToTexture(StorageBuffer source, BufferTextureLayout layout, TextureCopyLocation destination, {required int width, required int height, int depthOrArrayLayers = 1})
+  void copyTextureToBuffer(TextureCopyLocation source, StorageBuffer destination, BufferTextureLayout layout, {required int width, required int height, int depthOrArrayLayers = 1})
+  void copyTextureToTexture(TextureCopyLocation source, TextureCopyLocation destination, {required int width, required int height, int depthOrArrayLayers = 1})
   void insertDebugMarker(String label)
   void popDebugGroup()
   void pushDebugGroup(String label)
+  void resolveTexture(TextureCopyLocation source, TextureCopyLocation destination)
 
 abstract base class UniformBlock
   abstract Map<String, Float32List> get members
@@ -1089,12 +1095,12 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
+  List<Object> get liveHandles
   List<TextureFormat> get hdrOutputFormats
   PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat
@@ -1131,6 +1137,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   final Map<String, StageBindings>? stageBindings
   final Set<TextureFormat> unsupportedFormats
   int frames
+  int get liveHandleCount
   int get preferredSampleCount
   set supportsOffscreenMsaa(bool supported)
   void beginFrame()
@@ -1141,6 +1148,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
   void releaseGeometry(GeometryBuffer geometry)
+  void releasePipeline(PipelineHandle pipeline)
   void releaseQuerySet(QuerySet querySet)
   void releaseStorageBuffer(StorageBuffer buffer)
   void releaseTexture(TextureHandle texture)
@@ -1209,7 +1217,7 @@ final class FakePass extends PassEncoder with CommandEncoder, RenderBundleEncode
   void multiDrawIndirect(StorageBuffer arguments, int drawCount, {int offsetInBytes = 0, StorageBuffer? countBuffer, int countOffsetInBytes = 0})
   void setAlphaToCoverage({required bool enabled})
   void setBlend(BlendState? state, {int attachment = 0})
-  void setBlendColor(Vector4 color)
+  void setBlendColor(LinearColor color)
   void setColorWriteMask(ColorWriteMask mask, {int attachment = 0})
   void setCullMode(CullMode mode)
   void setDepthBias(DepthBias bias)
@@ -1244,7 +1252,7 @@ final class FakeTransfer extends TransferEncoder
   void resolveTexture(TextureCopyLocation source, TextureCopyLocation destination)
   void submit()
 
-sealed class Recorded
+abstract base class Recorded
   const Recorded()
 
 final class RecordedAlphaToCoverage extends Recorded
@@ -1258,7 +1266,7 @@ final class RecordedBlend extends Recorded
 
 final class RecordedBlendColor extends Recorded
   const RecordedBlendColor(this.color)
-  final Vector4 color
+  final LinearColor color
 
 final class RecordedCall extends Recorded
   String toString()
@@ -1345,6 +1353,9 @@ final class RecordedWindingOrder extends Recorded
   const RecordedWindingOrder(this.order)
   final WindingOrder order
 
+base mixin SynchronousBufferReadback on GraphicsDevice
+  abstract ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+
 library package:flutter3d_hardware/trace.dart
 
 final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadback
@@ -1370,7 +1381,6 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   String get backendName
   String? labelOf(Object resource)
@@ -1742,7 +1752,7 @@ final class TraceSetBlendColor extends TracePassEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)
   String get kind
   const TraceSetBlendColor(super.pass, this.color)
-  final Vector4 color
+  final LinearColor color
 
 final class TraceSetCullMode extends TracePassEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)

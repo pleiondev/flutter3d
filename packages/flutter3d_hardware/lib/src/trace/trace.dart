@@ -20,6 +20,7 @@ import '../graphics_device.dart';
 import '../resources.dart';
 import '../shader.dart';
 import '../texture.dart';
+import 'recording_device.dart' show tracedStorageUsage;
 import 'trace_event.dart';
 import 'trace_format_exception.dart';
 import 'trace_values.dart';
@@ -304,11 +305,10 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
         final buffer = storage[event.id] = device.createBuffer(
           BufferDescriptor(
             lengthInBytes: event.bytes.lengthInBytes,
-            usage: <BufferUsage>[
-              BufferUsage.standardStorage,
-              if (event.hostReadable) BufferUsage.hostReadable,
-              if (event.indices != null) BufferUsage.index,
-            ].reduce((BufferUsage a, BufferUsage b) => a | b),
+            usage: tracedStorageUsage(
+              hostReadable: event.hostReadable,
+              indices: event.indices != null,
+            ),
           ),
           contents: event.bytes,
         );

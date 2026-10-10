@@ -12263,8 +12263,9 @@ entries:
       Creation and teardown verbs follow one convention in 1.0: create
       (synchronous), open (a device or a session), load (an asset), decode
       (bytes), parse (text), dispose (teardown), close (a connection or a
-      stream), and drain for a read that empties what it reads. The behaviour
-      is the same under the new name.
+      stream), and drain for a read that empties what it reads. Opening is
+      asynchronous on every backend, so `WebGlDevice.open` answers a
+      `Future`: put `await` in front of the call, in an `async` function.
 
   - id: 4a-webgpu-WebGpuDevice-create
     package: flutter3d_webgpu
@@ -16393,17 +16394,19 @@ entries:
       `WebGlDevice.open(width: w, height: h)` is the one way to open the
       backend: its shaders default to the engine's own, and it throws a
       `DeviceUnavailableException` where `openWebGl` threw a `StateError`.
-      It is synchronous; drop the `await`. An engine that opens through a
-      `DeviceRegistry` calls `registerWebGlBackend(registry)` instead.
+      It is asynchronous, as `openWebGl` was, so the `await` stays. An engine
+      that opens through a `DeviceRegistry` calls
+      `registerWebGlBackend(registry)` instead.
 
   - id: f2-webgl-WebGlDevice-open
     package: flutter3d_webgl
     symbol: WebGlDevice.open
     kind: none
     reason: >-
-      Returns a `WebGlDevice`, not a nullable one, and `sources` is optional
-      (the engine's shaders by default). A browser without WebGL2 throws a
-      `DeviceUnavailableException`; a null check after the call can go.
+      Completes with a `WebGlDevice`, not a nullable one, and `sources` is
+      optional (the engine's shaders by default). A browser without WebGL2
+      completes it with a `DeviceUnavailableException`; a null check after
+      the call can go.
 
   - id: f2-webgl-WebGlDevice-readPixels
     package: flutter3d_webgl
@@ -18316,3 +18319,134 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  # ---- The graphics contract: buffers, the blend constant, opening.
+
+  - id: 2a-hardware-Recorded
+    package: flutter3d_hardware
+    symbol: Recorded
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `Recorded` is an `abstract base class` rather than a sealed one, so a
+      pass can gain calls in a minor release. A `switch` over a recorded
+      command ends with a wildcard for the kinds it does not name.
+
+  - id: 2a-hardware-PassEncoder-setBlendColor
+    package: flutter3d_hardware
+    symbol: PassEncoder.setBlendColor
+    kind: rewrite
+    template: '{target}.setBlendColor(LinearColor({0}.x, {0}.y, {0}.z, {0}.w))'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    wave: 2
+    guidance: >-
+      The blend constant is a `LinearColor`, the engine's one colour type: the
+      same four numbers, red, green, blue and alpha. An encoder of your own
+      takes a `LinearColor` in its override.
+
+  - id: 2a-hardware-RecordedBlendColor
+    package: flutter3d_hardware
+    symbol: RecordedBlendColor
+    kind: manual
+    members: [color]
+    wave: 2
+    guidance: >-
+      The recorded blend constant is a `LinearColor`: construct it with
+      `RecordedBlendColor(LinearColor(r, g, b, a))`, and read `.r`, `.g`,
+      `.b`, `.a` where you read `.x`, `.y`, `.z`, `.w`.
+
+  - id: 2a-hardware-TraceSetBlendColor
+    package: flutter3d_hardware
+    symbol: TraceSetBlendColor
+    kind: manual
+    members: [color]
+    wave: 2
+    guidance: >-
+      The traced blend constant is a `LinearColor`: construct the event with
+      `TraceSetBlendColor(pass, LinearColor(r, g, b, a))`, and read `.r`,
+      `.g`, `.b`, `.a` where you read `.x`, `.y`, `.z`, `.w`. A trace file
+      holds the same four numbers and reads as before.
+
+  - id: 2a-hardware-GraphicsDevice-createStorageBuffer
+    package: flutter3d_hardware
+    symbol: GraphicsDevice.createStorageBuffer
+    kind: rewrite
+    template: '{target}.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    wave: 2
+    guidance: >-
+      One call makes every buffer: a storage buffer is `createBuffer` with
+      `BufferUsage.standardStorage` and the bytes as `contents`. Add
+      `| BufferUsage.hostReadable` where you passed `hostReadable: true` and
+      `| BufferUsage.index` where you passed `bindableAsIndices: true`; a call
+      with either is left to you. A backend of your own drops its override
+      and makes the storage usages in `createBuffer`.
+
+  - id: 2a-impeller-GpuRenderBackend-createStorageBuffer
+    package: flutter3d_impeller
+    symbol: GpuRenderBackend.createStorageBuffer
+    kind: rewrite
+    template: '{target}.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    wave: 2
+    guidance: >-
+      One call makes every buffer: a storage buffer is `createBuffer` with
+      `BufferUsage.standardStorage`. Impeller refuses a storage usage either
+      way, as it refused this call.
+
+  - id: 2a-webgl-WebGlDevice-createStorageBuffer
+    package: flutter3d_webgl
+    symbol: WebGlDevice.createStorageBuffer
+    kind: rewrite
+    template: '{target}.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    wave: 2
+    guidance: >-
+      One call makes every buffer: a storage buffer is `createBuffer` with
+      `BufferUsage.standardStorage`. WebGL2 refuses a storage usage either
+      way, as it refused this call.
+
+  - id: 2a-webgpu-WebGpuDevice-createStorageBuffer
+    package: flutter3d_webgpu
+    symbol: WebGpuDevice.createStorageBuffer
+    kind: rewrite
+    template: '{target}.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    wave: 2
+    guidance: >-
+      One call makes every buffer: a storage buffer is `createBuffer` with
+      `BufferUsage.standardStorage` and the bytes as `contents`, plus
+      `BufferUsage.hostReadable` or `BufferUsage.index` where you asked for
+      them by name.
+
+  - id: 2a-cpu-CpuDevice-createStorageBuffer
+    package: flutter3d_cpu
+    symbol: CpuDevice.createStorageBuffer
+    kind: rewrite
+    template: '{target}.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    wave: 2
+    guidance: >-
+      One call makes every buffer: a storage buffer is `createBuffer` with
+      `BufferUsage.standardStorage` and the bytes as `contents`, plus
+      `BufferUsage.hostReadable` or `BufferUsage.index` where you asked for
+      them by name.
+
+  - id: 2a-impeller-GpuRenderBackend-create-size
+    package: flutter3d_impeller
+    symbol: GpuRenderBackend.create
+    kind: parameters
+    changes:
+      - add: width
+        named: true
+        required: true
+        value: 1280
+      - add: height
+        named: true
+        required: true
+        value: 720
+    wave: 2
+    guidance: >-
+      Every backend opens in one shape, `await X.open(width:, height:)`.
+      Impeller sizes each target as it is drawn and does not hold the size, so
+      any surface's size will do; pass the one you draw at.

@@ -32,7 +32,7 @@ final class WebGpuDevice extends GraphicsDevice with WgslModuleCompiler, Encoded
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
   Future<String?> debugDrainErrors([String where = ''])
-  Future<TextureHandle?> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
+  Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats
@@ -42,7 +42,6 @@ final class WebGpuDevice extends GraphicsDevice with WgslModuleCompiler, Encoded
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   String get backendName
   TextureFormat get defaultColorFormat

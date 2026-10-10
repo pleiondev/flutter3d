@@ -684,7 +684,7 @@ Future<GraphicsDevice> openDevice({required int width, required int height, Devi
 
 String? picturesDirectory({required String appName, required TargetPlatform platform, required Map<String, String> environment, required String temporary})
 
-DeviceRegistry platformDevices()
+DeviceRegistry<FramePresenter> platformDevices()
 
 Widget presentFrame(GraphicsDevice device, TextureHandle frame, {BoxFit fit = BoxFit.fill, FilterQuality quality = FilterQuality.none, DeviceRegistry? registry})
 

@@ -625,7 +625,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   String get backendName
   TextureFormat get defaultColorFormat
