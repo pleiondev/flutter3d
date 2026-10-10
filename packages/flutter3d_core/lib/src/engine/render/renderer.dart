@@ -71,6 +71,7 @@ import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
 import 'physical_sky.dart';
+import 'pipeline_nodes.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
 import 'render_hooks.dart';
@@ -346,6 +347,11 @@ final class Renderer with RenderServices {
   /// and the kinds of node they are shown as (D37). A plugin reaches it as
   /// `host.registry<SceneBindingRegistry>()`, through [renderSteps].
   SceneBindings get sceneBindings => renderSteps._store.sceneBindings;
+
+  /// The kinds of node a pipeline document applied to this renderer may
+  /// name (D44). A plugin reaches it as `host.registry<PipelineNodeKinds>()`,
+  /// through [renderSteps].
+  PipelineNodeKinds get pipelineNodeKinds => renderSteps._store.nodeKinds;
 
   final ShaderHandle _vertexShader;
 
@@ -3141,6 +3147,75 @@ final class Renderer with RenderServices {
     return rect.width / rect.height;
   }
 
+  /// The schedule the last frame — or plan — was registered from, for
+  /// [describePipeline].
+  _FrameSchedule? _lastSchedule;
+
+  /// This renderer's frame written down as an `f3d.pipeline` document
+  /// (D44): every node in the order the graph registers it, at its anchor,
+  /// with what it reads, writes and keeps and the step it belongs to; the
+  /// anchors plugins added; the steps [settings] switches off; and the
+  /// settings slots added.
+  ///
+  /// **The standard pipeline is this, for a renderer with nothing added** —
+  /// `test/fixtures/v1/standard.pipeline.json`. Planned the way [planFrame]
+  /// plans, so no device is touched; what the frame would draw for [scene]
+  /// and [views] decides only which reflection probes there are.
+  PipelineDocument describePipeline({
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+    String? name,
+  }) {
+    planFrame(scene: scene, views: views, settings: settings);
+    final schedule = _lastSchedule!;
+    final placed = <String, _AnchoredNode>{
+      for (final entry in renderSteps._store.nodes) entry.node.name: entry,
+    };
+    final steps = renderSteps.all;
+    return PipelineDocument(
+      name: name,
+      anchors: <PipelineAnchor>[
+        for (final entry in renderSteps._store.anchors)
+          PipelineAnchor(
+            name: entry.anchor.name,
+            after: entry.anchor.follows!.name,
+          ),
+      ],
+      nodes: <PipelineNode>[
+        for (final (:anchor, :slotted, :engine) in schedule.described())
+          () {
+            final node = slotted.node;
+            final declared = NodeDeclarations.of(node);
+            final entry = placed[node.name];
+            String names(ResourceId id) => id.name;
+            return PipelineNode(
+              name: node.name,
+              anchor: entry?.anchor.name ?? anchor.name,
+              engine: engine,
+              kind: entry == null
+                  ? null
+                  : renderSteps._store.kindOf[entry.node],
+              step:
+                  entry?.step?.name ??
+                  steps
+                      .where((step) => step.ownsPass(node.name))
+                      .firstOrNull
+                      ?.name,
+              reads: declared.reads.map(names).toList(),
+              optionalReads: declared.optionalReads.map(names).toList(),
+              writes: declared.writes.map(names).toList(),
+              keeps: declared.keeps.map(names).toList(),
+              after: engine ? const <String>[] : slotted.after,
+              before: engine ? const <String>[] : slotted.before,
+            );
+          }(),
+      ],
+      stepsOff: <String>[for (final step in settings.stepsOff) step.name],
+      settings: <String>[for (final slot in renderSteps.settings) slot.id],
+    );
+  }
+
   /// Whether a node placed through [renderSteps] declared a read of the
   /// velocity in the last frame compiled: what keeps the velocity passes and
   /// the frame history running for it.
@@ -3475,6 +3550,7 @@ final class Renderer with RenderServices {
     for (final node in schedule.ordered()) {
       graph.addNode(node);
     }
+    _lastSchedule = schedule;
 
     // `R2`: everything after the resolve works on the picture it
     // reconstructed, at the size that was asked for.

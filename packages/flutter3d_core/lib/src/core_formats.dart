@@ -4,6 +4,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
 
 import 'engine/render/frame_capture.dart';
 import 'formats/formats_registry.dart';
+import 'formats/pipeline_document.dart';
 
 /// Every format `flutter3d_core` writes and promises to keep reading, for
 /// an engine's `FormatRegistry`: the model and material formats of
@@ -13,5 +14,6 @@ import 'formats/formats_registry.dart';
 const List<FormatSpec> coreFormats = <FormatSpec>[
   ...modelFormats,
   FrameCapture.format,
+  pipelineFormat,
   ...hardwareFormats,
 ];

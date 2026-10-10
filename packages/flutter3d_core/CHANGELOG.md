@@ -27,6 +27,18 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **`f3d.pipeline`, the frame written down.** `PipelineDocument`
+  (`pipelineFormat`, version 1, in `coreFormats`) holds a frame's anchors,
+  its nodes with where each stands, what it reads, writes and keeps, its
+  step and, for a node of a plugin's own, the `PipelineNodeKind` that makes
+  it, the steps switched off and the settings slots read.
+  `Renderer.describePipeline` writes a renderer's frame as one — the
+  engine's own is `test/fixtures/v1/standard.pipeline.json` —
+  `RendererSteps.fromDocument` applies one, making its nodes through the
+  renderer's `PipelineNodeKinds` and taking everything back when cancelled
+  or refused, and `RendererSteps.settingsFor` switches its steps off. A
+  data plugin's `pipeline:` section (`pipelineSection`) is applied the same
+  way.
 - **Scene bindings, the renderer's half.** `SceneBindings`
   (`Renderer.sceneBindings`, `host.registry<SceneBindingRegistry>()`) holds
   the bindings and the kinds of node they make (`SceneNodeKind`, open and

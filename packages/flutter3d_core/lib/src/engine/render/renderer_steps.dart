@@ -459,14 +459,134 @@ final class RendererSteps extends RenderStepRegistry {
   /// `renderer.renderSteps` finds them too: the renderer's
   /// [LightingModels], the one entrance a plugin's lighting model comes in
   /// by (`host.registry<LightingModels>()`), its [LightTypes], its
-  /// [RenderHooks] and its [SceneBindings].
+  /// [RenderHooks], its [SceneBindings] and its [PipelineNodeKinds].
   @override
   Iterable<PluginRegistry> get companions => <PluginRegistry>[
     _store.lightingModels,
     _store.lightTypes,
     _store.hooks,
     _store.sceneBindings,
+    _store.nodeKinds,
   ];
+
+  /// Applies [document] to this renderer (D44): adds its anchors, and makes
+  /// and places each node of its own through the [PipelineNodeKinds] its
+  /// kind names, at its anchor, under its step, after and before what it
+  /// says. Every registration it made goes when the result is cancelled.
+  ///
+  /// The engine's own nodes the document lists stand where the engine puts
+  /// them and are not placed again; one this renderer does not have is
+  /// refused, as is a kind nobody registered, an anchor or a step this
+  /// renderer does not know. A refusal takes back what was already added.
+  /// Through a plugin's view, every name is held to its namespace as
+  /// [addNode] and [addAnchor] hold it. The steps the document switches off
+  /// are a setting: [settingsFor].
+  ///
+  /// `RendererSteps.fromDocument` in D44's words: a pipeline written as data
+  /// becomes the frame's.
+  Registration fromDocument(PipelineDocument document) {
+    final made = <Registration>[];
+    void takeBack() {
+      for (final registration in made.reversed) {
+        registration.cancel();
+      }
+    }
+
+    try {
+      for (final anchor in document.anchors) {
+        final follows =
+            anchorNamed(anchor.after) ??
+            (throw ArgumentError.value(
+              anchor.after,
+              'document',
+              'anchor "${anchor.name}" follows an anchor this renderer does '
+                  'not know',
+            ));
+        made.add(addAnchor(RenderAnchor.after(follows, anchor.name)));
+      }
+      for (final node in document.nodes) {
+        if (node.engine) {
+          if (!RenderSettings.passOrder.contains(node.name) &&
+              !node.name.startsWith(RenderStep.reflectionProbes.passPrefix!)) {
+            throw ArgumentError.value(
+              node.name,
+              'document',
+              'is listed as one of the engine\'s passes, and this renderer '
+                  'has none of that name',
+            );
+          }
+          continue;
+        }
+        final kindName =
+            node.kind ??
+            (throw ArgumentError.value(
+              node.name,
+              'document',
+              'names no kind, and is not one of the engine\'s passes',
+            ));
+        final kind =
+            _store.nodeKinds.kindNamed(kindName) ??
+            (throw ArgumentError.value(
+              kindName,
+              'document',
+              'is the kind of node "${node.name}", and no plugin registered '
+                  'it with PipelineNodeKinds',
+            ));
+        final at =
+            anchorNamed(node.anchor) ??
+            (throw ArgumentError.value(
+              node.anchor,
+              'document',
+              'is where node "${node.name}" stands, and not an anchor of '
+                  'this renderer',
+            ));
+        final stepName = node.step;
+        final step = stepName == null
+            ? null
+            : named(stepName) ??
+                  (throw ArgumentError.value(
+                    stepName,
+                    'document',
+                    'is the step of node "${node.name}", and not one of this '
+                        'renderer\'s',
+                  ));
+        final created = kind.create(PipelineNodeContext(node));
+        _store.kindOf[created] = kind.name;
+        made.add(
+          addNode(
+            created,
+            at: at,
+            step: step,
+            after: node.after,
+            before: node.before,
+          ),
+        );
+      }
+    } catch (_) {
+      takeBack();
+      rethrow;
+    }
+    return Registration(takeBack);
+  }
+
+  /// [settings] with [document]'s switched-off steps off, through
+  /// [RenderSettings.without], the added steps included. Throws an
+  /// [ArgumentError] for a step this renderer does not know.
+  RenderSettings settingsFor(
+    PipelineDocument document,
+    RenderSettings settings,
+  ) {
+    if (document.stepsOff.isEmpty) return settings;
+    return settings.without(<RenderStep>{
+      for (final name in document.stepsOff)
+        named(name) ??
+            (throw ArgumentError.value(
+              name,
+              'document',
+              'is switched off, and is not a step of this renderer',
+            )),
+    }, also: added);
+  }
 
   /// [settings] without the [withdrawn] steps — [settings] itself, the same
   /// object, while nothing is withdrawn, so a frame with every provider on
@@ -492,6 +612,11 @@ final class _StepStore {
   final LightTypes lightTypes = LightTypes();
   final RenderHooks hooks = RenderHooks();
   final SceneBindings sceneBindings = SceneBindings();
+  final PipelineNodeKinds nodeKinds = PipelineNodeKinds();
+
+  /// The kind each node [RendererSteps.fromDocument] made was made by, for
+  /// a document that describes the frame again.
+  final Expando<String> kindOf = Expando<String>();
   final ContributorRegistry contributors = ContributorRegistry();
   int sequence = 0;
 
@@ -686,6 +811,26 @@ final class _FrameSchedule {
       ))
         slotted.node,
   ];
+
+  /// Every node in the order the graph registers them, with the anchor it
+  /// stands at, whether it is one of the engine's passes, and its ordering
+  /// constraints — what `Renderer.describePipeline` writes down.
+  List<({RenderAnchor anchor, _Slotted slotted, bool engine})> described() =>
+      <({RenderAnchor anchor, _Slotted slotted, bool engine})>[
+        for (var i = 0; i < _slots.length; i++)
+          for (final slotted in orderByConstraints<_Slotted>(
+            _slots[i],
+            nameOf: (s) => s.node.name,
+            after: (s) => s.after,
+            before: (s) => s.before,
+            what: 'passes',
+          ))
+            (
+              anchor: RenderAnchor.values[i ~/ 2],
+              slotted: slotted,
+              engine: i.isOdd,
+            ),
+      ];
 
   /// The nodes placed at [anchor] or any anchor after it — not the engine's
   /// own passes, which the renderer names itself.
