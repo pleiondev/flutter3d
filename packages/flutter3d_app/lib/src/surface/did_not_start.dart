@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 /// `RunSession`: catch the throw, print it, and show black for ever. A line in
 /// a console is not something a person playing the game can see, and "the
 /// window is black" is indistinguishable from a scene with no lights in it.
-class DidNotStart extends StatelessWidget {
+final class DidNotStart extends StatelessWidget {
   const DidNotStart(
     this.error, {
     super.key,

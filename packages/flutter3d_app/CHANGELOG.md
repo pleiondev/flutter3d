@@ -37,6 +37,55 @@
   by `onCreated`, `onBeforeFrame`, `onFrame` or the loop goes to its crash
   reporters (`EngineLog.onCrash`) before it reaches Flutter.
 
+- **Breaking: the widgets are `final`.** `DidNotStart`, `LevelLoadFailed`,
+  `LoadingScreen`, `MemoryPressureRelease`, `RendererFailure` and
+  `SceneSurface`, and every widget of a `Scene3D` (`Scene3D`, `Node3D`,
+  `Mesh3D`, `Model3D`, `Light3D`, `Camera3D`, `Material3D`, `Mirror3D`,
+  `Decal3D`, `ReflectionProbe3D`, `Particles3D`, `Contributor3D`), are
+  final classes, and `Spatial3D` is an `abstract base class`: a widget is
+  composed, not subclassed, so a minor release may add a parameter without
+  breaking a subclass. A class that extended one builds one instead.
+
+- **`Mesh3D.onTap`, `Model3D.onTap` and `OrbitCamera3D`: a scene of
+  widgets answers the hand.** A tap on a `Scene3D` is cast through the
+  camera drawn through (`Raycaster`), and the nearest surface's handler is
+  called with the `HitResult`; a model's is handed the part it landed on
+  as well. A mesh in front that does not listen hides one behind that does.
+  `OrbitCamera3D` orbits a target: a drag turns it, a pinch or a scroll
+  moves it between `minDistance` and `maxDistance`, and a fling slows by
+  `damping` per second (null stops dead). A scene listens for these
+  gestures only while something answers them, so one inside a list takes
+  no drag from it.
+
+- **How `Scene3D` reconciles, written down and held by a test.** A widget
+  that keeps its key keeps its node, moved among its siblings or under
+  another parent; a rebuild loads and uploads nothing new; a widget gone
+  takes its node out and gives back what it made on the device. That last
+  part is new: a `Mesh3D`'s upload goes back once no frame in flight draws
+  it (and when a new shape replaces it), and a `Model3D` disposes the asset
+  it loaded, from `source` or from `load`, even one that arrives after the
+  widget went. A `geometry` handed in stays the caller's. `Scene3D` is
+  documented as what it is, a `Flutter3dView` with a scene of widgets, and
+  `SceneSurface` as the layer under the view.
+
+- **`Light3D.sun()` and `Light3D.lamp()`, in lux and candela.** The sun is
+  a warm directional light of 15 000 lux (`Light3D.sunIlluminance`, the sun
+  through a thin haze, which the default camera exposes as daylight) that
+  casts shadows and shines down when given no direction; the lamp is an
+  800-lumen bulb, `800 / 4π` candela (`Light3D.lampIntensity`), warm white.
+  The plain constructors default to the same numbers instead of the
+  pre-1.0 unit (about 5 790 lux, or a 73 000-lumen floodlight for a point),
+  and a directional light given no direction shines down rather than along
+  the horizon.
+
+- **`HotSwap.loadTexture` and `loadEnvironment` throw instead of answering
+  null.** A path the bundle does not hold is an `AssetNotFoundException`
+  naming it; bytes that are no image an `ImageFormatException`; an
+  environment that does not build throws what `EnvironmentMap.fromEncoded`
+  throws. A swap after a bad save still keeps the last good one. The
+  `HotSwap()` constructor is ordinary API rather than a testing seam: an
+  application with two engines may give each its own.
+
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 

@@ -70,8 +70,9 @@ typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
 /// CONTRIBUTING.md keeps that word out of the packages, and the structure
 /// check holds them to it.
 final class HotSwap {
-  /// A coordinator of its own, for a test. Everything else uses [instance].
-  @visibleForTesting
+  /// A coordinator of its own, apart from [instance]: what a test makes, and
+  /// what an application that runs two engines and swaps their assets apart
+  /// gives each. [enabled] is off in profile and release builds unless said.
   HotSwap({this.enabled = kDebugMode});
 
   /// The one every widget and application registers with.
@@ -302,8 +303,11 @@ final class HotSwap {
   }
 
   /// Uploads the image asset at [path], as a level or a material file does,
-  /// and hands it back ready to be swapped when the file changes. Null when
-  /// the file is not there or does not decode.
+  /// and hands it back ready to be swapped when the file changes.
+  ///
+  /// Throws an [AssetNotFoundException] when the bundle has no [path], and
+  /// an [ImageFormatException] when its bytes do not decode into an image
+  /// (since 1.0; both answered null before).
   ///
   /// **A texture of any new size.** A swap uploads the new file as a texture
   /// of its own and puts it in every slot of every material in the
@@ -317,7 +321,7 @@ final class HotSwap {
   /// **For a game's own images**, the ones no loader reads for it: a decal,
   /// a sign, a picture on a wall set up in code. A level's maps are
   /// `LevelLoader`'s, which registers them itself through [registerTexture].
-  Future<SwappableTexture?> loadTexture(
+  Future<SwappableTexture> loadTexture(
     String path, {
     required GraphicsDevice device,
     TextureSampling sampling = const TextureSampling(),
@@ -331,10 +335,10 @@ final class HotSwap {
       sampling: sampling,
     );
 
-    final bytes = await read();
-    if (bytes == null) return null;
-    final texture = await build(bytes);
-    if (texture == null) return null;
+    final bytes = await read() ?? (throw AssetNotFoundException(path));
+    final texture =
+        await build(bytes) ??
+        (throw ImageFormatException('"$path" does not decode into an image'));
     return registerTexture(
       path,
       texture,
@@ -434,8 +438,12 @@ final class HotSwap {
 
   /// Builds the environment a panorama asset at [path] makes — a Radiance
   /// `.hdr` or any image Flutter decodes — and hands it back ready to be
-  /// built again when the file changes. Null when the file is not there,
-  /// does not decode, or the device has no cube textures.
+  /// built again when the file changes.
+  ///
+  /// Throws an [AssetNotFoundException] when the bundle has no [path], and
+  /// what `EnvironmentMap.fromEncoded` throws when the file does not decode
+  /// or the device has no cube textures (a [Flutter3dException]); both
+  /// answered null before 1.0.
   ///
   /// **The cube and its irradiance come back together.** The roughest level
   /// of the chain is the diffuse term (`EnvironmentMap.diffuseLevel`), so one
@@ -456,7 +464,7 @@ final class HotSwap {
   /// [SwappableEnvironment.applyTo]; a scene a `SceneSurface` draws is
   /// registered already, and any other has to be passed to [registerScene]
   /// for a swap to reach it.
-  Future<SwappableEnvironment?> loadEnvironment(
+  Future<SwappableEnvironment> loadEnvironment(
     String path, {
     required GraphicsDevice device,
     int size = 32,
@@ -464,26 +472,29 @@ final class HotSwap {
   }) async {
     Future<Uint8List?> read() => _readAsset(path);
 
-    // A file the readers refuse, or a device with no cubes, is no
-    // environment rather than a failed swap: the last good one stays.
-    Future<BuiltEnvironment?> build(Uint8List bytes) async {
-      try {
-        return await EnvironmentMap.fromEncoded(
+    Future<BuiltEnvironment> first(Uint8List bytes) =>
+        EnvironmentMap.fromEncoded(
           device,
           bytes,
           decodeImage: defaultImageDecoder,
           size: size,
           levels: levels,
         );
+
+    // On a swap, a file the readers refuse, or a device with no cubes, is no
+    // environment rather than a failed swap: the last good one stays.
+    Future<BuiltEnvironment?> build(Uint8List bytes) async {
+      try {
+        return await first(bytes);
       } on Flutter3dException {
         return null;
       }
     }
 
-    final bytes = await read();
-    if (bytes == null) return null;
-    final built = await build(bytes);
-    if (built == null) return null;
+    // The first load says why, as every loader does: the one call a game
+    // makes has nothing good to fall back on.
+    final bytes = await read() ?? (throw AssetNotFoundException(path));
+    final built = await first(bytes);
     return registerEnvironment(
       path,
       built,

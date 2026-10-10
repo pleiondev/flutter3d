@@ -126,4 +126,16 @@ final class _MountHost implements _SceneHost {
 
   @override
   final Set<_Animated> animated = <_Animated>{};
+
+  // A mount draws nothing and so is tapped and dragged by nobody: what a
+  // widget registers here is kept and never called.
+  @override
+  final Map<MeshNode, void Function(HitResult hit)> tappable =
+      <MeshNode, void Function(HitResult hit)>{};
+
+  @override
+  final List<_Orbit> orbits = <_Orbit>[];
+
+  @override
+  void gesturesChanged() {}
 }

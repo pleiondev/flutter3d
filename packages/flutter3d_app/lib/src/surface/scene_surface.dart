@@ -58,7 +58,7 @@ typedef FramePresenter =
 /// registers its [renderer] with [HotSwap] and runs a reload from
 /// `reassemble`, so an edited shader is drawn on the next frame with the world
 /// as it was — see [HotSwap] for what that does and why.
-class SceneSurface extends StatefulWidget {
+final class SceneSurface extends StatefulWidget {
   const SceneSurface({
     super.key,
     required this.renderer,
