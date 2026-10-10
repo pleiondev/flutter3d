@@ -85,6 +85,7 @@ void main() {
       mine,
     ]);
     expect(jsonDecode(storage.documents['recent.json']!), <String, Object?>{
+      ...RecentProjects.envelope,
       'recent': <String>[crypt, mine],
     });
     expect(await projects.read(exists: _anywhere), <String>[crypt, mine]);
@@ -114,9 +115,8 @@ void main() {
     await projects.remember(crypt, exists: _anywhere);
     await projects.remember(mine, exists: _anywhere);
 
-    final offered = RecentProjects(
-      storage: storage,
-    ).read(exists: _disk(<String>{crypt}));
+    final offered = await RecentProjects(storage: storage)
+        .read(exists: _disk(<String>{crypt}));
 
     expect(offered, <String>[crypt]);
   });
@@ -129,9 +129,8 @@ void main() {
     await RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
     await RecentProjects(storage: storage).remember(mine, exists: _anywhere);
 
-    final written = RecentProjects(
-      storage: storage,
-    ).remember(attic, exists: _disk(<String>{attic, mine}));
+    final written = await RecentProjects(storage: storage)
+        .remember(attic, exists: _disk(<String>{attic, mine}));
 
     expect(written, <String>[attic, mine]);
     expect(storage.documents['recent.json'], isNot(contains(crypt)));
@@ -169,6 +168,7 @@ void main() {
     final text = storage.documents['recent.json']!;
 
     expect(jsonDecode(text), <String, Object?>{
+      ...RecentProjects.envelope,
       'recent': <String>[crypt],
     });
     expect(text, contains('\n'), reason: 'it wrote one long line');
