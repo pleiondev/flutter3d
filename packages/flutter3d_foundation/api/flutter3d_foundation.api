@@ -92,6 +92,14 @@ final class FormatSpec
   static const Set<String> envelopeKeys = <String>{'format', 'version', 'requires', 'generator'}
   static const String defaultGenerator = 'flutter3d'
 
+final class FormatSpecs
+  FormatSpec? byId(String id)
+  FormatSpec? forPath(String path)
+  FormatSpecs([Iterable<FormatSpec> formats = const <FormatSpec>[]])
+  Iterable<FormatSpec> get all
+  void add(FormatSpec spec)
+  void addAll(Iterable<FormatSpec> specs)
+
 final class Issue
   String toString()
   const Issue(this.message)

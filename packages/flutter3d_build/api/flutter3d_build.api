@@ -145,7 +145,7 @@ Future<int> runConvertCommand(List<String> arguments, {IOSink? out, IOSink? err}
 
 int runDoctor(List<String> arguments, {IOSink? out})
 
-List<DoctorCheck> runDoctorChecks({ProcessProbe probe = _probe, String? Function(ExternalTool tool)? locate, String? dartVersion})
+List<DoctorCheck> runDoctorChecks({ProcessProbe probe = _probe, String? Function(ExternalTool tool)? locate, String? dartVersion, Directory? project})
 
 const ExternalTool usdcat = …
 

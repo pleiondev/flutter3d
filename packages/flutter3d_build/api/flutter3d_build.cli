@@ -120,12 +120,19 @@ library such as flutter3d_post/motion.dart, or one class after a #).
   --json    Print the result as JSON (format f3d.cli).
 
 == migrate ==
-Moves a project written against flutter3d 0.8 to 1.0.0-rc.1.
+Moves a project written against an earlier flutter3d (0.8 or later) to
+this release, through every migration table after the one it is on.
 
   dart pub global run flutter3d_build:migrate [options] <project dir>
 
   --dry-run           change a copy beside the project, report, remove it
-  --from <version>    the release the project is on (default 0.8)
+  --data              lift the data files to the versions this build
+                      writes, in place, instead of migrating the code;
+                      reports `file: vN → vM` and what was not carried over
+  --backup            with --data, keep each file as it was as
+                      <file>.v<N>.bak
+  --from <version>    the release the project is on (default: what its
+                      pubspec.lock resolves); every table after it applies
   --no-pub-get        only the pubspec and the imports
   --lints-from <dir>  run flutter3d_lints:migrate from that checkout
 
@@ -160,7 +167,7 @@ changes whose picture stays close to the original.
 == doctor ==
 Usage: flutter3d doctor [--json]
 
-Checks the Dart and Flutter SDKs against the versions SUPPORT.md promises, and finds the optional programs: impellerc, glslangValidator and naga for building materials, FBX2glTF, Blender and usdcat for flutter3d convert. Exits 1 when a required SDK is too old.
+Checks the Dart and Flutter SDKs against the versions SUPPORT.md promises, and finds the optional programs: impellerc, glslangValidator and naga for building materials, FBX2glTF, Blender and usdcat for flutter3d convert. Run in a project, it also names the data files below the version this build writes, which `flutter3d migrate --data` lifts. Exits 1 when a required SDK is too old.
 
   --json   Print the checks as JSON (format f3d.cli): {"checks": [...]}.
 

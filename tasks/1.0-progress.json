@@ -20,13 +20,15 @@
     "M/M1": "done",
     "M/M2": "done",
     "M/M3": "done",
-    "M/M4": "todo",
-    "M/M5": "todo",
-    "M/M6": "todo"
+    "M/M4": "done",
+    "M/M5": "done",
+    "M/M6": "done"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
-    "3.2/3R": "found in wave 1: spine and neck cones too stiff in flexion, arm struts; to do with the inelastic group"
+    "3.2/3R": "found in wave 1: spine and neck cones too stiff in flexion, arm struts; to do with the inelastic group",
+    "M/M4": "nine formats owned by Flutter packages are reported, not lifted",
+    "M/M6": "the 0.8.5 site corpus fails on 14 names, handed to wave 2"
   },
   "goals": {
     "P1": "todo",
