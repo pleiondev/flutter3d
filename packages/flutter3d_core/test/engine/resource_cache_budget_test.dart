@@ -168,7 +168,10 @@ void main() {
       final first = cache.request('first');
       final doomed = cache.request('doomed');
       doomed.cancel();
-      await expectLater(doomed.handle, throwsA(isA<ResourceLoadCanceledException>()));
+      await expectLater(
+        doomed.handle,
+        throwsA(isA<ResourceLoadCanceledException>()),
+      );
       expect(cache.contains('doomed'), isFalse);
       expect(doomed.isCanceled, isTrue);
 
@@ -185,12 +188,36 @@ void main() {
       expect(cache.referenceCount('k'), 1);
       request.cancel();
       expect(cache.referenceCount('k'), 0);
-      await expectLater(request.handle, throwsA(isA<ResourceLoadCanceledException>()));
+      await expectLater(
+        request.handle,
+        throwsA(isA<ResourceLoadCanceledException>()),
+      );
       loads.finish('k', 9);
       await Future<void>.delayed(Duration.zero);
       expect(cache.isLoaded('k'), isTrue);
       expect(cache.evictUnused(), 1);
     });
+
+    test(
+      'a load that fails after its request was called off is retried',
+      () async {
+        final loads = _Loads();
+        final cache = ResourceCache<String, int>(load: loads.call);
+        final first = cache.request('k')..cancel();
+        await expectLater(
+          first.handle,
+          throwsA(isA<ResourceLoadCanceledException>()),
+        );
+        loads.pending['k']!.completeError(StateError('the disk was not there'));
+        await Future<void>.delayed(Duration.zero);
+        // Mutation: keep the failed entry when nobody waited for it, and the
+        // next request gets the old failure without a load.
+        final again = cache.request('k');
+        loads.finish('k', 4);
+        expect((await again.handle).value, 4);
+        expect(loads.started, <String>['k', 'k']);
+      },
+    );
 
     test('one of two requests for a key called off leaves the other', () async {
       final loads = _Loads();

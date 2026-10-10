@@ -366,21 +366,29 @@ final class ResourceCache<K, V> {
 
   void _schedule(K key, _CacheEntry<V> entry) {
     _queue.add(key);
-    entry.done.future.then((V value) {
-      _finished();
-      // Cleared away while it loaded. Handed to whoever still waits for it,
-      // outside the cache, as a value [clear] dropped always was; given to
-      // [dispose] when nobody does.
-      if (_entries[key] != entry) {
-        if (entry.refCount <= 0) dispose?.call(value);
-        return;
-      }
-      entry.loaded = value;
-      final size = sizeOf?.call(value) ?? 0;
-      entry.bytes = size;
-      budget?.charge(entry.category, size);
-      _trimFor(entry.category);
-    }, onError: (Object _, StackTrace _) => _finished());
+    entry.done.future.then(
+      (V value) {
+        _finished();
+        // Cleared away while it loaded. Handed to whoever still waits for it,
+        // outside the cache, as a value [clear] dropped always was; given to
+        // [dispose] when nobody does.
+        if (_entries[key] != entry) {
+          if (entry.refCount <= 0) dispose?.call(value);
+          return;
+        }
+        entry.loaded = value;
+        final size = sizeOf?.call(value) ?? 0;
+        entry.bytes = size;
+        budget?.charge(entry.category, size);
+        _trimFor(entry.category);
+      },
+      onError: (Object _, StackTrace _) {
+        _finished();
+        // Forgotten whether or not anybody still waits, so the next request
+        // tries again rather than replaying this failure.
+        if (_entries[key] == entry) _entries.remove(key);
+      },
+    );
   }
 
   void _finished() {
