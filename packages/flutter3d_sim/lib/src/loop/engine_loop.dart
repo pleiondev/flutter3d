@@ -17,6 +17,7 @@ import 'frame_cadence.dart';
 import 'loop_change.dart';
 import 'published_worlds.dart';
 import 'sim_queries.dart';
+import 'time_source.dart';
 
 part 'event_bus.dart';
 
@@ -687,12 +688,19 @@ final class EngineLoop extends LoopRegistry {
   /// — a `FrameClock` on the wall, which a stalled ticker's timestamps are
   /// not — summed over the skipped refreshes; the cadence's own measure is
   /// used otherwise.
+  ///
+  /// Without [seconds], a frame's length is [time]'s: the wall clock between
+  /// the frames drawn, or what a scaled, logged or hand-moved source says.
   int? frameAtVsync(Duration vsync, {double? seconds}) {
     final measured = seconds;
     if (measured != null) _skippedSeconds += measured;
     final paced = cadence;
-    final elapsed = paced?.due(vsync);
+    final previous = _lastVsync;
+    final elapsed = paced != null
+        ? paced.due(vsync, clock: time)
+        : time.elapsed(previous ?? vsync, vsync);
     if (paced != null && elapsed == null) return null;
+    _lastVsync = vsync;
     final dt = measured != null ? _skippedSeconds : (elapsed ?? 0.0);
     _skippedSeconds = 0.0;
     return frame(dt);
@@ -700,6 +708,19 @@ final class EngineLoop extends LoopRegistry {
 
   /// What [frameAtVsync] was told while it skipped, for the frame it draws.
   double _skippedSeconds = 0.0;
+
+  /// The vsync of the last frame [frameAtVsync] drew without a [cadence].
+  Duration? _lastVsync;
+
+  /// The loop's clock: how many simulated seconds a frame drawn by
+  /// [frameAtVsync] brings — [TimeSource.realTime] unless a game, a
+  /// laboratory or a twin says otherwise. The fixed step is the world's
+  /// whatever this is; the clock decides how many of them a frame runs.
+  ///
+  /// Read by [cadence] too, so the refreshes it draws on bring this clock's
+  /// time. [frame] and [runSteps] take their time from their caller and do
+  /// not read it.
+  TimeSource time = const TimeSource.realTime();
 
   /// Runs [count] steps now, whatever the clock says, through the same door
   /// as [frame]: a cutscene skipped, a rollback re-stepping, a replay.
