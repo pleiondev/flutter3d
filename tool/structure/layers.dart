@@ -383,22 +383,11 @@ List<(String, String)> runtimeToolDependencies(
 
 // ------------------------------------------------- a stable package's ground
 
-/// Run-time dependencies of a package at 1.x on one at 0.x that stand for
-/// now, as `'<package> -> <dependency>'`, each with why. An entry that is no
-/// longer such a dependency is a finding, so the list only shrinks.
-const Map<String, String> unstableDependencyAllowed = <String, String>{
-  'flutter3d_game -> pad_input':
-      'pad_input is a device package on its own version line (0.5), named in '
-      "the publishing sheet. `^0.5.0` holds it to 0.5.x, so a 0.6 cannot "
-      "reach a game unasked, but `PadButton` and `PadInput` are in "
-      "flutter3d_game's own signatures: the package goes to 1.0.0 before "
-      'the 1.0.0 tag, or those signatures stop naming it',
-  'flutter3d_game -> pointer_lock':
-      'pointer_lock is a device package on its own version line (0.5), named '
-      'in the publishing sheet, for the reason pad_input is: `PointerLock` is '
-      "in `DesktopInput`'s constructor, so it goes to 1.0.0 before the tag "
-      'or leaves the signature',
-};
+/// Packages at 1.x whose API names a type of one of this repository's
+/// packages at 0.x, as `'<package> -> <dependency>'`, each with why. Empty:
+/// the game's pad and pointer types are its own since 1.0.0-rc.1. An entry
+/// that no longer names one is a finding, so the list only shrinks.
+const Map<String, String> unstableDependencyAllowed = <String, String>{};
 
 /// The major version of a pubspec `version:` value: `1` for `1.0.0-rc.1`,
 /// `0` for `0.5.0`, null for anything that is not a version.
@@ -411,11 +400,11 @@ int? majorVersionOf(String version) =>
 /// **S6 of `tasks/1.0-seams.md`: nothing at 1.x stands on 0.x.** The
 /// run-time dependencies, as `(package, dependency)`, of every package in
 /// [dependencies] whose version in [versions] is 1.x or later on one of
-/// this repository's packages at 0.x. A 0.x package may break in any minor,
-/// and what a 1.x package depends on at run time is part of its contract;
-/// a research package (`flutter3d_lab_*`) stays 0.x and depends only on
-/// stable ground, never the other way. A package outside [versions] (one
-/// from pub.dev) is not asked about.
+/// this repository's packages at 0.x: the candidates [unstableNamesIn] then
+/// asks about. A 0.x package may break in any minor; a research package
+/// (`flutter3d_lab_*`) stays 0.x and depends only on stable ground, never
+/// the other way. A package outside [versions] (one from pub.dev) is not
+/// asked about.
 List<(String, String)> stableOnUnstable(
   Map<String, Set<String>> dependencies,
   Map<String, String> versions,
@@ -431,3 +420,19 @@ List<(String, String)> stableOnUnstable(
           if (unstable(dependency)) (package, dependency),
   ];
 }
+
+/// The names of [unstableNames] — what a 0.x package declares — that
+/// [stableSnapshot], a 1.x package's `api/<package>.api`, uses.
+///
+/// **What a 1.x package may not do is name one.** A 0.x dependency used
+/// behind the package's own types is held to a minor by its caret, and a
+/// break in it is mended in a release of the 1.x package without its users
+/// seeing it; one named in a signature, or re-exported, is a break in the 1.x
+/// API the day the 0.x package makes it. Only names that start with a
+/// capital are asked about: a type, not a member that happens to share a
+/// word.
+Set<String> unstableNamesIn(String stableSnapshot, Set<String> unstableNames) =>
+    <String>{
+      for (final match in RegExp(r'\b[A-Z]\w*\b').allMatches(stableSnapshot))
+        if (unstableNames.contains(match[0])) match[0]!,
+    };

@@ -66,7 +66,7 @@ List<Rule> get allRules => <Rule>[
     name: 'the runtime depends on no editor, build tool or server',
     run: _runtimeIsNoTool,
   ),
-  (name: 'no package at 1.x depends on one at 0.x', run: _stableOnStable),
+  (name: 'no package at 1.x names a type of one at 0.x', run: _stableOnStable),
   (
     name: 'the simulation stack imports nothing that draws',
     run: _simulationDrawsNothing,
@@ -5614,19 +5614,27 @@ List<Finding> _runtimeIsNoTool() {
   return found;
 }
 
-/// No package at 1.x depends at run time on a package of this repository at
-/// 0.x: S6 of `tasks/1.0-seams.md`.
+/// No package at 1.x names, in its API, a type of a package of this
+/// repository at 0.x: S6 of `tasks/1.0-seams.md`.
 ///
 /// **There is no `@experimental` in 1.x**, so work that is not ready lives in
 /// 0.x packages (`flutter3d_lab_*`) that may break in any minor. That only
-/// holds while nothing promised under semver stands on them: a 1.x package
-/// whose dependency breaks in a 0.x minor has broken its own users without a
-/// major. A research package depends on the stable seams, never the other
-/// way, and moves to 1.x in a minor once it has proved itself. It reads the
-/// pubspecs' `version:` lines, a pre-release of 1.0.0 counting as 1.x. Dev
-/// dependencies are not asked about; a standing exception is in
-/// [unstableDependencyAllowed] with its reason, and an entry there that is no
-/// longer such a dependency is a finding.
+/// holds while nothing promised under semver is shaped by them: a 1.x package
+/// whose signature names a 0.x type has broken its own users without a major
+/// the day that type changes. A 0.x package used behind the 1.x package's own
+/// types is held to a minor by its caret and mended in a release of the 1.x
+/// package, so the run-time dependencies are only the candidates, and what is
+/// refused is a 0.x name in the 1.x snapshot (a signature or a re-export). A
+/// research package depends on the stable seams, never the other way, and
+/// moves to 1.x in a minor once it has proved itself. It reads the pubspecs'
+/// `version:` lines, a pre-release of 1.0.0 counting as 1.x. A 1.x package
+/// with no snapshot is published by nobody and not asked about; a 0.x one
+/// with none is, because nothing says which names are its. A standing
+/// exception is in [unstableDependencyAllowed] with its reason, and an entry
+/// there that is no longer such a case is a finding.
+///
+/// Mutation: give `DesktopInput` a `PointerLock` parameter again, regenerate
+/// the snapshot, and this names it.
 List<Finding> _stableOnStable() {
   final dependencies = <String, Set<String>>{};
   final versions = <String, String>{};
@@ -5637,12 +5645,27 @@ List<Finding> _stableOnStable() {
       versions[name] = version;
     }
   }
+  String? snapshotOf(String package) {
+    final file = File('${packages[package]!.path}/api/$package.api');
+    return file.existsSync() ? file.readAsStringSync() : null;
+  }
+
   final found = <Finding>[];
   final allowedNow = <String>{};
   for (final (package, dependency) in stableOnUnstable(
     dependencies,
     versions,
   )) {
+    final stable = snapshotOf(package);
+    if (stable == null) continue;
+    final unstable = snapshotOf(dependency);
+    final named = unstable == null
+        ? null
+        : unstableNamesIn(stable, <String>{
+            for (final library in parseApi(unstable).values)
+              ...library.declarations.keys,
+          });
+    if (named != null && named.isEmpty) continue;
     final key = '$package -> $dependency';
     if (unstableDependencyAllowed.containsKey(key)) {
       allowedNow.add(key);
@@ -5650,11 +5673,16 @@ List<Finding> _stableOnStable() {
     }
     found.add(
       Finding(
-        package,
-        'is ${versions[package]} and depends on $dependency, which is '
-        '${versions[dependency]}: a 0.x minor may break it, and with it this '
-        'package\'s users without a major. Move $dependency to 1.0.0, or '
-        'depend on the stable seam under it',
+        '$package/api/$package.api',
+        named == null
+            ? 'is ${versions[package]} and depends on $dependency, '
+                  '${versions[dependency]} with no API snapshot to say what it '
+                  'declares. Give $dependency a snapshot, or move it to 1.0.0'
+            : 'is ${versions[package]} and names ${named.join(', ')} from '
+                  '$dependency, which is ${versions[dependency]}: a 0.x minor '
+                  'may change them, and with them this API without a major. '
+                  'Name them in types of this package with an adapter inside, '
+                  'or move $dependency to 1.0.0',
       ),
     );
   }
@@ -5663,7 +5691,7 @@ List<Finding> _stableOnStable() {
       found.add(
         Finding(
           'unstableDependencyAllowed → $key',
-          'is no longer a 1.x package depending on a 0.x one: take it off',
+          'no longer names a 0.x package in a 1.x API: take it off',
         ),
       );
     }

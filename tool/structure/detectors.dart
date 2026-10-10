@@ -2444,6 +2444,29 @@ List<Finding> proveDetectorsWork() {
     'a 0.x package on 1.x ones, and a 1.x one on 1.x and pub.dev',
     'the rule holds the stable side only, and only to this repository',
   );
+  // ... and what is refused is a 0.x type in the 1.x API. Mutation: match
+  // without word boundaries and `GamePadButton` names `PadButton`; drop the
+  // capital and a member `read` names a 0.x function.
+  const unstable = <String>{'PadButton', 'PointerLock', 'read'};
+  fires(
+    'a 1.x API names no 0.x type',
+    unstableNamesIn(
+          'final class DesktopInput\n  DesktopInput({PointerLock? capture})\n',
+          unstable,
+        ).single ==
+        'PointerLock',
+    'a 0.x type in a 1.x constructor',
+  );
+  quiet(
+    'a 1.x API names no 0.x type',
+    unstableNamesIn(
+      'final class PadInput\n  Iterable<GamePadButton> get held\n'
+      '  void read(PadReading out)\n',
+      unstable,
+    ).isEmpty,
+    'a type of its own whose name ends in a 0.x one, and a member named alike',
+    'only a whole type name is the 0.x package\'s',
+  );
   fires(
     'major version',
     majorVersionOf('1.0.0-rc.1') == 1 &&
