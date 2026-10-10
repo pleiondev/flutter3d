@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A game's rules hang on the step through `addSystem`.**
+  `PlatformerSimulation.systems` (sim's `StepSystems`) is replaced by
+  `addSystem(name, phase, system, {after, before})`, returning the
+  `Registration` that removes it, ordered as the engine's loop orders its
+  systems. `PlatformerPhases` holds `LoopPhase`s (`platformer.begin`,
+  `platformer.afterRunner`, `platformer.end`, and `all`), and a system is
+  handed a `LoopContext`: the loop's, with the platformer's phase, when the
+  plugin steps the run, or one of the run's own when it is stepped by hand.
+  `step` takes the loop's context as an optional `context:`; `systemsIn`
+  lists a phase's systems in their order.
+
 - **The blind run's position is read against the world's origin.**
   `PlatformerHeadlessGame`'s `position` and `eye` took the body's float32
   position as an offset from the world's origin, which is wrong once the

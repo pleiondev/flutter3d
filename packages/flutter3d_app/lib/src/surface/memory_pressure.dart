@@ -30,7 +30,7 @@ import 'package:flutter3d/flutter3d.dart';
 ///   child: SceneSurface(renderer: renderer, /* … */),
 /// )
 /// ```
-class MemoryPressureRelease extends StatefulWidget {
+final class MemoryPressureRelease extends StatefulWidget {
   const MemoryPressureRelease({
     required this.renderer,
     required this.child,

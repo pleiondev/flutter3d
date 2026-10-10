@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`RoleRings.of` answers a `LinearColor`**, the colour
+  `ActorVisuals.outlineOf` and `FixtureVisuals.outlineOf` take now.
+
 - **Photo mode's sprint flies faster again.** `ActionPhotoControls` and
   `KeyPhotoControls` scale the time by `PhotoControls.fastFactor` rather
   than the intent, which `PhotoCamera.fly` cut back to length one, so the

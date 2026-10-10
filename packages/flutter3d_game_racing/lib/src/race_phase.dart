@@ -12,7 +12,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 ///
 /// The three questions are the whole contract. A mode that wants something
 /// none of them can express — points for overtaking, a car removed each lap —
-/// is a rule the game writes over this, in a step system; see `StepSystems`.
+/// is a rule the game writes over this, in a step system; see
+/// `RacingSimulation.addSystem`.
 final class RaceMode {
   const RaceMode(
     this.name, {

@@ -41,6 +41,7 @@ import 'building.dart';
 import 'economy.dart';
 import 'fog.dart';
 import 'formation.dart';
+import 'genre_systems.dart';
 import 'orders.dart';
 import 'step_phases.dart';
 import 'unit.dart';
@@ -140,9 +141,58 @@ final class StrategySimulation {
   /// passes `loop.world`.
   final EcsWorld entities;
 
-  /// Systems a game adds to this simulation's step, at the strategy's own
-  /// moments ([StrategyPhases]) and the two every genre has.
-  final StepSystems systems = StepSystems();
+  /// Adds [system] to [phase], one of [StrategyPhases], under [name],
+  /// returning the registration that removes it again.
+  ///
+  /// Systems run in the order they were added, moved only by [after] and
+  /// [before], which name other systems of the same phase (a name nothing
+  /// registered is ignored) — the rule the engine's loop orders its own
+  /// systems by. The system is handed the loop's `LoopContext` when a loop
+  /// steps the match, with [LoopContext.phase] the genre's phase; stepped by
+  /// hand, a context of the simulation's own, which publishes onto the bus of
+  /// [publishTo] and has no `world`.
+  ///
+  /// Throws an [ArgumentError] for a [name] already added or a [phase] that
+  /// is not one of [StrategyPhases.all].
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _systems.add(name, phase, system, after: after, before: before);
+
+  /// The names of [phase]'s systems, in the order they run.
+  List<String> systemsIn(LoopPhase phase) => _systems.namesIn(phase);
+
+  /// Where an [addSystem] system's `LoopContext.publish` goes when no loop
+  /// steps the simulation, until the registration is cancelled.
+  /// `Match.publishTo` points it at the match's bus.
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    return Registration(() {
+      if (identical(_bus, bus)) _bus = null;
+    });
+  }
+
+  EventRegistry? _bus;
+
+  late final GenreSystems _systems = GenreSystems(
+    StrategyPhases.all,
+    publish: (BusEvent event) => _bus?.publish(event),
+  );
+
+  /// Steps run by [step], for a system's `LoopContext.step` when no loop
+  /// steps the simulation.
+  int _steps = 0;
+
+  /// The loop's context for the step being run, or null for one run by hand.
+  LoopContext? _context;
+
+  void _run(LoopPhase phase, double dt) {
+    if (_systems.isEmpty) return;
+    _systems.run(phase, dt, step: _steps, outer: _context);
+  }
 
   /// How many sides are playing.
   ///
@@ -373,26 +423,31 @@ final class StrategySimulation {
   /// while either is walking it; [_bury] runs after both and before anything
   /// counts the crowd, which is what keeps production and the fog from
   /// answering for bodies.
-  void step(double dt) {
-    systems.run(StepPhase.begin, dt);
+  ///
+  /// [context] is the loop's, when a loop steps the match, and what
+  /// [addSystem]'s systems are handed.
+  void step(double dt, {LoopContext? context}) {
+    _context = context;
+    _steps++;
+    _run(StrategyPhases.begin, dt);
     _shots.clear();
     orders.obey();
-    systems.run(StrategyPhases.afterOrders, dt);
+    _run(StrategyPhases.afterOrders, dt);
     _work(dt);
     _walk(dt);
-    systems.run(StrategyPhases.afterMoves, dt);
+    _run(StrategyPhases.afterMoves, dt);
     _fight(dt);
     _separate();
     _sit();
     _bury();
-    systems.run(StrategyPhases.afterFight, dt);
+    _run(StrategyPhases.afterFight, dt);
     _produce(dt);
-    systems.run(StrategyPhases.afterProduction, dt);
+    _run(StrategyPhases.afterProduction, dt);
     _look();
     for (final void Function(double dt) after in afterStep) {
       after(dt);
     }
-    systems.run(StepPhase.end, dt);
+    _run(StrategyPhases.end, dt);
   }
 
   /// Recomputes what every side can see, now and then.

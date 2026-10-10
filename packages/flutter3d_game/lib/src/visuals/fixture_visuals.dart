@@ -78,7 +78,7 @@ final class FixtureVisuals {
   /// pickups, a lever, the way out — and in which role's colour. Left null,
   /// nothing is ringed and nothing is walked. A game can leave it set with
   /// the look off: the engine reads no ring until the look is on.
-  Vector3? Function(Fixture fixture)? outlineOf;
+  LinearColor? Function(Fixture fixture)? outlineOf;
 
   final OutlineMarks _marks = OutlineMarks();
 
@@ -168,9 +168,8 @@ final class FixtureVisuals {
       // hot. Emissive rather than a bright base colour, so the bloom picks it
       // up — an unbloomed flame reads as a painted orange square.
       emissive: LinearColor(color.x, color.y, color.z),
-      // The level's glow is in the engine's old unit; nits here.
-      emissiveStrength:
-          (fixture.entity.number('glow') ?? 3.0) * Photometric.legacyNits,
+      // A level's `glow` counts in steps of [_nitsPerGlow]; nits here.
+      emissiveStrength: (fixture.entity.number('glow') ?? 3.0) * _nitsPerGlow,
     );
     _glowing[mechanism] = glow;
     _baseGlow[mechanism] = glow.emissiveStrength;
@@ -360,8 +359,7 @@ final class FixtureVisuals {
         final glow = _glowing[mechanism];
         if (glow != null) {
           glow.emissiveStrength =
-              (_baseGlow[mechanism] ?? 3.0 * Photometric.legacyNits) *
-              brightness;
+              (_baseGlow[mechanism] ?? 3.0 * _nitsPerGlow) * brightness;
         }
 
         final name = mechanism.light;
@@ -424,3 +422,12 @@ final class _Piece {
   final Fixture fixture;
   final SceneNode node;
 }
+
+/// The luminance one unit of a level's `glow` property stands for, in nits.
+///
+/// **A level's number, kept as levels have always written it.** A flame's
+/// `glow: 3` is three of these; the number in the file is the author's, and
+/// changing what one unit means would dim every torch already placed. The
+/// value is the reference white the renderer counted in before its lights
+/// were photometric.
+const double _nitsPerGlow = 1843.2;

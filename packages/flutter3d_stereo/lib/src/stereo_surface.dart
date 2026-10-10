@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
-    show Flutter3dEngine, Flutter3dView, FrameInfo, ListenerPose;
+    show
+        DeviceSettings,
+        Flutter3dEngine,
+        Flutter3dView,
+        FrameInfo,
+        ListenerPose,
+        ViewSettings;
 
 import 'stereo_rig.dart';
 import 'stereo_viewer.dart';
@@ -28,7 +34,7 @@ import 'stereo_viewer.dart';
 ///
 /// [renderer] is borrowed, and its device with it: the view leaves both alone
 /// when it goes.
-class StereoSurface extends StatelessWidget {
+final class StereoSurface extends StatelessWidget {
   const StereoSurface({
     super.key,
     required this.renderer,
@@ -102,12 +108,13 @@ class StereoSurface extends StatelessWidget {
           rig.fitToViewport(width: width, height: height, fovY: fovY);
         }
         return Flutter3dView(
-          device: renderer.device,
-          renderer: renderer,
+          device: DeviceSettings(device: renderer.device, renderer: renderer),
           scene: scene,
           camera: rig.camera(Eye.left),
-          views: rig.views,
-          settings: settings().forStereo(),
+          view: ViewSettings(
+            views: rig.views,
+            settings: settings().forStereo(),
+          ),
           onFrame: (Flutter3dEngine engine, FrameInfo frame) => onBeforeFrame(),
           onListenerMoved: onListenerMoved,
         );

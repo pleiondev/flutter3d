@@ -36,7 +36,7 @@ final class Daylight
   static const PhysicalSky earth = PhysicalSky()
   static const double defaultMoonShare = 0.12
   static const double defaultSecondsPerHour = 50.0
-  static const double defaultSunIntensity = 2.6 * Photometric.legacyUnit
+  static const double defaultSunIntensity = 15000.0
   static const double morning = 9.0
   void advance(double dt)
   void light({required LightNode sun, required LightNode moon})
@@ -175,6 +175,10 @@ final class ReactionsPlugin extends Flutter3dPlugin
   void install(PluginHost host)
   void uninstall(PluginHost host)
 
+final class RunGhost
+  final GhostNote note
+  final Tape? ghost
+
 final class ScreenFlash
   ScreenFlash({required this.fadePerSecond})
   double get value
@@ -233,7 +237,7 @@ final class Voice
   static const Voice end = Voice._('end')
   static const Voice follow = Voice._('follow')
 
-({Tape? ghost, GhostNote note}) ghostOfRun(Level level, Demo demo, {required String body, required SimulationVersion simulation, required Tape Function() replay, PhysicsBackend physics = const DartPhysics()})
+RunGhost ghostOfRun(Level level, Demo demo, {required String body, required SimulationVersion simulation, required Tape Function() replay, PhysicsBackend physics = const DartPhysics()})
 
 const FormatSpec ghostTapeFormat = FormatSpec(id: 'f3d.ghostTape', version: ghostTapeFormatVersion, suffixes: <String>['.best.json'], fixture: 'test/fixtures/v<N>/run.best.json')
 
@@ -283,7 +287,11 @@ final class GhostNote
   static const String otherSimulation = 'otherSimulation'
   static const String replayed = 'replayed'
 
-({Tape? ghost, GhostNote note}) ghostOfRun(Level level, Demo demo, {required String body, required SimulationVersion simulation, required Tape Function() replay, PhysicsBackend physics = const DartPhysics()})
+final class RunGhost
+  final GhostNote note
+  final Tape? ghost
+
+RunGhost ghostOfRun(Level level, Demo demo, {required String body, required SimulationVersion simulation, required Tape Function() replay, PhysicsBackend physics = const DartPhysics()})
 
 const FormatSpec ghostTapeFormat = FormatSpec(id: 'f3d.ghostTape', version: ghostTapeFormatVersion, suffixes: <String>['.best.json'], fixture: 'test/fixtures/v<N>/run.best.json')
 
@@ -472,7 +480,7 @@ final class Daylight
   static const PhysicalSky earth = PhysicalSky()
   static const double defaultMoonShare = 0.12
   static const double defaultSecondsPerHour = 50.0
-  static const double defaultSunIntensity = 2.6 * Photometric.legacyUnit
+  static const double defaultSunIntensity = 15000.0
   static const double morning = 9.0
   void advance(double dt)
   void light({required LightNode sun, required LightNode moon})

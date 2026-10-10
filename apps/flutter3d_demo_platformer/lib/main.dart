@@ -23,7 +23,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart'
     show Elements, ElementsQuality, HearingScale, LiquidLook, PhysicsHearing;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost, RunGhost;
 import 'package:flutter3d_game_kit/reactions.dart' show ReactionsPlugin;
 import 'package:flutter3d_game_kit/soundtrack.dart' show SoundtrackPlugin;
 import 'package:flutter3d_game_physics/elements.dart' show ElementSounds;
@@ -606,7 +606,7 @@ class _GameScreenState extends State<GameScreen> {
       return 'That run is through another level, or another version of '
           'this one.';
     }
-    final (:ghost, :note) = ghostOf(Level.fromJson(bundle.level), run);
+    final RunGhost(:ghost, :note) = ghostOf(Level.fromJson(bundle.level), run);
     if (!mounted) return '';
     final says = note.say(
       Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
@@ -1759,12 +1759,17 @@ class _GameScreenState extends State<GameScreen> {
               child: Flutter3dView(
                 scene: _empty,
                 camera: _camera,
-                device: widget.device,
-                input: _input,
-                drainLook: _drainLook,
-                plugins: _plugins,
-                registries: _registries,
-                settings: _renderSettings(),
+                device: DeviceSettings(device: widget.device),
+                loop: LoopSettings(input: _input, drainLook: _drainLook),
+                plugins: PluginSettings(
+                  plugins: _plugins,
+                  registries: _registries,
+                ),
+                view: ViewSettings(
+                  settings: _renderSettings(),
+                  placeholder: const Center(child: CircularProgressIndicator()),
+                  failure: _failed,
+                ),
                 focusNode: _keyboard,
                 autofocus: true,
                 onKeyEvent: _onKey,
@@ -1772,8 +1777,6 @@ class _GameScreenState extends State<GameScreen> {
                 onBeforeFrame: _beforeFrame,
                 onFrame: _afterFrame,
                 onListenerMoved: _listenerMoved,
-                placeholder: const Center(child: CircularProgressIndicator()),
-                failure: _failed,
               ),
             ),
             // **`gfx-71n`.** This build ships to Android and iOS, and the

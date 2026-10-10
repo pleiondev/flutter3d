@@ -24,13 +24,13 @@ final class CryptRings {
   /// A living monster, in the monsters' colour. The dead are not ringed: a
   /// corpse cannot hurt anybody, and a ring left on it would be one more
   /// thing in the room to rule out.
-  Vector3? actor(Actor actor) => actor.isAlive
+  LinearColor? actor(Actor actor) => actor.isAlive
       ? _rings.of('monster', fallback: const Color(0xFFD55E00))
       : null;
 
   /// A pickup still on the floor: a key in its own colour, anything else in
   /// the pickups'. Doors, lifts and torches are the room, not the quarry.
-  Vector3? fixture(Fixture fixture) {
+  LinearColor? fixture(Fixture fixture) {
     final mechanism = fixture.mechanism;
     if (mechanism is! Pickup || mechanism.isTaken) return null;
     final key = 'key.${mechanism.detail}';

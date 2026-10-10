@@ -10,6 +10,12 @@
   `Portable.sinCos` and `WorldPosition.relativeTo` keep their records: a
   sine and a cosine, an offset's three components, maths that never grows.
 
+- **`EngineLog`: what an engine says about itself, one log per engine.**
+  Records at a `LogLevel` (`trace`, `debug`, `info`, `warning`, `error`, an
+  open set with wire names) reach the listeners `listen` registers, and an
+  error nothing caught goes through `reportCrash` to every `onCrash`
+  reporter whatever the level, which is where a crash reporter is wired.
+  No log is global, and none reads a clock unless it is handed one.
 - **`FormatSpecs`, the formats one program knows.** A registry the
   packages that own formats add their `FormatSpec`s to, found by id, alias
   or the longest suffix of a path; a second format under a taken id or

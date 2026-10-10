@@ -377,7 +377,10 @@ abstract final class PlatformerLayers
   static const int oneWay = 1 << 6
 
 abstract final class PlatformerPhases
-  static const StepPhase afterRunner = StepPhase('platformer.afterRunner')
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterRunner, end]
+  static const LoopPhase afterRunner = LoopPhase.step('platformer.afterRunner')
+  static const LoopPhase begin = LoopPhase.step('platformer.begin')
+  static const LoopPhase end = LoopPhase.step('platformer.end')
 
 final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation>
   EcsWorld? publishedWorldOf(PlatformerSimulation simulation)
@@ -393,7 +396,9 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation>
   void stepSimulation(PlatformerSimulation simulation, LoopContext context)
 
 final class PlatformerSimulation
+  List<String> systemsIn(LoopPhase phase)
   PlatformerSimulation({required this.runner, required this.collision, required this.input, required Vector3 startAt, this.mechanisms, this.dynamics, this.actors, this.lives = -1, this.deaths = 0, this.elapsed = 0.0, this.levelNext, required this.random, this.killPlane = -20.0, Difficulty difficulty = Difficulty.normal})
+  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration publishTo(EventRegistry bus)
   RunState state
   Snapshot save()
@@ -413,13 +418,12 @@ final class PlatformerSimulation
   final RigidDynamics? dynamics
   final Runner runner
   final Scoring scoring
-  final StepSystems systems
   final String? levelNext
   final double killPlane
   int deaths
   int lives
   void restore(Snapshot from)
-  void step(double dt)
+  void step(double dt, {LoopContext? context})
 
 typedef PlatformerSnapshotPart = ({Object? Function() save, void Function(Object? saved) restore});
 

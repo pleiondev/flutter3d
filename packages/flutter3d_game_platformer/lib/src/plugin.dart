@@ -61,7 +61,7 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation> {
 
   @override
   void stepSimulation(PlatformerSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt);
+      simulation.step(context.dt, context: context);
 
   /// The run in the loop's snapshots: [PlatformerSimulation.save].
   @override

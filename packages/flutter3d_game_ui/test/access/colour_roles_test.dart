@@ -48,7 +48,7 @@ void main() {
       // Mutation: answer the first role for a name it does not know — red.
       expect(
         rings.of('key.brass', fallback: const Color(0xFFFFFFFF)),
-        Vector3(1.0, 1.0, 1.0),
+        const LinearColor(1.0, 1.0, 1.0),
       );
     });
   });

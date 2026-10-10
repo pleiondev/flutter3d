@@ -54,6 +54,7 @@ import 'combat/projectile.dart';
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
 import 'events.dart';
+import 'genre_systems.dart';
 import 'player.dart';
 import 'secret.dart';
 import 'step_phases.dart';
@@ -362,15 +363,54 @@ final class GameSimulation {
   /// records one of them.
   final GameRandom random;
 
-  /// Rules this game adds to the step, which this package never heard of.
+  /// Adds [system] to [phase], one of [ShooterPhases], under [name],
+  /// returning the registration that removes it again: rules this game adds
+  /// to the step, which this package never heard of.
   ///
   /// **The plugin boundary for behaviour.** A game built on this genre gets a
   /// curse that ticks, a score that decays, a hazard nobody here imagined —
-  /// without forking [step]. The phases it can hang them off are [ShooterPhases]
-  /// plus the two every genre has; each is announced below at the point its name
-  /// claims, and the order the announcements happen in is the order documented
-  /// there and here, which is to say it is part of the contract.
-  final StepSystems systems = StepSystems();
+  /// without forking [step]. Each phase is announced at the point its name
+  /// claims, and the order the announcements happen in is the order
+  /// documented on [ShooterPhases], which is to say it is part of the
+  /// contract.
+  ///
+  /// Systems run in the order they were added, moved only by [after] and
+  /// [before], which name other systems of the same phase (a name nothing
+  /// registered is ignored) — the rule the engine's loop orders its own
+  /// systems by. The system is handed the loop's `LoopContext` when a loop
+  /// steps the run, with [LoopContext.phase] the genre's phase; stepped by
+  /// hand, a context of the run's own, which publishes onto the bus of
+  /// [publishTo] and has no `world`.
+  ///
+  /// Throws an [ArgumentError] for a [name] already added or a [phase] that
+  /// is not one of [ShooterPhases.all].
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _systems.add(name, phase, system, after: after, before: before);
+
+  /// The names of [phase]'s systems, in the order they run.
+  List<String> systemsIn(LoopPhase phase) => _systems.namesIn(phase);
+
+  late final GenreSystems _systems = GenreSystems(
+    ShooterPhases.all,
+    publish: (BusEvent event) => _bus?.publish(event),
+  );
+
+  /// Steps run by [step], for a system's `LoopContext.step` when no loop
+  /// steps the run.
+  int _steps = 0;
+
+  /// The loop's context for the step being run, or null for one run by hand.
+  LoopContext? _context;
+
+  void _run(LoopPhase phase, double dt) {
+    if (_systems.isEmpty) return;
+    _systems.run(phase, dt, step: _steps, outer: _context);
+  }
 
   final Vector3 _wish = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
@@ -385,8 +425,11 @@ final class GameSimulation {
     return null;
   }
 
-  /// Advances the world by one fixed step.
-  void step(double dt) {
+  /// Advances the world by one fixed step; [context] is the loop's, when a
+  /// loop steps the run, and what [addSystem]'s systems are handed.
+  void step(double dt, {LoopContext? context}) {
+    _context = context;
+    _steps++;
     _firedThisStep = null;
     _shotEvents.clear();
     // Last step's dead and hurt, forgotten here rather than inside
@@ -395,7 +438,7 @@ final class GameSimulation {
     // [ActorSystem.beginStep].
     this.actors?.beginStep();
     _countTheLevel();
-    systems.run(StepPhase.begin, dt);
+    _run(ShooterPhases.begin, dt);
 
     final playing = _state == GameState.playing;
     // **A cutscene has the player's hands.** The world goes on round them —
@@ -450,7 +493,7 @@ final class GameSimulation {
     // After the body has moved and settled, so the map reveals from where
     // the player is rather than from where they were.
     if (playing) automap?.reveal(player.body.position);
-    systems.run(ShooterPhases.afterPlayer, dt);
+    _run(ShooterPhases.afterPlayer, dt);
 
     final doors = mechanisms;
     if (doors != null) {
@@ -464,7 +507,7 @@ final class GameSimulation {
     }
     // Announced whether or not this level has mechanisms: a phase that exists
     // only when the level happens to have a door is a phase nobody can rely on.
-    systems.run(ShooterPhases.afterWorld, dt);
+    _run(ShooterPhases.afterWorld, dt);
 
     player.inventory.step(dt);
     if (controlled) _weapon(dt);
@@ -481,7 +524,7 @@ final class GameSimulation {
         actors.hear(firedFrom, radius: fired.loudness);
       }
     }
-    systems.run(ShooterPhases.afterWeapons, dt);
+    _run(ShooterPhases.afterWeapons, dt);
 
     if (actors != null && player.isAlive) {
       player.eye(_eye);
@@ -491,7 +534,7 @@ final class GameSimulation {
       // cleared at the top of the next one.
       if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
     }
-    systems.run(ShooterPhases.afterActors, dt);
+    _run(ShooterPhases.afterActors, dt);
 
     // After the weapon, so a rocket fired this step is not moved until the
     // next one — otherwise it starts the game already a step down the corridor.
@@ -536,7 +579,7 @@ final class GameSimulation {
     }
     // Last, after the state is resolved, so a system reading `state` reads this
     // step's answer rather than the previous one's.
-    systems.run(StepPhase.end, dt);
+    _run(ShooterPhases.end, dt);
   }
 
   void _use(MechanismWorld mechanisms) {

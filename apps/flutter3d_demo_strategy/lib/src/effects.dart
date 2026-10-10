@@ -312,7 +312,7 @@ final class MapEffects {
       final bool dressed = _staged.visuals.dressProp(
         tree.batch,
         tree.placement,
-        color: Vector4(g, g * 0.97, g * 0.93, 1.0),
+        color: LinearColor(g, g * 0.97, g * 0.93),
         transform: tree.dead
             ? (_planted[tree.batch][tree.placement].clone()
                 ..scaleByDouble(0.45, 0.85, 0.45, 1.0))

@@ -22,7 +22,7 @@ import 'stereo_viewer.dart';
 /// real phone — the honest claim is that the rig, the lesson and the button
 /// are proven; the lens numbers are the published ones, unverified against
 /// glass.
-class LessonStereoView extends StatefulWidget {
+final class LessonStereoView extends StatefulWidget {
   const LessonStereoView({
     super.key,
     required this.renderer,

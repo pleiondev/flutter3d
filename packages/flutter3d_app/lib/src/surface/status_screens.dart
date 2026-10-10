@@ -22,7 +22,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 /// Shown between a renderer that has started and a level that has not yet.
-class LoadingScreen extends StatelessWidget {
+final class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key, this.message});
 
   /// What it says; null says [Flutter3dAppLocalizations.loading].
@@ -47,7 +47,7 @@ class LoadingScreen extends StatelessWidget {
 /// produces the thing that is missing, and a person meeting this screen is
 /// far more likely to have changed the Flutter SDK than to have broken their
 /// game.
-class RendererFailure extends StatelessWidget {
+final class RendererFailure extends StatelessWidget {
   const RendererFailure({super.key, required this.error});
 
   final Object? error;
@@ -72,7 +72,7 @@ class RendererFailure extends StatelessWidget {
 /// [onStartOver] is the way out, and is optional. Where a game has one, the
 /// failing level is usually the saved one and throwing the run away is the
 /// only thing that rescues the player.
-class LevelLoadFailed extends StatelessWidget {
+final class LevelLoadFailed extends StatelessWidget {
   const LevelLoadFailed({
     super.key,
     required this.asset,

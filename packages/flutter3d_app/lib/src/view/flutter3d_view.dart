@@ -24,13 +24,14 @@ import 'dart:math' as math;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show EngineLog, LogLevel;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show DeviceLoss, DeviceRegistry;
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show ParticleSystem;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
-        Flutter3dPlugin,
         FormatRegistry,
         FormatSpec,
         OriginShifted,
@@ -38,7 +39,13 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         Registration,
         VmExtensions;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show EngineLoop, FrameCadence, InputState, WorldTiming, simFormats;
+    show
+        EngineLoop,
+        FrameCadence,
+        InputState,
+        IsolateSimulation,
+        SimulationHandle,
+        simFormats;
 
 import '../backend_native.dart'
     if (dart.library.js_interop) '../backend_web.dart'
@@ -46,6 +53,8 @@ import '../backend_native.dart'
 import '../l10n/app_localizations.dart';
 import '../surface/scene_surface.dart';
 import 'frame_info.dart';
+import 'simulation_placing.dart';
+import 'view_settings.dart';
 
 /// What a [Flutter3dView] made, handed to [Flutter3dView.onCreated] once the
 /// device is open: the scene to fill, the camera, the loop to add systems
@@ -62,6 +71,9 @@ final class Flutter3dEngine {
     required this._scene,
     required this.view,
     required this.loop,
+    required this.simulation,
+    required this.log,
+    required this.backendRefusals,
     required this.ownsDevice,
     required this.ownsRenderer,
     // A named parameter may not be private, and the two are replaced after
@@ -166,6 +178,26 @@ final class Flutter3dEngine {
   /// frame while the view is shown and the application in the foreground.
   final EngineLoop loop;
 
+  /// The simulation, wherever `LoopSettings.simulation` placed it: what a
+  /// game submits input to and the view reads published state from.
+  ///
+  /// Inline (the default) it is a `LocalSimulation` over [loop]. Placed in
+  /// an isolate it is an `IsolateSimulation`, stepped by the view once a
+  /// frame and paused with it; [loop] then runs the view's own frame
+  /// systems and plugins, and the world is the isolate's. On the web the
+  /// same factory's loop runs here, stepped the same way.
+  final SimulationHandle simulation;
+
+  /// What the engine says about itself: the device it opened, a backend
+  /// that would not start, a device lost, a callback that threw. The one
+  /// the view was handed, or one of its own.
+  final EngineLog log;
+
+  /// Why the backends tried before the one that draws would not start, one
+  /// line each; empty when the first one did. Not empty on a phone or a
+  /// desktop with Impeller off, where the software rasteriser draws.
+  final List<String> backendRefusals;
+
   /// Whether [device] was opened by the view and is disposed with it.
   final bool ownsDevice;
 
@@ -217,9 +249,17 @@ final class ViewResolution {
 }
 
 /// An engine as a widget: it opens a device, makes a renderer, runs an
-/// [EngineLoop] with [plugins], draws [scene] through a [RenderView], and
-/// owns focus, input, lifecycle and teardown — item 25 of the 1.0 scope.
-/// `SceneSurface` stays as the low level it is built on.
+/// [EngineLoop] with the plugins of [plugins], draws [scene] through a
+/// [RenderView], and owns focus, input, lifecycle and teardown — item 25 of
+/// the 1.0 scope. `SceneSurface` stays as the low level it is built on, and
+/// `Scene3D` is sugar over this widget for a scene written as widgets.
+///
+/// **Its options come in four groups**: [device] (a device to borrow or
+/// where to open one, what shows its frames, what a loss does), [view]
+/// (settings, resolution, when it draws, the warm-up), [loop] (the step,
+/// the input, where the simulation runs, the origin) and [plugins]. What is
+/// left at the top is what a first scene names: the scene, the camera, the
+/// callbacks, focus, restoration and the log.
 ///
 /// **Focus.** [autofocus] is false by default: a 3D view is often one
 /// widget on a page, and taking the keyboard from a text field is not its
@@ -243,10 +283,15 @@ final class ViewResolution {
 /// handed it back when the route is restored — a run snapshot and its save
 /// slot, typically.
 ///
-/// **Ownership.** A [device] or [renderer] handed in is borrowed and left
-/// alone at dispose; one the view opened or made it disposes, with the view
-/// and the loop's plugins. See [Flutter3dEngine].
-class Flutter3dView extends StatefulWidget {
+/// **Ownership.** A device or renderer handed in through [device] is
+/// borrowed and left alone at dispose; one the view opened or made it
+/// disposes, with the view and the loop's plugins. See [Flutter3dEngine].
+///
+/// **When the GPU backend will not start**, the view draws with the next
+/// one it can open — the software rasteriser where Impeller is off — and
+/// says so in a banner over the picture, which can be closed and which
+/// `DeviceSettings.fallbackBanner` turns off. The reasons go to [log].
+final class Flutter3dView extends StatefulWidget {
   /// A view of [scene] (a new, empty one by default) through [camera] (one
   /// at `(0, 1, 5)` looking at the origin by default).
   const Flutter3dView({
@@ -256,35 +301,19 @@ class Flutter3dView extends StatefulWidget {
     this.onCreated,
     this.onBeforeFrame,
     this.onFrame,
-    this.plugins = const <Flutter3dPlugin>[],
-    this.formats = const <FormatSpec>[],
-    this.registries = const <PluginRegistry>[],
-    this.settings = const RenderSettings(),
-    this.viewOptions = const RenderViewSettings(),
-    this.timing = const WorldTiming(),
-    this.input,
-    this.drainLook,
-    this.device,
-    this.renderer,
-    this.devices,
+    this.device = const DeviceSettings(),
+    this.view = const ViewSettings(),
+    this.loop = const LoopSettings(),
+    this.plugins = const PluginSettings(),
+    this.log,
     this.focusNode,
     this.autofocus = false,
     this.onKeyEvent,
-    this.resolution = ViewResolution.native,
     this.restorationId,
     this.saveState,
     this.restoreState,
     this.onPausedChanged,
     this.onListenerMoved,
-    this.placeholder = const SizedBox.expand(),
-    this.failure,
-    this.views,
-    this.continuous = true,
-    this.frameRateCap,
-    this.originShift = defaultOriginShift,
-    this.presenter,
-    this.onDeviceLost,
-    this.onDeviceRestored,
   });
 
   /// The world to draw; null makes an empty one, with a light.
@@ -303,8 +332,8 @@ class Flutter3dView extends StatefulWidget {
   /// for the frame before ([FrameInfo.result]).
   ///
   /// The engine is the context every callback of this view is handed first,
-  /// as [onDeviceLost] is; what is said about the frame is one [FrameInfo],
-  /// so it can say more without breaking a handler.
+  /// as `DeviceSettings.onDeviceLost` is; what is said about the frame is one
+  /// [FrameInfo], so it can say more without breaking a handler.
   final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame;
 
   /// Called every frame the view draws, with the engine and the frame (see
@@ -314,47 +343,27 @@ class Flutter3dView extends StatefulWidget {
   /// it acts in.
   final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame;
 
-  /// The plugins the loop installs, in order, with the renderer's steps as
-  /// one of their registries.
-  final Iterable<Flutter3dPlugin> plugins;
+  /// The device: one to borrow, where to open one, what shows its frames,
+  /// what a loss does, and whether a fallback is said on screen.
+  final DeviceSettings device;
 
-  /// Formats beyond the engine's own for the loop's `FormatRegistry`: a
-  /// game's (`gameFormats` from `flutter3d_game`) and the application's.
-  /// The registry always holds `coreFormats` and `simFormats`, and a plugin
-  /// registers its own into it.
-  final Iterable<FormatSpec> formats;
+  /// What is drawn and how: the frame's settings, the view's own, the
+  /// resolution, when frames are drawn, what shows instead, the warm-up.
+  final ViewSettings view;
 
-  /// The application's own registries, handed to the loop ahead of the
-  /// view's. A registry is found by its type, so a `FormatRegistry` or a
-  /// `VmExtensions` here is used in place of the one the view would build.
-  final Iterable<PluginRegistry> registries;
+  /// The loop: its step, its input, where the simulation runs, and when the
+  /// origin follows the camera.
+  final LoopSettings loop;
 
-  /// What every frame is drawn with.
-  final RenderSettings settings;
+  /// What the loop installs, and the registries it hands them.
+  final PluginSettings plugins;
 
-  /// The view's own options: a visibility hook, a label.
-  final RenderViewSettings viewOptions;
-
-  /// The loop's fixed step.
-  final WorldTiming timing;
-
-  /// The input the loop reads; null makes one.
-  final InputState? input;
-
-  /// The view movement a game's devices gathered since the last call, added
-  /// into `out`: the loop's `EngineLoop.drainLook`, spread over the frame's
-  /// steps and written onto the tape with them. Null drains nothing.
-  final void Function(Vector2 out)? drainLook;
-
-  /// A device to borrow instead of opening one.
-  final GraphicsDevice? device;
-
-  /// A renderer to borrow instead of making one; it must be over [device].
-  final Renderer? renderer;
-
-  /// Where to open the device from; null uses this platform's backends, in
-  /// a registry of this view's own.
-  final DeviceRegistry? devices;
+  /// Where the engine says what it did and what went wrong, and the hook a
+  /// crash reporter hangs on (`EngineLog.onCrash`): an error a frame
+  /// callback or the loop threw is reported there before it is rethrown.
+  /// Null makes one of the view's own, at [LogLevel.info]
+  /// (`Flutter3dEngine.log`).
+  final EngineLog? log;
 
   /// The view's focus node; null makes one.
   final FocusNode? focusNode;
@@ -364,9 +373,6 @@ class Flutter3dView extends StatefulWidget {
 
   /// Key events while the view has focus.
   final KeyEventResult Function(KeyEvent event)? onKeyEvent;
-
-  /// How many device pixels the view draws per logical pixel.
-  final ViewResolution resolution;
 
   /// The restoration id of the view's saved state; null saves nothing.
   final String? restorationId;
@@ -387,86 +393,6 @@ class Flutter3dView extends StatefulWidget {
   /// audio listener goes.
   final void Function(ListenerPose ears)? onListenerMoved;
 
-  /// What shows while the device opens.
-  final Widget placeholder;
-
-  /// What shows when no device would open; null shows
-  /// [Flutter3dAppLocalizations.viewDidNotStart] with the reason.
-  final Widget Function(Object error)? failure;
-
-  /// Several views drawn into one frame, each in its own viewport fraction —
-  /// a stereo pair, a split screen — in place of the one through [camera].
-  ///
-  /// Null, the default, draws [Flutter3dEngine.view]. Given, it holds one
-  /// view or more and is read on every frame, so a caller may fit the
-  /// views' projections to the size it is laid out at; the views are the
-  /// caller's, and the view leaves them undisposed. [onListenerMoved] still
-  /// follows [camera].
-  final List<RenderView>? views;
-
-  /// Whether the view draws a frame on every display refresh, stepping the
-  /// loop before each. True by default. False draws a frame only when the
-  /// view is built again — a still picture whose parent rebuilds it when
-  /// something changed — and steps nothing between.
-  final bool continuous;
-
-  /// Frames a second this view is drawn at most, held to a whole number of
-  /// the display's refreshes — `A1.5`: sixty on a 120 Hz screen is every
-  /// other refresh. The loop steps by all the time since the last drawn
-  /// frame. Null, the default, draws on every refresh, and so does a cap of
-  /// nought or less.
-  final double? frameRateCap;
-
-  /// How far, in metres, the camera may wander from the origin before the
-  /// view moves the origin to it; null leaves the origin where the game puts
-  /// it. [defaultOriginShift], a kilometre, by default.
-  ///
-  /// **Precision is the camera's, not the origin's.** A scene's nodes, the
-  /// GPU and the simulation's bodies hold float32 offsets from one origin,
-  /// and float32 has a millimetre between neighbours at about 8 km and
-  /// half a metre at 4000 km. So after each frame, when the camera stands
-  /// further than this from the origin, the view calls
-  /// `EngineLoop.shiftOrigin` with the camera's place rounded to whole
-  /// metres: the loop's hooks move the bodies (`EngineLoop.shiftsPhysics`),
-  /// the scene its nodes and the particles that follow it, and nothing
-  /// moves in the world. What is near the camera is then near the origin,
-  /// wherever in the world it is.
-  ///
-  /// **What the game holds in the old frame stays there.** A game that
-  /// copies its bodies' float32 positions onto nodes each frame registers
-  /// its world with `EngineLoop.shiftsPhysics`, so the bodies move with the
-  /// shift; one that does not would draw them a kilometre off after it, and
-  /// passes null here until it does.
-  ///
-  /// The shift happens between steps, at the view's camera, which is not on
-  /// a run's tape: a game that records runs for replay and moves far shifts
-  /// the origin from inside a step itself, and passes null here.
-  final double? originShift;
-
-  /// How far, in metres, the camera wanders before a [Flutter3dView] moves
-  /// the origin to it by default: a kilometre, where float32 still has a
-  /// tenth of a millimetre between neighbours.
-  static const double defaultOriginShift = 1000.0;
-
-  /// What shows a drawn frame; null presents it through the registry the
-  /// device came from ([devices]). A test without a backend passes its own.
-  final FramePresenter? presenter;
-
-  /// Told when the device stops working — a WebGL context lost, a WebGPU
-  /// device lost — before the view waits for it or opens another. Nothing is
-  /// drawn until [onDeviceRestored]; the loop goes on stepping.
-  final void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost;
-
-  /// Told when the engine draws again after a loss: the device came back, or
-  /// the view opened a new one from [devices] (only when it opened the first
-  /// itself), and the renderer was made again over it with the loop's
-  /// plugins installed again. **What the application uploaded is gone with
-  /// the old device**: upload the scene's meshes and textures again here,
-  /// on `engine.device`. A loss the view cannot recover from — a borrowed
-  /// device or renderer lost for good, a device that will not open — shows
-  /// [failure] instead.
-  final void Function(Flutter3dEngine engine)? onDeviceRestored;
-
   @override
   State<Flutter3dView> createState() => _Flutter3dViewState();
 }
@@ -476,7 +402,11 @@ class _Flutter3dViewState extends State<Flutter3dView>
         SingleTickerProviderStateMixin,
         WidgetsBindingObserver,
         RestorationMixin {
+  /// What the view says it did, under this source in the engine's log.
+  static const String _source = 'flutter3d_app.view';
+
   Flutter3dEngine? _engine;
+  PlacedSimulation? _placed;
   Object? _error;
   Ticker? _ticker;
   Duration _last = Duration.zero;
@@ -484,6 +414,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
   bool _foreground = true;
   bool _paused = false;
   FocusNode? _ownFocus;
+  EngineLog? _ownLog;
   final RestorableStringN _saved = RestorableStringN(null);
   Object? _pendingRestore;
   bool _hasPendingRestore = false;
@@ -491,11 +422,25 @@ class _Flutter3dViewState extends State<Flutter3dView>
   final FrameCadence _cadence = FrameCadence();
   double _owed = 0.0;
 
+  /// Whether the fallback banner was closed.
+  bool _bannerClosed = false;
+
+  /// Whether the view has been laid out with a size, which starts the
+  /// warm-up once.
+  bool _laidOut = false;
+
+  /// The warm-up's pending yield between two slices, while it runs: what
+  /// [dispose] cancels so no slice runs on a renderer the view has let go.
+  Timer? _warmUpYield;
+  bool _warmUpStopped = false;
+
   /// What the renderer answered for the last frame drawn, for
   /// [FrameInfo.result].
   FrameResult? _drawn;
 
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
+
+  EngineLog get _log => widget.log ?? (_ownLog ??= EngineLog());
 
   @override
   String? get restorationId => widget.restorationId;
@@ -526,40 +471,74 @@ class _Flutter3dViewState extends State<Flutter3dView>
     // may set state on a widget above this one, which is being built now.
     await Future<void>.value();
     if (!mounted) return;
+    final log = _log;
+    final options = widget.device;
     try {
-      final devices = widget.devices ?? platformDevices();
-      final borrowed = widget.device;
-      final device = borrowed ?? await devices.open(width: 1280, height: 720);
+      final devices = options.devices ?? platformDevices();
+      final borrowed = options.device;
+      final refusals = <String>[];
+      final device =
+          borrowed ??
+          await devices.open(
+            width: 1280,
+            height: 720,
+            onFallback: (String message) {
+              refusals.add(message);
+              log.warning(message, source: _source);
+            },
+          );
       if (!mounted) {
         if (borrowed == null) device.dispose();
         return;
       }
-      final borrowedRenderer = widget.renderer;
+      if (refusals.isNotEmpty) {
+        log.warning(
+          'drawing with ${device.runtimeType}, not the preferred backend',
+          source: _source,
+        );
+      } else if (borrowed == null) {
+        log.info('opened ${device.runtimeType}', source: _source);
+      }
+      final borrowedRenderer = options.renderer;
       final renderer = borrowedRenderer ?? Renderer.create(device: device);
       final scene = widget.scene ?? _defaultScene();
       final camera = widget.camera ?? _defaultCamera();
       if (camera.parent == null) scene.add(camera);
+      final loopOptions = widget.loop;
+      final plugins = widget.plugins;
       final loop = EngineLoop(
-        input: widget.input ?? InputState(),
-        drainLook: widget.drainLook,
-        timing: widget.timing,
-        plugins: widget.plugins,
+        input: loopOptions.input ?? InputState(),
+        drainLook: loopOptions.drainLook,
+        timing: loopOptions.timing,
+        plugins: plugins.plugins,
         registries: <PluginRegistry>[
-          ...widget.registries,
+          ...plugins.registries,
           renderer.renderSteps,
           // A plugin asks the loop for these by type; without them a format
           // or a VM extension it brings had nowhere to go.
-          if (!widget.registries.any((r) => r is FormatRegistry))
+          if (!plugins.registries.any((r) => r is FormatRegistry))
             FormatRegistry(<FormatSpec>[
               ...coreFormats,
               ...simFormats,
-              ...widget.formats,
+              ...plugins.formats,
             ]),
-          if (!widget.registries.any((r) => r is VmExtensions)) VmExtensions(),
+          if (!plugins.registries.any((r) => r is VmExtensions)) VmExtensions(),
           // The physical materials need no line here: the loop installs the
           // built-in `MaterialCatalog` itself, or the one among these.
         ],
       );
+      final placed = await placeSimulation(
+        loopOptions.simulation,
+        loop,
+        isolates: IsolateSimulation.isSupported,
+      );
+      if (!mounted) {
+        unawaited(placed.dispose());
+        if (borrowedRenderer == null) renderer.dispose();
+        if (borrowed == null) device.dispose();
+        return;
+      }
+      _placed = placed;
       // The picture and the simulation share one origin: a shift the loop
       // publishes moves the scene graph the same distance.
       loop.onOriginShift((shift) => _engine?._shiftOrigin(shift));
@@ -568,22 +547,48 @@ class _Flutter3dViewState extends State<Flutter3dView>
         device: device,
         renderer: renderer,
         scene: scene,
-        view: RenderView(camera: camera, options: widget.viewOptions),
+        view: RenderView(camera: camera, options: widget.view.render),
         loop: loop,
+        simulation: placed.handle,
+        log: log,
+        backendRefusals: List<String>.unmodifiable(refusals),
         ownsDevice: borrowed == null,
         ownsRenderer: borrowedRenderer == null,
       );
       setState(() => _engine = engine);
-      widget.onCreated?.call(engine);
+      _guarded('onCreated', () => widget.onCreated?.call(engine));
       if (_hasPendingRestore) {
         widget.restoreState?.call(_pendingRestore);
         _hasPendingRestore = false;
         _pendingRestore = null;
       }
       _watchDevice(engine);
-      if (widget.continuous) _startTicker();
-    } on Object catch (error) {
+      if (widget.view.continuous) _startTicker();
+    } on Object catch (error, stack) {
+      log.error(
+        'the view could not start',
+        source: _source,
+        error: error,
+        stackTrace: stack,
+      );
       if (mounted) setState(() => _error = error);
+    }
+  }
+
+  /// Runs [call], one of the application's callbacks or the loop, and
+  /// reports what it throws to the log's crash reporters before it goes on
+  /// to Flutter as it would have.
+  void _guarded(String what, void Function() call) {
+    try {
+      call();
+    } on Object catch (error, stack) {
+      _log.reportCrash(
+        error,
+        stack,
+        source: _source,
+        message: '$what threw: $error',
+      );
+      rethrow;
     }
   }
 
@@ -593,6 +598,58 @@ class _Flutter3dViewState extends State<Flutter3dView>
   static CameraNode _defaultCamera() => CameraNode()
     ..setPosition(0.0, 1.0, 5.0)
     ..lookAt(Vector3.zero());
+
+  /// Links the scene's pipelines a slice at a time once the view has been
+  /// laid out at [width] by [height] device pixels, so the first frames of
+  /// play do not stall on each material's first draw; the frames drawn
+  /// meanwhile are ordinary ones.
+  void _warmUp(Flutter3dEngine engine, int width, int height) {
+    if (!widget.view.warmUp) return;
+    final views = widget.view.views ?? <RenderView>[engine.view];
+    // The slices yield through a timer; run in a zone that keeps the one
+    // pending, so a view that goes mid-way stops the warm-up there rather
+    // than letting its next slice draw with a disposed renderer (and leave
+    // a timer behind it).
+    final yielding = ZoneSpecification(
+      createTimer:
+          (
+            Zone self,
+            ZoneDelegate parent,
+            Zone zone,
+            Duration duration,
+            void Function() callback,
+          ) {
+            if (_warmUpStopped) return _StoppedTimer();
+            return _warmUpYield = parent.createTimer(zone, duration, () {
+              _warmUpYield = null;
+              callback();
+            });
+          },
+    );
+    unawaited(
+      runZoned(
+        () => engine.renderer.warmUpInSlices(
+          width: width,
+          height: height,
+          scene: engine.scene,
+          views: views,
+          settings: widget.view.settings,
+          onProgress: (double done) {
+            if (mounted) widget.view.onWarmUpProgress?.call(done);
+          },
+        ),
+        zoneSpecification: yielding,
+      ).then(
+        (_) => engine.log.debug('warm-up done', source: _source),
+        onError: (Object error, StackTrace stack) => engine.log.warning(
+          'the warm-up stopped; the rest links on first draw',
+          source: _source,
+          error: error,
+          stackTrace: stack,
+        ),
+      ),
+    );
+  }
 
   /// Follows [engine]'s device: what is done when it is lost, and when it
   /// comes back.
@@ -606,17 +663,24 @@ class _Flutter3dViewState extends State<Flutter3dView>
   Future<void> _onLoss(Flutter3dEngine engine, DeviceLoss loss) async {
     if (!mounted) return;
     if (loss.restored) {
+      engine.log.info('the device came back', source: _source);
       // The same device, with every resource it held gone: a renderer over
       // it again, and the plugins installed again on that.
       _recover(engine);
       return;
     }
+    engine.log.warning(
+      'the device was lost: ${loss.reason}'
+      '${loss.isRecoverable ? ', waiting for it' : ' for good'}',
+      source: _source,
+    );
     setState(() => engine._loss = loss);
-    widget.onDeviceLost?.call(engine, loss);
+    widget.device.onDeviceLost?.call(engine, loss);
     if (loss.isRecoverable) return;
     // For good. A device the view opened is opened again from the same
     // registry; a borrowed one is its owner's, and so is the failure.
     if (!engine.ownsDevice || !engine.ownsRenderer) {
+      engine.log.error('a borrowed device was lost for good', source: _source);
       setState(() => _error = loss);
       return;
     }
@@ -629,7 +693,13 @@ class _Flutter3dViewState extends State<Flutter3dView>
       engine._device = device;
       _watchDevice(engine);
       _recover(engine);
-    } on Object catch (error) {
+    } on Object catch (error, stack) {
+      engine.log.error(
+        'no device would open again',
+        source: _source,
+        error: error,
+        stackTrace: stack,
+      );
       if (mounted) setState(() => _error = error);
     }
   }
@@ -661,7 +731,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
       plugins.enable(id);
     }
     setState(() => engine._loss = null);
-    widget.onDeviceRestored?.call(engine);
+    widget.device.onDeviceRestored?.call(engine);
   }
 
   void _startTicker() {
@@ -688,7 +758,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
     // next frame drawn steps by all of it. A cap of nought or less is none,
     // and a display that says nought hertz does not know its rate: the
     // cadence measures it from the timestamps.
-    final cap = widget.frameRateCap;
+    final cap = widget.view.frameRateCap;
     final hertz = View.maybeOf(context)?.display.refreshRate;
     _cadence
       ..cap = cap != null && cap > 0.0 && cap.isFinite ? cap : null
@@ -699,9 +769,14 @@ class _Flutter3dViewState extends State<Flutter3dView>
     final seconds = _owed;
     _owed = 0.0;
     final frame = FrameInfo(seconds: seconds, result: _drawn);
-    widget.onBeforeFrame?.call(engine, frame);
-    engine.loop.frame(seconds);
-    widget.onFrame?.call(engine, frame);
+    _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(engine, frame));
+    _guarded('the loop', () {
+      engine.loop.frame(seconds);
+      // A simulation placed apart is stepped by the same seconds, so it
+      // pauses with the view and runs no faster than the frames.
+      _placed?.advance(seconds);
+    });
+    _guarded('onFrame', () => widget.onFrame?.call(engine, frame));
     _followCamera(engine);
     final listener = widget.onListenerMoved;
     if (listener != null) {
@@ -719,12 +794,12 @@ class _Flutter3dViewState extends State<Flutter3dView>
   }
 
   /// Moves the origin to the camera when it has wandered further than
-  /// [Flutter3dView.originShift] from it — through the loop, whose hooks move
+  /// [LoopSettings.originShift] from it — through the loop, whose hooks move
   /// the bodies and, through [Flutter3dEngine._shiftOrigin], the scene.
   /// Rounded to whole metres, as `Scene.rebaseAround` rounds, so a shift
   /// moves nothing by a fraction float32 would round.
   void _followCamera(Flutter3dEngine engine) {
-    final beyond = widget.originShift;
+    final beyond = widget.loop.originShift;
     if (beyond == null) return;
     final at = engine.camera.worldPosition;
     if (at.distanceSquaredTo(engine.scene.origin) <= beyond * beyond) return;
@@ -766,7 +841,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
   void didUpdateWidget(Flutter3dView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_engine == null) return;
-    if (widget.continuous) {
+    if (widget.view.continuous) {
       _startTicker();
     } else {
       _ticker?.stop();
@@ -775,9 +850,13 @@ class _Flutter3dViewState extends State<Flutter3dView>
 
   @override
   void dispose() {
+    _warmUpStopped = true;
+    _warmUpYield?.cancel();
+    _warmUpYield = null;
     unawaited(_losses?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.dispose();
+    unawaited(_placed?.dispose());
     _engine?._dispose();
     _ownFocus?.dispose();
     _saved.dispose();
@@ -787,8 +866,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final view = widget.view;
     if (error != null) {
-      return widget.failure?.call(error) ??
+      return view.failure?.call(error) ??
           Directionality(
             textDirection: TextDirection.ltr,
             child: Center(
@@ -799,9 +879,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
           );
     }
     final engine = _engine;
-    if (engine == null || engine.loss != null) return widget.placeholder;
-    final presenter = widget.presenter;
-    return Focus(
+    if (engine == null || engine.loss != null) return view.placeholder;
+    final presenter = widget.device.presenter;
+    final picture = Focus(
       focusNode: _focus,
       autofocus: widget.autofocus,
       onKeyEvent: (FocusNode node, KeyEvent event) =>
@@ -810,16 +890,31 @@ class _Flutter3dViewState extends State<Flutter3dView>
         onPointerDown: (_) => _focus.requestFocus(),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final ratio = widget.resolution.pixelRatioFor(
+            final size = constraints.biggest.isFinite
+                ? constraints.biggest
+                : Size.zero;
+            final ratio = view.resolution.pixelRatioFor(
               MediaQuery.devicePixelRatioOf(context),
-              constraints.biggest.isFinite ? constraints.biggest : Size.zero,
+              size,
             );
+            final width = (size.width * ratio).round();
+            final height = (size.height * ratio).round();
+            if (!_laidOut && width > 0 && height > 0) {
+              _laidOut = true;
+              // After this frame: the warm-up's first slice is not this
+              // frame's work.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && identical(_engine, engine)) {
+                  _warmUp(engine, width, height);
+                }
+              });
+            }
             return SceneSurface(
               renderer: engine.renderer,
               scene: engine.scene,
-              view: widget.views?.first ?? engine.view,
-              moreViews: widget.views?.skip(1).toList() ?? const <RenderView>[],
-              settings: () => widget.settings,
+              view: view.views?.first ?? engine.view,
+              moreViews: view.views?.skip(1).toList() ?? const <RenderView>[],
+              settings: () => widget.view.settings,
               onBeforeFrame: () {},
               onFrame: (FrameInfo frame) => _drawn = frame.result,
               presentFrame:
@@ -842,6 +937,76 @@ class _Flutter3dViewState extends State<Flutter3dView>
         ),
       ),
     );
+    if (engine.backendRefusals.isEmpty ||
+        !widget.device.fallbackBanner ||
+        _bannerClosed) {
+      return picture;
+    }
+    return Stack(
+      textDirection: TextDirection.ltr,
+      children: <Widget>[
+        Positioned.fill(child: picture),
+        Positioned(
+          left: 0,
+          top: 0,
+          right: 0,
+          child: _FallbackBanner(
+            device: engine.device,
+            onClose: () => setState(() => _bannerClosed = true),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// What a [Flutter3dView] shows over its picture when the backend it
+/// preferred would not start and another one draws: which one, and how to
+/// get the GPU back. Closed by a tap on its cross.
+final class _FallbackBanner extends StatelessWidget {
+  const _FallbackBanner({required this.device, required this.onClose});
+
+  final GraphicsDevice device;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
+    const foreground = Color(0xFFFFFFFF);
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: ColoredBox(
+        color: const Color(0xCC8A4B00),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  words.drawingWithFallback('${device.runtimeType}'),
+                  style: const TextStyle(color: foreground, fontSize: 13),
+                ),
+              ),
+              Semantics(
+                button: true,
+                label: words.close,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onClose,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Text(
+                      '✕',
+                      style: TextStyle(color: foreground, fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -853,4 +1018,17 @@ final class _Follower {
 
   Registration onScene;
   int holders = 0;
+}
+
+/// What the warm-up's zone hands out once the view has gone: a timer that
+/// never fires, so the slice after it never runs.
+final class _StoppedTimer implements Timer {
+  @override
+  void cancel() {}
+
+  @override
+  bool get isActive => false;
+
+  @override
+  int get tick => 0;
 }

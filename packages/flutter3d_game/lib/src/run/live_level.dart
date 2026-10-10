@@ -157,6 +157,33 @@ final class LevelApplied {
   };
 }
 
+/// What [answerLevelApply] and [answerLevelPatch] answered: the result to
+/// send back, or why the level was not taken.
+///
+/// **A class, not a record**, so an answer can say more in a minor release
+/// without breaking a caller that reads it.
+final class LevelExtensionAnswer {
+  /// The edit was taken: [result] is what `LevelApplied.toJson` wrote.
+  const LevelExtensionAnswer.applied(Map<String, Object?> this.result)
+    : error = null,
+      isStale = false;
+
+  /// The edit was refused, for [error]; [isStale] when it was a patch made
+  /// against a level the game no longer has, which the sender can answer by
+  /// sending the whole document.
+  const LevelExtensionAnswer.refused(String this.error, {this.isStale = false})
+    : result = null;
+
+  /// What the extension answers when the edit was taken; null when refused.
+  final Map<String, Object?>? result;
+
+  /// Why the edit was refused; null when it was taken.
+  final String? error;
+
+  /// Whether a refused patch was made against another version of the level.
+  final bool isStale;
+}
+
 /// Answers `ext.flutter3d.level.apply` for [live]: [parameters] carry the
 /// level's whole `document`, as JSON, and its `hash`, `Level.digestHex`.
 ///
@@ -171,33 +198,35 @@ final class LevelApplied {
 ///
 /// A plain function over the parameters, and [registerLevelExtension] a thin
 /// door onto it, so the answers are tested without a VM service.
-Future<({Map<String, Object?>? result, String? error})> answerLevelApply(
+Future<LevelExtensionAnswer> answerLevelApply(
   LiveLevel live,
   Map<String, String> parameters,
 ) async {
   final document = parameters['document'];
   final hash = parameters['hash'];
   if (document == null || hash == null) {
-    return (result: null, error: 'level.apply takes a document and its hash');
+    return const LevelExtensionAnswer.refused(
+      'level.apply takes a document and its hash',
+    );
   }
   final Level next;
   try {
     next = Level.fromJson(jsonDecode(document) as Map<String, Object?>);
   } on Object catch (error) {
-    return (result: null, error: 'the document is not a level: $error');
+    return LevelExtensionAnswer.refused('the document is not a level: $error');
   }
   if (next.digestHex != hash) {
-    return (
-      result: null,
-      error:
-          'the document digests to ${next.digestHex}, not $hash; '
-          'it changed on the way',
+    return LevelExtensionAnswer.refused(
+      'the document digests to ${next.digestHex}, not $hash; '
+      'it changed on the way',
     );
   }
   try {
-    return (result: (await live.applyWhenReady(next)).toJson(), error: null);
+    return LevelExtensionAnswer.applied(
+      (await live.applyWhenReady(next)).toJson(),
+    );
   } on Object catch (error) {
-    return (result: null, error: 'the level did not build: $error');
+    return LevelExtensionAnswer.refused('the level did not build: $error');
   }
 }
 
@@ -210,35 +239,31 @@ Future<({Map<String, Object?>? result, String? error})> answerLevelApply(
 /// document, which the game can take whatever it had. A patch that applies
 /// to a level that will not build is refused like a document that will not
 /// build, and is not stale: sent whole, it would be refused again.
-Future<({Map<String, Object?>? result, String? error, bool stale})>
-answerLevelPatch(LiveLevel live, Map<String, String> parameters) async {
+Future<LevelExtensionAnswer> answerLevelPatch(
+  LiveLevel live,
+  Map<String, String> parameters,
+) async {
   final text = parameters['patch'];
   if (text == null) {
-    return (result: null, error: 'level.patch takes a patch', stale: false);
+    return const LevelExtensionAnswer.refused('level.patch takes a patch');
   }
   final LevelPatch patch;
   try {
     patch = LevelPatch.fromJson(jsonDecode(text) as Map<String, Object?>);
   } on Object catch (error) {
-    return (
-      result: null,
-      error: 'the patch is not a level patch: $error',
-      stale: false,
+    return LevelExtensionAnswer.refused(
+      'the patch is not a level patch: $error',
     );
   }
   switch (patch.applyTo(live.level)) {
     case LevelPatchRefused(:final reason):
-      return (result: null, error: reason, stale: true);
+      return LevelExtensionAnswer.refused(reason, isStale: true);
     case LevelPatched(:final level, :final diff):
       try {
         final applied = await live.applyWhenReady(level, diff: diff);
-        return (result: applied.toJson(), error: null, stale: false);
+        return LevelExtensionAnswer.applied(applied.toJson());
       } on Object catch (error) {
-        return (
-          result: null,
-          error: 'the level did not build: $error',
-          stale: false,
-        );
+        return LevelExtensionAnswer.refused('the level did not build: $error');
       }
   }
 }
@@ -255,7 +280,10 @@ void registerLevelExtension(LiveLevel live) {
     method,
     parameters,
   ) async {
-    final (:result, :error) = await answerLevelApply(live, parameters);
+    final LevelExtensionAnswer(:result, :error) = await answerLevelApply(
+      live,
+      parameters,
+    );
     if (error != null) {
       return developer.ServiceExtensionResponse.error(
         developer.ServiceExtensionResponse.invalidParams,
@@ -268,10 +296,11 @@ void registerLevelExtension(LiveLevel live) {
     method,
     parameters,
   ) async {
-    final (:result, :error, :stale) = await answerLevelPatch(live, parameters);
+    final LevelExtensionAnswer(:result, :error, :isStale) =
+        await answerLevelPatch(live, parameters);
     if (error != null) {
       return developer.ServiceExtensionResponse.error(
-        stale
+        isStale
             ? LevelPatch.staleCode
             : developer.ServiceExtensionResponse.invalidParams,
         error,

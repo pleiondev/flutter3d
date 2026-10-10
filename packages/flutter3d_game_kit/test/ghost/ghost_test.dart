@@ -252,7 +252,7 @@ void main() {
       final level = _level();
       final other = Level(name: 'another yard');
       var replayed = false;
-      final (:ghost, :note) = ghostOfRun(
+      final RunGhost(:ghost, :note) = ghostOfRun(
         other,
         _run(level),
         body: 'body',
@@ -270,7 +270,7 @@ void main() {
 
     test('is the tape played again when it can be', () {
       final level = _level();
-      final (:ghost, :note) = ghostOfRun(
+      final RunGhost(:ghost, :note) = ghostOfRun(
         level,
         _run(level, simulation: _game),
         body: 'body',
@@ -289,7 +289,7 @@ void main() {
       // the record and this fails.
       final level = _level();
       final later = const SimulationVersion(genre: 'yard', genreVersion: 2);
-      final (:ghost, :note) = ghostOfRun(
+      final RunGhost(:ghost, :note) = ghostOfRun(
         level,
         _run(level, simulation: later, poses: _poses()),
         body: 'body',
@@ -304,7 +304,7 @@ void main() {
     test('is refused with the reason when there is no pose record either', () {
       // Mutation: hand back an empty track rather than null — this fails.
       final level = _level();
-      final (:ghost, :note) = ghostOfRun(
+      final RunGhost(:ghost, :note) = ghostOfRun(
         level,
         _run(level, physics: 'elsewhere'),
         body: 'body',

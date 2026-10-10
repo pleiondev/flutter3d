@@ -18706,3 +18706,180 @@ entries:
       A getter where it was a constant, with the same value: a read is
       unchanged. Only a `const` expression that used it stops compiling;
       write the number there, or drop the `const`.
+
+  # ---- The game facade: open sets, classes for records.
+
+  - id: 2f-game-TimelineCommand-open
+    package: flutter3d_game
+    symbol: TimelineCommand
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TimelineCommand` is an `abstract base class` rather than `sealed`, so
+      a command added in a minor release breaks no `switch`: a switch that
+      named every command gains a case for the rest.
+
+  - id: 2f-game-LevelWalk-spawnIn
+    package: flutter3d_game
+    symbol: LevelWalk.spawnIn
+    kind: none
+    wave: 2
+    reason: >-
+      `spawnIn` returns a `SpawnPoint`, a class whose getters `at` and `yaw`
+      read as the record's fields did, so `spawn.at` and `spawn.yaw` are
+      unchanged; a destructuring `(:at, :yaw)` becomes `SpawnPoint(:at,
+      :yaw)`, which `2f-game-SpawnPoint-class` marks.
+
+  - id: 2f-game-SpawnPoint-class
+    package: flutter3d_game
+    symbol: SpawnPoint
+    kind: recordToClass
+    wave: 2
+    fields:
+      at: at
+      yaw: yaw
+
+  # ---- The genres' systems on the loop's own types, and the racing sky's
+  # colours as linear colours.
+
+  # GameSimulation.systems is gone: rules are added through addSystem
+  - id: 2f-game_shooter-GameSimulation-systems
+    package: flutter3d_game_shooter
+    symbol: GameSimulation.systems
+    kind: manual
+    wave: 2
+    guidance: >-
+      A rule hangs on the step through `addSystem`, as a system of the
+      engine's loop does: `sim.systems.add(ShooterPhases.afterActors, (step)
+      => burn(step.dt), label: 'heat')` is `sim.addSystem('heat',
+      ShooterPhases.afterActors, (LoopContext step) => burn(step.dt))`, every
+      system needs a name unique in the run, and `after:`/`before:` name
+      other systems as before. `StepPhase.begin` and `StepPhase.end` are
+      `ShooterPhases.begin` and `ShooterPhases.end`. Cancel the
+      `Registration` `addSystem` returns where `systems.remove(registration)`
+      was called. The system is handed a `LoopContext`: `dt` and `phase` as
+      the old context had, and `step`, `publish` and, inside a loop, `world`.
+
+  # ShooterPhases' constants are LoopPhases
+  - id: 2f-game_shooter-ShooterPhases
+    package: flutter3d_game_shooter
+    symbol: ShooterPhases
+    kind: none
+    wave: 2
+    reason: >-
+      The constants keep their names and are passed to `addSystem` where they
+      were passed to `systems.add` (`2f-game_shooter-GameSimulation-systems`
+      says how); only their type, `LoopPhase`, and the name each carries
+      (`shooter.afterActors`) changed, which no call spells.
+
+  # SkyPreset's colours are LinearColors
+  - id: 2f-game_racing-SkyPreset-colors
+    package: flutter3d_game_racing
+    symbol: SkyPreset
+    kind: manual
+    wave: 2
+    guidance: >-
+      A sky preset's colours are `LinearColor`s: `sunColor`, `zenith`,
+      `horizon` and `belowHorizon` in the constructor and as fields, and what
+      `colorAt`, `horizonFogColor` and `inScatterAlong` return. The numbers
+      mean what they did (linear), so `Vector3(0.7, 0.5, 0.4)` becomes
+      `LinearColor(0.7, 0.5, 0.4)`, and `.x`, `.y`, `.z` read as `.r`, `.g`,
+      `.b`. Directions (`sunDirection`, `directionToSun`) stay `Vector3`s.
+
+  # VehicleTuning(gravity:) is gone: a car falls by its world's gravity
+  - id: 2f-game_racing-VehicleTuning-gravity
+    package: flutter3d_game_racing
+    symbol: VehicleTuning.VehicleTuning
+    kind: parameters
+    wave: 2
+    changes:
+      - remove: gravity
+    guidance: >-
+      A car falls by the gravity of the world it drives in, as every body
+      does, so the settings no longer carry one. `racingWorld` (20 m/s²,
+      `racingGravity`) is the world a race is run in and `raceIn` stages it;
+      to keep a number of your own, give the race's world
+      `racingWorld.copyWith(gravity: Vector3(0, -g, 0))`. A tyre's grip is
+      its μ times that gravity.
+
+  # Widgets are final: composed, not subclassed.
+
+  - id: 2f-app-DidNotStart-final
+    package: flutter3d_app
+    symbol: DidNotStart
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `DidNotStart` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-LevelLoadFailed-final
+    package: flutter3d_app
+    symbol: LevelLoadFailed
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LevelLoadFailed` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-LoadingScreen-final
+    package: flutter3d_app
+    symbol: LoadingScreen
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LoadingScreen` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-MemoryPressureRelease-final
+    package: flutter3d_app
+    symbol: MemoryPressureRelease
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `MemoryPressureRelease` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-RendererFailure-final
+    package: flutter3d_app
+    symbol: RendererFailure
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `RendererFailure` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-SceneSurface-final
+    package: flutter3d_app
+    symbol: SceneSurface
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `SceneSurface` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-stereo-LessonStereoView-final
+    package: flutter3d_stereo
+    symbol: LessonStereoView
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LessonStereoView` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-stereo-StereoSurface-final
+    package: flutter3d_stereo
+    symbol: StereoSurface
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `StereoSurface` is unchanged. A class that
+      extended it builds one instead.

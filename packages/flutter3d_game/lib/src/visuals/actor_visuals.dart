@@ -154,7 +154,7 @@ final class ActorVisuals {
   ///
   /// Left null, nothing is ringed and nothing is walked. A game can leave it
   /// set with the look off: the engine reads no ring until the look is on.
-  Vector3? Function(Actor actor)? outlineOf;
+  LinearColor? Function(Actor actor)? outlineOf;
 
   final OutlineMarks _marks = OutlineMarks();
 

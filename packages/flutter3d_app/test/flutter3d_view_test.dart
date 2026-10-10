@@ -35,12 +35,14 @@ Widget _view(
     width: 32,
     height: 24,
     child: Flutter3dView(
-      device: device,
-      continuous: false,
-      presenter: _noPresenter,
+      device: DeviceSettings(
+        device: device,
+        presenter: _noPresenter,
+        onDeviceLost: onDeviceLost,
+        onDeviceRestored: onDeviceRestored,
+      ),
+      view: const ViewSettings(continuous: false),
       onCreated: onCreated,
-      onDeviceLost: onDeviceLost,
-      onDeviceRestored: onDeviceRestored,
     ),
   ),
 );
@@ -58,10 +60,8 @@ Widget _capped(
     width: 32,
     height: 24,
     child: Flutter3dView(
-      device: device,
-      continuous: continuous,
-      frameRateCap: cap,
-      presenter: _noPresenter,
+      device: DeviceSettings(device: device, presenter: _noPresenter),
+      view: ViewSettings(continuous: continuous, frameRateCap: cap),
       onFrame: (_, frame) => frames.add(frame),
     ),
   ),
@@ -152,8 +152,7 @@ void main() {
           width: 32,
           height: 24,
           child: Flutter3dView(
-            device: device,
-            presenter: _noPresenter,
+            device: DeviceSettings(device: device, presenter: _noPresenter),
             onCreated: (e) {
               engine = e;
               e.loop.onOriginShift(shifts.add);
@@ -201,9 +200,8 @@ void main() {
           width: 32,
           height: 24,
           child: Flutter3dView(
-            device: device,
-            presenter: _noPresenter,
-            originShift: null,
+            device: DeviceSettings(device: device, presenter: _noPresenter),
+            loop: const LoopSettings(originShift: null),
             onCreated: (e) => engine = e,
           ),
         ),

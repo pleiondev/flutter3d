@@ -21,7 +21,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// [note] says what the ghost is — how long, and why it came from the pose
 /// record when it did — as a [GhostNote] a screen words in the player's
 /// language with [GhostNote.say].
-({Tape? ghost, GhostNote note}) ghostOfRun(
+RunGhost ghostOfRun(
   Level level,
   Demo demo, {
   required String body,
@@ -30,7 +30,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
   PhysicsBackend physics = const DartPhysics(),
 }) {
   if (demo.levelHash != level.digestHex) {
-    return (ghost: null, note: const GhostNote._(GhostNote.otherLevel));
+    return const RunGhost._(null, GhostNote._(GhostNote.otherLevel));
   }
   final GhostNote? notReplayed = demo.levelSwaps.isNotEmpty
       ? const GhostNote._(GhostNote.levelEdited)
@@ -50,10 +50,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
         };
   if (notReplayed != null) {
     final track = demo.poses?.track(body);
-    if (track == null || track.isEmpty) return (ghost: null, note: notReplayed);
-    return (
-      ghost: track,
-      note: GhostNote._(
+    if (track == null || track.isEmpty) return RunGhost._(null, notReplayed);
+    return RunGhost._(
+      track,
+      GhostNote._(
         GhostNote.fromPoseRecord,
         seconds: track.seconds,
         because: notReplayed,
@@ -61,10 +61,26 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
     );
   }
   final track = replay();
-  return (
-    ghost: track,
-    note: GhostNote._(GhostNote.replayed, seconds: track.seconds),
+  return RunGhost._(
+    track,
+    GhostNote._(GhostNote.replayed, seconds: track.seconds),
   );
+}
+
+/// What [ghostOfRun] found: the [ghost] to race, or none, and the [note]
+/// that says what it is or why there is none.
+///
+/// **A class, not a record**, so it can say more in a minor release without
+/// breaking a caller that reads it.
+final class RunGhost {
+  const RunGhost._(this.ghost, this.note);
+
+  /// The body's track through the run; null when there is no ghost.
+  final Tape? ghost;
+
+  /// What the ghost is — how long, and where it came from — or why there is
+  /// none.
+  final GhostNote note;
 }
 
 /// What [ghostOfRun] has to say about a ghost: an [id] and what it carries,

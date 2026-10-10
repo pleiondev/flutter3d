@@ -177,6 +177,8 @@ final class GameSimulation
   GameSimulation({required this.player, required this.collision, required this.input, this.mechanisms, this.actors, this.projectiles, this.shot, this.dynamics, this.levelNext, required this.random, this.zones = const HitZones(), this.difficulty = Difficulty.normal})
   GameState get state
   List<GameEvent> get shotEvents
+  List<String> systemsIn(LoopPhase phase)
+  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration publishTo(EventRegistry bus)
   Snapshot save()
   String? get nextLevel
@@ -190,7 +192,6 @@ final class GameSimulation
   final Player player
   final ProjectileSystem? projectiles
   final RigidDynamics? dynamics
-  final StepSystems systems
   final String? levelNext
   final Tally tally
   final Vector3 firedFrom
@@ -202,7 +203,7 @@ final class GameSimulation
   static const double berserkDamage = 2.0
   void hurtPlayer(double rawAmount)
   void restore(Snapshot snapshot)
-  void step(double dt)
+  void step(double dt, {LoopContext? context})
 
 final class GameState
   String toString()
@@ -501,10 +502,13 @@ final class ShooterKeyKind extends EntityKind
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
 
 abstract final class ShooterPhases
-  static const StepPhase afterActors = StepPhase('afterActors')
-  static const StepPhase afterPlayer = StepPhase('afterPlayer')
-  static const StepPhase afterWeapons = StepPhase('afterWeapons')
-  static const StepPhase afterWorld = StepPhase('afterWorld')
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterPlayer, afterWorld, afterWeapons, afterActors, end]
+  static const LoopPhase afterActors = LoopPhase.step('shooter.afterActors')
+  static const LoopPhase afterPlayer = LoopPhase.step('shooter.afterPlayer')
+  static const LoopPhase afterWeapons = LoopPhase.step('shooter.afterWeapons')
+  static const LoopPhase afterWorld = LoopPhase.step('shooter.afterWorld')
+  static const LoopPhase begin = LoopPhase.step('shooter.begin')
+  static const LoopPhase end = LoopPhase.step('shooter.end')
 
 final class ShooterPlugin extends GenrePlugin<GameSimulation>
   EcsWorld? publishedWorldOf(GameSimulation simulation)

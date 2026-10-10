@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_dungeon/src/high_contrast_rings.dart';
 import 'package:flutter3d_demo_dungeon/src/hud.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show ColorRoles, GameSettings, outlineColorOf;
+    show ColorRoles, GameSettings, LinearColor, outlineColorOf;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -57,7 +57,7 @@ void main() {
   const config = GameSettings();
   final rings = CryptRings(() => config);
 
-  Vector3 roleColour(String name) => outlineColorOf(
+  LinearColor roleColour(String name) => outlineColorOf(
     dungeonColours.colorOf(name, config, fallback: Colors.white),
   );
 

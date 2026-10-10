@@ -198,7 +198,7 @@ void main() {
       // and the monster is grey among grey walls.
       final scene = Scene();
       final actor = _actor();
-      Vector3? ring = Vector3(0.84, 0.37, 0.0);
+      LinearColor? ring = LinearColor.fromSrgb(0.84, 0.37, 0.0);
       final visuals = ActorVisuals(
         scene,
         appearance: const _PlainLook(),
@@ -213,11 +213,8 @@ void main() {
       visuals
         ..outlineOf = ((Actor it) => ring)
         ..sync();
-      // The ring is the float32 `Vector3` the game named, decoded from sRGB.
-      expect(
-        scene.meshes.single.outlineColor,
-        LinearColor.fromSrgb(ring.x, ring.y, ring.z),
-      );
+      // The ring is the linear colour the game named, as it named it.
+      expect(scene.meshes.single.outlineColor, ring);
 
       // A monster that died, say: the game stops naming a colour and the
       // ring comes off rather than staying on the corpse.

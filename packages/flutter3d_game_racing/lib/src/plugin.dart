@@ -79,7 +79,7 @@ final class RacingPlugin extends GenrePlugin<RacingSimulation> {
   /// the bus from inside the step, which puts them on the step channel.
   @override
   void stepSimulation(RacingSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt);
+      simulation.step(context.dt, context: context);
 
   @override
   Registration publishEvents(RacingSimulation simulation, EventRegistry bus) =>

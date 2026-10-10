@@ -6,12 +6,13 @@ import 'run_part.dart';
 /// every command is visible in it, and it is the same log an MCP command
 /// stream would replay.
 ///
-/// **Sealed on purpose: it is a protocol.** The timeline, its VM service
-/// extensions and a history view each answer every command, exhaustively; a
-/// command one of them did not know would be a step of history that could
-/// not be shown or replayed. A new command is a new version of the
-/// protocol, and waits for a major.
-sealed class TimelineCommand {
+/// **Open, so the history can grow in a minor.** The timeline, its VM
+/// service extensions and a history view answer the eight commands here; a
+/// command they do not know — one a later minor adds — is shown by its
+/// `toString` rather than refused. `abstract base` rather than `sealed`, so
+/// a new command breaks no `switch`: a switch over commands ends with a
+/// case for the rest.
+abstract base class TimelineCommand {
   const TimelineCommand();
 }
 

@@ -14,7 +14,7 @@ import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
 import 'package:flutter3d_demo_platformer/src/ghost.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost, RunGhost;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -154,7 +154,10 @@ void main() {
       ServiceDone<ShareBundle>(:final value) => value,
       ServiceRefused<ShareBundle>(:final reason) => fail(reason),
     };
-    final (:ghost, :note) = ghostOf(Level.fromJson(bundle.level), bundle.run!);
+    final RunGhost(:ghost, :note) = ghostOf(
+      Level.fromJson(bundle.level),
+      bundle.run!,
+    );
     expect(ghost, isNotNull, reason: note.say());
 
     // Wherever the ghost was sampled, it is where the runner was, to the bit:

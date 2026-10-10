@@ -174,8 +174,11 @@ final class TrackElements {
     );
     // Every water mirrors this circuit's sky and glints in its sun.
     _elements
-      ..sun(along: -sky.directionToSun, light: sky.sunColor * sky.sunIntensity)
-      ..sky(zenith: sky.zenith, horizon: sky.horizon);
+      ..sun(
+        along: -sky.directionToSun,
+        light: _rgb(sky.sunColor.scaled(sky.sunIntensity)),
+      )
+      ..sky(zenith: _rgb(sky.zenith), horizon: _rgb(sky.horizon));
     // The race's world — its gravity, air and wind — so the spray, the fires
     // and the water fall and drift as the cars do: one gravity in a race.
     if (cars.isNotEmpty) {
@@ -1284,3 +1287,6 @@ final class TrackElements {
 
 /// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
 LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);
+
+/// [color]'s channels as the water's lighting takes them.
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);

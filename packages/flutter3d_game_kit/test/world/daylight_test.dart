@@ -40,8 +40,11 @@ void main() {
     expect(sun.castsShadow, isTrue);
     expect(moon.castsShadow, isFalse);
     // Mutation: the default sun in the renderer's pre-1.0 unit, 2.6, which
-    // since lights are in lux is a sun a two-thousandth of daylight.
-    expect(sun.intensity, closeTo(2.6 * Photometric.legacyUnit, 1e-6));
+    // since lights are in lux is a sun a two-thousandth of daylight. The
+    // default is a number of lux, written as one, not a multiple of that
+    // unit.
+    expect(Daylight.defaultSunIntensity, 15000.0);
+    expect(sun.intensity, closeTo(15000.0, 1e-6));
     expect(
       moon.intensity,
       closeTo(sun.intensity * Daylight.defaultMoonShare, 1e-9),

@@ -48,8 +48,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         GameEvent,
         GameRandom,
         Level,
-        LightFixture,
-        StepPhase;
+        LightFixture;
 import 'package:vector_math/vector_math.dart';
 
 import 'shooter_sample.dart' show SampleEntities;
@@ -982,15 +981,22 @@ final class CryptWorld {
   /// stepped at the end with everything the step did; saved and restored
   /// with the run's own entities.
   void _hang() {
-    final systems = _sim.systems;
-    systems
-      ..add(StepPhase.begin, (step) => _wade(step.dt), label: 'crypt: wading')
-      ..add(
-        ShooterPhases.afterActors,
-        (step) => _burn(step.dt),
-        label: 'crypt: heat',
+    _sim
+      ..addSystem(
+        'crypt: wading',
+        ShooterPhases.begin,
+        (LoopContext step) => _wade(step.dt),
       )
-      ..add(StepPhase.end, (step) => _step(step.dt), label: 'crypt: world');
+      ..addSystem(
+        'crypt: heat',
+        ShooterPhases.afterActors,
+        (LoopContext step) => _burn(step.dt),
+      )
+      ..addSystem(
+        'crypt: world',
+        ShooterPhases.end,
+        (LoopContext step) => _step(step.dt),
+      );
     final entities = _sim.entities;
     if (entities == null) return;
     entities.components.register<CryptWorld>(

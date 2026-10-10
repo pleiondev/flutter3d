@@ -20,6 +20,8 @@ abstract base class Capability
 abstract base class CapabilityException extends Flutter3dException
   const CapabilityException()
 
+typedef CrashReporter = void Function(Object error, StackTrace stackTrace, LogRecord record);
+
 final class Dimension
   Dimension operator *(Dimension other)
   Dimension operator /(Dimension other)
@@ -48,6 +50,21 @@ final class DocumentFormatException extends Flutter3dFormatException
   String toString()
   const DocumentFormatException(this.message)
   final String message
+
+final class EngineLog
+  EngineLog({this.level = LogLevel.info, DateTime Function()? clock})
+  LogLevel level
+  LogRecord reportCrash(Object error, StackTrace stackTrace, {String source = '', String? message})
+  LogRecord? log(LogLevel at, String message, {String source = '', Object? error, StackTrace? stackTrace})
+  Registration listen(LogListener listener)
+  Registration onCrash(CrashReporter reporter)
+  bool get hasCrashReporter
+  bool isLogged(LogLevel at)
+  void debug(String message, {String source = ''})
+  void error(String message, {String source = '', Object? error, StackTrace? stackTrace})
+  void info(String message, {String source = ''})
+  void trace(String message, {String source = ''})
+  void warning(String message, {String source = '', Object? error, StackTrace? stackTrace})
 
 abstract base class Flutter3dException implements Exception
   Object? get cause
@@ -108,9 +125,9 @@ final class Issue
 typedef IssueSink = void Function(Issue issue);
 
 final class LinearColor
+  ({double r, double g, double b, double a}) toSrgb()
   LinearColor scaled(double factor)
   LinearColor withAlpha(double alpha)
-  SrgbColor toSrgb()
   String toString()
   bool operator ==(Object other)
   const LinearColor(this.r, this.g, this.b, [this.a = 1])
@@ -131,9 +148,38 @@ extension LinearColorVector on LinearColor
   Vector3 toVector3()
   Vector4 toVector4()
 
-abstract base mixin class PlacedEvent
+final class LogLevel implements Comparable<LogLevel>
+  String toString()
+  bool isAtLeast(LogLevel other)
+  bool operator ==(Object other)
+  final String name
+  final int severity
+  int compareTo(LogLevel other)
+  int get hashCode
+  static LogLevel? byName(String name)
+  static const List<LogLevel> values = <LogLevel>[trace, debug, info, warning, error]
+  static const LogLevel debug = LogLevel._('debug', 200)
+  static const LogLevel error = LogLevel._('error', 500)
+  static const LogLevel info = LogLevel._('info', 300)
+  static const LogLevel trace = LogLevel._('trace', 100)
+  static const LogLevel warning = LogLevel._('warning', 400)
+
+typedef LogListener = void Function(LogRecord record);
+
+final class LogRecord
+  String toString()
+  const LogRecord({required this.level, required this.message, required this.sequence, this.source = '', this.error, this.stackTrace, this.time})
+  final DateTime? time
+  final LogLevel level
+  final Object? error
+  final StackTrace? stackTrace
+  final String message
+  final String source
+  final int sequence
+
+abstract interface class PlacedEvent
+  Vector3 get at
   Vector3? get direction
-  abstract Vector3 get at
 
 base class PluginException extends Flutter3dException
   String toString()
@@ -208,17 +254,6 @@ final class ShaderDiagnostic
   int get hashCode
   static List<ShaderDiagnostic> parseLog(String log, {String? stage, String? source})
   static ShaderDiagnostic fromJson(Object? json)
-
-final class SrgbColor
-  LinearColor toLinear()
-  String toString()
-  bool operator ==(Object other)
-  const SrgbColor(this.r, this.g, this.b, [this.a = 1])
-  final double a
-  final double b
-  final double g
-  final double r
-  int get hashCode
 
 final class Unit
   Object toJson()

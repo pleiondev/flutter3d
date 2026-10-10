@@ -340,25 +340,19 @@ void main() {
       // drop the call from `sync`, and the crate wears no ring.
       final answers = _Answers();
       final it = visuals(answers)..add(_fixture());
-      var color = Vector3(0.9, 0.6, 0.0);
+      var color = LinearColor.fromSrgb(0.9, 0.6, 0.0);
       it
         ..outlineOf = ((Fixture fixture) => color)
         ..sync(0.0);
-      // The ring is the float32 `Vector3` the game named, decoded from sRGB.
-      expect(
-        (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        LinearColor.fromSrgb(color.x, color.y, color.z),
-      );
+      // The ring is the linear colour the game named, as it named it.
+      expect((_only(loaded.scene, 'crate') as MeshNode).outlineColor, color);
 
       // Asked again every frame, so a role colour the player changes in the
       // settings is the ring on the next one. Mutation: mark only when the
       // node has no ring yet.
-      color = Vector3(0.3, 0.7, 0.9);
+      color = LinearColor.fromSrgb(0.3, 0.7, 0.9);
       it.sync(0.0);
-      expect(
-        (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
-        LinearColor.fromSrgb(color.x, color.y, color.z),
-      );
+      expect((_only(loaded.scene, 'crate') as MeshNode).outlineColor, color);
     });
 
     test('and a game that names none rings nothing', () {
@@ -369,7 +363,7 @@ void main() {
       // And an answer of null takes a ring off — a pickup that stopped
       // mattering.
       it
-        ..outlineOf = ((Fixture fixture) => Vector3(1.0, 0.0, 0.0))
+        ..outlineOf = ((Fixture fixture) => const LinearColor(1.0, 0.0, 0.0))
         ..sync(0.0)
         ..outlineOf = ((Fixture fixture) => null)
         ..sync(0.0);

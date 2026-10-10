@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **A game's rules hang on the step through `addSystem`.**
+  `StrategySimulation.systems` (sim's `StepSystems`) is replaced by
+  `addSystem(name, phase, system, {after, before})`, returning the
+  `Registration` that removes it, ordered as the engine's loop orders its
+  systems. `StrategyPhases` holds `LoopPhase`s named `strategy.…`, with a
+  `begin` and an `end` of its own and `all` in step order, and a system is
+  handed a `LoopContext`: the loop's, with the strategy's phase, when the
+  plugin steps the match, or one of the simulation's own when it is stepped
+  by hand, publishing onto the bus `StrategySimulation.publishTo` names
+  (`Match.publishTo` names it for the simulation). `Match.step` and
+  `StrategySimulation.step` take the loop's context as an optional
+  `context:`.
+- **`StrategyVisuals.dressProp` takes a `LinearColor`.** The tint was a
+  `Vector4` converted inside; it is the linear colour the instance is
+  multiplied by.
+
 - **Breaking: `Unit` is `StrategyUnit`.** `Unit` is the foundation's unit
   of measurement now, and a public name has one home. `dart fix` renames
   it; every signature that took or returned a `Unit` takes or returns a

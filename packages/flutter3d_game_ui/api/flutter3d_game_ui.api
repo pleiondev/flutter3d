@@ -7,7 +7,7 @@ library package:flutter3d_game_ui/access.dart
 typedef Announce = void Function(String sentence);
 
 final class RoleRings
-  Vector3 of(String role, {required Color fallback})
+  LinearColor of(String role, {required Color fallback})
   bool has(String role)
   const RoleRings(this.roles, this.settings)
   final ColorRoles roles
@@ -491,7 +491,7 @@ final class ReelShot
   int get frames
 
 final class RoleRings
-  Vector3 of(String role, {required Color fallback})
+  LinearColor of(String role, {required Color fallback})
   bool has(String role)
   const RoleRings(this.roles, this.settings)
   final ColorRoles roles

@@ -25,6 +25,12 @@ part of 'scene_widgets.dart';
 /// are built by a [BuildOwner] of this mount's and never laid out. A widget
 /// that rebuilds itself, a [Model3D] whose asset arrived, is rebuilt on the
 /// next microtask.
+///
+/// **The same reconciliation, but one key short.** Flutter finds a
+/// [GlobalKey]'s element through the widgets binding's own build owner, not
+/// this mount's, so a widget with a global key moved to another parent here
+/// is built again, with a node of its own; keys local to their siblings
+/// keep their nodes as they do in a [Scene3D].
 abstract final class SceneWidgets {
   static SceneWidgetsMount mount({
     required Scene scene,
@@ -126,4 +132,16 @@ final class _MountHost implements _SceneHost {
 
   @override
   final Set<_Animated> animated = <_Animated>{};
+
+  // A mount draws nothing and so is tapped and dragged by nobody: what a
+  // widget registers here is kept and never called.
+  @override
+  final Map<MeshNode, void Function(HitResult hit)> tappable =
+      <MeshNode, void Function(HitResult hit)>{};
+
+  @override
+  final List<_Orbit> orbits = <_Orbit>[];
+
+  @override
+  void gesturesChanged() {}
 }
