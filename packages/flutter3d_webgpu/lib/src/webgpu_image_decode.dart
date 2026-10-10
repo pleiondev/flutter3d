@@ -8,9 +8,19 @@
 /// halved them level by level in Dart and wrote every level.
 ///
 /// **WebGPU has no `generateMipmap`, so the chain is a draw per level.** Each
-/// level is a full-screen triangle sampling the one above with a linear
-/// filter; at the centre of a destination texel that filter is the average of
-/// the 2×2 block beneath it — the box `MipChain.build` computes on the CPU.
+/// level is a full-screen triangle that reads the four texels beneath each
+/// of its own and averages them in integers, `(a + b + c + d + 2) >> 2`, with
+/// odd sizes dropping their last row and column — `MipChain.build`, line for
+/// line, so a texture decoded here has the chain Impeller and the software
+/// backend upload, to the byte.
+///
+/// It used to sample the level above with a linear filter, which is the same
+/// box but not the same rounding: the GPU's filter rounds the exact quarter
+/// its own way, and an odd-sized level was sampled between texels instead of
+/// dropping its edge. On a normal map the difference was a level off by one
+/// here and there, and that was enough to move `normal-mapping` by
+/// thirty-six pixels against Impeller.
+///
 /// One pipeline, made on the first image and kept for the device's life.
 ///
 /// The bitmap half declares its own few lines of interop rather than take
@@ -138,29 +148,36 @@ Future<_ImageBitmap?> _decode(Uint8List encoded, int? maxDimension) async {
 
 const String _mipWgsl = '''
 @group(0) @binding(0) var source: texture_2d<f32>;
-@group(0) @binding(1) var linearClamp: sampler;
-
-struct Varyings {
-  @builtin(position) position: vec4f,
-  @location(0) uv: vec2f,
-};
 
 @vertex
-fn vertexMain(@builtin(vertex_index) index: u32) -> Varyings {
+fn vertexMain(@builtin(vertex_index) index: u32) -> @builtin(position) vec4f {
   let corner = vec2f(f32((index << 1u) & 2u), f32(index & 2u));
-  var out: Varyings;
-  out.position = vec4f(corner * 2.0 - 1.0, 0.0, 1.0);
-  out.uv = vec2f(corner.x, 1.0 - corner.y);
-  return out;
+  return vec4f(corner * 2.0 - 1.0, 0.0, 1.0);
 }
 
+// The texel of the level above, back in the integer it was stored as.
+fn stored(at: vec2i) -> vec4u {
+  return vec4u(round(textureLoad(source, at, 0) * 255.0));
+}
+
+// `MipChain.build`: two by two, rounded to nearest by the plus two, and an
+// axis already at one reads its single row or column twice. The sum over
+// 255 is stored back as exactly that byte.
 @fragment
-fn fragmentMain(in: Varyings) -> @location(0) vec4f {
-  return textureSampleLevel(source, linearClamp, in.uv, 0.0);
+fn fragmentMain(@builtin(position) position: vec4f) -> @location(0) vec4f {
+  let size = vec2i(textureDimensions(source));
+  let at = vec2i(position.xy);
+  let x0 = select(0, at.x * 2, size.x > 1);
+  let x1 = select(0, x0 + 1, size.x > 1);
+  let y0 = select(0, at.y * 2, size.y > 1);
+  let y1 = select(0, y0 + 1, size.y > 1);
+  let sum = stored(vec2i(x0, y0)) + stored(vec2i(x1, y0)) +
+      stored(vec2i(x0, y1)) + stored(vec2i(x1, y1)) + vec4u(2u);
+  return vec4f(sum >> vec4u(2u)) / 255.0;
 }
 ''';
 
-/// The one pipeline and sampler the mip pass needs, per device.
+/// The one pipeline the mip pass needs, per device.
 final class WebGpuMipBuilder {
   WebGpuMipBuilder(this._gpu);
 
@@ -191,18 +208,6 @@ final class WebGpuMipBuilder {
     );
   }();
 
-  late final GPUSampler _sampler = _gpu.createSampler(
-    GPUSamplerDescriptor(
-      addressModeU: 'clamp-to-edge',
-      addressModeV: 'clamp-to-edge',
-      addressModeW: 'clamp-to-edge',
-      magFilter: 'linear',
-      minFilter: 'linear',
-      mipmapFilter: 'nearest',
-      label: 'mip chain',
-    ),
-  );
-
   /// Fills levels 1 to [levels] − 1 of [texture] from level zero, one draw a
   /// level, in one submission.
   void build(GPUTexture texture, int levels) {
@@ -229,7 +234,6 @@ final class WebGpuMipBuilder {
           layout: layout,
           entries: <GPUBindGroupEntry>[
             GPUBindGroupEntry.textureView(binding: 0, resource: source),
-            GPUBindGroupEntry.sampler(binding: 1, resource: _sampler),
           ].toJS,
         ),
       );
