@@ -254,16 +254,20 @@ final class RenderHooks extends PluginRegistry {
     return registration;
   }
 
+  @override
+  RenderHooks forPlugin(PluginScope scope) =>
+      RenderHooks._scoped(_store, scope);
+}
+
+/// What the draw list needs from [RenderHooks], and nobody else. Not
+/// exported by `flutter3d_core.dart`.
+extension RenderHooksInternals on RenderHooks {
   /// The context a draw-list hook is handed, filled for [node] in [view].
   DrawListContext contextFor(MeshNode node, RenderView view, double depth) =>
       _store.context
         .._node = node
         .._view = view
         .._viewDepth = depth;
-
-  @override
-  RenderHooks forPlugin(PluginScope scope) =>
-      RenderHooks._scoped(_store, scope);
 }
 
 final class _HookStore {

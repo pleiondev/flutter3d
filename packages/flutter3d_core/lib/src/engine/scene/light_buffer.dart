@@ -109,7 +109,7 @@ final class LightBuffer {
     if (hook == null) return;
     read(_hookRow);
     final code = types.codeOf(light.type);
-    hook.pack(LightPackContext.internal(light, _hookRow, code));
+    hook.pack(types.packContext(light, _hookRow, code));
     _hookRow[3] = code.toDouble();
     write(_hookRow);
   }

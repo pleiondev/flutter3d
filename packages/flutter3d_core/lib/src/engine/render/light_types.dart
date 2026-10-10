@@ -15,7 +15,7 @@ import '../scene/light_node.dart';
 /// One object that can gain members — the view, the light's place in the
 /// list — rather than a list of parameters that grows.
 final class LightPackContext {
-  LightPackContext.internal(this.light, this.row, this.code);
+  LightPackContext._(this.light, this.row, this.code);
 
   /// The light being packed.
   final LightNode light;
@@ -147,6 +147,14 @@ final class LightTypes extends PluginRegistry {
 
   @override
   LightTypes forPlugin(PluginScope scope) => LightTypes._scoped(_store, scope);
+}
+
+/// What the light buffers the renderer packs need from [LightTypes], and
+/// nobody else. Not exported by `flutter3d_core.dart`.
+extension LightTypesInternals on LightTypes {
+  /// The context [light]'s hook is handed for [row], with [code].
+  LightPackContext packContext(LightNode light, Float32List row, int code) =>
+      LightPackContext._(light, row, code);
 }
 
 final class _LightTypeStore {
