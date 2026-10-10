@@ -106,7 +106,7 @@ void main() {
     );
     expect(
       game,
-      contains('Drive.tyres'),
+      contains('Drive.tireSet'),
       reason: 'the action exists and nothing is bound to it',
     );
   });
