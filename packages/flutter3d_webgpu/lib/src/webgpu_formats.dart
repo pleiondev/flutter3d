@@ -315,6 +315,7 @@ String gpuTextureDimension(TextureDimension dimension) => switch (dimension) {
   TextureDimension.d2Array ||
   TextureDimension.cube ||
   TextureDimension.cubeArray => '2d',
+  _ => throw UnsupportedError('WebGPU has no texture dimension for $dimension'),
 };
 
 String gpuStorageTextureAccess(StorageTextureAccess access) => switch (access) {
@@ -483,6 +484,7 @@ String? gpuBlendFactor(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusSource1Color => 'one-minus-src1',
   BlendFactor.source1Alpha => 'src1-alpha',
   BlendFactor.oneMinusSource1Alpha => 'one-minus-src1-alpha',
+  _ => null,
 };
 
 /// [min] and [max] are core in WebGPU, and the API requires both factors of
@@ -494,6 +496,7 @@ String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.reverseSubtract => 'reverse-subtract',
   BlendOperation.min => 'min',
   BlendOperation.max => 'max',
+  _ => throw UnsupportedError('WebGPU has no blend operation for $operation'),
 };
 
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
@@ -518,6 +521,7 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   StencilOperation.invert => 'invert',
   StencilOperation.incrementWrap => 'increment-wrap',
   StencilOperation.decrementWrap => 'decrement-wrap',
+  _ => throw UnsupportedError('WebGPU has no stencil operation for $operation'),
 };
 
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
@@ -526,12 +530,14 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.line => 'line-list',
   PrimitiveType.lineStrip => 'line-strip',
   PrimitiveType.point => 'point-list',
+  _ => throw UnsupportedError('WebGPU has no primitive topology for $type'),
 };
 
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
   CullMode.backFace => 'back',
+  _ => throw UnsupportedError('WebGPU has no cull mode for $mode'),
 };
 
 /// **Straight through — and it was written crossed first, on an argument that
@@ -578,6 +584,7 @@ String gpuLoadOp(LoadAction action) => switch (action) {
   LoadAction.dontCare => 'clear',
   LoadAction.load => 'load',
   LoadAction.clear => 'clear',
+  _ => throw UnsupportedError('WebGPU has no load op for $action'),
 };
 
 /// The store operation, which in WebGPU says nothing about resolving: a resolve
@@ -592,6 +599,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.store => 'store',
   StoreAction.multisampleResolve => 'discard',
   StoreAction.storeAndMultisampleResolve => 'store',
+  _ => throw UnsupportedError('WebGPU has no store op for $action'),
 };
 
 /// Whether a target described by [spec] is allocated as a WebGPU transient
@@ -629,21 +637,25 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no filter mode for $filter'),
 };
 
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no mipmap filter mode for $filter'),
 };
 
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
+  _ => throw UnsupportedError('WebGPU has no index format for $type'),
 };
 
 String gpuVertexFormat(VertexFormat format) => switch (format) {
@@ -665,6 +677,7 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
+  _ => throw UnsupportedError('WebGPU has no vertex step mode for $mode'),
 };
 
 /// The row stride `copyTextureToBuffer` demands for a [width]-pixel region of

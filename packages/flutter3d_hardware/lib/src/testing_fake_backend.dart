@@ -317,6 +317,9 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       TextureDimension.cube => DeviceFeature.cubeTextures,
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
       TextureDimension.d1 || TextureDimension.d2 => null,
+      _ => throw UnsupportedError(
+        'the fake backend cannot allocate a ${descriptor.dimension} texture',
+      ),
     };
     if (shape != null) features.require(shape, backend: _name);
     if (descriptor.usage.contains(TextureUsage.storage)) {

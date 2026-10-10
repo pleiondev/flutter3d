@@ -11,6 +11,7 @@ extension MinMagFilterToGpu on MinMagFilter {
   gpu.MinMagFilter toGpu() => switch (this) {
     MinMagFilter.nearest => gpu.MinMagFilter.nearest,
     MinMagFilter.linear => gpu.MinMagFilter.linear,
+    _ => throw UnsupportedError('flutter_gpu has no filter for $this'),
   };
 }
 
@@ -28,6 +29,7 @@ extension MipFilterToGpu on MipFilter {
   gpu.MipFilter toGpu() => switch (this) {
     MipFilter.nearest => gpu.MipFilter.nearest,
     MipFilter.linear => gpu.MipFilter.linear,
+    _ => throw UnsupportedError('flutter_gpu has no mip filter for $this'),
   };
 }
 
@@ -46,6 +48,7 @@ extension SamplerAddressModeToGpu on SamplerAddressMode {
     SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
     SamplerAddressMode.repeat => gpu.SamplerAddressMode.repeat,
     SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
+    _ => throw UnsupportedError('flutter_gpu has no address mode for $this'),
   };
 }
 

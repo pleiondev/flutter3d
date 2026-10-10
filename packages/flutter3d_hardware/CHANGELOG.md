@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **Breaking (for outside backends): `BlendFactor`, `BlendOperation`,
+  `CullMode`, `DepthRange`, `GeometryUsage`, `IndexType`, `LoadAction`,
+  `MinMagFilter`, `MipFilter`, `PolygonMode`, `PrimitiveType`,
+  `SamplerAddressMode`, `StencilOperation`, `StorageMode`, `StoreAction`,
+  `TextureType` and `VertexStepMode` are open sets.** Each is a class with
+  constants rather than an enum, so the value a later minor adds (another
+  blend factor, a cull mode for both faces) does not break a backend written
+  against this one. The constants, `values`, `name` and the enum's
+  `toString` are as they were, and `byName` reads a name back (null for one
+  this version does not know). A backend's `switch` over one ends with a
+  wildcard that refuses the value by name, as the four here do.
+  `FeatureStability`, `MapMode`, `PipelineStatistic`, `SamplerBorderColor`,
+  `TextureDimension` and `TextureSampleKind`, new in this release, are open
+  from the start. `CompareFunction`, `WindingOrder`, `StencilFace`,
+  `FramebufferOrigin` and `StorageTextureAccess` stay enums, closed for
+  good, and say why.
 - **`UniformScratch`, in `backend.dart`**: one zeroed buffer per uniform
   block size, kept for the device's life, for a backend's
   `bindUniformBlock` to fill before its API copies it. Every backend here

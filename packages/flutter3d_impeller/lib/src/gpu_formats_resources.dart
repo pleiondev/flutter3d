@@ -15,6 +15,7 @@ extension StorageModeToGpu on StorageMode {
     StorageMode.hostVisible => gpu.StorageMode.hostVisible,
     StorageMode.devicePrivate => gpu.StorageMode.devicePrivate,
     StorageMode.deviceTransient => gpu.StorageMode.deviceTransient,
+    _ => throw UnsupportedError('flutter_gpu has no storage mode for $this'),
   };
 }
 
@@ -37,6 +38,7 @@ extension TextureTypeToGpu on TextureType {
     TextureType.texture2DMultisample => gpu.TextureType.texture2DMultisample,
     TextureType.textureCube => gpu.TextureType.textureCube,
     TextureType.textureExternalOES => gpu.TextureType.textureExternalOES,
+    _ => throw UnsupportedError('flutter_gpu has no texture type for $this'),
   };
 }
 

@@ -620,6 +620,7 @@ GeometryBuffer webglUploadGeometry(
   final target = switch (usage) {
     GeometryUsage.vertices => web.WebGLRenderingContext.ARRAY_BUFFER,
     GeometryUsage.indices => web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
+    _ => throw UnsupportedError('WebGL2 has no buffer target for $usage'),
   };
   gl.bindBuffer(target, buffer);
   gl.bufferData(

@@ -452,6 +452,9 @@ final class BoundTexture {
     SamplerBorderColor.transparentBlack => Vector4.zero(),
     SamplerBorderColor.opaqueBlack => Vector4(0, 0, 0, 1),
     SamplerBorderColor.opaqueWhite => Vector4(1, 1, 1, 1),
+    _ => throw UnsupportedError(
+      'the software rasteriser has no border colour $color',
+    ),
   };
 
   static Vector4 _mix(Vector4 a, Vector4 b, double t) => Vector4(
@@ -538,6 +541,9 @@ final class BoundTexture {
     SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
     SamplerAddressMode.clampToEdge => i < 0 ? 0 : (i >= size ? size - 1 : i),
     SamplerAddressMode.mirror => _mirror(i, size),
+    _ => throw UnsupportedError(
+      'the software rasteriser has no address mode $mode',
+    ),
   };
 
   /// One texel address under [SamplerAddressMode.mirror].

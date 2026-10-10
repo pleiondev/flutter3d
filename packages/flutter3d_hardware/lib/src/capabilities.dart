@@ -32,19 +32,48 @@ import 'package:meta/meta.dart';
 import 'formats.dart';
 
 /// Whether a [DeviceFeature] has calls behind it yet.
-enum FeatureStability {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class FeatureStability {
+  const FeatureStability._(this.name);
+
   /// Part of the 1.0 contract: its calls exist, are promised under semver,
   /// and change only with a major version. A backend that lacks it refuses
   /// them with [UnsupportedCapabilityException] — which is a complete answer, and the
   /// one a later backend release turns into "yes" without the API moving.
-  stable,
+  static const FeatureStability stable = FeatureStability._('stable');
 
   /// Named so that nothing else takes the name, and implemented nowhere. No
   /// backend may report one — [DeviceFeatures] refuses it — and no call exists
   /// for it yet. Giving one its calls is additive: a minor release adds the
   /// calls and turns it [stable], and every backend that does not list it is
   /// unaffected.
-  reserved,
+  static const FeatureStability reserved = FeatureStability._('reserved');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<FeatureStability> values = <FeatureStability>[
+    stable,
+    reserved,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static FeatureStability? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'FeatureStability.$name';
 }
 
 /// One optional capability of a device.

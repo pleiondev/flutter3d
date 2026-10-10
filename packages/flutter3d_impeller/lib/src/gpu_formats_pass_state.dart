@@ -17,6 +17,7 @@ extension LoadActionToGpu on LoadAction {
     LoadAction.dontCare => gpu.LoadAction.dontCare,
     LoadAction.load => gpu.LoadAction.load,
     LoadAction.clear => gpu.LoadAction.clear,
+    _ => throw UnsupportedError('flutter_gpu has no load action for $this'),
   };
 }
 
@@ -28,6 +29,7 @@ extension StoreActionToGpu on StoreAction {
     StoreAction.multisampleResolve => gpu.StoreAction.multisampleResolve,
     StoreAction.storeAndMultisampleResolve =>
       gpu.StoreAction.storeAndMultisampleResolve,
+    _ => throw UnsupportedError('flutter_gpu has no store action for $this'),
   };
 }
 
@@ -39,6 +41,7 @@ extension PrimitiveTypeToGpu on PrimitiveType {
     PrimitiveType.line => gpu.PrimitiveType.line,
     PrimitiveType.lineStrip => gpu.PrimitiveType.lineStrip,
     PrimitiveType.point => gpu.PrimitiveType.point,
+    _ => throw UnsupportedError('flutter_gpu has no primitive type for $this'),
   };
 }
 
@@ -48,6 +51,7 @@ extension CullModeToGpu on CullMode {
     CullMode.none => gpu.CullMode.none,
     CullMode.frontFace => gpu.CullMode.frontFace,
     CullMode.backFace => gpu.CullMode.backFace,
+    _ => throw UnsupportedError('flutter_gpu has no cull mode for $this'),
   };
 }
 
@@ -64,6 +68,7 @@ extension PolygonModeToGpu on PolygonMode {
   gpu.PolygonMode toGpu() => switch (this) {
     PolygonMode.fill => gpu.PolygonMode.fill,
     PolygonMode.line => gpu.PolygonMode.line,
+    _ => throw UnsupportedError('flutter_gpu has no polygon mode for $this'),
   };
 }
 
@@ -95,6 +100,9 @@ extension StencilOperationToGpu on StencilOperation {
     StencilOperation.invert => gpu.StencilOperation.invert,
     StencilOperation.incrementWrap => gpu.StencilOperation.incrementWrap,
     StencilOperation.decrementWrap => gpu.StencilOperation.decrementWrap,
+    _ => throw UnsupportedError(
+      'flutter_gpu has no stencil operation for $this',
+    ),
   };
 }
 
@@ -158,6 +166,7 @@ extension BlendFactorToGpu on BlendFactor {
           'flutter_gpu has no BlendFactor.$name and no second fragment '
           'output to read it from',
     ),
+    _ => throw UnsupportedError('flutter_gpu has no blend factor for $this'),
   };
 }
 
@@ -176,5 +185,6 @@ extension BlendOperationToGpu on BlendOperation {
       backend: 'Impeller',
       reason: 'flutter_gpu has no BlendOperation.$name',
     ),
+    _ => throw UnsupportedError('flutter_gpu has no blend operation for $this'),
   };
 }

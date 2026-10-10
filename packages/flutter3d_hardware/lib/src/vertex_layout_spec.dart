@@ -186,7 +186,37 @@ final class VertexFormat {
 /// once per instance, so a hundred instances of one mesh read a hundred
 /// transforms from it while every instance reads the same vertices from the
 /// buffer beside it.
-enum VertexStepMode { vertex, instance }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class VertexStepMode {
+  const VertexStepMode._(this.name);
+
+  static const VertexStepMode vertex = VertexStepMode._('vertex');
+
+  static const VertexStepMode instance = VertexStepMode._('instance');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<VertexStepMode> values = <VertexStepMode>[vertex, instance];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static VertexStepMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'VertexStepMode.$name';
+}
 
 /// One input of a vertex stage, and where in its buffer it starts.
 ///

@@ -2071,6 +2071,9 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
       TextureDimension.cube => DeviceFeature.cubeTextures,
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
       TextureDimension.d1 || TextureDimension.d2 => null,
+      _ => throw UnsupportedError(
+        'WebGPU cannot allocate a ${descriptor.dimension} texture',
+      ),
     };
     if (shape != null) features.require(shape, backend: _backend);
     if (descriptor.usage.contains(TextureUsage.storage)) {
@@ -2297,6 +2300,8 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
           );
         }
         return webgpuMapWrite(_gpuDevice, buffer, offsetInBytes, size);
+      default:
+        throw UnsupportedError('WebGPU has no map mode $mode');
     }
   }
 

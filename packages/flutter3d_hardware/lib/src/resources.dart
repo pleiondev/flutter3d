@@ -23,31 +23,63 @@ import 'graphics_device.dart';
 /// The shape of a texture, as a view of it is bound.
 ///
 /// WebGPU's view dimensions. Separate from [TextureType], which mirrors
-/// flutter_gpu value for value and so cannot grow a value flutter_gpu does not
-/// have.
-enum TextureDimension {
+/// flutter_gpu value for value and grows only when flutter_gpu does.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureDimension {
+  const TextureDimension._(this.name);
+
   /// One row of texels.
   ///
   /// Gated by `DeviceFeature.textureWrites` alone in 1.0, with no feature of
   /// its own: WebGPU has it and WebGL2 does not, and a backend without it
   /// refuses the descriptor with an [UnsupportedError] naming the dimension.
   /// A `texture-1d` feature can be added later without breaking anything.
-  d1,
+  static const TextureDimension d1 = TextureDimension._('d1');
 
   /// A plain 2D image — what every texture before 0.9 was, cubes aside.
-  d2,
+  static const TextureDimension d2 = TextureDimension._('d2');
 
   /// Several 2D images of one size, addressed by layer.
-  d2Array,
+  static const TextureDimension d2Array = TextureDimension._('d2Array');
 
   /// A volume of texels.
-  d3,
+  static const TextureDimension d3 = TextureDimension._('d3');
 
   /// Six square faces sampled by direction.
-  cube,
+  static const TextureDimension cube = TextureDimension._('cube');
 
   /// Several cubes, addressed by cube index.
-  cubeArray,
+  static const TextureDimension cubeArray = TextureDimension._('cubeArray');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureDimension> values = <TextureDimension>[
+    d1,
+    d2,
+    d2Array,
+    d3,
+    cube,
+    cubeArray,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureDimension? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureDimension.$name';
 }
 
 /// What a texture may be used for, fixed when it is made.
@@ -381,18 +413,72 @@ final class QueryType {
 
 /// The counters a [QueryType.pipelineStatistics] query reports, in the
 /// order its five results come back.
-enum PipelineStatistic {
-  vertexShaderInvocations,
-  clipperInvocations,
-  clipperPrimitivesOut,
-  fragmentShaderInvocations,
-  computeShaderInvocations,
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class PipelineStatistic {
+  const PipelineStatistic._(this.name);
+
+  static const PipelineStatistic vertexShaderInvocations = PipelineStatistic._(
+    'vertexShaderInvocations',
+  );
+
+  static const PipelineStatistic clipperInvocations = PipelineStatistic._(
+    'clipperInvocations',
+  );
+
+  static const PipelineStatistic clipperPrimitivesOut = PipelineStatistic._(
+    'clipperPrimitivesOut',
+  );
+
+  static const PipelineStatistic fragmentShaderInvocations =
+      PipelineStatistic._('fragmentShaderInvocations');
+
+  static const PipelineStatistic computeShaderInvocations = PipelineStatistic._(
+    'computeShaderInvocations',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<PipelineStatistic> values = <PipelineStatistic>[
+    vertexShaderInvocations,
+    clipperInvocations,
+    clipperPrimitivesOut,
+    fragmentShaderInvocations,
+    computeShaderInvocations,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static PipelineStatistic? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
+
+  @override
+  String toString() => 'PipelineStatistic.$name';
 }
 
 /// How a buffer is mapped into host memory — `GraphicsDevice.mapBuffer`.
-enum MapMode {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MapMode {
+  const MapMode._(this.name);
+
   /// The host reads what the GPU wrote. Needs [BufferUsage.hostReadable].
-  read,
+  static const MapMode read = MapMode._('read');
 
   /// The host writes what the GPU will read. Needs
   /// [BufferUsage.hostWritable].
@@ -402,7 +488,27 @@ enum MapMode {
   /// whose map-write buffers can only be copy sources) hands back zeros and
   /// writes the range on unmap. A caller writes every byte of the range it
   /// means, and reads nothing it did not write.
-  write,
+  static const MapMode write = MapMode._('write');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MapMode> values = <MapMode>[read, write];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MapMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'MapMode.$name';
 }
 
 /// A range of a buffer mapped into host memory.
@@ -596,6 +702,10 @@ final class PassTimestampWrites {
 }
 
 /// How a compute or render stage may touch a storage texture.
+///
+/// **Closed for good**: read, write, or both: every non-empty set of the two
+/// ways to touch a texel. No member can be added without changing what the type
+/// means, so it stays an enum and a `switch` over it may name every case.
 enum StorageTextureAccess {
   writeOnly,
   readOnly,

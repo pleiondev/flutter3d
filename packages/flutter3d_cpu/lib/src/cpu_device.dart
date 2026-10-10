@@ -834,6 +834,10 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         );
       case TextureDimension.d1 || TextureDimension.d2:
         break;
+      default:
+        throw UnsupportedError(
+          'the software rasteriser cannot allocate a ${d.dimension} texture',
+        );
     }
     if (d.sampleCount > 1) {
       features.require(
@@ -924,6 +928,9 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         }
         return base;
       }(),
+      _ => throw UnsupportedError(
+        'the software rasteriser cannot allocate a ${d.dimension} texture',
+      ),
     };
     final isCube =
         d.dimension == TextureDimension.cube ||
@@ -954,6 +961,9 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       ),
       TextureDimension.cube => (l.maxTextureDimension2D, 6),
       TextureDimension.d2 => (l.maxTextureDimension2D, 1),
+      _ => throw UnsupportedError(
+        'the software rasteriser cannot allocate a ${d.dimension} texture',
+      ),
     };
     final problem = switch (d.dimension) {
       _ when d.width > maxSide || d.height > maxSide =>
@@ -1242,6 +1252,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         _requireReadable(buffer);
       case MapMode.write:
         requireBufferUsage(buffer, BufferUsage.hostWritable, 'a write mapping');
+      default:
+        throw UnsupportedError('the software rasteriser has no map mode $mode');
     }
     if (mappedBuffers[buffer] != null) {
       throw StateError('the buffer is already mapped');

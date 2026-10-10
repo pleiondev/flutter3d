@@ -16,14 +16,40 @@ library;
 /// `BufferView` binds either way, which is why the contract went without this
 /// until a second backend was written against it. The engine has always known
 /// which it was uploading, so saying so costs a word at each call site.
-enum GeometryUsage {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class GeometryUsage {
+  const GeometryUsage._(this.name);
+
   /// Interleaved vertex attributes.
-  vertices,
+  static const GeometryUsage vertices = GeometryUsage._('vertices');
 
   /// Indices, of the width the draw will name.
   ///
   /// Plural to stay clear of `Enum.index`, which every enum already has.
-  indices,
+  static const GeometryUsage indices = GeometryUsage._('indices');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<GeometryUsage> values = <GeometryUsage>[vertices, indices];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static GeometryUsage? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'GeometryUsage.$name';
 }
 
 /// A range of device memory holding vertices or indices.

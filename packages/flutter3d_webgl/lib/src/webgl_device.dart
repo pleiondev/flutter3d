@@ -994,6 +994,10 @@ final class WebGlDevice extends GraphicsDevice
         );
       case TextureDimension.d2:
         break;
+      default:
+        throw UnsupportedError(
+          'WebGL2 cannot allocate a ${descriptor.dimension} texture',
+        );
     }
     if (descriptor.usage.contains(TextureUsage.storage)) {
       // TODO(webgl): storage textures — WebGL2 has no image load/store

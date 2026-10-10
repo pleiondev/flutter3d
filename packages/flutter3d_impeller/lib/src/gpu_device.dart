@@ -1016,6 +1016,9 @@ final class GpuRenderBackend extends GraphicsDevice {
       TextureDimension.d2Array => DeviceFeature.textureArrays,
       TextureDimension.d3 => DeviceFeature.texture3D,
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
+      _ => throw UnsupportedError(
+        'flutter_gpu cannot allocate a ${descriptor.dimension} texture',
+      ),
     };
     if (shape != null) {
       // TODO(impeller): flutter_gpu's TextureType is texture2D,
