@@ -37,9 +37,9 @@ extension RiverGameStaging on RiverGame {
       looks: Craft.looks,
     );
     scene
-      ..ambientIntensity = 0.7 * Photometric.legacyUnit
+      ..ambientIntensity = 0.7 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 2.4 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.4 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
       );
 

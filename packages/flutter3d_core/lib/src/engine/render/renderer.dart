@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColorVector;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -890,7 +892,7 @@ final class Renderer with RenderServices {
 
   /// The depth of the deferred-release rings: the most frames that may be in
   /// flight, whatever [pacing] allows — see [FramePacing.maxFramesInFlight].
-  static const int _kFramesInFlight = FramePacing.maxFramesInFlight;
+  static int get _kFramesInFlight => FramePacing.maxFramesInFlight;
 
   /// How far this renderer lets the CPU run ahead of the GPU, and which
   /// pipeline builds it reports — `A1.4`, `A1.7`. Read at the top of each
@@ -1122,6 +1124,32 @@ final class Renderer with RenderServices {
   final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
   final DecalInfoBlock _decalInfo = DecalInfoBlock();
+
+  /// The clock read around each node while the telemetry times them, one
+  /// for the renderer rather than one per node per frame.
+  final Stopwatch _passClock = Stopwatch();
+
+  /// The decal pass's packed sort keys and the decals in the order they
+  /// paint, kept across frames so a frame of decals allocates no list.
+  final List<int> _decalKeys = <int>[];
+  final List<DecalNode> _decalOrder = <DecalNode>[];
+
+  /// What a view whose transparent half is drawn later keeps of itself, one
+  /// slot per deferred view of the frame, reused frame after frame so the
+  /// deferral allocates no matrix and no vector.
+  final List<vm.Matrix4> _deferredViewProjections = <vm.Matrix4>[];
+  final List<vm.Vector3> _deferredEyes = <vm.Vector3>[];
+  final List<vm.Vector3> _deferredForwards = <vm.Vector3>[];
+
+  /// Slot [index] of [pool], made with [make] the first time it is asked
+  /// for.
+  static T _deferredSlot<T>(List<T> pool, int index, T Function() make) {
+    while (pool.length <= index) {
+      pool.add(make());
+    }
+    return pool[index];
+  }
+
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
@@ -2981,6 +3009,10 @@ final class Renderer with RenderServices {
   final List<int?> _faceSignatures = <int?>[];
   final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
+  /// The graph [_compileFrameGraph] fills each frame, kept so a frame that
+  /// asks what the last one did gets the last compile back.
+  final FrameGraph _frameGraph = FrameGraph();
+
   /// The frame, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
@@ -3287,7 +3319,10 @@ final class Renderer with RenderServices {
         }
       }
     }
-    final graph = FrameGraph();
+    // One graph for every frame, cleared and filled again: a frame that
+    // registers what the last one did is not compiled again (see
+    // `FrameGraph.compile`).
+    final graph = _frameGraph..clear();
     for (final node in schedule.ordered()) {
       graph.addNode(node);
     }
@@ -3321,7 +3356,10 @@ final class Renderer with RenderServices {
     // already made them inactive; this only names who asked, so the skip
     // reads "switched off" rather than "settings". A node added with a step
     // is that step's pass whether or not the step lists it.
-    final stepsOff = RenderStep.switchedOffIn(s, also: renderSteps.added);
+    final stepsOff = RenderStepInternals.switchedOffIn(
+      s,
+      also: renderSteps.added,
+    );
     return graph.compile(
       switchedOff: stepsOff.isEmpty
           ? const <String>{}
@@ -4324,7 +4362,7 @@ final class Renderer with RenderServices {
         this,
         scene: scene,
         shadowCaster: shadowCaster,
-        clearColor: ordered.first.clearColorSrgb,
+        clearColor: ordered.first.clearColor,
         enabled: settings.irradianceUpdates,
       ),
       probes: <_ReflectionProbeNode>[
@@ -4335,7 +4373,7 @@ final class Renderer with RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColorSrgb,
+            clearColor: ordered.first.clearColor,
             enabled: settings.reflectionProbes,
           ),
       ],
@@ -4946,7 +4984,7 @@ final class Renderer with RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColorSrgb,
+            clearColor: ordered.first.clearColor,
             enabled: settings.reflectionProbes,
           ),
       ];
@@ -4985,7 +5023,7 @@ final class Renderer with RenderServices {
           this,
           scene: scene,
           shadowCaster: shadowCaster,
-          clearColor: ordered.first.clearColorSrgb,
+          clearColor: ordered.first.clearColor,
           enabled: settings.irradianceUpdates,
         ),
         renderTextures: _RenderTextureNode(
@@ -5038,6 +5076,7 @@ final class Renderer with RenderServices {
               frameHeight: height,
               alias: settings.aliasTargets,
               onRetire: _debugOnTargetRetired,
+              recordUses: settings.telemetry.recordsNodes,
             )
             // Half the frame, in the same HDR format, which is what the bloom
             // chain's top level has always been.
@@ -5168,6 +5207,11 @@ final class Renderer with RenderServices {
     // resource layer raises when a node breaks its `keeps` promise is the first
     // thing likely to use it.
     final passTimings = <FramePass>[];
+    // `RenderSettings.telemetry`: what this frame keeps per node and per
+    // resource, and whether it reads a clock around each node. A capture
+    // times its passes whatever the telemetry says.
+    final telemetry = settings.telemetry;
+    final timing = telemetry.recordsTimes || _captureWanted != null;
     _frameCounters = passState;
     // Taken at the top of the frame and cleared here, so a request made while
     // this frame is encoding is the *next* frame's — `gfx-70n`.
@@ -5196,14 +5240,20 @@ final class Renderer with RenderServices {
         final drawsBefore = passState.drawCalls;
         final trianglesBefore = passState.triangles;
         final switchesBefore = passState.pipelineSwitches;
-        final passClock = Stopwatch()..start();
+        // The clock and the span only where somebody reads them: the
+        // telemetry's timings, or a capture, which records each pass's time.
+        final passClock = timing
+            ? (_passClock
+                ..reset()
+                ..start())
+            : null;
         // One span and one pass label per node, named by the node — `H2`.
         // The label reaches every pass the node opens through this renderer,
         // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
         // own names rather than a pass nobody can place.
         _passLabel = node.name;
         passState.journal?.beginPass(i, node.name);
-        developer.Timeline.startSync(node.name);
+        if (timing) developer.Timeline.startSync(node.name);
         try {
           node.execute(
             RenderFrame(
@@ -5235,35 +5285,44 @@ final class Renderer with RenderServices {
             )..state = passState,
           );
         } finally {
-          developer.Timeline.finishSync();
+          if (timing) developer.Timeline.finishSync();
           _passLabel = null;
         }
-        passTimings.add((
-          name: node.name,
-          active: node.isActive,
-          micros: passClock.elapsedMicroseconds,
-          // The last timings a measuring device reported for this node,
-          // which are a frame or two old — see `_lastGpuMicros`. Null where
-          // the device does not measure, or has not reported this node yet.
-          gpuMicros: _lastGpuMicros[node.name],
-          drawCalls: passState.drawCalls - drawsBefore,
-          triangles: passState.triangles - trianglesBefore,
-          pipelineSwitches: passState.pipelineSwitches - switchesBefore,
-        ));
+        final micros = passClock?.elapsedMicroseconds ?? 0;
+        final drawCalls = passState.drawCalls - drawsBefore;
+        final triangles = passState.triangles - trianglesBefore;
+        if (telemetry.recordsNodes) {
+          passTimings.add(
+            FramePass(
+              name: node.name,
+              active: node.isActive,
+              micros: telemetry.recordsTimes ? micros : 0,
+              // The last timings a measuring device reported for this node,
+              // which are a frame or two old — see `_lastGpuMicros`. Null
+              // where the device does not measure, or has not reported this
+              // node yet, or the telemetry is not timing.
+              gpuMicros: telemetry.recordsTimes
+                  ? _lastGpuMicros[node.name]
+                  : null,
+              drawCalls: drawCalls,
+              triangles: triangles,
+              pipelineSwitches: passState.pipelineSwitches - switchesBefore,
+            ),
+          );
+        }
         // **Before `endNode`, which is the whole point** — `gfx-70n`. That call
         // is where a version whose last reader has passed goes back to the
         // pool, and the next pass draws over it. A capture taken after the
         // frame would hold whatever the last pass to borrow that shape left
         // there, attributed to whichever pass wrote it first.
-        passState.journal?.endPass(passState.drawCalls - drawsBefore);
-        final cost = passTimings.last;
+        passState.journal?.endPass(drawCalls);
         _capture?.record(
           node,
           device: device,
           lookup: resources.tryTexture,
-          micros: cost.micros,
-          drawCalls: cost.drawCalls,
-          triangles: cost.triangles,
+          micros: micros,
+          drawCalls: drawCalls,
+          triangles: triangles,
         );
         resources.endNode(i);
       }
@@ -5389,12 +5448,12 @@ final class Renderer with RenderServices {
       // here rather than reported by one of them.
       antiAliasing: EffectiveAntiAliasing(
         msaaSamples: scenePass.msaaSamples,
-        fxaa: passTimings.any((p) => p.name == 'antialias'),
+        fxaa: frameGraph.order.any((n) => n.name == 'antialias'),
         msaaDeclined: scenePass.msaaDeclined,
         // Whether the resolve ran, which asking the setting would not say: a
         // device with one colour attachment has no surface buffer, and the
         // node is refused there.
-        temporal: passTimings.any((p) => p.name == 'temporal resolve'),
+        temporal: frameGraph.order.any((n) => n.name == 'temporal resolve'),
       ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
@@ -5413,6 +5472,9 @@ final class Renderer with RenderServices {
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
       passes: passTimings,
+      resources: telemetry.recordsNodes
+          ? resources.uses
+          : const <FrameResourceUse>[],
       // Read off the compiled graph rather than recomputed here: the reasons
       // are the compile's own answers, and a second derivation is a second
       // thing to disagree with the frame. Each step switched off through
@@ -5422,7 +5484,7 @@ final class Renderer with RenderServices {
       // Then what the frame declined, which the fields above already say
       // one convention at a time.
       skipped: <SkippedPass>[
-        ...RenderStep.reportSkips(
+        ...RenderStepInternals.reportSkips(
           settings,
           frameGraph.skipped,
           also: renderSteps.added,
@@ -5527,8 +5589,8 @@ final class Renderer with RenderServices {
   /// with [FrameGraph.addExternal] at version zero — the first real caller
   /// that primitive has had since the migration [_compileFrameGraph]'s own
   /// doc comment describes ("nothing is external any more"). Bloom is the
-  /// one reader: it consumes `hdr_colour@0` and writes `bloom@1`, and the
-  /// graph this method builds never asks for a version of `hdr_colour`
+  /// one reader: it consumes `hdr_color@0` and writes `bloom@1`, and the
+  /// graph this method builds never asks for a version of `hdr_color`
   /// past zero — nothing here registers a node that would produce one.
   /// `frame_graph_test.dart`'s own coverage is what happens when something
   /// does: a read the graph cannot trace to a producer is refused at
@@ -5783,20 +5845,6 @@ final class Renderer with RenderServices {
         ..releaseTexture(first)
         ..releaseTexture(second);
     }
-  }
-
-  /// Converts a display-referred colour into the linear light the scene target
-  /// holds. Alpha is coverage, not light, so it passes through.
-  static vm.Vector4 _srgbToLinear(vm.Vector4 color) {
-    double channel(double c) => c <= 0.04045
-        ? c / 12.92
-        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
-    return vm.Vector4(
-      channel(color.x),
-      channel(color.y),
-      channel(color.z),
-      color.w,
-    );
   }
 
   /// Returns a pooled texture once the GPU can no longer be reading it.

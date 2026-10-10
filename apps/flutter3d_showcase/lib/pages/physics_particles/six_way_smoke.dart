@@ -62,7 +62,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     // #region lights
     LightNode point(Vector3 color) => LightNode(
       type: LightType.point,
-      intensity: intensity * Photometric.legacyUnit,
+      intensity: intensity * LightNode.defaultIntensity,
       color: color.toLinearColor(),
     )..castsShadow = false;
     _red = point(Vector3(1.0, 0.2, 0.1));

@@ -17,6 +17,7 @@ import 'render_step.dart';
 import 'shadow_settings.dart';
 import 'sky_settings.dart';
 import 'tables/kdop_axes.dart';
+import 'telemetry.dart';
 
 // Re-exported so that `render_settings.dart` stays the one import an
 // application needs: what moved out is still part of the same vocabulary.
@@ -25,6 +26,7 @@ export 'debug_view.dart';
 export 'frame_result.dart';
 export 'render_step.dart';
 export 'shadow_settings.dart';
+export 'telemetry.dart';
 
 part 'settings_slots.dart';
 
@@ -719,6 +721,31 @@ final class VolumetricFogSettings {
   );
 }
 
+/// A thin lens as [DepthOfFieldSettings.lensFor] works it out: its focal
+/// length and the width of sensor the picture spans, both in metres.
+final class ThinLens {
+  const ThinLens({required this.focalLength, required this.sensorWidth});
+
+  /// The focal length, in metres.
+  final double focalLength;
+
+  /// The width of sensor the picture spans, in metres.
+  final double sensorWidth;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ThinLens &&
+      other.focalLength == focalLength &&
+      other.sensorWidth == sensorWidth;
+
+  @override
+  int get hashCode => Object.hash(focalLength, sensorWidth);
+
+  @override
+  String toString() =>
+      'ThinLens(focalLength: $focalLength, sensorWidth: $sensorWidth)';
+}
+
 /// Depth of field, from a lens rather than from a ramp — `gfx-34n`.
 ///
 /// **Every number here is one a photographer already knows.** A focus
@@ -822,19 +849,19 @@ final class DepthOfFieldSettings {
   /// across the picture, and `tan(hfov / 2)` is `aspect * tan(vfov / 2)`, so
   /// either number follows from the other. A null [verticalFieldOfView] is
   /// an orthographic camera and gets the numbers as given.
-  ({double focalLength, double sensorWidth}) lensFor({
+  ThinLens lensFor({
     required double? verticalFieldOfView,
     required double aspect,
   }) {
     final given = focalLength;
     final fovY = verticalFieldOfView;
     if (fovY == null || fovY <= 0.0 || aspect <= 0.0) {
-      return (focalLength: given ?? 0.05, sensorWidth: sensorWidth);
+      return ThinLens(focalLength: given ?? 0.05, sensorWidth: sensorWidth);
     }
     final across = 2.0 * aspect * math.tan(fovY / 2.0);
     return given == null
-        ? (focalLength: sensorWidth / across, sensorWidth: sensorWidth)
-        : (focalLength: given, sensorWidth: given * across);
+        ? ThinLens(focalLength: sensorWidth / across, sensorWidth: sensorWidth)
+        : ThinLens(focalLength: given, sensorWidth: given * across);
   }
 
   /// A copy with the given fields replaced. A `clear…` flag resets that
@@ -1438,10 +1465,18 @@ final class TransparencyMode {
 }
 
 /// The diffuse lobe of the metal-rough models, `pbr` and `pbrLayered` — `L8`.
-enum DiffuseModel {
+///
+/// A `final class` with const instances rather than an enum, so a lobe added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class DiffuseModel {
+  const DiffuseModel._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// A constant `albedo / π`, the same in every direction. The default, and
   /// every frame the metal-rough models drew before the other existed.
-  lambert,
+  static const DiffuseModel lambert = DiffuseModel._('lambert');
 
   /// The energy-preserving Oren-Nayar lobe of Portsmouth, Kutz and Hill
   /// (EON, JCGT 2025, preprint 2024), rough by the material's own roughness.
@@ -1458,7 +1493,13 @@ enum DiffuseModel {
   /// Arithmetic only: no table and no sampler. Direct light gets the whole
   /// lobe; the ambient, the environment's irradiance and a lightmap get its
   /// directional albedo at the view.
-  eon,
+  static const DiffuseModel eon = DiffuseModel._('eon');
+
+  /// Every lobe.
+  static const List<DiffuseModel> values = <DiffuseModel>[lambert, eon];
+
+  @override
+  String toString() => 'DiffuseModel.$name';
 }
 
 /// Scene-wide shading knobs that are not per-material.
@@ -1536,6 +1577,7 @@ final class RenderSettings {
     this.camera = const PhysicalCamera(),
     this.physicalCamera = true,
     this.extensions = const SettingsExtensions(),
+    this.telemetry = TelemetryLevel.timings,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -1961,8 +2003,8 @@ final class RenderSettings {
   /// `FrameResult.skipped` calls the result — [PassSkip.switchedOff] rather
   /// than [PassSkip.settings], and an entry under the step's own name for a
   /// step with no pass of its own. A step listed here whose setting a later
-  /// [copyWith] turned back on is drawn and not reported: see
-  /// [switchedOffSteps].
+  /// [copyWith] turned back on is drawn and not reported: ask
+  /// [RenderStep.isOn] whether a step is on now.
   final Set<RenderStep> stepsOff;
 
   /// The camera's aperture, shutter and sensitivity — `B6.22`. See
@@ -1997,6 +2039,13 @@ final class RenderSettings {
   /// read by the render steps and nodes of whoever defined the slot.
   final SettingsExtensions extensions;
 
+  /// How much of the frame the renderer measures: [TelemetryLevel.off] keeps
+  /// the frame's totals only, [TelemetryLevel.counters] a record per node
+  /// and per resource, [TelemetryLevel.timings] those with each node's CPU
+  /// and GPU time and a timeline span per node. Timings by default; see
+  /// [TelemetryLevel] for what each costs.
+  final TelemetryLevel telemetry;
+
   /// The value of [slot]: its field for a built-in slot, what
   /// [withExtension] wrote for any other, and [SettingsSlot.defaults] when
   /// nothing was.
@@ -2018,19 +2067,12 @@ final class RenderSettings {
       ? slot._writeInto(this, value)
       : copyWith(extensions: extensions.put(slot, value));
 
-  /// The steps in [stepsOff] whose own switch is still off — what this frame
-  /// reports as switched off.
-  Set<RenderStep> get switchedOffSteps => <RenderStep>{
-    for (final step in stepsOff)
-      if (!step.isOn(this)) step,
-  };
-
   /// These settings with every step in [steps] switched off — and every step
   /// that needs one of them, since it cannot run without it.
   ///
   /// The one call for "this frame without bloom, the fog and the shadows",
   /// for any set of steps in any combination. Each step is switched off by
-  /// its own setting — [RenderStep.switchOff] is a `copyWith` of the field
+  /// its own setting — a `copyWith` of the field
   /// that already gates it — so the frame is the one a caller would get by
   /// turning those settings off by hand, and every golden recorded against a
   /// setting describes it. The steps are also recorded in [stepsOff], so
@@ -2041,8 +2083,7 @@ final class RenderSettings {
   /// `without({RenderStep.bloom})` also switches the flare off, and the
   /// flare is listed in [stepsOff] and reported as switched off beside the
   /// glow. Nothing is refused: every set of steps is a frame that can be
-  /// drawn. [RenderStep.withDependants] is the closure, for a caller who
-  /// wants to know beforehand.
+  /// drawn.
   ///
   /// Additive: a step already off stays off, and the record grows.
   ///
@@ -2051,17 +2092,21 @@ final class RenderSettings {
   /// renderer has registered as [also] — `renderer.renderSteps.added` — and
   /// those that need one of [steps] are switched off and recorded with it.
   /// Left out, they are still off in the frame, which takes them down with
-  /// what they need and reports them; see `RenderStep.switchedOffIn`.
+  /// what they need and reports them.
   RenderSettings without(
     Set<RenderStep> steps, {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
-    final off = RenderStep.withDependants(steps, also: also);
-    final switched = <RenderStep>[
-      ...RenderStep.values.where(off.contains),
-      for (final step in off)
-        if (!step.isBuiltIn) step,
-    ].fold<RenderSettings>(this, (s, step) => step.switchOff(s));
+    final off = RenderStepInternals.withDependants(steps, also: also);
+    final switched =
+        <RenderStep>[
+          ...RenderStep.values.where(off.contains),
+          for (final step in off)
+            if (!step.isBuiltIn) step,
+        ].fold<RenderSettings>(
+          this,
+          (s, step) => RenderStepInternals.switchOff(step, s),
+        );
     return switched.copyWith(stepsOff: <RenderStep>{...stepsOff, ...off});
   }
 
@@ -2080,7 +2125,7 @@ final class RenderSettings {
     Set<RenderStep> steps, {
     Iterable<RenderStep> also = const <RenderStep>[],
   }) {
-    final keep = RenderStep.withPrerequisites(steps);
+    final keep = RenderStepInternals.withPrerequisites(steps);
     return without(<RenderStep>{
       for (final step in <RenderStep>[...RenderStep.values, ...also])
         if (!keep.contains(step)) step,
@@ -2201,6 +2246,7 @@ final class RenderSettings {
     PhysicalCamera? camera,
     bool? physicalCamera,
     SettingsExtensions? extensions,
+    TelemetryLevel? telemetry,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -2258,6 +2304,7 @@ final class RenderSettings {
     camera: camera ?? this.camera,
     physicalCamera: physicalCamera ?? this.physicalCamera,
     extensions: extensions ?? this.extensions,
+    telemetry: telemetry ?? this.telemetry,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
@@ -2342,7 +2389,7 @@ final class RenderSettings {
     'decals',
     // `M3`: on a frame with glass, the scene as the opaque half left it, and
     // the glass and the transparent half drawn over it. Culled on any other.
-    'scene colour copy',
+    'scene color copy',
     'transparent',
     'object ids',
     // `N9`: the colours the high-contrast look rings marked nodes in.

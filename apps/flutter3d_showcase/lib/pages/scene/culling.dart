@@ -33,7 +33,7 @@ final class CullingDemo extends ShowcaseDemo {
     // #region visible
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.44, 0.53, 0.7)
-      ..ambientIntensity = 0.14 * Photometric.legacyUnit;
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity;
     for (var i = 0; i < visibleCount; i++) {
       final int x = i % 4;
       final int z = i ~/ 4;
@@ -60,7 +60,7 @@ final class CullingDemo extends ShowcaseDemo {
 
     // #region light
     scene.add(
-      LightNode(name: 'sun', intensity: 3.1 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 3.1 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
     );
     // #endregion light

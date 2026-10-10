@@ -135,7 +135,7 @@ Future<_Circuit?> _open(
     cars.add((car: car, node: node, lift: lift));
   }
   scene.ambientIntensity =
-      document.sky.ambientIntensity * Photometric.legacyUnit;
+      document.sky.ambientIntensity * LightNode.defaultIntensity;
   if (EnvironmentMap.isSupportedOn(device)) {
     final environment = EnvironmentMap.fromSky(device, _skyOf(document.sky));
     scene
@@ -287,7 +287,7 @@ Future<int> _ford() async {
       scene: circuit.scene,
       camera: camera,
       settings: _settings(circuit.sky, gaze),
-      clearColorSrgb: Vector4(sky.r, sky.g, sky.b, 1.0),
+      clearColor: LinearColor.fromSrgb(sky.r, sky.g, sky.b, 1.0),
     );
   }
   return _frames;

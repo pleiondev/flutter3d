@@ -7,7 +7,6 @@ import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'light_views.dart';
 
@@ -108,7 +107,10 @@ final class LightShading {
         height: height,
         scene: _scene,
         views: <RenderView>[
-          RenderView(camera: eye, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: eye,
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: settings,
       );

@@ -637,13 +637,22 @@ Ktx2Texture _parseUniversal(
   return Ktx2Texture._(pixelWidth, pixelHeight, target.vkFormat, levels);
 }
 
+/// What [universalBlockFormat] says of a universal-block file: whether it
+/// [hasAlpha]. An open class rather than a bool, so it can say more later.
+final class UniversalBlockFormat {
+  const UniversalBlockFormat({required this.hasAlpha});
+
+  /// Whether the file carries alpha (RGBA) or not (RGB).
+  final bool hasAlpha;
+}
+
 /// Whether [bytes] is a universal-block file and whether it carries alpha, or
 /// null when it is an ordinary KTX2.
 ///
 /// Asked before [Ktx2Texture.parse] by a caller that has to pick a target: on
 /// the engine's side the device knows what it samples and the isolate the
 /// transcode runs on does not, so the choice is made here and carried in.
-({bool hasAlpha})? universalBlockFormat(Uint8List bytes) {
+UniversalBlockFormat? universalBlockFormat(Uint8List bytes) {
   // Long enough for the header and the index that points at the key/value
   // section — this is asked *before* the parse, of bytes nothing has checked,
   // so a file too short to hold the question is a no rather than a throw. The
@@ -657,8 +666,8 @@ Ktx2Texture _parseUniversal(
   );
   final marker = _checkKeyValues(bytes, view)[universalBlockKey];
   return switch (marker) {
-    universalBlockRgba => (hasAlpha: true),
-    universalBlockRgb => (hasAlpha: false),
+    universalBlockRgba => const UniversalBlockFormat(hasAlpha: true),
+    universalBlockRgb => const UniversalBlockFormat(hasAlpha: false),
     _ => null,
   };
 }

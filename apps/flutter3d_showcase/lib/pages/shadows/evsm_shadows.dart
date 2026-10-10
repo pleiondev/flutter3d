@@ -67,7 +67,7 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
     // #region sun
     final LightNode sun = LightNode(
       name: 'sun',
-      intensity: 1.5 * Photometric.legacyUnit,
+      intensity: 1.5 * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.85, -1.0, -0.2).normalized());
     // #endregion sun
     return scene..add(sun);

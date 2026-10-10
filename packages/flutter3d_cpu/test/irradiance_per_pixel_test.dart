@@ -33,7 +33,9 @@ IrradianceField _field({double wall = 100.0}) {
     for (var y = 0; y < 2; y++) {
       for (var x = 0; x < 2; x++) {
         final probe = field.probeIndex(x, y, z);
-        final color = x == 0 ? Vector3(1.0, 0.1, 0.1) : Vector3(1.0, 1.0, 1.0);
+        final color = x == 0
+            ? const LinearColor(1.0, 0.1, 0.1)
+            : LinearColor.white;
         for (var ty = 0; ty < field.tile; ty++) {
           for (var tx = 0; tx < field.tile; tx++) {
             field.writeIrradianceTexel(probe, tx, ty, color);
@@ -69,7 +71,7 @@ Float32List _frame({required bool withField, double wall = 100.0}) {
     ..setPosition(0.0, 3.0, 0.01)
     ..lookAt(Vector3.zero());
   final scene = Scene()
-    ..ambientIntensity = 1.0 * Photometric.legacyUnit
+    ..ambientIntensity = 1.0 * LightNode.defaultIntensity
     ..add(floor)
     ..add(camera);
   if (withField) scene.irradianceField = _field(wall: wall);

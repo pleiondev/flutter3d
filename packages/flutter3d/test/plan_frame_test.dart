@@ -23,14 +23,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// passes, the atlas and the scene pass are all real.
 Scene _scene() => Scene()
   ..add(
-    LightNode(intensity: 4.0 * Photometric.legacyUnit, castsShadow: true)
+    LightNode(intensity: 4.0 * LightNode.defaultIntensity, castsShadow: true)
       ..setPosition(3.0, 4.0, 5.0)
       ..lookAt(Vector3.zero()),
   )
   ..add(
     LightNode(
       type: LightType.point,
-      intensity: 3.0 * Photometric.legacyUnit,
+      intensity: 3.0 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setPosition(-2.0, 1.0, 0.0),
   )

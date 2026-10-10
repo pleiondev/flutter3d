@@ -61,7 +61,7 @@ Future<RenderedFrame> renderFrame({
   required int height,
   required FrameBuilder build,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColorSrgb,
+  LinearColor? clearColor,
 }) async {
   final kit = cpuTestDevice(width: width, height: height);
   final subject = build(FrameRequest(kit.device));
@@ -84,6 +84,6 @@ Future<RenderedFrame> renderFrame({
     width: width,
     height: height,
     settings: settings,
-    clearColorSrgb: clearColorSrgb,
+    clearColor: clearColor,
   );
 }

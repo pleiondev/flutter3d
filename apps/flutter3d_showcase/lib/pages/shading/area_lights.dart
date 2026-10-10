@@ -42,7 +42,7 @@ final class AreaLightsDemo extends ShowcaseDemo {
         LightNode(
             name: 'window',
             type: LightType.area,
-            intensity: 8.0 * Photometric.legacyUnit,
+            intensity: 8.0 * LightNode.defaultIntensity,
           )
           ..width = width
           ..height = height

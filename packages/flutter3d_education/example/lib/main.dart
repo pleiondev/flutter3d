@@ -56,7 +56,7 @@ class _BenchScreenState extends State<BenchScreen>
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.1, 0.11, 0.14, 1.0),
+    clearColor: LinearColor.fromSrgb(0.1, 0.11, 0.14, 1.0),
   );
   // A bench is looked at from above and from not too far: the controller's
   // own limits let the camera go under the table and out of the room.

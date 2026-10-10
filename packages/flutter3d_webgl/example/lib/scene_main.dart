@@ -175,7 +175,7 @@ class _SceneAppState extends State<SceneApp>
       scene.root.add(ball);
       _ball = ball;
       final light = LightNode(name: 'key', type: LightType.directional)
-        ..intensity = 3.0 * Photometric.legacyUnit;
+        ..intensity = 3.0 * LightNode.defaultIntensity;
       light.setPosition(2.0, 3.0, 2.0);
       light.lookAt(Vector3.zero());
       scene.root.add(light);

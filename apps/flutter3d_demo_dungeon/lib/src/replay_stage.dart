@@ -142,6 +142,9 @@ final class CryptReplay {
   /// a warm-up is handed, since a probe captures against the first view's
   /// clear colour.
   List<RenderView> views() => <RenderView>[
-    RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+    RenderView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+    ),
   ];
 }

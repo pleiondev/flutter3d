@@ -244,8 +244,8 @@ renderer looks the same here.
 Before 1.0, light intensity was in an engine unit where 1.0 was
 1843.2 cd/m² of luminance and π times that in lux. (The reference camera
 draws 1843.2 cd/m² at 1.6, past white; its white is 1152 cd/m².) A pre-1.0 light, ambient or
-sun-disc number times `Photometric.legacyUnit` (about 5 790.6), and a pre-1.0
-emissive strength times `Photometric.legacyNits` (1 843.2), is the same light
+sun-disc number times `LightNode.defaultIntensity` (about 5 790.6), and a pre-1.0
+emissive strength times `RenderMaterial.defaultEmissiveStrength` (1 843.2), is the same light
 now, so a picture does not change when a project moves. A level of format 5
 writes its lights in candela, and its sun in lux; the lift from format 4
 multiplies by that unit, and a light that never named its strength keeps

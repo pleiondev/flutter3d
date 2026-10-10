@@ -42,7 +42,7 @@ void main() {
     scene.add(
       LightNode(
         color: LinearColor(1.0, 1.0, 1.0),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 3.0 * LightNode.defaultIntensity,
       )..lookAt(Vector3(-0.2, -0.4, -1.0)),
     );
     final camera = CameraNode(
@@ -56,7 +56,10 @@ void main() {
       height: height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.2, 1.0)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.2, 1.0),
+        ),
       ],
       settings: const RenderSettings(),
     );

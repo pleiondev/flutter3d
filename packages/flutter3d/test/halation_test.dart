@@ -50,7 +50,7 @@ Future<({List<int> red, List<int> blue})> _glow({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Undithered, so the core is compared byte for byte: the per-level ratio

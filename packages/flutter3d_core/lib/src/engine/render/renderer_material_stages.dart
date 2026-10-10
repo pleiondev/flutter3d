@@ -106,18 +106,18 @@ extension _MaterialStages on Renderer {
     RenderMaterial material,
     vm.Matrix4 viewProjection, {
     bool parameters = true,
+    MeshNode? node,
   }) {
     if (material.lighting.vertexShaderName == null) return;
     if (material.lighting.vertexStageInDepthPasses) {
       _materialVertexInfo.viewProjection.setAll(0, viewProjection.storage);
       pass.bindBlock(stage, _materialVertexInfo);
     }
-    if (parameters && material.parameters.isNotEmpty) {
-      pass.bindUniformBlock(
-        stage,
-        material.parameterBlock,
-        material.parameters,
-      );
+    // [node]'s own values over the material's, so a node whose wave is its
+    // own casts the shadow of that wave.
+    final values = node?.parametersFor(material) ?? material.parameters;
+    if (parameters && values.isNotEmpty) {
+      pass.bindUniformBlock(stage, material.parameterBlock, values);
     }
   }
 

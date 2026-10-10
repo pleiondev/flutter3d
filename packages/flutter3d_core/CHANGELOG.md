@@ -8,6 +8,138 @@
   `fullscreenMaterialWgsl`, `RuntimeBackends`), moved from
   `flutter3d_plugin_runtime`, which no longer depends on this package.
 
+- **Breaking: `FrameResourceIds.hdrColor` and `FrameResourceIds.sceneColor`
+  are `hdr_color` and `scene_color`.** The frame's resources, steps and
+  passes are named in American spelling like every identifier:
+  `RenderStep.colorGrade` is `color grade` and `RenderStep.sceneColorCopy`
+  and its pass are `scene color copy`. A plugin that names them through the
+  constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
+  hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
+  the new way.
+- **A material's parameters are typed, checked and overridden per node.**
+  `ParameterKey<T>` names a parameter as its `.f3dmat` does, with the
+  `ParameterType` its value is laid out as (`float`, `vec2`–`vec4`,
+  `color`, `colorWithAlpha`, or a plugin's own) and the `Unit` it is in.
+  `MaterialParameters` sets and reads them by key from code (`set`, `valueOf`)
+  and by name from data (`setNamed`, taking numbers, vectors, colors and
+  `Quantity`s converted into the declared unit), checked against a
+  `MaterialParameterSchema` — `fromProgram` for a parsed `.f3dmat`,
+  `BundledMaterials.schema` for a bundle's — and refusing an undeclared
+  name, another width or a compile-time `param` with a
+  `MaterialParameterException`. `MaterialParameters.over` types a
+  `RenderMaterial.parameters` map in place. `MeshNode.parameters` overrides
+  the material's values for that node alone, in every pass that draws it
+  (its shadows included); such a node is never folded into an automatic
+  batch.
+- **A resource cache streams: a budget, a queue, priorities and
+  cancellation.** `MemoryBudget` holds limits per `MemoryCategory` and in
+  all, is charged and refunded, and tells `onCrossed` each time a limit is
+  crossed either way. A `ResourceCache` given a `budget` and `sizeOf`
+  charges each value to its `categoryOf` and, while the budget is over,
+  evicts what nobody holds, least wanted and longest released first. With
+  `maxConcurrentLoads` the loads wait in a queue the most wanted leaves
+  first. `request` hands back a `ResourceRequest` whose `priority` can
+  change while it waits and which `cancel` calls off (its handle completes
+  with `ResourceLoadCanceledException`); a `ResourceHandle`'s `priority` can change
+  while it is held. `acquire` takes a `priority` and works as before.
+- **`RenderSettings.telemetry` says how much of a frame is measured.**
+  `TelemetryLevel.off` keeps the frame's totals and nothing per node;
+  `counters` keeps a `FramePass` per node and a `FrameResourceUse` per
+  resource (its id, versions, size, format and bytes) without reading a
+  clock; `timings`, the default and what every frame did before, adds each
+  node's CPU and GPU time and a timeline span per node. The renderer reads
+  one clock for the whole frame rather than one per node.
+- **Breaking: `FramePass` is a class, not a record.** Its getters are the
+  record's fields, so reading one is unchanged; a test that built one as a
+  record literal writes `FramePass(name: …)`. `FrameResult.resources` is
+  new beside `passes`.
+- **A frame graph is compiled once while nothing changes.**
+  `FrameGraph.compile` gives the last compile back when the nodes (by
+  name, declarations, `isActive` and `isSupported`), the externals, the
+  outputs and the switched-off passes are what they were: the same object
+  for the same nodes, the same order over this frame's nodes otherwise. The
+  renderer keeps one graph, cleared and filled each frame, so a steady
+  frame skips the search over every declaration.
+- **A held frame keeps its pipeline stalls.** `FrameResult.toHeld` copied
+  every field but `pipelineStalls`, so the frame handed back while the GPU
+  was behind reported none where the frame it repeats had some.
+- **Decals sort on packed keys, and glass defers without allocating.** The
+  decal pass orders its decals by one integer per decal (order and index)
+  in lists the renderer keeps, where it built and sorted a record per
+  decal through a comparator each frame; a view whose transparent half or
+  glass is drawn later keeps its matrix, eye and forward in slots the
+  renderer reuses, where it cloned three objects per view per frame.
+- **The pre-1.0 light unit is no longer named; the defaults are.**
+  `Photometric.legacyUnit` and `legacyNits` are gone from the API: a light
+  is lux or candela and an emissive is nits, and a number in the old unit
+  has no place in new code. What a default-made light, sun and glow are
+  stays as it was, and has a name: `LightNode.defaultIntensity` (5 790.6,
+  lux for a sun, candela for a lamp) and
+  `RenderMaterial.defaultEmissiveStrength` (1 843.2 nits). A reader of a
+  format that stores a multiple of the default (a glTF emissive strength, a
+  level's light) multiplies by them. `Scene.ambientIntensity` defaults to
+  347.4 lux and `Atmosphere` to an 11 581-lux sun and a 1 737-lux ambient,
+  the numbers they were, so every picture is the same.
+- **One vocabulary for a step that is off.** `RenderSettings.without` and
+  `only` switch steps, `RenderSettings.stepsOff` records what was asked
+  off, and `RenderStep.isOn` says whether a step's own switch is on now.
+  The rest were the renderer's own arithmetic and left the API:
+  `RenderSettings.switchedOffSteps`, `RenderStep.switchOff`,
+  `switchedOffIn`, `reportSkips`, `withDependants` and
+  `withPrerequisites`. `settings.without({step})` is what `step.switchOff`
+  did, recorded.
+- **Breaking: what the core answers as several values is a class, not a
+  record.** A record's shape cannot grow without breaking every caller, a
+  class's can. `ClusterDraws.indicesFor` answers a `ClusterIndices`,
+  `DepthOfFieldSettings.lensFor` a `ThinLens`, `EnvironmentMap.fromSky`,
+  `fromPanorama` and `fromEncoded` an `EnvironmentCube`,
+  `IrradianceField.toAtlas` an `IrradianceAtlas`,
+  `MeshData.generateTangents` a `GeneratedTangents`, `TriangleBvh.raycast`
+  a `TriangleHit`, `advanceTime` a `PlayheadStep`, `optimizeVertexFetch` a
+  `VertexFetchOrder`, `photoSettings` a `PhotoPlan`,
+  `universalBlockFormat` a `UniversalBlockFormat` and `PhysicalSky.look` a
+  `PhysicalSkyRay`. Each getter has the old field's name, so `.mesh` and
+  `.count` read as before; a destructuring pattern names the class,
+  `final GeneratedTangents(:mesh) = …`. Math pairs stay records: a size
+  (`resolve`, `hdrSizeOf`), a depth range, a jitter, a projected point,
+  a pair of moments, a color triple through a lookup table, an
+  eigen-decomposition and glTF's two filter codes.
+- **Breaking: an irradiance field takes and gives `LinearColor`s.**
+  `IrradianceField.writeIrradiance` and `writeIrradianceTexel` take one,
+  `readIrradiance` and `sample` answer one and no longer fill an `out`
+  vector. `Vector3(r, g, b)` is `LinearColor(r, g, b)`, or
+  `vector.toLinearColor()`; read `.r`, `.g`, `.b` where you read `.x`,
+  `.y`, `.z`.
+- **Breaking: seven sets that grow are open classes, not enums.**
+  `ModelLightType`, `ShadowCastingMode`, `MaterialAlphaMode`,
+  `AnimationBlend`, `DiffuseModel`, `SortMode` and `TangentMethod` are
+  `final class`es with the same constants, a `values` list and a `name`
+  that is the wire name a file or a tool writes. A constant reads as
+  before; a `switch` that named every value needs a wildcard case, which
+  `flutter3d migrate` adds with a TODO, and `.index` is gone. The `.f3d`
+  and glTF writers refuse a light type they have no word for.
+- **Breaking: `MaterialExpression` is an `abstract base class`, not
+  `sealed`.** A `switch` over an expression needs a wildcard case now, which
+  `flutter3d migrate` adds with a TODO, and a tool may extend it with its
+  own node. Folding, evaluating and emitting refuse a kind this build does
+  not know with an `ArgumentError` naming it.
+- **The browser refuses a file read with `UnsupportedCapability`.** A read
+  by path in a web build throws the foundation's refusal for
+  `PlatformFeature.fileSystem`, the capability a platform lacks the way a
+  device lacks a `DeviceFeature`, instead of a bare `UnsupportedError`; a
+  `CapabilityException` handler now catches it.
+- **Breaking: `DeviceClass.parse` throws for a name that is not a class.**
+  It throws an `UnknownDeviceClassException` (a `Flutter3dFormatException`)
+  naming the classes there are; `DeviceClass.tryParse` is the lookup that
+  answers null, which is what `parse` did before.
+- **Breaking: the engine's upper limits are getters.**
+  `FramePacing.maxFramesInFlight`, `InstancedMeshNode.maxMorphTargets`,
+  `Skeleton.maxJoints`, `ShadowSettings.maxResolution` and
+  `ShadowSettings.maxCubeTile` read as before but are no longer constants,
+  so a later release can raise one without breaking the code that reads
+  it. Only a constant expression that named one (a default value, a
+  `const` list) has to change. `Pose.jointMatrices` takes `int? maxJoints`
+  and fills to `Skeleton.maxJoints` when it is not given.
 - **Breaking: `TonemapCurve.agxFull` is gone.** It drew the same picture
   as `TonemapCurve.agx` since 0.7.4; `dart fix` renames it. `values` lists
   five curves, and a frame that still carries code 5 draws as `agx`.
@@ -87,7 +219,8 @@
 - **A volume's thickness scales with its node**: the geometric mean of the
   node's axis scales, applied where the material is bound for the draw, as
   glTF's `KHR_materials_volume` says a transform applies.
-- **Docs**: `Photometric.legacyNits` is drawn at 1.6 by the reference camera,
+- **Docs**: `RenderMaterial.defaultEmissiveStrength` is drawn at 1.6 by the
+  reference camera,
   whose white is 1152 nits; an overcast day is 1 000 to 10 000 lux; the
   auto exposure's default limits are EV100 7.6 to 12.6, and its 0.18 target
   is about 0.8 of a stop above a K = 12.5 meter; `PointerTargets` passes a
@@ -202,15 +335,16 @@
   numbers draws the old picture. Files keep what they stored: each reader
   and writer converts. `formats.dart` exports `LinearColor`.
 - **Breaking: emissive is nits, ambient and the sky's sun disc are lux.**
-  `RenderMaterial.emissiveStrength` defaults to `Photometric.legacyNits`
-  (1 843.2, what one stood for); `Scene.ambientIntensity` to
-  `0.06 * Photometric.legacyUnit`, `Atmosphere.ambientIntensity` to
-  `0.3 * Photometric.legacyUnit`; `SkySettings.sunIntensity` is lux. A
+  `RenderMaterial.emissiveStrength` defaults to
+  `RenderMaterial.defaultEmissiveStrength` (1 843.2, what one stood for);
+  `Scene.ambientIntensity` to 347.4 lux (0.06 of the old unit),
+  `Atmosphere.ambientIntensity` to 1 737.2 lux (0.3 of it);
+  `SkySettings.sunIntensity` is lux. A
   file's emissive strength stays a plain multiple and is converted where the
   material is made. `Photometric.toEngine`, `PhysicalCamera.nitsPerUnit` and
   `luxPerUnit` are gone: the renderer's own scale is internal, and
-  `Photometric.legacyNits` beside `legacyUnit` carries a pre-1.0 number
-  over.
+  `RenderMaterial.defaultEmissiveStrength` beside
+  `LightNode.defaultIntensity` carries a pre-1.0 number over.
 - **Breaking: a view's past is its own, so views drawn by separate
   `render` calls keep their velocity and their temporal resolve.**
   `FrameHistory.of(node)` is `of(node, view)` and `moved(node)` is
@@ -386,9 +520,10 @@
 - **Breaking: light is photometric.** `LightNode.intensity` is lux for a
   directional light and candela for the others; `LightNode.lumens` rates a
   lamp off its box; `PhysicalSky.sunIlluminance` and
-  `Atmosphere.sunIntensity` are lux. The renderer divides by
-  `Photometric.legacyUnit` (about 5 790.6, the physical camera's lux per
-  pre-1.0 unit) on the way to the shaders, and every default is its
+  `Atmosphere.sunIntensity` are lux. The renderer divides by about
+  5 790.6 (the physical camera's lux per pre-1.0 unit,
+  `LightNode.defaultIntensity`) on the way to the shaders, and every default
+  is its
   pre-1.0 value in the new unit, so a picture does not change; a pre-1.0
   literal is multiplied by it. `Photometric.fromLux`, `fromCandela`,
   `toLux`, `toCandela` and `referenceIlluminance` went with the old unit.
@@ -480,16 +615,18 @@
   `LinearColor(0.1, 0.2, 0.5)`, or `vector.toLinearColor()`.
   `directionToSun` stays a `Vector3`, and `sample` still answers the
   radiance as one.
-- **Breaking: the clear colour says it is sRGB.** `RenderView.clearColor`
-  is `RenderView.clearColorSrgb`, in the constructor, in
-  `RenderView.texture` and as the field, and so is `capturePhoto`'s
-  `clearColor`: it is the one colour the engine takes sRGB-encoded, and a
-  colour that is not linear says so in its name. `dart fix` renames the
-  field and the parameters. `Atmosphere.applyTo` takes `clearColorSrgb:`
-  too and now encodes its linear sky into it, where it wrote the linear
-  numbers into the sRGB slot as they were; a clear colour set from an
-  atmosphere is lighter than before, and the colour the sky was meant to
-  be.
+- **Breaking: the clear color is a `LinearColor`.** `RenderView.clearColor`
+  is linear light like every other color the engine takes, in the
+  constructor, in `RenderView.texture` and as the field, where it was an
+  sRGB-encoded `Vector4` changed in place; so is `capturePhoto`'s
+  `clearColor`. `clearColor: Vector4(r, g, b, a)` is
+  `clearColor: LinearColor.fromSrgb(r, g, b, a)` and draws the same
+  picture, and `view.clearColor.setValues(...)` is an assignment.
+  `RenderView.defaultClearColor` is the slate a view clears to.
+  `Atmosphere.applyTo` takes the `RenderView` itself (`view:`) and puts its
+  sky on it as it is, where it wrote the linear numbers into the sRGB slot;
+  a clear color set from an atmosphere is lighter than in 0.8, and the
+  color the sky was meant to be.
 - **A `.fmat` is written in the envelope.** `writeFmat` starts with
   `{"format": "f3d.fmat", "version": 1, …}` and keeps `"fmat": 1` after it,
   because a material travels inside a `.f3d` bundle that a 0.8 reader still

@@ -80,7 +80,7 @@ import 'package:flutter_test/flutter_test.dart';
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 1.2 * Photometric.legacyUnit,
+      intensity: 1.2 * LightNode.defaultIntensity,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.3, -0.9, 0.2)),

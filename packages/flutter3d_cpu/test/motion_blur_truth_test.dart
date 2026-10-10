@@ -26,7 +26,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 const int _width = 240;
 const int _height = 160;
@@ -63,7 +63,7 @@ _Staged _stage(SceneNode Function(CpuDevice device, Scene scene) fill) {
     ..add(
       // No shadow: a shadow has no motion of its own to blur it by, so it
       // would be an error the gather cannot answer for.
-      LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: false)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity, castsShadow: false)
         ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized()),
     )
     ..add(camera);
@@ -144,7 +144,7 @@ Future<List<int>> _draw(_Staged it, RenderSettings settings) async {
     views: <RenderView>[
       RenderView(
         camera: it.camera,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,

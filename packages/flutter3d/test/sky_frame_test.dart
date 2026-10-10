@@ -104,7 +104,7 @@ Future<Uint8List> _draw(
       RenderView(
         camera: world.camera,
         // Black, so that anything not black in the frame was drawn.
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -300,7 +300,7 @@ void main() {
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 1.1 * Photometric.legacyUnit,
+      intensity: 1.1 * LightNode.defaultIntensity,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),

@@ -54,7 +54,7 @@ final class ProjectLight {
   ProjectLight({
     this.type = ProjectLightType.directional,
     Vector3? color,
-    this.intensity = 1.0,
+    this.intensity = 5790.583578,
     this.range = 0.0,
     this.castsShadow = false,
     this.innerConeAngle = 0.0,
@@ -68,8 +68,9 @@ final class ProjectLight {
   /// Linear RGB, the same space `LightNode.color` is in.
   final Vector3 color;
 
-  /// In the pre-1.0 engine unit: times `Photometric.legacyUnit` it is lux for a
-  /// directional light and candela for a point or spot light.
+  /// Lux for a directional light and candela for a point or spot light, as
+  /// `LightNode.intensity` is (since version 2 of the file). The default is
+  /// `LightNode.defaultIntensity`, about 5 790.6.
   final double intensity;
 
   /// Distance at which a point or spot light stops contributing. Zero means

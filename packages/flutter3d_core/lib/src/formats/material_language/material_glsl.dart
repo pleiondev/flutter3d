@@ -799,6 +799,12 @@ String _glsl(MaterialExpression expression) {
       return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
     case MaterialSample(:final slot, :final uv):
       return 'texture(${slot.bindingName}, ${_glsl(uv)})';
+    default:
+      throw ArgumentError.value(
+        expression,
+        'expression',
+        'not an expression this build of the material language knows',
+      );
   }
 }
 

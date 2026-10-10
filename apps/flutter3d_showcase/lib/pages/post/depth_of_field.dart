@@ -44,7 +44,7 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
     }
     // #endregion row
     return scene..add(
-      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
     );
   }

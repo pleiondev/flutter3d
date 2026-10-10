@@ -30,7 +30,7 @@ typedef TextureBuild = Future<TextureHandle?> Function(Uint8List bytes);
 
 /// A prefiltered environment cube and how many levels it has below its base,
 /// the two things `Scene.environment` and `Scene.environmentLevels` take.
-typedef BuiltEnvironment = ({TextureHandle texture, int levels});
+typedef BuiltEnvironment = EnvironmentCube;
 
 /// Builds an environment from a panorama file's bytes, or null when they do
 /// not decode into one.
@@ -805,7 +805,7 @@ final class HotSwap {
       case 'emissiveStrength':
         // A material file's strength, a plain multiple; the material's is
         // nits.
-        material.emissiveStrength = v[0] * Photometric.legacyNits;
+        material.emissiveStrength = v[0] * RenderMaterial.defaultEmissiveStrength;
       case 'roughness':
         material.roughness = v[0];
       case 'metallic':

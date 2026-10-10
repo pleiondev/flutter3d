@@ -21,6 +21,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/render_step.dart'
+    show RenderStepInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
@@ -131,14 +133,14 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(2.0, 4.0, 1.0)
         ..lookAt(Vector3.zero()),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 10.0 * Photometric.legacyUnit,
+        intensity: 10.0 * LightNode.defaultIntensity,
         range: 8.0,
         castsShadow: true,
       )..setPosition(-1.5, 1.5, 1.0),
@@ -271,7 +273,7 @@ Map<String, PassSkip> _expectedSkips(Set<RenderStep> off) {
 /// Draws [off] switched off and holds the frame to the model.
 void _expectFrame(_Stage it, Set<RenderStep> asked) {
   final settings = _everything.without(asked);
-  final off = RenderStep.withDependants(asked);
+  final off = RenderStepInternals.withDependants(asked);
   final FrameResult result;
   try {
     result = _render(it, settings);
@@ -326,7 +328,7 @@ void main() {
       // Mutation: dropping `ReflectionProbeNode` from the stage leaves
       // 'reflection probe 0' unregistered and this set one short.
       expect(_registered.difference(ran), <String>{
-        'scene colour copy',
+        'scene color copy',
         'object ids',
         'contact shadow resolve',
         'spatial upscale',
@@ -460,8 +462,8 @@ void main() {
     test('a step turned back on by hand is drawn and not reported', () {
       // The switch decides the frame and the record only names it, so a
       // `copyWith` after `without` wins, and the report follows the frame.
-      // Mutation: reporting `stepsOff` rather than `switchedOffSteps` in
-      // `RenderStep.reportSkips` lists the shadows as switched off on a
+      // Mutation: reporting `stepsOff` rather than `RenderStepInternals.switchedOffSteps` in
+      // `RenderStepInternals.reportSkips` lists the shadows as switched off on a
       // frame that drew them.
       final settings = _everything
           .without(<RenderStep>{RenderStep.shadows})
@@ -476,7 +478,7 @@ void main() {
       // caustics are arithmetic inside passes that run anyway; the report
       // still has to say they were taken out.
       // Mutation: returning `nodeSkips` unchanged from
-      // `RenderStep.reportSkips` drops all six.
+      // `RenderStepInternals.reportSkips` drops all six.
       final passless = RenderStep.values
           .where((s) => !_registered.any(s.ownsPass))
           .toSet();

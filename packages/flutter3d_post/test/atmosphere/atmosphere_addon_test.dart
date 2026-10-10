@@ -41,7 +41,7 @@ void main() {
     // and a gradient sky survives its plugin.
     final on = const RenderSettings(sky: SkySettings(enabled: true));
     expect(skyStep.isOn(on), isTrue);
-    expect(skyStep.switchOff(on).sky.enabled, isFalse);
+    expect(on.without(<RenderStep>{skyStep}).sky.enabled, isFalse);
     expect(skyStep.isBuiltIn, isFalse);
   });
 

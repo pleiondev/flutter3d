@@ -33,7 +33,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     final CameraNode probeCamera = CameraNode()
@@ -60,7 +60,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.48, 0.64)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -76,7 +76,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.2 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.34)),
       );
     // #endregion scene
@@ -87,7 +87,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     final CapturedPass? scenePass = _capture.passNamed('scene');
-    final CapturedImage? color = scenePass?.imageOf('hdr_colour');
+    final CapturedImage? color = scenePass?.imageOf('hdr_color');
     if (scenePass == null ||
         !scenePass.active ||
         color == null ||

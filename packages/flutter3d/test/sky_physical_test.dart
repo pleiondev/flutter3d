@@ -40,7 +40,7 @@ Vector3 _sunAt(double degrees) {
 /// comparisons against the model compare colours rather than two clipped
 /// whites. The default sun is a real noon's, which saturates at f/4.
 const PhysicalSky _dimAir = PhysicalSky(
-  sunIlluminance: 20.0 * Photometric.legacyNits,
+  sunIlluminance: 20.0 * RenderMaterial.defaultEmissiveStrength,
 );
 
 SkySettings _sky({
@@ -53,7 +53,7 @@ SkySettings _sky({
   directionToSun: _sunAt(sunDegrees),
   sunAngularRadius: 2.0 * math.pi / 180.0,
   sunSoftness: 0.5 * math.pi / 180.0,
-  sunIntensity: sunIntensity * Photometric.legacyUnit,
+  sunIntensity: sunIntensity * LightNode.defaultIntensity,
   physical: air,
 );
 
@@ -106,7 +106,10 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       sky: sky,
@@ -372,7 +375,8 @@ void main() {
         sunIlluminance: e,
       );
       final up = Vector3(0.0, 1.0, 0.0);
-      final nits = air.radiance(up, up).y * Photometric.legacyNits;
+      final nits =
+          air.radiance(up, up).y * RenderMaterial.defaultEmissiveStrength;
       final column =
           beta *
           height *
@@ -593,7 +597,10 @@ Future<double> _wallMean(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       fog: fog.copyWith(color: LinearColor.black),

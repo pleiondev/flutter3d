@@ -72,7 +72,7 @@ _Stage _stage({RenderMaterial? floor, Vector3? from, Vector3? up}) {
   final camera = CameraNode()
     ..setPositionFrom(from ?? Vector3(0.0, 6.0, 0.0))
     ..lookAt(Vector3.zero(), up: up ?? Vector3(0.0, 0.0, -1.0));
-  final sun = LightNode(intensity: 2.0 * Photometric.legacyUnit)
+  final sun = LightNode(intensity: 2.0 * LightNode.defaultIntensity)
     ..setPosition(0.4, 5.0, 0.3)
     ..lookAt(Vector3.zero());
   final scene = Scene()
@@ -92,7 +92,7 @@ _Stage _stage({RenderMaterial? floor, Vector3? from, Vector3? up}) {
     )
     ..add(sun)
     ..add(camera);
-  scene.ambientIntensity = 0.3 * Photometric.legacyUnit;
+  scene.ambientIntensity = 0.3 * LightNode.defaultIntensity;
   final probe = _SceneProbe(device);
   final renderer = Renderer.create(device: device)..renderSteps.addNode(probe);
   return (

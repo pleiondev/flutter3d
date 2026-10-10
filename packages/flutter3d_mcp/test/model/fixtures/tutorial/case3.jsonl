@@ -4,7 +4,7 @@
 {"name":"addLight","type":"point","author":"agent"}
 {"name":"setLightTransform","index":0,"to":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,2.4000000953674316,1.399999976158142,0.8999999761581421,1.0],"author":"agent"}
 {"name":"setLightField","index":0,"field":"color","value":[1.0,0.92,0.78],"author":"agent"}
-{"name":"setLightField","index":0,"field":"intensity","value":4.5,"author":"agent"}
+{"name":"setLightField","index":0,"field":"intensity","value":26000.0,"author":"agent"}
 {"name":"setLightField","index":0,"field":"castsShadow","value":true,"author":"agent"}
 {"name":"setSceneLightingField","field":"shadows","value":true,"author":"agent"}
 {"name":"setSceneLightingField","field":"ambientIntensity","value":0.12,"author":"agent"}

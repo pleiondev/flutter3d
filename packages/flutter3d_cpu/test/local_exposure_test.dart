@@ -32,13 +32,13 @@ Float32List _render({required bool local}) {
     ..add(MeshNode(cube, RenderMaterial())..setPosition(-1.6, 0.0, 0.0))
     ..add(MeshNode(cube, RenderMaterial())..setPosition(1.6, 0.0, 0.0))
     ..add(
-      LightNode(intensity: 0.08 * Photometric.legacyUnit)
+      LightNode(intensity: 0.08 * LightNode.defaultIntensity)
         ..setRotationYawPitchRoll(0.3, -0.5, 0.0),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0 * Photometric.legacyUnit,
+        intensity: 60.0 * LightNode.defaultIntensity,
         range: 3.0,
       )..setPosition(1.6, 0.8, 1.4),
     )
@@ -48,7 +48,10 @@ Float32List _render({required bool local}) {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     // Exposure one, so the fusion judges the scene's own light: the weights
     // follow the frame's exposure, and at the default 1.6 the dark block is

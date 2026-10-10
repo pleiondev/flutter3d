@@ -123,7 +123,7 @@ final class _TintShader extends CpuFragmentShader {
 }
 
 ({Scene scene, CameraNode camera}) _ball() {
-  final scene = Scene()..ambientIntensity = 0.8 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 0.8 * LightNode.defaultIntensity;
   final device = CpuDevice(
     width: 4,
     height: 4,

@@ -219,7 +219,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.06, 0.07, 0.09, 1.0),
+    clearColor: LinearColor.fromSrgb(0.06, 0.07, 0.09, 1.0),
   );
 
   /// Draws the selection box, the gizmos and their models. Opened once a
@@ -511,7 +511,7 @@ class _EditorScreenState extends State<EditorScreen>
         type: LightType.point,
         color: LinearColor(1.0, 0.98, 0.94),
         intensity:
-            (ready.lampOn ? _kLampIntensity : 0.0) * Photometric.legacyUnit,
+            (ready.lampOn ? _kLampIntensity : 0.0) * LightNode.defaultIntensity,
         range: _kLampRange,
       )..setPosition(_fly.position.x, _fly.position.y, _fly.position.z);
       loaded.scene.add(_lamp!);

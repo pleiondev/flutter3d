@@ -9,16 +9,16 @@ import 'package:flutter_test/flutter_test.dart';
 Atmosphere _noon() => Atmosphere(
   sky: LinearColor(0.4, 0.6, 0.9),
   sunColor: LinearColor(1.0, 1.0, 0.9),
-  sunIntensity: 3.0 * Photometric.legacyUnit,
-  ambientIntensity: 0.4 * Photometric.legacyUnit,
+  sunIntensity: 3.0 * LightNode.defaultIntensity,
+  ambientIntensity: 0.4 * LightNode.defaultIntensity,
 );
 
 Atmosphere _night() => Atmosphere(
   sky: LinearColor(0.0, 0.0, 0.1),
   fogDensity: 0.02,
   sunColor: LinearColor(0.2, 0.2, 0.4),
-  sunIntensity: 0.2 * Photometric.legacyUnit,
-  ambientIntensity: 0.05 * Photometric.legacyUnit,
+  sunIntensity: 0.2 * LightNode.defaultIntensity,
+  ambientIntensity: 0.05 * LightNode.defaultIntensity,
 );
 
 void main() {
@@ -26,7 +26,7 @@ void main() {
     // Mutation: blend the sun by the amount and the sky by another.
     final dusk = Atmosphere.lerp(_noon(), _night(), 0.5);
     expect(dusk.sky.b, closeTo(0.5, 1e-6));
-    expect(dusk.sunIntensity, closeTo(1.6 * Photometric.legacyUnit, 1e-6));
+    expect(dusk.sunIntensity, closeTo(1.6 * LightNode.defaultIntensity, 1e-6));
     expect(dusk.fogDensity, closeTo(0.01, 1e-6));
     expect(dusk.fog.density, closeTo(0.01, 1e-6));
   });
@@ -55,8 +55,8 @@ void main() {
       (60.0, _night()),
     ], period: 120.0);
     // Lux since 1.0: the keys are pre-1.0 numbers carried over in
-    // `Photometric.legacyUnit`, and so are the blends of them.
-    const unit = Photometric.legacyUnit;
+    // `LightNode.defaultIntensity`, and so are the blends of them.
+    const unit = LightNode.defaultIntensity;
     expect(day.at(0.0).sunIntensity, closeTo(3.0 * unit, 1e-6));
     expect(day.at(30.0).sunIntensity, closeTo(1.6 * unit, 1e-6));
     expect(day.at(60.0).sunIntensity, closeTo(0.2 * unit, 1e-6));
@@ -76,31 +76,32 @@ void main() {
     final scene = Scene();
     final sun = LightNode(
       type: LightType.directional,
-      intensity: 1.0 * Photometric.legacyUnit,
+      intensity: 1.0 * LightNode.defaultIntensity,
     );
-    final clear = Vector4.zero();
-    _night().applyTo(scene, sun: sun, clearColorSrgb: clear);
+    final view = RenderView(camera: CameraNode());
+    _night().applyTo(scene, sun: sun, view: view);
     expect(
       scene.ambientIntensity,
-      closeTo(0.05 * Photometric.legacyUnit, 1e-6),
+      closeTo(0.05 * LightNode.defaultIntensity, 1e-6),
     );
-    expect(sun.intensity, closeTo(0.2 * Photometric.legacyUnit, 1e-6));
-    // The sky is linear light; the clear colour is the same colour encoded.
-    // Mutation: write the linear channel into the sRGB slot as it is.
-    expect(clear.z, closeTo(LinearColor.linearToSrgb(0.1), 1e-6));
+    expect(sun.intensity, closeTo(0.2 * LightNode.defaultIntensity, 1e-6));
+    // The sky and the clear colour are both linear light, so the sky goes
+    // over as it is, opaque.
+    // Mutation: encode it to sRGB on the way, as the clear colour once was.
+    expect(view.clearColor, const LinearColor(0.0, 0.0, 0.1));
   });
 
   test('a group of lights dims together and comes back as it was', () {
     // Mutation: write the level into each light as its intensity.
-    final low = LightNode(intensity: 2.0 * Photometric.legacyUnit);
-    final high = LightNode(intensity: 8.0 * Photometric.legacyUnit);
+    final low = LightNode(intensity: 2.0 * LightNode.defaultIntensity);
+    final high = LightNode(intensity: 8.0 * LightNode.defaultIntensity);
     final lamps = LightGroup(<LightNode>[low, high])..level = 0.0;
     expect(low.intensity, 0.0);
     lamps.level = 0.5;
-    expect(low.intensity, closeTo(1.0 * Photometric.legacyUnit, 1e-6));
-    expect(high.intensity, closeTo(4.0 * Photometric.legacyUnit, 1e-6));
+    expect(low.intensity, closeTo(1.0 * LightNode.defaultIntensity, 1e-6));
+    expect(high.intensity, closeTo(4.0 * LightNode.defaultIntensity, 1e-6));
     lamps.level = 1.0;
-    expect(high.intensity, closeTo(8.0 * Photometric.legacyUnit, 1e-6));
+    expect(high.intensity, closeTo(8.0 * LightNode.defaultIntensity, 1e-6));
   });
 
   test('a material outside the fog stays its colour through it', () async {

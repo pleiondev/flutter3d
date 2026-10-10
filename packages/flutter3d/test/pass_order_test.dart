@@ -35,7 +35,7 @@ FrameResult _frame({RenderSettings settings = _everything}) {
   final renderer = Renderer.create(device: FakeBackend());
   final scene = Scene()
     ..add(
-      LightNode(intensity: 4.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -135,7 +135,7 @@ void main() {
     // that `without` left on would be a photograph of the numbers where the
     // numbers were asked for.
     expect(
-      _everything.forMeasurement().switchedOffSteps,
+      _everything.forMeasurement().stepsOff,
       containsAll(RenderSettings.pixelAlteringSteps),
     );
   });

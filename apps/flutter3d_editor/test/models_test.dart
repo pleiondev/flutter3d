@@ -226,7 +226,7 @@ void main() {
     camera.lookAt(Vector3.zero());
     scene.add(camera);
     scene.add(
-      LightNode(intensity: 4.0 * Photometric.legacyUnit, name: 'sun')
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity, name: 'sun')
         ..lookAt(Vector3(-0.4, -1.0, -0.6)),
     );
 
@@ -244,7 +244,10 @@ void main() {
       height: 32,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       settings: const RenderSettings(),
     );

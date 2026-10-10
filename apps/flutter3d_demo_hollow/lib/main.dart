@@ -130,7 +130,7 @@ class _HollowScreenState extends State<HollowScreen>
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.62, 0.76, 0.9, 1.0),
+    clearColor: LinearColor.fromSrgb(0.62, 0.76, 0.9, 1.0),
   );
   final FrameClock _frames = FrameClock();
   final FocusNode _keyboard = FocusNode();
@@ -192,10 +192,10 @@ class _HollowScreenState extends State<HollowScreen>
       final scene = Scene()
         // The sky's light in the shade, and what the warm ground throws
         // back into it: not the blue of the sky alone.
-        ..ambientIntensity = 0.6 * Photometric.legacyUnit
+        ..ambientIntensity = 0.6 * LightNode.defaultIntensity
         ..ambientColor = LinearColor(0.86, 0.88, 0.94)
         ..add(
-          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+          LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
             ..setLocalForward(_sunAlong),
         )
         ..add(_camera);

@@ -629,7 +629,7 @@ final class SculptMesh
   void rebuildSpatialGrid()
 
 final class SculptMeshBvh
-  ({int triangle, double distance, Vector3 point})? raycast(LocalRay ray, {double maxDistance = double.infinity})
+  TriangleHit? raycast(LocalRay ray, {double maxDistance = double.infinity})
   factory SculptMeshBvh.build(SculptMesh mesh)
   void refit()
 

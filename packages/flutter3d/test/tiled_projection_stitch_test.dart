@@ -25,7 +25,7 @@ const int _tileHeight = _fullHeight ~/ _tiles;
   final scene = Scene();
   scene.add(
     LightNode(type: LightType.directional, name: 'key')
-      ..intensity = 3.0 * Photometric.legacyUnit
+      ..intensity = 3.0 * LightNode.defaultIntensity
       ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
   );
   scene.add(

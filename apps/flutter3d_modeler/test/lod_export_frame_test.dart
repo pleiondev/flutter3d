@@ -62,7 +62,7 @@ Future<int> _litPixels(
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 2.0 * Photometric.legacyUnit,
+      intensity: 2.0 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(vm.Vector3(-0.3, -0.9, 0.2)),
   );

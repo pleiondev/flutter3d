@@ -1,7 +1,9 @@
 ## 1.0.0-rc.1
 
-- **Breaking: `renderFrame(clearColor:)` is `clearColorSrgb:`**, the same
-  sRGB `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **Breaking: `renderFrame(clearColor:)` takes a `LinearColor`**, linear
+  as `RenderView.clearColor` is, where it took an sRGB `Vector4`:
+  `LinearColor.fromSrgb(r, g, b, a)` draws the same picture, and the
+  default is still opaque black.
 - **Breaking: a replay steps the run through the engine's loop.**
   `ReplaySubject` lost `restore`, `step` and `save`, and has `loop` (an
   `EngineLoop` built on `ReplayStart.input`, the genre installed and its run

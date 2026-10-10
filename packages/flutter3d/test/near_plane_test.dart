@@ -72,7 +72,7 @@ void main() {
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 40.0 * Photometric.legacyUnit,
+        intensity: 40.0 * LightNode.defaultIntensity,
         range: 80.0,
         name: 'sun',
       )..setPosition(0.0, 8.0, -16.0),

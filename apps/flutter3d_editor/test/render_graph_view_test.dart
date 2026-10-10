@@ -52,7 +52,7 @@ FrameResult _frame(
   skipped: skipped,
 );
 
-FramePass _pass(String name, int micros, {int draws = 1}) => (
+FramePass _pass(String name, int micros, {int draws = 1}) => FramePass(
   name: name,
   active: true,
   micros: micros,

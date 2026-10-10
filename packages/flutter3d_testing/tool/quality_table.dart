@@ -74,14 +74,14 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
   }
   scene
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity)
         ..setPosition(3.0, 6.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 4.0 * Photometric.legacyUnit,
+        intensity: 4.0 * LightNode.defaultIntensity,
         range: 6.0,
         color: LinearColor(1.0, 0.7, 0.4),
       )..setPosition(1.0, 1.5, 1.0),
@@ -122,7 +122,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
     }
   }
   scene.add(
-    LightNode(intensity: 4.0 * Photometric.legacyUnit)
+    LightNode(intensity: 4.0 * LightNode.defaultIntensity)
       ..setPosition(-6.0, 3.0, -2.0)
       ..lookAt(Vector3(0.0, 0.0, 1.0)),
   );

@@ -45,7 +45,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     _renderer = context.renderer;
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.55, 0.6, 0.7)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
         _slab(
           context,
@@ -65,7 +65,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.6, -1.0, -0.4)),
       );
     _spinner = _slab(
@@ -97,7 +97,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
       camera: _watcher,
       width: 160,
       height: 120,
-      clearColorSrgb: Vector4(0.35, 0.45, 0.6, 1.0),
+      clearColor: LinearColor.fromSrgb(0.35, 0.45, 0.6, 1.0),
     );
     // #endregion texture
 

@@ -66,7 +66,7 @@ const int _size = 64;
         ..shadowCasting = mode,
     )
     ..add(
-      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
@@ -134,7 +134,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: camera,
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(

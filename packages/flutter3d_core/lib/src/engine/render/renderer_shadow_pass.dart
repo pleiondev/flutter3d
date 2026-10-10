@@ -462,7 +462,13 @@ extension _ShadowPasses on Renderer {
         pass.bindBlock(stage, _frameInfo);
         _bindMorph(pass, stage, node.morph);
         if (own != null) {
-          _bindMaterialVertex(pass, own, node.material, _cubeDrawMatrix);
+          _bindMaterialVertex(
+            pass,
+            own,
+            node.material,
+            _cubeDrawMatrix,
+            node: node,
+          );
         }
         if (instanced != null) {
           _bindInstanceMorph(pass, stage, instanced);
@@ -1332,7 +1338,13 @@ extension _ShadowPasses on Renderer {
       pass.bindBlock(stage, _frameInfo);
       _bindMorph(pass, stage, node.morph);
       if (own != null) {
-        _bindMaterialVertex(pass, own, node.material, drawMatrix);
+        _bindMaterialVertex(
+          pass,
+          own,
+          node.material,
+          drawMatrix,
+          node: node,
+        );
       }
       if (instanced != null) {
         _bindInstanceMorph(pass, stage, instanced);

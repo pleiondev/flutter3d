@@ -37,7 +37,7 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 2.0 * Photometric.legacyUnit)
+      LightNode(intensity: 2.0 * LightNode.defaultIntensity)
         ..setPosition(1.0, 2.0, 2.0),
     )
     ..add(camera);
@@ -74,7 +74,7 @@ void main() {
     // primitive for a polygon mode — and the tone curve is a step with no
     // pass, switched off. Both arrive here, told apart by their reasons.
     // Mutation: leaving `FrameResult.declinedSkips` out of the renderer's
-    // `skipped` drops the wireframe entry; leaving `RenderStep.reportSkips`
+    // `skipped` drops the wireframe entry; leaving `RenderStepInternals.reportSkips`
     // out drops the tone curve.
     final it = _stage();
     final told = <SkippedPass>[];

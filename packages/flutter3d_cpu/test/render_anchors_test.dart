@@ -25,6 +25,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/render_step.dart'
+    show RenderStepInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -153,14 +155,14 @@ _Stage _stage() {
       ),
     )
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(2.0, 4.0, 1.0)
         ..lookAt(Vector3.zero()),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 10.0 * Photometric.legacyUnit,
+        intensity: 10.0 * LightNode.defaultIntensity,
         range: 8.0,
         castsShadow: true,
       )..setPosition(-1.5, 1.5, 1.0),
@@ -195,7 +197,7 @@ String _line(_Stage it, String label, RenderSettings settings) {
     'order': <String>[for (final n in plan.order) n.name],
     'culled': <String>[for (final n in plan.culled) n.name],
     'skipped': <String>[
-      for (final s in RenderStep.reportSkips(settings, plan.skipped))
+      for (final s in RenderStepInternals.reportSkips(settings, plan.skipped))
         '${s.name}:${s.reason.name}',
     ],
   });
@@ -251,7 +253,7 @@ List<String> _ran(_Stage it, [RenderSettings s = const RenderSettings()]) =>
 
 /// What a frame reports switched off, by name.
 List<String> _switchedOff(_Stage it, RenderSettings s) => <String>[
-  for (final skip in RenderStep.reportSkips(
+  for (final skip in RenderStepInternals.reportSkips(
     s,
     _plan(it, s).skipped,
     also: it.renderer.renderSteps.added,

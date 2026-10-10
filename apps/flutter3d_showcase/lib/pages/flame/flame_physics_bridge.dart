@@ -112,7 +112,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     );
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
         cuboid('floor', Vector3(6.0, 1.0, 6.0), Vector4(0.36, 0.4, 0.38, 1.0))
           ..setPosition(0.0, -0.5, 0.0),
@@ -120,7 +120,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       ..add(_pad)
       ..add(crate)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

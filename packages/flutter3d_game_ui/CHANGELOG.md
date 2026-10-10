@@ -26,8 +26,9 @@
 - **`Portable` comes from `flutter3d_foundation`**, so the lens no longer
   needs the physics package.
 
-- **Breaking: `ReelShot.film(clearColor:)` is `clearColorSrgb:`**, the same
-  sRGB `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **Breaking: `ReelShot.film(clearColor:)` takes a `LinearColor`**, linear
+  as `RenderView.clearColor` is, where it took an sRGB `Vector4`:
+  `LinearColor.fromSrgb(r, g, b, a)` draws the same picture.
 - **Breaking: `RoleRings` reads the settings through a function**,
   `RoleRings(roles, () => controller.settings)`, since `GameSettings` is a
   value and a change makes a new one; `RolesApart.apply` returns the

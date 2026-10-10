@@ -29,6 +29,11 @@ extension _GltfWriterLightsCameras on GltfWriter {
       ModelLightType.directional => 'directional',
       ModelLightType.point => 'point',
       ModelLightType.spot => 'spot',
+      _ => throw ArgumentError.value(
+        light.type,
+        'light.type',
+        'not a type KHR_lights_punctual can hold',
+      ),
     },
     // Written whenever it differs from white, rather than always: white is
     // the spec's own default, so a file this writer produces stays as small

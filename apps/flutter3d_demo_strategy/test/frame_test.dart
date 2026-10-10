@@ -76,7 +76,7 @@ void main() {
       LightNode(
         type: LightType.directional,
         color: LinearColor(1.0, 0.96, 0.88),
-        intensity: 3.2 * Photometric.legacyUnit,
+        intensity: 3.2 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );

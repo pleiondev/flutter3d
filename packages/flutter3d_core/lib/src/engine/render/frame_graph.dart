@@ -452,8 +452,8 @@ final class CompiledFrameGraph {
   /// *decision* is arithmetic and the release *call* touches a device, and
   /// keeping them apart is what makes the decision testable.
   ///
-  /// A version at a time, because that is the whole point: `hdr_colour@0` goes
-  /// back after its last reader even though `hdr_colour@1` is still live.
+  /// A version at a time, because that is the whole point: `hdr_color@0` goes
+  /// back after its last reader even though `hdr_color@1` is still live.
   List<ResourceVersion> retiredAfter(int index) => <ResourceVersion>[
     for (final entry in _lastUse.entries)
       if (entry.value == index) entry.key,

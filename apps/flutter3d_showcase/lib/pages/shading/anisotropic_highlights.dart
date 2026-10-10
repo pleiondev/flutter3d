@@ -53,13 +53,13 @@ final class AnisotropicHighlightsDemo extends ShowcaseDemo {
     // #endregion mesh
 
     return Scene()
-      ..ambientIntensity = 0.15 * Photometric.legacyUnit
+      ..ambientIntensity = 0.15 * LightNode.defaultIntensity
       ..add(MeshNode(ball, plain, name: 'plain')..setPosition(-0.6, 0.0, 0.0))
       ..add(
         MeshNode(ball, _brushed, name: 'brushed')..setPosition(0.6, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
   }

@@ -77,7 +77,7 @@ final view = RenderView(camera: camera)
   ..priority = 0                 // draw order between views
   ..opaqueSort = SortMode.frontToBack
   ..transparentSort = SortMode.backToFront
-  ..clearColorSrgb = Vector4(0.05, 0.07, 0.12, 1.0);
+  ..clearColor = LinearColor.fromSrgb(0.05, 0.07, 0.12);
 ```
 
 | Field | What it decides |

@@ -32,7 +32,7 @@ const int _size = 64;
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
@@ -74,7 +74,7 @@ const int _size = 64;
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );

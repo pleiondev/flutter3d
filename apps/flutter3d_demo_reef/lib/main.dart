@@ -127,7 +127,7 @@ class _ReefScreenState extends State<ReefScreen>
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.55, 0.75, 0.92, 1.0),
+    clearColor: LinearColor.fromSrgb(0.55, 0.75, 0.92, 1.0),
   );
   final FrameClock _frames = FrameClock();
   final FocusNode _keyboard = FocusNode();
@@ -210,10 +210,10 @@ class _ReefScreenState extends State<ReefScreen>
             ..sun(along: _sunAlong, light: _sunLight)
             ..optics = LiquidOptics.pureWater;
       final scene = Scene()
-        ..ambientIntensity = 0.5 * Photometric.legacyUnit
+        ..ambientIntensity = 0.5 * LightNode.defaultIntensity
         ..ambientColor = LinearColor(0.75, 0.85, 1.0)
         ..add(
-          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+          LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
             ..setLocalForward(_sunAlong),
         )
         ..add(_camera);

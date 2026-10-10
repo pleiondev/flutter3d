@@ -129,7 +129,10 @@ material ToonInstances {
       height: _probeHeight,
       scene: probe,
       views: <RenderView>[
-        RenderView(camera: eye, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: eye,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       // No dither and no bloom, so a band is one value from edge to edge.
       settings: const RenderSettings(
@@ -184,12 +187,12 @@ material ToonInstances {
 
   Scene _scene(GraphicsDevice device) => Scene()
     ..ambientColor = LinearColor(0.6, 0.65, 0.8)
-    ..ambientIntensity = 0.08 * Photometric.legacyUnit
+    ..ambientIntensity = 0.08 * LightNode.defaultIntensity
     ..add(_batch(device))
     ..add(
       LightNode(
         name: 'sun',
-        intensity: 1.4 * Photometric.legacyUnit,
+        intensity: 1.4 * LightNode.defaultIntensity,
         castsShadow: false,
       )..setLocalForward(Vector3(0.55, -0.45, -0.7)),
     );

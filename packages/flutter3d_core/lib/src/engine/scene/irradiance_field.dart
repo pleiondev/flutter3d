@@ -36,6 +36,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 /// A direction as a point in the unit square, and back.
@@ -76,6 +78,35 @@ Vector3 decodeOctahedral(double u, double v, [Vector3? out]) {
     ..setValues(x + (x >= 0.0 ? -t : t), y + (y >= 0.0 ? -t : t), z);
   if (result.length2 > 0.0) result.normalize();
   return result;
+}
+
+/// An [IrradianceField] packed into one float texture, as
+/// [IrradianceField.toAtlas] lays it out: [width] × [height] texels of four
+/// floats in [texels], the irradiance tiles in a grid [columns] across and
+/// the depth tiles below them from row [momentsTop].
+final class IrradianceAtlas {
+  const IrradianceAtlas({
+    required this.width,
+    required this.height,
+    required this.columns,
+    required this.momentsTop,
+    required this.texels,
+  });
+
+  /// Texels across.
+  final int width;
+
+  /// Texels down.
+  final int height;
+
+  /// Probe tiles across, in both halves.
+  final int columns;
+
+  /// The first row of the depth tiles.
+  final int momentsTop;
+
+  /// Row-major from the top, four floats a texel.
+  final Float32List texels;
 }
 
 /// A grid of probes over a box.
@@ -165,8 +196,7 @@ final class IrradianceField {
   /// starting at row [momentsTop], every probe's depth tile in the same grid,
   /// mean and mean square in red and green. Row-major from the top, four
   /// floats a texel. `lib/irradiance.glsl` reads it.
-  ({int width, int height, int columns, int momentsTop, Float32List texels})
-  toAtlas() {
+  IrradianceAtlas toAtlas() {
     final probes = probeCount;
     final columns = math.sqrt(probes).ceil();
     final rows = (probes + columns - 1) ~/ columns;
@@ -212,7 +242,7 @@ final class IrradianceField {
         }
       }
     }
-    return (
+    return IrradianceAtlas(
       width: width,
       height: height,
       columns: columns,
@@ -233,13 +263,14 @@ final class IrradianceField {
       );
 
   /// Writes [color] as the irradiance probe [probe] receives from [direction].
-  void writeIrradiance(int probe, Vector3 direction, Vector3 color) {
+  /// Alpha is not stored.
+  void writeIrradiance(int probe, Vector3 direction, LinearColor color) {
     _version++;
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
-    irradiance[at] = color.x;
-    irradiance[at + 1] = color.y;
-    irradiance[at + 2] = color.z;
+    irradiance[at] = color.r;
+    irradiance[at + 1] = color.g;
+    irradiance[at + 2] = color.b;
   }
 
   /// Writes the two moments probe [probe] sees along [direction].
@@ -265,13 +296,13 @@ final class IrradianceField {
   /// floor-facing surface from the ceiling and from nothing else, and a wall to
   /// one side tints nothing at all — which is exactly the effect the row exists
   /// to produce.
-  void writeIrradianceTexel(int probe, int tx, int ty, Vector3 color) {
+  void writeIrradianceTexel(int probe, int tx, int ty, LinearColor color) {
     _version++;
     final stride = _stride(tile);
     final at = ((probe * stride + ty + 1) * stride + tx + 1) * 3;
-    irradiance[at] = color.x;
-    irradiance[at + 1] = color.y;
-    irradiance[at + 2] = color.z;
+    irradiance[at] = color.r;
+    irradiance[at + 1] = color.g;
+    irradiance[at + 2] = color.b;
   }
 
   /// Writes one texel of the depth tile directly. See [writeIrradianceTexel].
@@ -376,11 +407,17 @@ final class IrradianceField {
   }
 
   /// The irradiance stored for [direction] at probe [probe].
-  Vector3 readIrradiance(int probe, Vector3 direction, [Vector3? out]) {
+  LinearColor readIrradiance(int probe, Vector3 direction) {
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
-    return (out ?? Vector3.zero())
-      ..setValues(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
+    return LinearColor(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
+  }
+
+  /// [readIrradiance] into [out], for [sample]'s loop over eight probes.
+  void _readIrradianceInto(int probe, Vector3 direction, Vector3 out) {
+    final uv = encodeOctahedral(direction);
+    final at = _texelOf(probe, uv, tile, 3);
+    out.setValues(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
   }
 
   /// The two moments stored for [direction] at probe [probe].
@@ -420,8 +457,8 @@ final class IrradianceField {
   /// point sits in its cell, by how much each probe is on the side the surface
   /// faces, and by whether the probe can see the point at all. No active
   /// probe's weight reaches nought.
-  Vector3 sample(Vector3 position, Vector3 normal, [Vector3? out]) {
-    final result = (out ?? Vector3.zero())..setZero();
+  LinearColor sample(Vector3 position, Vector3 normal) {
+    final result = Vector3.zero();
 
     final gx = (position.x - origin.x) / spacing.x;
     final gy = (position.y - origin.y) / spacing.y;
@@ -471,7 +508,7 @@ final class IrradianceField {
         // between them, so it contributes its trilinear weight and nothing
         // else modifies it — asking the visibility test about a direction that
         // does not exist is the version of this that throws.
-        readIrradiance(probe, unit, color);
+        _readIrradianceInto(probe, unit, color);
         result.addScaled(color, weight);
         total += weight;
         continue;
@@ -498,7 +535,7 @@ final class IrradianceField {
       );
       weight *= floored < 0.2 ? floored * floored * floored * 25.0 : floored;
 
-      readIrradiance(probe, unit, color);
+      _readIrradianceInto(probe, unit, color);
       result.addScaled(color, weight);
       total += weight;
     }
@@ -507,6 +544,6 @@ final class IrradianceField {
     // as the colour of the ones that can see it rather than as that colour
     // divided by eight.
     if (total > 0.0) result.scale(1.0 / total);
-    return result;
+    return LinearColor(result.x, result.y, result.z);
   }
 }

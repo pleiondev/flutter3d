@@ -90,7 +90,7 @@ final class StaticCascadesDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 1.8 * Photometric.legacyUnit)
+      LightNode(name: 'sun', intensity: 1.8 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-4.0, -5.0, -0.01).normalized()),
     );
     // #endregion sun

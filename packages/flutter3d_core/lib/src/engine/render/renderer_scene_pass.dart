@@ -98,11 +98,9 @@ extension _ScenePasses on Renderer {
     final keeps = orderIndependent || split;
     final msaa = surfaceIsRead || keeps ? null : _hdrMsaa;
     final deferred = <_DeferredTransparency>[];
-    // The clear colour is authored the way a colour picker shows it, but the
-    // scene target holds linear light and the composite pass encodes on the way
-    // out. Clearing with the sRGB value directly would send it through the
-    // encode twice and wash the background out.
-    final clear = Renderer._srgbToLinear(ordered.first.clearColorSrgb);
+    // The clear color is linear light, as the scene target holds, and the
+    // composite pass encodes it on the way out with everything else.
+    final clear = ordered.first.clearColor.toVector4();
     // `A2.8`: one convention for the frame's depth, which every pass that
     // loads it after this one reads back from the field.
     final reversed = _reversedFor(settings);
@@ -450,14 +448,28 @@ extension _ScenePasses on Renderer {
       if (keeps) {
         // Kept rather than drawn, with what the passes after this one need
         // to draw them as this view would have — `R8`, `M3`.
+        // Copied into the renderer's own per-slot vectors rather than
+        // cloned: a deferred view is read by the passes later in this frame
+        // and by nothing after it, so the slot it stands in is free again by
+        // the next frame, which takes no matrix and no vector of its own.
+        final slot = deferred.length;
         deferred.add((
           view: view,
           rect: viewRect,
-          viewProjection: drawMatrix.clone(),
+          viewProjection: Renderer._deferredSlot(
+            _deferredViewProjections,
+            slot,
+            vm.Matrix4.zero,
+          )..setFrom(drawMatrix),
           wireframe: wireframe,
           clustered: _clustersActive,
-          eye: cameraPosition.clone(),
-          forward: _forward.clone(),
+          eye: Renderer._deferredSlot(_deferredEyes, slot, vm.Vector3.zero)
+            ..setFrom(cameraPosition),
+          forward: Renderer._deferredSlot(
+            _deferredForwards,
+            slot,
+            vm.Vector3.zero,
+          )..setFrom(_forward),
           transparent: <MeshNode>[
             for (final index in _renderList.transparent)
               _renderList.itemAt(index).requireNode,

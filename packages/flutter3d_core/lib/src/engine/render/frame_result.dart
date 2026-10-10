@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import 'frame_graph.dart' show PassSkip, SkippedPass;
+import 'frame_graph.dart' show PassSkip, ResourceId, SkippedPass;
 import 'frame_pacing.dart' show PipelineStall;
 import 'physical_camera.dart' show PhysicalCamera;
 import 'render_settings.dart' show RenderSettings;
@@ -24,32 +24,93 @@ import 'render_settings.dart' show RenderSettings;
 /// shadow map gained a cascade or somebody added an overlay. Per pass, it is
 /// one sentence and it names the pass.
 ///
-/// A record rather than a class because it is read and never built by
-/// anything outside the renderer, and a named one because the shape is
-/// written out in four files and was drifting.
-typedef FramePass = ({
+/// A class rather than a record, so a field the telemetry learns to keep
+/// later is an addition and not a break for whoever reads it. Kept while
+/// `RenderSettings.telemetry` records nodes; [micros] and [gpuMicros] are
+/// read only while it records times.
+final class FramePass {
+  const FramePass({
+    required this.name,
+    required this.active,
+    required this.micros,
+    required this.gpuMicros,
+    required this.drawCalls,
+    required this.triangles,
+    required this.pipelineSwitches,
+  });
+
   /// The graph node's own name.
-  String name,
+  final String name;
 
   /// What `RenderNode.isActive` said at the node this timing came from. See
   /// [FrameResult.passes] for why absence, not `false`, is how a pass that
   /// did not run is reported.
-  bool active,
+  final bool active;
 
-  /// Wall-clock time inside this node's own `execute`.
-  int micros,
+  /// Wall-clock time inside this node's own `execute`; nought while the
+  /// telemetry is not timing.
+  final int micros;
 
   /// What the GPU spent in the passes this node opened, or null where the
-  /// device does not measure it — `H2`. See
-  /// `GraphicsDevice.supportsGpuTimestamps`.
-  int? gpuMicros,
+  /// device does not measure it — `H2` — or the telemetry is not timing.
+  /// See `DeviceFeature.gpuTimestamps`.
+  final int? gpuMicros;
 
   /// Draws this node encoded. Zero for a node that only moves textures
   /// about — the composite's own full-screen triangle is a draw and counts.
-  int drawCalls,
-  int triangles,
-  int pipelineSwitches,
-});
+  final int drawCalls;
+
+  /// Triangles those draws covered.
+  final int triangles;
+
+  /// How often the pipeline changed between those draws.
+  final int pipelineSwitches;
+
+  @override
+  String toString() =>
+      'FramePass($name, ${micros}us'
+      '${gpuMicros == null ? '' : ', gpu ${gpuMicros}us'}, '
+      '$drawCalls draws, $triangles triangles)';
+}
+
+/// What one resource of the frame graph stood on this frame: the texture a
+/// version of it held last, and how many versions the frame made of it.
+///
+/// One per resource a node read, wrote or provided, kept while
+/// `RenderSettings.telemetry` records nodes, in `FrameResult.resources`.
+/// Typed, so a profiler or a capture tool reads the id and the size rather
+/// than parsing a label.
+final class FrameResourceUse {
+  const FrameResourceUse({
+    required this.id,
+    required this.versions,
+    required this.width,
+    required this.height,
+    required this.format,
+    required this.bytes,
+  });
+
+  /// The resource, as the graph's nodes declare it.
+  final ResourceId id;
+
+  /// How many versions of it the frame bound: one for a target drawn once,
+  /// more for one a chain of passes reads and writes back.
+  final int versions;
+
+  /// The size and format of the texture its last version stood on.
+  final int width;
+  final int height;
+  final TextureFormat format;
+
+  /// What that texture holds, by `FrameResources`' own account of a
+  /// texture: its base level and its chain, the floor every backend sits on.
+  final int bytes;
+
+  @override
+  String toString() =>
+      'FrameResourceUse(${id.name}, $versions version(s), ${width}x$height '
+      '${format.name}, $bytes B)';
+}
 
 /// What smoothed the edges of a frame, as opposed to what was asked for —
 /// `gfx-20n`.
@@ -129,6 +190,7 @@ final class FrameResult {
     this.targetBytes = 0,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
+    this.resources = const <FrameResourceUse>[],
     this.skipped = const <SkippedPass>[],
     this.antiAliasing = const EffectiveAntiAliasing(
       msaaSamples: 1,
@@ -182,8 +244,10 @@ final class FrameResult {
     targetBytes: targetBytes,
     exposure: exposure,
     passes: passes,
+    resources: resources,
     skipped: skipped,
     antiAliasing: antiAliasing,
+    pipelineStalls: pipelineStalls,
     held: true,
   );
 
@@ -401,6 +465,11 @@ final class FrameResult {
   /// itself say about its own readiness" — happen to agree now and are not
   /// the same question.
   final List<FramePass> passes;
+
+  /// One entry per resource the frame's nodes read, wrote or provided, in the
+  /// order the frame first bound each — empty unless
+  /// `RenderSettings.telemetry` records nodes.
+  final List<FrameResourceUse> resources;
 }
 
 /// What [Renderer.renderPost] handed back.

@@ -46,7 +46,7 @@ final class TransmissionDemo extends ShowcaseDemo {
       const PlaneShape(width: 0.08, depth: 4.0).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.2 * Photometric.legacyUnit
+      ..ambientIntensity = 0.2 * LightNode.defaultIntensity
       ..add(
         MeshNode(half, flat(Vector4(0.8, 0.1, 0.1, 1.0)), name: 'red wall')
           ..setRotation(upright)
@@ -106,7 +106,7 @@ final class TransmissionDemo extends ShowcaseDemo {
         )..setPosition(0.6, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -1.0).normalized()),
       );
     // #endregion glass
@@ -173,7 +173,7 @@ final class TransmissionDemo extends ShowcaseDemo {
     final Set<String> ran = <String>{
       for (final FramePass pass in frame.passes) pass.name,
     };
-    if (!ran.contains('scene colour copy')) {
+    if (!ran.contains('scene color copy')) {
       throw StateError(
         'the glass is in the frame but the scene was not copied',
       );

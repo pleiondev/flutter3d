@@ -114,14 +114,15 @@ view can be switched on for one frame and off for the next with no
   Sixty golden images are recorded against there being no sky at all, so
   turning it on changes every pixel a frame did not otherwise draw.
 
-## Sky colour is linear, and the clear colour is not
+## Sky and clear colours are linear, and a colour picker's are not
 
 `SkySettings`'s colours (`zenith`, `horizon`, `nadir`, `sunColor`) are
 linear and scene-referred: they are multiplied by `RenderSettings.exposure`
 and pass through the tone curve exactly like everything else in the frame.
-`RenderView.clearColorSrgb`, by contrast, is decoded from sRGB by the renderer.
-The first sky value copied from a colour picker will look far too bright,
-and it reads as a shader defect rather than as the units mismatch it is.
+`RenderView.clearColor` is a linear `LinearColor` too. A colour picker's
+numbers are sRGB: pass them through `LinearColor.fromSrgb`, or the first
+value copied from one will look far too bright, and it reads as a shader
+defect rather than as the units mismatch it is.
 
 ## Ambient occlusion changes the whole frame's antialiasing, not just the corners
 

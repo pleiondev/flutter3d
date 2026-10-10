@@ -281,5 +281,11 @@ List<double> _evaluate(
     case MaterialSample(:final slot, :final uv):
       final at = _evaluate(uv, surface, scope);
       return surface.sample(slot, at[0], at[1]);
+    default:
+      throw ArgumentError.value(
+        expression,
+        'expression',
+        'not an expression this build of the material language knows',
+      );
   }
 }

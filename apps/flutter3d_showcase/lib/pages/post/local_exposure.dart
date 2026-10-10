@@ -106,7 +106,7 @@ final class LocalExposureDemo extends ShowcaseDemo {
     // No lamp and no sun: the room has only a weak ambient light, and the
     // engine is told not to add a light of its own to a scene that has none.
     scene
-      ..ambientIntensity = 0.12 * Photometric.legacyUnit
+      ..ambientIntensity = 0.12 * LightNode.defaultIntensity
       ..defaultLightWhenUnlit = false;
     // #endregion outside
     return scene..add(sky);

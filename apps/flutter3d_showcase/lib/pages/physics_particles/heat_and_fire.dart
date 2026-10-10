@@ -225,9 +225,9 @@ final class HeatAndFireDemo extends ShowcaseDemo {
       ..setPosition(_apart, 0.1, 0.0);
     final Scene scene = (_scene ?? Scene())
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       )
       ..add(
@@ -253,7 +253,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
             name: 'heater',
             baseColor: LinearColor.fromSrgb(0.4, 0.2, 0.15, 1.0),
             emissive: LinearColor(1.0, 0.35, 0.08),
-            emissiveStrength: 2.0 * Photometric.legacyNits,
+            emissiveStrength: 2.0 * RenderMaterial.defaultEmissiveStrength,
           ),
           name: 'heater',
         )..setPosition(0.0, 0.15, 0.0),
@@ -285,13 +285,13 @@ final class HeatAndFireDemo extends ShowcaseDemo {
         math.pi;
     final LinearColor color = Blackbody.color(t);
     final double y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-    // Over `bulbAtOneMeter` and drawn at `legacyNits`: about 29 times the
+    // Over `bulbAtOneMeter` and drawn at the default emissive strength: about 29 times the
     // true luminance, the gain `FireView` draws its flames with, so the hot
     // block glows beside them as it would beside a fire.
     look.emissive = color.scaled(
       y > 0.0 ? nits / Photometric.bulbAtOneMeter / y : 0.0,
     );
-    look.emissiveStrength = 1.0 * Photometric.legacyNits;
+    look.emissiveStrength = 1.0 * RenderMaterial.defaultEmissiveStrength;
   }
   // #endregion glow
 

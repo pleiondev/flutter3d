@@ -93,7 +93,7 @@ Future<_Shot> _draw({
       if (poison) _poison(texture);
     };
 
-  final scene = Scene()..ambientIntensity = 0.15 * Photometric.legacyUnit;
+  final scene = Scene()..ambientIntensity = 0.15 * LightNode.defaultIntensity;
   final wall = RenderMaterial(
     name: 'wall',
     baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
@@ -120,7 +120,7 @@ Future<_Shot> _draw({
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 0.8 * Photometric.legacyUnit,
+      intensity: 0.8 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
   );
@@ -128,7 +128,7 @@ Future<_Shot> _draw({
     camera: CameraNode()
       ..setPosition(1.8, 1.2, 1.8)
       ..lookAt(Vector3(-0.6, -0.8, -0.6)),
-    clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+    clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
   );
 
   late FrameResult frame;

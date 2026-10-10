@@ -270,7 +270,10 @@ final class LevelView {
       height: height,
       scene: _scene,
       views: <RenderView>[
-        RenderView(camera: eye, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: eye,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       settings: RenderSettings(debugView: DebugViewSettings(view: debugView)),
     );

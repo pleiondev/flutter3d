@@ -230,7 +230,7 @@ final class AssetManifest {
   static List<DeviceClassBudget> _parseClasses(YamlNode node) {
     DeviceClass classOf(YamlNode name) {
       final text = _textOf(name, 'a device class');
-      return DeviceClass.parse(text) ??
+      return DeviceClass.tryParse(text) ??
           (throw ManifestFormatException(
             'unknown device class "$text" — expected one of '
             '${DeviceClass.values.join(', ')}',

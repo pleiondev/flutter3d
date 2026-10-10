@@ -1406,7 +1406,7 @@ class _GameScreenState extends State<GameScreen> {
       height: (size.height * scale).round(),
       settings: _renderSettings(filtered: false),
       filter: _photo.filter,
-      clearColorSrgb: _engine!.view.clearColorSrgb,
+      clearColor: _engine!.view.clearColor,
       shelf: defaultPhotoShelf('platformer'),
       name: 'platformer-${DateTime.now().millisecondsSinceEpoch}.png',
     );

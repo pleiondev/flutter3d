@@ -63,12 +63,12 @@ MeshNode floorNode(
 Scene sceneOf(Iterable<SceneNode> nodes) {
   final Scene scene = Scene()
     ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-    ..ambientIntensity = 0.3 * Photometric.legacyUnit;
+    ..ambientIntensity = 0.3 * LightNode.defaultIntensity;
   for (final SceneNode node in nodes) {
     scene.add(node);
   }
   return scene..add(
-    LightNode(name: 'sun', intensity: 2.8 * Photometric.legacyUnit)
+    LightNode(name: 'sun', intensity: 2.8 * LightNode.defaultIntensity)
       ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
   );
 }

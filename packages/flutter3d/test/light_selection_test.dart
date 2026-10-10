@@ -40,7 +40,7 @@ LightNode _lamp(
   LightNode(
     type: LightType.point,
     color: LinearColor(1.0, 1.0, 1.0),
-    intensity: intensity * Photometric.legacyUnit,
+    intensity: intensity * LightNode.defaultIntensity,
     range: range,
     name: name,
   )..setPosition(x, y, 0.0),
@@ -202,7 +202,7 @@ void main() {
       final sun = scene.add(
         LightNode(
           type: LightType.directional,
-          intensity: 1.0 * Photometric.legacyUnit,
+          intensity: 1.0 * LightNode.defaultIntensity,
           name: 'sun',
         ),
       );

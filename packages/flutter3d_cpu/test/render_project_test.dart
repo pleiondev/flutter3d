@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show LightNode;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
@@ -609,7 +610,7 @@ void main() {
             lights: <ProjectLight>[
               ProjectLight(
                 type: ProjectLightType.point,
-                intensity: 80.0,
+                intensity: 80.0 * LightNode.defaultIntensity,
                 transform: Matrix4.translation(Vector3(1.5, 1.5, 1.5)),
               ),
             ],

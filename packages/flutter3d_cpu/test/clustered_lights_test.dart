@@ -47,7 +47,7 @@ const int _height = 64;
       scene.add(
         LightNode(
           type: LightType.point,
-          intensity: 2.0 * Photometric.legacyUnit,
+          intensity: 2.0 * LightNode.defaultIntensity,
           range: 0.8,
         )..setPosition(x, 0.3, z),
       );

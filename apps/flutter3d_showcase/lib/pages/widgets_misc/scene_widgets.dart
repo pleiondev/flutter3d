@@ -90,7 +90,7 @@ final class SceneWidgetsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit;
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity;
     _mount = SceneWidgets.mount(
       scene: scene,
       renderer: context.renderer,

@@ -116,7 +116,7 @@ extension _IrradiancePass on Renderer {
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
-    required vm.Vector4 clearColor,
+    required LinearColor clearColor,
   }) {
     final gpu = _irradianceGpuFor(field);
     final shader = _irradianceConvolveShader;

@@ -57,7 +57,7 @@ Float32List _render(
     );
   }
   scene.add(
-    LightNode(intensity: 3.0 * Photometric.legacyUnit)
+    LightNode(intensity: 3.0 * LightNode.defaultIntensity)
       ..lookAt(Vector3(0.0, -0.3, -1.0).normalized()),
   );
   final camera = CameraNode(projection: projection);
@@ -67,7 +67,10 @@ Float32List _render(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );

@@ -66,7 +66,7 @@ final class MeshBuilderDemo extends ShowcaseDemo {
     // #region scene
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.42, 0.5, 0.66)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _pyramid),
@@ -75,7 +75,7 @@ final class MeshBuilderDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.42, -0.78, -0.4)),
       );
     // #endregion scene

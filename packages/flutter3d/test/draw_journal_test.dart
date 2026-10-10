@@ -40,7 +40,7 @@ const int _size = 24;
       ),
     )
     ..add(
-      LightNode(intensity: 6.0 * Photometric.legacyUnit)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -73,7 +73,7 @@ Future<FrameCapture> _capture(
     views: <RenderView>[
       RenderView(
         camera: it.scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
   );

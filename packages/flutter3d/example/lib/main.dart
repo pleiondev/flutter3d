@@ -301,7 +301,7 @@ class _SpikePageState extends State<SpikePage>
     _sun = LightNode(
       type: LightType.directional,
       color: LinearColor(1.0, 0.95, 0.85),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 4.0 * LightNode.defaultIntensity,
       name: 'sun',
     );
     _scene.add(_sun);
@@ -346,7 +346,7 @@ class _SpikePageState extends State<SpikePage>
       // Dim, because a light parented to the camera is a headlight: it fills in
       // every shadow the viewer can see, which is the one place a shadow needs
       // to survive. It earns its keep as a fill, not as a key.
-      intensity: 0.35 * Photometric.legacyUnit,
+      intensity: 0.35 * LightNode.defaultIntensity,
       name: 'key light',
     );
     _camera.add(_light);
@@ -362,7 +362,7 @@ class _SpikePageState extends State<SpikePage>
     _fill = LightNode(
       type: LightType.point,
       color: LinearColor(0.35, 0.62, 1.0),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 4.0 * LightNode.defaultIntensity,
       name: 'fill light',
       // Set only by the golden that wants to look at the cube atlas, because
       // the atlas costs six views of the scene and nothing else here needs it.
@@ -371,7 +371,7 @@ class _SpikePageState extends State<SpikePage>
     _spot = LightNode(
       type: LightType.spot,
       color: LinearColor(1.0, 0.45, 0.25),
-      intensity: 12.0 * Photometric.legacyUnit,
+      intensity: 12.0 * LightNode.defaultIntensity,
       innerConeAngle: 0.25,
       outerConeAngle: 0.5,
       name: 'spot light',
@@ -391,7 +391,7 @@ class _SpikePageState extends State<SpikePage>
       final light = LightNode(
         type: LightType.point,
         color: LinearColor(1.0, 0.72, 0.4),
-        intensity: 4.0 * Photometric.legacyUnit,
+        intensity: 4.0 * LightNode.defaultIntensity,
         name: 'extra point $i',
         castsShadow: true,
       );
@@ -558,7 +558,7 @@ class _SpikePageState extends State<SpikePage>
       // see `ReflectionProbeNode.intensity` — and this knob does not reach
       // them.
       instance.removeFromScene();
-      _scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
+      _scene.ambientIntensity = 1.0 * LightNode.defaultIntensity;
       _modelPivot.add(GoldenExtras.probeRoom(_device!));
       return;
     }
@@ -583,7 +583,7 @@ class _SpikePageState extends State<SpikePage>
       // sun, everything on the floor that is not the floor is the march's.
       instance.removeFromScene();
       _sun.isVisible = false;
-      _scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+      _scene.ambientIntensity = 0.25 * LightNode.defaultIntensity;
       for (final node in GoldenExtras.mirrorRoom(_device!)) {
         _modelPivot.add(node);
       }
@@ -596,7 +596,7 @@ class _SpikePageState extends State<SpikePage>
       // cent off the corners and is invisible.
       instance.removeFromScene();
       _sun.isVisible = false;
-      _scene.ambientIntensity = 0.9 * Photometric.legacyUnit;
+      _scene.ambientIntensity = 0.9 * LightNode.defaultIntensity;
       for (final node in GoldenExtras.occlusionCorner(_device!)) {
         _modelPivot.add(node);
       }
@@ -1302,10 +1302,11 @@ class _SpikePageState extends State<SpikePage>
                     onExposure: (v) => setState(() => _exposure = v),
                     // The slider is a share of the old unit; the scene's
                     // ambient is lux.
-                    ambient: _scene.ambientIntensity / Photometric.legacyUnit,
+                    ambient:
+                        _scene.ambientIntensity / LightNode.defaultIntensity,
                     onAmbient: (v) => setState(
-                      () =>
-                          _scene.ambientIntensity = v * Photometric.legacyUnit,
+                      () => _scene.ambientIntensity =
+                          v * LightNode.defaultIntensity,
                     ),
                     wireframe: _wireframe,
                     onWireframe: (v) => setState(() => _wireframe = v),

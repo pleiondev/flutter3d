@@ -47,8 +47,10 @@ final class VertexCacheDemo extends ShowcaseDemo {
       scrambled,
       sphere.vertexCount,
     );
-    final ({Uint32List indices, Uint32List oldToNew}) fetch =
-        optimizeVertexFetch(cacheOrdered, sphere.vertexCount);
+    final VertexFetchOrder fetch = optimizeVertexFetch(
+      cacheOrdered,
+      sphere.vertexCount,
+    );
     _afterRatio = averageCacheMissRatio(cacheOrdered);
     // #endregion reorder
 
@@ -75,7 +77,7 @@ final class VertexCacheDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.44, 0.5, 0.66)
-      ..ambientIntensity = 0.16 * Photometric.legacyUnit
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, reordered),
@@ -88,7 +90,7 @@ final class VertexCacheDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.36)),
       );
     return scene;

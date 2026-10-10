@@ -3819,7 +3819,7 @@ List<Finding> _worldNumbersFromTheWorld() {
 /// No light is lit with a number in the renderer's pre-1.0 unit.
 ///
 /// **Lights became lux and candela in 1.0, and a literal does not move with
-/// them.** `migrate` carried code that wrote `x * Photometric.legacyUnit`,
+/// them.** `migrate` carried code that wrote `x * LightNode.defaultIntensity`,
 /// but a plain `intensity: 16.0` stayed 16 — and 16 candela where 92 650 was
 /// meant is a starter project that opens on a black screen, a default sun of
 /// 2.6 lux in `Daylight`, and a showcase page lit by a candle. Each was

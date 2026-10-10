@@ -474,7 +474,7 @@ final class _ReflectionProbeNode extends RenderNode {
 
   /// What the primary view clears to: what a probe sees where nothing was
   /// drawn, so a reflection of the empty sky is the same colour the world's is.
-  final vm.Vector4 clearColor;
+  final LinearColor clearColor;
 
   /// Every face, in order: what a first capture and an invalidated one draw.
   static const List<int> _kWholeCube = <int>[0, 1, 2, 3, 4, 5];
@@ -717,7 +717,7 @@ final class _PlanarReflectionNode extends RenderNode {
 
 /// The world, as a graph node — the pass everything else is ordered around.
 ///
-/// It writes `hdr_colour` and `surface_buffer`, which is what took those two
+/// It writes `hdr_color` and `surface_buffer`, which is what took those two
 /// names off [FrameGraph.addExternal]: the frame no longer hands the graph a
 /// lit scene produced by code beside it. And it *optionally* reads the three
 /// shadow maps, which is what lets anything be ordered before it at all.
@@ -1059,7 +1059,7 @@ final class _SceneColourCopyNode extends RenderNode {
   final bool active;
 
   @override
-  String get name => 'scene colour copy';
+  String get name => 'scene color copy';
 
   @override
   bool get isActive => active;
@@ -1424,7 +1424,7 @@ final class _IrradianceUpdateNode extends RenderNode {
   final Renderer _renderer;
   final Scene scene;
   final int shadowCaster;
-  final vm.Vector4 clearColor;
+  final LinearColor clearColor;
 
   /// `RenderSettings.irradianceUpdates`. Off, the atlas keeps what earlier
   /// frames gathered, and the scene reads it as it would any frame this

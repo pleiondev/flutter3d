@@ -552,13 +552,13 @@ extension _MeshEncode on Renderer {
     // stage the material brought: the engine's own read `FrameInfo` and
     // nothing else, and a material naming no vertex stage draws exactly as it
     // did, which is why no golden could move.
-    if (material.parameters.isNotEmpty &&
+    if (node.parametersFor(material).isNotEmpty &&
         material.lighting.vertexShaderName != null &&
         !batched) {
       encoder.bindUniformBlock(
         activeVertexShader,
         material.parameterBlock,
-        material.parameters,
+        node.parametersFor(material),
       );
     }
 
@@ -1036,11 +1036,11 @@ extension _MeshEncode on Renderer {
     // that can see the difference. That is the contract as of today, and it
     // cuts the way an author wants: a parameter renamed in the GLSL and not in
     // the Dart used to draw with a zero in its place, on Impeller only.
-    if (material.parameters.isNotEmpty) {
+    if (node.parametersFor(material).isNotEmpty) {
       encoder.bindUniformBlock(
         fragmentShader,
         material.parameterBlock,
-        material.parameters,
+        node.parametersFor(material),
       );
     }
     // Not safe in the same way, and the asymmetry is the encoder's: a sampler
@@ -1274,7 +1274,7 @@ extension _MeshEncode on Renderer {
           material.metallic,
           material.roughness,
         ]),
-        ...material.parameters,
+        ...node.parametersFor(material),
       },
     );
   }
@@ -1386,7 +1386,7 @@ extension _MeshEncode on Renderer {
   ///
   /// The cone test only where the draw culls back faces, with the same
   /// expression the cull mode is set from below.
-  ({GeometryBuffer buffer, int count})? _clusterIndicesFor(
+  ClusterIndices? _clusterIndicesFor(
     MeshNode node,
     DrawableGeometry mesh,
     RenderMaterial material,

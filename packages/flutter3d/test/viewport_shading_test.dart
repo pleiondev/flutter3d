@@ -47,7 +47,7 @@ Future<({List<int> pixels, FrameResult result})> _frame(
       ),
     )
     ..add(
-      LightNode(intensity: 5.0 * Photometric.legacyUnit)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -60,7 +60,7 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -319,7 +319,7 @@ void main() {
         final renderer = Renderer.create(device: FakeBackend());
         final scene = Scene()
           ..add(
-            LightNode(intensity: 4.0 * Photometric.legacyUnit)
+            LightNode(intensity: 4.0 * LightNode.defaultIntensity)
               ..setPosition(2.0, 3.0, 4.0)
               ..lookAt(Vector3.zero()),
           )

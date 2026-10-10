@@ -39,7 +39,7 @@ import 'render_node.dart';
 final class FullscreenEffect extends RenderNode {
   /// An effect over the scene's light, before tone mapping.
   ///
-  /// Reads and writes `hdr_colour`: the picture is linear and unbounded here,
+  /// Reads and writes `hdr_color`: the picture is linear and unbounded here,
   /// so anything physical belongs here — it will bloom and tone map
   /// with the rest of the world.
   FullscreenEffect.overlay({

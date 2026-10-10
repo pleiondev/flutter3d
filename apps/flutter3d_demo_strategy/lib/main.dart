@@ -425,13 +425,13 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     // as a hole, a rock as half a rock. A cool fill at about a sixth of the
     // sun is what an open hillside under a blue sky actually gets.
     _scene = Scene(name: 'map')
-      ..ambientIntensity = 0.55 * Photometric.legacyUnit
+      ..ambientIntensity = 0.55 * LightNode.defaultIntensity
       ..ambientColor = LinearColor(0.78, 0.86, 1.0);
     _scene.add(
       LightNode(
         type: LightType.directional,
         color: LinearColor(1.0, 0.96, 0.88),
-        intensity: 3.2 * Photometric.legacyUnit,
+        intensity: 3.2 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );

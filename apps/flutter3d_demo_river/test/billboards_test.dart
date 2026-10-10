@@ -9,6 +9,7 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart'
     show
         CameraNode,
+        LinearColor,
         PerspectiveProjection,
         RenderSettings,
         RenderView,
@@ -17,7 +18,7 @@ import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart' show TargetKind;
 import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 Iterable<SpriteBillboardComponent> _billboards(RiverGame game) =>
     game.children.whereType<SpriteBillboardComponent>();
@@ -156,7 +157,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: camera,
-            clearColorSrgb: Vector4(0.27, 0.48, 0.78, 1),
+            clearColor: LinearColor.fromSrgb(0.27, 0.48, 0.78, 1),
           ),
         ],
         settings: const RenderSettings(),

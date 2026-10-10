@@ -48,7 +48,7 @@ Future<Uint8List> _draw(
   );
 
   final world = Scene(name: sceneName)
-    ..ambientIntensity = ambient * Photometric.legacyUnit;
+    ..ambientIntensity = ambient * LightNode.defaultIntensity;
   for (final node in room(it.device)) {
     world.add(node);
   }

@@ -93,6 +93,10 @@
   `HotSwap()` constructor is ordinary API rather than a testing seam: an
   application with two engines may give each its own.
 
+- **Breaking: `BuiltEnvironment` is the core's `EnvironmentCube`**, a class
+  with the record's `texture` and `levels` as getters, which is what
+  `EnvironmentMap` builds; a builder hands back
+  `EnvironmentCube(texture, levels)` where it handed back a record.
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 
@@ -128,8 +132,9 @@
   `Flutter3dView.onListenerMoved` is handed a `ListenerPose` (position,
   forward, up and the scene's origin) where it took a position and a
   direction.
-- **Breaking: `savePhoto(clearColor:)` is `clearColorSrgb:`**, the same sRGB
-  `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **Breaking: `savePhoto(clearColor:)` takes a `LinearColor`**, linear as
+  `RenderView.clearColor` is, where it took an sRGB `Vector4`:
+  `LinearColor.fromSrgb(r, g, b, a)` draws the same picture.
 - **`Flutter3dView` builds the loop's `FormatRegistry` and `VmExtensions`**,
   so a plugin that registers a format or a VM extension has somewhere to
   put it. The registry holds `coreFormats`, `simFormats` and the view's new

@@ -63,7 +63,7 @@ final class PointerTargets with AnimationPointerSink {
         );
       case AnimationPointerProperty.emissiveStrength:
         // glTF animates a multiple of the factor; the material holds nits.
-        material.emissiveStrength = values[0] * Photometric.legacyNits;
+        material.emissiveStrength = values[0] * RenderMaterial.defaultEmissiveStrength;
       case AnimationPointerProperty.roughness:
         material.roughness = values[0];
       case AnimationPointerProperty.metallic:

@@ -53,7 +53,7 @@ final class CameraShakeDemo extends ShowcaseDemo {
     return Scene()
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

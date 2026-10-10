@@ -129,7 +129,7 @@ Float32List _furnace(double roughness, int size) {
       mipLevels: EnvironmentMap.prefilter(faces, size: cube, levels: levels),
     )
     ..environmentLevels = levels
-    ..ambientIntensity = 1.0 * Photometric.legacyUnit
+    ..ambientIntensity = 1.0 * LightNode.defaultIntensity
     ..defaultLightWhenUnlit = false;
   return _render(size: size, scene: scene, camera: camera, device: device);
 }
@@ -202,7 +202,7 @@ void main() {
         )
         ..add(
           LightNode(
-            intensity: 3.0 * Photometric.legacyUnit,
+            intensity: 3.0 * LightNode.defaultIntensity,
             castsShadow: false,
           ),
         )
@@ -265,7 +265,7 @@ void main() {
         // Dim, so the peak of the narrowest lobe stays inside a half float.
         ..add(
           LightNode(
-            intensity: 0.01 * Photometric.legacyUnit,
+            intensity: 0.01 * LightNode.defaultIntensity,
             castsShadow: false,
           )..setRotationYawPitchRoll(0.0, -math.pi / 2, 0.0),
         )

@@ -103,7 +103,7 @@ class Model3dComponent extends PositionComponent {
   /// transparent, so the 2D game shows round the model.
   late final RenderView view = RenderView(
     camera: camera3d,
-    clearColorSrgb: Vector4.zero(),
+    clearColor: LinearColor.transparent,
   );
 
   /// The loaded model, once [onLoad] has finished; null for a subclass

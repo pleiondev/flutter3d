@@ -40,7 +40,7 @@ Float32List _render(RenderSettings settings, {RenderMaterial? material}) {
         ..setPosition(0.0, 0.0, -2.0)
         ..setScale(2.4, 1.8, 0.05);
   final camera = CameraNode();
-  final light = LightNode(intensity: 3.0 * Photometric.legacyUnit)
+  final light = LightNode(intensity: 3.0 * LightNode.defaultIntensity)
     ..lookAt(Vector3(0.0, 0.0, -1.0));
   final result = Renderer.create(device: device).render(
     width: _width,
@@ -50,7 +50,10 @@ Float32List _render(RenderSettings settings, {RenderMaterial? material}) {
       ..add(light)
       ..add(camera),
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );

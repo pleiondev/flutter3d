@@ -948,7 +948,7 @@ void main() {
       ).setUint32(4, projectVersion + 1, Endian.little);
       expect(
         refusal(bytes),
-        'This project was written by version 2 and this build reads version 1. '
+        'This project was written by version 3 and this build reads version 2. '
         'Open it in a newer build; there is nothing here that can guess what it '
         'added.',
       );

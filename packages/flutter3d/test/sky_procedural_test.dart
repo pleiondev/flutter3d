@@ -65,7 +65,7 @@ SkySettings _sky({bool enabled = true, double sunIntensity = 6.0}) =>
       glowExponent: 12.0,
       sunAngularRadius: 3.0 * math.pi / 180.0,
       sunSoftness: 1.0 * math.pi / 180.0,
-      sunIntensity: sunIntensity * Photometric.legacyUnit,
+      sunIntensity: sunIntensity * LightNode.defaultIntensity,
     );
 
 /// A green wall forty metres out, and a camera at the origin.
@@ -114,7 +114,7 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: world.camera,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

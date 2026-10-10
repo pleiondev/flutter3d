@@ -285,7 +285,7 @@ final CameraNode _camera = CameraNode(
   name: 'main',
 );
 late final RenderView _view = RenderView(camera: _camera)
-  ..clearColorSrgb = Vector4(0.05, 0.07, 0.10, 1.0);
+  ..clearColor = LinearColor.fromSrgb(0.05, 0.07, 0.10);
 
 late final OrbitController _orbit = OrbitController(_camera, distance: 8.0);
 ```

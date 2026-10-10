@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fb6ae27b474f1edc
+# table-stamp: 7662d9c62bb376e3
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -346,34 +346,6 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'RigBuildSettings'
-  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-RenderPreset-clearColorSrgb'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
-      field: 'clearColor'
-      inClass: 'RenderPreset'
-    changes:
-      - kind: 'rename'
-        newName: 'clearColorSrgb'
-  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-RenderPreset-parameter'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
-      constructor: ''
-      inClass: 'RenderPreset'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'clearColor'
-        newName: 'clearColorSrgb'
-  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-bakeImpostor-clearColorSrgb'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
-      function: 'bakeImpostor'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'clearColor'
-        newName: 'clearColorSrgb'
   - title: 'flutter3d 1.0.0-rc.1: b1-model_core-EnumHint'
     date: 2026-10-08
     element:

@@ -80,10 +80,123 @@ final class FrameGraph {
   /// is reported as, [PassSkip.settings] becoming [PassSkip.switchedOff]. A
   /// pass in it that turned out active anyway runs and is not reported, since
   /// the report is about what happened rather than about what was asked.
+  ///
+  /// **Compiled once while nothing changes.** What decides the frame is the
+  /// nodes in registration order with their names, declarations, `isActive`
+  /// and `isSupported`, the external resources, [outputs], [disabled] and
+  /// [switchedOff]; a graph that holds the same of all of them as at the
+  /// last compile gives that compile back, the same object when the nodes
+  /// are, and otherwise the same order over this call's nodes, matched by
+  /// name — a renderer builds its nodes again every frame, and a frame that
+  /// changed nothing asks the same question. [clear] keeps what the last
+  /// compile was, so one graph cleared and refilled each frame is the way
+  /// to use it.
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
     Set<String> switchedOff = const <String>{},
+  }) {
+    final key = _inputsOf(outputs, disabled, switchedOff);
+    final last = _lastCompiled;
+    if (last != null && _sameInputs(key, _lastInputs)) {
+      return _lastCompiled = _overNodes(last, _nodes);
+    }
+    final compiled = _compileAfresh(
+      outputs: outputs,
+      disabled: disabled,
+      switchedOff: switchedOff,
+    );
+    _lastInputs = key;
+    _lastNodes = List<FrameGraphNode>.of(_nodes);
+    return _lastCompiled = compiled;
+  }
+
+  /// What the last [compile] was asked, and what it answered.
+  List<Object?>? _lastInputs;
+  List<FrameGraphNode> _lastNodes = const <FrameGraphNode>[];
+  CompiledFrameGraph? _lastCompiled;
+
+  /// Everything [compile]'s answer depends on, flattened: each list is its
+  /// length followed by its members, so two inputs are the same exactly when
+  /// the flattened lists are.
+  List<Object?> _inputsOf(
+    List<ResourceId> outputs,
+    Set<String> disabled,
+    Set<String> switchedOff,
+  ) {
+    final key = <Object?>[_external.length, ..._external];
+    void ids(List<ResourceId> list) {
+      key.add(list.length);
+      for (final id in list) {
+        key.add(id.name);
+      }
+    }
+
+    key.add(_nodes.length);
+    for (final node in _nodes) {
+      key
+        ..add(node.name)
+        ..add(node.isActive)
+        ..add(node.isSupported);
+      ids(node.reads);
+      ids(node.optionalReads);
+      ids(node.writes);
+      ids(node.keeps);
+    }
+    ids(outputs);
+    key
+      ..add(disabled.length)
+      ..addAll(disabled)
+      ..add(switchedOff.length)
+      ..addAll(switchedOff);
+    return key;
+  }
+
+  static bool _sameInputs(List<Object?> a, List<Object?>? b) {
+    if (b == null || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// [compiled] over [nodes]: itself when they are the nodes it was compiled
+  /// from, and otherwise the same answer with each node replaced by the one
+  /// of [nodes] that has its name.
+  CompiledFrameGraph _overNodes(
+    CompiledFrameGraph compiled,
+    List<FrameGraphNode> nodes,
+  ) {
+    var same = nodes.length == _lastNodes.length;
+    for (var i = 0; same && i < nodes.length; i++) {
+      same = identical(nodes[i], _lastNodes[i]);
+    }
+    if (same) return compiled;
+    _lastNodes = List<FrameGraphNode>.of(nodes);
+    final byName = <String, FrameGraphNode>{
+      for (final node in nodes) node.name: node,
+    };
+    return CompiledFrameGraph(
+      compiled._lastUse,
+      compiled._readers,
+      compiled._bindings,
+      compiled._current,
+      compiled._kept,
+      order: <FrameGraphNode>[
+        for (final node in compiled.order) byName[node.name]!,
+      ],
+      culled: <FrameGraphNode>[
+        for (final node in compiled.culled) byName[node.name]!,
+      ],
+      outputs: compiled.outputs,
+      skipped: compiled.skipped,
+    );
+  }
+
+  CompiledFrameGraph _compileAfresh({
+    required List<ResourceId> outputs,
+    required Set<String> disabled,
+    required Set<String> switchedOff,
   }) {
     // Known at all, whether or not it runs this frame. The difference between
     // this and the active set is the difference between a misspelled name and

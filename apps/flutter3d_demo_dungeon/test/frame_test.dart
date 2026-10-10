@@ -128,7 +128,10 @@ Future<Uint8List> _drawFromTheStart(
   scene.add(camera);
 
   final views = <RenderView>[
-    RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+    RenderView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+    ),
   ];
 
   Future<Uint8List> once() async {

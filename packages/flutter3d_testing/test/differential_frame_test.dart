@@ -72,7 +72,7 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
   final radius = math.max(((bounds.max - bounds.min)..scale(0.5)).length, 1e-3);
 
   scene.add(
-    LightNode(intensity: 3.0 * Photometric.legacyUnit)
+    LightNode(intensity: 3.0 * LightNode.defaultIntensity)
       ..setPosition(
         center.x - radius * 1.4,
         center.y + radius * 2.0,
@@ -100,7 +100,7 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+        clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
       ),
     ],
     settings: const RenderSettings(

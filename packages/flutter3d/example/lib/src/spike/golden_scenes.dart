@@ -620,7 +620,10 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     source: 'Teapot',
     ground: false,
     bloom: false,
-    sky: SkySettings(enabled: true, sunIntensity: 6.0 * Photometric.legacyUnit),
+    sky: SkySettings(
+      enabled: true,
+      sunIntensity: 6.0 * LightNode.defaultIntensity,
+    ),
   ),
 
   // A look the engine never shipped, drawn through a bundle loaded from

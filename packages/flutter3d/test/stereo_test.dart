@@ -117,7 +117,7 @@ Projection _eyeProjection({required bool left}) => OffAxisProjection(
 RenderView _view(CameraNode camera, ViewportRect where) => RenderView(
   camera: camera,
   viewportFraction: where,
-  clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+  clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
 );
 
 Future<Uint8List> _draw({

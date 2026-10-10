@@ -81,11 +81,11 @@ void main() {
     scene.add(
       LightNode(
         color: LinearColor(1.0, 1.0, 1.0),
-        intensity: 3.0 * Photometric.legacyUnit,
+        intensity: 3.0 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(Vector3(0.2, -1.0, 0.3)),
     );
-    scene.ambientIntensity = 0.6 * Photometric.legacyUnit;
+    scene.ambientIntensity = 0.6 * LightNode.defaultIntensity;
 
     // Where the board is looking. A plane's face is its +Y before anything is
     // rotated, so the world normal is that vector through the node's rotation.
@@ -127,7 +127,10 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.3, 1.0)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.3, 1.0),
+        ),
       ],
     );
     final pixels = (await device.readback(result.frame)).buffer.asUint8List();

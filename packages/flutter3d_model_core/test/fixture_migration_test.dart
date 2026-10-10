@@ -170,6 +170,32 @@ void main() {
     });
   });
 
+  group('the version 2 fixture', () {
+    test('records the version it was written by', () {
+      expect(
+        ByteData.sublistView(fixtureBytes(2)).getUint32(4, Endian.little),
+        2,
+      );
+    });
+
+    test('its lamp comes back in candela, as written', () {
+      // Version 2 is the version a light is lux or candela; the reader lifts
+      // only what a version 1 file holds. Mutation: lift every file, and the
+      // 800 cd lamp opens at 4.6 million.
+      final light = fixtureOpened(2).lighting.lights.single;
+      expect(light.type, ProjectLightType.point);
+      expect(light.intensity, 800.0);
+      expect(light.range, 12.0);
+    });
+
+    test('it holds the objects the version 1 fixture does', () {
+      expect(
+        fixtureOpened(2).objects.map((ModelObject o) => o.name),
+        fixtureOpened(1).objects.map((ModelObject o) => o.name),
+      );
+    });
+  });
+
   test('every fixture directory is a version this build can read', () {
     final directory = Directory('test/fixtures');
     final versions = <int>[

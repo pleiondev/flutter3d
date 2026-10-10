@@ -97,7 +97,16 @@ const int projectMagic = 0x50443346;
 
 /// Moves only when an existing record changes meaning. A new section does not
 /// need it, because an older reader steps over a kind it does not know.
-const int projectVersion = 1;
+///
+/// **2:** a light's `intensity` is lux for a directional light and candela
+/// for the others, as `LightNode.intensity` is. Version 1 held the engine's
+/// pre-1.0 unit, and [readProject] lifts it by `LightNode.defaultIntensity`,
+/// one of that unit, as it reads.
+const int projectVersion = 2;
+
+/// What one of the pre-1.0 light unit a version 1 file holds is worth in lux
+/// or candela.
+const double _v1LightUnit = 5790.583578;
 
 /// `.f3dproj` for a `FormatRegistry`.
 ///
@@ -1076,6 +1085,7 @@ ProjectRead readProject(Uint8List bytes) {
       document['lighting'],
       warnings,
       imageCount: images.length,
+      fileVersion: version,
     );
     final animationGraphs = _readAnimationGraphs(document['animationGraphs']);
     // Kept, not read: what a later minor added to the manifest goes back into
@@ -1102,6 +1112,7 @@ ProjectRead readProject(Uint8List bytes) {
       nextId: nextId,
       warnings: warnings,
       simulationChunks: simulationChunks,
+      fileVersion: version,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -1162,6 +1173,7 @@ ProjectRead readProject(Uint8List bytes) {
   required Map<String, Object?> unknown,
   required int nextId,
   required List<String> warnings,
+  required int fileVersion,
   List<Uint8List> simulationChunks = const <Uint8List>[],
 }) {
   final at = sections[ProjectSection.history];
@@ -1334,6 +1346,7 @@ ProjectRead readProject(Uint8List bytes) {
           step['lighting'],
           noticed,
           imageCount: carriedImages.length,
+          fileVersion: fileVersion,
         );
       }
       if (step.containsKey('animationGraphs')) {
@@ -1707,11 +1720,16 @@ Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
 /// [imageCount] bounds the panorama, which is an index into the project's
 /// images: one that points past the table is dropped, since a renderer handed
 /// it would be reading an image that is not there.
+///
+/// A light of a [fileVersion] 1 file is in the pre-1.0 unit and is lifted
+/// into lux or candela here; see [projectVersion].
 SceneLighting _readLighting(
   Object? json,
   List<String> warnings, {
   required int imageCount,
+  required int fileVersion,
 }) {
+  final intensityUnit = fileVersion < 2 ? _v1LightUnit : 1.0;
   if (json is! Map<String, Object?>) return const SceneLighting();
   const untouched = SceneLighting();
 
@@ -1732,7 +1750,7 @@ SceneLighting _readLighting(
       return ProjectLight(
         type: type,
         color: Vector3(r.toDouble(), g.toDouble(), b.toDouble()),
-        intensity: intensity.toDouble(),
+        intensity: intensity.toDouble() * intensityUnit,
         range: (entry['range'] as num?)?.toDouble() ?? 0.0,
         castsShadow: entry['castsShadow'] == true,
         innerConeAngle: (entry['innerConeAngle'] as num?)?.toDouble() ?? 0.0,

@@ -16,7 +16,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 const int _width = 64;
 const int _height = 48;
@@ -104,7 +104,7 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
     scene: scene,
     view: RenderView(
       camera: camera,
-      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
     probe: probe,
   );

@@ -147,7 +147,7 @@ class _SandboxScreenState extends State<SandboxScreen>
   /// It is what is behind the first frames, before the world has loaded.
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.55, 0.72, 0.9, 1.0),
+    clearColor: LinearColor.fromSrgb(0.55, 0.72, 0.9, 1.0),
   );
 
   /// The sun and the moon, moved along the day by [Daylight.light] every
@@ -249,7 +249,7 @@ class _SandboxScreenState extends State<SandboxScreen>
       // typed for either.
       _run.day.light(sun: _sun, moon: _moon);
       final scene = Scene()
-        ..ambientIntensity = 0.35 * Photometric.legacyUnit
+        ..ambientIntensity = 0.35 * LightNode.defaultIntensity
         ..add(_sun)
         ..add(_moon)
         ..add(_camera);
@@ -345,7 +345,7 @@ class _SandboxScreenState extends State<SandboxScreen>
       height: (size.height * scale).round(),
       settings: _settings(filtered: false),
       filter: _photo.filter,
-      clearColorSrgb: _view.clearColorSrgb,
+      clearColor: _view.clearColor,
       shelf: defaultPhotoShelf('sandbox'),
       name: 'sandbox-${DateTime.now().millisecondsSinceEpoch}.png',
     );

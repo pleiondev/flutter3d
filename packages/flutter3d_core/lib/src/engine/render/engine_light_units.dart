@@ -6,20 +6,18 @@
 /// engine was tuned in before 1.0: one unit of scene luminance is 1843.2 nits,
 /// which the reference camera (`PhysicalCamera`, f/4, 1/60 s, ISO 100, at the
 /// default exposure of 1.6) draws at 1.6, its white being 1152 nits, and one
-/// unit of illuminance is π
-/// times that. An application never sees it; `Photometric.legacyUnit` and
-/// `Photometric.legacyNits` name it only so a pre-1.0 number can be carried
-/// over.
+/// unit of illuminance is π times that. An application never sees it; the
+/// defaults it meets (`LightNode.defaultIntensity`,
+/// `RenderMaterial.defaultEmissiveStrength`) are one unit each, so a
+/// default-made scene draws as it always did.
 library;
 
-import '../scene/light_node.dart' show Photometric;
-
-/// Nits in one unit of the renderer's scene luminance.
-const double nitsPerEngineUnit = Photometric.legacyNits;
+/// Nits in one unit of the renderer's scene luminance: `1.6 × 1.2 × 960`.
+const double nitsPerEngineUnit = 1843.2;
 
 /// Lux (or, for a point light, candela) in one unit of the renderer's scene
 /// illuminance: π × [nitsPerEngineUnit].
-const double luxPerEngineUnit = Photometric.legacyUnit;
+const double luxPerEngineUnit = 5790.583578;
 
 /// [lux] of illuminance, or candela of intensity, as the renderer's number.
 double luxToEngine(double lux) => lux / luxPerEngineUnit;

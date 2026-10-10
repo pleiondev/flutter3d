@@ -68,7 +68,7 @@ import 'package:flutter3d/flutter3d.dart';
 
   scene.root.add(
     LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 3.5 * Photometric.legacyUnit
+      ..intensity = 3.5 * LightNode.defaultIntensity
       ..setPosition(1.5, 3.0, 2.0)
       ..lookAt(Vector3.zero()),
   );

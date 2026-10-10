@@ -132,7 +132,7 @@ void main() {
           ),
         )
         ..add(
-          LightNode(intensity: 5.0 * Photometric.legacyUnit)
+          LightNode(intensity: 5.0 * LightNode.defaultIntensity)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
@@ -205,7 +205,7 @@ void main() {
           ),
         )
         ..add(
-          LightNode(intensity: 30.0 * Photometric.legacyUnit)
+          LightNode(intensity: 30.0 * LightNode.defaultIntensity)
             ..setPosition(0.0, 0.0, 3.0)
             ..lookAt(Vector3.zero()),
         )

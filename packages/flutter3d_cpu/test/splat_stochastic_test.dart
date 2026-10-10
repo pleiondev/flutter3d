@@ -24,6 +24,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -91,7 +93,7 @@ Float32List _render(
   );
   final view = RenderView(
     camera: camera,
-    clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+    clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
   );
   late FrameResult result;
   for (var i = 0; i < frames; i++) {

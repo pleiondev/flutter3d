@@ -55,7 +55,8 @@ const int _height = 48;
 /// off the shoulder of the tone curve — two bands that are both saturated agree
 /// with each other whatever the ambient did.
 ({Scene scene, CameraNode camera}) _ball({double ambient = 0.5}) {
-  final scene = Scene()..ambientIntensity = ambient * Photometric.legacyUnit;
+  final scene = Scene()
+    ..ambientIntensity = ambient * LightNode.defaultIntensity;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -200,7 +201,7 @@ void main() {
         nadir: LinearColor(0.6, 0.3, 0.05),
         // Straight up, and blindingly bright.
         directionToSun: Vector3(0.0, 1.0, 0.0),
-        sunIntensity: 400.0 * Photometric.legacyUnit,
+        sunIntensity: 400.0 * LightNode.defaultIntensity,
       ),
     );
 

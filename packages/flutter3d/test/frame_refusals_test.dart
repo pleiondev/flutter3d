@@ -65,7 +65,7 @@ _build({bool supportsWireframe = true, int pointCasters = 0}) {
     final angle = i * 2.0 * math.pi / pointCasters;
     scene.root.add(
       LightNode(name: 'torch $i', type: LightType.point)
-        ..intensity = 5.0 * Photometric.legacyUnit
+        ..intensity = 5.0 * LightNode.defaultIntensity
         ..range = 12.0
         ..castsShadow = true
         // Spread around the cube rather than stacked, so relevance has

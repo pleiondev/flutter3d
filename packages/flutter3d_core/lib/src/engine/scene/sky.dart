@@ -1,6 +1,6 @@
 /// A sky: a gradient overhead instead of one flat colour behind everything.
 ///
-/// What this replaces is `RenderView.clearColorSrgb`, which is a single colour and
+/// What this replaces is `RenderView.clearColor`, which is a single colour and
 /// therefore the same colour whichever way the camera turns. That is fine for a
 /// dungeon and wrong for anywhere outdoors, where the difference between
 /// looking towards the sun and away from it is most of what tells a player
@@ -37,11 +37,10 @@
 /// followCamera(sky, camera);
 /// ```
 ///
-/// **Colours here are linear.** This is the one way the sky differs from the
-/// clear colour it replaces: `RenderView.clearColorSrgb` is authored in sRGB and
-/// decoded by the renderer, while a vertex colour is linear by the glTF spec
-/// and used as it is. The same numbers give a lighter sky. Halving each channel
-/// is a good first guess; measuring is better.
+/// **Colours here are linear**, as the clear colour it replaces is
+/// (`RenderView.clearColor`) and as a vertex colour is by the glTF spec. A
+/// colour read off a picker is sRGB and goes in through
+/// `LinearColor.fromSrgb`.
 library;
 
 import 'dart:math' as math;

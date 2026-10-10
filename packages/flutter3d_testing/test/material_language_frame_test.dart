@@ -94,8 +94,10 @@ Future<Uint8List> _render(
     // catch it, so the shadow is drawn through the stage under test too.
     scene
       ..add(
-        LightNode(intensity: 2.0 * Photometric.legacyUnit, castsShadow: true)
-          ..setLocalForward(Vector3(0.5, -1.0, 0.6).normalized()),
+        LightNode(
+          intensity: 2.0 * LightNode.defaultIntensity,
+          castsShadow: true,
+        )..setLocalForward(Vector3(0.5, -1.0, 0.6).normalized()),
       )
       ..add(
         MeshNode(
@@ -136,7 +138,7 @@ Future<Uint8List> _render(
                 ..lookAt(Vector3(0.0, -0.3, 0.0)))
             : (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
                 ..setPosition(1.6, 1.2, 2.4)),
-        clearColorSrgb: Vector4(0, 0, 0, 1),
+        clearColor: LinearColor.fromSrgb(0, 0, 0, 1),
       ),
     ],
   );

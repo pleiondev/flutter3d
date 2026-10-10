@@ -41,7 +41,10 @@ void main() {
 
       expect(said, isNotNull);
       // Refused, not silently ignored: the light's own field is unchanged.
-      expect(history.project.lighting.lights.single.intensity, 1.0);
+      expect(
+        history.project.lighting.lights.single.intensity,
+        ProjectLight().intensity,
+      );
     });
 
     test('a real number is accepted', () {

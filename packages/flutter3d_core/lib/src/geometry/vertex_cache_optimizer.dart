@@ -168,6 +168,19 @@ Uint32List optimizeTriangleOrder(
   return output;
 }
 
+/// What [optimizeVertexFetch] answers: the renumbered [indices], and for
+/// each old vertex its new index in [oldToNew], for reordering the vertex
+/// data and anything held per vertex to match.
+final class VertexFetchOrder {
+  const VertexFetchOrder({required this.indices, required this.oldToNew});
+
+  /// The index buffer, every vertex renumbered by its first use.
+  final Uint32List indices;
+
+  /// `oldToNew[v]` is vertex `v`'s new index.
+  final Uint32List oldToNew;
+}
+
 /// [indices] renumbered so a vertex's new index is the order it is first
 /// referenced in — the pre-transform ("vertex fetch") half of GPU cache
 /// friendliness, meant to run on triangle-cache-ordered indices (
@@ -176,7 +189,7 @@ Uint32List optimizeTriangleOrder(
 /// right after the one before it in memory is a vertex its prefetcher already
 /// has queued; a triangle order optimized for the post-transform cache alone
 /// can still reference vertex data scattered across the buffer.
-({Uint32List indices, Uint32List oldToNew}) optimizeVertexFetch(
+VertexFetchOrder optimizeVertexFetch(
   Uint32List indices,
   int vertexCount,
 ) {
@@ -205,7 +218,7 @@ Uint32List optimizeTriangleOrder(
       next++;
     }
   }
-  return (indices: newIndices, oldToNew: oldToNew);
+  return VertexFetchOrder(indices: newIndices, oldToNew: oldToNew);
 }
 
 /// [mesh] with its triangles and vertices reordered for GPU cache reuse:

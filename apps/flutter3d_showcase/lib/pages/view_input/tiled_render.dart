@@ -37,9 +37,9 @@ final class TiledRenderDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25 * Photometric.legacyUnit
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 

@@ -47,7 +47,7 @@ final class RenderPostDemo extends ShowcaseDemo {
             name: 'bar',
             baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
             emissive: LinearColor(1.0, 0.55, 0.2),
-            emissiveStrength: 6.0 * Photometric.legacyNits,
+            emissiveStrength: 6.0 * RenderMaterial.defaultEmissiveStrength,
           ),
           name: 'bar',
         ),
@@ -55,7 +55,7 @@ final class RenderPostDemo extends ShowcaseDemo {
       ..add(eye);
     _sourceView = RenderView(
       camera: eye,
-      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     );
     // #endregion source
 

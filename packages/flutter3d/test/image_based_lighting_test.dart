@@ -88,7 +88,7 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: it.camera,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(),
@@ -126,7 +126,7 @@ void _light(CpuDevice device, Scene scene, {int levels = 4}) {
     // Turned up from the default so the indirect term is the thing being
     // measured rather than a rounding of it. This scales both the flat ambient
     // and the environment, which is the point of them sharing the knob.
-    ..ambientIntensity = 1.0 * Photometric.legacyUnit;
+    ..ambientIntensity = 1.0 * LightNode.defaultIntensity;
 }
 
 void main() {
@@ -134,7 +134,7 @@ void main() {
     // The state of the world before this feature, kept as a test so the claim
     // is measured rather than remembered.
     final it = _ball();
-    it.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
+    it.scene.ambientIntensity = 1.0 * LightNode.defaultIntensity;
 
     expect(
       _onTheBall(await _draw(it)),
@@ -181,11 +181,11 @@ void main() {
     // nothing. Mutation: bind the fallback cube *and* report a level count —
     // every existing reference image moves and this fails first.
     final it = _ball();
-    it.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
+    it.scene.ambientIntensity = 1.0 * LightNode.defaultIntensity;
     final before = await _draw(it);
 
     final again = _ball();
-    again.scene.ambientIntensity = 1.0 * Photometric.legacyUnit;
+    again.scene.ambientIntensity = 1.0 * LightNode.defaultIntensity;
     expect(await _draw(again), equals(before));
   });
 }

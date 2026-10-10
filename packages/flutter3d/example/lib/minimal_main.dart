@@ -68,7 +68,7 @@ class _MinimalPageState extends State<MinimalPage> {
       LightNode(
         type: LightType.point,
         color: LinearColor(0.9, 0.95, 1.0),
-        intensity: 16.0 * Photometric.legacyUnit,
+        intensity: 16.0 * LightNode.defaultIntensity,
         range: 20.0,
         name: 'point light',
       )..setPosition(2.0, 2.5, 2.0),

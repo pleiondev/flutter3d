@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:image/image.dart' as img;
 import 'package:vector_math/vector_math.dart';
@@ -165,7 +167,10 @@ Future<ModelDocument> bakeImpostors(
             final d = impostorViewDirection(column, row);
             final camera = _cameraFor(d, center, radius);
 
-            Future<Uint8List> shoot(List<MeshNode> draws, Vector4 clear) async {
+            Future<Uint8List> shoot(
+              List<MeshNode> draws,
+              LinearColor clear,
+            ) async {
               final scene = Scene();
               for (final draw in draws) {
                 scene.add(draw);
@@ -176,7 +181,7 @@ Future<ModelDocument> bakeImpostors(
                 height: cell,
                 scene: scene,
                 views: <RenderView>[
-                  RenderView(camera: camera, clearColorSrgb: clear),
+                  RenderView(camera: camera, clearColor: clear),
                 ],
                 settings: settings,
               );
@@ -203,11 +208,11 @@ Future<ModelDocument> bakeImpostors(
               uploaded,
               (i) => albedoMaterial(drawn[i].materialIndex),
             );
-            final onBlack = await shoot(color, Vector4(0, 0, 0, 0));
-            final onWhite = await shoot(color, Vector4(1, 1, 1, 1));
+            final onBlack = await shoot(color, LinearColor.transparent);
+            final onWhite = await shoot(color, LinearColor.white);
             final normals = await shoot(
               drawsOf(uploaded, (_) => normalsMaterial),
-              Vector4(0, 0, 0, 0),
+              LinearColor.transparent,
             );
             for (var i = 0; i < drawn.length; i++) {
               depthMeshes[i].overwriteVertices(
@@ -220,7 +225,7 @@ Future<ModelDocument> bakeImpostors(
             }
             final depths = await shoot(
               drawsOf(depthMeshes, (_) => normalsMaterial),
-              Vector4(0, 0, 0, 0),
+              LinearColor.transparent,
             );
 
             for (var y = 0; y < cell; y++) {

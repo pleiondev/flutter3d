@@ -199,7 +199,7 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
   // ambient (in the engine's pre-1.0 unit), about EV100 7.5, and held there
   // while the clip dims the light to 45 and back.
   static final PhysicalCamera _camera = PhysicalCamera.metered(
-    110.0 + 0.06 * Photometric.legacyUnit,
+    110.0 + 0.06 * LightNode.defaultIntensity,
   );
 
   @override

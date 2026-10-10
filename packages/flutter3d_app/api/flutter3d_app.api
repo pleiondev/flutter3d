@@ -12,7 +12,7 @@ abstract base class BinaryStorage
   abstract Future<void> remove(String name)
   const BinaryStorage()
 
-typedef BuiltEnvironment = ({TextureHandle texture, int levels});
+typedef BuiltEnvironment = EnvironmentCube;
 
 final class Camera3D extends Spatial3D
   State<Camera3D> createState()
@@ -780,7 +780,7 @@ Map<String, Object?> renderStats(FrameCapture capture)
 
 Directory? resolveApplicationDirectory({required String appName, required IssueSink onIssue})
 
-Future<PhotoTaken> savePhoto({required Renderer renderer, required Scene scene, required CameraNode camera, required int width, required int height, required PhotoShelf shelf, required String name, RenderSettings settings = const RenderSettings(), PhotoFilter filter = PhotoFilter.none, Vector4? clearColorSrgb, int tileWidth = 1024, int tileHeight = 1024, void Function(double progress)? onProgress})
+Future<PhotoTaken> savePhoto({required Renderer renderer, required Scene scene, required CameraNode camera, required int width, required int height, required PhotoShelf shelf, required String name, RenderSettings settings = const RenderSettings(), PhotoFilter filter = PhotoFilter.none, LinearColor? clearColor, int tileWidth = 1024, int tileHeight = 1024, void Function(double progress)? onProgress})
 
 List<SemanticObject> semanticObjectsFor(List<SceneAnnouncement> announcements, {required CameraNode camera, required Size size})
 

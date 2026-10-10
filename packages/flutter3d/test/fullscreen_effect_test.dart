@@ -63,7 +63,7 @@ Future<({FrameResult result, List<int> pixels})> _frame({
       ),
     )
     ..add(
-      LightNode(intensity: 5.0 * Photometric.legacyUnit)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -76,7 +76,7 @@ Future<({FrameResult result, List<int> pixels})> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,

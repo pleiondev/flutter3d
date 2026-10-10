@@ -33,7 +33,7 @@ const int _height = 128;
 ({Scene scene, CameraNode camera}) _city(GraphicsDevice device) {
   final scene = Scene()
     ..add(
-      LightNode(intensity: 5.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(6.0, 10.0, 8.0)
         ..lookAt(Vector3.zero()),
     );

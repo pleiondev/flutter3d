@@ -4,16 +4,29 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import '../scene/light_node.dart' show Photometric;
 
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.
 ///
 /// The renderer uses this to split draws into the opaque and transparent halves
 /// of the render list, which are sorted differently.
-enum MaterialAlphaMode {
-  opaque,
-  mask,
-  blend,
+///
+/// A `final class` with const instances rather than an enum, so a mode added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class MaterialAlphaMode {
+  const MaterialAlphaMode._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
+  /// Every pixel drawn, alpha ignored: glTF's `OPAQUE`.
+  static const MaterialAlphaMode opaque = MaterialAlphaMode._('opaque');
+
+  /// Kept where alpha reaches `RenderMaterial.alphaCutoff`, dropped where it
+  /// does not: glTF's `MASK`.
+  static const MaterialAlphaMode mask = MaterialAlphaMode._('mask');
+
+  /// Combined with what is behind it, sorted far to near: glTF's `BLEND`.
+  static const MaterialAlphaMode blend = MaterialAlphaMode._('blend');
 
   /// Kept or dropped per pixel against noise instead of a threshold —
   /// `gfx-16n`'s own row, and the one mode here that glTF has no word for.
@@ -34,7 +47,18 @@ enum MaterialAlphaMode {
   /// The noise is anchored to world position rather than to the screen, so a
   /// moving branch keeps its verdict instead of sparkling as it passes
   /// through a fixed pattern. See `surface.glsl`, which does the work.
-  hashed,
+  static const MaterialAlphaMode hashed = MaterialAlphaMode._('hashed');
+
+  /// Every mode.
+  static const List<MaterialAlphaMode> values = <MaterialAlphaMode>[
+    opaque,
+    mask,
+    blend,
+    hashed,
+  ];
+
+  @override
+  String toString() => 'MaterialAlphaMode.$name';
 }
 
 /// How a blended surface is combined with what is behind it — read only when
@@ -102,7 +126,7 @@ final class RenderMaterial {
     this.emissiveTexture,
     this.emissiveSampler,
     this.emissive = LinearColor.black,
-    this.emissiveStrength = Photometric.legacyNits,
+    this.emissiveStrength = defaultEmissiveStrength,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.alphaToCoverage = false,
@@ -315,13 +339,18 @@ final class RenderMaterial {
   /// How bright [emissive] is, in **nits** (cd/m²) since 1.0: an emissive of
   /// white shines at this luminance, and a colour at its share of it.
   ///
-  /// 1 843.2 by default, `Photometric.legacyNits`, the luminance the old
-  /// default of one stood for, so a glowing surface looks as it did; a
-  /// material loaded from a file multiplies the file's own strength
-  /// (`KHR_materials_emissive_strength`, a plain multiple) by it. A screen
-  /// is a few hundred nits, a lit sign a few thousand. Multiply a pre-1.0
-  /// strength by `Photometric.legacyNits`.
+  /// [defaultEmissiveStrength] by default.
   double emissiveStrength;
+
+  /// The luminance an emissive of white shines at when nothing says
+  /// otherwise: 1 843.2 nits, candela per square meter.
+  ///
+  /// The luminance the old default of one stood for, so a glowing surface
+  /// looks as it did; a material loaded from a file multiplies the file's
+  /// own strength (`KHR_materials_emissive_strength`, a plain multiple) by
+  /// it, and so does a pre-1.0 strength carried over. A screen is a few
+  /// hundred nits, a lit sign a few thousand.
+  static const double defaultEmissiveStrength = 1843.2;
 
   MaterialAlphaMode alphaMode;
 

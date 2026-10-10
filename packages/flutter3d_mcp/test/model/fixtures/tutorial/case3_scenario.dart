@@ -151,7 +151,9 @@ void runCase3Scenario(ModelSession session) {
     'setLightField(color)',
   );
   must(
-    session.run(const SetLightField(index: 0, field: 'intensity', value: 4.5)),
+    session.run(
+      const SetLightField(index: 0, field: 'intensity', value: 26000.0),
+    ),
     'setLightField(intensity)',
   );
   must(

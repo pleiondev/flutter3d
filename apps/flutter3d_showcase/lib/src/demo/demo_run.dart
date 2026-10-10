@@ -22,7 +22,7 @@ final class DemoRun {
     final CameraNode camera = CameraNode(name: 'eye');
     final RenderView view = RenderView(
       camera: camera,
-      clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );
     final OrbitController orbit = OrbitController(
       camera,

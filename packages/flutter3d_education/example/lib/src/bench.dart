@@ -348,7 +348,7 @@ final class Bench {
         // The sun carries most of the light, as through a lab window: the
         // coloured shadows tint only the sun's share, and under a sky as
         // bright as the sun they were barely there.
-        ..ambientIntensity = 0.55 * Photometric.legacyUnit;
+        ..ambientIntensity = 0.55 * LightNode.defaultIntensity;
     }
     scene
       ..add(
@@ -372,14 +372,14 @@ final class Bench {
           ..lightChannels = _benchChannel,
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.6 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.6 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
       )
       ..add(
         // The fill lights the glass from the front, not the bench: it
         // shines towards the camera, and on a glossy tabletop its highlight
         // was a white smear across the near corner.
-        LightNode(name: 'fill', intensity: 0.9 * Photometric.legacyUnit)
+        LightNode(name: 'fill', intensity: 0.9 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(0.6, -0.4, 0.8))
           ..channels = _vesselChannel,
       );

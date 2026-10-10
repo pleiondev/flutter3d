@@ -63,7 +63,7 @@ extension _PlanarPasses on Renderer {
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
-    required vm.Vector4 clearColor,
+    required LinearColor clearColor,
   }) {
     final rect = ScreenRect.of(color);
     final depth = resources.transient(
@@ -78,10 +78,7 @@ extension _PlanarPasses on Renderer {
       RenderPassDescriptor(
         label: _passLabel,
         colors: <ColorTarget>[
-          ColorTarget(
-            texture: color,
-            clearValue: Renderer._srgbToLinear(clearColor),
-          ),
+          ColorTarget(texture: color, clearValue: clearColor.toVector4()),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -196,7 +193,7 @@ extension _PlanarPasses on Renderer {
       settings: settings,
       shadows: shadows,
       passState: passState,
-      clearColor: texture.clearColorSrgb,
+      clearColor: texture.clearColor,
     );
     final encode = shaders['RenderTextureEncode'];
     if (encode == null) {
@@ -335,7 +332,7 @@ extension _PlanarPasses on Renderer {
         settings: settings,
         shadows: shadows,
         passState: passState,
-        clearColor: view.clearColorSrgb,
+        clearColor: view.clearColor,
       );
       state.drawn[i] = true;
     }

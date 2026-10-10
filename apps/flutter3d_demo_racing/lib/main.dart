@@ -215,7 +215,7 @@ class _RaceScreenState extends State<RaceScreen>
     // Daylight from the first frame. This is `late` and so is worked out when
     // the first frame is built, which is before any circuit has loaded — and a
     // window that opens black and turns blue a second later reads as a fault.
-    clearColorSrgb: _skyColour(),
+    clearColor: _skyColour(),
   );
 
   /// The air the circuit is raced under: the Earth's, as the engine's
@@ -248,9 +248,9 @@ class _RaceScreenState extends State<RaceScreen>
     }
   }
 
-  Vector4 _skyColour() {
+  LinearColor _skyColour() {
     final color = _sky.colorAt(_gaze);
-    return Vector4(color.r, color.g, color.b, 1.0);
+    return LinearColor.fromSrgb(color.r, color.g, color.b);
   }
 
   /// The one [RenderSettings] this game draws with — pulled out of `build`
@@ -1153,7 +1153,7 @@ class _RaceScreenState extends State<RaceScreen>
       // around are the same sun by construction rather than by agreement.
       // The sky document's number is in the engine's old unit; lux here.
       scene.ambientIntensity =
-          document.sky.ambientIntensity * Photometric.legacyUnit;
+          document.sky.ambientIntensity * LightNode.defaultIntensity;
 
       // **The circuit reflects the sky it is raced under, and costs nothing to
       // do it.** A sky is already a function from direction to colour, which is
@@ -1454,7 +1454,7 @@ class _RaceScreenState extends State<RaceScreen>
       height: (size.height * scale).round(),
       settings: _raceSettings(),
       filter: _photo.filter,
-      clearColorSrgb: _view.clearColorSrgb,
+      clearColor: _view.clearColor,
       shelf: defaultPhotoShelf('racing'),
       name: 'racing-${DateTime.now().millisecondsSinceEpoch}.png',
     );
@@ -1692,7 +1692,7 @@ class _RaceScreenState extends State<RaceScreen>
         ..setFrom(chase.target)
         ..sub(chase.eye);
     }
-    _view.clearColorSrgb = _skyColour();
+    _view.clearColor = _skyColour();
 
     // `ls-x-02`'s own HUD panel — read and redrawn only when it exists
     // (flat mode never builds one) and only once a race is actually up to

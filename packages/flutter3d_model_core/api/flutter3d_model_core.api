@@ -1388,7 +1388,7 @@ final class ProjectFormatException extends Flutter3dFormatException
 
 final class ProjectLight
   ProjectLight copyWith({ProjectLightType? type, Vector3? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
-  ProjectLight({this.type = ProjectLightType.directional, Vector3? color, this.intensity = 1.0, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  ProjectLight({this.type = ProjectLightType.directional, Vector3? color, this.intensity = 5790.583578, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
   final Matrix4 transform
   final ProjectLightType type
   final Vector3 color
@@ -1642,10 +1642,10 @@ final class RenameShape extends ModelCommand
   final int shapeIndex
 
 final class RenderPreset
-  const RenderPreset({required this.width, required this.height, required this.camera, this.ssaa = 1, this.settings = const RenderSettings(), this.tilesX = 1, this.tilesY = 1, this.clearColorSrgb})
+  const RenderPreset({required this.width, required this.height, required this.camera, this.ssaa = 1, this.settings = const RenderSettings(), this.tilesX = 1, this.tilesY = 1, this.clearColor})
+  final LinearColor? clearColor
   final RenderSettings settings
   final SnapshotCamera camera
-  final Vector4? clearColorSrgb
   final int height
   final int ssaa
   final int tilesX
@@ -2513,7 +2513,7 @@ ProjectClip bakeIk({required ModelProject project, required ProjectClip clip, re
 
 BakeIkJobRequest? bakeIkJobRequestFor(ModelProject project, int clipIndex, IkConstraint constraint, {required double fps})
 
-Future<ImpostorBake> bakeImpostor({required ModelProject project, required ImpostorAtlas atlas, required Vector3 center, required double distance, required TileDevice tileDevice, double fovY = math.pi / 8, RenderSettings settings = const RenderSettings(), Vector4? clearColorSrgb})
+Future<ImpostorBake> bakeImpostor({required ModelProject project, required ImpostorAtlas atlas, required Vector3 center, required double distance, required TileDevice tileDevice, double fovY = math.pi / 8, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
 
 ProjectClip bakeLookAt({required ModelProject project, required ProjectClip clip, required LookAtConstraint constraint, required double fps})
 
@@ -2661,7 +2661,7 @@ const int projectSectionEntryBytes = 16
 
 const int projectSimulationEntryBytes = 8
 
-const int projectVersion = 1
+const int projectVersion = 2
 
 Map<int, List<WeightPair>> pruneSkinWeights(Map<int, List<WeightPair>> weights, {int maxInfluences = maxSkinInfluences, double threshold = 1e-3})
 

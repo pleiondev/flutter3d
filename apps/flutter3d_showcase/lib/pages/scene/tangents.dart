@@ -53,7 +53,7 @@ final class TangentsDemo extends ShowcaseDemo {
 
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.4, 0.48, 0.64)
-      ..ambientIntensity = 0.14 * Photometric.legacyUnit
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _flatMesh),
@@ -69,7 +69,7 @@ final class TangentsDemo extends ShowcaseDemo {
         )..setPosition(1.3, 1.0, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.4 * Photometric.legacyUnit)
+        LightNode(name: 'key', intensity: 3.4 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
     return scene;

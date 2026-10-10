@@ -376,10 +376,14 @@ final class InstancedMeshNode extends MeshNode {
 
   /// The most targets an instance can be given weights for. `kMorphMax` in
   /// `lib/morph.glsl`, and the two have to move together.
-  static const int maxMorphTargets = 8;
+  ///
+  /// A getter, not a constant, so the shader may hold more in a later release
+  /// without breaking code that reads it.
+  static int get maxMorphTargets => _maxMorphTargets;
+  static const int _maxMorphTargets = 8;
 
   /// Texels one instance's weights occupy: four weights to a texel.
-  static const int _weightTexels = maxMorphTargets ~/ 4;
+  static const int _weightTexels = _maxMorphTargets ~/ 4;
 
   /// Whether any instance has been given weights of its own.
   bool get hasInstanceMorphWeights => _weights != null;

@@ -1,5 +1,6 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../scene/camera_node.dart';
 import '../scene/mesh_node.dart';
@@ -10,23 +11,43 @@ import 'render_settings.dart';
 /// Modes rather than one hardcoded policy: the right order
 /// depends on what is being drawn, and the caller knows that better than the
 /// renderer does.
-enum SortMode {
+///
+/// A `final class` with const instances rather than an enum, so a mode added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class SortMode {
+  const SortMode._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// Group by pipeline, then material, then near-to-far. The default for opaque
   /// geometry: it minimises pipeline changes, which here are the most
   /// expensive state change there is.
-  stateThenDepth,
+  static const SortMode stateThenDepth = SortMode._('stateThenDepth');
 
   /// Far-to-near. Required for correct alpha blending.
-  backToFront,
+  static const SortMode backToFront = SortMode._('backToFront');
 
   /// Near-to-far, to let early-z reject more fragments.
-  frontToBack,
+  static const SortMode frontToBack = SortMode._('frontToBack');
 
   /// Respect only `RenderMaterial.drawBucket`, leaving the rest in submission order.
-  manual,
+  static const SortMode manual = SortMode._('manual');
 
   /// Submission order.
-  none,
+  static const SortMode none = SortMode._('none');
+
+  /// Every mode.
+  static const List<SortMode> values = <SortMode>[
+    stateThenDepth,
+    backToFront,
+    frontToBack,
+    manual,
+    none,
+  ];
+
+  @override
+  String toString() => 'SortMode.$name';
 }
 
 /// One camera drawing into one target, as an object that lives across frames
@@ -59,7 +80,7 @@ enum SortMode {
 /// of a texture view and the history every renderer kept for it.
 ///
 /// The fields a frame reads directly — [camera], [viewportFraction],
-/// [layerMask], [priority], [clearColorSrgb], the two sorts and [cut] — stay
+/// [layerMask], [priority], [clearColor], the two sorts and [cut] — stay
 /// mutable fields, as they were on the descriptor this grew from; anything
 /// added from 1.0 on arrives in [options], so the constructor does not grow.
 final class RenderView {
@@ -69,12 +90,12 @@ final class RenderView {
     this.viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0),
     this.layerMask = ~0,
     this.priority = 0,
-    Vector4? clearColorSrgb,
+    LinearColor? clearColor,
     this.opaqueSort = SortMode.stateThenDepth,
     this.transparentSort = SortMode.backToFront,
     this.cut = false,
     this.options = const RenderViewSettings(),
-  }) : clearColorSrgb = clearColorSrgb ?? Vector4(0.055, 0.062, 0.078, 1.0),
+  }) : clearColor = clearColor ?? defaultClearColor,
        _texture = null,
        _device = null;
 
@@ -96,7 +117,7 @@ final class RenderView {
     required int width,
     required int height,
     int layerMask = ~0,
-    Vector4? clearColorSrgb,
+    LinearColor? clearColor,
     RenderViewSettings options = const RenderViewSettings(),
   }) {
     if (width < 1 || height < 1) {
@@ -116,7 +137,7 @@ final class RenderView {
       ),
       camera: camera,
       layerMask: layerMask,
-      clearColorSrgb: clearColorSrgb ?? Vector4(0.055, 0.062, 0.078, 1.0),
+      clearColor: clearColor ?? defaultClearColor,
       options: options,
     );
   }
@@ -126,7 +147,7 @@ final class RenderView {
     TextureHandle this._texture, {
     required this.camera,
     required this.layerMask,
-    required this.clearColorSrgb,
+    required this.clearColor,
     required this.options,
   }) : viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0),
        priority = 0,
@@ -155,14 +176,18 @@ final class RenderView {
   /// Views are rendered in ascending priority: a lower number draws first.
   int priority;
 
-  /// What shows where nothing was drawn and the sky is off, sRGB-encoded:
-  /// the numbers a colour picker shows, which the renderer decodes once.
-  ///
-  /// **`Srgb` in the name** because every other colour the engine takes is
-  /// linear (docs/CONTRACTS.md, "Linear unless the name says sRGB"). It was
-  /// `clearColor` before 1.0. A linear colour goes in through
-  /// `LinearColor.toSrgb`.
-  Vector4 clearColorSrgb;
+  /// What shows where nothing was drawn and the sky is off: a linear color
+  /// like every other the engine takes. A color a picker shows, in sRGB,
+  /// goes in through `LinearColor.fromSrgb`. Assigned whole, and read every
+  /// frame.
+  LinearColor clearColor;
+
+  /// The dark slate a view clears to when it is given no color.
+  static final LinearColor defaultClearColor = LinearColor.fromSrgb(
+    0.055,
+    0.062,
+    0.078,
+  );
 
   /// How the opaque draws are ordered.
   SortMode opaqueSort;

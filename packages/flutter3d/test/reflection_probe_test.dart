@@ -19,8 +19,7 @@ import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/render/renderer.dart';
 import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
-import 'package:flutter3d_core/src/engine/scene/light_node.dart'
-    show Photometric;
+import 'package:flutter3d_core/src/engine/scene/light_node.dart' show LightNode;
 import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/reflection_probe_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
@@ -221,7 +220,7 @@ void main() {
       // `scene.ambientIntensity` into `material.z` regardless — every
       // torch-lit wall reflects at a sixteenth of its brightness.
       final stage = _Stage();
-      stage.scene.ambientIntensity = 0.06 * Photometric.legacyUnit;
+      stage.scene.ambientIntensity = 0.06 * LightNode.defaultIntensity;
       final probe = stage.scene.add(ReflectionProbeNode(intensity: 0.8));
       stage.frame();
       expect(stage.ambientStrength, closeTo(0.8, 1e-6));
@@ -242,7 +241,7 @@ void main() {
       // lightmapped draw anyway — every crypt wall counts the room's bounce
       // twice, once baked and once captured, and no golden covers a dungeon.
       final stage = _Stage();
-      stage.scene.ambientIntensity = 0.06 * Photometric.legacyUnit;
+      stage.scene.ambientIntensity = 0.06 * LightNode.defaultIntensity;
       stage.ball.lightmapped = true;
       stage.scene.add(ReflectionProbeNode(intensity: 0.9, levels: 3));
       stage.frame();

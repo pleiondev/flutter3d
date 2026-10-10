@@ -118,7 +118,10 @@ final class FrameStage {
         ),
       )
       ..add(
-        LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: true)
+        LightNode(
+            intensity: 3.0 * LightNode.defaultIntensity,
+            castsShadow: true,
+          )
           ..setPosition(2.0, 4.0, 1.0)
           ..lookAt(Vector3.zero()),
       )

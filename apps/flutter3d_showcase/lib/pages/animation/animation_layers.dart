@@ -90,7 +90,7 @@ final class AnimationLayersDemo extends ShowcaseDemo {
       ..add(bodyMesh)
       ..add(armMesh)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
   }

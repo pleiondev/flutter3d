@@ -23,7 +23,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
-import 'package:vector_math/vector_math.dart' as vm;
 
 import '../../formats/srgb.dart';
 import '../scene/camera_node.dart';
@@ -294,12 +293,32 @@ const String _noScale =
 const String _noExtended =
     'the extended-range output is written as standard range';
 
+/// What [photoSettings] works out for a photo: the settings each [tile] is
+/// drawn with, the [look] the whole picture is finished with, and a
+/// sentence for each thing it [setAside] that a tiled photo cannot do.
+final class PhotoPlan {
+  const PhotoPlan({
+    required this.tile,
+    required this.look,
+    required this.setAside,
+  });
+
+  /// What every tile is drawn with.
+  final RenderSettings tile;
+
+  /// The finish laid over the whole picture once it is assembled.
+  final LookSettings look;
+
+  /// What the photo leaves out, one sentence each, for a report.
+  final List<String> setAside;
+}
+
 /// The settings every tile of a photo is drawn with, and what had to change.
 ///
 /// [exposure] is the one the game last drew with — `Renderer.exposure` — so
 /// the picture is as bright as the screen was. A meter running per tile would
 /// expose a tile of sky darker than a tile of shadow and the seams would show.
-({RenderSettings tile, LookSettings look, List<String> setAside}) photoSettings(
+PhotoPlan photoSettings(
   RenderSettings settings,
   PhotoFilter filter,
   double exposure,
@@ -333,7 +352,7 @@ const String _noExtended =
     outputTransform: OutputTransform.sdr,
     look: look.copyWith(vignette: 0.0, grain: 0.0, chromaticAberration: 0.0),
   );
-  return (tile: tile, look: look, setAside: setAside);
+  return PhotoPlan(tile: tile, look: look, setAside: setAside);
 }
 
 /// Draws [scene] through [camera] at [width] × [height] and hands it to
@@ -371,7 +390,7 @@ Future<PhotoCaptureReport> capturePhoto({
   required FutureOr<void> Function(Uint8List rgba, int top, int rows) onRows,
   RenderSettings settings = const RenderSettings(),
   PhotoFilter filter = PhotoFilter.none,
-  vm.Vector4? clearColorSrgb,
+  LinearColor? clearColor,
   int layerMask = ~0,
   int tileWidth = 1024,
   int tileHeight = 1024,
@@ -418,7 +437,7 @@ Future<PhotoCaptureReport> capturePhoto({
           views: <RenderView>[
             RenderView(
               camera: camera,
-              clearColorSrgb: clearColorSrgb,
+              clearColor: clearColor,
               layerMask: layerMask,
               cut: true,
             ),

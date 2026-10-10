@@ -147,7 +147,7 @@ Future<Uint8List> _floorAt(int anisotropy) async {
           // what makes the footprint long and thin.
           ..setPosition(0.0, 1.2, 0.0)
           ..lookAt(Vector3(0.0, 0.85, -40.0)),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(

@@ -66,7 +66,7 @@ void main() {
     );
 
     final light = LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 4.0 * Photometric.legacyUnit
+      ..intensity = 4.0 * LightNode.defaultIntensity
       ..setPosition(2.0, 3.0, 2.0)
       ..lookAt(Vector3.zero());
     scene.root.add(light);

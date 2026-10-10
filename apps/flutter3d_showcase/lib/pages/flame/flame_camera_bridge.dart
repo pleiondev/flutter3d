@@ -86,12 +86,12 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
           ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
     _view = RenderView(
       camera: _lens,
-      clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(_lens)
       ..add(
         MeshNode(
@@ -107,7 +107,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
     for (final (int i, (double, double) at) in _pillars.indexed) {

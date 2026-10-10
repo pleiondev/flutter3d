@@ -111,6 +111,18 @@ const Map<String, String> manualAllowlist = <String, String>{
   'flutter3d-loadModelAsset-missing':
       'a `catch` changes what it catches; whether the handler still fits is '
       'the reader\'s call',
+  'core-RenderView-clearColor':
+      'a value\'s type and encoding change (an sRGB vector to a linear '
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
+  'rc-model_core-RenderPreset-clearColorSrgb':
+      'a value\'s type and encoding change (an sRGB vector to a linear '
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
+  '2b-core-IrradianceField':
+      'a value\'s type and encoding change (an sRGB vector to a linear '
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
+  '2b-model_core-ProjectLight':
+      'a value\'s type and encoding change (an sRGB vector to a linear '
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
 };
 
 /// Words in what a person reads that belong to the work behind the release,

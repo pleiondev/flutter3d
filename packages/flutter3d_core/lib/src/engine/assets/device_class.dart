@@ -22,6 +22,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// A kind of device a build writes its own assets for.
@@ -51,12 +53,20 @@ final class DeviceClass {
   /// Every class, cheapest first.
   static const List<DeviceClass> values = <DeviceClass>[phone, web, desktop];
 
+  /// The class named [text].
+  ///
+  /// Throws an [UnknownDeviceClassException] naming the classes there are
+  /// when no class is called that: a name that is not a class is a mistake
+  /// in the text read. [tryParse] is the lookup that answers null.
+  static DeviceClass parse(String text) =>
+      tryParse(text) ?? (throw UnknownDeviceClassException(text));
+
   /// The class named [text], or null when no class is called that.
   ///
-  /// **Null is "absent", not an error**: this is a lookup by name, and the
+  /// **Null is "absent", not an error**: this is a lookup by name, for the
   /// readers that take a class from a file (the build manifest, the device
-  /// memory) say what to do about an unknown one themselves.
-  static DeviceClass? parse(String text) {
+  /// memory) and say what to do about an unknown one themselves.
+  static DeviceClass? tryParse(String text) {
     for (final value in values) {
       if (value.name == text) return value;
     }
@@ -71,6 +81,22 @@ final class DeviceClass {
 
   @override
   String toString() => name;
+}
+
+/// A device class name [DeviceClass.parse] does not know.
+final class UnknownDeviceClassException extends Flutter3dFormatException {
+  const UnknownDeviceClassException(this.text);
+
+  /// The name that was given.
+  final String text;
+
+  @override
+  String get message =>
+      'unknown device class "$text": expected one of '
+      '${DeviceClass.values.join(', ')}';
+
+  @override
+  String toString() => 'UnknownDeviceClassException: $message';
 }
 
 /// [path] with [deviceClass] put before its extension: `chair.f3d` becomes
@@ -308,13 +334,13 @@ final class DeviceClassPicker {
   /// The class in [text] and whether it was chosen, or null when [text]
   /// holds neither form.
   static (DeviceClass, bool)? _parse(String? text) => switch (text) {
-    final String t when t.startsWith(_chosen) => switch (DeviceClass.parse(
+    final String t when t.startsWith(_chosen) => switch (DeviceClass.tryParse(
       t.substring(_chosen.length),
     )) {
       final DeviceClass c => (c, true),
       null => null,
     },
-    final String t when t.startsWith(_measured) => switch (DeviceClass.parse(
+    final String t when t.startsWith(_measured) => switch (DeviceClass.tryParse(
       t.substring(_measured.length),
     )) {
       final DeviceClass c => (c, false),

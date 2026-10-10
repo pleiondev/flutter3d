@@ -6,6 +6,26 @@ import 'intersections.dart';
 import 'mesh_data.dart';
 import 'vertex_layout.dart';
 
+/// Where a ray met a mesh, as [TriangleBvh.raycast] answers it: which
+/// [triangle], in the mesh's own index order, how far along the ray, and
+/// the [point].
+final class TriangleHit {
+  const TriangleHit({
+    required this.triangle,
+    required this.distance,
+    required this.point,
+  });
+
+  /// The triangle's number in the mesh's index order.
+  final int triangle;
+
+  /// How far along the ray, in the ray's units.
+  final double distance;
+
+  /// Where, in the ray's space.
+  final Vector3 point;
+}
+
 /// A bounding-volume hierarchy over the triangles of one mesh.
 ///
 /// **What it is for, and why the scene's own BVH is not it.** `SceneBvh` bounds
@@ -319,10 +339,7 @@ final class TriangleBvh {
   ///
   /// Returns the triangle's number in the mesh's own index order — what a
   /// caller maps back to a face — with the distance and the point.
-  ({int triangle, double distance, Vector3 point})? raycast(
-    LocalRay ray, {
-    double maxDistance = double.infinity,
-  }) {
+  TriangleHit? raycast(LocalRay ray, {double maxDistance = double.infinity}) {
     if (_nodes == 0) return null;
 
     var bestDistance = maxDistance;
@@ -369,7 +386,7 @@ final class TriangleBvh {
     }
 
     if (bestTriangle < 0) return null;
-    return (
+    return TriangleHit(
       triangle: bestTriangle,
       distance: bestDistance,
       point: ray.origin + ray.direction * bestDistance,

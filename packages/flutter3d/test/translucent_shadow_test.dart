@@ -51,7 +51,7 @@ Future<List<int>> _frame({
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(
-      LightNode(intensity: sun * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: sun * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -86,7 +86,7 @@ Future<List<int>> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

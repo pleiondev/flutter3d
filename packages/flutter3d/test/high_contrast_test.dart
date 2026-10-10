@@ -91,12 +91,12 @@ const HighContrastSettings _neutral = HighContrastSettings(
     name: 'ball',
   )..setPosition(0.7, 0.4, 0.2);
   final scene = Scene()
-    ..ambientIntensity = 0.3 * Photometric.legacyUnit
+    ..ambientIntensity = 0.3 * LightNode.defaultIntensity
     ..add(floor)
     ..add(box)
     ..add(ball)
     ..add(
-      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+      LightNode(intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.5, -1.0, -0.4).normalized()),
     )
     ..add(
@@ -130,7 +130,7 @@ Future<({Uint8List pixels, List<String> passes})> _frame(
     views: <RenderView>[
       RenderView(
         camera: stage.scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

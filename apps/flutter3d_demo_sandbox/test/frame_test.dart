@@ -27,7 +27,7 @@ void main() {
     final run = SandboxRun.fresh(backend: const DartPhysics());
     final camera = CameraNode(name: 'eye');
     final scene = Scene()
-      ..ambientIntensity = 0.35 * Photometric.legacyUnit
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(LightNode(name: 'sun')..setLocalForward(Vector3(-0.4, -1, -0.3)))
       ..add(camera);
     final meshes = ChunkMeshes(it.device, scene, run.blocks);
@@ -40,7 +40,10 @@ void main() {
       height: 90,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.55, 0.72, 0.9, 1)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.55, 0.72, 0.9, 1),
+        ),
       ],
       settings: const RenderSettings(),
     );

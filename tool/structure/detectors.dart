@@ -622,7 +622,7 @@ final RegExp _namesLightUnit = RegExp(
 /// `.intensity = <number>;` assignment, which in this repository is a light's
 /// (a bloom's or a probe's intensity is a settings field, set through a
 /// constructor). Nought is a light switched off, and a literal times
-/// something (`2.5 * Photometric.legacyUnit`) is a conversion, not a number
+/// something (`2.5 * LightNode.defaultIntensity`) is a conversion, not a number
 /// in the wrong unit; neither counts.
 ///
 /// **A literal whose line, or the line above, has a comment naming lux,
@@ -1636,7 +1636,7 @@ List<Finding> proveDetectorsWork() {
   quiet(
     'light intensities',
     smallLightIntensitiesIn(
-      'LightNode(intensity: 2.5 * Photometric.legacyUnit)\n'
+      'LightNode(intensity: 2.5 * LightNode.defaultIntensity)\n'
       'LightNode(intensity: 17000.0)\nLightNode(intensity: 0.0)',
     ).isEmpty,
     'a conversion, a light in lux and a light off',

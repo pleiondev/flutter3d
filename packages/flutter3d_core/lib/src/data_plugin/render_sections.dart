@@ -381,7 +381,7 @@ RenderAnchor? _anchorIn(List<RenderAnchor> anchors, String written) {
 /// plugin's anchor is judged by the engine anchor it follows
 /// ([RenderAnchor.engineAnchor]).
 ///
-/// A stage over the scene's light reads `hdr_colour`, which tone mapping
+/// A stage over the scene's light reads `hdr_color`, which tone mapping
 /// turns into `frame`: one placed on the wrong side of it would read a
 /// picture that is not there yet, or is not there any more.
 void _checkSide(

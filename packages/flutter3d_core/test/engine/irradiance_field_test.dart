@@ -14,6 +14,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -146,10 +148,24 @@ void main() {
     });
   });
 
+  test('irradiance goes in and comes out as a linear color', () {
+    // One color type in the engine: the field takes and gives `LinearColor`,
+    // and keeps no alpha.
+    final field = _field();
+    final up = Vector3(0.0, 1.0, 0.0);
+    field.writeIrradiance(3, up, const LinearColor(0.25, 0.5, 2.0, 0.5));
+    expect(field.readIrradiance(3, up), const LinearColor(0.25, 0.5, 2.0));
+    field.writeIrradianceTexel(4, 1, 2, const LinearColor(1.5, 0.0, 0.75));
+    expect(
+      field.readIrradiance(4, field.texelDirection(1, 2, field.tile)),
+      const LinearColor(1.5, 0.0, 0.75),
+    );
+  });
+
   group('sampling', () {
-    test('a point in a uniformly lit field reads that colour', () {
+    test('a point in a uniformly lit field reads that color', () {
       final field = _field();
-      final color = Vector3(0.2, 0.4, 0.6);
+      const color = LinearColor(0.2, 0.4, 0.6);
       for (var p = 0; p < field.probeCount; p++) {
         for (var i = 0; i < 64; i++) {
           final z = 1.0 - 2.0 * (i + 0.5) / 64;
@@ -168,9 +184,9 @@ void main() {
       field.fillGutters();
 
       final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
-      expect(got.x, closeTo(color.x, 1e-5));
-      expect(got.y, closeTo(color.y, 1e-5));
-      expect(got.z, closeTo(color.z, 1e-5));
+      expect(got.r, closeTo(color.r, 1e-5));
+      expect(got.g, closeTo(color.g, 1e-5));
+      expect(got.b, closeTo(color.b, 1e-5));
     });
 
     test('a probe that cannot see the point does not light it', () {
@@ -192,7 +208,7 @@ void main() {
             ..writeIrradiance(
               p,
               d,
-              p == 0 ? Vector3(1.0, 0.0, 0.0) : Vector3.zero(),
+              p == 0 ? const LinearColor(1.0, 0.0, 0.0) : LinearColor.black,
             )
             ..writeDepth(p, d, p == 0 ? 0.1 : 100.0);
         }
@@ -201,7 +217,7 @@ void main() {
 
       final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
       expect(
-        got.x,
+        got.r,
         lessThan(0.05),
         reason: 'the blind probe leaked its red through a wall: $got',
       );
@@ -210,11 +226,11 @@ void main() {
     test('a point every probe is walled off from reads them, not black', () {
       // Every probe sees a wall a tenth of a unit away, so none can see the
       // point: occluded weights are floored, never nought, and what comes
-      // back is still the field's colour. Mutation: drop the 0.05 floor on
+      // back is still the field's color. Mutation: drop the 0.05 floor on
       // the visibility. The weights fall under 1e-18 and the point reads
       // black.
       final field = _field();
-      final color = Vector3(0.2, 0.4, 0.6);
+      const color = LinearColor(0.2, 0.4, 0.6);
       for (var p = 0; p < field.probeCount; p++) {
         for (var i = 0; i < 64; i++) {
           final z = 1.0 - 2.0 * (i + 0.5) / 64;
@@ -233,9 +249,9 @@ void main() {
       field.fillGutters();
 
       final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
-      expect(got.x, closeTo(color.x, 1e-5));
-      expect(got.y, closeTo(color.y, 1e-5));
-      expect(got.z, closeTo(color.z, 1e-5));
+      expect(got.r, closeTo(color.r, 1e-5));
+      expect(got.g, closeTo(color.g, 1e-5));
+      expect(got.b, closeTo(color.b, 1e-5));
     });
   });
 }

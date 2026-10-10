@@ -145,7 +145,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
 
     _scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.6, 0.75)
-      ..ambientIntensity = 0.25 * Photometric.legacyUnit
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -171,7 +171,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
     // #endregion row
 
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
       ..castsShadow = true;
     // #endregion sun
     return _scene..add(_sun);

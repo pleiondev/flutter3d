@@ -247,12 +247,12 @@ final class ModelerStage {
   static void _light(Scene scene) {
     scene.add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2 * Photometric.legacyUnit
+        ..intensity = 3.2 * LightNode.defaultIntensity
         ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
     );
     scene.add(
       LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1 * Photometric.legacyUnit
+        ..intensity = 1.1 * LightNode.defaultIntensity
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
   }
@@ -441,6 +441,13 @@ final class ModelerStage {
   /// the material preview and again with the LOD comparison — and because the
   /// renderer takes a list either way. One today.
   List<RenderView> views() => <RenderView>[
-    RenderView(camera: camera, clearColorSrgb: background),
+    RenderView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(
+        background.x,
+        background.y,
+        background.z,
+      ),
+    ),
   ];
 }

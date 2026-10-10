@@ -372,7 +372,7 @@ void main() {
         ),
       )
       ..add(
-        LightNode(intensity: 6.0 * Photometric.legacyUnit)
+        LightNode(intensity: 6.0 * LightNode.defaultIntensity)
           ..setPosition(2.0, 3.0, 4.0),
       )
       ..add(

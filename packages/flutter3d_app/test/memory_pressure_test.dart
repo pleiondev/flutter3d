@@ -37,7 +37,7 @@ const int _size = 32;
       ),
     )
     ..add(
-      LightNode(intensity: 4.0 * Photometric.legacyUnit)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -64,7 +64,7 @@ Future<List<int>> _draw(
     views: <RenderView>[
       RenderView(
         camera: it.scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(bloom: BloomSettings(enabled: bloom)),

@@ -22,7 +22,7 @@ void main() {
         LightNode(
           type: LightType.directional,
           color: LinearColor(1.0, 0.5, 0.25),
-          intensity: 2.0 * Photometric.legacyUnit,
+          intensity: 2.0 * LightNode.defaultIntensity,
           name: 'key',
         ),
       );
@@ -136,7 +136,7 @@ void main() {
 
     test('zero intensity is treated as off', () {
       final scene = Scene();
-      scene.add(LightNode(intensity: 0.0 * Photometric.legacyUnit));
+      scene.add(LightNode(intensity: 0.0));
       expect((LightBuffer()..gather(scene.lights)).count, 0);
     });
 

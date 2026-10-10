@@ -42,7 +42,7 @@ final class PbrLightingDemo extends ShowcaseDemo {
     // #region light
     _sun = LightNode(
       name: 'sun',
-      intensity: sunIntensity * Photometric.legacyUnit,
+      intensity: sunIntensity * LightNode.defaultIntensity,
     )..setLocalForward(Vector3(-0.4, -1.0, -0.3));
     // #endregion light
 
@@ -57,7 +57,7 @@ final class PbrLightingDemo extends ShowcaseDemo {
     _ball
       ..metallic = metallic
       ..roughness = roughness;
-    _sun.intensity = sunIntensity * Photometric.legacyUnit;
+    _sun.intensity = sunIntensity * LightNode.defaultIntensity;
     // #endregion live
   }
 

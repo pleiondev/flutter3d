@@ -130,6 +130,9 @@ final class _MorphWeights extends ListBase<double> {
   @override
   int get length => _values.length;
 
+  // `UnsupportedError`, not `UnsupportedCapability`: a fixed-length list
+  // refuses a resize this way everywhere in Dart, and asking is a mistake in
+  // the caller, not something a platform lacks.
   @override
   set length(int value) =>
       throw UnsupportedError('A morph has as many weights as it has targets.');

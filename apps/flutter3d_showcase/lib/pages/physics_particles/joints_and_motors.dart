@@ -249,9 +249,9 @@ final class JointsAndMotorsDemo extends ShowcaseDemo {
     _row = _build();
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3 * Photometric.legacyUnit
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.5)),
       );
     DeviceMesh upload(MeshData data) => DeviceMesh.upload(context.device, data);

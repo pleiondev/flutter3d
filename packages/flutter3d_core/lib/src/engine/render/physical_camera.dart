@@ -28,10 +28,10 @@ import 'physical_sky.dart';
 /// records is `1.2 × 2^EV100` candela per square metre, and the exposure
 /// multiplier is its inverse. Holding the reference camera to the default
 /// multiplier of 1.6 fixes the engine's photometric scale: one unit of scene
-/// luminance is 1.6 × 1.2 × 960 = 1843.2 cd/m² (`Photometric.legacyNits`)
+/// luminance is 1.6 × 1.2 × 960 = 1.0 * RenderMaterial.defaultEmissiveStrength cd/m² (`RenderMaterial.defaultEmissiveStrength`)
 /// — and, since a white Lambertian surface shows `E/π` of an illuminance E,
 /// one unit of illuminance is π times that, about 5790.6 lux
-/// (`Photometric.legacyUnit`). Those are the renderer's own business since
+/// (`LightNode.defaultIntensity`). Those are the renderer's own business since
 /// 1.0: everything the API takes is in lux, candela or nits, and the
 /// renderer converts. The physical sky's default sun is about 116 000 lux
 /// before the air, which is the real sun's order.
@@ -142,7 +142,7 @@ final class PhysicalCamera {
   }
 
   /// The linear exposure multiplier this camera makes, in the engine's
-  /// photometric scale: `1843.2 / (1.2 × 2^EV100)`, which is
+  /// photometric scale: `1.0 * RenderMaterial.defaultEmissiveStrength / (1.2 × 2^EV100)`, which is
   /// [referenceExposure] × [exposureScale].
   double get exposure => referenceExposure * exposureScale;
 

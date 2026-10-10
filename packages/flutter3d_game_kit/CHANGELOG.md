@@ -12,7 +12,7 @@
   `flutter3d_audio_core`'s, and `flutter3d_audio` names them too.
 
 - **`Daylight`'s sun is in lux.** `Daylight.defaultSunIntensity` is 2.6 ×
-  `Photometric.legacyUnit`, about 15 000 lux; it was left at 2.6 when lights
+  `LightNode.defaultIntensity`, about 15 000 lux; it was left at 2.6 when lights
   moved to lux, a sun two-thousandths of daylight.
 - **A best run is a format of its own: `f3d.ghostTape`.** `tapeToJson`
   writes the envelope (`ghostTapeFormat`), and `tapeFromJson` reads it and

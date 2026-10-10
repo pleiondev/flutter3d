@@ -19,8 +19,31 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import '../scene/light_node.dart' show Photometric;
+import '../scene/light_node.dart' show LightNode;
 import 'engine_light_units.dart';
+
+/// What [PhysicalSky.look] sees along one ray: the light the air sends
+/// towards the eye, what it lets through along the same ray, and whether
+/// the ray ends at the ground.
+///
+/// [radiance] and [transmittance] are per-channel linear quantities, kept
+/// as vectors for the arithmetic they feed.
+final class PhysicalSkyRay {
+  const PhysicalSkyRay({
+    required this.radiance,
+    required this.transmittance,
+    required this.ground,
+  });
+
+  /// The scattered light, plus the ground where the ray meets it.
+  final Vector3 radiance;
+
+  /// What the air lets through along the ray, per channel.
+  final Vector3 transmittance;
+
+  /// Whether the ray ends at the ground.
+  final bool ground;
+}
 
 /// The air of a planet, for `SkySettings.physical`.
 ///
@@ -71,7 +94,7 @@ final class PhysicalSky {
     this.planetRadius = 6360000.0,
     this.atmosphereHeight = 60000.0,
     this.altitude = 200.0,
-    this.sunIlluminance = 20.0 * Photometric.legacyUnit,
+    this.sunIlluminance = 20.0 * LightNode.defaultIntensity,
     this.groundAlbedo = 0.3,
     this.starBrightness = 1.0,
     this.starDensity = 0.02,
@@ -117,7 +140,7 @@ final class PhysicalSky {
   final double altitude;
 
   /// The sunlight entering the air, in **lux** (since 1.0; the engine's own
-  /// unit before, which `Photometric.legacyUnit` converts). The default, about
+  /// unit before, which `LightNode.defaultIntensity` converts). The default, about
   /// 116 000 lux, is the real sun's order before the air, and the sky it
   /// makes at noon is several thousand nits: far brighter than white under the
   /// reference camera, as a real noon sky is at f/4 and a sixtieth. Meter it
@@ -125,7 +148,7 @@ final class PhysicalSky {
   final double sunIlluminance;
 
   /// The sunlight as the renderer's number for scattered light: the
-  /// illuminance over `Photometric.legacyNits`, so that it times a per-metre
+  /// illuminance over `RenderMaterial.defaultEmissiveStrength`, so that it times a per-metre
   /// coefficient and a per-steradian phase function is luminance on the
   /// renderer's scale.
   double get _sun => nitsToEngine(sunIlluminance);
@@ -197,10 +220,7 @@ final class PhysicalSky {
   /// [radiance], with what the air lets through along the same ray and
   /// whether the ray ends at the ground — what the disc and the stars are
   /// dimmed by, and what decides whether there is a disc at all.
-  ({Vector3 radiance, Vector3 transmittance, bool ground}) look(
-    Vector3 direction,
-    Vector3 toSun,
-  ) {
+  PhysicalSkyRay look(Vector3 direction, Vector3 toSun) {
     final d = _unit(direction, Vector3(0.0, 0.0, 1.0));
     final s = _unit(toSun, Vector3(0.0, 1.0, 0.0));
     final k = PhysicalSkyKilometres(this);
@@ -269,7 +289,11 @@ final class PhysicalSky {
       }
     }
 
-    return (radiance: color, transmittance: seen, ground: grounded);
+    return PhysicalSkyRay(
+      radiance: color,
+      transmittance: seen,
+      ground: grounded,
+    );
   }
 
   /// What the air leaves of white sunlight on its way down to the eye, from

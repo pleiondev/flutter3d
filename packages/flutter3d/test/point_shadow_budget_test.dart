@@ -38,7 +38,7 @@ const int _height = 48;
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 60.0 * Photometric.legacyUnit,
+        intensity: 60.0 * LightNode.defaultIntensity,
         range: 20.0,
         castsShadow: true,
       )..setPosition(0.0, 5.0, 0.0),

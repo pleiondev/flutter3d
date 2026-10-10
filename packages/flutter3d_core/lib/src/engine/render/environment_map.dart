@@ -12,6 +12,22 @@ import 'package:vector_math/vector_math.dart';
 import '../assets/image_decoder.dart';
 import 'sky_settings.dart';
 
+/// A prefiltered environment cube as [EnvironmentMap] builds it: the
+/// [texture], whose mip levels hold the environment convolved by
+/// roughness, and how many [levels] it has, which `SkySettings`'s and a
+/// material's environment slots want beside it.
+///
+/// The caller owns [texture] and releases it with the device.
+final class EnvironmentCube {
+  const EnvironmentCube(this.texture, this.levels);
+
+  /// The cube, its levels from mirror to rough.
+  final TextureHandle texture;
+
+  /// How many mip levels [texture] holds.
+  final int levels;
+}
+
 /// Builds the cube a surface reflects: one environment, convolved by roughness.
 ///
 /// **This is the whole of image-based lighting's data.** A rough surface does
@@ -172,7 +188,7 @@ abstract final class EnvironmentMap {
   /// than it should. A float format would fix it and costs four times the
   /// memory and a conformance answer from every backend; this is the version
   /// worth having first.
-  static ({TextureHandle texture, int levels}) fromSky(
+  static EnvironmentCube fromSky(
     GraphicsDevice device,
     SkySettings sky, {
     int size = 32,
@@ -229,7 +245,7 @@ abstract final class EnvironmentMap {
   /// ([isSupportedOn]), an [ArgumentError] where the pixels do not match the
   /// size given, and the device's `DeviceResourceException` where the upload
   /// refuses.
-  static ({TextureHandle texture, int levels}) fromPanorama(
+  static EnvironmentCube fromPanorama(
     GraphicsDevice device,
     ByteData panorama, {
     required int width,
@@ -263,7 +279,7 @@ abstract final class EnvironmentMap {
     }
   }
 
-  static ({TextureHandle texture, int levels}) _upload(
+  static EnvironmentCube _upload(
     GraphicsDevice device,
     List<ByteData> faces, {
     required int size,
@@ -278,7 +294,7 @@ abstract final class EnvironmentMap {
       faces: faces,
       mipLevels: chain,
     );
-    return (texture: texture, levels: levels);
+    return EnvironmentCube(texture, levels);
   }
 
   /// The same thing from a panorama file's bytes: a Radiance `.hdr`, or any
@@ -293,7 +309,7 @@ abstract final class EnvironmentMap {
   ///
   /// Throws a [PanoramaFormatException] for bytes neither reader takes, and
   /// everything [fromPanorama] throws.
-  static Future<({TextureHandle texture, int levels})> fromEncoded(
+  static Future<EnvironmentCube> fromEncoded(
     GraphicsDevice device,
     Uint8List bytes, {
     required ImageDecoder decodeImage,

@@ -95,7 +95,7 @@ Future<List<int>> _frame({
       // the shadow underneath the card and the camera never sees it: the
       // caster is between the two. At forty-five degrees the shadow lands
       // clear of the card's own footprint.
-      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -112,7 +112,7 @@ Future<List<int>> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Undithered: the frames are compared byte for byte, a caster discarded

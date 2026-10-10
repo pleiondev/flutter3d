@@ -63,7 +63,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       )
       ..add(wallNode)
       ..add(
-        LightNode(name: 'sun', intensity: 4.0 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 4.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.6, -0.7, 0.15)),
       );
 
@@ -88,7 +88,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _scene.irradianceField = baked ? _field : null;
-    _scene.ambientIntensity = ambient * Photometric.legacyUnit;
+    _scene.ambientIntensity = ambient * LightNode.defaultIntensity;
   }
   // #endregion live
 
@@ -122,15 +122,15 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    final Vector3 towardWall = _field.sample(
+    final LinearColor towardWall = _field.sample(
       Vector3(-0.5, 1.0, -0.5),
       Vector3(-1.0, 0.0, 0.0),
     );
-    final Vector3 awayFromWall = _field.sample(
+    final LinearColor awayFromWall = _field.sample(
       Vector3(-0.5, 1.0, -0.5),
       Vector3(1.0, 0.0, 0.0),
     );
-    if (towardWall.x < 0.01 || towardWall.x <= awayFromWall.x * 1.5) {
+    if (towardWall.r < 0.01 || towardWall.r <= awayFromWall.r * 1.5) {
       throw StateError(
         'the probe facing the red wall ($towardWall) is not redder than the '
         'one facing away from it ($awayFromWall); the bounce never arrived',

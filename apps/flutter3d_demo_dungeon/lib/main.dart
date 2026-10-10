@@ -485,7 +485,7 @@ class _GameScreenState extends State<GameScreen>
       height: (size.height * scale).round(),
       settings: settings(),
       filter: _photo.filter,
-      clearColorSrgb: _view.clearColorSrgb,
+      clearColor: _view.clearColor,
       shelf: defaultPhotoShelf('dungeon'),
       name: 'dungeon-${DateTime.now().millisecondsSinceEpoch}.png',
     );

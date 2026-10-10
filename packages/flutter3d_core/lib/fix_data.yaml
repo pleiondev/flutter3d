@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fb6ae27b474f1edc
+# table-stamp: 7662d9c62bb376e3
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -1275,35 +1275,6 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'LocalRay'
-  - title: 'flutter3d 1.0.0-rc.1: core-RenderView-clearColor'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
-      field: 'clearColor'
-      inClass: 'RenderView'
-    changes:
-      - kind: 'rename'
-        newName: 'clearColorSrgb'
-  - title: 'flutter3d 1.0.0-rc.1: core-RenderView-clearColor-parameter'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
-      constructor: ''
-      inClass: 'RenderView'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'clearColor'
-        newName: 'clearColorSrgb'
-  - title: 'flutter3d 1.0.0-rc.1: core-Atmosphere-applyTo-clearColor'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
-      method: 'applyTo'
-      inClass: 'Atmosphere'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'clearColor'
-        newName: 'clearColorSrgb'
   - title: 'flutter3d 1.0.0-rc.1: 4a-core-SkyColour'
     date: 2026-10-08
     element:

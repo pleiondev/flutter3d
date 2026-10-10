@@ -81,7 +81,7 @@ class _WaterScreenState extends State<WaterScreen>
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.62, 0.76, 0.9, 1.0),
+    clearColor: LinearColor.fromSrgb(0.62, 0.76, 0.9, 1.0),
   );
   final FrameClock _frames = FrameClock();
   final FocusNode _keyboard = FocusNode();
@@ -125,12 +125,12 @@ class _WaterScreenState extends State<WaterScreen>
       final device = await openDevice(width: 1280, height: 800);
       final renderer = Renderer.create(device: device);
       final scene = Scene()
-        ..ambientIntensity = 0.45 * Photometric.legacyUnit
+        ..ambientIntensity = 0.45 * LightNode.defaultIntensity
         ..ambientColor = LinearColor(0.70, 0.80, 1.0)
         ..add(
           // From over the pond's side, so the falls and the cliff behind them
           // are in the sun.
-          LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
+          LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
             ..setLocalForward(_sunAlong),
         )
         ..add(_camera);

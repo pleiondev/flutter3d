@@ -74,7 +74,7 @@ Scene _field(
   }
   return scene
     ..add(
-      LightNode(intensity: 4.0 * Photometric.legacyUnit)
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 4.0, 6.0)
         ..lookAt(Vector3.zero()),
     )
@@ -98,7 +98,7 @@ Future<({List<int> pixels, FrameResult frame})> _draw(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(batchIdenticalDraws: batched),

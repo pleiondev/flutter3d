@@ -3,10 +3,37 @@ import 'dart:math' as math;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 
-/// The shape a light's falloff takes — `KHR_lights_punctual`'s own three,
-/// and no others, since the extension defines exactly these three and a
-/// fourth is not a thing a decoded document can honestly claim to hold.
-enum ModelLightType { directional, point, spot }
+/// The shape a light's falloff takes — `KHR_lights_punctual`'s own three.
+///
+/// A `final class` with const instances rather than an enum: the extension
+/// defines exactly these three, but another extension (an area light) can
+/// add a fourth in a later release without breaking a `switch` outside.
+/// [name] is its wire name, the extension's own `type`.
+final class ModelLightType {
+  const ModelLightType._(this.name);
+
+  /// The stable name: the `type` the extension writes.
+  final String name;
+
+  /// Parallel rays from one direction, in lux.
+  static const ModelLightType directional = ModelLightType._('directional');
+
+  /// From one point in every direction, in candela.
+  static const ModelLightType point = ModelLightType._('point');
+
+  /// From one point inside a cone, in candela.
+  static const ModelLightType spot = ModelLightType._('spot');
+
+  /// Every type.
+  static const List<ModelLightType> values = <ModelLightType>[
+    directional,
+    point,
+    spot,
+  ];
+
+  @override
+  String toString() => 'ModelLightType.$name';
+}
 
 /// A punctual light, decoded from `KHR_lights_punctual` or held for a
 /// writer to encode into it — `fmt-28`'s own row.

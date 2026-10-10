@@ -46,7 +46,7 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
       doubleSided: true,
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 1.0 * Photometric.legacyUnit
+      ..ambientIntensity = 1.0 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -73,7 +73,7 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
         LightNode(
           name: 'lamp',
           type: LightType.point,
-          intensity: 30.0 * Photometric.legacyUnit,
+          intensity: 30.0 * LightNode.defaultIntensity,
           range: 12.0,
         )..setPosition(-0.8, 2.5, 0.0),
       );

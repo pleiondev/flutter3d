@@ -72,7 +72,7 @@ _room() {
   scene.add(
     LightNode(
       color: LinearColor(1.0, 1.0, 1.0),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 4.0 * LightNode.defaultIntensity,
     )..lookAt(Vector3(-0.4, -1.0, -0.3)),
   );
 
@@ -82,7 +82,7 @@ _room() {
     LightNode(
       type: LightType.point,
       color: LinearColor(1.0, 0.8, 0.5),
-      intensity: 8.0 * Photometric.legacyUnit,
+      intensity: 8.0 * LightNode.defaultIntensity,
       range: 24.0,
       castsShadow: true,
     )..setPosition(2.0, 3.0, -3.0),
@@ -121,7 +121,7 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: it.camera,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,

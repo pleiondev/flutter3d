@@ -64,7 +64,7 @@ Future<({double tall, double wide})> _drawn(String path) async {
   scene.add(
     LightNode(
       color: LinearColor(1.0, 1.0, 1.0),
-      intensity: 4.0 * Photometric.legacyUnit,
+      intensity: 4.0 * LightNode.defaultIntensity,
     )..lookAt(Vector3(-0.3, -0.3, -1.0)),
   );
   final camera = CameraNode(
@@ -78,7 +78,10 @@ Future<({double tall, double wide})> _drawn(String path) async {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(),
   );

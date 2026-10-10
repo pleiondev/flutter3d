@@ -56,7 +56,7 @@ double _middle(BlendState blend, LinearColor color) {
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: Vector4(_grey, _grey, _grey, 1.0),
+        clearColor: LinearColor.fromSrgb(_grey, _grey, _grey, 1.0),
       ),
     ],
     settings: const RenderSettings(

@@ -101,7 +101,7 @@ Future<Uint8List> forest(
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, castsShadow: false)
-        ..intensity = 2.5 * Photometric.legacyUnit
+        ..intensity = 2.5 * LightNode.defaultIntensity
         ..setLocalForward(Vector3(-0.4, -1.0, -0.5)),
     );
   for (final (x, z, yaw) in kForest) {
@@ -122,7 +122,10 @@ Future<Uint8List> forest(
     height: device.height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.6, 0.7, 0.9, 1)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.6, 0.7, 0.9, 1),
+      ),
     ],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );

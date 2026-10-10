@@ -314,7 +314,7 @@ final class RuntimeRenderStep {
   static const String materialStage = 'material';
 
   /// Whether it draws over the finished picture (`frame`, after tone
-  /// mapping) rather than over the scene's light (`hdr_colour`).
+  /// mapping) rather than over the scene's light (`hdr_color`).
   final bool present;
 
   /// Built-in steps it cannot run without, by name: `bloom`.

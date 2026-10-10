@@ -202,9 +202,9 @@ final class PlaytestHeatmapsDemo extends ShowcaseDemo {
     _level = _yard();
     final Scene scene = Scene()
       ..ambientColor = LinearColor(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.5 * Photometric.legacyUnit
+      ..ambientIntensity = 0.5 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 2.2 * Photometric.legacyUnit)
+        LightNode(name: 'sun', intensity: 2.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.2, -1.0, -0.3)),
       );
     for (final Brush brush in _level.brushes) {

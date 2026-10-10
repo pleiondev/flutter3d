@@ -35,6 +35,8 @@ import 'package:flutter3d_core/flutter3d_core.dart'
     show PerspectiveProjection, RenderSettings;
 import 'package:flutter3d_core/formats.dart'
     show DecodedImage, ImageFormatException, decodePng;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'project.dart';
@@ -211,7 +213,7 @@ typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
 /// Each view is a [RenderSnapshotJob] over [tileDevice] — `pro-rn-02`'s own
 /// tiled job, at one cell's resolution, from the camera
 /// [ImpostorAtlas.cameraFor] gives. The background is transparent unless
-/// [clearColorSrgb] says otherwise: an impostor is a silhouette on a card, and a
+/// [clearColor] says otherwise: an impostor is a silhouette on a card, and a
 /// card baked against a sky carries that sky into every scene it stands in.
 ///
 /// **One job per view rather than one grid over all of them.** The tiles of a
@@ -239,8 +241,8 @@ Future<ImpostorBake> bakeImpostor({
   double fovY = math.pi / 8,
   RenderSettings settings = const RenderSettings(),
 
-  /// The background, sRGB-encoded as `RenderView.clearColorSrgb` is.
-  Vector4? clearColorSrgb,
+  /// The background, linear as `RenderView.clearColor` is.
+  LinearColor? clearColor,
 }) async {
   final int cell = atlas.cellSize;
   final rgba = Uint8List(atlas.size * atlas.size * 4);
@@ -257,7 +259,7 @@ Future<ImpostorBake> bakeImpostor({
           fovY: fovY,
         ),
         settings: settings,
-        clearColorSrgb: clearColorSrgb ?? Vector4.zero(),
+        clearColor: clearColor ?? LinearColor.transparent,
       ),
       tileDevice: tileDevice,
     ).run();

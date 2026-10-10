@@ -84,6 +84,19 @@ ModelProject fixtureProject() {
                 mimeType: 'image/png',
               ),
             ],
+            // From version 2 on: a lamp in candela, which is what a light
+            // holds since that version. The v1 file has none, and the
+            // lighting of a v1 file is lifted by the reader, not here.
+            lighting: SceneLighting(
+              lights: <ProjectLight>[
+                ProjectLight(
+                  type: ProjectLightType.point,
+                  color: Vector3(1.0, 0.875, 0.75),
+                  intensity: 800.0,
+                  range: 12.0,
+                ),
+              ],
+            ),
           )
           .added(
             (int id) => ModelObject(
