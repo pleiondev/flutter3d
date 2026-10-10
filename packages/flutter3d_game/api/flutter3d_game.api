@@ -12,13 +12,13 @@ final class Accommodations
   final bool highContrast
   final bool reduceMotion
 
-sealed class ActionBinding
-  ActionBinding withSource(InputSource source, CompositePart? part)
+abstract base class ActionBinding
   CompositePart? partOf(InputSource source)
-  InputAction<Object> get action
-  InputSource sourceAt(CompositePart? part)
-  List<InputSource> get sources
-  Map<String, Object?> toJson()
+  abstract ActionBinding withSource(InputSource source, CompositePart? part)
+  abstract InputAction<Object> get action
+  abstract InputSource sourceAt(CompositePart? part)
+  abstract List<InputSource> get sources
+  abstract Map<String, Object?> toJson()
   const ActionBinding()
   static ActionBinding? fromJson(Object? json)
 
@@ -100,9 +100,9 @@ final class ActorVisuals
   ActorVisuals(this.scene, {required this.appearance, required GraphicsDevice device, IssueSink? onIssue, this.layerMask = 1, this.corpses, this.graphs, this.simulated, this.published})
   AnimationGraph? graphOf(Actor actor)
   Future<void> get settled
+  LinearColor? Function(Actor actor)? outlineOf
   List<({Actor actor, String state, String name})> get markersPassed
   ModelInstance? modelOf(Actor actor)
-  Vector3? Function(Actor actor)? outlineOf
   final ActorAppearance appearance
   final ActorCorpses? corpses
   final ActorGraphs? graphs
@@ -403,8 +403,8 @@ abstract base mixin class FixtureAppearance
 final class FixtureVisuals
   FixtureVisuals(this.scene, this.level, {required this.appearance, required this.device, IssueSink? onIssue})
   Future<void> get settled
+  LinearColor? Function(Fixture fixture)? outlineOf
   Map<LightFixture, TorchFire> get flames
-  Vector3? Function(Fixture fixture)? outlineOf
   final FixtureAppearance appearance
   final GraphicsDevice device
   final IssueSink onIssue
@@ -517,6 +517,13 @@ final class LevelApplied
   final bool rebuiltInPlace
   final int? swappedAt
 
+final class LevelExtensionAnswer
+  const LevelExtensionAnswer.applied(Map<String, Object?> this.result)
+  const LevelExtensionAnswer.refused(String this.error, {this.isStale = false})
+  final Map<String, Object?>? result
+  final String? error
+  final bool isStale
+
 final class LevelWalk
   LevelWalk({required CollisionWorld world, required Vector3 at, this.yaw = 0.0, this.eyeHeight = 0.7, this.lookSpeed = 0.0032})
   Vector3 wishFor(Vector2 axis)
@@ -525,7 +532,7 @@ final class LevelWalk
   final CharacterController body
   final double eyeHeight
   final double lookSpeed
-  static ({Vector3 at, double yaw}) spawnIn(Level level, {double lift = 0.9})
+  static SpawnPoint spawnIn(Level level, {double lift = 0.9})
   static const double pitchLimit = 1.5
   void look(double dx, double dy)
   void placeCamera(CameraNode camera)
@@ -791,6 +798,11 @@ final class SoundOcclusion
   final int maxObstacles
   int get lastObstacles
 
+final class SpawnPoint
+  const SpawnPoint({required this.at, this.yaw = 0.0})
+  final Vector3 at
+  final double yaw
+
 final class SyncOutcome
   String toString()
   final String name
@@ -816,7 +828,7 @@ final class TimelineBranched extends TimelineCommand
   final int step
   int get hashCode
 
-sealed class TimelineCommand
+abstract base class TimelineCommand
   const TimelineCommand()
 
 final class TimelineLevelSwapped extends TimelineCommand
@@ -858,9 +870,9 @@ final class TorchFire with LightEmitter
   final SceneNode origin
   final double rise
 
-Future<({Map<String, Object?>? result, String? error})> answerLevelApply(LiveLevel live, Map<String, String> parameters)
+Future<LevelExtensionAnswer> answerLevelApply(LiveLevel live, Map<String, String> parameters)
 
-Future<({Map<String, Object?>? result, String? error, bool stale})> answerLevelPatch(LiveLevel live, Map<String, String> parameters)
+Future<LevelExtensionAnswer> answerLevelPatch(LiveLevel live, Map<String, String> parameters)
 
 void applySavedVolumes(GameSettings config, Mixer mixer)
 
@@ -886,7 +898,7 @@ void lockLandscapeForTouch([Playing? playing])
 
 EntityRegistry openRegistryFor(Level level)
 
-Vector3 outlineColorOf(Color color)
+LinearColor outlineColorOf(Color color)
 
 void postToolEvent(String kind, Map<String, Object?> data)
 
@@ -910,7 +922,7 @@ const String toolEventPrefix = 'flutter3d.'
 
 bool wantsHighContrast(GameSettings config, Accommodations system)
 
-export package:flutter3d/flutter3d.dart (whole library)
+export package:flutter3d/flutter3d.dart show AdaptiveQuality, AdaptiveQualitySettings, AdaptiveScale, AdaptiveScaleSettings, AmbientOcclusionMethod, AmbientOcclusionSettings, AnimationBlend, AnimationBlendSpace, AnimationClip, AnimationComparison, AnimationCondition, AnimationGoal, AnimationGraph, AnimationGraphFormatException, AnimationGraphJson, AnimationGraphLayer, AnimationInterpolation, AnimationLayer, AnimationMarker, AnimationMask, AnimationParameter, AnimationParameterSchema, AnimationParameterType, AnimationParameters, AnimationPath, AnimationPlayer, AnimationPointer, AnimationPointerProperty, AnimationPointerSink, AnimationPointerTarget, AnimationPose, AnimationState, AnimationStateMachine, AnimationTarget, AnimationTrack, AnimationTransition, AnimationWrap, AntiAliasSettings, AssetNotFoundException, AssetRequest, AssetSource, AssetSourceFactory, AssetSources, AssetUriResolver, Atmosphere, AtmosphereCycle, AutoExposureSettings, BackendOpener, BakedPoses, BlendFactor, BlendOperation, BlendPoint, BlendState, BloomSettings, BoolCondition, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, BundleAssetSource, BundledMaterials, CameraNode, CapabilityException, CapsuleShape, CaptureThumbnail, CapturedImage, CapturedPass, CellGrid, ChangedBounds, CheckedModelWriter, CheckerboardTexture, ColorHint, ColorTarget, ColorToLinear, ColorVision, ColorVisionDeficiency, ColorWriteMask, CommandEncoder, CompareCondition, CompareFunction, CompiledFrameGraph, ComputeEncoder, ComputePipelineHandle, ConeShape, ContactShadowSettings, ContributorFrame, ContributorLights, CpuMesh, CropProjection, CubeLut, CubeLutFormatException, CuboidShape, CullMode, CylinderShape, DebugColors, DebugDraw, DebugDrawGizmos, DebugDrawSettings, DebugView, DebugViewKind, DebugViewSettings, DebugWipeSide, DecalNode, DecalSettings, DecodedImage, Decoders, DepthBias, DepthOfFieldSettings, DepthRange, DepthTarget, DerivedShape, DeviceClass, DeviceClassMemory, DeviceClassPicker, DeviceClassSelector, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceMesh, DeviceRegistry, DeviceResourceException, DeviceTraits, DeviceUnavailableException, DiffuseModel, DiscShape, DisplayTransform, DocumentAsset, DocumentDifference, DracoAttribute, DracoAttributeType, DracoException, DracoMesh, DrawJournal, DrawRecord, DrawableGeometry, EdgeSmoothing, EffectiveAntiAliasing, EncodedImage, EnumHint, EnumHintValue, EnvironmentMap, ExportReport, ExposureAdapter, ExposureMeter, F3dDecoder, F3dDocument, F3dExtraSection, F3dFormatException, F3dModelWriter, F3dSectionFlags, F3dWriter, FabrikIk, FbxDecoder, FbxFormatException, FeatureStability, FieldPass, FileAssetSource, Flutter3dException, Flutter3dFormatException, FmatFormatException, FogSettings, FootLeg, FootPlantGoal, FrameCapture, FrameCaptureFormatException, FrameContext, FrameFraction, FrameGraph, FrameGraphError, FrameGraphNode, FrameHeld, FrameHistory, FramePacing, FramePass, FramePipelineStall, FrameResourceIds, FrameResources, FrameResult, FrameTextureSource, FrameWorkBudget, FramebufferOrigin, FreeLook, FullscreenDraw, FullscreenEffect, GeometryBuffer, GeometryUsage, GlbContainer, GlbModelWriter, GltfAsset, GltfComponentType, GltfFormatException, GltfLoader, GltfWriter, GpuFrameTimings, GpuPassTiming, GraphicsDevice, HdrFormatException, HdrImage, HiZOcclusion, HighContrastSettings, HitResult, ImageDecoder, ImageFormatException, ImpostorNode, ImpostorPart, IndexType, IndexedDraw, InputAttribute, InstanceHandle, InstancedMeshNode, IrradianceField, JitteredProjection, Ktx2FormatException, Ktx2Texture, LatheShape, LensFlareSettings, LightChannels, LightGroup, LightNode, LightShaftSettings, LightType, LightingModel, LineStripNode, LinearColor, LinearColorToFlutter, LinearColorVector, LoadAction, LoadedShaderLibrary, LocalExposureSettings, LocalRay, LodGroup, LodLevel, LookGoal, LookSettings, MapMode, MappedBuffer, MaterialAlphaMode, MaterialBindings, MaterialBundleException, MaterialDecoder, MaterialDocument, MaterialExtensions, MaterialHint, MaterialHintKind, MaterialMap, MaterialParameter, MaterialProgram, MaterialSortIds, MaterialStatement, MaterialSurfaceValues, MaterialSyntaxException, MaterialTextureSlot, MaterialType, MaterialVariant, Matrix3, MemoryCategory, MemoryEntry, MemoryReport, MeshBuilder, MeshClusters, MeshData, MeshGeometry, MeshNode, MeshOverlay, MeshTangents, MeshoptFormatException, MeterRect, MinMagFilter, MipChain, MipFilter, ModelAsset, ModelAssetInstantiate, ModelCamera, ModelCameraProjection, ModelDecoder, ModelDecoders, ModelDocument, ModelFormat, ModelImpostor, ModelInstance, ModelLight, ModelLightType, ModelLoadRequest, ModelLod, ModelLook, ModelNode, ModelPart, ModelPerspectiveCamera, ModelSkin, ModelSplat, ModelSurface, ModelSwap, ModelWardrobe, ModelWrite, ModelWriteFormat, ModelWriteRequest, ModelWriter, MorphBlend, MorphSink, MorphState, MorphTarget, MorphTexture, MotionBlurSettings, MtlMaterial, NodeHistory, ObjDocument, ObjLoader, ObjModelWriter, ObjNormals, ObjWriter, ObjectIdFrame, OcclusionBuffer, OcclusionMode, OcclusionTest, OffAxisProjection, OpenPath, OrbitController, OrthographicProjection, OutputTransform, OverlayBatch, PackedIndices, PagedSplatOctree, PanoramaFormatException, ParameterWrite, PassContribution, PassContributor, PassEncoder, PassSkip, PassState, PassTimestampWrites, PerspectiveProjection, PhotoCaptureReport, PhotoFilter, PhotoFinish, Photometric, PhysicalCamera, PhysicalSky, PipelineGeometry, PipelineHandle, PipelineStall, PlainModelDocument, PlanarReflectionSettings, PlanarReflectorNode, PlaneShape, PluginException, PointerTargets, PolygonMode, PosedMesh, PostFrameResult, PrimitiveType, ProceduralTexture, Projection, QualityRow, QualitySetting, QualityTable, Quaternion, QuerySet, QueryType, RangeHint, Raycaster, ReachGoal, ReactiveFrame, ReactiveShape, ReflectionProbeNode, ReflectionSettings, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderFrame, RenderListener, RenderMaterial, RenderNode, RenderPassDescriptor, RenderServices, RenderSettings, RenderStep, RenderTargetDescriptor, RenderTargetPool, RenderView, RenderViewSettings, Renderer, RendererSteps, ResourceCache, ResourceDesc, ResourceException, ResourceHandle, ResourceId, ResourceOrigin, ResourceSize, ResourceVersion, Rgba8Image, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, Scene, SceneBvh, SceneNode, ScreenBounds, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderCompileException, ShaderHandle, ShaderLibrary, ShadowCasterFaces, ShadowCastingMode, ShadowFilter, ShadowKernel, ShadowPrefilter, ShadowSettings, ShadowTechnique, Shape, Skeleton, SkinBlend, SkippedPass, SkyColor, SkyDome, SkyGradient, SkyLook, SkySettings, SoftwareOcclusion, SolidColorTexture, SortMode, SpatialUpscaleSettings, SphereShape, SplatAxes, SplatCloud, SplatColorSpace, SplatComposite, SplatContributor, SplatGpuSort, SplatLens, SplatLod, SplatOctree, SplatOctreeException, SplatOctreeNode, SplatPlyException, SplatQuads, SplatRangeReader, SplatSorter, SplatSpzException, StageBindings, StencilOperation, StencilState, StlLoader, StlModelWriter, StlNormals, StlWriter, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, SurfaceAlphaMode, SurfaceMaterial, SynchronousBufferReadback, TangentMethod, TemporalClip, TemporalSettings, TextureAllocator, TextureBinding, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureHint, TextureRegion, TextureSampling, TextureTransform, TextureType, TextureUsage, TextureWrap, TiledProjection, TonemapCurve, TorusShape, TransferEncoder, TransparencyMode, TriangleBvh, TriggerCondition, TwoBoneIk, UniformBlock, UniformMemberLayout, UniversalTarget, UnsupportedCapability, UsdzModelWriter, UsdzWriter, Vector2, Vector3, Vector3Foundation, Vector4, Vector4Foundation, VertexAttribute, VertexFormat, VertexLayout, VertexLayoutDescriptor, VertexStepMode, ViewModelNode, ViewportRect, ViewportShading, ViewportShadingSettings, VkFormat, VolumetricFogSettings, WindingOrder, WorldPosition, WorldPositionVector, WorldRay, WrittenFile, XraySettings, advanceTime, assetUriResolver, averageCacheMissRatio, bindMaterial, bindSurfaceMaterial, bloomLevelsFor, buildIdentityLut, buildMipChain, buildPolyline, buildSplatOctree, buildsMipChain, builtInMaterialHints, builtInModelDecoder, builtInModelExtensions, builtInModelWriters, canDecodeFileName, capturePhoto, compareModelDocuments, contributionBetween, coreFormats, decodeDataUri, decodeDraco, decodeJpeg, decodeMaterialSection, decodeModel, decodeModelBytes, decodeModelInIsolate, decodePng, defaultImageDecoder, defaultVertexCacheSize, describeEmptyFrame, describeMaterial, deviceClassPath, emitMaterialFragment, encodeAstc4x4, encodeBc1, encodeBc3, encodeCompressedPng, encodeEtc2Rgb8, encodeMaterialSection, encodeModel, encodeModelInIsolate, evaluateMaterial, exportChecked, exportToGlb, exportToObj, exportToStl, f3dVendorKindStart, fileUriResolver, followCamera, gather, generatedAssetPathFor, generatedMaterialPathFor, impostorCard, impostorGrid, impostorRight, impostorViewDirection, indexWindow, inflate, isF3dFile, isFmat, isGeneratedAsset, isMissingFile, loadMaterial, loadMaterialDocument, loadModelAsset, loadModelByPath, loadRevalidatedAsset, loadRevalidatedAssetString, loadShaderBundleAsset, loadShaderBundleBytes, measureFrameMicros, modelWriterNamed, optimizeTriangleOrder, optimizeVertexFetch, paintSky, parseMaterial, parseSplatPly, parseSplatSpz, payloadBits, photoSettings, projectPoint, rayAabb, raySphere, rayTriangle, readFmat, readHdr, readbackFormats, readbackRegionOf, recognizedModelFormat, ribbon, rootMotionExtra, safeRelativeAssetPath, samplerOptionsFor, screenBoundsOfBox, screenMotion, skyNode, sniffModelFormat, sortPackedKeys, specializeMaterial, splatBytesReader, splatGpuSortLimit, splatShC0, splatVerticesPerSplat, textureBytes, toDepthRange, toFramebufferOrigin, toReversedDepth, uploadEncodedImage, uploadRgba8, validateGltfExport, viewAxisOf, withDepthPlanes, withTextureTransform, writeFmat, writeKtx2, writeKtx2WithMips
   AdaptiveQuality from flutter3d_core
   AdaptiveQualitySettings from flutter3d_core
   AdaptiveScale from flutter3d_core
@@ -1460,7 +1472,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   encodeModel from flutter3d_core
   encodeModelInIsolate from flutter3d_core
   evaluateMaterial from flutter3d_core
-  export package:vector_math/vector_math.dart show Matrix3, Quaternion, Vector2, Vector3, Vector4 (outside this repository)
+  export package:vector_math/vector_math.dart show Matrix3, Quaternion, Vector2, Vector3, Vector4 show AdaptiveQuality, AdaptiveQualitySettings, AdaptiveScale, AdaptiveScaleSettings, AmbientOcclusionMethod, AmbientOcclusionSettings, AnimationBlend, AnimationBlendSpace, AnimationClip, AnimationComparison, AnimationCondition, AnimationGoal, AnimationGraph, AnimationGraphFormatException, AnimationGraphJson, AnimationGraphLayer, AnimationInterpolation, AnimationLayer, AnimationMarker, AnimationMask, AnimationParameter, AnimationParameterSchema, AnimationParameterType, AnimationParameters, AnimationPath, AnimationPlayer, AnimationPointer, AnimationPointerProperty, AnimationPointerSink, AnimationPointerTarget, AnimationPose, AnimationState, AnimationStateMachine, AnimationTarget, AnimationTrack, AnimationTransition, AnimationWrap, AntiAliasSettings, AssetNotFoundException, AssetRequest, AssetSource, AssetSourceFactory, AssetSources, AssetUriResolver, Atmosphere, AtmosphereCycle, AutoExposureSettings, BackendOpener, BakedPoses, BlendFactor, BlendOperation, BlendPoint, BlendState, BloomSettings, BoolCondition, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, BundleAssetSource, BundledMaterials, CameraNode, CapabilityException, CapsuleShape, CaptureThumbnail, CapturedImage, CapturedPass, CellGrid, ChangedBounds, CheckedModelWriter, CheckerboardTexture, ColorHint, ColorTarget, ColorToLinear, ColorVision, ColorVisionDeficiency, ColorWriteMask, CommandEncoder, CompareCondition, CompareFunction, CompiledFrameGraph, ComputeEncoder, ComputePipelineHandle, ConeShape, ContactShadowSettings, ContributorFrame, ContributorLights, CpuMesh, CropProjection, CubeLut, CubeLutFormatException, CuboidShape, CullMode, CylinderShape, DebugColors, DebugDraw, DebugDrawGizmos, DebugDrawSettings, DebugView, DebugViewKind, DebugViewSettings, DebugWipeSide, DecalNode, DecalSettings, DecodedImage, Decoders, DepthBias, DepthOfFieldSettings, DepthRange, DepthTarget, DerivedShape, DeviceClass, DeviceClassMemory, DeviceClassPicker, DeviceClassSelector, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceMesh, DeviceRegistry, DeviceResourceException, DeviceTraits, DeviceUnavailableException, DiffuseModel, DiscShape, DisplayTransform, DocumentAsset, DocumentDifference, DracoAttribute, DracoAttributeType, DracoException, DracoMesh, DrawJournal, DrawRecord, DrawableGeometry, EdgeSmoothing, EffectiveAntiAliasing, EncodedImage, EnumHint, EnumHintValue, EnvironmentMap, ExportReport, ExposureAdapter, ExposureMeter, F3dDecoder, F3dDocument, F3dExtraSection, F3dFormatException, F3dModelWriter, F3dSectionFlags, F3dWriter, FabrikIk, FbxDecoder, FbxFormatException, FeatureStability, FieldPass, FileAssetSource, Flutter3dException, Flutter3dFormatException, FmatFormatException, FogSettings, FootLeg, FootPlantGoal, FrameCapture, FrameCaptureFormatException, FrameContext, FrameFraction, FrameGraph, FrameGraphError, FrameGraphNode, FrameHeld, FrameHistory, FramePacing, FramePass, FramePipelineStall, FrameResourceIds, FrameResources, FrameResult, FrameTextureSource, FrameWorkBudget, FramebufferOrigin, FreeLook, FullscreenDraw, FullscreenEffect, GeometryBuffer, GeometryUsage, GlbContainer, GlbModelWriter, GltfAsset, GltfComponentType, GltfFormatException, GltfLoader, GltfWriter, GpuFrameTimings, GpuPassTiming, GraphicsDevice, HdrFormatException, HdrImage, HiZOcclusion, HighContrastSettings, HitResult, ImageDecoder, ImageFormatException, ImpostorNode, ImpostorPart, IndexType, IndexedDraw, InputAttribute, InstanceHandle, InstancedMeshNode, IrradianceField, JitteredProjection, Ktx2FormatException, Ktx2Texture, LatheShape, LensFlareSettings, LightChannels, LightGroup, LightNode, LightShaftSettings, LightType, LightingModel, LineStripNode, LinearColor, LinearColorToFlutter, LinearColorVector, LoadAction, LoadedShaderLibrary, LocalExposureSettings, LocalRay, LodGroup, LodLevel, LookGoal, LookSettings, MapMode, MappedBuffer, MaterialAlphaMode, MaterialBindings, MaterialBundleException, MaterialDecoder, MaterialDocument, MaterialExtensions, MaterialHint, MaterialHintKind, MaterialMap, MaterialParameter, MaterialProgram, MaterialSortIds, MaterialStatement, MaterialSurfaceValues, MaterialSyntaxException, MaterialTextureSlot, MaterialType, MaterialVariant, Matrix3, MemoryCategory, MemoryEntry, MemoryReport, MeshBuilder, MeshClusters, MeshData, MeshGeometry, MeshNode, MeshOverlay, MeshTangents, MeshoptFormatException, MeterRect, MinMagFilter, MipChain, MipFilter, ModelAsset, ModelAssetInstantiate, ModelCamera, ModelCameraProjection, ModelDecoder, ModelDecoders, ModelDocument, ModelFormat, ModelImpostor, ModelInstance, ModelLight, ModelLightType, ModelLoadRequest, ModelLod, ModelLook, ModelNode, ModelPart, ModelPerspectiveCamera, ModelSkin, ModelSplat, ModelSurface, ModelSwap, ModelWardrobe, ModelWrite, ModelWriteFormat, ModelWriteRequest, ModelWriter, MorphBlend, MorphSink, MorphState, MorphTarget, MorphTexture, MotionBlurSettings, MtlMaterial, NodeHistory, ObjDocument, ObjLoader, ObjModelWriter, ObjNormals, ObjWriter, ObjectIdFrame, OcclusionBuffer, OcclusionMode, OcclusionTest, OffAxisProjection, OpenPath, OrbitController, OrthographicProjection, OutputTransform, OverlayBatch, PackedIndices, PagedSplatOctree, PanoramaFormatException, ParameterWrite, PassContribution, PassContributor, PassEncoder, PassSkip, PassState, PassTimestampWrites, PerspectiveProjection, PhotoCaptureReport, PhotoFilter, PhotoFinish, Photometric, PhysicalCamera, PhysicalSky, PipelineGeometry, PipelineHandle, PipelineStall, PlainModelDocument, PlanarReflectionSettings, PlanarReflectorNode, PlaneShape, PluginException, PointerTargets, PolygonMode, PosedMesh, PostFrameResult, PrimitiveType, ProceduralTexture, Projection, QualityRow, QualitySetting, QualityTable, Quaternion, QuerySet, QueryType, RangeHint, Raycaster, ReachGoal, ReactiveFrame, ReactiveShape, ReflectionProbeNode, ReflectionSettings, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderFrame, RenderListener, RenderMaterial, RenderNode, RenderPassDescriptor, RenderServices, RenderSettings, RenderStep, RenderTargetDescriptor, RenderTargetPool, RenderView, RenderViewSettings, Renderer, RendererSteps, ResourceCache, ResourceDesc, ResourceException, ResourceHandle, ResourceId, ResourceOrigin, ResourceSize, ResourceVersion, Rgba8Image, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, Scene, SceneBvh, SceneNode, ScreenBounds, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderCompileException, ShaderHandle, ShaderLibrary, ShadowCasterFaces, ShadowCastingMode, ShadowFilter, ShadowKernel, ShadowPrefilter, ShadowSettings, ShadowTechnique, Shape, Skeleton, SkinBlend, SkippedPass, SkyColor, SkyDome, SkyGradient, SkyLook, SkySettings, SoftwareOcclusion, SolidColorTexture, SortMode, SpatialUpscaleSettings, SphereShape, SplatAxes, SplatCloud, SplatColorSpace, SplatComposite, SplatContributor, SplatGpuSort, SplatLens, SplatLod, SplatOctree, SplatOctreeException, SplatOctreeNode, SplatPlyException, SplatQuads, SplatRangeReader, SplatSorter, SplatSpzException, StageBindings, StencilOperation, StencilState, StlLoader, StlModelWriter, StlNormals, StlWriter, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, SurfaceAlphaMode, SurfaceMaterial, SynchronousBufferReadback, TangentMethod, TemporalClip, TemporalSettings, TextureAllocator, TextureBinding, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureHint, TextureRegion, TextureSampling, TextureTransform, TextureType, TextureUsage, TextureWrap, TiledProjection, TonemapCurve, TorusShape, TransferEncoder, TransparencyMode, TriangleBvh, TriggerCondition, TwoBoneIk, UniformBlock, UniformMemberLayout, UniversalTarget, UnsupportedCapability, UsdzModelWriter, UsdzWriter, Vector2, Vector3, Vector3Foundation, Vector4, Vector4Foundation, VertexAttribute, VertexFormat, VertexLayout, VertexLayoutDescriptor, VertexStepMode, ViewModelNode, ViewportRect, ViewportShading, ViewportShadingSettings, VkFormat, VolumetricFogSettings, WindingOrder, WorldPosition, WorldPositionVector, WorldRay, WrittenFile, XraySettings, advanceTime, assetUriResolver, averageCacheMissRatio, bindMaterial, bindSurfaceMaterial, bloomLevelsFor, buildIdentityLut, buildMipChain, buildPolyline, buildSplatOctree, buildsMipChain, builtInMaterialHints, builtInModelDecoder, builtInModelExtensions, builtInModelWriters, canDecodeFileName, capturePhoto, compareModelDocuments, contributionBetween, coreFormats, decodeDataUri, decodeDraco, decodeJpeg, decodeMaterialSection, decodeModel, decodeModelBytes, decodeModelInIsolate, decodePng, defaultImageDecoder, defaultVertexCacheSize, describeEmptyFrame, describeMaterial, deviceClassPath, emitMaterialFragment, encodeAstc4x4, encodeBc1, encodeBc3, encodeCompressedPng, encodeEtc2Rgb8, encodeMaterialSection, encodeModel, encodeModelInIsolate, evaluateMaterial, exportChecked, exportToGlb, exportToObj, exportToStl, f3dVendorKindStart, fileUriResolver, followCamera, gather, generatedAssetPathFor, generatedMaterialPathFor, impostorCard, impostorGrid, impostorRight, impostorViewDirection, indexWindow, inflate, isF3dFile, isFmat, isGeneratedAsset, isMissingFile, loadMaterial, loadMaterialDocument, loadModelAsset, loadModelByPath, loadRevalidatedAsset, loadRevalidatedAssetString, loadShaderBundleAsset, loadShaderBundleBytes, measureFrameMicros, modelWriterNamed, optimizeTriangleOrder, optimizeVertexFetch, paintSky, parseMaterial, parseSplatPly, parseSplatSpz, payloadBits, photoSettings, projectPoint, rayAabb, raySphere, rayTriangle, readFmat, readHdr, readbackFormats, readbackRegionOf, recognizedModelFormat, ribbon, rootMotionExtra, safeRelativeAssetPath, samplerOptionsFor, screenBoundsOfBox, screenMotion, skyNode, sniffModelFormat, sortPackedKeys, specializeMaterial, splatBytesReader, splatGpuSortLimit, splatShC0, splatVerticesPerSplat, textureBytes, toDepthRange, toFramebufferOrigin, toReversedDepth, uploadEncodedImage, uploadRgba8, validateGltfExport, viewAxisOf, withDepthPlanes, withTextureTransform, writeFmat, writeKtx2, writeKtx2WithMips (outside this repository)
   exportChecked from flutter3d_core
   exportToGlb from flutter3d_core
   exportToObj from flutter3d_core
@@ -1536,7 +1548,8 @@ export package:flutter3d/flutter3d.dart (whole library)
   writeKtx2 from flutter3d_core
   writeKtx2WithMips from flutter3d_core
 
-export package:flutter3d_app/flutter3d_app.dart show DidNotStart, Flutter3dEngine, Flutter3dView, FrameInfo, LevelLoader, ListenerPose, LoadedLevel, SharedMeshes, ViewResolution
+export package:flutter3d_app/flutter3d_app.dart show DeviceSettings, DidNotStart, Flutter3dEngine, Flutter3dView, FrameInfo, LevelLoader, ListenerPose, LoadedLevel, LoopSettings, PluginSettings, SharedMeshes, SimulationPlacement, ViewSettings, ViewResolution
+  DeviceSettings
   DidNotStart
   Flutter3dEngine
   Flutter3dView
@@ -1544,8 +1557,12 @@ export package:flutter3d_app/flutter3d_app.dart show DidNotStart, Flutter3dEngin
   LevelLoader
   ListenerPose
   LoadedLevel
+  LoopSettings
+  PluginSettings
   SharedMeshes
+  SimulationPlacement
   ViewResolution
+  ViewSettings
 
 export package:flutter3d_audio_core/flutter3d_audio_core.dart show AudioEmitter, AudioListener, AudioScene, SoundBank, SoundDef
   AudioEmitter

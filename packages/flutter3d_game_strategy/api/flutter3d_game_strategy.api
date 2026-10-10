@@ -24,7 +24,7 @@ final class StrategyVisuals
   MeshNode? buildingAt(int index)
   MeshNode? get water
   StrategyVisuals({required this.simulation, required GraphicsDevice device, int capacity = 4096, this.viewer, RenderMaterial? ground, RenderMaterial? units, RenderMaterial? buildings, RenderMaterial? unseen, RenderMaterial? remembered, this.unitSize = const UnitSize(), DeviceMesh? unitMesh, DeviceMesh? buildingMesh, Vector3? buildingMeshSize, List<UnitLook> looks = const <UnitLook>[], List<RenderMaterial>? buildingSides, bool buildingStandsTall = false, MeshLook? resource, List<PropBatch> props = const <PropBatch>[], double? waterLevel, RenderMaterial? water, double groundMetersPerTexture = 8.0})
-  bool dressProp(int batch, int placement, {required Vector4 color, Matrix4? transform})
+  bool dressProp(int batch, int placement, {required LinearColor color, Matrix4? transform})
   final StrategySimulation simulation
   final UnitSize unitSize
   final double? waterLevel
@@ -166,7 +166,7 @@ final class Match
   final MatchGoal goal
   final StrategySimulation simulation
   void restore(Snapshot snapshot)
-  void step(double dt)
+  void step(double dt, {LoopContext? context})
 
 final class MatchDecided extends GameEvent
   String get name
@@ -325,10 +325,13 @@ sealed class StrategyOrder
   void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd)
 
 abstract final class StrategyPhases
-  static const StepPhase afterFight = StepPhase('afterFight')
-  static const StepPhase afterMoves = StepPhase('afterMoves')
-  static const StepPhase afterOrders = StepPhase('afterOrders')
-  static const StepPhase afterProduction = StepPhase('afterProduction')
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterOrders, afterMoves, afterFight, afterProduction, end]
+  static const LoopPhase afterFight = LoopPhase.step('strategy.afterFight')
+  static const LoopPhase afterMoves = LoopPhase.step('strategy.afterMoves')
+  static const LoopPhase afterOrders = LoopPhase.step('strategy.afterOrders')
+  static const LoopPhase afterProduction = LoopPhase.step('strategy.afterProduction')
+  static const LoopPhase begin = LoopPhase.step('strategy.begin')
+  static const LoopPhase end = LoopPhase.step('strategy.end')
 
 final class StrategyPlugin extends GenrePlugin<Match>
   EcsWorld? publishedWorldOf(Match simulation)
@@ -345,8 +348,11 @@ final class StrategyPlugin extends GenrePlugin<Match>
 
 final class StrategySimulation
   Building build(Building building)
+  List<String> systemsIn(LoopPhase phase)
   List<UnitShot> get shots
   Producer addProducer(Producer producer)
+  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
+  Registration publishTo(EventRegistry bus)
   ResourceNode addResource(ResourceNode node)
   Snapshot save()
   StrategySimulation({required this.ground, required this.random, double cellSize = 2.0, double maxSlope = 0.698, double fogCellSize = 4.0, this.fogEvery = 6, this.sides = 2, EcsWorld? entities})
@@ -363,13 +369,12 @@ final class StrategySimulation
   final List<StrategyUnit> units
   final List<double> delivered
   final List<void Function(double dt)> afterStep
-  final StepSystems systems
   final int fogEvery
   final int sides
   late NavGrid grid
   late final OrderQueue orders
   void restore(Snapshot snapshot)
-  void step(double dt)
+  void step(double dt, {LoopContext? context})
 
 final class StrategyUnit
   Entity entity

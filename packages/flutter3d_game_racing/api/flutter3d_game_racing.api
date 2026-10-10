@@ -292,7 +292,10 @@ abstract final class RacingLayers
   static const int vehicle = 1 << 7
 
 abstract final class RacingPhases
-  static const StepPhase afterVehicles = StepPhase('racing.afterVehicles')
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterVehicles, end]
+  static const LoopPhase afterVehicles = LoopPhase.step('racing.afterVehicles')
+  static const LoopPhase begin = LoopPhase.step('racing.begin')
+  static const LoopPhase end = LoopPhase.step('racing.end')
 
 final class RacingPlugin extends GenrePlugin<RacingSimulation>
   PluginManifest get manifest
@@ -308,7 +311,9 @@ final class RacingPlugin extends GenrePlugin<RacingSimulation>
   void stepSimulation(RacingSimulation simulation, LoopContext context)
 
 final class RacingSimulation
+  List<String> systemsIn(LoopPhase phase)
   RacingSimulation({required this.collision, required this.vehicles, required this.race, this.mechanisms, this.dynamics, this.killPlane = -50.0, this.offRoadPatience = 4.0, this.contactRestitution = 0.35, this.difficulty = Difficulty.normal, this.assisted = const <int>{0}})
+  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration publishTo(EventRegistry bus)
   Snapshot save()
   final CollisionWorld collision
@@ -319,7 +324,6 @@ final class RacingSimulation
   final RaceState race
   final RigidDynamics? dynamics
   final Set<int> assisted
-  final StepSystems systems
   final double contactRestitution
   final double killPlane
   final double offRoadPatience
@@ -330,7 +334,7 @@ final class RacingSimulation
   static const double slipstreamWidth = 3.0
   void restart({List<int>? order})
   void restore(Snapshot snapshot)
-  void step(double dt)
+  void step(double dt, {LoopContext? context})
 
 final class Respawned extends RacerEvent
   String get name
@@ -348,18 +352,18 @@ final class SectorCompleted extends RacerEvent
   static final EventCodec<SectorCompleted> codec
 
 final class SkyPreset
-  Vector3 colorAt(Vector3 direction)
+  LinearColor colorAt(Vector3 direction)
+  LinearColor get horizonFogColor
+  LinearColor inScatterAlong(Vector3 viewDir)
   Vector3 get directionToSun
-  Vector3 get horizonFogColor
   Vector3 get sunDirection
-  Vector3 inScatterAlong(Vector3 viewDir)
   const SkyPreset({required this.name, required this.sunElevation, required this.sunAzimuth, required this.sunColor, required this.sunIntensity, required this.zenith, required this.horizon, required this.belowHorizon, required this.glowWide, required this.glowStrength, required this.fogDensity, required this.fogBacklitExponent, required this.fogBacklitStrength, required this.ambientIntensity, required this.exposure, this.sunDisc = 0.0})
   factory SkyPreset.fromJson(Map<String, Object?> json)
+  final LinearColor belowHorizon
+  final LinearColor horizon
+  final LinearColor sunColor
+  final LinearColor zenith
   final String name
-  final Vector3 belowHorizon
-  final Vector3 horizon
-  final Vector3 sunColor
-  final Vector3 zenith
   final double ambientIntensity
   final double exposure
   final double fogBacklitExponent
