@@ -5,6 +5,9 @@
 /// procedural stand-in for "did the decoder and the upload actually run".
 library;
 
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -212,4 +215,75 @@ void main() {
       expect(visuals.nodes, isEmpty);
     },
   );
+
+  test('models started together go into the scene in the order they were '
+      'added, whichever file is decoded first', () async {
+    // Each file is decoded on an isolate of its own, and the scene's order
+    // is part of the picture: the cull tree is built over it and draws are
+    // claimed in it.
+    //
+    // Mutation: in `ModelVisuals._addInTurn`, drop `await previous` — the
+    // second file is read at once and the first held back, so the second
+    // model goes into the scene first.
+    _held = Completer<void>();
+    final scene = Scene();
+    final visuals = ModelVisuals(
+      scene,
+      device: _device(),
+      source: _HeldBox.new,
+      onIssue: (issue) => fail('$issue'),
+    );
+    addTearDown(visuals.dispose);
+
+    EntityDef model(String name, String file) => EntityDef(
+      type: 'model',
+      name: name,
+      position: Vector3.zero(),
+      properties: <String, Object?>{'asset': '$_samples/$file'},
+    );
+    final both = Future.wait(<Future<SceneNode?>>[
+      visuals.add(model('first', 'Box.glb')),
+      visuals.add(model('second', 'RiggedSimple.glb')),
+    ]);
+
+    // Long enough for the second to be read, decoded and placed when
+    // nothing holds it back; with the fix it waits for the first.
+    final waited = Stopwatch()..start();
+    while (!visuals.nodes.containsKey('second') &&
+        waited.elapsed < const Duration(seconds: 1)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    _held.complete();
+    await both;
+
+    final children = scene.root.childrenView;
+    final first = children.indexOf(visuals.nodes['first']!);
+    final second = children.indexOf(visuals.nodes['second']!);
+    expect(first, greaterThanOrEqualTo(0));
+    expect(second, greaterThan(first));
+  });
+}
+
+/// What [_HeldBox] waits for before handing over `Box.glb`. Top level
+/// rather than a field: the source crosses to the decoding isolate, and a
+/// completer does not.
+Completer<void> _held = Completer<void>();
+
+/// A file read off disk, with `Box.glb` held back until [_held] completes.
+final class _HeldBox extends AssetSource {
+  const _HeldBox(this.path);
+
+  final String path;
+
+  @override
+  String get key => 'held:$path';
+
+  @override
+  Future<Uint8List> read() async {
+    if (path.endsWith('/Box.glb')) await _held.future;
+    return FileAssetSource(path).read();
+  }
+
+  @override
+  AssetUriResolver get resolveUri => FileAssetSource(path).resolveUri;
 }

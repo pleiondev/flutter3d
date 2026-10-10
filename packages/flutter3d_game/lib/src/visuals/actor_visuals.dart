@@ -12,6 +12,7 @@ import 'actor_appearance.dart';
 import 'actor_corpses.dart';
 import 'actor_graphs.dart';
 import 'outline_marks.dart';
+import 'scene_turns.dart';
 
 export 'actor_appearance.dart';
 export 'actor_corpses.dart';
@@ -323,9 +324,29 @@ final class ActorVisuals {
   }
 
   /// Swaps an actor's capsule for its model once the file has been read.
+  ///
+  /// **In the order the actors were added, not the order their files
+  /// arrive in** — see [takeSceneTurn]. Two actors drawn from two files
+  /// were dressed in whichever order their isolates finished, and the
+  /// scene's order, and the order of [_nodes], changed from run to run with
+  /// it.
   Future<void> _dress(Actor actor, String path) async {
     final generation = _generation;
-    final asset = await _models.putIfAbsent(path, () => _load(path));
+    final loading = _models.putIfAbsent(path, () => _load(path));
+    final (:previous, :turn) = takeSceneTurn(scene);
+    try {
+      final asset = await loading;
+      await previous;
+      _wear(actor, asset, generation);
+    } finally {
+      turn.complete();
+    }
+  }
+
+  /// [actor]'s capsule swapped for an instance of [asset], unless it did not
+  /// load, the actor is gone or the level [generation] it was asked for is
+  /// over.
+  void _wear(Actor actor, ModelAsset? asset, int generation) {
     // Dead by the time it arrived, or the level changed underneath it. Both
     // happen: a runner can be shot before its own model finishes loading.
     //

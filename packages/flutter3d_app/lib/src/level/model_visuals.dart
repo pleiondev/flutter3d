@@ -3,6 +3,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../diagnostics/issues.dart';
+import 'scene_turns.dart';
 
 /// `edu-07b`: the path `edu-07a`'s own doc comment names as the one `prop`
 /// does not close — a real glTF/`.f3d` asset, loaded the way every other
@@ -69,6 +70,11 @@ final class ModelVisuals {
   /// position the moment the level opens, so the model has to already be in
   /// the scene by the time [LevelReady]/[LessonReady] is emitted, not two
   /// frames later.
+  ///
+  /// **Into the scene in the order [add] was called, not the order the files
+  /// arrive in** — see [takeSceneTurn]. A caller that started several adds
+  /// and waited for them together had them go in in whichever order their
+  /// isolates finished.
   Future<SceneNode?> add(EntityDef entity) async {
     if (entity.type != entityType) return null;
 
@@ -78,6 +84,19 @@ final class ModelVisuals {
       return null;
     }
 
+    final (:previous, :turn) = takeSceneTurn(scene);
+    try {
+      return await _addInTurn(entity, path, previous);
+    } finally {
+      turn.complete();
+    }
+  }
+
+  Future<SceneNode?> _addInTurn(
+    EntityDef entity,
+    String path,
+    Future<void> previous,
+  ) async {
     final generation = _generation;
     final ModelAsset asset;
     try {
@@ -98,6 +117,7 @@ final class ModelVisuals {
       );
       return null;
     }
+    await previous;
     // [dispose] ran while the file was being read: the upload is released
     // here, since no list [dispose] walks will ever hold it, and nothing goes
     // into a scene nobody draws any more.
