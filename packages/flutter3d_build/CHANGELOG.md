@@ -6,8 +6,9 @@
   through the format's chain (a level through its reader, which turns old
   overrides into id paths) and writes it in place, reporting
   `file: format vN → vM` and what it did not carry over: a format owned by
-  a Flutter package, a version newer than the build, a version-1 input
-  tape. `--dry-run` writes nothing; `--backup` keeps `<file>.v<N>.bak`.
+  a Flutter package, a version newer than the build, a run or an input
+  tape, which the engine writes at the lowest version that holds it so
+  older builds still play it. `--dry-run` writes nothing; `--backup` keeps `<file>.v<N>.bak`.
   `doctor`, run in a project, names the files that are behind.
 - **A converted document reads only inside its own folder.** A glTF buffer
   or image, an OBJ `mtllib`, a USD reference or texture, a Godot `res://`

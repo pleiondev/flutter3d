@@ -187,7 +187,18 @@ _readerLifts = <String, Map<String, Object?> Function(Map<String, Object?>)>{
 
 /// Formats the engine still writes below their newest version on purpose:
 /// the version under which a file stays, and why.
+///
+/// A run and a tape are written at the lowest version that says what they
+/// hold, so a build from before a bump still plays every one it can play
+/// correctly. Lifting one would only make those builds refuse it.
 const Map<String, (int, String)> _keptBelow = <String, (int, String)>{
+  'f3d.run': (
+    5,
+    'a run is written at the lowest version that holds what it records '
+        '(5 only for change stamps or external inputs), so an older build '
+        'still plays it; this build reads it and would write the same '
+        'version',
+  ),
   'f3d.inputTape': (
     2,
     'a version-1 tape is still what the engine writes for a tape with no '

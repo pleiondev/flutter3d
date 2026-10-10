@@ -28,7 +28,7 @@
 /// in one run, read as one table (`MigrationTable.merge`).
 ///
 /// `--data` does something else: it lifts the project's data files (levels,
-/// runs, effects, data plugins…) to the version this build writes, in
+/// effects, data plugins, captures…) to the version this build writes, in
 /// place, and reports `file: vN → vM` for each (`lib/src/migrate/data.dart`).
 ///
 /// Options:

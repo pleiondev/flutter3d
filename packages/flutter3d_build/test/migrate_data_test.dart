@@ -161,7 +161,11 @@ void main() {
         reason: '$path is not in the report:\n$text',
       );
     }
-    expect(kept, <String>{'data/flutter3d_sim/input.tape.json'});
+    // A run and a tape are written at the lowest version that holds them.
+    expect(kept, <String>{
+      'data/flutter3d_sim/input.tape.json',
+      'data/flutter3d_sim/run.f3drun',
+    });
   });
 
   test('a lifted document reads as the old one did', () {
