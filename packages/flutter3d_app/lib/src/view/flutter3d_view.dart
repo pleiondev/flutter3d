@@ -429,6 +429,11 @@ class _Flutter3dViewState extends State<Flutter3dView>
   /// warm-up once.
   bool _laidOut = false;
 
+  /// The warm-up's pending yield between two slices, while it runs: what
+  /// [dispose] cancels so no slice runs on a renderer the view has let go.
+  Timer? _warmUpYield;
+  bool _warmUpStopped = false;
+
   /// What the renderer answered for the last frame drawn, for
   /// [FrameInfo.result].
   FrameResult? _drawn;
@@ -601,27 +606,48 @@ class _Flutter3dViewState extends State<Flutter3dView>
   void _warmUp(Flutter3dEngine engine, int width, int height) {
     if (!widget.view.warmUp) return;
     final views = widget.view.views ?? <RenderView>[engine.view];
+    // The slices yield through a timer; run in a zone that keeps the one
+    // pending, so a view that goes mid-way stops the warm-up there rather
+    // than letting its next slice draw with a disposed renderer (and leave
+    // a timer behind it).
+    final yielding = ZoneSpecification(
+      createTimer:
+          (
+            Zone self,
+            ZoneDelegate parent,
+            Zone zone,
+            Duration duration,
+            void Function() callback,
+          ) {
+            if (_warmUpStopped) return _StoppedTimer();
+            return _warmUpYield = parent.createTimer(zone, duration, () {
+              _warmUpYield = null;
+              callback();
+            });
+          },
+    );
     unawaited(
-      engine.renderer
-          .warmUpInSlices(
-            width: width,
-            height: height,
-            scene: engine.scene,
-            views: views,
-            settings: widget.view.settings,
-            onProgress: (double done) {
-              if (mounted) widget.view.onWarmUpProgress?.call(done);
-            },
-          )
-          .then(
-            (_) => engine.log.debug('warm-up done', source: _source),
-            onError: (Object error, StackTrace stack) => engine.log.warning(
-              'the warm-up stopped; the rest links on first draw',
-              source: _source,
-              error: error,
-              stackTrace: stack,
-            ),
-          ),
+      runZoned(
+        () => engine.renderer.warmUpInSlices(
+          width: width,
+          height: height,
+          scene: engine.scene,
+          views: views,
+          settings: widget.view.settings,
+          onProgress: (double done) {
+            if (mounted) widget.view.onWarmUpProgress?.call(done);
+          },
+        ),
+        zoneSpecification: yielding,
+      ).then(
+        (_) => engine.log.debug('warm-up done', source: _source),
+        onError: (Object error, StackTrace stack) => engine.log.warning(
+          'the warm-up stopped; the rest links on first draw',
+          source: _source,
+          error: error,
+          stackTrace: stack,
+        ),
+      ),
     );
   }
 
@@ -824,6 +850,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
 
   @override
   void dispose() {
+    _warmUpStopped = true;
+    _warmUpYield?.cancel();
+    _warmUpYield = null;
     unawaited(_losses?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.dispose();
@@ -989,4 +1018,17 @@ final class _Follower {
 
   Registration onScene;
   int holders = 0;
+}
+
+/// What the warm-up's zone hands out once the view has gone: a timer that
+/// never fires, so the slice after it never runs.
+final class _StoppedTimer implements Timer {
+  @override
+  void cancel() {}
+
+  @override
+  bool get isActive => false;
+
+  @override
+  int get tick => 0;
 }
