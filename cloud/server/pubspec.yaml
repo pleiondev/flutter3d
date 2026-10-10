@@ -167,6 +167,12 @@ dependency_overrides:
     path: ../../packages/flutter3d_editor_core
   flutter3d_level_scene:
     path: ../../packages/flutter3d_level_scene
+  # Whose voxel worlds and plugin documents `flutter3d_build`'s
+  # `migrate --data` lifts.
+  flutter3d_voxel:
+    path: ../../packages/flutter3d_voxel
+  flutter3d_plugin_runtime:
+    path: ../../packages/flutter3d_plugin_runtime
   # The MCP kit `flutter3d_build`'s plugin author server stands on, which
   # is a library of `flutter3d_mcp` since 1.0.0-rc.1, and what that package
   # reaches besides: the editors' servers live there too.

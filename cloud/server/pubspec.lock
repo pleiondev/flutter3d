@@ -352,6 +352,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0-rc.1"
+  flutter3d_plugin_runtime:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_plugin_runtime"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
   flutter3d_shaders:
     dependency: "direct overridden"
     description:
@@ -363,6 +370,13 @@ packages:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_sim"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_voxel:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_voxel"
       relative: true
     source: path
     version: "1.0.0-rc.1"
