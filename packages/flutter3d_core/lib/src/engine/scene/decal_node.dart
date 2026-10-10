@@ -3,6 +3,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
+import '../../formats/lighting_model.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 
@@ -35,6 +36,7 @@ final class DecalNode extends SceneNode {
     this.angleLimit = 1.3,
     this.angleFade = 0.2,
     this.depthFade = 0.1,
+    this.lighting,
     super.name,
   }) : region = region ?? Vector4(0.0, 0.0, 1.0, 1.0),
        assert(angleLimit >= 0.0, 'an angle limit is an angle'),
@@ -78,6 +80,21 @@ final class DecalNode extends SceneNode {
   /// decal fades out over, so geometry that only just enters the box is not
   /// painted with a hard edge.
   double depthFade;
+
+  /// The stage this decal is painted with, or null for the engine's own
+  /// (`Decal`) — D22: a decal material of a plugin's own.
+  ///
+  /// **Its [LightingModel.shaderName] names a full-screen fragment stage
+  /// with the engine's decal interface**: the `DecalInfo` block, the
+  /// `decal_texture_0`…`decal_texture_3` pictures, `surface_texture` and
+  /// `albedo_texture`, as `decal.frag` declares them, and the same two
+  /// terms (`DecalInfo.params.w` nought for the factor multiplied in, one
+  /// for the light added). The pass cuts the decals into draws by stage, so
+  /// decals of one stage are painted together and the order between stages
+  /// is kept. The stage comes with `RendererSteps.addMaterials` like any
+  /// other; a renderer with no stage of that name fails the frame naming it,
+  /// as it does for a material's.
+  LightingModel? lighting;
 
   @override
   void onAttachedToScene(Scene scene) => scene.registerDecal(this);

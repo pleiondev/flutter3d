@@ -6,7 +6,24 @@
 /// wants; a [ShadowTechnique] says what the renderer does about it.
 library;
 
+import '../scene/camera_node.dart';
+import 'render_node.dart';
 import 'shadow_settings.dart';
+
+/// What a [ShadowTechnique] is told when the frame asks it for a producer
+/// of its own (D22): one object that can gain members — the cascades the
+/// engine fitted, the atlas rows a cube light holds — rather than a list of
+/// parameters that grows.
+final class ShadowProducerContext {
+  const ShadowProducerContext({required this.settings, this.camera});
+
+  /// The frame's shadow settings.
+  final ShadowSettings settings;
+
+  /// The camera the cascades are split along — the first view's — or null
+  /// for a frame with none.
+  final CameraNode? camera;
+}
 
 /// The lookup the lit draws make into the directional map, and its
 /// parameters.
@@ -156,8 +173,9 @@ final class ShadowPrefilter {
 /// slot the renderer binds for every lit draw; it is the one path that runs
 /// a different lookup today, and it is a shader, not a technique.
 ///
-/// The cube atlas of point and spot lights is not drawn through this; its
-/// own soft path is `ShadowSettings.pointLightRadius`.
+/// The cube atlas of point and spot lights is filtered by its own soft
+/// path, `ShadowSettings.pointLightRadius`; a technique may draw it through
+/// [cubeAtlasProducer].
 ///
 /// **Extendable outside this package, and stays so through 1.x**: a member
 /// added later arrives with a default, so a technique written against 1.0
@@ -183,6 +201,31 @@ abstract base class ShadowTechnique {
   /// How many cascades the map is split into under [settings]; the renderer
   /// clamps it to one to three. `ShadowSettings.cascades` by default.
   int cascadesFor(ShadowSettings settings) => settings.cascades;
+
+  /// A node that draws the directional map — writes
+  /// `FrameResourceIds.shadowMap` — in place of the engine's `directional
+  /// shadows`, or null for the engine's own (D22).
+  ///
+  /// **The seam for a shadow of one's own making**: casters drawn another
+  /// way (moments written directly, a ray-traced mask, a baked map read
+  /// back), into the atlas the engine laid out and with the light's
+  /// matrices the engine fitted, which the lit stages read as they always
+  /// do. The node is placed where the engine's stands and declares
+  /// `shadowMap` among its writes. Null by default, which is every built-in
+  /// technique.
+  ///
+  /// The renderer asks this once the shadow pass hands a producer the
+  /// cascades it fitted; until then a technique's producer is not drawn
+  /// (`docs/CONTRACTS.md`, "The shader ABI", says where that stands).
+  RenderNode? shadowMapProducer(ShadowProducerContext context) => null;
+
+  /// A node that maintains the cube atlas of point and spot lights — keeps
+  /// `FrameResourceIds.cubeShadow` — in place of the engine's `point
+  /// shadows`, or null for the engine's own (D22). The atlas's layout, a
+  /// row of six faces per light in the slot the engine assigned, is the
+  /// contract the lit stages read; see [shadowMapProducer] for when the
+  /// renderer asks.
+  RenderNode? cubeAtlasProducer(ShadowProducerContext context) => null;
 
   /// [ShadowFilter.pcf]'s: a 3×3 box.
   static const ShadowTechnique pcf = _PcfTechnique();

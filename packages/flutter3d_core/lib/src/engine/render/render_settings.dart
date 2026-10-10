@@ -947,12 +947,45 @@ final class MotionBlurSettings {
 /// over it rather than painted. Those are costs a caller turns on, the way
 /// they turn on every other effect that reads the buffers.
 final class DecalSettings {
-  const DecalSettings({this.enabled = false});
+  const DecalSettings({
+    this.enabled = false,
+    this.decalsPerDraw = 16,
+    this.picturesPerDraw = 4,
+  });
 
   final bool enabled;
 
-  DecalSettings copyWith({bool? enabled}) =>
-      DecalSettings(enabled: enabled ?? this.enabled);
+  /// How many decals one draw paints, at most — every one the stage holds
+  /// by default: the pass cuts the scene's decals into draws this size
+  /// (D22). Clamped to one and
+  /// [maxDecalsPerDraw]. Fewer is more draws and an exact order across more
+  /// of them (see `renderer_decal_pass.dart` for why the order across two
+  /// draws is approximate).
+  final int decalsPerDraw;
+
+  /// How many pictures one draw samples, at most; a decal whose picture is
+  /// not among them starts the next draw. Clamped to one and
+  /// [maxPicturesPerDraw].
+  final int picturesPerDraw;
+
+  /// What the decal stage's `DecalInfo` block holds a draw of — the
+  /// engine's `Decal` and any stage of a plugin's own with its interface:
+  /// sixteen decals. A getter, as every limit of the shader ABI is, so a
+  /// later minor may raise it.
+  static int get maxDecalsPerDraw => 16;
+
+  /// The decal stage's picture slots, `decal_texture_0` to `_3`.
+  static int get maxPicturesPerDraw => 4;
+
+  DecalSettings copyWith({
+    bool? enabled,
+    int? decalsPerDraw,
+    int? picturesPerDraw,
+  }) => DecalSettings(
+    enabled: enabled ?? this.enabled,
+    decalsPerDraw: decalsPerDraw ?? this.decalsPerDraw,
+    picturesPerDraw: picturesPerDraw ?? this.picturesPerDraw,
+  );
 }
 
 /// `P4`'s planar reflections: every visible `PlanarReflectorNode` gets the

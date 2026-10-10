@@ -63,6 +63,7 @@ import 'frame_view.dart';
 import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
+import 'light_types.dart';
 import 'material.dart';
 import 'memory_report.dart';
 import 'mirror_view.dart';
@@ -328,6 +329,11 @@ final class Renderer with RenderServices {
   /// [renderSteps]; a material file read for this renderer is read against
   /// it (`readFmat(bytes, lightingModels: renderer.lightingModels)`).
   LightingModels get lightingModels => renderSteps._store.lightingModels;
+
+  /// The light types of plugins' own this renderer packs, each with its hook
+  /// and code (D22). A plugin reaches it as `host.registry<LightTypes>()`,
+  /// through [renderSteps].
+  LightTypes get lightTypes => renderSteps._store.lightTypes;
 
   final ShaderHandle _vertexShader;
 
@@ -2165,8 +2171,19 @@ final class Renderer with RenderServices {
       .._listenForGpuTimings();
   }
 
-  /// Hands [renderSteps] this renderer, for the stages a plugin adds.
-  void _attachSteps() => renderSteps._store.renderer = this;
+  /// Hands [renderSteps] this renderer, for the stages a plugin adds, and
+  /// every light buffer the light types plugins register (D22).
+  void _attachSteps() {
+    renderSteps._store.renderer = this;
+    for (final buffer in <LightBuffer>[
+      _frameLights,
+      _passLights,
+      _drawLights,
+      _contributorLights._draw,
+    ]) {
+      buffer.lightTypes = lightTypes;
+    }
+  }
 
   /// What the GPU spent in each graph node's passes, from the last frame a
   /// device reported on — `H2`. A frame or two behind the one being drawn,
@@ -4402,7 +4419,9 @@ final class Renderer with RenderServices {
     // This plan's own lights, gathered the way a frame gathers them — a
     // default light included, because a scene with none is lit by one and a
     // plan that said otherwise would be planning a different picture.
-    final planLights = LightBuffer()..gather(scene.lights);
+    final planLights = LightBuffer()
+      ..lightTypes = lightTypes
+      ..gather(scene.lights);
     if (planLights.count == 0 && scene.defaultLightWhenUnlit) {
       planLights.useDefaultLight();
     }

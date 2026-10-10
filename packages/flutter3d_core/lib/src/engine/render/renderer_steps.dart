@@ -458,10 +458,11 @@ final class RendererSteps extends RenderStepRegistry {
   /// The registries that come with this one, so a plugin host handed
   /// `renderer.renderSteps` finds them too: the renderer's
   /// [LightingModels], the one entrance a plugin's lighting model comes in
-  /// by (`host.registry<LightingModels>()`).
+  /// by (`host.registry<LightingModels>()`), and its [LightTypes].
   @override
   Iterable<PluginRegistry> get companions => <PluginRegistry>[
     _store.lightingModels,
+    _store.lightTypes,
   ];
 
   /// [settings] without the [withdrawn] steps — [settings] itself, the same
@@ -485,6 +486,7 @@ final class _StepStore {
   final List<SettingsSlot<Object>> settings = <SettingsSlot<Object>>[];
   final List<_AddedAnchor> anchors = <_AddedAnchor>[];
   final LightingModels lightingModels = LightingModels();
+  final LightTypes lightTypes = LightTypes();
   final ContributorRegistry contributors = ContributorRegistry();
   int sequence = 0;
 

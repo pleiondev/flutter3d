@@ -104,6 +104,7 @@ export 'src/engine/render/frame_view.dart';
 export 'src/engine/render/frame_work_budget.dart';
 export 'src/engine/render/fullscreen_effect.dart';
 export 'src/engine/render/key_sort.dart';
+export 'src/engine/render/light_types.dart';
 export 'src/engine/render/lighting_model_addon.dart';
 export 'src/engine/render/material.dart' hide RenderMaterialInternals;
 export 'src/engine/render/material_parameters.dart';

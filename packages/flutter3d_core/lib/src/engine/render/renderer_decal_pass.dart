@@ -19,13 +19,24 @@
 /// fifth picture, are where that starts.
 part of 'renderer.dart';
 
-/// One draw's decals and the pictures they read.
+/// One draw's decals and the pictures they read, through one stage.
 final class _DecalBatch {
-  /// Decals per draw, as `kMaxDecals` in `decal.frag` holds them.
-  static const int maxDecals = 16;
+  _DecalBatch(this.stage, {required this.maxDecals, required this.maxSlots});
 
   /// Pictures per draw, the stage's four `decal_texture_` slots.
-  static const int maxSlots = 4;
+  static int get slotCount => DecalSettings.maxPicturesPerDraw;
+
+  /// The stage the draw paints with: a decal's own, or null for the
+  /// engine's `Decal`.
+  final LightingModel? stage;
+
+  /// Decals per draw, as `DecalSettings.decalsPerDraw` asks, within what
+  /// `kMaxDecals` in `decal.frag` holds.
+  final int maxDecals;
+
+  /// Pictures per draw, as `DecalSettings.picturesPerDraw` asks, within the
+  /// stage's [slotCount].
+  final int maxSlots;
 
   final List<DecalNode> decals = <DecalNode>[];
   final List<TextureHandle> slots = <TextureHandle>[];
@@ -40,6 +51,7 @@ final class _DecalBatch {
   /// free slot for it.
   bool admits(DecalNode decal) {
     if (decals.length >= maxDecals) return false;
+    if (!identical(decal.lighting, stage)) return false;
     final texture = decal.texture;
     return texture == null ||
         slots.contains(texture) ||
@@ -100,6 +112,7 @@ extension _DecalPass on Renderer {
     required List<DecalNode> decals,
     required List<RenderView> views,
     required FramePassState passState,
+    DecalSettings settings = const DecalSettings(),
   }) {
     final visible = _decalsInOrder(decals);
     if (visible.isEmpty) return;
@@ -115,27 +128,44 @@ extension _DecalPass on Renderer {
       ),
     );
     pass
-      ..bindPipeline(
-        _fullscreenPipelines[_decalShader] ??= device.createPipeline(
-          _fullscreenVertexShader,
-          _decalShader,
-        ),
-      )
       ..bindVertexBuffer(_fullscreenTriangle, 3)
-      ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
-      ..bindTexture(
-        _decalShader,
-        'surface_texture',
-        surface,
-        sampler: SamplerDescriptor.nearestClamp,
-      )
-      ..bindTexture(
-        _decalShader,
-        'albedo_texture',
-        albedo,
-        sampler: SamplerDescriptor.nearestClamp,
-      );
+      ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
     passState.invalidatePipeline();
+    // The stage bound last, so a run of draws through one stage binds its
+    // pipeline and its two buffers once.
+    ShaderHandle? bound;
+    void useStage(ShaderHandle stage) {
+      if (identical(stage, bound)) return;
+      bound = stage;
+      pass
+        ..bindPipeline(
+          _fullscreenPipelines[stage] ??= device.createPipeline(
+            _fullscreenVertexShader,
+            stage,
+          ),
+        )
+        ..bindTexture(
+          stage,
+          'surface_texture',
+          surface,
+          sampler: SamplerDescriptor.nearestClamp,
+        )
+        ..bindTexture(
+          stage,
+          'albedo_texture',
+          albedo,
+          sampler: SamplerDescriptor.nearestClamp,
+        );
+    }
+
+    final perDraw = settings.decalsPerDraw.clamp(
+      1,
+      DecalSettings.maxDecalsPerDraw,
+    );
+    final pictures = settings.picturesPerDraw.clamp(
+      1,
+      DecalSettings.maxPicturesPerDraw,
+    );
 
     final info = _decalInfo;
     info.params
@@ -175,11 +205,22 @@ extension _DecalPass on Renderer {
         ..[2] = rect.width / width
         ..[3] = rect.height / height;
 
-      for (final batch in _decalBatches(visible, viewProjection, rect)) {
+      for (final batch in _decalBatches(
+        visible,
+        viewProjection,
+        rect,
+        perDraw: perDraw,
+        pictures: pictures,
+      )) {
+        final stage = switch (batch.stage) {
+          null => _decalShader,
+          final model => _fragmentShaderFor(model),
+        };
+        useStage(stage);
         _fillDecalBatch(batch);
-        for (var i = 0; i < _DecalBatch.maxSlots; i++) {
+        for (var i = 0; i < _DecalBatch.slotCount; i++) {
           pass.bindTexture(
-            _decalShader,
+            stage,
             'decal_texture_$i',
             i < batch.slots.length ? batch.slots[i] : fallbackAlbedo,
             sampler: _pictureSampler,
@@ -205,7 +246,7 @@ extension _DecalPass on Renderer {
                 blend: term == 0.0 ? _multiply : _add,
               ),
             )
-            ..bindBlock(_decalShader, info)
+            ..bindBlock(stage, info)
             ..draw();
           _frameCounters?.drawCalls++;
         }
@@ -246,17 +287,28 @@ extension _DecalPass on Renderer {
 
   /// [visible]'s decals cut into draws, leaving out every one whose box the
   /// view does not see.
+  ///
+  /// A draw holds [perDraw] decals and [pictures] pictures at most, all
+  /// painted through one stage: a decal of another stage starts the next.
   List<_DecalBatch> _decalBatches(
     List<DecalNode> visible,
     vm.Matrix4 viewProjection,
-    ScreenRect view,
-  ) {
+    ScreenRect view, {
+    required int perDraw,
+    required int pictures,
+  }) {
     final batches = <_DecalBatch>[];
     for (final decal in visible) {
       final covers = _decalCover(decal, viewProjection, view);
       if (covers == null) continue;
       if (batches.isEmpty || !batches.last.admits(decal)) {
-        batches.add(_DecalBatch());
+        batches.add(
+          _DecalBatch(
+            decal.lighting,
+            maxDecals: perDraw,
+            maxSlots: pictures,
+          ),
+        );
       }
       batches.last
         ..decals.add(decal)
@@ -324,7 +376,7 @@ extension _DecalPass on Renderer {
   void _fillDecalBatch(_DecalBatch batch) {
     final info = _decalInfo;
     info.params[0] = batch.decals.length.toDouble();
-    for (var i = 0; i < _DecalBatch.maxSlots; i++) {
+    for (var i = 0; i < _DecalBatch.slotCount; i++) {
       final texture = i < batch.slots.length ? batch.slots[i] : null;
       info.slots
         ..[i * 4] = (texture?.width ?? 1).toDouble()

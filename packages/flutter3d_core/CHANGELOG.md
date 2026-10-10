@@ -27,6 +27,18 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **Hooks in the light loop.** `LightTypeHook` packs the lights of a
+  `LightType.custom` of a plugin's own, registered with the renderer's
+  `LightTypes` (`host.registry<LightTypes>()`, `Renderer.lightTypes`): each
+  type gets a code from `LightTypes.firstPluginCode` up, written into the
+  row the lit stages read, and the hook fills the rest of the row through a
+  `LightPackContext`; a custom type with no hook is packed as its base. A
+  `DecalNode` may be painted through a stage of a plugin's own
+  (`DecalNode.lighting`), and `DecalSettings.decalsPerDraw` and
+  `picturesPerDraw` are the per-draw limits the pass cuts by, within
+  `maxDecalsPerDraw` and `maxPicturesPerDraw`. `ShadowTechnique` gains
+  `shadowMapProducer` and `cubeAtlasProducer`, with `ShadowProducerContext`,
+  the seams a technique of one's own draws the shadow maps through.
 - **A plugin's lit model binds blocks and textures of its own.** In a
   `f3dmat 2` surface, `uniform(Hair) vec3 tint = …;` is a member of a block
   of the material's own and `texture fur;` a texture of its own, bound as

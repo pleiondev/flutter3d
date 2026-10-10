@@ -1041,6 +1041,7 @@ final class _DecalNode extends RenderNode {
         decals: _scene.decals,
         views: _views,
         passState: frame.state,
+        settings: frame.settings.decals,
       );
     }
     resources.provide(FrameResourceIds.hdrColor, scene);
