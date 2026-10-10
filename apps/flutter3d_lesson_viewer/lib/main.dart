@@ -232,6 +232,12 @@ class LessonCubit extends Cubit<LessonState> {
         for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
       };
 
+      // The screen went while the level was loading: nobody will show these
+      // surfaces, and a closed cubit cannot be handed them.
+      if (isClosed) {
+        widgetSurfaces.dispose();
+        return;
+      }
       emit(
         LessonReady(
           loaded.scene..add(camera),
@@ -242,7 +248,7 @@ class LessonCubit extends Cubit<LessonState> {
         ),
       );
     } catch (error) {
-      emit(LessonFailed(error));
+      if (!isClosed) emit(LessonFailed(error));
     }
   }
 
@@ -263,6 +269,7 @@ class LessonScreen extends StatefulWidget {
 
 class _LessonScreenState extends State<LessonScreen>
     with SingleTickerProviderStateMixin {
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -281,8 +288,14 @@ class _LessonScreenState extends State<LessonScreen>
     final GraphicsDevice device;
     try {
       device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
+      if (!mounted) {
+        device.dispose();
+        return;
+      }
+      setState(() {
+        _device = device;
+        _renderer = Renderer.create(device: device);
+      });
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -292,6 +305,9 @@ class _LessonScreenState extends State<LessonScreen>
       camera: _camera,
       widgetRegistry: widgetRegistry(),
     );
+    // Gone while the lesson loaded: a ticker cannot be made for a disposed
+    // state.
+    if (!mounted) return;
     // `widgetSurfaces.tickAll()` redraws whichever `widget_surface` this
     // lesson named, only on the frames its own pipeline marks dirty
     // (`wg-00`'s own rule) — driven by a ticker rather than only by the step
@@ -303,10 +319,16 @@ class _LessonScreenState extends State<LessonScreen>
     })..start();
   }
 
+  /// The device and the renderer are this screen's: `SceneSurface` only
+  /// borrows them, so they are given back here — after `close`, which
+  /// disposes the lesson's widget surfaces before it awaits anything, since
+  /// those surfaces release their meshes and textures to this same device.
   @override
   void dispose() {
     _ticker?.dispose();
     unawaited(_lesson.close());
+    _renderer?.dispose();
+    _device?.dispose();
     super.dispose();
   }
 
