@@ -358,6 +358,7 @@ final class CharacterController {
   final Vector3 _stepVelocity = Vector3.zero();
   final Vector3 _scratchDelta = Vector3.zero();
   final Vector3 _probe = Vector3.zero();
+  final Vector3 _wall = Vector3.zero();
   final Vector3 _resizeAt = Vector3.zero();
   final Vector3 _up = Vector3(0.0, 1.0, 0.0);
   final List<Collider> _clearance = <Collider>[];
@@ -729,14 +730,34 @@ final class CharacterController {
         ..y += delta.y * travel + _hit.normal.y * _skin
         ..z += delta.z * travel + _hit.normal.z * _skin;
 
+      // **A face too steep to stand on is a wall to anything not falling.**
+      // Stripped along its own normal, a walk into a sixty-degree face kept
+      // the part of the push that runs up it: 1.8 m/s of rise from 6 m/s of
+      // walk, and every airborne push after it lifted the body by more than
+      // 9.81 took away, so it coasted a metre up a face it cannot stand on.
+      // Moving sideways or up, such a face is met as the vertical wall its
+      // horizontal half is; falling onto it, the body slides down its slope.
+      final steep =
+          _hit.normal.y > 0.0 &&
+          _hit.normal.y <= _walkableNormalY &&
+          delta.y >= 0.0;
+      if (steep) {
+        final across = math.sqrt(
+          _hit.normal.x * _hit.normal.x + _hit.normal.z * _hit.normal.z,
+        );
+        _wall.setValues(_hit.normal.x / across, 0.0, _hit.normal.z / across);
+      } else {
+        _wall.setFrom(_hit.normal);
+      }
+
       // Keep only the part of the remaining motion that runs along the surface.
       final remaining = 1.0 - travel;
       delta.scale(remaining);
-      final intoSurface = delta.dot(_hit.normal);
+      final intoSurface = delta.dot(_wall);
       if (intoSurface < 0.0) {
-        delta.x -= _hit.normal.x * intoSurface;
-        delta.y -= _hit.normal.y * intoSurface;
-        delta.z -= _hit.normal.z * intoSurface;
+        delta.x -= _wall.x * intoSurface;
+        delta.y -= _wall.y * intoSurface;
+        delta.z -= _wall.z * intoSurface;
       }
 
       // **A walkable face under the body is a slope being climbed, not a wall
@@ -750,11 +771,11 @@ final class CharacterController {
 
       // Speed into the surface is gone for good, or the player would keep
       // accelerating into a wall and shoot along it the moment it ended.
-      final speedIntoSurface = vel.dot(_hit.normal);
+      final speedIntoSurface = vel.dot(_wall);
       if (speedIntoSurface < 0.0) {
-        vel.x -= _hit.normal.x * speedIntoSurface;
-        vel.y -= _hit.normal.y * speedIntoSurface;
-        vel.z -= _hit.normal.z * speedIntoSurface;
+        vel.x -= _wall.x * speedIntoSurface;
+        vel.y -= _wall.y * speedIntoSurface;
+        vel.z -= _wall.z * speedIntoSurface;
       }
     }
 

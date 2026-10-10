@@ -799,10 +799,18 @@ static void staged_free(Staged *st) {
 }
 
 /* Reading, [count] zeroed items of [size] into *[block] — none for
- * nought; marks the stream bad when there is no memory. Writing, nothing. */
-static void make(Io *io, void **block, uint64_t count, size_t size) {
+ * nought; marks the stream bad when there is no memory, or when what is
+ * left of the section cannot hold [count] items of [least] bytes each, so
+ * a count is believed only as far as the bytes behind it go and a short
+ * snapshot never asks for gigabytes. [least] is nought for a block of a
+ * fixed size, its count already bounded. Writing, nothing. */
+static void make(Io *io, void **block, uint64_t count, size_t size, uint32_t least) {
   if (!io->reading || io->bad) return;
   if (count == 0) return;
+  if (count * least > (uint64_t)(io->end - io->at)) {
+    io->bad = 1;
+    return;
+  }
   const uint64_t bytes = count * (uint64_t)size;
   if (bytes / size != count || bytes > (uint64_t)SIZE_MAX) {
     io->bad = 1;
@@ -865,7 +873,7 @@ static void sec_bodies(Io *io, Staged *st) {
   io_u32(io, &st->s.used);
   io_u32(io, &st->s.live);
   io_u32(io, &st->s.free_head);
-  make(io, (void **)&st->slots, st->s.used, sizeof(F3dSlot));
+  make(io, (void **)&st->slots, st->s.used, sizeof(F3dSlot), 1);
   IO_LIST(io, st->s.used, st->slots, io_body);
 }
 
@@ -880,18 +888,28 @@ static void sec_fire(Io *io, Staged *st) {
 /* The compounds' parts' heat and fire. */
 static void sec_lumps(Io *io, Staged *st) {
   io_u32(io, &st->s.lump_count);
-  make(io, (void **)&st->lumps, st->s.lump_count, sizeof(F3dLump));
+  make(io, (void **)&st->lumps, st->s.lump_count, sizeof(F3dLump), 1);
   IO_LIST(io, st->s.lump_count, st->lumps, io_lump);
 }
 
+/* The wind grid: none, all three counts nought, or a grid of at least a
+ * sample each way whose reals the section holds. */
 static void sec_wind(Io *io, Staged *st) {
   F3dWorldState *s = &st->s;
   io_vec(io, &s->grid_origin);
   io_real(io, &s->grid_cell);
   for (int i = 0; i < 3; i++) io_u32(io, &s->grid_n[i]);
-  const uint64_t reals = (uint64_t)s->grid_n[0] * s->grid_n[1] * s->grid_n[2] * 3u;
+  const uint32_t *n = s->grid_n;
+  if (io->reading && (n[0] == 0 || n[1] == 0 || n[2] == 0) &&
+      (n[0] | n[1] | n[2]) != 0) {
+    io->bad = 1;
+  }
+  /* Two counts first, so the three never overflow what they are kept in. */
+  const uint64_t plane = (uint64_t)n[0] * n[1];
+  if (plane > UINT32_MAX) io->bad = 1;
+  const uint64_t reals = io->bad ? 0u : plane * n[2] * 3u;
   if (reals > UINT32_MAX) io->bad = 1;
-  make(io, (void **)&st->grid, reals, sizeof(f3d_real));
+  make(io, (void **)&st->grid, reals, sizeof(f3d_real), io->real_bytes);
   if (!io->bad) io_real_block(io, st->grid, reals);
 }
 
@@ -905,7 +923,7 @@ static void sec_events(Io *io, Staged *st) {
     s->events_head = 0;
     if (s->events_count > F3D_EVENT_CAPACITY) io->bad = 1;
     if (s->events_count > 0) {
-      make(io, (void **)&st->events, F3D_EVENT_CAPACITY, sizeof(F3dEventRecord));
+      make(io, (void **)&st->events, F3D_EVENT_CAPACITY, sizeof(F3dEventRecord), 0);
     }
   }
   List list;
@@ -922,7 +940,7 @@ static void sec_events(Io *io, Staged *st) {
  * began and ended, and the impulses it warm-starts from. */
 static void sec_contacts(Io *io, Staged *st) {
   io_u32(io, &st->s.manifold_count);
-  make(io, (void **)&st->manifolds, st->s.manifold_count, sizeof(F3dManifold));
+  make(io, (void **)&st->manifolds, st->s.manifold_count, sizeof(F3dManifold), 1);
   IO_LIST(io, st->s.manifold_count, st->manifolds, io_manifold);
 }
 
@@ -931,11 +949,11 @@ static void sec_hulls(Io *io, Staged *st) {
   io_u32(io, &s->hull_count);
   io_u32(io, &s->hull_vertex_count);
   io_u32(io, &s->hull_triangle_count);
-  make(io, (void **)&st->hulls, s->hull_count, sizeof(F3dHull));
+  make(io, (void **)&st->hulls, s->hull_count, sizeof(F3dHull), 1);
   make(io, (void **)&st->hull_vertices, (uint64_t)s->hull_vertex_count * 3u,
-       sizeof(f3d_real));
+       sizeof(f3d_real), io->real_bytes);
   make(io, (void **)&st->hull_triangles, (uint64_t)s->hull_triangle_count * 3u,
-       sizeof(uint32_t));
+       sizeof(uint32_t), 4);
   IO_LIST(io, s->hull_count, st->hulls, io_hull);
   if (io->bad) return;
   io_real_block(io, st->hull_vertices, (uint64_t)s->hull_vertex_count * 3u);
@@ -947,12 +965,12 @@ static void sec_meshes(Io *io, Staged *st) {
   io_u32(io, &s->mesh_count);
   io_u32(io, &s->mesh_vertex_count);
   io_u32(io, &s->mesh_triangle_count);
-  make(io, (void **)&st->meshes, s->mesh_count, sizeof(F3dMesh));
+  make(io, (void **)&st->meshes, s->mesh_count, sizeof(F3dMesh), 1);
   make(io, (void **)&st->mesh_vertices, (uint64_t)s->mesh_vertex_count * 3u,
-       sizeof(f3d_real));
+       sizeof(f3d_real), io->real_bytes);
   make(io, (void **)&st->mesh_triangles, (uint64_t)s->mesh_triangle_count * 3u,
-       sizeof(uint32_t));
-  make(io, (void **)&st->mesh_edges, s->mesh_triangle_count, 1);
+       sizeof(uint32_t), 4);
+  make(io, (void **)&st->mesh_edges, s->mesh_triangle_count, 1, 1);
   IO_LIST(io, s->mesh_count, st->meshes, io_mesh);
   if (io->bad) return;
   io_real_block(io, st->mesh_vertices, (uint64_t)s->mesh_vertex_count * 3u);
@@ -966,7 +984,7 @@ static void sec_joints(Io *io, Staged *st) {
   io_u32(io, &s->joint_used);
   io_u32(io, &s->joint_live);
   io_u32(io, &s->joint_free_head);
-  make(io, (void **)&st->joints, s->joint_used, sizeof(F3dJointSlot));
+  make(io, (void **)&st->joints, s->joint_used, sizeof(F3dJointSlot), 1);
   IO_LIST(io, s->joint_used, st->joints, io_joint);
 }
 
@@ -974,9 +992,9 @@ static void sec_compounds(Io *io, Staged *st) {
   F3dWorldState *s = &st->s;
   io_u32(io, &s->compound_count);
   io_u32(io, &s->compound_part_count);
-  make(io, (void **)&st->compounds, s->compound_count, sizeof(F3dCompound));
+  make(io, (void **)&st->compounds, s->compound_count, sizeof(F3dCompound), 1);
   make(io, (void **)&st->compound_parts, s->compound_part_count,
-       sizeof(F3dCompoundPart));
+       sizeof(F3dCompoundPart), 1);
   IO_LIST(io, s->compound_count, st->compounds, io_compound);
   IO_LIST(io, s->compound_part_count, st->compound_parts, io_part);
 }
@@ -984,7 +1002,7 @@ static void sec_compounds(Io *io, Staged *st) {
 /* The vehicles, their wheels as the last step left them. */
 static void sec_vehicles(Io *io, Staged *st) {
   io_u32(io, &st->s.vehicle_count);
-  make(io, (void **)&st->vehicles, st->s.vehicle_count, sizeof(F3dVehicleSlot));
+  make(io, (void **)&st->vehicles, st->s.vehicle_count, sizeof(F3dVehicleSlot), 1);
   IO_LIST(io, st->s.vehicle_count, st->vehicles, io_vehicle);
 }
 
@@ -993,7 +1011,7 @@ static void sec_multibodies(Io *io, Staged *st) {
   io_u32(io, &st->s.multibody_count);
   io_u32(io, &st->s.multibody_links);
   make(io, (void **)&st->multibodies, st->s.multibody_count,
-       sizeof(F3dMultibodySlot));
+       sizeof(F3dMultibodySlot), 1);
   IO_LIST(io, st->s.multibody_count, st->multibodies, io_multibody);
 }
 
@@ -1001,8 +1019,9 @@ static void sec_multibodies(Io *io, Staged *st) {
 static void sec_waters(Io *io, Staged *st) {
   io_u32(io, &st->s.shallow_count);
   io_u32(io, &st->s.shallow_reals);
-  make(io, (void **)&st->shallows, st->s.shallow_count, sizeof(F3dShallowSlot));
-  make(io, (void **)&st->shallow_data, st->s.shallow_reals, sizeof(f3d_real));
+  make(io, (void **)&st->shallows, st->s.shallow_count, sizeof(F3dShallowSlot), 1);
+  make(io, (void **)&st->shallow_data, st->s.shallow_reals, sizeof(f3d_real),
+       io->real_bytes);
   IO_LIST(io, st->s.shallow_count, st->shallows, io_water);
   if (!io->bad) io_real_block(io, st->shallow_data, st->s.shallow_reals);
 }
@@ -1013,7 +1032,7 @@ static void sec_spray(Io *io, Staged *st) {
   io_u32(io, &st->s.spray_count);
   if (io->reading && st->s.spray_count > F3D_SHALLOW_MOST_SPRAY) io->bad = 1;
   if (st->s.spray_count > 0) {
-    make(io, (void **)&st->spray, F3D_SHALLOW_MOST_SPRAY, sizeof(F3dSpray));
+    make(io, (void **)&st->spray, F3D_SHALLOW_MOST_SPRAY, sizeof(F3dSpray), 0);
   }
   IO_LIST(io, st->s.spray_count, st->spray, io_spray);
 }
@@ -1022,7 +1041,7 @@ static void sec_bubbles(Io *io, Staged *st) {
   io_u32(io, &st->s.bubble_count);
   if (io->reading && st->s.bubble_count > F3D_SHALLOW_MOST_BUBBLES) io->bad = 1;
   if (st->s.bubble_count > 0) {
-    make(io, (void **)&st->bubbles, F3D_SHALLOW_MOST_BUBBLES, sizeof(F3dBubbles));
+    make(io, (void **)&st->bubbles, F3D_SHALLOW_MOST_BUBBLES, sizeof(F3dBubbles), 0);
   }
   IO_LIST(io, st->s.bubble_count, st->bubbles, io_bubbles);
 }
@@ -1134,24 +1153,113 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   return needed;
 }
 
-/* Whether what was read hangs together: the arenas' marks inside them, and
- * every hull's, mesh's and compound's share inside the arrays it names. */
+/* Whether [body] names a slot of the arena [st] read: what a step indexes
+ * the slots with before it asks whether the body is still there. */
+static int names_slot(const Staged *st, F3dBody body) {
+  return (uint32_t)(body & 0xffffffffu) < st->s.used;
+}
+
+/* Whether [index], one past a place in a table of [count], is in it. */
+static int one_past_in(uint32_t index, uint32_t count) {
+  return index != 0 && index <= count;
+}
+
+/* Whether every triangle of [count] at [triangles] names three of the
+ * [vertices] it is given. */
+static int corners_in(const uint32_t *triangles, uint32_t count, uint32_t vertices) {
+  for (uint64_t k = 0; k < (uint64_t)count * 3u; k++) {
+    if (triangles[k] >= vertices) return 0;
+  }
+  return 1;
+}
+
+/* Whether a body of [shape] names, by [hull], a table entry the snapshot
+ * has: a hull, a mesh or a compound; any other shape names none. */
+static int shape_in(const Staged *st, uint8_t shape, uint32_t hull) {
+  const F3dWorldState *s = &st->s;
+  switch (shape) {
+    case F3D_SHAPE_POINT:
+    case F3D_SHAPE_SPHERE:
+    case F3D_SHAPE_BOX:
+    case F3D_SHAPE_CAPSULE:
+    case F3D_SHAPE_CYLINDER:
+    case F3D_SHAPE_CONE:
+      return 1;
+    case F3D_SHAPE_HULL:
+      return one_past_in(hull, s->hull_count);
+    case F3D_SHAPE_MESH:
+      return one_past_in(hull, s->mesh_count);
+    case F3D_SHAPE_COMPOUND:
+      return one_past_in(hull, s->compound_count);
+    default:
+      return 0;
+  }
+}
+
+/* The reals a water of [nx] × [nz] cells holds, as f3d_shallow.c lays
+ * them out. */
+static uint64_t water_reals(uint32_t nx, uint32_t nz) {
+  return 5u * (uint64_t)nx * nz + ((uint64_t)nx + 1u) * nz + (uint64_t)nx * (nz + 1u);
+}
+
+/* Whether what was read hangs together: the arenas' marks inside them;
+ * every hull's, mesh's, compound's and water's share inside the arrays it
+ * names; every index a step follows — a body's shape and lumps, a
+ * compound's part's hull, a triangle's corners, a contact's, a joint's, a
+ * vehicle's and a link's bodies, a link's parent and freedoms — inside
+ * what it indexes. A step reads all of these without asking again, so a
+ * snapshot that fails one is refused rather than read past an array. */
 static int consistent(const Staged *st) {
   const F3dWorldState *s = &st->s;
   if (s->live > s->used || s->free_head > s->used) return 0;
+  /* The free list runs through free slots only, and the live are as many
+   * as the arena says: what a caller sizes its buffers by. */
+  if (s->free_head != 0 && st->slots[s->free_head - 1u].live) return 0;
+  uint32_t live = 0;
   for (uint32_t i = 0; i < s->used; i++) {
-    if (st->slots[i].next_free > s->used) return 0;
+    const F3dSlot *b = &st->slots[i];
+    if (b->next_free > s->used) return 0;
+    if (!b->live) {
+      if (b->next_free != 0 && st->slots[b->next_free - 1u].live) return 0;
+      continue;
+    }
+    live++;
+    if (!shape_in(st, b->shape, b->hull)) return 0;
+    if (b->lumps != 0) {
+      /* A compound's parts' heat, one lump a part at most. */
+      if (b->shape != F3D_SHAPE_COMPOUND ||
+          (uint64_t)b->lumps - 1u + b->lump_count > s->lump_count ||
+          b->lump_count > st->compounds[b->hull - 1u].part_count) {
+        return 0;
+      }
+    }
+    if (b->liquid > s->shallow_count) return 0;
   }
+  if (live != s->live) return 0;
   if (s->joint_live > s->joint_used || s->joint_free_head > s->joint_used) {
     return 0;
   }
+  if (s->joint_free_head != 0 && st->joints[s->joint_free_head - 1u].live) return 0;
+  uint32_t joints_live = 0;
   for (uint32_t i = 0; i < s->joint_used; i++) {
-    if (st->joints[i].next_free > s->joint_used) return 0;
+    const F3dJointSlot *j = &st->joints[i];
+    if (j->next_free > s->joint_used) return 0;
+    if (!j->live) {
+      if (j->next_free != 0 && st->joints[j->next_free - 1u].live) return 0;
+      continue;
+    }
+    joints_live++;
+    if (!names_slot(st, j->a) || !names_slot(st, j->b)) return 0;
   }
+  if (joints_live != s->joint_live) return 0;
   for (uint32_t i = 0; i < s->hull_count; i++) {
     const F3dHull *h = &st->hulls[i];
     if ((uint64_t)h->first_vertex + h->vertex_count > s->hull_vertex_count ||
         (uint64_t)h->first_triangle + h->triangle_count > s->hull_triangle_count) {
+      return 0;
+    }
+    if (!corners_in(st->hull_triangles + (size_t)h->first_triangle * 3u,
+                    h->triangle_count, h->vertex_count)) {
       return 0;
     }
   }
@@ -1161,14 +1269,57 @@ static int consistent(const Staged *st) {
         (uint64_t)m->first_triangle + m->triangle_count > s->mesh_triangle_count) {
       return 0;
     }
+    if (!corners_in(st->mesh_triangles + (size_t)m->first_triangle * 3u,
+                    m->triangle_count, m->vertex_count)) {
+      return 0;
+    }
   }
   for (uint32_t i = 0; i < s->compound_count; i++) {
     const F3dCompound *c = &st->compounds[i];
     if ((uint64_t)c->first_part + c->part_count > s->compound_part_count) return 0;
   }
+  for (uint32_t i = 0; i < s->compound_part_count; i++) {
+    /* A part is one of the shapes f3d_world_create_compound takes: never a
+     * mesh or a compound, and a hull only as one the world holds. */
+    const F3dCompoundPart *p = &st->compound_parts[i];
+    if (p->kind > F3D_SHAPE_HULL) return 0;
+    if (p->kind == F3D_SHAPE_HULL && !one_past_in(p->hull, s->hull_count)) return 0;
+  }
+  for (uint32_t i = 0; i < s->manifold_count; i++) {
+    const F3dManifold *m = &st->manifolds[i];
+    if (!names_slot(st, m->a) || !names_slot(st, m->b)) return 0;
+  }
+  for (uint32_t i = 0; i < s->vehicle_count; i++) {
+    const F3dVehicleSlot *v = &st->vehicles[i];
+    if (v->live && !names_slot(st, v->chassis)) return 0;
+  }
+  /* The links beside the roots, as the world counts them: what the
+   * collision filter makes room for. */
+  uint64_t links = 0;
+  for (uint32_t i = 0; i < s->multibody_count; i++) {
+    const F3dMultibodySlot *m = &st->multibodies[i];
+    if (!m->live) continue;
+    links += m->link_count - (m->link_count > 0 ? 1u : 0u);
+    /* A root at least, and a floating one's six freedoms first. */
+    if (m->link_count == 0 || m->dof_count > F3D_MULTIBODY_MOST_DOFS ||
+        (m->floating && m->dof_count < 6u)) {
+      return 0;
+    }
+    for (uint32_t k = 0; k < m->link_count; k++) {
+      const F3dLink *l = &m->links[k];
+      /* Parents before children: the root's is its own. */
+      if (k > 0 && l->parent >= k) return 0;
+      if (l->dofs > 3u || (uint64_t)l->first_dof + l->dofs > m->dof_count) return 0;
+      if (!names_slot(st, l->body)) return 0;
+    }
+  }
+  if (links != s->multibody_links) return 0;
   for (uint32_t i = 0; i < s->shallow_count; i++) {
     const F3dShallowSlot *w = &st->shallows[i];
-    if (w->live && w->first > s->shallow_reals) return 0;
+    if (!w->live) continue;
+    /* As f3d_shallow_create makes them. */
+    if (w->nx == 0 || w->nz == 0 || w->nx > 4096u || w->nz > 4096u) return 0;
+    if ((uint64_t)w->first + water_reals(w->nx, w->nz) > s->shallow_reals) return 0;
   }
   return 1;
 }

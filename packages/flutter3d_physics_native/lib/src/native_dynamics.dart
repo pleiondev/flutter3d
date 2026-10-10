@@ -369,18 +369,34 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
   /// core's bodies are matched to them by where they stand, so a game puts
   /// its own back — as a simulation's `restore` does, its player and actors
   /// before its dynamics — and then this.
+  ///
+  /// A save whose core bytes are not base64 throws a [FormatException], and
+  /// one the core refuses an [ArgumentError], both before anything here or
+  /// in the world has changed.
   @override
   void restoreState(Object? saved) {
+    // Read before anything is put back, so a damaged save changes nothing.
+    final core = switch (saved) {
+      {'core': final String core} || final String core => base64Decode(core),
+      _ => null,
+    };
     // The world first: [restore] stands the level again, and a save made
-    // under another gravity is that gravity's from its first step.
-    if (saved case {'world': final Map<String, Object?> properties}) {
-      world.properties = WorldProperties.fromJson(properties);
+    // under another gravity is that gravity's from its first step. Put back
+    // as it was if the core then refuses the bytes.
+    final properties = world.properties;
+    if (saved case {'world': final Map<String, Object?> json}) {
+      world.properties = WorldProperties.fromJson(json);
     }
-    switch (saved) {
-      case {'core': final String core, 'standing': final List<Object?> list}:
-        restore(base64Decode(core), standing: list);
-      case final String core:
-        restore(base64Decode(core));
+    try {
+      switch (saved) {
+        case {'core': String(), 'standing': final List<Object?> list}:
+          restore(core!, standing: list);
+        case String():
+          restore(core!);
+      }
+    } on ArgumentError {
+      world.properties = properties;
+      rethrow;
     }
     // A save from before any field was added has none, and the fields here
     // start again from nothing, as they did then.

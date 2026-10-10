@@ -51,7 +51,8 @@ void main() {
       // A rubber fire is sootier than a wood fire: more of its heat leaves
       // as radiation, through a flame that absorbs more.
       final rubber = NativeMaterial.rubber();
-      expect(wood.flameTemperature, closeTo(1100.0, 1e-3));
+      // McCaffrey's mean continuous-flame gas, as f3d_heat.c cites it.
+      expect(wood.flameTemperature, closeTo(1090.15, 1e-3));
       expect(rubber.flameRadiant, greaterThan(wood.flameRadiant));
       expect(rubber.flameAbsorption, greaterThan(wood.flameAbsorption));
       // A flame no hotter than the material catches at is refused.

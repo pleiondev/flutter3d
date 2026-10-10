@@ -9,16 +9,21 @@ const double _dt = 1.0 / 60.0;
 /// Half the player: 0.7 m across, 1.8 m tall.
 final Vector3 _playerHalf = Vector3(0.35, 0.9, 0.35);
 
-/// A floor at y = 0 with walls around it.
-CollisionWorld _room({double size = 20.0, bool walls = true}) {
+/// A floor at y = 0 with walls [height] tall around it.
+CollisionWorld _room({
+  double size = 20.0,
+  bool walls = true,
+  double height = 4.0,
+}) {
   final world = CollisionWorld();
   world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(size, 1.0, size));
   if (walls) {
     final half = size / 2.0;
-    world.addBox(Vector3(half, 2.0, 0.0), Vector3(1.0, 4.0, size));
-    world.addBox(Vector3(-half, 2.0, 0.0), Vector3(1.0, 4.0, size));
-    world.addBox(Vector3(0.0, 2.0, half), Vector3(size, 4.0, 1.0));
-    world.addBox(Vector3(0.0, 2.0, -half), Vector3(size, 4.0, 1.0));
+    final mid = height / 2.0;
+    world.addBox(Vector3(half, mid, 0.0), Vector3(1.0, height, size));
+    world.addBox(Vector3(-half, mid, 0.0), Vector3(1.0, height, size));
+    world.addBox(Vector3(0.0, mid, half), Vector3(size, height, 1.0));
+    world.addBox(Vector3(0.0, mid, -half), Vector3(size, height, 1.0));
   }
   return world;
 }
@@ -622,16 +627,25 @@ void main() {
       final player = _player(world);
       _walk(player, 20);
 
+      // Every step, not the last one: the net of the floor's push up and the
+      // platform's down put the body in the middle of the gap by jumping
+      // across it, so it flipped between above the floor and half a metre
+      // into it, and the last step happened to be an "above" under 24 m/s².
+      // Mutation: drop the `moverOnly` give-back in `depenetrate`, so the
+      // platform's push alone may set the body into the floor — the lowest
+      // is -0.46.
+      var lowest = double.infinity;
       for (var i = 0; i < 200; i++) {
         ceiling.moveTo(ceiling.position + Vector3(0.0, -0.03, 0.0));
         player.step(_dt, wishDirection: Vector3.zero());
         world.update();
         world.clearKinematicDeltas();
+        lowest = math.min(lowest, player.position.y);
       }
 
       // Squashed against the floor, and above it. Being pushed through would
       // put the player under the level, which is unrecoverable.
-      expect(player.position.y, greaterThan(0.0));
+      expect(lowest, greaterThan(0.0));
     });
   });
 
@@ -838,8 +852,10 @@ void main() {
           tuning: const MovementSettings(floorSnapLength: 0.5),
         )..solidFilter = (SweptContact c) => c.other != refused;
 
+        // Two seconds: at the world's 9.81 the six metres down take until
+        // step 95, which at the 24 m/s² this was written under took 60.
         var stoodOnIt = 0;
-        for (var i = 0; i < 90; i++) {
+        for (var i = 0; i < 120; i++) {
           player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
           world.update();
           // Past the lip, and not yet down on the real floor.
@@ -956,7 +972,12 @@ void main() {
       // nobody did: the wedge that ejects, the corner that swallows, the seam
       // between two brushes that a sweep slips through. It is the single most
       // valuable test in this file.
-      final world = _room(size: 30.0);
+      // Walls nobody can get on top of: a body starts up to 6 m off the floor
+      // and a jump at the world's 9.81 rises 3.3 m. At 4 m, the height these
+      // were while characters fell at 24 m/s², seventeen runs stood on a
+      // wall and walked off its outside, which is over a wall and not
+      // through one.
+      final world = _room(size: 30.0, height: 12.0);
 
       // Pillars, steps and a low ceiling, to give the sweep awkward company.
       for (var i = 0; i < 12; i++) {

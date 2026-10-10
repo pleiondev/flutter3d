@@ -2,6 +2,8 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart'
     show referenceBodyMass;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotPart;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -18,8 +20,9 @@ import 'skeleton_ragdoll.dart';
 ///
 /// **Display, not simulation.** A game's step never asks where a body lies —
 /// the dead block nothing — so this steps on the frame, in fixed steps of its
-/// own, and is not in a save or a replay: a body is a pose, as a particle is
-/// a point.
+/// own, and its core is not in a save or a replay: a body is a pose, as a
+/// particle is a point. Which actors lie dead is, though ([snapshotPart]): a
+/// rewind to before a death takes the body away.
 ///
 /// A rig the ragdoll profile does not name is left to its death clip:
 /// [begin] answers false.
@@ -114,7 +117,18 @@ final class RagdollCorpses with ActorCorpses {
     final from = pushedFrom?.call();
     final body = ragdoll.bodyNamed(chest);
     if (from == null || body == null) return;
-    final at = ragdoll.ragdoll.poseOf(body).position;
+    // At the top of the chest, not its root: a bone's pose is its head, which
+    // for the chest is the small of the back, below the body's centre of
+    // mass, and a blow there knocks the hips out and sits the body down.
+    // Above it, the same blow turns the body back over its feet.
+    final pose = ragdoll.ragdoll.poseOf(body);
+    final bone = ragdoll.ragdoll.bones[body];
+    final at =
+        pose.position +
+        turnBy(
+          pose.orientation,
+          turnBy(bone.orientation.conjugated(), bone.tail - bone.head),
+        ).scaled(_blowAlong);
     final away = Vector3(at.x - from.x, 0.0, at.z - from.z);
     if (away.length2 < 1e-6) return;
     away
@@ -143,6 +157,34 @@ final class RagdollCorpses with ActorCorpses {
   @override
   void end(Actor actor) => _ragdolls.remove(actor)?.dispose();
 
+  /// Which actors lie dead, as a [SnapshotPart] under [id]: their entities,
+  /// generation and all, so a rewind, a rollback or the double-step check
+  /// that goes back to before an actor died lets its body go rather than
+  /// leaving it lying beside the actor standing again.
+  ///
+  /// **Only which, not where.** Where a body lies is a pose on the frame,
+  /// and its core is this class's own: a body that lay at the snapshot and
+  /// still lies keeps falling as it was. One that lay at the snapshot and
+  /// has gone since is not made again — the model it was drawn from is the
+  /// visuals' — and its actor falls again if it dies again.
+  SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.corpses'}) =>
+      SnapshotPart.of(
+        id: id,
+        capture: () =>
+            <int>[for (final actor in _ragdolls.keys) actor.entity.packed]
+              ..sort(),
+        restore: (data, _) {
+          final lying = <int>{
+            if (data is List<Object?>)
+              for (final entity in data)
+                if (entity is int) entity,
+          };
+          for (final actor in _ragdolls.keys.toList()) {
+            if (!lying.contains(actor.entity.packed)) end(actor);
+          }
+        },
+      );
+
   @override
   void dispose() {
     for (final ragdoll in _ragdolls.values) {
@@ -152,3 +194,8 @@ final class RagdollCorpses with ActorCorpses {
     _dynamics.dispose();
   }
 }
+
+/// How far up the chest bone the killing blow lands, as a fraction of its
+/// length: the upper chest, where a shot hits, and above the centre of mass
+/// at every height a rig puts it, so the blow turns the body back.
+const double _blowAlong = 0.75;

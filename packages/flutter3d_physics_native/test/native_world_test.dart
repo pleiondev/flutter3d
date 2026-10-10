@@ -33,7 +33,7 @@ void main() {
     final b = world.addBody(position: Vector3.zero(), mass: 2.0);
     expect(world.bodyCount, 2);
     expect(world.contains(a) && world.contains(b), isTrue);
-    expect(world.positionOf(a), Vector3(1.0, 2.0, 3.0));
+    expect(world.positionOf(a), const WorldPosition(1.0, 2.0, 3.0));
 
     expect(world.removeBody(a), isTrue);
     expect(world.removeBody(a), isFalse);

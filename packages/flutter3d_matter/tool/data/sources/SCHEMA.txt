@@ -1,0 +1,57 @@
+Entry schema for fluids.json (and the part files that merge into it)
+
+File: {"meta": {...}, "entries": [ENTRY, ...]}
+
+ENTRY = {
+  "id": "lowerCamel",                 // matches the catalog id without "f3d." where it exists
+  "catalogId": "f3d.water" | null,    // only for the 9 existing: water seawater glycerol ethanol oliveOil honey mercury basaltMelt air
+  "name": "human name",
+  "phase": "liquid" | "gas",
+  "cas": "7732-18-5" | null,          // null for mixtures (gasoline, honey...) with a "casNote"
+  "molarMass": kg/mol | null,
+  "referenceState": {"temperature": K, "pressure": Pa, "note": "..." | null},
+                                      // default 293.15 K, 101325 Pa; melts at their own T
+  "groups": {
+    "mechanical": {"density": P},
+    "fluid":      {"viscosity": P, "surfaceTension": P, "bulkModulus": P},
+    "thermal":    {"specificHeat": P, "conductivity": P, "volumetricExpansion": P,
+                   "meltingPoint": P, "boilingPoint": P, "latentHeatOfFusion": P,
+                   "latentHeatOfVaporization": P, "emissivity": P, "ignitionTemperature": P,
+                   "autoignitionTemperature": P, "heatOfCombustion": P, "radiantFraction": P},
+    "acoustic":   {"speedOfSound": P, "impedance": P},
+    "optical":    {"refractiveIndex": P, "abbeNumber": P, "absorption": P /* [r,g,b] 1/m */},
+    "electrical": {"resistivity": P},
+    "extra":      {"vaporPressure": P (law antoine), "flashPoint": P, "criticalTemperature": P,
+                   "criticalPressure": P, ... anything useful not in the catalog type}
+  }
+}
+
+Units (SI, as the catalog): density kg/m3; viscosity Pa*s (dynamic); surfaceTension N/m (vs air);
+bulkModulus Pa (adiabatic, rho*c^2 unless stated); specificHeat J/(kg*K) (cp); conductivity W/(m*K);
+volumetricExpansion 1/K; temperatures K; latent heats J/kg; heatOfCombustion J/kg (say gross/net);
+speedOfSound m/s; impedance Pa*s/m; resistivity Ohm*m.
+
+P = {
+  "value": number | [numbers] | null,
+  "unit": "kg/m3",
+  "confidence": "measured" | "handbook" | "estimate",
+      // measured: a primary measurement paper; handbook: compiled handbook / reference EOS
+      // (NIST, CRC, Kaye&Laby, VDI, IAEA...); estimate: typical value, approximation, a range midpoint,
+      // or derived by a rule of thumb. EVERY estimate marked "estimate".
+  "source": "URL or handbook + table + edition",
+  "conditions": "only when different from referenceState",
+  "note": "derivations, spreads, caveats" (optional),
+  "law": LAW (optional)
+}
+A property not found: {"value": null, "note": "not found in ...", "confidence": null, "source": null}.
+Leave out properties that do not apply (e.g. surfaceTension of a gas, meltingPoint of a mixture without one)
+or give null with a note. Never invent a value.
+
+LAW kinds (the catalog's PropertyLaw: constant, table, Andrade/Arrhenius, polynomial):
+  {"kind":"andrade", "form":"ln(mu/Pa*s) = A + B/T", "A":..,"B":.., "validRange":[Tmin,Tmax], "source":.., "fit":"..."}
+  {"kind":"arrhenius", "form":"mu = mu0*exp(Ea/(R*T))", ...}
+  {"kind":"vft", "form":"log10(mu/Pa*s) = A + B/(T - C)", ...}           // melts, glycerol
+  {"kind":"polynomial", "variable":"T", "form":"value = c0 + c1*T + c2*T^2", "coefficients":[c0,c1,c2], "validRange":[..], "source":..}
+  {"kind":"table", "variable":"T", "unit":"K", "points":[[T, value], ...], "source":..}
+  {"kind":"antoine", "form":"log10(P/bar) = A - B/(T + C)", "A","B","C", "validRange":[..], "source":..}
+  Temperatures in laws in K. If a law is fitted by us to tabulated data, say so in "fit" with the max deviation.

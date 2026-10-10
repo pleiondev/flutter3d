@@ -141,6 +141,69 @@ void main() {
     }
   });
 
+  test('laid down by hand, it says how it lies before it falls', () async {
+    // The figure faces +z. Turned a quarter about x one way it lies on its
+    // front, its head along +z; the other way on its back, its head along -z.
+    // Mutation: read up and forward off the skinned mesh node's turn, as
+    // `lying` did — the hero's mesh node turns its Z-up armature a quarter
+    // about x, so even standing it read as lying face up, head along -z.
+    Future<RagdollLying> laid(double turn) async {
+      final h = await hero(at: Vector3(0.0, 0.5, 0.0));
+      h.root.setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), turn));
+      final ragdoll = SkeletonRagdoll(
+        skeleton: h.skeleton,
+        meshWorld: h.mesh.worldMatrix,
+        world: dynamics.native,
+        dynamics: dynamics,
+      );
+      addTearDown(ragdoll.dispose);
+      return ragdoll.lying();
+    }
+
+    final front = await laid(math.pi / 2);
+    expect(front.faceUp, isFalse);
+    expect(front.headward.z, greaterThan(0.99));
+    final back = await laid(-math.pi / 2);
+    expect(back.faceUp, isTrue);
+    expect(back.headward.z, lessThan(-0.99));
+  });
+
+  test('the right limbs end at the right joints', () async {
+    // One part served both sides, its tail the first of `LowerArm.L`,
+    // `LowerArm.R` found: the right upper arm reached to the left elbow.
+    // Mutation: take the first name found, whichever side it is on, in
+    // `_tailOf` — the right upper arm and thigh end a shoulder's width off.
+    final h = await hero(at: Vector3(0.0, 0.3, 0.0));
+    final ragdoll = SkeletonRagdoll(
+      skeleton: h.skeleton,
+      meshWorld: h.mesh.worldMatrix,
+      world: dynamics.native,
+      dynamics: dynamics,
+    );
+    addTearDown(ragdoll.dispose);
+    for (final (limb, end) in <(String, String)>[
+      ('UpperArm.R', 'LowerArm.R'),
+      ('UpperArm.L', 'LowerArm.L'),
+      ('UpperLeg.R', 'LowerLeg.R'),
+      ('UpperLeg.L', 'LowerLeg.L'),
+    ]) {
+      final bone = ragdoll.ragdoll.bones[ragdoll.bodyNamed(limb)!];
+      final at = h.skeleton.joints.indexOf(named(h.skeleton, end));
+      final bound = (h.mesh.worldMatrix * h.skeleton.bindPoseOf(at) as Matrix4)
+          .getTranslation();
+      expect(
+        bone.tail.distanceTo(bound),
+        lessThan(0.01),
+        reason: '$limb ends at $end',
+      );
+    }
+    // And so the two elbows are held alike.
+    expect(
+      ragdoll.ragdoll.heldAs(ragdoll.bodyNamed('LowerArm.R')!).runtimeType,
+      ragdoll.ragdoll.heldAs(ragdoll.bodyNamed('LowerArm.L')!).runtimeType,
+    );
+  });
+
   test('dropped, it lies down held together, its feet on its shins', () async {
     final h = await hero(at: Vector3(0.0, 0.5, 0.0));
     // Leaning over, so it falls rather than standing on its own stiffness.

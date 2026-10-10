@@ -830,19 +830,11 @@ final class CollisionWorld {
   }) {
     out.setZero();
     var corrected = false;
-
-    _queryMin.setValues(
-      center.x - halfExtents.x,
-      center.y - halfExtents.y,
-      center.z - halfExtents.z,
-    );
-    _queryMax.setValues(
-      center.x + halfExtents.x,
-      center.y + halfExtents.y,
-      center.z + halfExtents.z,
-    );
-
     _asBox.halfExtents.setFrom(halfExtents);
+
+    // Where the box is asked about: [center], and once more where a mover's
+    // push would put it (below).
+    final at = _depenetrateAt..setFrom(center);
 
     void resolve(Collider other) {
       if (identical(other, ignore)) return;
@@ -854,20 +846,87 @@ final class CollisionWorld {
       // and each of them has its own way out.
       final parts = _partsOf(other, _queryMin, _queryMax);
       for (var p = 0; p < parts; p++) {
-        if (_pushOutOfPart(other, _parts[p], center, allow)) corrected = true;
+        if (_pushOutOfPart(other, _parts[p], at, allow)) corrected = true;
       }
     }
 
-    for (var i = 0; i < 6; i++) {
-      _deepest[i] = 0.0;
+    void resolveStatics() {
+      _queryMin.setValues(
+        at.x - halfExtents.x,
+        at.y - halfExtents.y,
+        at.z - halfExtents.z,
+      );
+      _queryMax.setValues(
+        at.x + halfExtents.x,
+        at.y + halfExtents.y,
+        at.z + halfExtents.z,
+      );
+      for (var i = 0; i < 6; i++) {
+        _deepest[i] = 0.0;
+      }
+      _staticGrid.forEachInBox(_queryMin, _queryMax, (int i) {
+        resolve(_statics[i]);
+      });
     }
 
-    _staticGrid.forEachInBox(_queryMin, _queryMax, (int i) {
-      resolve(_statics[i]);
-    });
+    resolveStatics();
+    for (var i = 0; i < 6; i++) {
+      _held[i] = _deepest[i];
+      _deepest[i] = 0.0;
+    }
     _moverGrid.forEachInBox(_queryMin, _queryMax, (int i) {
       resolve(_movers[i]);
     });
+
+    // **What does not move wins against what does.** A static pushing one
+    // way and a mover the other is a body being closed on — a platform
+    // coming down onto the floor — and the net of the two is the middle of
+    // the gap, which a correction of the net jumps across every step: the
+    // body flipped between above the floor and half a metre into it, and
+    // once the platform reached the floor the middle was under it. The
+    // floor holds; the body is left inside the platform, which a game can
+    // see and call a crushing. Between two statics, or two movers, both
+    // pushes still apply.
+    var moverOnly = false;
+    for (var axis = 0; axis < 6; axis += 2) {
+      final heldDown = _held[axis], heldUp = _held[axis + 1];
+      if (heldDown == 0.0 &&
+          heldUp == 0.0 &&
+          (_deepest[axis] > 0.0 || _deepest[axis + 1] > 0.0)) {
+        moverOnly = true;
+      }
+      _deepest[axis] = math.max(heldDown, heldUp > 0.0 ? 0.0 : _deepest[axis]);
+      _deepest[axis + 1] = math.max(
+        heldUp,
+        heldDown > 0.0 ? 0.0 : _deepest[axis + 1],
+      );
+    }
+    for (var i = 0; i < 6; i++) {
+      _pushed[i] = _deepest[i];
+    }
+
+    // **Nor does a mover push a body into a static.** Standing on the floor
+    // under a platform coming down, only the platform overlaps the body,
+    // and its push out alone set the body into the floor — to be lifted
+    // back by the rule above the step after, and pushed down again the step
+    // after that. So a push only a mover made is asked of the statics where
+    // it would leave the body, and gives back on that axis what they push.
+    if (moverOnly) {
+      at
+        ..x += _pushed[1] - _pushed[0]
+        ..y += _pushed[3] - _pushed[2]
+        ..z += _pushed[5] - _pushed[4];
+      resolveStatics();
+      for (var axis = 0; axis < 6; axis += 2) {
+        if (_held[axis] != 0.0 || _held[axis + 1] != 0.0) continue;
+        // A push down is given back by a push up, at most all of it.
+        _pushed[axis] = math.max(0.0, _pushed[axis] - _deepest[axis + 1]);
+        _pushed[axis + 1] = math.max(0.0, _pushed[axis + 1] - _deepest[axis]);
+      }
+    }
+    for (var i = 0; i < 6; i++) {
+      _deepest[i] = _pushed[i];
+    }
 
     // **The deepest push in each direction, not the sum of them.** It used to
     // be `out.y += push`, once per collider, and that double-counts in the most
@@ -878,11 +937,11 @@ final class CollisionWorld {
     // because the error is small and always upward, which reads as a body that
     // sits a little high rather than as a bug.
     //
-    // **Opposing pushes still both apply**, and that is not an oversight. A
-    // body being closed on by a platform is told two different things, and the
-    // answer is the net of them — resolving it as "whichever face spoke last"
-    // pushes the player through the floor, which is what the crushing test
-    // caught when this was first written as a projection.
+    // **Opposing pushes of one kind both apply**, and that is not an
+    // oversight: resolving them as "whichever face spoke last" pushes the
+    // player through a wall, which is what the crushing test caught when this
+    // was first written as a projection. A static against a mover is settled
+    // above, for the static.
     out.x += _deepest[1] - _deepest[0];
     out.y += _deepest[3] - _deepest[2];
     out.z += _deepest[5] - _deepest[4];
@@ -995,6 +1054,16 @@ final class CollisionWorld {
   ///
   /// Order: -x, +x, -y, +y, -z, +z.
   final Float64List _deepest = Float64List(6);
+
+  /// [_deepest] as the statics alone asked for it, in [depenetrate].
+  final Float64List _held = Float64List(6);
+
+  /// The pushes [depenetrate] settled on, while [_deepest] asks the statics
+  /// again.
+  final Float64List _pushed = Float64List(6);
+
+  /// Where [depenetrate] asks about the box.
+  final Vector3 _depenetrateAt = Vector3.zero();
 
   static bool _boundsOverlap(Aabb3 a, Aabb3 b) =>
       a.min.x < b.max.x &&

@@ -82,9 +82,13 @@ final class WorldProperties {
   /// standard gravity, as `NativeWorld.gravityMagnitude` is.
   double get gravityMagnitude {
     final x = _gravity.x, y = _gravity.y, z = _gravity.z;
-    if (x == 0.0 && z == 0.0 && y == -standardGravity) return standardGravity;
+    if (x == 0.0 && z == 0.0 && y == _standardDown) return standardGravity;
     return math.sqrt(x * x + y * y + z * z);
   }
+
+  /// [standardGravity] downward, as a `Vector3`'s f32 holds it: -9.81 is
+  /// -9.8100004196… there, so comparing with the double never matches.
+  static final double _standardDown = standardGravityVector.y;
 
   /// The air's temperature, K.
   final double airTemperature;

@@ -19,6 +19,8 @@
 /// back as its body times that offset.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
@@ -302,7 +304,19 @@ RagdollJoint? _resolved(RagdollBone bone, RagdollBone parent) {
   );
 }
 
+/// cos(π/2) of the double nearest π/2, as every correctly rounded libm gives
+/// it: the w of the half turns below, so they keep the bits
+/// `Quaternion.axisAngle` gave them.
+const double _cosHalfPi = 6.123233995736766e-17;
+
 /// The turn that takes the y axis to [along].
+///
+/// What `Quaternion.fromTwoVectors` makes, snapping within 0.0005 of
+/// vertical and all, without its `math.acos`, `math.sin` and `math.cos`:
+/// the platform's answers, which differ in the last bit between the VM and
+/// a browser. The half angle's sine and cosine come from the angle's cosine
+/// c instead, as √((1 − c)/2) and √((1 + c)/2): a square root is rounded
+/// alike everywhere.
 Quaternion _alongY(Vector3 along) {
   final to = along.normalized();
   final up = Vector3(0.0, 1.0, 0.0);
@@ -311,9 +325,23 @@ Quaternion _alongY(Vector3 along) {
     return Quaternion.identity();
   }
   if (dot < -1.0 + 1e-9) {
-    return Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 3.141592653589793);
+    // Half a turn about x.
+    return Quaternion(1.0, 0.0, 0.0, _cosHalfPi);
   }
-  return Quaternion.fromTwoVectors(up, to);
+  final c = up.dot(to.normalized());
+  if ((1.0 + c).abs() < 0.0005) {
+    // Half a turn about up × x, as fromTwoVectors picks for a y axis.
+    return Quaternion(0.0, 0.0, -1.0, _cosHalfPi);
+  }
+  if ((1.0 - c).abs() < 0.0005) return Quaternion.identity();
+  final axis = up.cross(to.normalized()).normalized();
+  final halfSin = math.sqrt((1.0 - c) * 0.5) / axis.length;
+  return Quaternion(
+    axis.x * halfSin,
+    axis.y * halfSin,
+    axis.z * halfSin,
+    math.sqrt((1.0 + c) * 0.5),
+  );
 }
 
 /// [v] turned by [q], as the core turns a body by its orientation.

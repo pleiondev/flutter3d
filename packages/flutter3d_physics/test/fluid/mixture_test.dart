@@ -30,8 +30,9 @@ void main() {
   test('oil floats on water, each its own layer, densest at the bottom', () {
     final body = _tube(FluidMedium.oliveOil, 1e-6);
     body.pour(2e-6, medium: FluidMedium.water);
-    expect(body.layers.map((l) => l.medium.name), ['water', 'oil']);
-    expect(body.medium.name, 'oil');
+    // A layer is named by its catalogue entry, `f3d.oliveOil`'s 'olive oil'.
+    expect(body.layers.map((l) => l.medium.name), ['water', 'olive oil']);
+    expect(body.medium.name, 'olive oil');
     final tops = body.layerTops();
     final area = math.pi * 0.01 * 0.01;
     expect(tops[0], closeTo(2e-6 / area, 1e-6));
@@ -54,11 +55,18 @@ void main() {
       // that threw the rest over, and that wave now breaks.
       body.place(Matrix3.rotationX(1.45), Vector3.zero());
       final spill = body.step(1e-3, gravity: Vector3(0, -9.81, 0));
-      if (spill.medium.name == 'oil') oil += spill.flow * 1e-3;
-      if (spill.medium.name == 'water') water += spill.flow * 1e-3;
+      if (identical(spill.medium, FluidMedium.oliveOil)) {
+        oil += spill.flow * 1e-3;
+      }
+      if (identical(spill.medium, FluidMedium.water)) {
+        water += spill.flow * 1e-3;
+      }
       // Mutation: spill from the bottom, and water leaves while oil is left.
       if (water > 0) {
-        expect(body.layers.any((l) => l.medium.name == 'oil'), isFalse);
+        expect(
+          body.layers.any((l) => identical(l.medium, FluidMedium.oliveOil)),
+          isFalse,
+        );
       }
     }
     expect(oil, closeTo(2e-6, 2e-6 * 1e-6));
@@ -87,7 +95,7 @@ void main() {
     }
     // Water went through; the oil stayed on top of the first glass.
     expect(b.layers.map((l) => l.medium.name), ['water']);
-    expect(a.layers.last.medium.name, 'oil');
+    expect(a.layers.last.medium.name, 'olive oil');
     expect(a.layers.last.volume, closeTo(5e-6, 1e-12));
   });
 

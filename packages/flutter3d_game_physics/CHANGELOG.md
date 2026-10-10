@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The killing blow lands on the upper chest.** It landed at the chest
+  bone's root, the small of the back below the centre of mass, where it
+  knocked the hips out and sat a corpse down on its arms; now it turns the
+  body back over its feet. The wrong tails of the right upper arm and thigh
+  had hidden it, by tipping every body over sideways.
+
 - **Breaking: `elements.dart` and `party.dart` re-export nothing.** `Audible`
   and `PhysicsHearing` are `flutter3d_effects`', `PartySeat` is
   `flutter3d_net`'s and `SimulationVersion` is `flutter3d_plugin_api`'s.

@@ -172,7 +172,8 @@ void main() {
     }
     expect(world.temperatureOf(plate), 500.0);
     expect(world.temperatureOf(block), greaterThan(400.0));
-    expect(steel.conductivity, 50.0);
+    // Plain carbon steel's, as the catalogue (flutter3d_matter) gives it.
+    expect(steel.conductivity, 60.5);
   });
 
   test('a box query finds what the tree holds, in slot order', () {

@@ -9,6 +9,8 @@ import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('the standard world is the standard numbers, to the bit', () {
+    // Mutation: compare the f32 gravity with `-standardGravity` (the double)
+    // in `gravityMagnitude`, which is what it did — 9.8100004196 comes back.
     final world = WorldProperties.standard;
     expect(world.gravityMagnitude, standardGravity);
     expect(world.airDensity, standardAirDensity);
@@ -20,7 +22,10 @@ void main() {
     final thin = WorldProperties(airPressure: standardAtmosphere / 2);
     expect(thin.airDensity, closeTo(standardAirDensity / 2, 1e-12));
     final cold = WorldProperties(airTemperature: 273.15);
-    expect(cold.speedOfSound, closeTo(331.3, 0.1));
+    // 343 · √(273.15 / 293.15). The textbook 331.3 belongs to air that is
+    // 343.2 at 20 °C; the engine's air is 343.0 there, to the bit.
+    // Mutation: scale by T instead of √T — 319.6 comes back.
+    expect(cold.speedOfSound, closeTo(331.093, 1e-3));
     // Said outright, it is what it was told.
     expect(WorldProperties(airDensity: 0.02).airDensity, 0.02);
   });

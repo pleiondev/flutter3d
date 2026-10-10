@@ -3,6 +3,8 @@
 // mirror stands in the core, carried by the pose's momentum, held together
 // at every joint, asleep at the end; and kept through the dynamics'
 // restores.
+import 'dart:io';
+
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -330,6 +332,63 @@ void main() {
       ),
     ]);
     expect(dynamics.native.jointSwing(ragdoll.jointOf(1)!), closeTo(0.0, 1e-4));
+  });
+
+  test('each bone is turned from y onto itself, the shortest way', () {
+    // Up, down, either side of the 0.0005 where vertical is snapped to, and
+    // between: y turned by the body's orientation lies along the bone.
+    // Mutation: return the conjugate of the turn, or take sin and cos of the
+    // half angle the other way round — fails here.
+    final along = <Vector3>[
+      Vector3(0.0, 1.0, 0.0),
+      Vector3(0.0, -1.0, 0.0),
+      Vector3(0.03, 1.0, 0.0),
+      Vector3(0.0, -1.0, 0.04),
+      Vector3(1.0, 0.0, 0.0),
+      Vector3(0.3, -0.8, 0.5),
+      Vector3(-0.2, 0.4, -0.9),
+    ];
+    for (final d in along) {
+      final at = Vector3(along.indexOf(d) * 3.0, 4.0, 0.0);
+      final ragdoll = NativeRagdoll(dynamics.native, <RagdollBone>[
+        RagdollBone(
+          name: 'one',
+          parent: -1,
+          head: at,
+          tail: at + d.normalized() * 0.6,
+          orientation: Quaternion.identity(),
+          radius: 0.05,
+          mass: 1,
+        ),
+      ]);
+      final turn = dynamics.native.orientationOf(ragdoll.bodyOf(0));
+      final y = turn.asRotationMatrix().transform(Vector3(0.0, 1.0, 0.0));
+      final want = d.normalized();
+      // Within 0.0005 of vertical the turn is snapped to it, as
+      // `Quaternion.fromTwoVectors` always did.
+      expect(y.distanceTo(want), lessThan(0.04), reason: '$d');
+      if (d.y.abs() < 0.99) {
+        expect(y.distanceTo(want), lessThan(1e-5), reason: '$d');
+      }
+      ragdoll.dispose();
+    }
+  });
+
+  test('a ragdoll is placed without asking libm', () {
+    // vector_math's `Quaternion.axisAngle` and `.fromTwoVectors` call
+    // `math.sin`, `math.cos` and `math.acos`: the platform's answers, which
+    // differ in the last bit between the VM and a browser, so a ragdoll
+    // made in each would start from different bodies. Mutation: put back
+    // `Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 3.141592653589793)` for
+    // a bone pointing down — fails here.
+    final source = File(
+      'lib/src/native_ragdoll.dart',
+    ).readAsLinesSync().where((line) => !line.trimLeft().startsWith('//'));
+    final asks = RegExp(
+      r'axisAngle\(|fromTwoVectors\(|Quaternion\.euler\(|setAxisAngle\(|'
+      r'setEuler\(|rotation[XYZ]\(|\bmath\.(sin|cos|tan|asin|acos|atan2?|exp|log|pow)\(',
+    );
+    expect(source.where(asks.hasMatch).toList(), isEmpty);
   });
 
   test('a bone that comes before its parent is refused', () {

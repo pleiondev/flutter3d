@@ -58,7 +58,8 @@ const double standardAtmosphere = 101325.0;
 ///
 /// An ideal gas's c = √(γ R T / M), which goes as √T: [standardSpeedOfSound]
 /// scaled by √(T / [standardAirTemperature]), so the standard air gives the
-/// standard speed to the bit, and air at 0 °C gives 331.3. Throws an
+/// standard speed to the bit, and air at 0 °C gives 331.09 (the textbook
+/// 331.3 is for air that is 343.2 at 20 °C, not the rounded 343). Throws an
 /// [ArgumentError] for a temperature that is not finite and positive.
 double speedOfSoundAt(double temperature) {
   if (!(temperature.isFinite && temperature > 0.0)) {

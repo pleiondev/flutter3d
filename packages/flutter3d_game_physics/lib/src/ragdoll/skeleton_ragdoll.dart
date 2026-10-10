@@ -219,7 +219,16 @@ final class SkeletonRagdoll {
       if (part == null) continue;
       final head = bind[i].getTranslation();
       final turn = _turnOf(bind[i]);
-      final tail = _tailOf(part, bind, byName, head, turn, lengths);
+      final tail = _tailOf(
+        part,
+        joints[i],
+        joints,
+        bind,
+        byName,
+        head,
+        turn,
+        lengths,
+      );
       lengths[name!] = tail.distanceTo(head);
       final parent = _bodyAbove(joints[i], joints, bodyOfJoint);
       bodyOfJoint[i] = rest.length;
@@ -255,10 +264,30 @@ final class SkeletonRagdoll {
 
     // The first body — the pelvis — at bind, and which way the character
     // faced and stood up there: what [lying] reads the body against.
+    //
+    // **Read off the skeleton, not the mesh's node.** The node a skinned
+    // mesh hangs under says nothing about which way its figure stands: the
+    // hero's turns its Z-up armature a quarter about x, and read through
+    // it, a figure standing lay face up with its head along -z. Up is from
+    // the pelvis to the head, forward across the hips from left to right
+    // turned about it; a rig without those joints falls back on the node.
     _pelvisAtBind = rest.first.orientation.clone();
-    final facing = _turnOf(meshWorld);
-    _forwardAtBind = turnBy(facing, Vector3(0.0, 0.0, 1.0));
-    _upAtBind = turnBy(facing, Vector3(0.0, 1.0, 0.0));
+    final pelvis = rest.first.head;
+    final (head, right, left) = (
+      byName['Head'],
+      byName['UpperLeg.R'],
+      byName['UpperLeg.L'],
+    );
+    if (head != null && right != null && left != null) {
+      final up = (bind[head].getTranslation() - pelvis)..normalize();
+      final across = bind[right].getTranslation() - bind[left].getTranslation();
+      _upAtBind = up;
+      _forwardAtBind = up.cross(across)..normalize();
+    } else {
+      final facing = _turnOf(meshWorld);
+      _forwardAtBind = turnBy(facing, Vector3(0.0, 0.0, 1.0));
+      _upAtBind = turnBy(facing, Vector3(0.0, 1.0, 0.0));
+    }
 
     final now = <BonePose>[
       for (final j in _jointOfBody)
@@ -438,17 +467,33 @@ double _extent(List<Matrix4> worlds) {
   return math.max(d.x, math.max(d.y, d.z));
 }
 
+/// Where the body of [joint] ends: the first of [RagdollPart.tailAt] below
+/// [joint] in the skeleton, else [RagdollPart.tailLength] along it.
+///
+/// **Below it, not anywhere.** One part serves both sides — an upper arm
+/// names `LowerArm.L` and `LowerArm.R` — and taking the first found ended
+/// the right upper arm at the left elbow, a shoulder's width away, which
+/// also bent the right forearm about the wrong axis.
 Vector3 _tailOf(
   RagdollPart part,
+  SceneNode joint,
+  List<SceneNode> joints,
   List<Matrix4> bind,
   Map<String, int> byName,
   Vector3 head,
   Quaternion turn,
   Map<String, double> lengths,
 ) {
+  bool below(SceneNode node) {
+    for (var up = node.parent; up != null; up = up.parent) {
+      if (identical(up, joint)) return true;
+    }
+    return false;
+  }
+
   for (final name in part.tailAt) {
     final j = byName[name];
-    if (j != null) return bind[j].getTranslation();
+    if (j != null && below(joints[j])) return bind[j].getTranslation();
   }
   final along = part.tailLength;
   final length = along == null ? null : lengths[along.of];

@@ -680,7 +680,8 @@ typedef struct Slid {
 /* Casts and slides [move], up to four times — a corner is two walls and a
  * floor — taking out of [velocity] the speed into everything it meets, as
  * the speed into a wall is gone for good. A face too steep to stand on is
- * met as an upright wall, so sliding along it does not climb it. */
+ * met, but for a fall onto it, as an upright wall, so sliding along it
+ * does not climb it. */
 static Slid slide(Character *c, F3dVec3 move, F3dVec3 *velocity,
                   f3d_real max_slope_cos) {
   Slid out = {0u, 0, {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0)}};
@@ -700,8 +701,12 @@ static Slid slide(Character *c, F3dVec3 move, F3dVec3 *velocity,
       out.flags |= F3D_CHARACTER_CEILING;
     } else {
       out.flags |= F3D_CHARACTER_WALL;
+      /* Met moving sideways or up, a face that looks up is the wall its
+       * horizontal half is, so the push into it does not climb it; met
+       * falling, it is the slope it is, and the body slides down it. A
+       * face that looks down is met as it is. */
       const f3d_real flat = f3d_sqrt(n.x * n.x + n.z * n.z);
-      if (flat > F3D_R(1e-9)) {
+      if (n.y > F3D_R(0.0) && left.y >= F3D_R(0.0) && flat > F3D_R(1e-9)) {
         n = f3d_v3(n.x / flat, F3D_R(0.0), n.z / flat);
       }
     }

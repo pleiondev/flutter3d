@@ -58,14 +58,21 @@ void main() {
     final wrecks = BurningWrecks(elements, device)
       ..timbers(Vector3(0.0, 0.5, 0.0));
     final heap = wrecks.bodies.single;
-    final cold = elements.world.surfaceTemperatureOf(heap.native);
-    _run(elements, 2.0);
-    // Mutation: add the heap and never hold the fireball to it, and the
-    // wood sits at the air's temperature.
-    expect(
-      elements.world.surfaceTemperatureOf(heap.native),
-      greaterThan(cold + 100.0),
-    );
+    // Two seconds after the fireball has gone, the heap burns by itself.
+    //
+    // Read as a fire — burning, and the heat it gives off — not as its
+    // surface temperature: a bed of splinters takes heat a few centimetres
+    // deep, and the surface it reports is the bed's, 358 K while the fire
+    // on it gives off half a megawatt. Measured: 350 kW two seconds after
+    // the hold, 0.56 MW from five seconds on, still burning at thirty.
+    const afterHold = 2.0;
+    _run(elements, BurningWrecks.fireball.seconds + afterHold);
+    // Mutation: the one-second flash it was, or the heap a block of solid
+    // wood, and it never catches or goes out as the fireball does.
+    expect(elements.world.isBurning(heap.native), isTrue);
+    // Mutation: add the heap and never hold the fireball to it, and it
+    // gives off nothing.
+    expect(elements.world.heatReleaseOf(heap.native), greaterThan(1e5));
   });
 
   test('the oil is a slick drawn black and glossy', () async {
@@ -117,6 +124,60 @@ void main() {
     // heaps, at z = 0, go at once.
     wrecks.step(10.0);
     expect(wrecks.bodies, hasLength(1));
+  });
+
+  test('a rewind puts the wrecks back with the world', () async {
+    final (elements, device) = await _open();
+    addTearDown(elements.dispose);
+    final wrecks = BurningWrecks(elements, device)
+      ..timbers(Vector3(0.0, 0.5, -10.0));
+    final heap = wrecks.bodies.single;
+    final part = wrecks.snapshotPart();
+    final world = elements.world.snapshot();
+    final saved = part.capture();
+
+    // After the snapshot: a slick lit, and the heap let go.
+    wrecks
+      ..oil(Vector3(2.0, 0.0, -30.0))
+      ..step(55.0);
+    final slick = wrecks.bodies.single;
+    expect(elements.world.contains(heap.native), isFalse);
+
+    elements.world.restore(world);
+    part.restore(saved, part.version);
+
+    // Mutation: restore nothing, and the list holds the slick the world no
+    // longer has while the heap the world has again burns undrawn and
+    // unheld.
+    final back = wrecks.bodies.single;
+    expect(back.native.raw, heap.native.raw);
+    expect(elements.world.contains(back.native), isTrue);
+    expect(elements.simulation.bodies, contains(back));
+    expect(elements.simulation.bodies, isNot(contains(slick)));
+    expect(elements.lookOf(slick), isNull);
+  });
+
+  test('a slick let go since comes back drawn', () async {
+    final (elements, device) = await _open();
+    addTearDown(elements.dispose);
+    final wrecks = BurningWrecks(elements, device)
+      ..oil(Vector3(0.0, 0.0, -10.0));
+    final slick = wrecks.bodies.single;
+    final part = wrecks.snapshotPart();
+    final world = elements.world.snapshot();
+    final saved = part.capture();
+    wrecks.step(55.0);
+    expect(wrecks.bodies, isEmpty);
+
+    elements.world.restore(world);
+    part.restore(saved, part.version);
+
+    // Mutation: take a wreck back in without its look, and the slick burns
+    // on the water with nothing drawn for it.
+    final back = wrecks.bodies.single;
+    expect(back.native.raw, slick.native.raw);
+    final look = elements.lookOf(back)! as MeshNode;
+    expect(look.material.baseColor.toSrgb().r, lessThan(0.05));
   });
 
   test('clearing puts every fire out', () async {

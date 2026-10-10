@@ -12,7 +12,7 @@ import 'package:vector_math/vector_math.dart';
 int low2(int h) => h % 256;
 
 /// What [dynamicsSceneHash] comes to: written natively, matched in Chrome.
-const String dynamicsSceneExpected = '9e63068a';
+const String dynamicsSceneExpected = '8aea08a2';
 
 /// Steps the scene and hashes every body's position, velocity, spin and
 /// orientation by their float64 bytes, so that the browser's numbers and the

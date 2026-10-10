@@ -934,6 +934,43 @@ static void test_a_held_flame_lights_a_block(void) {
   f3d_world_destroy(w);
 }
 
+/* A crate-sized block of solid wood, 1.8 × 1.0 × 1.8 m at 500 kg/m³, a
+ * fireball held to its top: 100 kW/m² of 1300 K gas over a square metre,
+ * a step a thirtieth of a second. Its top catches and burns as long as
+ * the fireball is held, and goes out within a second of letting go: one
+ * face of solid wood, its flame alone. Its char surface, near 900 K under
+ * its own flame, radiates most of the flame's 41 kW/m² back, the cold wood
+ * under the front draws the rest, and the front gives off less than the
+ * firepoint's 2.5 g/(m² s) — the auto-extinction of timber once the
+ * outside heat is gone (Bartlett et al., Fire Safety Journal 91, 2017).
+ * A stack of timbers burns on through what its faces send each other;
+ * this is not one. Mutation: in step_entry, take what the solid draws as
+ * nought — the patch burns on after the fireball, and on. */
+static void test_a_wood_face_burns_while_it_is_heated(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, 0, 0, 0, 500 * 1.8 * 1.0 * 1.8);
+  f3d_body_set_shape(w, b, F3D_SHAPE_BOX, F3D_R(0.9), F3D_R(0.5), F3D_R(0.9));
+  F3dMaterial wood;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &wood);
+  f3d_body_set_material(w, b, &wood);
+  int caught = 0, out_after = -1;
+  for (int i = 0; i < 30 * 30; i++) {
+    if (i < 30 * 20) {
+      f3d_body_hold_flame(w, b, 0, F3D_R(0.5), 0, F3D_R(1e5), 1, F3D_R(1300.0));
+    }
+    f3d_world_step(w, F3D_R(1.0) / 30);
+    if (burning(w, b) && caught == 0) caught = i;
+    if (caught > 0 && i < 30 * 20) CHECK(burning(w, b));
+    if (i >= 30 * 20 && out_after < 0 && !burning(w, b)) out_after = i - 30 * 20;
+  }
+  /* Caught in seconds under the fireball, and held alight while it was. */
+  CHECK(caught > 0 && caught < 30 * 12);
+  /* Out within a second of letting go, and not caught again. */
+  CHECK(out_after >= 0 && out_after < 30);
+  CHECK(!burning(w, b));
+  f3d_world_destroy(w);
+}
+
 static void test_a_burner_burns_on_stone(void) {
   /* A gram a second of pine burnt on a granite ball — a brazier's fire: it
    * is alight from the step it is fed and says so, though stone has no
@@ -1114,6 +1151,7 @@ int main(void) {
   test_wind_cools();
   test_fire();
   test_a_held_flame_lights_a_block();
+  test_a_wood_face_burns_while_it_is_heated();
   test_char_stays_where_it_burnt();
   test_a_bed_of_straw_burns_on();
   test_radiation_between_bodies();

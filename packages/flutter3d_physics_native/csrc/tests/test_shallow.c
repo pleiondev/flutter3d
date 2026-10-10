@@ -347,20 +347,23 @@ static void test_floats_as_deep_as_it_weighs(void) {
   const F3dBody ball = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(0.973), 0, (f3d_real)mass);
   f3d_body_set_shape(w, ball, F3D_SHAPE_SPHERE, (f3d_real)r, 0, 0);
   run(w, 300);
-  double sum = 0, lo = 9, hi = -9;
+  /* The surface away from the ball, over the same ten seconds: the waves
+   * pass it as they pass the ball, and one sample at the end caught a
+   * crest or a trough — 5 mm apart between the two precisions. */
+  double sum = 0, surface = 0, lo = 9, hi = -9;
   for (int i = 0; i < 600; i++) {
     run(w, 1);
-    f3d_real p[3];
+    f3d_real p[3], s[4];
     f3d_body_get_position(w, ball, p);
+    f3d_shallow_sample(w, water, 2, 0, s);
     sum += p[1];
+    surface += s[0];
     lo = fmin(lo, p[1]);
     hi = fmax(hi, p[1]);
   }
-  f3d_real s[4];
-  f3d_shallow_sample(w, water, 2, 0, s);
   /* Below the surface by what three fifths under puts it, give or take a
    * centimetre of the grid's ten. */
-  CHECK_NEAR(sum / 600 - s[0], -0.027, 0.01);
+  CHECK_NEAR((sum - surface) / 600, -0.027, 0.01);
   CHECK(hi - lo < 0.1);
   f3d_world_destroy(w);
 }

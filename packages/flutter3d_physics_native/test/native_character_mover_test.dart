@@ -7,6 +7,8 @@
 //
 //     dart test test/native_character_mover_test.dart
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -20,17 +22,23 @@ CollisionWorld _yard() => CollisionWorld()
   ..addBox(Vector3(6.5, 1.0, 0.0), Vector3(1.0, 2.0, 2.0))
   ..addBox(Vector3(0.0, 0.1, 6.0), Vector3(2.0, 0.2, 6.0));
 
+/// A game's gravity, 24 m/s², for the jumps: an 8 m/s jump rises 1.33 m
+/// and is down in two thirds of a second. A controller falls by its world's
+/// gravity otherwise, and under the standard 9.81 that jump rises 3.3 m and
+/// is in the air for over a second and a half.
+const MovementSettings _gameGravity = MovementSettings(gravity: 24.0);
+
 /// The yard twice: once moved by the core, once by the controller's own
-/// sweeps.
+/// sweeps, each moving as [tuning] says.
 ({CharacterController core, CharacterController dart, NativeDynamics dynamics})
-_pair({Vector3? at}) {
+_pair({Vector3? at, MovementSettings tuning = const MovementSettings()}) {
   final world = _yard();
   final dynamics = NativeDynamics(world: world, movesCharacters: true);
   addTearDown(dynamics.dispose);
   final start = at ?? Vector3(0.0, 0.9, 0.0);
   return (
-    core: CharacterController(world: world, position: start),
-    dart: CharacterController(world: _yard(), position: start),
+    core: CharacterController(world: world, position: start, tuning: tuning),
+    dart: CharacterController(world: _yard(), position: start, tuning: tuning),
     dynamics: dynamics,
   );
 }
@@ -118,7 +126,7 @@ void main() {
   });
 
   test('a jump leaves the floor and lands as the reference does', () {
-    final p = _pair();
+    final p = _pair(tuning: _gameGravity);
     _walk(p, 20, Vector3.zero());
     final heights = <(double, double)>[];
     for (var i = 0; i < 90; i++) {
@@ -138,6 +146,152 @@ void main() {
     expect(apex, closeTo(apexRef, 0.02));
     expect(p.core.isGrounded, isTrue, reason: 'landed');
     expect(p.core.position.y, closeTo(0.9, 0.02));
+  });
+
+  test('a face too steep to stand on is a wall walked into, as on the '
+      'reference', () {
+    // Sixty degrees and a bit, uphill along +z: walked into, the body stays
+    // on the floor on both — the core always met it as the upright wall its
+    // horizontal half is.
+    CollisionWorld steep() => CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+      ..add(
+        Collider(
+          shape: CollisionWedge(
+            Vector3(3.0, 3.5, 2.0),
+            uphill: WedgeUphill.positiveZ,
+          ),
+          position: Vector3(0.0, 3.5, 2.0),
+        ),
+      );
+    final world = steep();
+    final dynamics = NativeDynamics(world: world, movesCharacters: true);
+    addTearDown(dynamics.dispose);
+    final core = CharacterController(
+      world: world,
+      position: Vector3(0.0, 0.9, -3.0),
+    );
+    final dart = CharacterController(
+      world: steep()..update(),
+      position: Vector3(0.0, 0.9, -3.0),
+    );
+    world.update();
+    for (var i = 0; i < 150; i++) {
+      for (final body in <CharacterController>[core, dart]) {
+        body.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+      }
+      dynamics.step(_dt);
+    }
+    expect(core.position.y, closeTo(0.9, 0.05), reason: 'not up the face');
+    expect(core.position.y, closeTo(dart.position.y, 0.02));
+    expect(core.position.z, closeTo(dart.position.z, 0.05));
+  });
+
+  test('dropped onto a face too steep to stand on, it slides down it as the '
+      'reference does', () {
+    // Falling, a steep face is the slope it is, not a wall: the reference
+    // slides down it to the floor. Mutation: in `slide` in f3d_query.c,
+    // flatten a steep face's normal whatever the move — the face taken for
+    // a wall, the core's body falls straight past it instead of sliding off
+    // its foot, and lands 13 cm short of where the reference does.
+    CollisionWorld steep() => CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+      ..add(
+        Collider(
+          shape: CollisionWedge(
+            Vector3(3.0, 3.5, 2.0),
+            uphill: WedgeUphill.positiveZ,
+          ),
+          position: Vector3(0.0, 3.5, 2.0),
+        ),
+      );
+    final world = steep();
+    final dynamics = NativeDynamics(world: world, movesCharacters: true);
+    addTearDown(dynamics.dispose);
+    // Over the middle of the face, a metre and a half up it.
+    final start = Vector3(0.0, 4.0, 2.0);
+    final core = CharacterController(world: world, position: start);
+    final dart = CharacterController(world: steep()..update(), position: start);
+    world.update();
+    var lowest = (double.infinity, double.infinity);
+    for (var i = 0; i < 180; i++) {
+      for (final body in <CharacterController>[core, dart]) {
+        body.step(_dt, wishDirection: Vector3.zero());
+      }
+      dynamics.step(_dt);
+      lowest = (
+        math.min(lowest.$1, core.position.y),
+        math.min(lowest.$2, dart.position.y),
+      );
+    }
+    expect(dart.position.y, closeTo(0.9, 0.05), reason: 'the reference');
+    expect(core.position.y, closeTo(0.9, 0.05), reason: 'down on the floor');
+    expect(core.position.z, closeTo(dart.position.z, 0.1));
+    expect(lowest.$1, greaterThan(0.85), reason: 'not through the floor');
+  });
+
+  test('a platform closing on it does not push it through the floor, as on '
+      'the reference', () {
+    // A kinematic slab coming down onto a body on the floor: the body stays
+    // on the floor, never pushed into it, until the slab's middle passes the
+    // body's and out of the slab is up, onto its top — on the core as on the
+    // reference, which lets the floor win against the slab. The core gets
+    // there by pushing out of the deepest overlap, four times over, which
+    // ends on the floor's push. Mutation: leave fixed bodies out of
+    // `push_out` in f3d_query.c — the body stays on the floor inside the
+    // slab, 0.92 where the reference stands on top at 1.43.
+    CollisionWorld room() =>
+        CollisionWorld()
+          ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+    Collider slab(CollisionWorld world) => world.add(
+      Collider(
+        shape: CollisionBox(Vector3(3.0, 0.5, 3.0)),
+        position: Vector3(0.0, 6.0, 0.0),
+        kind: ColliderKind.kinematic,
+      ),
+    );
+    final world = room();
+    final ceiling = slab(world);
+    final dynamics = NativeDynamics(world: world, movesCharacters: true);
+    addTearDown(dynamics.dispose);
+    final reference = room();
+    final ceilingRef = slab(reference);
+    reference.update();
+    world.update();
+    final core = CharacterController(
+      world: world,
+      position: Vector3(0.0, 0.9, 0.0),
+    );
+    final dart = CharacterController(
+      world: reference,
+      position: Vector3(0.0, 0.9, 0.0),
+    );
+    var lowest = (double.infinity, double.infinity);
+    for (var i = 0; i < 200; i++) {
+      for (final c in <Collider>[ceiling, ceilingRef]) {
+        c.moveTo(c.position + Vector3(0.0, -0.03, 0.0));
+      }
+      world.reindex();
+      for (final body in <CharacterController>[core, dart]) {
+        body.step(_dt, wishDirection: Vector3.zero());
+      }
+      dynamics.step(_dt);
+      world
+        ..update()
+        ..clearKinematicDeltas();
+      reference
+        ..update()
+        ..clearKinematicDeltas();
+      lowest = (
+        math.min(lowest.$1, core.position.y),
+        math.min(lowest.$2, dart.position.y),
+      );
+    }
+    expect(lowest.$2, greaterThan(0.0), reason: 'the reference');
+    expect(lowest.$1, greaterThan(0.85), reason: 'never into the floor');
+    // Once the slab's middle is below the body's, out of it is up, onto its
+    // top, on both.
+    expect(core.position.y, closeTo(dart.position.y, 0.05));
   });
 
   test('a lift carries it up, standing on the lift\'s collider', () {
@@ -273,11 +427,15 @@ void main() {
     final world = platformed();
     final dynamics = NativeDynamics(world: world, movesCharacters: true);
     addTearDown(dynamics.dispose);
-    final core = CharacterController(world: world, position: Vector3(0, 0.9, 0))
-      ..fromAboveLayers = 1 << 3;
+    final core = CharacterController(
+      world: world,
+      position: Vector3(0, 0.9, 0),
+      tuning: _gameGravity,
+    )..fromAboveLayers = 1 << 3;
     final dart = CharacterController(
       world: platformed()..update(),
       position: Vector3(0, 0.9, 0),
+      tuning: _gameGravity,
     )..fromAboveLayers = 1 << 3;
     world.update();
     var top = (0.0, 0.0);

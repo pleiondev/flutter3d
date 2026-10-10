@@ -30,9 +30,12 @@ library package:flutter3d_game_physics/flutter3d_game_physics.dart
 final class BurningWrecks
   BurningWrecks(Elements elements, GraphicsDevice device, {Vector3? along, this.behind = defaultBehind})
   List<TrackedBody> get bodies
+  SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.wrecks'})
   final double behind
-  static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 1.0)
+  static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 4.5)
   static const double defaultBehind = 40.0
+  static const double splinterDensity = 500.0
+  static const double splinterSurface = 1000.0
   void clear()
   void oil(Vector3 at)
   void step(double distance)
@@ -72,6 +75,7 @@ final class PartySession<G>
 final class RagdollCorpses with ActorCorpses
   RagdollCorpses(CollisionWorld world, {this.pushedFrom, this.push = defaultPush, this.chest = 'Torso', this.mass = referenceBodyMass})
   SkeletonRagdoll? ragdollOf(Actor actor)
+  SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.corpses'})
   bool begin(Actor actor, ModelInstance model, {List<Matrix4>? previous, double dt = stepSeconds})
   final String chest
   final Vector3? Function()? pushedFrom
@@ -199,6 +203,7 @@ library package:flutter3d_game_physics/ragdoll.dart
 final class RagdollCorpses with ActorCorpses
   RagdollCorpses(CollisionWorld world, {this.pushedFrom, this.push = defaultPush, this.chest = 'Torso', this.mass = referenceBodyMass})
   SkeletonRagdoll? ragdollOf(Actor actor)
+  SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.corpses'})
   bool begin(Actor actor, ModelInstance model, {List<Matrix4>? previous, double dt = stepSeconds})
   final String chest
   final Vector3? Function()? pushedFrom
@@ -256,9 +261,12 @@ library package:flutter3d_game_physics/wrecks.dart
 final class BurningWrecks
   BurningWrecks(Elements elements, GraphicsDevice device, {Vector3? along, this.behind = defaultBehind})
   List<TrackedBody> get bodies
+  SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.wrecks'})
   final double behind
-  static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 1.0)
+  static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 4.5)
   static const double defaultBehind = 40.0
+  static const double splinterDensity = 500.0
+  static const double splinterSurface = 1000.0
   void clear()
   void oil(Vector3 at)
   void step(double distance)

@@ -145,6 +145,30 @@ void main() {
     expect(pushed, greaterThan(still + 0.3));
   });
 
+  test('a rewind to before a death takes the body away', () async {
+    final world = _floor();
+    final corpses = RagdollCorpses(world);
+    addTearDown(corpses.dispose);
+    final actors = ActorSystem(world: world, random: GameRandom(1));
+    final first = actors.spawn(name: 'first');
+    final second = actors.spawn(name: 'second');
+    corpses.begin(first, await _hero());
+    final part = corpses.snapshotPart();
+    final saved = part.capture();
+
+    corpses.begin(second, await _hero());
+    for (var i = 0; i < 30; i++) {
+      corpses.step(1.0 / 60.0);
+    }
+    part.restore(saved, part.version);
+
+    // Mutation: restore nothing, and the second lies dead beside itself
+    // standing again.
+    expect(corpses.count, 1);
+    expect(corpses.ragdollOf(first), isNotNull);
+    expect(corpses.ragdollOf(second), isNull);
+  });
+
   test('a body taken out of the scene is let go', () async {
     final world = _floor();
     final corpses = RagdollCorpses(world);

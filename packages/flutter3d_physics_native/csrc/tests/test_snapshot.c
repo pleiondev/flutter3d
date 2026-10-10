@@ -6,12 +6,21 @@
  * a later version's extra fields are passed over, an earlier version of a
  * section is migrated, and what it cannot read — a snapshot from before
  * 1.0.0, a later major, damage — is refused with the world left as it was.
+ * Damage inside the sections too: an index past what it indexes, a count
+ * the bytes behind it cannot hold, and snapshots damaged at random, byte by
+ * byte and field by field, under the sanitisers.
  */
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "check.h"
+
+/* Under the address sanitiser, an allocation of more than 256 MB stops the
+ * test: a snapshot of a few hundred kilobytes that asks for gigabytes was
+ * believed before it was checked. */
+const char *__asan_default_options(void);
+const char *__asan_default_options(void) { return "max_allocation_size_mb=256"; }
 
 /* A world with something of everything in it: bodies turning, falling
  * through a wind grid, one burning, one wet, a fixed one in a freed slot,
@@ -617,6 +626,590 @@ static void test_refusals(void) {
   f3d_world_destroy(b);
 }
 
+/* -------------------------------------------- damage the lists hold in */
+
+/* The handle of slot [slot], generation one. */
+static F3dBody handle_at(uint32_t slot) { return ((uint64_t)1u << 32) | slot; }
+
+static int first_live_shaped(const F3dWorld *w, uint8_t shape) {
+  for (uint32_t i = 0; i < w->s.used; i++) {
+    if (w->slots[i].live && w->slots[i].shape == shape) return (int)i;
+  }
+  return -1;
+}
+
+static int first_hull_part(const F3dWorld *w) {
+  for (uint32_t i = 0; i < w->s.compound_part_count; i++) {
+    if (w->compound_parts[i].kind == F3D_SHAPE_HULL) return (int)i;
+  }
+  return -1;
+}
+
+/* Each a number the format reads well enough, put where it names
+ * something past what the snapshot holds: refused, every one, before the
+ * first step can read past an array. */
+enum {
+  PART_HULL_NOUGHT,
+  PART_HULL_PAST,
+  PART_KIND_NESTED,
+  MESH_INDEX_PAST,
+  HULL_INDEX_PAST,
+  WATER_FIRST_PAST,
+  WATER_EMPTY,
+  WATER_TOO_WIDE,
+  MANIFOLD_A_PAST,
+  MANIFOLD_B_PAST,
+  VEHICLE_CHASSIS_PAST,
+  BODY_SHAPE_UNKNOWN,
+  BODY_HULL_PAST,
+  BODY_MESH_PAST,
+  BODY_COMPOUND_PAST,
+  BODY_LUMPS_PAST,
+  BODY_LUMPS_NOT_COMPOUND,
+  JOINT_BODY_PAST,
+  LINK_PARENT_AHEAD,
+  LINK_DOFS_PAST,
+  MULTIBODY_DOFS_PAST,
+  LINK_BODY_PAST,
+  WIND_HALF_A_GRID,
+  LIVE_MISCOUNTED,
+  FREE_HEAD_LIVE,
+  FREE_LIST_THROUGH_LIVE,
+  JOINT_FREE_HEAD_LIVE,
+  JOINT_FREE_LIST_THROUGH_LIVE,
+  JOINTS_MISCOUNTED,
+  LINKS_MISCOUNTED,
+  ROOT_FREEDOMS_SHORT,
+  BODY_LIQUID_PAST,
+  BODY_LUMPS_TOO_MANY,
+  DAMAGE_KINDS
+};
+
+/* [w] damaged as [kind] says, in place: what a snapshot of it then says. */
+static void damage(F3dWorld *w, int kind) {
+  const int part = first_hull_part(w);
+  const F3dMesh *mesh = &w->meshes[0];
+  const F3dHull *hull = &w->hulls[0];
+  switch (kind) {
+    case PART_HULL_NOUGHT:
+      /* What f3d_compound.c reads as hulls[-1]. */
+      w->compound_parts[part].hull = 0;
+      break;
+    case PART_HULL_PAST:
+      w->compound_parts[part].hull = w->s.hull_count + 1u;
+      break;
+    case PART_KIND_NESTED:
+      w->compound_parts[part].kind = F3D_SHAPE_COMPOUND;
+      break;
+    case MESH_INDEX_PAST:
+      w->mesh_triangles[(size_t)mesh->first_triangle * 3u + 1u] = mesh->vertex_count;
+      break;
+    case HULL_INDEX_PAST:
+      w->hull_triangles[(size_t)hull->first_triangle * 3u + 2u] = hull->vertex_count;
+      break;
+    case WATER_FIRST_PAST:
+      /* Inside the reals, as the old check had it, but its grid is not. */
+      w->shallows[0].first = 1;
+      break;
+    case WATER_EMPTY:
+      w->shallows[0].nz = 0;
+      break;
+    case WATER_TOO_WIDE:
+      w->shallows[0].nx = 0x10000u;
+      w->shallows[0].nz = 0x10000u;
+      break;
+    case MANIFOLD_A_PAST:
+      w->manifolds[0].a = handle_at(w->s.used);
+      break;
+    case MANIFOLD_B_PAST:
+      w->manifolds[0].b = handle_at(w->s.used + 40u);
+      break;
+    case VEHICLE_CHASSIS_PAST:
+      w->vehicles[0].chassis = handle_at(w->s.used + 3u);
+      break;
+    case BODY_SHAPE_UNKNOWN:
+      w->slots[first_live_shaped(w, F3D_SHAPE_BOX)].shape = 200;
+      break;
+    case BODY_HULL_PAST:
+      w->slots[first_live_shaped(w, F3D_SHAPE_HULL)].hull = w->s.hull_count + 1u;
+      break;
+    case BODY_MESH_PAST:
+      w->slots[first_live_shaped(w, F3D_SHAPE_MESH)].hull = 0;
+      break;
+    case BODY_COMPOUND_PAST:
+      w->slots[first_live_shaped(w, F3D_SHAPE_COMPOUND)].hull =
+          w->s.compound_count + 1u;
+      break;
+    case BODY_LUMPS_PAST:
+      w->slots[first_live_shaped(w, F3D_SHAPE_COMPOUND)].lumps = w->s.lump_count;
+      break;
+    case BODY_LUMPS_NOT_COMPOUND: {
+      F3dSlot *s = &w->slots[first_live_shaped(w, F3D_SHAPE_BOX)];
+      s->lumps = 1;
+      s->lump_count = 1;
+      break;
+    }
+    case JOINT_BODY_PAST:
+      for (uint32_t i = 0; i < w->s.joint_used; i++) {
+        if (w->joints[i].live) {
+          w->joints[i].b = handle_at(w->s.used + 7u);
+          break;
+        }
+      }
+      break;
+    case LINK_PARENT_AHEAD:
+      w->multibodies[0].links[1].parent = 2;
+      break;
+    case LINK_DOFS_PAST:
+      w->multibodies[0].links[2].first_dof = w->multibodies[0].dof_count;
+      break;
+    case MULTIBODY_DOFS_PAST:
+      w->multibodies[0].dof_count = F3D_MULTIBODY_MOST_DOFS + 1u;
+      break;
+    case LINK_BODY_PAST:
+      w->multibodies[0].links[3].body = handle_at(w->s.used);
+      break;
+    case WIND_HALF_A_GRID:
+      /* A grid of no samples, two of its counts saying otherwise. */
+      f3d_free(w->grid);
+      w->grid = NULL;
+      w->s.grid_n[0] = 0;
+      break;
+    case LIVE_MISCOUNTED:
+      /* One fewer than there are: a buffer sized by the count, one short of
+       * what is written into it. */
+      w->s.live--;
+      break;
+    case FREE_HEAD_LIVE:
+      w->s.free_head = (uint32_t)first_live_shaped(w, F3D_SHAPE_BOX) + 1u;
+      break;
+    case FREE_LIST_THROUGH_LIVE: {
+      /* A slot freed, its next free one a body still there. */
+      F3dSlot *freed = &w->slots[first_live_shaped(w, F3D_SHAPE_BOX)];
+      freed->live = 0;
+      w->s.live--;
+      freed->next_free = (uint32_t)first_live_shaped(w, F3D_SHAPE_SPHERE) + 1u;
+      break;
+    }
+    case JOINT_FREE_HEAD_LIVE:
+    case JOINT_FREE_LIST_THROUGH_LIVE: {
+      uint32_t live[2], n = 0;
+      for (uint32_t i = 0; i < w->s.joint_used && n < 2; i++) {
+        if (w->joints[i].live) live[n++] = i;
+      }
+      if (kind == JOINT_FREE_HEAD_LIVE) {
+        w->s.joint_free_head = live[0] + 1u;
+      } else {
+        w->joints[live[0]].live = 0;
+        w->s.joint_live--;
+        w->joints[live[0]].next_free = live[1] + 1u;
+      }
+      break;
+    }
+    case JOINTS_MISCOUNTED:
+      w->s.joint_live--;
+      break;
+    case LINKS_MISCOUNTED:
+      /* What f3d_joint.c's filter makes room for, one short of the keys
+       * it writes. */
+      w->s.multibody_links--;
+      break;
+    case ROOT_FREEDOMS_SHORT:
+      w->multibodies[0].floating = 1;
+      w->multibodies[0].dof_count = 5;
+      w->multibodies[0].links[1].first_dof = 0;
+      w->multibodies[0].links[2].first_dof = 1;
+      w->multibodies[0].links[3].first_dof = 4;
+      break;
+    case BODY_LIQUID_PAST:
+      w->slots[first_live_shaped(w, F3D_SHAPE_BOX)].liquid = w->s.shallow_count + 1u;
+      break;
+    case BODY_LUMPS_TOO_MANY: {
+      /* Its lumps where the world keeps them, but more than its parts:
+       * f3d_world_read_fires reads a part a lump. */
+      const F3dSlot *s = &w->slots[first_live_shaped(w, F3D_SHAPE_COMPOUND)];
+      w->compounds[s->hull - 1u].part_count = s->lump_count - 1u;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static void test_damage_inside(void) {
+  /* Mutation: drop any one of the checks consistent() makes in
+   * f3d_snapshot.c — its case is taken, and the world it was restored over
+   * replaced. Each check was dropped in turn and each failed here. */
+  F3dWorld *full = full_world();
+  CHECK(first_hull_part(full) >= 0);
+  CHECK(full->s.multibody_count == 1 && full->multibodies[0].link_count == 4);
+  uint32_t size;
+  uint8_t *pristine = snapshot_of(full, &size);
+  F3dBody keep[6];
+  F3dWorld *target = busy_world(keep);
+  F3dWorld *twin = f3d_world_create();
+  uint32_t busy_size;
+  uint8_t *busy = snapshot_of(target, &busy_size);
+  CHECK(f3d_world_restore(twin, busy, busy_size) == 1);
+  for (int kind = 0; kind < DAMAGE_KINDS; kind++) {
+    F3dWorld *w = f3d_world_create();
+    CHECK(f3d_world_restore(w, pristine, size) == 1);
+    damage(w, kind);
+    uint32_t bad_size;
+    uint8_t *bad = snapshot_of(w, &bad_size);
+    const int taken = f3d_world_restore(target, bad, bad_size);
+    if (taken) {
+      fprintf(stderr, "damage %d was taken\n", kind);
+      CHECK(f3d_world_restore(target, busy, busy_size) == 1);
+    }
+    CHECK(!taken);
+    CHECK(same_world(target, twin));
+    free(bad);
+    f3d_world_destroy(w);
+  }
+  free(busy);
+  free(pristine);
+  f3d_world_destroy(full);
+  f3d_world_destroy(target);
+  f3d_world_destroy(twin);
+}
+
+/* -------------------------------------------- damage that asks for more */
+
+/* [snap] with the u32 at [offset] into section [id] set to [value]. */
+static uint8_t *with_u32(const uint8_t *snap, uint32_t size, uint32_t id,
+                         uint32_t offset, uint32_t value) {
+  uint8_t *bad = (uint8_t *)malloc(size);
+  memcpy(bad, snap, size);
+  Piece pieces[32];
+  const uint32_t n = pieces_of(snap, size, pieces, 32);
+  const int at = find(pieces, n, id);
+  CHECK(at >= 0 && offset + 4u <= pieces[at].length);
+  set_u32(bad + (pieces[at].data - snap) + offset, value);
+  return bad;
+}
+
+static void test_counts_before_memory(void) {
+  /* A count no bigger than the format allows, in a section far too short
+   * to hold what it counts: refused before the memory is asked for. The
+   * sanitiser's 256 MB stops the test where the count is believed.
+   * Mutation: drop make()'s check of the count against the bytes left —
+   * the first case asks for gigabytes and the sanitiser stops the test;
+   * drop sec_wind's bound on two counts' product — the wrapped grid is
+   * taken. */
+  F3dBody keep[6];
+  F3dWorld *a = busy_world(keep);
+  uint32_t size;
+  uint8_t *snap = snapshot_of(a, &size);
+  F3dWorld *b = f3d_world_create();
+  const F3dBody mine = f3d_body_create(b, F3D_BODY_DYNAMIC, 7, 7, 7, 1);
+  const uint32_t r = (uint32_t)sizeof(f3d_real);
+  struct {
+    uint32_t id, offset, value;
+  } const cases[] = {
+      /* Sixteen million bodies: gigabytes of slots. */
+      {ID('B', 'O', 'D', 'Y'), 0, 0x01000000u},
+      {ID('L', 'U', 'M', 'P'), 0, 0x01000000u},
+      {ID('C', 'O', 'N', 'T'), 0, 0x01000000u},
+      {ID('J', 'O', 'I', 'N'), 0, 0x01000000u},
+      {ID('V', 'E', 'H', 'I'), 0, 0x00400000u},
+      {ID('M', 'B', 'O', 'D'), 0, 0x00100000u},
+      {ID('W', 'A', 'T', 'R'), 4, 0x10000000u},
+      {ID('H', 'U', 'L', 'L'), 4, 0x08000000u},
+      {ID('M', 'E', 'S', 'H'), 8, 0x08000000u},
+      {ID('C', 'O', 'M', 'P'), 4, 0x04000000u},
+      /* A wind grid of 1 × 1 × 2²⁸ samples: under the old 2³² reals, and
+       * three gigabytes zeroed. */
+      {ID('W', 'I', 'N', 'D'), 4 * r + 8, 0x10000000u},
+  };
+  for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+    uint8_t *bad = with_u32(snap, size, cases[i].id, cases[i].offset, cases[i].value);
+    if (cases[i].id == ID('W', 'I', 'N', 'D')) {
+      /* The other two counts one each. */
+      Piece pieces[32];
+      const uint32_t n = pieces_of(snap, size, pieces, 32);
+      uint8_t *wind = bad + (pieces[find(pieces, n, cases[i].id)].data - snap);
+      set_u32(wind + 4 * r, 1);
+      set_u32(wind + 4 * r + 4, 1);
+    }
+    CHECK(refused(b, mine, bad, size));
+    free(bad);
+  }
+  /* A grid of 2¹⁷ × 2¹⁶ × 2³¹ samples, whose 3·2⁶⁴ reals wrap to nought in
+   * 64 bits, and a block of nought reals after it: no grid, its counts
+   * saying otherwise, for the wind to be read from. */
+  uint8_t *wrapped = with_u32(snap, size, ID('W', 'I', 'N', 'D'), 4 * r, 0x20000u);
+  Piece pieces[32];
+  const uint32_t n = pieces_of(snap, size, pieces, 32);
+  uint8_t *wind = wrapped + (pieces[find(pieces, n, ID('W', 'I', 'N', 'D'))].data - snap);
+  set_u32(wind + 4 * r + 4, 0x10000u);
+  set_u32(wind + 4 * r + 8, 0x80000000u);
+  set_u32(wind + 4 * r + 12, 0);
+  CHECK(refused(b, mine, wrapped, size));
+  free(wrapped);
+  free(snap);
+  f3d_world_destroy(a);
+  f3d_world_destroy(b);
+}
+
+/* ------------------------------------------------------------- fuzzing */
+
+/* How many damaged snapshots the fuzz tries, and from where; more, or
+ * others, with -DFUZZ_ROUNDS=… and -DFUZZ_SEED=… for a longer run by hand. */
+#ifndef FUZZ_ROUNDS
+#define FUZZ_ROUNDS 1500
+#endif
+#ifndef FUZZ_SEED
+#define FUZZ_SEED 0x9e3779b97f4a7c15u
+#endif
+
+static uint64_t g_seed = FUZZ_SEED;
+
+static uint32_t next_random(void) {
+  g_seed ^= g_seed << 13;
+  g_seed ^= g_seed >> 7;
+  g_seed ^= g_seed << 17;
+  return (uint32_t)(g_seed >> 16);
+}
+
+static void test_fuzz_bytes(void) {
+  /* Snapshots of the world with everything in it, damaged at random —
+   * bits flipped, words set to the numbers that break counts and indices,
+   * bytes cut off — and restored over another world: refused with that
+   * world as it was, or taken, and then what was taken is a world whose own
+   * snapshot reads back to it. A read past the buffer or an array is the
+   * sanitisers' to report.
+   *
+   * Not stepped: a real damaged into another real — a spray's volume of
+   * −2·10³² — reads as well as the one written, and what a step makes of
+   * absurd numbers is not the reader's question. The indices a step
+   * follows are test_fuzz_indices'. */
+  F3dWorld *full = full_world();
+  uint32_t size;
+  uint8_t *pristine = snapshot_of(full, &size);
+  F3dBody keep[6];
+  F3dWorld *target = busy_world(keep);
+  uint32_t busy_size;
+  uint8_t *busy = snapshot_of(target, &busy_size);
+  F3dWorld *twin = f3d_world_create();
+  CHECK(f3d_world_restore(twin, busy, busy_size) == 1);
+  uint8_t *bad = (uint8_t *)malloc(size);
+  const uint32_t words[] = {0u, 1u, 2u, 3u, 0x7fffffffu, 0x80000000u, 0xffffffffu,
+                            0x10000u, 0xffffu, 4097u};
+  int taken = 0, refusals = 0, unchanged = 1;
+  for (int round = 0; round < FUZZ_ROUNDS; round++) {
+    memcpy(bad, pristine, size);
+    uint32_t bad_size = size;
+    const uint32_t edits = 1u + next_random() % 4u;
+    for (uint32_t e = 0; e < edits; e++) {
+      /* Past the header, mostly: damage the header is refused for is
+       * test_refusals'. */
+      const uint32_t at = 20u + next_random() % (size - 24u);
+      switch (next_random() % 4u) {
+        case 0:
+          bad[at] ^= (uint8_t)(1u << (next_random() % 8u));
+          break;
+        case 1:
+          set_u32(bad + (at & ~3u), words[next_random() % (sizeof words / sizeof words[0])]);
+          break;
+        case 2:
+          set_u32(bad + at, u32_at(bad + at) + (next_random() % 2u ? 1u : 0xffffffffu));
+          break;
+        default:
+          set_u32(bad + at, next_random());
+          break;
+      }
+    }
+    if (next_random() % 16u == 0) bad_size = 20u + next_random() % (size - 20u);
+    if (f3d_world_restore(target, bad, bad_size)) {
+      taken++;
+      uint32_t again_size;
+      uint8_t *again = snapshot_of(target, &again_size);
+      F3dWorld *echo = f3d_world_create();
+      CHECK(f3d_world_restore(echo, again, again_size) == 1);
+      CHECK(same_world(target, echo));
+      f3d_world_destroy(echo);
+      free(again);
+      CHECK(f3d_world_restore(target, busy, busy_size) == 1);
+    } else {
+      refusals++;
+      unchanged &= same_world(target, twin);
+    }
+  }
+  CHECK(unchanged);
+  /* Both ways taken often: a fuzz that only ever refuses tests the
+   * header. */
+  CHECK(taken > 100 && refusals > 100);
+  free(bad);
+  free(busy);
+  free(pristine);
+  f3d_world_destroy(full);
+  f3d_world_destroy(target);
+  f3d_world_destroy(twin);
+}
+
+/* A whole number of a world's tables, of [bytes] bytes, that a snapshot
+ * carries and the writer does not itself count by. */
+typedef struct Field {
+  void *at;
+  uint32_t bytes;
+} Field;
+
+#define MOST_FIELDS 40000
+
+static uint32_t g_field_count;
+static Field g_fields[MOST_FIELDS];
+
+static void field(void *at, uint32_t bytes) {
+  if (g_field_count < MOST_FIELDS) g_fields[g_field_count++] = (Field){at, bytes};
+}
+
+#define U8(x) field(&(x), 1)
+#define U32(x) field(&(x), 4)
+#define U64(x) field(&(x), 8)
+
+/* Every whole number in [w]'s tables: indices, handles, kinds, flags and
+ * the counts of what a slot holds. Not the world's own counts of its
+ * tables, which the writer writes by. */
+static void fields_of(F3dWorld *w) {
+  g_field_count = 0;
+  const F3dWorldState *s = &w->s;
+  for (uint32_t i = 0; i < s->used; i++) {
+    F3dSlot *b = &w->slots[i];
+    U32(b->generation), U32(b->next_free), U8(b->live), U8(b->type), U8(b->shape);
+    U8(b->flags), U32(b->hull), U32(b->liquid), U32(b->was_wet), U32(b->layer);
+    U32(b->mask), U32(b->lumps), U32(b->lump_count);
+  }
+  for (uint32_t i = 0; i < s->manifold_count; i++) {
+    F3dManifold *m = &w->manifolds[i];
+    U64(m->a), U64(m->b), U32(m->count), U32(m->touching), U32(m->part);
+    for (uint32_t k = 0; k < F3D_MANIFOLD_POINTS; k++) U32(m->points[k].id);
+  }
+  for (uint32_t i = 0; i < s->hull_count; i++) {
+    F3dHull *h = &w->hulls[i];
+    U32(h->first_vertex), U32(h->vertex_count), U32(h->first_triangle);
+    U32(h->triangle_count);
+  }
+  for (uint32_t i = 0; i < s->hull_triangle_count * 3u; i++) U32(w->hull_triangles[i]);
+  for (uint32_t i = 0; i < s->mesh_count; i++) {
+    F3dMesh *m = &w->meshes[i];
+    U32(m->first_vertex), U32(m->vertex_count), U32(m->first_triangle);
+    U32(m->triangle_count);
+  }
+  for (uint32_t i = 0; i < s->mesh_triangle_count * 3u; i++) U32(w->mesh_triangles[i]);
+  for (uint32_t i = 0; i < s->mesh_triangle_count; i++) U8(w->mesh_edges[i]);
+  for (uint32_t i = 0; i < s->joint_used; i++) {
+    F3dJointSlot *j = &w->joints[i];
+    U32(j->generation), U32(j->next_free), U8(j->live), U8(j->type), U8(j->flags);
+    U64(j->a), U64(j->b);
+  }
+  for (uint32_t i = 0; i < s->compound_count; i++) {
+    U32(w->compounds[i].first_part), U32(w->compounds[i].part_count);
+  }
+  for (uint32_t i = 0; i < s->compound_part_count; i++) {
+    U32(w->compound_parts[i].kind), U32(w->compound_parts[i].hull);
+  }
+  for (uint32_t i = 0; i < s->vehicle_count; i++) {
+    F3dVehicleSlot *v = &w->vehicles[i];
+    U32(v->live), U32(v->wheel_count), U64(v->chassis);
+    for (uint32_t k = 0; k < F3D_VEHICLE_MOST_WHEELS; k++) U32(v->wheels[k].touching);
+  }
+  for (uint32_t i = 0; i < s->multibody_count; i++) {
+    F3dMultibodySlot *m = &w->multibodies[i];
+    U32(m->live), U32(m->link_count), U32(m->dof_count), U32(m->floating);
+    for (uint32_t k = 0; k < F3D_MULTIBODY_MOST_LINKS; k++) {
+      F3dLink *l = &m->links[k];
+      U64(l->body), U32(l->parent), U32(l->type), U32(l->first_dof), U32(l->dofs);
+      U32(l->flags);
+    }
+  }
+  for (uint32_t i = 0; i < s->lump_count; i++) {
+    U32(w->lumps[i].burning), U32(w->lumps[i].edge);
+  }
+  for (uint32_t i = 0; i < s->shallow_count; i++) {
+    F3dShallowSlot *q = &w->shallows[i];
+    U32(q->live), U32(q->nx), U32(q->nz), U32(q->first), U32(q->outlet_count);
+    for (int k = 0; k < 4; k++) U32(q->edge_kind[k]);
+    for (uint32_t k = 0; k < F3D_SHALLOW_MOST_OUTLETS; k++) U32(q->outlets[k].kind);
+    U32(q->substeps), U32(q->overruns), U32(q->boils), U32(q->resting);
+    U32(q->source_count);
+  }
+  for (uint32_t i = 0; i < s->spray_count; i++) {
+    U32(w->spray[i].water), U32(w->spray[i].kind), U32(w->spray[i].face);
+  }
+  for (uint32_t i = 0; i < s->bubble_count; i++) U32(w->bubbles[i].water);
+}
+
+/* A number to damage a field of [bytes] holding [was] with: nought, one,
+ * one either side of it, the edges of a word, small, or anything. */
+static uint64_t damaged(uint64_t was, uint32_t bytes, uint32_t used) {
+  uint64_t v;
+  switch (next_random() % 8u) {
+    case 0: v = 0; break;
+    case 1: v = 1; break;
+    case 2: v = was + 1u; break;
+    case 3: v = was - 1u; break;
+    case 4: v = next_random() % 64u; break;
+    case 5: v = next_random() % 2u ? 0xffffffffu : 0x80000000u; break;
+    case 6:
+      /* A handle's slot past the arena, its generation kept. */
+      v = (was & 0xffffffff00000000u) | (used + next_random() % 4u);
+      break;
+    default: v = ((uint64_t)next_random() << 32) | next_random(); break;
+  }
+  return bytes == 8 ? v : bytes == 4 ? (uint32_t)v : (uint8_t)v;
+}
+
+static void test_fuzz_indices(void) {
+  /* The world with everything in it, a few of the whole numbers in its
+   * tables damaged at random, written and restored over another world:
+   * refused with that world as it was, or taken and stepped. Every index a
+   * step follows is among them, so a read past an array that the reader
+   * let through shows in the steps, to the sanitisers. */
+  F3dWorld *full = full_world();
+  uint32_t size;
+  uint8_t *pristine = snapshot_of(full, &size);
+  F3dBody keep[6];
+  F3dWorld *target = busy_world(keep);
+  uint32_t busy_size;
+  uint8_t *busy = snapshot_of(target, &busy_size);
+  F3dWorld *twin = f3d_world_create();
+  CHECK(f3d_world_restore(twin, busy, busy_size) == 1);
+  F3dWorld *w = f3d_world_create();
+  int taken = 0, refusals = 0, unchanged = 1;
+  for (int round = 0; round < FUZZ_ROUNDS; round++) {
+    CHECK(f3d_world_restore(w, pristine, size) == 1);
+    fields_of(w);
+    const uint32_t edits = 1u + next_random() % 3u;
+    for (uint32_t e = 0; e < edits; e++) {
+      const Field *f = &g_fields[next_random() % g_field_count];
+      uint64_t was = 0;
+      memcpy(&was, f->at, f->bytes);
+      const uint64_t now = damaged(was, f->bytes, w->s.used);
+      memcpy(f->at, &now, f->bytes);
+    }
+    uint32_t bad_size;
+    uint8_t *bad = snapshot_of(w, &bad_size);
+    if (f3d_world_restore(target, bad, bad_size)) {
+      taken++;
+      run(target, 2);
+      CHECK(f3d_world_restore(target, busy, busy_size) == 1);
+    } else {
+      refusals++;
+      unchanged &= same_world(target, twin);
+    }
+    free(bad);
+  }
+  CHECK(unchanged);
+  CHECK(taken > 100 && refusals > 100);
+  free(busy);
+  free(pristine);
+  f3d_world_destroy(w);
+  f3d_world_destroy(full);
+  f3d_world_destroy(target);
+  f3d_world_destroy(twin);
+}
+
 int main(void) {
   test_header();
   test_round_trip();
@@ -624,5 +1217,9 @@ int main(void) {
   test_unknown_sections();
   test_migration();
   test_refusals();
+  test_damage_inside();
+  test_counts_before_memory();
+  test_fuzz_bytes();
+  test_fuzz_indices();
   return finish();
 }

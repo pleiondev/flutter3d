@@ -1,5 +1,28 @@
 ## 1.0.0-rc.1
 
+- **A damaged snapshot is refused, not read past an array.** The core's
+  reader checks every index a step follows before it replaces anything: a
+  body's hull, mesh or compound and its lumps, a compound part's hull, each
+  triangle's corners, a water's grid inside the reals, the bodies a
+  contact, a joint, a vehicle and a link name, a link's parent and degrees
+  of freedom, the arenas' free lists and live counts. A count is believed
+  only as far as the bytes behind it go, so a short snapshot no longer asks
+  for gigabytes, and a wind grid is all three counts or none. Fuzzed in C
+  under the sanitisers and through Dart; the WebAssembly modules are built
+  again with it.
+- **`NativeDynamics.restoreState` changes nothing when it refuses.** Core
+  bytes that are not base64 or that the core refuses left the world under
+  the save's gravity and air; they now throw first, or put the world's
+  properties back.
+- **A character that falls onto a face too steep to stand on slides down
+  it**, as `CharacterController`'s own sweeps do: the core met every steep
+  face as an upright wall, which is right walking into it and wrong landing
+  on it. A face that looks down is met as it is.
+- **A ragdoll's bodies start from the same bits on the VM and in a
+  browser.** Turning each bone from y onto itself asked libm for `acos`,
+  `sin` and `cos` through vector_math; it takes square roots now, the same
+  quaternions to the bit on the VM.
+
 - **Breaking: the particles' `Particle` record is `NativeParticle`**, so
   it is not taken for `flutter3d_particles`' `Particle`, which a game
   imports beside this.
