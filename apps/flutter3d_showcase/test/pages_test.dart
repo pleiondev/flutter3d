@@ -4,6 +4,7 @@ library;
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/material_bundles.dart';
 import 'support/page_harness.dart';
 
 void main() {
@@ -12,6 +13,12 @@ void main() {
   // `rootBundle`) needs a binding to load it through, and a plain `test()`
   // never creates one on its own.
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // user-materials loads a bundle compiled from its own source, which is
+  // built here rather than committed. Mutation: leave this out and the page
+  // fails to load "lib/pages/shading/user_materials.f3dshaders" on any
+  // checkout that has never built it.
+  setUpAll(buildUserMaterialsBundle);
 
   for (final Feature feature in allFeatures) {
     test('${feature.id} draws something and keeps its own claim', () async {

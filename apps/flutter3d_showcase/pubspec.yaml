@@ -96,6 +96,14 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # The material compiler a package's build hook runs, for the one bundle a
+  # page loads: `test/support/material_bundles.dart` builds it before the
+  # pages are drawn, since a bundle is never committed.
+  flutter3d_build_hooks:
+    path: ../../packages/flutter3d_build_hooks
+  flutter3d_shaders:
+    path: ../../packages/flutter3d_shaders
+
 flutter:
   uses-material-design: true
 
