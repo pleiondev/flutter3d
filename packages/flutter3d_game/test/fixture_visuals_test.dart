@@ -25,6 +25,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show StringCodec;
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d_app/flutter3d_app.dart' show ModelVisuals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -510,6 +511,82 @@ void main() {
     final xs = standing();
     expect(xs, containsAll(<double>[-5.0, 5.0]));
     expect(xs, orderedEquals(<double>[...xs]..sort()));
+  });
+
+  test('a fixture\'s model and a level\'s model loaded into one scene go in '
+      'in the order they were asked for', () async {
+    // Two loaders, one scene: the turns are the scene's, so the line is one
+    // whatever mix of loaders joins it. A line per loader kept each in order
+    // and let them race each other.
+    //
+    // Mutation: in `FixtureVisuals._addModel` or `ModelVisuals.add`, reserve
+    // the turn from a `Scene()` of its own rather than [scene] — the level's
+    // model, read at once, goes in ahead of the fixture's, held back.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const heroPath = '../flutter3d/test/fixtures/hero.glb';
+    final hero = File(heroPath).readAsBytesSync();
+    final first = Completer<void>();
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMessageHandler('flutter/assets', (
+      ByteData? message,
+    ) async {
+      final key = Uri.decodeFull(
+        const StringCodec().decodeMessage(message) ?? '',
+      );
+      if (key == 'models/first.glb') await first.future;
+      return key.startsWith('models/') ? ByteData.sublistView(hero) : null;
+    });
+    addTearDown(() => messenger.setMockMessageHandler('flutter/assets', null));
+
+    final scene = loaded.scene;
+    final fixtures =
+        FixtureVisuals(
+          scene,
+          loaded,
+          appearance: _Answers(),
+          device: device,
+          onIssue: (issue) => fail('$issue'),
+        )..add(
+          _fixture(
+            type: 'key',
+            at: Vector3(-5.0, 0.5, 0.0),
+            properties: const <String, Object?>{'model': 'models/first.glb'},
+          ),
+        );
+    final models = ModelVisuals(
+      scene,
+      device: device,
+      source: FileAssetSource.new,
+      onIssue: (issue) => fail('$issue'),
+    );
+    addTearDown(models.dispose);
+    final level = models.add(
+      EntityDef(
+        type: ModelVisuals.entityType,
+        name: 'level model',
+        position: Vector3(5.0, 0.0, 0.0),
+        properties: const <String, Object?>{'asset': heroPath},
+      ),
+    );
+
+    // Long enough for the level's model to be read, decoded and placed when
+    // nothing holds it back; with the scene's line it waits for the fixture.
+    final waited = Stopwatch()..start();
+    while (!models.nodes.containsKey('level model') &&
+        waited.elapsed < const Duration(seconds: 1)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    first.complete();
+    await fixtures.settled;
+    final levelRoot = await level;
+
+    final children = scene.root.childrenView;
+    final fixtureAt = children.indexWhere(
+      (node) => _positionOf(node).x == -5.0,
+    );
+    expect(fixtureAt, greaterThanOrEqualTo(0));
+    expect(children.indexOf(levelRoot!), greaterThan(fixtureAt));
   });
 }
 

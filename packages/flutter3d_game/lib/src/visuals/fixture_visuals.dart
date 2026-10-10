@@ -7,7 +7,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'fixture_appearance.dart';
 import 'outline_marks.dart';
-import 'scene_turns.dart';
 
 export 'fixture_appearance.dart';
 
@@ -258,20 +257,20 @@ final class FixtureVisuals {
   /// Puts a modelled fixture in the scene once its file has been read.
   ///
   /// **In the order the fixtures were added, not the order their files
-  /// arrive in** — see [takeSceneTurn]. A level naming two models, the
+  /// arrive in** — see [Scene.reserveTurn]. A level naming two models, the
   /// Ascent's coin and key, had whichever isolate finished first put its
   /// model into the scene first, and the same replay drew one of two
   /// frames.
   Future<void> _addModel(Fixture fixture, String path) async {
     final generation = _generation;
     final loading = _models.putIfAbsent(path, () => _load(path));
-    final (:previous, :turn) = takeSceneTurn(scene);
+    final turn = scene.reserveTurn();
     try {
       final asset = await loading;
-      await previous;
+      await turn.ready;
       _placeModel(fixture, asset, generation);
     } finally {
-      turn.complete();
+      turn.release();
     }
   }
 

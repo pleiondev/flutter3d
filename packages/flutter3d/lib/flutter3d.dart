@@ -380,6 +380,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         Scene,
         SceneBvh,
         SceneNode,
+        SceneTurn,
         ScreenBounds,
         ShadowCasterFaces,
         ShadowCastingMode,

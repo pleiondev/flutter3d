@@ -3,7 +3,6 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../diagnostics/issues.dart';
-import 'scene_turns.dart';
 
 /// `edu-07b`: the path `edu-07a`'s own doc comment names as the one `prop`
 /// does not close — a real glTF/`.f3d` asset, loaded the way every other
@@ -72,9 +71,9 @@ final class ModelVisuals {
   /// frames later.
   ///
   /// **Into the scene in the order [add] was called, not the order the files
-  /// arrive in** — see [takeSceneTurn]. A caller that started several adds
-  /// and waited for them together had them go in in whichever order their
-  /// isolates finished.
+  /// arrive in** — see [Scene.reserveTurn]. A caller that started several
+  /// adds and waited for them together had them go in in whichever order
+  /// their isolates finished.
   Future<SceneNode?> add(EntityDef entity) async {
     if (entity.type != entityType) return null;
 
@@ -84,11 +83,11 @@ final class ModelVisuals {
       return null;
     }
 
-    final (:previous, :turn) = takeSceneTurn(scene);
+    final turn = scene.reserveTurn();
     try {
-      return await _addInTurn(entity, path, previous);
+      return await _addInTurn(entity, path, turn.ready);
     } finally {
-      turn.complete();
+      turn.release();
     }
   }
 

@@ -66,7 +66,6 @@ import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
 
-import '../level/scene_turns.dart';
 import '../surface/scene_surface.dart' show FramePresenter;
 import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
@@ -941,8 +940,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   SceneNode createNode(_Scene3DScope scope) {
     // Its turn taken now, in the order the models are built, rather than
     // when its file arrives — see [_loadInto].
-    final (:previous, :turn) = takeSceneTurn(scope.host.scene);
-    unawaited(_loadInto(scope, previous, turn));
+    unawaited(_loadInto(scope, scope.host.scene.reserveTurn()));
     scope.host.animated.add(this);
     return SceneNode(name: widget.source ?? 'model');
   }
@@ -950,19 +948,15 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   /// The asset this widget loaded, disposed with it.
   ModelAsset? _asset;
 
-  /// Loads the model and puts it in the scene once [previous] — the model
-  /// built before this one in the same scene — is in, then completes
-  /// [turn] for the next.
+  /// Loads the model and puts it in the scene once [turn] is ready — once
+  /// everything asked of the same scene before it is in — then releases it
+  /// for the next.
   ///
   /// **In the order the models were built, not the order their files
-  /// arrive in** — see [takeSceneTurn]. The node stands in its place from
-  /// the start, but the scene registers meshes as they are attached, and
-  /// that registry is what the renderer works from.
-  Future<void> _loadInto(
-    _Scene3DScope scope,
-    Future<void> previous,
-    Completer<void> turn,
-  ) async {
+  /// arrive in** — see [Scene.reserveTurn]. The node stands in its place
+  /// from the start, but the scene registers meshes as they are attached,
+  /// and that registry is what the renderer works from.
+  Future<void> _loadInto(_Scene3DScope scope, SceneTurn turn) async {
     try {
       final asset = switch (widget.load) {
         final load? => await load(scope.device),
@@ -971,10 +965,10 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
           device: scope.device,
         ),
       };
-      await previous;
+      await turn.ready;
       _place(scope, asset);
     } finally {
-      turn.complete();
+      turn.release();
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -358,6 +359,35 @@ final class Scene {
     }
   }
 
+  /// Reserves the next turn at putting something that is still loading into
+  /// this scene.
+  ///
+  /// **A scene's order is part of its picture**, so what loads in the
+  /// background goes in in the order it was asked for, not the order it
+  /// arrives in. The renderer builds its cull tree over [meshes] in the order
+  /// they were registered, and the order draws are claimed in decides which
+  /// material sorts first and which of two equal depths wins. Every model is
+  /// decoded on an isolate of its own, so two of them finish in either order,
+  /// and a loader that attached each as it arrived made two pictures of one
+  /// scene: a recorded run replayed on the same code drew one of two frames
+  /// depending on which isolate came back first.
+  ///
+  /// Reserved synchronously, when the load starts, so the turns follow the
+  /// calls whatever loads them — fixtures, actors, a level's models and the
+  /// declarative widgets share one line, because they share one scene.
+  /// Load, await [SceneTurn.ready], attach, and [SceneTurn.release] in a
+  /// `finally`: a load that fails must still hand the next one its turn,
+  /// or everything asked for after it waits for ever. The loads themselves
+  /// still run side by side; only the step into the scene waits.
+  SceneTurn reserveTurn() {
+    final turn = SceneTurn._(_lastTurn);
+    _lastTurn = turn._done.future;
+    return turn;
+  }
+
+  /// When the last turn reserved is released.
+  Future<void> _lastTurn = Future<void>.value();
+
   /// First light of the given type, or null.
   ///
   /// A convenience for scene code — "where is the key light" — not something the
@@ -409,6 +439,23 @@ final class Scene {
   String toString() =>
       'Scene(${_meshes.length} meshes, ${_lights.length} '
       'lights, ${_cameras.length} cameras)';
+}
+
+/// One turn at putting something loaded into a scene — [Scene.reserveTurn].
+final class SceneTurn {
+  SceneTurn._(this.ready);
+
+  /// Completes once every turn reserved before this one has been released:
+  /// the moment this one may attach what it loaded.
+  final Future<void> ready;
+
+  final Completer<void> _done = Completer<void>();
+
+  /// Hands the next turn on. Called once whatever happened to the load —
+  /// in a `finally` — and a second call does nothing.
+  void release() {
+    if (!_done.isCompleted) _done.complete();
+  }
 }
 
 /// How a node joins and leaves its scene's lists, called by the nodes
