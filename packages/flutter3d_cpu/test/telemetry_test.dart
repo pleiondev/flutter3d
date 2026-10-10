@@ -91,6 +91,9 @@ void main() {
     // Mutation: record the nodes whatever the level, and `passes` is not
     // empty.
     final it = _stage();
+    // The first frame also draws what later frames keep (the static
+    // shadows), so the two compared are both past it.
+    _render(it, TelemetryLevel.timings);
     final timed = _render(it, TelemetryLevel.timings);
     final off = _render(it, TelemetryLevel.off);
     expect(off.passes, isEmpty);

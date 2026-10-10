@@ -154,7 +154,11 @@ final class ResourceRequest<K, V> {
       ..refCount -= 1
       ..waiting.remove(this)
       ..rerank();
-    _handed.completeError(ResourceLoadCanceledException(key));
+    // Handled already, so a caller that called it off and never awaits the
+    // handle is not told of an error it asked for; one that awaits still is.
+    _handed
+      ..future.ignore()
+      ..completeError(ResourceLoadCanceledException(key));
     _cache._forgetIfAbandoned(key, _entry);
   }
 }
