@@ -16,6 +16,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter_test/flutter_test.dart';
 
 final engine.RenderMaterial _grey = engine.RenderMaterial(
@@ -24,19 +25,22 @@ final engine.RenderMaterial _grey = engine.RenderMaterial(
 
 /// A mount over a scene of its own, and the renderer it releases through.
 final class _Stage {
-  _Stage() {
+  _Stage({GraphicsDevice? device})
+    : device =
+          device ??
+          CpuDevice(
+            width: 8,
+            height: 8,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ) {
     mount = SceneWidgets.mount(
       scene: scene,
       renderer: renderer,
-      device: device,
+      device: this.device,
     );
   }
 
-  final CpuDevice device = CpuDevice(
-    width: 8,
-    height: 8,
-    shaders: CpuShaderLibrary(builtinCpuShaders()),
-  );
+  final GraphicsDevice device;
   late final Renderer renderer = Renderer.create(device: device);
   final Scene scene = Scene();
   late final SceneWidgetsMount mount;
@@ -56,6 +60,16 @@ final class _Stage {
 
   MeshNode mesh(String name) => scene.meshes.firstWhere((m) => m.name == name);
 }
+
+Scene3DController? controller;
+
+/// Shows nothing: the test reads the scene, not the picture.
+Widget _noPresenter(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.contain,
+  FilterQuality quality = FilterQuality.low,
+}) => const SizedBox.expand();
 
 Widget _box(String name, {Vector3? at}) => Mesh3D(
   key: ValueKey<String>(name),
@@ -78,11 +92,12 @@ void main() {
       stage.mount.dispose();
     });
 
-    test('a keyed mesh moved under another parent keeps its node, and its '
-        'mesh on the device', () {
+    testWidgets('a keyed mesh moved under another parent keeps its node, '
+        'and its mesh on the device', (WidgetTester tester) async {
       // Mutation: drop the `GlobalKey` reparent in `_SpatialState` — a node
-      // made again would upload its mesh again.
-      final stage = _Stage();
+      // made again would upload its mesh again. In a `Scene3D`, the tree an
+      // application builds: a `GlobalKey` is found through the widgets
+      // binding's own build owner, which a `SceneWidgets.mount` does not use.
       final key = GlobalKey();
       Widget crate() => Mesh3D(
         key: key,
@@ -90,28 +105,48 @@ void main() {
         material: _grey,
         name: 'crate',
       );
-      stage.mount.update(<Widget>[
-        Node3D(key: const ValueKey<String>('left'), name: 'left'),
-        Node3D(
-          key: const ValueKey<String>('right'),
-          name: 'right',
-          children: <Widget>[crate()],
+      Widget scene(bool onTheLeft) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 8,
+          height: 8,
+          child: Scene3D(
+            device: CpuDevice(
+              width: 8,
+              height: 8,
+              shaders: CpuShaderLibrary(builtinCpuShaders()),
+            ),
+            continuous: false,
+            presenter: _noPresenter,
+            onCreated: (Scene3DController it) => controller = it,
+            children: <Widget>[
+              Node3D(
+                key: const ValueKey<String>('left'),
+                name: 'left',
+                children: <Widget>[if (onTheLeft) crate()],
+              ),
+              Node3D(
+                key: const ValueKey<String>('right'),
+                name: 'right',
+                children: <Widget>[if (!onTheLeft) crate()],
+              ),
+            ],
+          ),
         ),
-      ]);
-      final node = stage.mesh('crate');
+      );
+      await tester.pumpWidget(scene(false));
+      await tester.pump();
+      await tester.pump();
+      MeshNode named() =>
+          controller!.scene.meshes.firstWhere((m) => m.name == 'crate');
+      final node = named();
       final uploaded = node.mesh;
-      stage.mount.update(<Widget>[
-        Node3D(
-          key: const ValueKey<String>('left'),
-          name: 'left',
-          children: <Widget>[crate()],
-        ),
-        Node3D(key: const ValueKey<String>('right'), name: 'right'),
-      ]);
-      expect(identical(stage.mesh('crate'), node), isTrue);
+
+      await tester.pumpWidget(scene(true));
+      await tester.pump();
+      expect(identical(named(), node), isTrue);
       expect(node.parent?.name, 'left');
       expect(identical(node.mesh, uploaded), isTrue);
-      stage.mount.dispose();
     });
   });
 
@@ -163,23 +198,30 @@ void main() {
     test('a mesh widget gone takes its node out and gives its upload back', () {
       // Mutation: drop the release from `_Mesh3DState.dispose`, and the
       // uploaded mesh stays on the device for the life of the renderer.
-      final stage = _Stage();
+      // The renderer gives it back once no frame in flight can read it, to
+      // the device: that is where the release is seen.
+      final device = FakeBackend();
+      final stage = _Stage(device: device);
       stage.mount.update(<Widget>[_box('a'), _box('b')]);
       final a = stage.mesh('a');
       final uploaded = a.mesh as DeviceMesh;
       stage.frames();
-      expect(uploaded.isDisposed, isFalse);
+      expect(device.releasedGeometry, isNot(contains(uploaded.vertices)));
 
       stage.mount.update(<Widget>[_box('b')]);
       expect(a.parent, isNull);
       expect(stage.scene.meshes.map((m) => m.name), <String?>['b']);
       stage.frames();
-      expect(uploaded.isDisposed, isTrue);
+      expect(
+        device.releasedGeometry,
+        containsAll(<Object>[uploaded.vertices, uploaded.indices]),
+      );
       stage.mount.dispose();
     });
 
     test('a mesh given a different shape gives the old upload back', () {
-      final stage = _Stage();
+      final device = FakeBackend();
+      final stage = _Stage(device: device);
       Widget box(Shape shape) => Mesh3D(
         key: const ValueKey<String>('a'),
         shape: shape,
@@ -191,7 +233,10 @@ void main() {
       stage.mount.update(<Widget>[box(SphereShape())]);
       expect(identical(stage.mesh('a').mesh, old), isFalse);
       stage.frames();
-      expect(old.isDisposed, isTrue);
+      expect(
+        device.releasedGeometry,
+        containsAll(<Object>[old.vertices, old.indices]),
+      );
       stage.mount.dispose();
     });
 
