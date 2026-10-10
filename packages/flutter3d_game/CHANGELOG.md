@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`PipelineRefused`, `PipelineRefusalReason`, `PipelineRefusals` and
+  `FramePipelineRefused` are exported**, as `flutter3d` exports them: a
+  game hears of a pipeline the device would not build through
+  `FrameResult.pipelineRefusals` or the bus.
 - **Breaking: the input names no device package's types.** `PadInput` takes
   a `PadDevice` and holds `GamePadButton`s, `PadPresses.offer` takes a
   `GamePadButton` as its `menuButton`, and `DesktopInput` takes a

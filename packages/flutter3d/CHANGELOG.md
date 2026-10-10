@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`PipelineRefused`, `PipelineRefusalReason`, `PipelineRefusals` and
+  `FramePipelineRefused` are exported**: a pipeline the device will not
+  build is skipped and told once on `FrameResult.pipelineRefusals`, rather
+  than failing every frame.
 - **Breaking: `SynchronousBufferReadback` is not exported.** The stalling
   read is a test's or a tool's, so it comes from
   `package:flutter3d_hardware/testing.dart`, as in `flutter3d_hardware`.
