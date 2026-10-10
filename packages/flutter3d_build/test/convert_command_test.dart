@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_build/cli.dart';
+import 'package:flutter3d_build/flutter3d_build.dart'
+    show ConvertUsageException;
 import 'package:flutter3d_build/src/convert/command.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show DocumentFormatException;
+    show DocumentFormatException, ResourceException;
 import 'package:test/test.dart';
 
 import 'convert_support.dart';
@@ -22,6 +24,38 @@ void main() {
       final out = BufferSink();
       expect(await runConvertCommand(const <String>['--help'], out: out), 0);
       expect(out.text, contains('Exit codes'));
+    });
+
+    test('parse throws instead of answering null', () {
+      // Mutation: answer null again for no input, and the first expectation
+      // reads a null where an exception was promised.
+      expect(
+        () => ConvertCommandSettings.parse(const <String>[]),
+        throwsA(
+          isA<ConvertUsageException>()
+              .having((e) => e.isHelp, 'isHelp', isFalse)
+              .having((e) => e.message, 'message', contains('no input')),
+        ),
+      );
+      expect(
+        () => ConvertCommandSettings.parse(const <String>['a.glb', '--help']),
+        throwsA(
+          isA<ConvertUsageException>().having(
+            (e) => e.isHelp,
+            'isHelp',
+            isTrue,
+          ),
+        ),
+      );
+    });
+
+    test('the external tools\' refusals are named by the command line', () {
+      // The types a caller of `convertInputs` catches: a tool that is not
+      // installed, and one that ran and refused.
+      const missing = MissingToolException('usdcat is not installed');
+      const failed = ToolFailedException('Blender exited with 1');
+      expect(missing, isA<ResourceException>());
+      expect(failed.message, 'Blender exited with 1');
     });
 
     test('an unknown option is a usage error naming it', () async {
@@ -42,7 +76,7 @@ void main() {
         '--textures',
         'bc',
         '--no-mips',
-      ])!;
+      ]);
       expect(options.models.lods, <double>[0.5, 0.25]);
       expect(options.models.chunks, isNotNull);
       expect(options.models.textures.name, 'bc');

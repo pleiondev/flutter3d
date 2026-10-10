@@ -1,18 +1,15 @@
-// Converts a model into the engine's .f3d container — from any project that
-// depends on this package, not only from a checkout of this repository.
-//
-//   dart run flutter3d_build:convert assets_src/Box.glb
-//   dart run flutter3d_build:convert assets_src -o build/assets
-//   dart run flutter3d_build:convert --help
-//
-// `ap-03` in doc/asset-pipeline-plan.md: the thin wrapper the plan asks for.
-// The actual conversion — decoding, writing `.f3d`, the round-trip check —
-// lives in `package:flutter3d_build`, alongside `ap-05`'s build hook, which
-// calls the very same function this file does.
+/// `flutter3d convert`, under the name `dart run flutter3d_build:convert`
+/// reaches: an alias, and nothing else. The command is `runFlutter3d`.
+///
+/// Until 1.0 this name ran the one-model converter, whose `-o` named a file
+/// and which took `--classes`. That converter is `runConvert` in
+/// `package:flutter3d_build`, for a build script that wants either.
+library;
+
 import 'dart:io';
 
-import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:flutter3d_build/cli.dart' show runFlutter3d;
 
 Future<void> main(List<String> arguments) async {
-  exitCode = await runConvert(arguments);
+  exitCode = await runFlutter3d(<String>['convert', ...arguments]);
 }

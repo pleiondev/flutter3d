@@ -33,12 +33,23 @@ final class SourceFormatException extends Flutter3dFormatException {
 /// A `flutter3d convert` command line that could not be read: an option
 /// missing its value, a value of the wrong shape, an option nobody knows.
 ///
-/// `runConvertCommand` answers it with the usage text and exit code 2.
+/// `runConvertCommand` answers it with the usage text and exit code 2, or,
+/// when [isHelp], with the usage on stdout and exit code 0.
 final class ConvertUsageException extends Flutter3dFormatException {
-  const ConvertUsageException(this.message);
+  const ConvertUsageException(this.message) : isHelp = false;
+
+  /// `-h` or `--help`: not a mistake, but the parse still has no settings to
+  /// answer with.
+  const ConvertUsageException.helpAsked()
+    : message = 'the usage was asked for',
+      isHelp = true;
 
   @override
   final String message;
+
+  /// Whether the usage was asked for rather than the command line being
+  /// wrong.
+  final bool isHelp;
 
   @override
   String toString() => 'ConvertUsageException: $message';

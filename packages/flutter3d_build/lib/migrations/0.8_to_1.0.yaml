@@ -18316,3 +18316,15 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  - id: build-usage
+    package: flutter3d_build
+    symbol: usage
+    kind: rename
+    to: modelConvertUsage
+    wave: 2
+    guidance: >-
+      `usage` is the text `runConvert`, the one-model converter, prints for
+      arguments it cannot read; `dart run flutter3d_build:convert` is now
+      `flutter3d convert`, whose usage is `convertUsage` in
+      `package:flutter3d_build/cli.dart`.

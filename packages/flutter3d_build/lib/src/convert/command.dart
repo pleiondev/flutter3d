@@ -11,7 +11,7 @@ import 'package:glob/list_local_fs.dart';
 
 import '../build_exceptions.dart';
 import '../chunk_generate.dart' show defaultChunkThreshold, parseChunkThreshold;
-import '../cli_contract.dart' show cliJson, convertUsage;
+import '../cli_contract.dart' show CliExit, cliJson, convertUsage;
 import '../convert.dart' show TextureFamily;
 import '../lod_generate.dart' show parseLodRatios;
 import 'bundle.dart';
@@ -82,8 +82,10 @@ final class ConvertCommandSettings {
   /// per input.
   final bool split;
 
-  /// Null for anything [convertUsage] should answer.
-  static ConvertCommandSettings? parse(List<String> arguments) {
+  /// Parses [arguments]. Throws a [ConvertUsageException] saying what is
+  /// wrong (an unknown option, a missing value, no input), or one whose
+  /// [ConvertUsageException.isHelp] is set for `-h` and `--help`.
+  static ConvertCommandSettings parse(List<String> arguments) {
     final inputs = <String>[];
     var output = '.';
     var dryRun = false, overwrite = false, materials = true, json = false;
@@ -148,14 +150,16 @@ final class ConvertCommandSettings {
         case _ when a.startsWith('--lods='):
           lods = parseLodRatios(a.substring(7));
         case '-h' || '--help':
-          return null;
+          throw const ConvertUsageException.helpAsked();
         case _ when a.startsWith('-'):
           throw ConvertUsageException('unknown option $a');
         default:
           inputs.add(a);
       }
     }
-    if (inputs.isEmpty) return null;
+    if (inputs.isEmpty) {
+      throw const ConvertUsageException('no input named');
+    }
     return ConvertCommandSettings(
       inputs: inputs,
       output: output,
@@ -347,19 +351,16 @@ Future<int> runConvertCommand(
 }) async {
   final stdoutSink = out ?? stdout;
   final stderrSink = err ?? stderr;
-  final ConvertCommandSettings? options;
+  final ConvertCommandSettings options;
   try {
     options = ConvertCommandSettings.parse(arguments);
   } on ConvertUsageException catch (error) {
+    if (error.isHelp) {
+      stdoutSink.writeln(convertUsage);
+      return CliExit.ok;
+    }
     stderrSink.writeln('${error.message}\n\n$convertUsage');
-    return 2;
-  }
-  if (options == null) {
-    (arguments.contains('-h') || arguments.contains('--help')
-            ? stdoutSink
-            : stderrSink)
-        .writeln(convertUsage);
-    return arguments.contains('-h') || arguments.contains('--help') ? 0 : 2;
+    return CliExit.usage;
   }
 
   final problems = <String>[];

@@ -1,4 +1,4 @@
-/// `ap-03`: `dart run flutter3d_build:convert` — the same converter
+/// `ap-03`: [runConvert], the one-model converter — the same converter
 /// `packages/flutter3d/tool/convert_asset.dart` was, moved here so a build
 /// hook (`ap-05`) and a project that only has the published `flutter3d`
 /// package can both reach it, plus what that tool never had: a directory on
@@ -77,13 +77,22 @@ final class TextureFamily {
   String toString() => name;
 }
 
-const String usage = '''
-Usage: dart run flutter3d_build:convert <model-or-directory> [options]
+/// What [runConvert] prints when its arguments do not read.
+///
+/// **The one-model converter's, not the command line's.** `dart run
+/// flutter3d_build:convert` was this converter until 1.0; it is `flutter3d
+/// convert` under its old name now, whose usage is `convertUsage`. This one
+/// stays for a build script that calls [runConvert] itself, for the single
+/// output file and `--classes` the command does not take.
+const String modelConvertUsage = '''
+Usage: runConvert(<model-or-directory> [options])
 
-Converts a glTF, GLB, OBJ or STL model into the engine's .f3d container. A
-Gaussian splat capture (.ply or .spz) becomes a .f3dsplat instead: a tree of
-merged levels of detail, paged so a viewer loads only what it draws. A
-directory converts every recognised file under it, recursively.
+The one-model converter a build script calls; the command line is
+`flutter3d convert`. Converts a glTF, GLB, OBJ or STL model into the
+engine's .f3d container. A Gaussian splat capture (.ply or .spz) becomes a
+.f3dsplat instead: a tree of merged levels of detail, paged so a viewer
+loads only what it draws. A directory converts every recognised file under
+it, recursively.
 
 Options:
   -o, --output <path>       Where to write the result. For a single input
@@ -243,7 +252,7 @@ final class ConvertSettings {
         case _ when argument.startsWith('--lods='):
           lods = parseLodRatios(argument.substring('--lods='.length));
         case '-h' || '--help':
-          throw const ConvertUsageException('the usage was asked for');
+          throw const ConvertUsageException.helpAsked();
         case _ when argument.startsWith('-'):
           throw ConvertUsageException('unknown option "$argument"');
         case _ when input == null:
@@ -277,15 +286,17 @@ final class ConvertSettings {
 ///
 /// **Read off [builtInModelExtensions] rather than listed here again.** It was
 /// a second list once, and a format added to the decoders would have been one
-/// `dart run flutter3d_build:convert` silently walked past.
+/// a directory walk silently passed over.
 final Set<String> recognizedExtensions = <String>{
   for (final String suffix in builtInModelExtensions.keys)
     if (suffix != '.f3d') suffix,
 };
 
-/// `dart run flutter3d_build:convert`'s own `main`, factored out so
-/// `packages/flutter3d/bin/convert.dart` can be the thin wrapper `ap-03`
-/// asks for and a test can drive this without a second process.
+/// The one-model converter, as a function: one model or a directory of them
+/// in, one `.f3d` per model out (or one per device class with `--classes`).
+/// The build hook converts through the same code; the command line is
+/// `flutter3d convert`, which also reads scenes and materials from other
+/// tools. Prints [modelConvertUsage] for arguments that do not read.
 ///
 /// [decoders] are an application's own readers, asked before the built-in
 /// ones exactly as `decodeModel` asks them, and a directory walk picks up any
@@ -303,7 +314,7 @@ Future<int> runConvert(
   try {
     options = ConvertSettings.parse(arguments);
   } on ConvertUsageException catch (error) {
-    stderrSink.writeln('${error.message}\n\n$usage');
+    stderrSink.writeln('${error.message}\n\n$modelConvertUsage');
     return 2;
   }
 
