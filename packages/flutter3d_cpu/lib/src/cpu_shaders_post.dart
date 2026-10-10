@@ -119,6 +119,12 @@ final class CompositeShader extends CpuFragmentShader {
       color.x = scene.sample(u + ox, w + oy).x;
       color.z = scene.sample(u - ox, w - oy).z;
     }
+    // lens.w: a shadow map in the scene slot, shown as its red channel in
+    // grey and opaque — `composite.frag` says why the other three cannot be
+    // trusted to be the same on every device.
+    final shadowMapView = lens.w > 0.5;
+    if (shadowMapView) color = Vector3(color.x, color.x, color.x);
+    final alpha = shadowMapView ? 1.0 : sampled.w;
 
     // Occlusion first, then the glow — the order matters and it is the order
     // `composite.frag` uses. Four taps in a 2×2, sized to the artefact rather
@@ -359,7 +365,7 @@ final class CompositeShader extends CpuFragmentShader {
       );
     }
 
-    return Vector4(encoded.x, encoded.y, encoded.z, sampled.w);
+    return Vector4(encoded.x, encoded.y, encoded.z, alpha);
   }
 }
 

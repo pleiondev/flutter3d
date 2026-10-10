@@ -43803,8 +43803,9 @@ layout(std140) uniform CompositeInfo {
   /// x: radial lens distortion — `P2`, barrel above nought, pincushion
   /// below, nought off exactly. y: one while a debug view is on — `P6`,
   /// nought otherwise. z: where the debug view starts, as a share of the
-  /// width from the left. w: unclaimed. Appended for the reason `contact`
-  /// was.
+  /// width from the left. w: one while the scene slot holds a shadow map,
+  /// which is shown as its red channel in grey. Appended for the reason
+  /// `contact` was.
   vec4 lens;
 }
 composite_info;
@@ -44144,6 +44145,15 @@ void main() {
     scene.b = texture(scene_texture, uv - step_uv).b;
   } else {
     scene = texture(scene_texture, uv);
+  }
+  // lens.w: one while the scene slot holds a shadow map rather than a
+  // picture. A map keeps its depth in red and nothing in the other three,
+  // and what a read of those returns depends on the format the device chose
+  // for it: a half-float atlas holds its clear colour there, a 32-bit
+  // single-channel one reads as nought and one. So the view shows red in all
+  // three, opaque, and draws one picture whichever format it is.
+  if (composite_info.lens.w > 0.5) {
+    scene = vec4(scene.rrr, 1.0);
   }
   vec3 bloom = texture(bloom_texture, uv).rgb;
 

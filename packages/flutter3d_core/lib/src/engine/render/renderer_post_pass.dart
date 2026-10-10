@@ -1804,6 +1804,10 @@ extension _PostPasses on Renderer {
     final debug = settings.debugView;
     _compositeInfo.lens[1] = _debugCompositeSides(debug);
     _compositeInfo.lens[2] = debug.split.clamp(0.0, 1.0);
+    // A shadow map in the scene slot is shown as its red channel in grey:
+    // its other channels hold whatever its format leaves there, which is not
+    // the same on every device. See `lens.w` in `composite.frag`.
+    _compositeInfo.lens[3] = mix.view == CompositeView.shadowMap ? 1.0 : 0.0;
     pass.bindTexture(
       _compositeShader,
       'local_exposure_texture',
