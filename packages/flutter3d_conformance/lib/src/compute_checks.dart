@@ -31,7 +31,13 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
   for (var i = 0; i < _count; i++) {
     input.setUint32(i * 4, i, Endian.little);
   }
-  final buffer = device.createStorageBuffer(input, hostReadable: true);
+  final buffer = device.createBuffer(
+    BufferDescriptor(
+      lengthInBytes: input.lengthInBytes,
+      usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+    ),
+    contents: input,
+  );
   device.beginComputePass(label: 'prefix sum')
     ..bindPipeline(device.createComputePipeline(stage!))
     ..bindStorageBuffer(stage, 'Values', buffer)

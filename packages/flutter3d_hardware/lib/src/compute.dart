@@ -66,9 +66,7 @@ final class StorageBuffer {
   /// back to the CPU. Null otherwise. Released with this buffer.
   final GeometryBuffer? asVertices;
 
-  /// What it was made for. [BufferUsage.standardStorage] for every buffer
-  /// `createStorageBuffer` makes; whatever `createBuffer` was asked for
-  /// otherwise.
+  /// What it was made for: whatever `createBuffer` was asked for.
   final BufferUsage usage;
 
   final Object backend;

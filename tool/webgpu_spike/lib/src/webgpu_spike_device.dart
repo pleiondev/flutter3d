@@ -214,13 +214,6 @@ final class WebGpuSpikeDevice extends GraphicsDevice {
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => spikeRefuses(DeviceFeature.compute);
-
-  @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
       spikeRefuses(DeviceFeature.compute);
 

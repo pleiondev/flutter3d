@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GpuRenderBackend.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`. It refused every call here,
+  and `createBuffer` refuses a storage usage the same way.
 - **Breaking: `GpuCommandEncoder.setBlendColor` takes a `LinearColor`**,
   as `PassEncoder.setBlendColor` does since 1.0. It is still refused, since
   flutter_gpu has no blend-constant setter.

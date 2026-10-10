@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGlDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`; it refused every call here, and
+  `createBuffer` refuses a storage usage the same way. `readBufferSync` is
+  still the device's, mixed in from `backend.dart`.
 - **Breaking: `WebGlEncoder.setBlendColor` takes a `LinearColor`**, as
   `PassEncoder.setBlendColor` does since 1.0; the same four channels reach
   `blendColor`.

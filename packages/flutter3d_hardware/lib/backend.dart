@@ -7,7 +7,10 @@
 /// a texture or a pipeline that no device made; a backend wraps its own
 /// objects with these, naming itself as the owner so that the handle's
 /// `dispose` gives the object back to it, and calls `debugCheckLive` before
-/// handing a handle it was given to its API.
+/// handing a handle it was given to its API. A backend that can read a
+/// buffer in the calling turn mixes in `SynchronousBufferReadback` from
+/// here; a caller that asks for it imports it from `testing.dart`, since
+/// the main library does not offer a stall.
 ///
 /// **As stable as the contract itself.** This library is part of the
 /// package's snapshot and follows the same strict semver through 1.x: a
@@ -18,3 +21,4 @@ library;
 
 export 'src/backend_handles.dart';
 export 'src/handle_checks.dart';
+export 'src/synchronous_readback.dart';

@@ -285,7 +285,9 @@ final class BufferUsage {
   /// `MAP_WRITE`.
   static const BufferUsage hostWritable = BufferUsage._(256);
 
-  /// What `createStorageBuffer` has always made: storage, copied either way.
+  /// Storage, copied either way: what a compute pass reads and writes, and
+  /// what `createStorageBuffer` made before 1.0 folded it into
+  /// `GraphicsDevice.createBuffer`.
   static const BufferUsage standardStorage = BufferUsage._(8 | 32 | 64);
 
   BufferUsage operator |(BufferUsage other) => BufferUsage._(bits | other.bits);

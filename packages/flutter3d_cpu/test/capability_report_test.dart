@@ -227,7 +227,12 @@ void main() {
       // which the conformance probe calls with handles no device made.
       final d = device(withhold: const <DeviceFeature>[DeviceFeature.compute]);
       expect(
-        () => d.createStorageBuffer(ByteData(16)),
+        () => d.createBuffer(
+          const BufferDescriptor(
+            lengthInBytes: 16,
+            usage: BufferUsage.standardStorage,
+          ),
+        ),
         throwsA(isA<UnsupportedCapability>()),
       );
       expect(() => d.beginComputePass(), throwsA(isA<UnsupportedCapability>()));

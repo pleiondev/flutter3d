@@ -336,21 +336,6 @@ final class WebGpuDevice extends GraphicsDevice
       : null;
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => _guard(
-    'a ${bytes.lengthInBytes}-byte storage buffer',
-    () => webgpuCreateStorageBuffer(
-      _gpuDevice,
-      bytes,
-      hostReadable: hostReadable,
-      bindableAsIndices: bindableAsIndices,
-    ),
-  );
-
-  @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
     final stage = shader.backend;
     if (stage is! WebGpuComputeShader) {

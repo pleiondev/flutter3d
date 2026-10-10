@@ -21,6 +21,8 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapability;
+import 'package:flutter3d_hardware/backend.dart'
+    show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -70,13 +72,6 @@ final class WebGlDevice extends GraphicsDevice
         'WebGL2 has no compute stage — the WebGL 2.0 Compute draft was '
         'abandoned; compute on the web goes through the WebGPU backend',
   );
-
-  @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => throw _noCompute();
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>

@@ -515,15 +515,6 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// `DeviceFeature.gpuTimestamps`.
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
-  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer];
-  /// [bindableAsIndices] gives it a `StorageBuffer.asIndices` a draw can
-  /// bind as 32-bit indices once a compute pass has written them — `H11`.
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => throw refuse(DeviceFeature.compute);
-
   /// A pipeline from a compute stage of this device's shader library.
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
       throw refuse(DeviceFeature.compute);
@@ -577,7 +568,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// **A mixin is a capability too, and the two agree.** Three capabilities
   /// are types a device opts into rather than members every device carries:
   /// [EncodedImageUpload], `SynchronousBufferReadback` (from
-  /// `package:flutter3d_hardware/testing.dart`) and the
+  /// `package:flutter3d_hardware/testing.dart`, not the main library) and the
   /// `RenderBundleEncoder` an encoder mixes in. Each is asked with `is`, and
   /// where a [DeviceFeature] names the same thing
   /// ([DeviceFeature.synchronousReadback], [DeviceFeature.renderBundles]) a
@@ -615,13 +606,20 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// A buffer of [BufferDescriptor.lengthInBytes] bytes, for the usages it
   /// names, holding [contents] (zeros by default).
   ///
-  /// The general form of [createStorageBuffer] and [uploadGeometry]: one
-  /// allocation a compute pass writes, an indirect draw reads its counts
-  /// from, and a draw binds as vertices (`StorageBuffer.asVertices`) or
-  /// indices (`StorageBuffer.asIndices`). `DeviceFeature.buffers`; a
+  /// The general form of [uploadGeometry]: one allocation a compute pass
+  /// writes, an indirect draw reads its counts from, and a draw binds as
+  /// vertices (`StorageBuffer.asVertices`) or indices
+  /// (`StorageBuffer.asIndices`). `DeviceFeature.buffers`; a
   /// [BufferUsage.storage] buffer needs `compute` or `renderStageStorage`,
   /// and a [BufferUsage.indirect] one `indirectDraw` or `indirectDispatch`.
   /// Released through [releaseStorageBuffer].
+  ///
+  /// **The one way to make a storage buffer, since 1.0.** `createStorageBuffer`
+  /// was a second call for a subset of this one: what it made is
+  /// [BufferUsage.standardStorage] with the bytes as [contents], plus
+  /// [BufferUsage.hostReadable] for `hostReadable: true` and
+  /// [BufferUsage.index] for `bindableAsIndices: true` (`H11`: a compute pass
+  /// writes a draw's order and the draw reads it, nothing crossing back).
   StorageBuffer createBuffer(
     BufferDescriptor descriptor, {
     ByteData? contents,
@@ -632,7 +630,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// that do not fit throw an [ArgumentError] before anything is written.
   ///
   /// The call a simulation makes every step to feed a compute pass its
-  /// inputs. Any buffer [createStorageBuffer] or [createBuffer] made with
+  /// inputs. Any buffer [createBuffer] made with
   /// [BufferUsage.copyDestination]. Gated by `compute` or `buffers`,
   /// whichever made the buffer possible.
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) =>
@@ -806,31 +804,6 @@ abstract base class GraphicsDevice with TextureAllocator {
   String? labelOf(Object resource) => _labels[resource];
 
   final Expando<String> _labels = Expando<String>('resource labels');
-}
-
-/// A device that reads a buffer back in the calling turn —
-/// `DeviceFeature.synchronousReadback`.
-///
-/// **A capability a device opts into, not a member every device carries**,
-/// since 1.0 (E.12 of the API review): WebGPU has no such call by design, and
-/// a member every device had to answer was a member three of four answered
-/// with a refusal. Asked with `device is SynchronousBufferReadback`; a device
-/// that is one lists [DeviceFeature.synchronousReadback] in its features.
-/// The software rasteriser and WebGL2 are.
-base mixin SynchronousBufferReadback on GraphicsDevice {
-  /// The bytes of [buffer] (a range of them), read back in the calling turn.
-  ///
-  /// **A stall, on purpose.** The call waits for every pass submitted before
-  /// it, which is the price WebGL2's `getBufferSubData` charges and the
-  /// reason WebGPU has no such call. For a tool or a test that would rather
-  /// block than restructure; a frame loop wants
-  /// [GraphicsDevice.readBuffer] or [GraphicsDevice.mapBuffer]. [buffer]
-  /// must be [BufferUsage.hostReadable].
-  ByteData readBufferSync(
-    StorageBuffer buffer, {
-    int offsetInBytes = 0,
-    int? sizeInBytes,
-  });
 }
 
 /// Why a device stopped working — `GraphicsDevice.lost`.

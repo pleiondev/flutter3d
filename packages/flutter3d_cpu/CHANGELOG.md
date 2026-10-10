@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`: a storage buffer is
+  `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
+  `index` where it was asked for. `readBufferSync` is still the device's,
+  mixed in from `backend.dart`.
 - **Breaking: `setBlendColor` takes a `LinearColor`**, as
   `PassEncoder.setBlendColor` does since 1.0; the blend reads the same four
   channels.

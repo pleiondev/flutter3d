@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **Breaking (for outside backends): `createStorageBuffer` is folded into
+  `createBuffer`.** A storage buffer is `createBuffer(BufferDescriptor(
+  lengthInBytes: n, usage: BufferUsage.standardStorage), contents: bytes)`,
+  with `BufferUsage.hostReadable` for `hostReadable: true` and
+  `BufferUsage.index` for `bindableAsIndices: true`; one call where there
+  were two for one allocation. A backend drops its override and makes the
+  storage usages in `createBuffer`. `RecordingDevice` records such a buffer
+  as the `createStorageBuffer` event a trace has always carried, so traces
+  read and replay as before. `dart run flutter3d_build:migrate` rewrites a
+  call with no named arguments.
+- **Breaking (for outside backends): `SynchronousBufferReadback` is not in
+  the main library.** A stall belongs in a test or a tool, never a frame:
+  a caller imports it from `package:flutter3d_hardware/testing.dart`, and a
+  backend mixes it in from `backend.dart`. Its member and its meaning are
+  unchanged.
 - **Breaking (for outside backends): `PassEncoder.setBlendColor` takes a
   `LinearColor`**, the engine's one colour type, where it took a `Vector4`;
   `RecordedBlendColor.color` and `TraceSetBlendColor.color` hold one too. A

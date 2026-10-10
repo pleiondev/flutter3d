@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `SynchronousBufferReadback` is not exported.** The stalling
+  read is a test's or a tool's, so it comes from
+  `package:flutter3d_hardware/testing.dart`, as in `flutter3d_hardware`.
 - **`UnsupportedCapability` comes from `flutter3d_foundation`**, where it
   moved; this library exports it as before.
 

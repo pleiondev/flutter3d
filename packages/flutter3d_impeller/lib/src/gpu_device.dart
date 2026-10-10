@@ -107,13 +107,6 @@ final class GpuRenderBackend extends GraphicsDevice {
   );
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => _noCompute();
-
-  @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
       _noCompute();
 

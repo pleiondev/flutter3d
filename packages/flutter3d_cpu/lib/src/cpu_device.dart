@@ -292,35 +292,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) {
-    features.require(DeviceFeature.compute, backend: cpuBackendName);
-    final copy = ByteData.sublistView(
-      Uint8List.fromList(
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      ),
-    );
-    return wrapStorageBuffer(
-      owner: this,
-      backend: copy,
-      lengthInBytes: bytes.lengthInBytes,
-      hostReadable: hostReadable,
-      // The same bytes in the shape [uploadGeometry] gives a draw, so what a
-      // dispatch writes is what the next draw reads, with no copy between.
-      asIndices: bindableAsIndices
-          ? wrapGeometry(
-              backend: (bytes: copy, usage: GeometryUsage.indices),
-              offsetInBytes: 0,
-              lengthInBytes: bytes.lengthInBytes,
-            )
-          : null,
-    );
-  }
-
-  @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
     features.require(DeviceFeature.compute, backend: cpuBackendName);
     final stage = shader.backend;

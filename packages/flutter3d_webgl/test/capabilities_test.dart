@@ -200,8 +200,13 @@ void main() {
         _refusing(DeviceFeature.pipelineStatisticsQuery),
       );
       expect(
-        () => device.createStorageBuffer(ByteData(16)),
-        _refusing(DeviceFeature.compute),
+        () => device.createBuffer(
+          const BufferDescriptor(
+            lengthInBytes: 16,
+            usage: BufferUsage.standardStorage,
+          ),
+        ),
+        _refusing(DeviceFeature.renderStageStorage),
       );
       expect(device.limits.maxComputeInvocationsPerWorkgroup, 0);
       expect(

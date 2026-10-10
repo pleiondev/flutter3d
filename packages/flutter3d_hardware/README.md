@@ -63,8 +63,10 @@ replaced it.
 
 **A few capabilities are types rather than features**: `EncodedImageUpload`
 on a device, `RenderBundleEncoder` on an encoder, and
-`SynchronousBufferReadback`, which only `package:flutter3d_hardware/testing.dart`
-exports, since a stall belongs in a test and not in a frame. Each is asked
+`SynchronousBufferReadback`, which the main library does not export, since a
+stall belongs in a test and not in a frame: a caller imports it from
+`package:flutter3d_hardware/testing.dart`, and a backend mixes it in from
+`backend.dart`. Each is asked
 with `is`, and where a `DeviceFeature` names the same thing a device lists it
 exactly when it is the type.
 

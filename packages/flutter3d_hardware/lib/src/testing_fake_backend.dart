@@ -10,6 +10,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'backend_handles.dart';
+import 'synchronous_readback.dart';
 import 'testing_fake_pass.dart';
 import 'testing_recorded.dart';
 
@@ -115,13 +116,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
 
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
-
-  @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => throw _noCompute();
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>

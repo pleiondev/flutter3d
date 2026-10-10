@@ -17,6 +17,7 @@ import '../command_encoder.dart';
 import '../compute.dart';
 import '../geometry_buffer.dart';
 import '../graphics_device.dart';
+import '../resources.dart';
 import '../shader.dart';
 import '../texture.dart';
 import 'trace_event.dart';
@@ -300,10 +301,16 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
         );
         if (event is TraceSubmit) passes.remove(pass);
       case TraceCreateStorageBuffer():
-        final buffer = storage[event.id] = device.createStorageBuffer(
-          event.bytes,
-          hostReadable: event.hostReadable,
-          bindableAsIndices: event.indices != null,
+        final buffer = storage[event.id] = device.createBuffer(
+          BufferDescriptor(
+            lengthInBytes: event.bytes.lengthInBytes,
+            usage: <BufferUsage>[
+              BufferUsage.standardStorage,
+              if (event.hostReadable) BufferUsage.hostReadable,
+              if (event.indices != null) BufferUsage.index,
+            ].reduce((BufferUsage a, BufferUsage b) => a | b),
+          ),
+          contents: event.bytes,
         );
         if (event.indices case final id?) geometry[id] = buffer.asIndices!;
       case TraceReleaseStorageBuffer(:final buffer):

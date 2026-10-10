@@ -197,7 +197,13 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
     needs: const <DeviceFeature>[],
     refusalOnly: false,
     run: (GraphicsDevice d) async {
-      final buffer = d.createStorageBuffer(_sixteen, hostReadable: true);
+      final buffer = d.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: _sixteen.lengthInBytes,
+          usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+        ),
+        contents: _sixteen,
+      );
       _sameBytes(await d.readBuffer(buffer), _sixteen, 'a storage buffer');
       d.releaseStorageBuffer(buffer);
     },
@@ -516,7 +522,13 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       for (var i = 0; i < 1024; i++) {
         values.setUint32(i * 4, 1, Endian.little);
       }
-      final buffer = d.createStorageBuffer(values, hostReadable: true);
+      final buffer = d.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: values.lengthInBytes,
+          usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+        ),
+        contents: values,
+      );
       final arguments = d.createBuffer(
         const BufferDescriptor(lengthInBytes: 12, usage: BufferUsage.indirect),
         contents: dispatchIndirectArguments(1),
