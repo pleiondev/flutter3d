@@ -428,6 +428,49 @@ void main() {
     expect(refusal, isA<StateError>());
     expect('$refusal', allOf(contains('_MissingSlot'), contains('"asks"')));
   });
+
+  test('a group installs as its plugins, in its order', () {
+    // Mutation: install the group's members sorted, or only the first. The
+    // order a group gives is the order its plugins' systems run in.
+    final plugins = manager();
+    plugins.installGroup(
+      PluginGroup(<Flutter3dPlugin>[_Plugin('wind'), _Plugin('rain')]),
+    );
+    expect(plugins.order, <String>['wind', 'rain']);
+    expect(loop.systems, <String>['wind', 'rain']);
+  });
+
+  test('a plugin is told the promise its simulation makes', () {
+    // Mutation: hand every host `deterministic`. A plugin that may only run
+    // where the bits agree would install on an `accurate` engine unwarned.
+    SimulationProfile? told;
+    final asks = _AsksForProfile((p) => told = p);
+    PluginManager(
+      loop: _Loop(),
+      events: _Events(),
+    ).installAll(<Flutter3dPlugin>[asks]);
+    expect(told, SimulationProfile.deterministic);
+    PluginManager(
+      loop: _Loop(),
+      events: _Events(),
+      profile: SimulationProfile.accurate,
+    ).installAll(<Flutter3dPlugin>[_AsksForProfile((p) => told = p)]);
+    expect(told, SimulationProfile.accurate);
+    expect(told!.isBitExact, isFalse);
+  });
+}
+
+final class _AsksForProfile extends Flutter3dPlugin {
+  _AsksForProfile(this.told);
+
+  final void Function(SimulationProfile profile) told;
+
+  @override
+  PluginManifest get manifest =>
+      const PluginManifest(id: 'profiled', apiVersion: PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) => told(host.profile);
 }
 
 /// A registry slot no engine in this test fills, as an editor's is in a

@@ -276,6 +276,7 @@ base class PluginGroup
   final List<Flutter3dPlugin> plugins
 
 abstract base class PluginHost
+  SimulationProfile get profile
   abstract EventRegistry get events
   abstract LoopRegistry get loop
   abstract PluginApiVersion get apiVersion
@@ -291,17 +292,19 @@ final class PluginManager
   List<PluginStatus> get statuses
   List<String> get order
   Map<String, int> get simulationVersions
-  PluginManager({required this.loop, required this.events, Iterable<PluginRegistry> registries = const <PluginRegistry>[], this.backend, this.apiVersion = PluginApiVersion.current})
+  PluginManager({required this.loop, required this.events, Iterable<PluginRegistry> registries = const <PluginRegistry>[], this.backend, this.apiVersion = PluginApiVersion.current, this.profile = SimulationProfile.deterministic})
   PluginsSet stateAt(int step)
   bool get hasPending
   bool isEnabled(String id)
   final EventRegistry events
   final LoopRegistry loop
   final PluginApiVersion apiVersion
+  final SimulationProfile profile
   final String? backend
   void disable(String id)
   void enable(String id)
   void installAll(Iterable<Flutter3dPlugin> plugins)
+  void installGroup(PluginGroup group)
   void reorder(List<String> preferred)
   void schedule(Iterable<PluginChange> changes)
 

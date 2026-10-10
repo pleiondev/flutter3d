@@ -3,6 +3,7 @@ import 'loop.dart';
 import 'manifest.dart';
 import 'registration.dart';
 import 'render.dart';
+import 'simulation_profile.dart';
 import 'version.dart';
 
 /// What a plugin is handed in `install`: the engine's registries, as this
@@ -42,6 +43,14 @@ abstract base class PluginHost {
   /// The graphics backend the engine runs on, or null when it draws nothing
   /// — a server, a test.
   String? get backend;
+
+  /// What the simulation the plugin is installed in promises about its
+  /// numbers. A plugin that relies on a capability asks it
+  /// (`host.profile.isBitExact`), never which profile it is.
+  ///
+  /// `SimulationProfile.deterministic` unless the host says otherwise: what
+  /// every engine was before there was a second profile.
+  SimulationProfile get profile => SimulationProfile.deterministic;
 
   /// The loop's phases and systems.
   LoopRegistry get loop;
