@@ -245,11 +245,10 @@ final class DataMigration {
     final out = StringBuffer()
       ..writeln(
         lifted.isEmpty
-            ? 'Every data file is at the version this build writes.'
+            ? 'No data file needs lifting.'
             : '${lifted.length} data '
                   '${lifted.length == 1 ? 'file' : 'files'} '
-                  '${dryRun ? 'would be' : ''}${dryRun ? ' ' : ''}'
-                  'lifted:',
+                  '${dryRun ? 'would be lifted' : 'lifted'}:',
       );
     for (final f in lifted) {
       out.writeln(
