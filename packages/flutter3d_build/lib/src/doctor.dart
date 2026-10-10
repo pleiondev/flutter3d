@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'cli_contract.dart';
 import 'convert/external.dart';
+import 'migrate/data.dart' show dataFilesBehind;
 
 /// The Dart every pubspec's floor names (SUPPORT.md, "The Flutter and Dart
 /// SDKs"). A structure test reads that section and holds these to it.
@@ -102,10 +103,15 @@ String? _probe(String executable, List<String> arguments) {
 ///
 /// [probe] runs a program; [locate] finds an external tool. Both are
 /// parameters so a test can answer for a machine it is not running on.
+///
+/// [project], when it has a `pubspec.yaml`, adds one more line: its data
+/// files below the version this build writes, as a note, since the engine
+/// still reads them.
 List<DoctorCheck> runDoctorChecks({
   ProcessProbe probe = _probe,
   String? Function(ExternalTool tool)? locate,
   String? dartVersion,
+  Directory? project,
 }) {
   final find = locate ?? (ExternalTool t) => t.locate();
   final checks = <DoctorCheck>[];
@@ -213,6 +219,25 @@ List<DoctorCheck> runDoctorChecks({
           : DoctorCheck(tool.name, DoctorStatus.ok, '$path (${tool.purpose})'),
     );
   }
+
+  if (project != null && File('${project.path}/pubspec.yaml').existsSync()) {
+    final behind = dataFilesBehind(project);
+    checks.add(
+      behind.isEmpty
+          ? const DoctorCheck(
+              'Data files',
+              DoctorStatus.ok,
+              'every one at the version this build writes',
+            )
+          : DoctorCheck(
+              'Data files',
+              DoctorStatus.note,
+              '${behind.length} below the version this build writes '
+                  '(the engine still reads them): ${behind.join(', ')}',
+              fix: 'run `flutter3d migrate --data .` to lift them on disk',
+            ),
+    );
+  }
   return checks;
 }
 
@@ -280,7 +305,7 @@ int runDoctor(List<String> arguments, {IOSink? out}) {
     sink.writeln(doctorUsage);
     return 0;
   }
-  final checks = runDoctorChecks();
+  final checks = runDoctorChecks(project: Directory.current);
   if (arguments.contains('--json')) {
     sink.writeln(
       const JsonEncoder.withIndent('  ').convert(

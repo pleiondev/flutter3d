@@ -267,6 +267,11 @@ Moves a project written against flutter3d 0.8 to 1.0.0-rc.1.
   dart pub global run flutter3d_build:migrate [options] <project dir>
 
   --dry-run           change a copy beside the project, report, remove it
+  --data              lift the data files to the versions this build
+                      writes, in place, instead of migrating the code;
+                      reports `file: vN → vM` and what was not carried over
+  --backup            with --data, keep each file as it was as
+                      <file>.v<N>.bak
   --from <version>    the release the project is on (default 0.8)
   --no-pub-get        only the pubspec and the imports
   --lints-from <dir>  run flutter3d_lints:migrate from that checkout
@@ -278,7 +283,9 @@ const String doctorUsage =
     'Checks the Dart and Flutter SDKs against the versions SUPPORT.md '
     'promises, and finds the optional programs: impellerc, glslangValidator '
     'and naga for building materials, FBX2glTF, Blender and usdcat for '
-    'flutter3d convert. Exits 1 when a required SDK is too old.\n\n'
+    'flutter3d convert. Run in a project, it also names the data files '
+    'below the version this build writes, which `flutter3d migrate --data` '
+    'lifts. Exits 1 when a required SDK is too old.\n\n'
     '  --json   Print the checks as JSON (format f3d.cli): {"checks": [...]}.';
 
 /// The whole surface, as `flutter3d help --surface` prints it and

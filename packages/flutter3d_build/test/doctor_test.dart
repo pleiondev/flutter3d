@@ -22,6 +22,36 @@ void main() {
     expect(section, contains('Dart $dartTested'));
   });
 
+  test('in a project, the data files below the current version are a '
+      'note that names them and the command that lifts them', () {
+    // Mutation: drop the project check from `runDoctorChecks`, or make it a
+    // problem (the engine reads the files; nothing is broken).
+    final project = Directory.systemTemp.createTempSync('doctor_data');
+    addTearDown(() => project.deleteSync(recursive: true));
+    File('${project.path}/pubspec.yaml').writeAsStringSync('name: game\n');
+    final level = File('${project.path}/assets/start.level.json')
+      ..parent.createSync()
+      ..writeAsStringSync('{"version": 1, "name": "start"}\n');
+    List<DoctorCheck> run() => runDoctorChecks(
+      probe: (String _, List<String> _) => null,
+      locate: (ExternalTool _) => null,
+      dartVersion: '3.13.0',
+      project: project,
+    );
+    final behind = run().firstWhere((DoctorCheck c) => c.name == 'Data files');
+    expect(behind.status, DoctorStatus.note);
+    expect(behind.detail, contains('assets/start.level.json (f3d.level v1'));
+    expect(behind.fix, contains('flutter3d migrate --data'));
+
+    level.writeAsStringSync(
+      '{"format": "f3d.level", "version": 4, "name": "start"}\n',
+    );
+    expect(
+      run().firstWhere((DoctorCheck c) => c.name == 'Data files').status,
+      DoctorStatus.ok,
+    );
+  });
+
   test('an old Flutter is a problem, a missing one is not, and the tools '
       'say how to get them', () {
     String? oldFlutter(String executable, List<String> arguments) =>

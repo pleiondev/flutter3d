@@ -24,11 +24,18 @@
 /// All of it comes from one table, `lib/migrations/0.8_to_1.0.yaml`, which
 /// also generates the fix data and the plugin's rules.
 ///
+/// `--data` does something else: it lifts the project's data files (levels,
+/// runs, effects, data plugins…) to the version this build writes, in
+/// place, and reports `file: vN → vM` for each (`lib/src/migrate/data.dart`).
+///
 /// Options:
 ///
 /// ```text
+///   --data              lift the data files instead of migrating the code
+///   --backup            with --data, keep each file as it was beside it
 ///   --dry-run           make the changes in a copy beside the project, print
-///                       the report, and remove the copy
+///                       the report, and remove the copy (with --data: write
+///                       nothing, and report)
 ///   --from <version>    the release the project is on (default 0.8)
 ///   --no-pub-get        skip `pub get` (and so steps 4–6, which need it)
 ///   --lints-from <dir>  run `dart run flutter3d_lints:migrate` from a
@@ -40,6 +47,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_build/src/cli_contract.dart' show migrateUsage;
+import 'package:flutter3d_build/src/migrate/data.dart';
 import 'package:flutter3d_build/src/migrate/project.dart';
 import 'package:flutter3d_build/src/migrate/table.dart';
 
@@ -74,6 +82,18 @@ Future<void> main(List<String> args) async {
   if (!File('${project.path}/pubspec.yaml').existsSync()) {
     stderr.writeln('${project.path} has no pubspec.yaml');
     exitCode = 2;
+    return;
+  }
+
+  // The data files, on their own: no table, no `pub get`, nothing to undo
+  // on a dry run since nothing is written.
+  if (args.contains('--data')) {
+    final data = migrateData(
+      project,
+      dryRun: dryRun,
+      backup: args.contains('--backup'),
+    );
+    stdout.writeln(data.describe(dryRun: dryRun));
     return;
   }
 

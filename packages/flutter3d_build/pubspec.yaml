@@ -58,6 +58,15 @@ dependencies:
   flutter3d_editor_core: ^1.0.0-rc.1
   flutter3d_sim: ^1.0.0-rc.1
 
+  # `migrate --data` and `doctor`: the packages that own a data format a
+  # project keeps (effects, data plugins, physical materials, voxel worlds),
+  # for their `FormatSpec`s. All plain Dart; the formats of the packages
+  # that name Flutter are listed in `lib/src/migrate/data.dart` instead.
+  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_plugin_runtime: ^1.0.0-rc.1
+  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_voxel: ^1.0.0-rc.1
+
   # P8's material step: `ShaderBundle`, the container it writes, and
   # `flutter3d_shaders`' `compile.dart` — the engine's headers a material
   # includes, the WebGL2 and WebGPU translators, and the WGSL compile. Both

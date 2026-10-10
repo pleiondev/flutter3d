@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **`flutter3d migrate --data` moves data files to the current format on
+  disk.** It walks a project by the suffixes of every format the engine's
+  plain-Dart packages declare, lifts each JSON document below its version
+  through the format's chain (a level through its reader, which turns old
+  overrides into id paths) and writes it in place, reporting
+  `file: format vN → vM` and what it did not carry over: a format owned by
+  a Flutter package, a version newer than the build, a version-1 input
+  tape. `--dry-run` writes nothing; `--backup` keeps `<file>.v<N>.bak`.
+  `doctor`, run in a project, names the files that are behind.
 - **A converted document reads only inside its own folder.** A glTF buffer
   or image, an OBJ `mtllib`, a USD reference or texture, a Godot `res://`
   path or a MaterialX image that climbs out with `..` or is absolute is
