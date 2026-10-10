@@ -290,7 +290,7 @@ final class BehaviorTreeRead
 typedef BehaviorView = ({Actor actor, ActorSystem system, Blackboard board});
 
 final class BehaviorsRead extends LevelRule
-  const BehaviorsRead(this.kinds, {this.property = 'behaviour'})
+  const BehaviorsRead(this.kinds, {this.property = 'behavior'})
   final BehaviorKinds kinds
   final String property
   void check(Level level, List<LevelIssue> out)
@@ -694,6 +694,7 @@ final class EngineLoop extends LoopRegistry
   Registration shiftsPhysics(CollisionWorld world)
   SimulationVersion get simulationVersion
   Snapshot capture()
+  TimeSource time
   WorldPosition get origin
   WorldTiming get timing
   bool get checksDeterminism
@@ -803,15 +804,18 @@ final class EntityRegistry
   Iterable<String> get types
   bool knows(String type)
 
-typedef EntityRemap = ({Map<String, Object?> save, List<String> dropped});
+final class EntityRemap
+  const EntityRemap({required this.save, required this.dropped})
+  final List<String> dropped
+  final Map<String, Object?> save
 
 final class EntityTracks
-  ({int first, int last})? get span
   EntityTracks(this.layout)
   List<String> componentsOf(String entity)
   List<String> get entities
   List<TrackSample> samples(String entity, String component)
   Map<String, Object?> toJson()
+  StepSpan? get span
   TrackSample? at(String entity, String component, int step)
   final EntityLayout layout
   void observe(int step, Snapshot snapshot)
@@ -943,8 +947,8 @@ final class FlowField
   int costAt(int index)
   int get goalCell
   int sourceAt(Vector3 from)
-  static const int maxGoals = 127
   static const int unreachable = 1 << 29
+  static int get maxGoals
   void rebuild(Vector3 goal)
   void rebuildAll(List<Vector3> goals)
   void update(Vector3 goal)
@@ -953,9 +957,10 @@ final class FlowField
 typedef FocusPoint = ({Vector3 at, Collider? body});
 
 final class FrameCadence
-  FrameCadence({double? cap, double? refreshRate})
+  FrameCadence({double? cap, double? refreshRate, TimeSource? time})
+  TimeSource time
   double get refreshRate
-  double? due(Duration vsync)
+  double? due(Duration vsync, {TimeSource? clock})
   double? get cap
   int get interval
   int get skipped
@@ -1000,7 +1005,11 @@ final class GameRandom implements math.Random
   int nextInt(int max)
   set state(int value)
 
-typedef Generated = ({Level? level, int seed, String says});
+final class Generated
+  const Generated({required this.level, required this.seed, required this.says})
+  final Level? level
+  final String says
+  final int seed
 
 abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   EcsWorld? publishedWorldOf(S simulation)
@@ -1268,7 +1277,11 @@ final class IsolateSimulation extends SimulationHandle
 extension JsonColorWriter on Vector4
   List<double> toJson()
 
+extension JsonLinearColorWriter on LinearColor
+  List<double> toJson()
+
 extension JsonObjectReader on Map<String, Object?>
+  LinearColor linearColor(String key, {required LinearColor fallback})
   List<Map<String, Object?>> objects(String key)
   Map<String, Map<String, Object?>> objectMap(String key)
   String? textOrNull(String key)
@@ -1325,7 +1338,7 @@ final class Level extends FormatDocument
   EntityDef? named(String name)
   FormatSpec get spec
   Iterable<EntityDef> ofType(String type)
-  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, Vector3? fogColor, this.fogDensity = 0.0, Map<String, Object?>? world, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, Map<String, Object?>? renderSettings, Map<String, Object?> source = const <String, Object?>{}})
+  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, this.fogColor = defaultFogColor, this.fogDensity = 0.0, this.world = WorldPropertiesPatch.empty, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, this.renderSettings = RenderSettingsPatch.empty, Map<String, Object?> source = const <String, Object?>{}})
   LevelMaterial materialFor(Brush brush)
   List<String> get requires
   Map<String, Object?> toJson()
@@ -1334,25 +1347,26 @@ final class Level extends FormatDocument
   factory Level.fromJson(Map<String, Object?> json, {Set<String> understands = const <String>{}})
   factory Level.parse(String source, {Set<String> understands = const <String>{}})
   final Heightfield? heightfield
+  final LinearColor fogColor
   final List<Brush> brushes
   final List<EntityDef> entities
   final List<LevelLight> lights
   final List<LevelRecipe> recipes
   final Map<String, LevelMaterial> materials
   final Map<String, Map<String, Object?>> behaviors
-  final Map<String, Object?> renderSettings
-  final Map<String, Object?> world
   final Map<String, Prefab> prefabs
+  final RenderSettingsPatch renderSettings
   final String name
   final String? music
   final String? next
-  final Vector3 fogColor
+  final WorldPropertiesPatch world
   final double fogDensity
   static const FormatSpec format = …
-  static const int formatVersion = 4
+  static const LinearColor defaultFogColor = LinearColor(0.05, 0.04, 0.06)
+  static const int formatVersion = 5
 
 extension LevelCollision on Level
-  ({Vector3 position, double yaw})? get playerStart
+  PlayerStart? get playerStart
   void addTo(CollisionWorld world)
   void spawnInto(SpawnContext context, {required EntityRegistry registry})
 
@@ -1393,23 +1407,28 @@ typedef LevelKit = void Function(LevelSketch sketch, LevelRecipe recipe);
 
 final class LevelLight
   LevelLight withId(String id)
-  LevelLight({String? id, this.type = LevelLightType.point, Vector3? position, Vector3? direction, Vector3? color, this.intensity = 1.0, this.range = 0.0, bool? castsShadow, this.name, Map<String, Object?> source = const <String, Object?>{}})
+  LevelLight({String? id, this.type = LevelLightType.point, Vector3? position, Vector3? direction, this.color = LinearColor.white, this.intensity = defaultIntensity, this.range = 0.0, bool? castsShadow, this.name, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   factory LevelLight.fromJson(Map<String, Object?> json)
   final LevelLightType type
+  final LinearColor color
   final String id
   final String? name
-  final Vector3 color
   final Vector3 direction
   final Vector3 position
   final bool castsShadow
   final double intensity
   final double range
+  static const double defaultIntensity = 5790.583578
 
-enum LevelLightType
-  values: directional, point, spot
-  String get wireName
+final class LevelLightType
+  String toString()
+  final String wireName
   static LevelLightType? fromWireName(String word)
+  static const LevelLightType directional = LevelLightType._('directional')
+  static const LevelLightType point = LevelLightType._('point')
+  static const LevelLightType spot = LevelLightType._('spot')
+  static const List<LevelLightType> values = <LevelLightType>[directional, point, spot]
 
 final class LevelMaterial
   LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, Map<String, Object?> source = const <String, Object?>{}})
@@ -1631,10 +1650,10 @@ final class LightmapLayout
   final int width
   int get texelCount
   static LightmapLayout plan(Level level, {double texelsPerMeter = 4.0, bool cullHiddenFaces = true, double cellSize = 8.0})
-  static const int maxSize = 4096
   static const int padding = 1
   static const int reservedX = 0
   static const int reservedY = 0
+  static int get maxSize
   void texelCenter(LightmapFace face, int i, int j, Vector3 out)
 
 final class LocalSimulation extends SimulationHandle
@@ -1649,6 +1668,15 @@ final class LocalSimulation extends SimulationHandle
   final EngineLoop loop
   final void Function(int seat, Object? input) applyInput
   void submit(Object? input, {int seat = 0})
+
+final class LogTime extends TimeSource
+  LogTime(List<double> timestamps)
+  String toString()
+  bool get isFinished
+  double elapsed(Duration from, Duration to)
+  final List<double> timestamps
+  int get position
+  void reset()
 
 abstract base class LoopChange
   abstract LoopChange at(int step)
@@ -1692,6 +1720,14 @@ final class LoopTimeScale extends LoopChange
   final double scale
   final int step
   int get hashCode
+
+final class ManualTime extends TimeSource
+  ManualTime()
+  String toString()
+  double elapsed(Duration from, Duration to)
+  double get pending
+  void advance(double seconds)
+  void reset()
 
 abstract base class Mechanism
   Mechanism({this.name})
@@ -1963,6 +1999,11 @@ final class Playback
 final class PlayerSpawnKind extends EntityKind
   const PlayerSpawnKind()
 
+final class PlayerStart
+  const PlayerStart({required this.position, required this.yaw})
+  final Vector3 position
+  final double yaw
+
 final class Pose
   Map<String, Object?> toJson()
   Pose({this.time = 0.0, this.yaw = 0.0})
@@ -2032,6 +2073,11 @@ final class PrefabInstance
 
 typedef PrefabOverrides = Map<String, Map<String, Object?>>;
 
+final class PreparedUpload
+  const PreparedUpload({required this.upload, required this.says})
+  final String says
+  final TelemetryUpload? upload
+
 final class PublishedActor
   WorldPosition get worldAt
   const PublishedActor({required this.at, required this.yaw, required this.isAlive, required this.origin, this.steppedUp = 0.0, this.isGrounded = true})
@@ -2074,6 +2120,18 @@ final class ReflectorKind extends _SurfaceKind
 final class Refused extends ActivationOutcome
   const Refused(this.message)
   final String message
+
+final class RenderSettingsPatch
+  Iterable<String> get ids
+  Map<String, Object?> toJson()
+  Object? operator [](String id)
+  String toString()
+  bool get isEmpty
+  bool operator ==(Object other)
+  factory RenderSettingsPatch(Map<String, Object?> bySlot)
+  factory RenderSettingsPatch.fromJson(Map<String, Object?> json)
+  int get hashCode
+  static const RenderSettingsPatch empty = RenderSettingsPatch._(<String, Object?>{})
 
 final class ReplayException extends Flutter3dFormatException
   String get message
@@ -2163,7 +2221,7 @@ abstract base mixin class Rider
   abstract Collider? get carriedBy
 
 final class RoomDoor
-  const RoomDoor(this.side, this.offset, this.width, this.height, {this.sill})
+  const RoomDoor({required this.side, required this.offset, required this.width, required this.height, this.sill})
   final String side
   final double height
   final double offset
@@ -2342,7 +2400,10 @@ final class SequencePlayer with ActorDirector
   void restore(Map<String, Object?> from)
   void steer(Mind it)
 
-typedef SequenceRead = ({Sequence? sequence, List<String> problems});
+final class SequenceRead
+  const SequenceRead({required this.sequence, required this.problems})
+  final List<String> problems
+  final Sequence? sequence
 
 final class SequenceSignal extends GameEvent
   String get name
@@ -2516,10 +2577,6 @@ final class SteadyLight extends LightBehavior
   const SteadyLight()
   double at(double time, double seed)
 
-final class StepContext
-  StepPhase phase
-  double dt
-
 final class StepDivergence
   String toString()
   const StepDivergence({required this.step, required this.reason, this.system, this.phase, this.owner})
@@ -2537,24 +2594,13 @@ final class StepEventSummary
   final int digest
   final int step
 
-final class StepPhase
+final class StepSpan
   String toString()
   bool operator ==(Object other)
-  const StepPhase(this.name)
-  final String name
+  const StepSpan({required this.first, required this.last})
+  final int first
+  final int last
   int get hashCode
-  static const StepPhase begin = StepPhase('begin')
-  static const StepPhase end = StepPhase('end')
-
-typedef StepSystem = void Function(StepContext step);
-
-final class StepSystems
-  List<SystemRegistration> forPhase(StepPhase phase)
-  SystemRegistration add(StepPhase phase, StepSystem system, {String? label, List<String> after = const <String>[], List<String> before = const <String>[]})
-  bool get isEmpty
-  void clear()
-  void remove(SystemRegistration registration)
-  void run(StepPhase phase, double dt)
 
 final class StepTimeTrace
   List<double> get seconds
@@ -2583,15 +2629,6 @@ base class SurfaceTable<T>
   bool knows(String surface)
   const SurfaceTable(this._byName, {required this.fallback})
   final T fallback
-
-final class SystemRegistration
-  String toString()
-  final List<String> after
-  final List<String> before
-  final StepPhase phase
-  final StepSystem system
-  final String? label
-  final int sequence
 
 abstract base class Takeable extends Mechanism with CollisionListener
   ActivationOutcome activate(Activation by)
@@ -2684,7 +2721,7 @@ final class TelemetryUpload extends FormatDocument
   final Demo demo
   final String game
   final String policy
-  static ({TelemetryUpload? upload, String says}) prepare({required String game, required Demo demo, required TelemetryConsent consent, required String policy})
+  static PreparedUpload prepare({required String game, required Demo demo, required TelemetryConsent consent, required String policy})
   static const FormatSpec format = FormatSpec(id: 'f3d.telemetry', version: formatVersion, suffixes: <String>['.upload.json'], fixture: 'test/fixtures/v<N>/upload.json', migrations: _migrations)
   static const int formatVersion = 1
 
@@ -2726,6 +2763,15 @@ final class TimeLostReason
   static const TimeLostReason longFrame = TimeLostReason._('longFrame')
   static const TimeLostReason overBudget = TimeLostReason._('overBudget')
 
+abstract base class TimeSource
+  abstract double elapsed(Duration from, Duration to)
+  const TimeSource()
+  const factory TimeSource.realTime()
+  factory TimeSource.log(List<double> timestamps)
+  factory TimeSource.manual()
+  factory TimeSource.scaled(double factor)
+  void reset()
+
 abstract final class Tolerance
   static const double divisor = 1e-9
   static const double gridBias = 1e-6
@@ -2752,11 +2798,23 @@ final class TriggerVolume extends Signal with CollisionListener
   void collect(MechanismEvents into)
   void onCollisionStart(Collider self, Collider other)
 
+final class Tunable<T extends Object>
+  String toString()
+  T of(Tunables tunables)
+  double get initialValue
+  final String name
+  final T initial
+  static Tunable<bool> flag(String name, {bool initial = false})
+  static Tunable<double> number(String name, double initial)
+  static Tunable<int> whole(String name, int initial)
+  void set(InputState input, T value)
+
 final class Tunables
   Map<String, Object?> toJson()
   Map<String, double> get values
   Tunables(Map<String, double> defaults)
   double operator [](String name)
+  factory Tunables.of(Iterable<Tunable<Object>> tunables)
   final Map<String, double> defaults
   void readFrom(InputState input)
   void restore(Map<String, Object?> json)

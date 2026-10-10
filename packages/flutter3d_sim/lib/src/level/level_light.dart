@@ -4,7 +4,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'json_reader.dart';
 import 'json_write_through.dart';
-import 'legacy_light_unit.dart';
 import 'level_format_exception.dart';
 import 'level_ids.dart';
 
@@ -116,7 +115,7 @@ final class LevelLight {
   /// The strength of a light that does not say one, in candela or lux: one
   /// pre-1.0 unit, so a light a document left at its default keeps the
   /// brightness it had across the lift.
-  static const double defaultIntensity = legacyLightUnit;
+  static const double defaultIntensity = 5790.583578; // π × 1843.2
 
   /// How far a point or spot light reaches, in metres; zero is unbounded.
   final double range;
