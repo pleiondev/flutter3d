@@ -740,12 +740,12 @@ final class TrackElements {
 
     final pieces = <_Debris>[];
     final paint = index == 0
-        ? Vector4(0.82, 0.82, 0.84, 1.0)
+        ? LinearColor.fromSrgb(0.82, 0.82, 0.84)
         : Looks.carPaint(index);
     _Debris piece(
       DeviceMesh mesh,
       Solid solid, {
-      required Vector4 color,
+      required LinearColor color,
       required double throwAt,
       bool stays = false,
     }) {
@@ -756,11 +756,7 @@ final class TrackElements {
       );
       final node = MeshNode(
         mesh,
-        RenderMaterial(
-          name: 'wreck',
-          baseColor: _fromSrgb(color),
-          roughness: 0.6,
-        ),
+        RenderMaterial(name: 'wreck', baseColor: color, roughness: 0.6),
         name: 'wreck',
       );
       _scene.add(node);
@@ -800,7 +796,7 @@ final class TrackElements {
         material: NativeMaterial.rubber(),
         density: 70.0 / (8.0 * tub.x * tub.y * tub.z),
       ),
-      color: Vector4(0.12, 0.11, 0.1, 1.0),
+      color: LinearColor.fromSrgb(0.12, 0.11, 0.1),
       throwAt: 0.0,
       stays: true,
     );
@@ -841,7 +837,7 @@ final class TrackElements {
         material: NativeMaterial.rubber(),
         density: 11.0 / tyreVolume,
       ),
-      color: Vector4(0.05, 0.05, 0.05, 1.0),
+      color: LinearColor.fromSrgb(0.05, 0.05, 0.05),
       throwAt: 0.3,
     );
     // Bodywork: steel panels, six kilograms each, which do not burn.
@@ -1284,9 +1280,6 @@ final class TrackElements {
     _elements.dispose();
   }
 }
-
-/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
-LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);
 
 /// [color]'s channels as the water's lighting takes them.
 Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
