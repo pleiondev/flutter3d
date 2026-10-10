@@ -1036,10 +1036,12 @@ class _SpikePageState extends State<SpikePage>
       center.y + distance * 0.35,
       center.z + distance * 0.6,
     );
-    // Intensity is photometric-ish: with inverse-square falloff it has to grow
+    // Intensity is in candela, so with inverse-square falloff it has to grow
     // with the square of the distance to keep the same brightness on the model.
+    // The factor on each is the one the constructor gives these lights, and
+    // without it they are some five thousand times too dim to show.
     _fill
-      ..intensity = 1.0 * distance * distance
+      ..intensity = 1.0 * LightNode.defaultIntensity * distance * distance
       ..range = distance * 6.0;
 
     // Spread around the model, each at a different distance and height, so no
@@ -1061,7 +1063,7 @@ class _SpikePageState extends State<SpikePage>
           center.y + distance * (0.9 - 0.12 * i),
           center.z + math.sin(angle) * radius,
         )
-        ..intensity = 1.0 * distance * distance
+        ..intensity = 1.0 * LightNode.defaultIntensity * distance * distance
         ..range = distance * 6.0;
     }
 
@@ -1072,7 +1074,7 @@ class _SpikePageState extends State<SpikePage>
     );
     _spot
       ..lookAt(center)
-      ..intensity = 2.5 * distance * distance
+      ..intensity = 2.5 * LightNode.defaultIntensity * distance * distance
       ..range = distance * 6.0;
   }
 
