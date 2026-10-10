@@ -1,6 +1,6 @@
-/// A data plugin's `materials` and `renderSteps`: the two sections of a
-/// `.f3dplugin` document the renderer reads, through the plugin API's
-/// `DataSectionRegistry`.
+/// A data plugin's `materials`, `renderSteps`, `bindings` and `pipeline`:
+/// the sections of a `.f3dplugin` document the renderer reads, through the
+/// plugin API's `DataSectionRegistry`.
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart' show RendererSteps;
@@ -11,7 +11,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         DocumentFormatException,
         PluginException,
         PluginHost,
-        RenderAnchor;
+        RenderAnchor,
+        SceneBindingRegistry,
+        SceneBindingSpec;
 
 import 'runtime_shaders.dart';
 
@@ -28,7 +30,24 @@ import 'runtime_shaders.dart';
 const List<DataSection> renderDataSections = <DataSection>[
   materialsSection,
   renderStepsSection,
+  bindingsSection,
 ];
+
+/// A data plugin's `bindings`: how its components are shown in the scene
+/// (D37), each entry a `SceneBindingSpec` —
+///
+/// ```json
+/// "bindings": [
+///   {"component": "acme_forge.heat", "node": "f3d.mesh",
+///    "material": "glow.fmat", "parameters": {"temperature": "glowStrength"},
+///    "interpolation": "linear", "lifetime": "component"}
+/// ]
+/// ```
+///
+/// Installed into the engine's `SceneBindingRegistry` (the renderer's
+/// `SceneBindings`); on an engine that draws nothing the section is read
+/// and noted, not installed.
+const DataSection bindingsSection = _BindingsSection();
 
 /// A data plugin's `materials`: the material language, compiled where the
 /// backend compiles at run time ([RuntimeShaders]).
@@ -296,6 +315,37 @@ final class _RenderStepsSection extends DataSection {
         renderer,
       );
     }
+  }
+}
+
+final class _BindingsSection extends DataSection {
+  const _BindingsSection();
+
+  @override
+  String get name => 'bindings';
+
+  @override
+  Object read(Object? written, DataSectionContext context) =>
+      List<SceneBindingSpec>.unmodifiable(<SceneBindingSpec>[
+        for (final entry in _entries(written, name))
+          SceneBindingSpec.fromJson(entry),
+      ]);
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final spec in section as List<SceneBindingSpec>) spec.toJson(),
+  ];
+
+  @override
+  void install(PluginHost host, Object section, DataSectionContext context) {
+    final specs = section as List<SceneBindingSpec>;
+    if (specs.isEmpty) return;
+    final bindings = host.maybeRegistry<SceneBindingRegistry>();
+    if (bindings == null) {
+      context.note('bindings not installed: this engine draws nothing');
+      return;
+    }
+    specs.forEach(bindings.add);
   }
 }
 

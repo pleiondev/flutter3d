@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Scene bindings, as data.** `SceneBindingSpec` says how a component of
+  the simulation is shown: the kind of node (an open name), the material,
+  which fields drive which material parameters, `BindingInterpolation` and
+  `BindingLifetime`; it reads and writes a `.f3dplugin`'s `bindings:` entry
+  and keeps the keys it does not know. `SceneBindingRegistry` is where a
+  plugin registers one.
 - **Every name a plugin registers is in its namespace.**
   `PluginManifest.namespace` is the id up to its first dot — the package
   that ships the plugin — and `nameProblem` says why a name outside

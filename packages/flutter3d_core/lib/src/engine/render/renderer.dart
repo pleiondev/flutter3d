@@ -42,6 +42,7 @@ import '../scene/planar_reflector_node.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_binding.dart';
 import '../scene/scene_node.dart';
 import 'cluster_draws.dart';
 import 'composite_mix.dart';
@@ -340,6 +341,11 @@ final class Renderer with RenderServices {
   /// level-of-detail policy, the skinning hooks (D22b). A plugin reaches it
   /// as `host.registry<RenderHooks>()`, through [renderSteps].
   RenderHooks get hooks => renderSteps._store.hooks;
+
+  /// How the simulation's components are shown in this renderer's scenes,
+  /// and the kinds of node they are shown as (D37). A plugin reaches it as
+  /// `host.registry<SceneBindingRegistry>()`, through [renderSteps].
+  SceneBindings get sceneBindings => renderSteps._store.sceneBindings;
 
   final ShaderHandle _vertexShader;
 

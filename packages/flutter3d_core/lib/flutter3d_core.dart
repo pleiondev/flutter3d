@@ -159,6 +159,7 @@ export 'src/engine/scene/projection.dart';
 export 'src/engine/scene/raycaster.dart';
 export 'src/engine/scene/reflection_probe_node.dart';
 export 'src/engine/scene/scene.dart' hide SceneRegistry;
+export 'src/engine/scene/scene_binding.dart';
 export 'src/engine/scene/scene_graph.dart' hide LightBuffer, ShaderLightType;
 export 'src/engine/scene/scene_node.dart'
     hide noteSceneChange, sceneAncestorWalks, sceneChangeEpoch;

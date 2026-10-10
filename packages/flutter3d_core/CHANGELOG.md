@@ -27,6 +27,14 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **Scene bindings, the renderer's half.** `SceneBindings`
+  (`Renderer.sceneBindings`, `host.registry<SceneBindingRegistry>()`) holds
+  the bindings and the kinds of node they make (`SceneNodeKind`, open and
+  namespaced); `SceneBinding` pairs a spec with its kind and sets a
+  material's parameters from a component's fields, blended between two
+  steps through a `SceneBindingContext`. A data plugin's `bindings:`
+  section (`bindingsSection`, among `renderDataSections`) installs into
+  it.
 - **Hooks into what a renderer draws and when.** `RenderHooks`
   (`Renderer.hooks`, `host.registry<RenderHooks>()`) holds a plugin's
   `DrawListHook`s — which meshes a view keeps and the order it draws them
