@@ -48,7 +48,7 @@ void main() {
         demand: SharingMode.zeroCopy,
       ),
       throwsA(
-        isA<SharingRefused>()
+        isA<SharingException>()
             .having((e) => e.mode, 'mode', SharingMode.zeroCopy)
             .having((e) => e.reason, 'reason', contains('cannot export')),
       ),

@@ -1003,7 +1003,7 @@ final class GpuRenderBackend extends GraphicsDevice {
   // `MTLTexture` it computed into, and this side would draw it in place.
   // flutter_gpu has no way to make a texture over a native handle, so the
   // import is refused with the reason, `SharedTexture` copies through host
-  // memory instead, and a demand for zero copy is a `SharingRefused` naming
+  // memory instead, and a demand for zero copy is a `SharingException` naming
   // this half.
 
   /// Refused: flutter_gpu cannot wrap a native texture.

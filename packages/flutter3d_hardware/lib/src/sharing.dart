@@ -220,8 +220,8 @@ final class SharingMode {
 /// **A refusal, and only where a caller demanded the mode.** Without a
 /// demand the share falls back to [SharingMode.hostCopy], which every pair
 /// of devices has, and nothing is thrown.
-final class SharingRefused extends CapabilityException {
-  const SharingRefused({
+final class SharingException extends CapabilityException {
+  const SharingException({
     required this.mode,
     required this.producer,
     required this.consumer,
@@ -246,7 +246,7 @@ final class SharingRefused extends CapabilityException {
       '$reason';
 
   @override
-  String toString() => 'SharingRefused: $message';
+  String toString() => 'SharingException: $message';
 }
 
 /// The kind both devices can share a texture (or buffer) through without a
@@ -313,7 +313,7 @@ final class SharedTexture {
   /// Zero copy when both devices have `DeviceFeature.sharedTextures` and a
   /// [NativeHandleKind] in common, and `sharedFences` to order them; the
   /// copy through host memory otherwise. [demand] insists on one mode and
-  /// throws [SharingRefused], saying which half is missing, where it does
+  /// throws [SharingException], saying which half is missing, where it does
   /// not fit.
   static SharedTexture create({
     required GraphicsDevice producer,
@@ -327,7 +327,7 @@ final class SharedTexture {
         consumer.features.has(DeviceFeature.sharedFences);
     final zeroCopy = kind != null && fenced;
     if (demand == SharingMode.zeroCopy && !zeroCopy) {
-      throw SharingRefused(
+      throw SharingException(
         mode: SharingMode.zeroCopy,
         producer: producer.backendName,
         consumer: consumer.backendName,
@@ -339,7 +339,7 @@ final class SharedTexture {
     if (demand != null &&
         demand != SharingMode.zeroCopy &&
         demand != SharingMode.hostCopy) {
-      throw SharingRefused(
+      throw SharingException(
         mode: demand,
         producer: producer.backendName,
         consumer: consumer.backendName,
@@ -454,7 +454,7 @@ final class SharedBuffer {
         consumer.features.has(DeviceFeature.sharedFences);
     final zeroCopy = kind != null && fenced;
     if (demand == SharingMode.zeroCopy && !zeroCopy) {
-      throw SharingRefused(
+      throw SharingException(
         mode: SharingMode.zeroCopy,
         producer: producer.backendName,
         consumer: consumer.backendName,

@@ -628,6 +628,96 @@ const Map<String, ({Set<String> blocks, Set<String> samplers})> stageBindings = 
 
 const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks = …
 
+library package:flutter3d_shaders/kernel.dart
+
+final class ComputeKernel
+  (int, int, int) get workgroupSize
+  DartKernel toDartKernel()
+  KernelBinding? binding(String name)
+  String get name
+  String toString()
+  WgslKernel toWgsl()
+  final String source
+  int groupsFor(int invocations)
+  late final List<KernelBinding> bindings
+  static ComputeKernel parse(String source, {String? name})
+  static List<ComputeKernel> parseAll(String source)
+
+final class ComputeKernelException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const ComputeKernelException(this.reason, {required this.line, required this.column})
+  final String reason
+  final int column
+  final int line
+
+final class DartKernel
+  final ComputeKernel kernel
+  void dispatch(KernelInputs inputs, int x, [int y = 1, int z = 1])
+  void runWorkgroup((int, int, int) group, KernelInputs inputs)
+
+final class KernelBinding
+  String toString()
+  TextureFormat get textureFormat
+  final KernelBindingKind kind
+  final String element
+  final String name
+  final bool writable
+  final int index
+
+final class KernelBindingKind
+  String toString()
+  final String name
+  static KernelBindingKind? byName(String name)
+  static const KernelBindingKind buffer = KernelBindingKind._('buffer')
+  static const KernelBindingKind image = KernelBindingKind._('image')
+  static const KernelBindingKind texture = KernelBindingKind._('texture')
+  static const List<KernelBindingKind> values = <KernelBindingKind>[buffer, texture, image]
+
+abstract base class KernelImage
+  abstract int get height
+  abstract int get width
+  abstract void store(int x, int y, Float32List rgba)
+  const KernelImage()
+
+final class KernelInputs
+  KernelInputs({this.buffers = const <String, ByteData>{}, this.textures = const <String, KernelTexture>{}, this.images = const <String, KernelImage>{}})
+  final Map<String, ByteData> buffers
+  final Map<String, KernelImage> images
+  final Map<String, KernelTexture> textures
+
+final class KernelPixels extends KernelTexture implements KernelImage
+  KernelPixels(this.width, this.height, [Uint8List? rgba])
+  final Uint8List rgba
+  final int height
+  final int width
+  void load(int x, int y, Float32List out)
+  void store(int x, int y, Float32List value)
+
+abstract base class KernelTexture
+  abstract int get height
+  abstract int get width
+  abstract void load(int x, int y, Float32List rgba)
+  const KernelTexture()
+
+final class WgslKernel
+  String get entryPoint
+  final (int, int, int) workgroupSize
+  final List<KernelBinding> bindings
+  final String code
+
+ShaderBundle kernelBundle(String name, Iterable<ComputeKernel> kernels)
+
+const String kernelEntryPoint = 'main'
+
+Map<String, ComputeKernel> kernelsOf(ShaderBundle bundle)
+
+double roundHalfEven(double x)
+
+int unormLevel(double value)
+
+double unormValue(int level)
+
 library package:flutter3d_shaders/translate.dart
 
 final class BundleSectionFormatException extends Flutter3dFormatException

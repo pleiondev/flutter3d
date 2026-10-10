@@ -10,7 +10,7 @@
   refusing a masked pass by name and drawing the views one pass each
   through `ViewPasses`; `sharingChecks` carries a texture by copy through
   `SharedTexture` and holds zero copy demanded where it is missing to a
-  `SharingRefused`. The honesty check probes `multiview` and the three
+  `SharingException`. The honesty check probes `multiview` and the three
   sharing features. The suite has 52 checks.
 - **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
   transform a later minor adds to the fuzzer breaks no `switch` over them.

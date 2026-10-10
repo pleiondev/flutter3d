@@ -50,7 +50,7 @@ Future<void> checkSharedTextureCopies(GraphicsDevice device) async {
   shared.dispose();
 }
 
-/// Zero copy demanded of a device that cannot export is a [SharingRefused]
+/// Zero copy demanded of a device that cannot export is a [SharingException]
 /// naming the half that is missing, never a quiet copy.
 Future<void> checkZeroCopyRefusedByName(GraphicsDevice device) async {
   if (device.features.has(DeviceFeature.sharedTextures) &&
@@ -67,7 +67,7 @@ Future<void> checkZeroCopyRefusedByName(GraphicsDevice device) async {
       descriptor: _square,
       demand: SharingMode.zeroCopy,
     ).dispose();
-  } on SharingRefused catch (refusal) {
+  } on SharingException catch (refusal) {
     require(
       refusal.mode == SharingMode.zeroCopy && refusal.reason.isNotEmpty,
       'zero copy was refused without saying which half is missing',

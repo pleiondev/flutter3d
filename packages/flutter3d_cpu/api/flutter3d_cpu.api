@@ -767,6 +767,8 @@ Map<String, CpuStage> builtinCpuShaders()
 
 FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
 
+CpuDevice cpuComputeDevice()
+
 int differingPixels(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
 
 Uint8List encodePng(Uint8List rgba, int width, int height)

@@ -159,8 +159,8 @@ final class ComputeRefusalReason {
 /// A [CapabilityException]: the machine, not the program, decides it. A
 /// frame reports the step as unsupported and goes on; a caller that asked
 /// [ComputeExecutors.place] directly catches this.
-final class ComputePlacementRefused extends CapabilityException {
-  const ComputePlacementRefused({
+final class ComputePlacementException extends CapabilityException {
+  const ComputePlacementException({
     required this.step,
     required this.reason,
     this.demand,
@@ -205,7 +205,7 @@ final class ComputePlacementRefused extends CapabilityException {
   }
 
   @override
-  String toString() => 'ComputePlacementRefused: $message';
+  String toString() => 'ComputePlacementException: $message';
 }
 
 /// The executors one frame may place compute steps on, and the order it
@@ -215,7 +215,7 @@ final class ComputePlacementRefused extends CapabilityException {
 /// on the first of [ComputePlacement.values] whose executor has
 /// `DeviceFeature.compute`: the drawing [device]'s own, then the [sidecar],
 /// then the [cpu]. One that demands a placement runs there or is refused
-/// with [ComputePlacementRefused], never quietly moved.
+/// with [ComputePlacementException], never quietly moved.
 final class ComputeExecutors {
   /// The executors of a frame drawn on [device], with a [sidecar] and a
   /// [cpu] device where the application has them.
@@ -262,7 +262,7 @@ final class ComputeExecutors {
   /// choice further (a step whose kernel one executor refused asks again
   /// without it) and is asked in placement order.
   ///
-  /// Throws [ComputePlacementRefused] when nothing fits.
+  /// Throws [ComputePlacementException] when nothing fits.
   ComputeExecutor place({
     required String step,
     ComputePlacement? demand,
@@ -273,7 +273,7 @@ final class ComputeExecutors {
       if (executor != null && (accepts == null || accepts(executor))) {
         return executor;
       }
-      throw ComputePlacementRefused(
+      throw ComputePlacementException(
         step: step,
         demand: demand,
         reason: executor == null
@@ -300,7 +300,7 @@ final class ComputeExecutors {
         );
       }
     }
-    throw ComputePlacementRefused(
+    throw ComputePlacementException(
       step: step,
       reason: available.isEmpty
           ? ComputeRefusalReason.noExecutor

@@ -64,7 +64,12 @@ final class ComputeContext {
 
   /// Whether that is the device drawing the frame, so the frame's own
   /// buffers and textures can be bound as they are.
-  bool get onFrameDevice => identical(device, frame.device);
+  ///
+  /// For whoever writes a step's `record` — a game, a plugin: a step that
+  /// may land on the sidecar or the CPU asks this before it binds
+  /// `frame.resources` directly, and otherwise hands its output over
+  /// through `SharedBuffer` or `SharedTexture`.
+  bool get isOnFrameDevice => identical(device, frame.device);
 
   /// The stage of the kernel called [kernel] on [device]. Throws an
   /// [ArgumentError] for a name the step's kernels do not have.
@@ -113,7 +118,7 @@ abstract base class ComputeStep extends RenderNode {
 
   ComputeExecutor? _executor;
   Map<String, ShaderHandle> _stages = const <String, ShaderHandle>{};
-  ComputePlacementRefused? _refusal = const ComputePlacementRefused(
+  ComputePlacementException? _refusal = const ComputePlacementException(
     step: '',
     reason: ComputeRefusalReason.notPlaced,
     tried: <String>['ComputeStep.prepare places a step before its frame'],
@@ -124,8 +129,8 @@ abstract base class ComputeStep extends RenderNode {
 
   /// Why this step is not placed: the refusal of the last [prepare], or
   /// that it was never prepared. Null once placed.
-  ComputePlacementRefused? get refusal => switch (_refusal) {
-    final r? when r.step.isEmpty => ComputePlacementRefused(
+  ComputePlacementException? get refusal => switch (_refusal) {
+    final r? when r.step.isEmpty => ComputePlacementException(
       step: name,
       reason: r.reason,
       tried: r.tried,
@@ -143,7 +148,7 @@ abstract base class ComputeStep extends RenderNode {
   ///
   /// Answers the refusal when nothing fits, which [refusal] also holds;
   /// null when placed.
-  Future<ComputePlacementRefused?> prepare(ComputeExecutors executors) async {
+  Future<ComputePlacementException?> prepare(ComputeExecutors executors) async {
     final bundle = kernelBundle(name, kernels).encode();
     final loaded = <ComputeExecutor, Map<String, ShaderHandle>>{};
     Object? cause;
@@ -182,10 +187,10 @@ abstract base class ComputeStep extends RenderNode {
       _stages = loaded[chosen]!;
       _refusal = null;
       return null;
-    } on ComputePlacementRefused catch (refused) {
+    } on ComputePlacementException catch (refused) {
       _executor = null;
       _stages = const <String, ShaderHandle>{};
-      return _refusal = ComputePlacementRefused(
+      return _refusal = ComputePlacementException(
         step: refused.step,
         reason: refused.reason,
         demand: refused.demand,

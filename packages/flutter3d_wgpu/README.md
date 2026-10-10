@@ -20,7 +20,7 @@ That holds because the WGSL rounds every f32 sum, difference and product where t
 
 ## Getting what it computed to the screen
 
-`SharedBuffer` and `SharedTexture` in `flutter3d_hardware` hand the sidecar's output to the drawing device. Today they copy through host memory: flutter_gpu cannot make a texture over a native handle, so Impeller refuses the import, and a demand for zero copy is a `SharingRefused` that says which half is missing. On Metal the sidecar can already give its half: `WgpuSidecar.metalTextureOf` returns the `MTLTexture` behind a texture it made.
+`SharedBuffer` and `SharedTexture` in `flutter3d_hardware` hand the sidecar's output to the drawing device. Today they copy through host memory: flutter_gpu cannot make a texture over a native handle, so Impeller refuses the import, and a demand for zero copy is a `SharingException` that says which half is missing. On Metal the sidecar can already give its half: `WgpuSidecar.metalTextureOf` returns the `MTLTexture` behind a texture it made.
 
 ## Building
 

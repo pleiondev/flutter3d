@@ -72,16 +72,24 @@ final class KType {
   String toString() => name;
 }
 
-/// What a binding is.
-enum KBindingKind {
+/// What a binding is: a class with constants, as every set that may grow
+/// is in a published package, even one private to it.
+final class KBindingKind {
+  const KBindingKind._(this.name);
+
   /// A storage buffer of scalars.
-  buffer,
+  static const KBindingKind buffer = KBindingKind._('buffer');
 
   /// A texture a kernel reads texels of with `load`.
-  texture,
+  static const KBindingKind texture = KBindingKind._('texture');
 
   /// A storage texture a kernel writes texels of with `store`.
-  image,
+  static const KBindingKind image = KBindingKind._('image');
+
+  final String name;
+
+  @override
+  String toString() => name;
 }
 
 /// One declared binding, in declaration order: its index is its WGSL
@@ -131,7 +139,7 @@ final class KIntLiteral extends KExpr {
 final class KFloatLiteral extends KExpr {
   const KFloatLiteral(this.value, this.text, super.type);
 
-  /// The value as an f32 would hold it.
+  /// The value as an f32 would hold it: a number of the kernel's, unitless.
   final double value;
 
   /// As written, for the WGSL emitter: a literal stays the literal.

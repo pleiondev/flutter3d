@@ -15,14 +15,15 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 # Declared rather than left to pub.dev's detector: wgpu-native through
-# `dart:ffi` on every native platform, and in the browser a sidecar that
-# refuses to open, where WebGPU computes for itself.
+# `dart:ffi` on every native platform, and not the browser, where WebGPU
+# computes for itself. A web build that imports `flutter3d_wgpu.dart` still
+# compiles — the sidecar refuses to open there, saying why — but the build
+# hook's `wgpu_native_hook.dart` reaches `dart:io`, which is what it is for.
 platforms:
   android:
   ios:
   linux:
   macos:
-  web:
   windows:
 
 dependencies:

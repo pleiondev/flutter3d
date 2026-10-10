@@ -266,11 +266,8 @@ final class ComputeKernel {
         for (final b in _tree.bindings)
           KernelBinding._(
             name: b.name,
-            kind: switch (b.kind) {
-              KBindingKind.buffer => KernelBindingKind.buffer,
-              KBindingKind.texture => KernelBindingKind.texture,
-              KBindingKind.image => KernelBindingKind.image,
-            },
+            // The parser's kinds and the public ones are one set, by name.
+            kind: KernelBindingKind.byName(b.kind.name)!,
             element: b.kind == KBindingKind.buffer ? b.element.name : 'rgba8',
             writable: b.writable,
             index: b.index,

@@ -4,7 +4,7 @@
   (`device`, `sidecar`, `cpu`), `ComputeExecutor` and `ComputeExecutors`
   name where a compute step runs and decide it: the drawing device's own
   compute, then a compute-only sidecar, then the CPU; a step that demands a
-  placement runs there or is refused with `ComputePlacementRefused` and an
+  placement runs there or is refused with `ComputePlacementException` and an
   open `ComputeRefusalReason`. `DeviceRegistry.addComputeDevice` and
   `computeExecutors` are how a backend offers a sidecar or a CPU device and
   how an engine opens them. A kernel travels in a bundle's new
@@ -27,7 +27,7 @@
   `releaseFence`, each refusing by default under
   `DeviceFeature.sharedTextures`, `sharedBuffers` or `sharedFences`;
   `wrapFence` is in `backend.dart`. Zero copy demanded where it is missing
-  is `SharingRefused`, saying which half.
+  is `SharingException`, saying which half.
 - **Seven names reserved for what comes after 1.0**:
   `variableRateShading`, `depthResolve`, `asyncCompute`, `shaderInt64`
   (with 64-bit atomics), `conservativeRasterization`, `depthBounds` and

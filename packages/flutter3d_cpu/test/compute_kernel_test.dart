@@ -163,7 +163,7 @@ void main() {
       expect(
         () => executors.place(step: 'blur', accepts: (_) => false),
         throwsA(
-          isA<ComputePlacementRefused>().having(
+          isA<ComputePlacementException>().having(
             (e) => e.reason,
             'reason',
             ComputeRefusalReason.kernelRefused,

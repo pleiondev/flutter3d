@@ -659,12 +659,7 @@ final class _Parser {
     final name = _name(what);
     final binding = _bindings[name];
     if (binding == null) _fail('nothing is called "$name"', token);
-    final ok = switch (kind) {
-      KBindingKind.texture => binding.kind == KBindingKind.texture,
-      KBindingKind.image => binding.kind == KBindingKind.image,
-      KBindingKind.buffer => binding.kind == KBindingKind.buffer,
-    };
-    if (!ok) _fail('"$name" is not $what', token);
+    if (binding.kind != kind) _fail('"$name" is not $what', token);
     return binding;
   }
 

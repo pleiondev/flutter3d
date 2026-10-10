@@ -291,7 +291,9 @@ Future<void> checkKernelParticleStep(GraphicsDevice device) async {
       0,
     ],
   ];
-  final params = <double>[_f(1 / 60), _f(-9.81), 0, 0.5];
+  // A step, a pull along y, a floor and a bounce: numbers for the kernel to
+  // add and multiply, not a world's gravity.
+  final params = <double>[_f(1 / 60), _f(-12.5), 0, 0.5];
   final want = List<double>.of(particles);
   final dt = params[0];
   for (var i = 0; i < n; i++) {

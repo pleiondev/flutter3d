@@ -18,6 +18,8 @@ void forgetShader(Map<String, ShaderHandle?> handles, ShaderHandle handle)
 
 ComputePipelineHandle wrapComputePipeline({required Object backend, required ShaderHandle shader, GraphicsDevice? owner})
 
+GpuFence wrapFence({required Object backend, GraphicsDevice? owner})
+
 GeometryBuffer wrapGeometry({required Object backend, required int offsetInBytes, required int lengthInBytes, void Function(GeometryBuffer)? release})
 
 PipelineHandle wrapPipeline({required Object backend, required String name, GraphicsDevice? owner})
@@ -181,11 +183,59 @@ abstract base class ComputeEncoder
   void popDebugGroup()
   void pushDebugGroup(String label)
 
+@immutable final class ComputeExecutor
+  String toString()
+  bool operator ==(Object other)
+  const ComputeExecutor(this.placement, this.device)
+  final ComputePlacement placement
+  final GraphicsDevice device
+  int get hashCode
+
+final class ComputeExecutors
+  ComputeExecutor place({required String step, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
+  ComputeExecutor? executorFor(ComputePlacement placement)
+  ComputeExecutors({required this.device, this.sidecar, this.cpu})
+  List<ComputeExecutor> get available
+  final GraphicsDevice device
+  final GraphicsDevice? cpu
+  final GraphicsDevice? sidecar
+
+typedef ComputeOpener = Future<GraphicsDevice> Function();
+
 final class ComputePipelineHandle
   bool get isDisposed
   final Object backend
   final ShaderHandle shader
   void dispose()
+
+@immutable final class ComputePlacement
+  String toString()
+  final String name
+  static ComputePlacement? byName(String name)
+  static const ComputePlacement cpu = ComputePlacement._('cpu')
+  static const ComputePlacement device = ComputePlacement._('device')
+  static const ComputePlacement sidecar = ComputePlacement._('sidecar')
+  static const List<ComputePlacement> values = <ComputePlacement>[device, sidecar, cpu]
+
+final class ComputePlacementException extends CapabilityException
+  String get message
+  String toString()
+  const ComputePlacementException({required this.step, required this.reason, this.demand, this.tried = const <String>[], this.cause})
+  final ComputePlacement? demand
+  final ComputeRefusalReason reason
+  final List<String> tried
+  final Object? cause
+  final String step
+
+@immutable final class ComputeRefusalReason
+  String toString()
+  final String name
+  static ComputeRefusalReason? byName(String name)
+  static const ComputeRefusalReason kernelRefused = ComputeRefusalReason._('kernelRefused')
+  static const ComputeRefusalReason noExecutor = ComputeRefusalReason._('noExecutor')
+  static const ComputeRefusalReason notPlaced = ComputeRefusalReason._('notPlaced')
+  static const ComputeRefusalReason placementUnavailable = ComputeRefusalReason._('placementUnavailable')
+  static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[noExecutor, placementUnavailable, kernelRefused, notPlaced]
 
 final class CullMode
   String toString()
@@ -237,6 +287,7 @@ final class DepthTarget
   static DeviceFeature? byName(String name)
   static const List<DeviceFeature> values = …
   static const alphaToCoverage = DeviceFeature._('alpha-to-coverage', FeatureStability.stable)
+  static const asyncCompute = DeviceFeature._('async-compute', FeatureStability.reserved)
   static const baseVertexBaseInstance = DeviceFeature._('base-vertex-base-instance', FeatureStability.stable)
   static const bindlessResources = DeviceFeature._('bindless-resources', FeatureStability.reserved)
   static const blendConstant = DeviceFeature._('blend-constant', FeatureStability.stable)
@@ -246,10 +297,13 @@ final class DepthTarget
   static const clipDistances = DeviceFeature._('clip-distances', FeatureStability.stable)
   static const colorWriteMask = DeviceFeature._('color-write-mask', FeatureStability.stable)
   static const compute = DeviceFeature._('compute', FeatureStability.stable)
+  static const conservativeRasterization = DeviceFeature._('conservative-rasterization', FeatureStability.reserved)
   static const cubeArrayTextures = DeviceFeature._('cube-array-textures', FeatureStability.stable)
   static const cubeTextures = DeviceFeature._('cube-textures', FeatureStability.stable)
   static const depthBias = DeviceFeature._('depth-bias', FeatureStability.stable)
+  static const depthBounds = DeviceFeature._('depth-bounds', FeatureStability.reserved)
   static const depthClamp = DeviceFeature._('depth-clip-control', FeatureStability.stable)
+  static const depthResolve = DeviceFeature._('depth-resolve', FeatureStability.reserved)
   static const dualSourceBlending = DeviceFeature._('dual-source-blending', FeatureStability.stable)
   static const float32Blendable = DeviceFeature._('float32-blendable', FeatureStability.stable)
   static const float32Filterable = DeviceFeature._('float32-filterable', FeatureStability.stable)
@@ -266,10 +320,12 @@ final class DepthTarget
   static const minMaxBlend = DeviceFeature._('min-max-blend', FeatureStability.stable)
   static const multiDraw = DeviceFeature._('multi-draw', FeatureStability.stable)
   static const multiDrawIndirect = DeviceFeature._('multi-draw-indirect', FeatureStability.stable)
+  static const multiview = DeviceFeature._('multiview', FeatureStability.stable)
   static const nonIndexedDraw = DeviceFeature._('non-indexed-draw', FeatureStability.stable)
   static const occlusionQuery = DeviceFeature._('occlusion-query', FeatureStability.stable)
   static const offscreenMultisample = DeviceFeature._('offscreen-multisample', FeatureStability.stable)
   static const pipelineStatisticsQuery = DeviceFeature._('pipeline-statistics-query', FeatureStability.stable)
+  static const presenterColorSpaces = DeviceFeature._('presenter-color-spaces', FeatureStability.reserved)
   static const rayQuery = DeviceFeature._('ray-query', FeatureStability.reserved)
   static const readWriteStorageTextures = DeviceFeature._('read-write-storage-textures', FeatureStability.stable)
   static const renderBundles = DeviceFeature._('render-bundles', FeatureStability.stable)
@@ -282,6 +338,10 @@ final class DepthTarget
   static const samplerCompare = DeviceFeature._('sampler-compare', FeatureStability.stable)
   static const samplerLodClamp = DeviceFeature._('sampler-lod-clamp', FeatureStability.stable)
   static const shaderF16 = DeviceFeature._('shader-f16', FeatureStability.stable)
+  static const shaderInt64 = DeviceFeature._('shader-int64', FeatureStability.reserved)
+  static const sharedBuffers = DeviceFeature._('shared-buffers', FeatureStability.stable)
+  static const sharedFences = DeviceFeature._('shared-fences', FeatureStability.stable)
+  static const sharedTextures = DeviceFeature._('shared-textures', FeatureStability.stable)
   static const stencil = DeviceFeature._('stencil', FeatureStability.stable)
   static const storageTextures = DeviceFeature._('storage-textures', FeatureStability.stable)
   static const subgroups = DeviceFeature._('subgroups', FeatureStability.stable)
@@ -296,6 +356,7 @@ final class DepthTarget
   static const textureWrites = DeviceFeature._('texture-writes', FeatureStability.stable)
   static const timestampQuery = DeviceFeature._('timestamp-query', FeatureStability.stable)
   static const uniformBytes = DeviceFeature._('uniform-bytes', FeatureStability.stable)
+  static const variableRateShading = DeviceFeature._('variable-rate-shading', FeatureStability.reserved)
   static const wireframe = DeviceFeature._('wireframe', FeatureStability.stable)
 
 @immutable final class DeviceFeatures
@@ -315,7 +376,7 @@ final class DepthTarget
   Map<String, int> toMap()
   String toString()
   bool operator ==(Object other)
-  const DeviceLimits({this.maxTextureDimension1D = 8192, this.maxTextureDimension2D = 8192, this.maxTextureDimension3D = 2048, this.maxTextureArrayLayers = 256, this.maxColorAttachments = 8, this.maxColorAttachmentBytesPerSample = 32, this.maxSampleCount = 4, this.maxSamplerAnisotropy = 16, this.maxBindGroups = 4, this.maxSampledTexturesPerShaderStage = 16, this.maxSamplersPerShaderStage = 16, this.maxStorageBuffersPerShaderStage = 8, this.maxStorageTexturesPerShaderStage = 4, this.maxUniformBuffersPerShaderStage = 12, this.maxUniformBufferBindingSize = 65536, this.maxStorageBufferBindingSize = 134217728, this.maxBufferSize = 268435456, this.minUniformBufferOffsetAlignment = 256, this.minStorageBufferOffsetAlignment = 256, this.maxVertexBuffers = 8, this.maxVertexAttributes = 16, this.maxVertexBufferArrayStride = 2048, this.maxInterStageShaderVariables = 16, this.maxComputeWorkgroupStorageSize = 16384, this.maxComputeInvocationsPerWorkgroup = 256, this.maxComputeWorkgroupSizeX = 256, this.maxComputeWorkgroupSizeY = 256, this.maxComputeWorkgroupSizeZ = 64, this.maxComputeWorkgroupsPerDimension = 65535, this.maxImmediateDataSize = 0})
+  const DeviceLimits({this.maxTextureDimension1D = 8192, this.maxTextureDimension2D = 8192, this.maxTextureDimension3D = 2048, this.maxTextureArrayLayers = 256, this.maxColorAttachments = 8, this.maxColorAttachmentBytesPerSample = 32, this.maxSampleCount = 4, this.maxSamplerAnisotropy = 16, this.maxBindGroups = 4, this.maxSampledTexturesPerShaderStage = 16, this.maxSamplersPerShaderStage = 16, this.maxStorageBuffersPerShaderStage = 8, this.maxStorageTexturesPerShaderStage = 4, this.maxUniformBuffersPerShaderStage = 12, this.maxUniformBufferBindingSize = 65536, this.maxStorageBufferBindingSize = 134217728, this.maxBufferSize = 268435456, this.minUniformBufferOffsetAlignment = 256, this.minStorageBufferOffsetAlignment = 256, this.maxVertexBuffers = 8, this.maxVertexAttributes = 16, this.maxVertexBufferArrayStride = 2048, this.maxInterStageShaderVariables = 16, this.maxComputeWorkgroupStorageSize = 16384, this.maxComputeInvocationsPerWorkgroup = 256, this.maxComputeWorkgroupSizeX = 256, this.maxComputeWorkgroupSizeY = 256, this.maxComputeWorkgroupSizeZ = 64, this.maxComputeWorkgroupsPerDimension = 65535, this.maxImmediateDataSize = 0, this.maxMultiviewViews = 0})
   final int maxBindGroups
   final int maxBufferSize
   final int maxColorAttachmentBytesPerSample
@@ -328,6 +389,7 @@ final class DepthTarget
   final int maxComputeWorkgroupsPerDimension
   final int maxImmediateDataSize
   final int maxInterStageShaderVariables
+  final int maxMultiviewViews
   final int maxSampleCount
   final int maxSampledTexturesPerShaderStage
   final int maxSamplerAnisotropy
@@ -366,10 +428,12 @@ final class DepthTarget
 
 final class DeviceRegistry<P extends Object>
   DeviceRegistry()
+  Future<ComputeExecutors> computeExecutors(GraphicsDevice device, {void Function(String message)? onRefused})
   Future<GraphicsDevice> open({required int width, required int height, void Function(String message)? onFallback})
   List<String> get backendNames
   P? presenterFor(GraphicsDevice device)
   Registration addBackend(String name, BackendOpener open, {bool asFallback = false})
+  Registration addComputeDevice(ComputePlacement placement, String name, ComputeOpener open)
   Registration addPresenter<T extends GraphicsDevice>(P presenter)
 
 final class DeviceResourceException extends ResourceException
@@ -420,6 +484,11 @@ final class GeometryUsage
   static const GeometryUsage vertices = GeometryUsage._('vertices')
   static const List<GeometryUsage> values = <GeometryUsage>[vertices, indices]
 
+final class GpuFence
+  bool get isDisposed
+  final Object backend
+  void dispose()
+
 final class GpuFrameTimings
   const GpuFrameTimings({required this.frame, required this.passes})
   final List<GpuPassTiming> passes
@@ -440,13 +509,21 @@ abstract base class GraphicsDevice with TextureAllocator
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
+  GpuFence createFence()
+  GpuFence importFence(NativeHandle handle)
   List<TextureFormat> get hdrOutputFormats
+  NativeHandle exportBuffer(StorageBuffer buffer, {NativeHandleKind? kind})
+  NativeHandle exportFence(GpuFence fence, {NativeHandleKind? kind})
+  NativeHandle exportTexture(TextureHandle texture, {NativeHandleKind? kind})
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
+  Set<NativeHandleKind> get shareableKinds
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
+  StorageBuffer importBuffer(NativeHandle handle, BufferDescriptor descriptor)
   Stream<DeviceLoss> get lost
   String get backendName
   String? labelOf(Object resource)
+  TextureHandle importTexture(NativeHandle handle, TextureDescriptor descriptor)
   TransferEncoder beginTransferPass({String? label})
   abstract CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   abstract DepthRange get depthRange
@@ -475,12 +552,15 @@ abstract base class GraphicsDevice with TextureAllocator
   bool get isLost
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void releaseComputePipeline(ComputePipelineHandle pipeline)
+  void releaseFence(GpuFence fence)
   void releasePipeline(PipelineHandle pipeline)
   void releaseQuerySet(QuerySet querySet)
   void releaseRenderBundle(RenderBundle bundle)
   void releaseSampler(SamplerDescriptor sampler)
   void releaseStorageBuffer(StorageBuffer buffer)
   void setLabel(Object resource, String label)
+  void signalFence(GpuFence fence, int value)
+  void waitFence(GpuFence fence, int value)
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
@@ -560,6 +640,29 @@ final class MipFilter
   static const List<MipFilter> values = <MipFilter>[nearest, linear]
   static const MipFilter linear = MipFilter._('linear')
   static const MipFilter nearest = MipFilter._('nearest')
+
+@immutable final class NativeHandle
+  String toString()
+  bool operator ==(Object other)
+  const NativeHandle(this.kind, this.address)
+  final NativeHandleKind kind
+  final int address
+  int get hashCode
+
+@immutable final class NativeHandleKind
+  String toString()
+  final String name
+  static NativeHandleKind? byName(String name)
+  static const List<NativeHandleKind> values = …
+  static const NativeHandleKind androidHardwareBuffer = NativeHandleKind._('androidHardwareBuffer')
+  static const NativeHandleKind ioSurface = NativeHandleKind._('ioSurface')
+  static const NativeHandleKind metalBuffer = NativeHandleKind._('metalBuffer')
+  static const NativeHandleKind metalSharedEvent = NativeHandleKind._('metalSharedEvent')
+  static const NativeHandleKind metalTexture = NativeHandleKind._('metalTexture')
+  static const NativeHandleKind vulkanMemoryFd = NativeHandleKind._('vulkanMemoryFd')
+  static const NativeHandleKind vulkanMemoryWin32 = NativeHandleKind._('vulkanMemoryWin32')
+  static const NativeHandleKind vulkanSemaphoreFd = NativeHandleKind._('vulkanSemaphoreFd')
+  static const NativeHandleKind vulkanSemaphoreWin32 = NativeHandleKind._('vulkanSemaphoreWin32')
 
 abstract base mixin class PassEncoder
   abstract bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerDescriptor? sampler})
@@ -710,12 +813,15 @@ base mixin RenderBundleEncoder on PassEncoder
   abstract RenderBundle finish({String? label})
 
 final class RenderPassDescriptor
-  const RenderPassDescriptor({required this.colors, this.depth, this.label, this.occlusionQuerySet, this.timestampWrites})
+  List<int> get views
+  RenderPassDescriptor forView(int view)
+  const RenderPassDescriptor({required this.colors, this.depth, this.label, this.occlusionQuerySet, this.timestampWrites, this.viewMask})
   final DepthTarget? depth
   final List<ColorTarget> colors
   final PassTimestampWrites? timestampWrites
   final QuerySet? occlusionQuerySet
   final String? label
+  final int? viewMask
   void checkAttachmentLimit(int limit, {required String backend})
   void checkFeatures(DeviceFeatures features, {required String backend})
 
@@ -805,6 +911,7 @@ final class ShaderBundle
   static ShaderBundle decode(ByteData bytes)
   static const FormatSpec format = …
   static const String impellerSection = 'impeller'
+  static const String kernelSection = 'kernel'
   static const String magic = 'F3SB'
   static const String materialSection = 'material'
   static const String webglSection = 'webgl'
@@ -846,6 +953,49 @@ final class ShaderLibraryStack with ShaderLibrary
   ShaderHandle? operator [](String name)
   ShaderLibraryStack(Iterable<ShaderLibrary> libraries)
   final List<ShaderLibrary> libraries
+
+final class SharedBuffer
+  Future<void> publish()
+  final GpuFence? consumerFence
+  final GpuFence? fence
+  final GraphicsDevice consumer
+  final GraphicsDevice producer
+  final SharingMode mode
+  final StorageBuffer consumerBuffer
+  final StorageBuffer producerBuffer
+  int get published
+  static SharedBuffer create({required GraphicsDevice producer, required GraphicsDevice consumer, required BufferDescriptor descriptor, SharingMode? demand})
+  void dispose()
+
+final class SharedTexture
+  Future<void> publish()
+  final GpuFence? consumerFence
+  final GpuFence? fence
+  final GraphicsDevice consumer
+  final GraphicsDevice producer
+  final SharingMode mode
+  final TextureHandle consumerTexture
+  final TextureHandle producerTexture
+  int get published
+  static SharedTexture create({required GraphicsDevice producer, required GraphicsDevice consumer, required TextureDescriptor descriptor, SharingMode? demand})
+  void dispose()
+
+final class SharingException extends CapabilityException
+  String get message
+  String toString()
+  const SharingException({required this.mode, required this.producer, required this.consumer, required this.reason})
+  final SharingMode mode
+  final String consumer
+  final String producer
+  final String reason
+
+@immutable final class SharingMode
+  String toString()
+  final String name
+  static SharingMode? byName(String name)
+  static const List<SharingMode> values = <SharingMode>[zeroCopy, hostCopy]
+  static const SharingMode hostCopy = SharingMode._('hostCopy')
+  static const SharingMode zeroCopy = SharingMode._('zeroCopy')
 
 typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
 
@@ -1164,16 +1314,30 @@ final class VertexStepMode
   static const VertexStepMode instance = VertexStepMode._('instance')
   static const VertexStepMode vertex = VertexStepMode._('vertex')
 
+final class ViewPass
+  String toString()
+  bool get isMultiview
+  final int viewMask
+  final int? viewIndex
+
+abstract final class ViewPasses
+  static bool inOnePass(GraphicsDevice device, RenderPassDescriptor descriptor)
+  static int draw(GraphicsDevice device, RenderPassDescriptor descriptor, void Function(CommandEncoder pass, ViewPass view) draw)
+
 enum WindingOrder
   values: clockwise, counterClockwise
 
 ({int width, int height}) cappedImageSize(int width, int height, {int? maxDimension})
+
+Map<String, String> decodeKernelSection(ShaderBundle bundle)
 
 Map<String, String> decodeMaterialSection(ShaderBundle bundle)
 
 ByteData dispatchIndirectArguments(int x, [int y = 1, int z = 1])
 
 ByteData drawIndexedIndirectArguments({required int indexCount, int instanceCount = 1, int firstIndex = 0, int baseVertex = 0, int firstInstance = 0})
+
+ByteData encodeKernelSection(Map<String, String> sources)
 
 ByteData encodeMaterialSection(Map<String, String> sources)
 
@@ -1188,6 +1352,8 @@ const List<TextureFormat> extendedTextureFormats = …
 const List<FormatSpec> hardwareFormats = <FormatSpec>[ShaderBundle.format, Trace.format]
 
 ({int first, int count}) indexWindow(int bound, {int firstIndex = 0, int? indexCount})
+
+const int kernelSectionVersion = 1
 
 const int materialSectionVersion = 1
 
@@ -1212,6 +1378,7 @@ final class ShaderBundle
   static ShaderBundle decode(ByteData bytes)
   static const FormatSpec format = …
   static const String impellerSection = 'impeller'
+  static const String kernelSection = 'kernel'
   static const String magic = 'F3SB'
   static const String materialSection = 'material'
   static const String webglSection = 'webgl'
@@ -1235,9 +1402,15 @@ final class ShaderBundleStage
   final String name
   final bool fragment
 
+Map<String, String> decodeKernelSection(ShaderBundle bundle)
+
 Map<String, String> decodeMaterialSection(ShaderBundle bundle)
 
+ByteData encodeKernelSection(Map<String, String> sources)
+
 ByteData encodeMaterialSection(Map<String, String> sources)
+
+const int kernelSectionVersion = 1
 
 const int materialSectionVersion = 1
 

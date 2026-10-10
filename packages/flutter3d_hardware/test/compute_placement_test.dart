@@ -15,7 +15,7 @@ void main() {
     expect(
       () => executors.place(step: 'particles'),
       throwsA(
-        isA<ComputePlacementRefused>()
+        isA<ComputePlacementException>()
             .having((e) => e.reason, 'reason', ComputeRefusalReason.noExecutor)
             .having((e) => e.demand, 'demand', isNull)
             .having((e) => e.tried, 'tried', hasLength(3))
@@ -31,7 +31,7 @@ void main() {
     expect(
       () => executors.place(step: 'blur', demand: ComputePlacement.sidecar),
       throwsA(
-        isA<ComputePlacementRefused>()
+        isA<ComputePlacementException>()
             .having(
               (e) => e.reason,
               'reason',

@@ -4,7 +4,7 @@
   `.f3dmat compute`: `prepare` places it on the first executor that loads
   them — the drawing device's own compute, then the wgpu sidecar, then the
   CPU — or at the placement it `demand`s, and answers a
-  `ComputePlacementRefused` where nothing fits. An unplaced step is not
+  `ComputePlacementException` where nothing fits. An unplaced step is not
   supported, so the frame reports it as `PassSkip.unsupported` and culls
   what only read its output. `record` is handed a `ComputeContext`: the
   chosen executor, its device, each kernel's stage there and the

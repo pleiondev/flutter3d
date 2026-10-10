@@ -47,6 +47,7 @@ final class _Emitter {
         KBindingKind.texture => 'var b_${b.name}: texture_2d<f32>',
         KBindingKind.image =>
           'var b_${b.name}: texture_storage_2d<rgba8unorm, write>',
+        _ => throw UnsupportedError('WGSL has no binding for ${b.kind}'),
       };
       out.writeln('@group(0) @binding(${b.index}) $declaration;');
     }
