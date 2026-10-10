@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LessonStereoView` and `StereoSurface` are `final`.** A
+  widget is composed, not subclassed; a class that extended one builds one
+  instead.
 - **Docs**: `StereoRig.interpupillaryDistance` says its default, 64 mm.
 - **`StereoSurface.onListenerMoved` is handed a `ListenerPose`**, as
   `Flutter3dView`'s is: position, forward, up and the scene's origin.

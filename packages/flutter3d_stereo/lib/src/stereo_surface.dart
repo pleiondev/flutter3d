@@ -28,7 +28,7 @@ import 'stereo_viewer.dart';
 ///
 /// [renderer] is borrowed, and its device with it: the view leaves both alone
 /// when it goes.
-class StereoSurface extends StatelessWidget {
+final class StereoSurface extends StatelessWidget {
   const StereoSurface({
     super.key,
     required this.renderer,

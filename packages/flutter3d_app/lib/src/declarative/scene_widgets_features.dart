@@ -23,7 +23,7 @@ part of 'scene_widgets.dart';
 /// A property left null is left as the material has it, so a game may still
 /// change the object imperatively — through [onCreated] — and the widget
 /// will not put it back unless it says what it should be.
-class Material3D extends StatefulWidget {
+final class Material3D extends StatefulWidget {
   const Material3D({
     super.key,
     this.lighting = LightingModel.pbr,
@@ -155,7 +155,7 @@ class _MaterialScope extends InheritedWidget {
 ///
 /// [faceSize], [levels], [near] and [far] shape the capture and are read when
 /// the probe is first built; [radius] and [intensity] follow every build.
-class ReflectionProbe3D extends Spatial3D {
+final class ReflectionProbe3D extends Spatial3D {
   const ReflectionProbe3D({
     super.key,
     super.position,
@@ -212,7 +212,7 @@ class _ReflectionProbe3DState
 /// onto whatever lies inside its box — `DecalNode`. The box is the node's
 /// scale, a unit cube at scale one: x and z are the picture's size, y how
 /// deep it reaches, so one with no rotation lies on the floor.
-class Decal3D extends Spatial3D {
+final class Decal3D extends Spatial3D {
   const Decal3D({
     super.key,
     super.position,
@@ -286,7 +286,7 @@ class _Decal3DState extends _SpatialState<Decal3D, DecalNode> {
 ///
 /// Planar reflections are drawn when the frame's `ReflectionSettings` ask
 /// for them, as for an imperatively built mirror.
-class Mirror3D extends Spatial3D {
+final class Mirror3D extends Spatial3D {
   const Mirror3D({
     super.key,
     super.position,
@@ -345,7 +345,7 @@ class _Mirror3DState extends _SpatialState<Mirror3D, PlanarReflectorNode> {
 /// Draws [contributor] with the scene while this widget is in the tree —
 /// `Renderer.addContributor` and `removeContributor`, kept by Flutter's
 /// reconciliation. For a contributor this package has no widget for.
-class Contributor3D extends StatefulWidget {
+final class Contributor3D extends StatefulWidget {
   const Contributor3D({super.key, required this.contributor});
 
   final PassContributor contributor;
@@ -398,7 +398,7 @@ class _Contributor3DState extends State<Contributor3D> {
 /// where new particles are born. [system], when given, is simulated and
 /// drawn in place of one of this widget's own — for a game that also bursts
 /// into it imperatively.
-class Particles3D extends Spatial3D {
+final class Particles3D extends Spatial3D {
   const Particles3D({
     super.key,
     super.position,

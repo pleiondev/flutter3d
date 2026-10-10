@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the widgets are `final`.** `DidNotStart`, `LevelLoadFailed`,
+  `LoadingScreen`, `MemoryPressureRelease`, `RendererFailure` and
+  `SceneSurface`, and every widget of a `Scene3D` (`Scene3D`, `Node3D`,
+  `Mesh3D`, `Model3D`, `Light3D`, `Camera3D`, `Material3D`, `Mirror3D`,
+  `Decal3D`, `ReflectionProbe3D`, `Particles3D`, `Contributor3D`), are
+  final classes, and `Spatial3D` is an `abstract base class`: a widget is
+  composed, not subclassed, so a minor release may add a parameter without
+  breaking a subclass. A class that extended one builds one instead.
+
 - **`Mesh3D.onTap`, `Model3D.onTap` and `OrbitCamera3D`: a scene of
   widgets answers the hand.** A tap on a `Scene3D` is cast through the
   camera drawn through (`Raycaster`), and the nearest surface's handler is

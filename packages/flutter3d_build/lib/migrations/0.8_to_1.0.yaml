@@ -18316,3 +18316,85 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  # Widgets are final: composed, not subclassed.
+
+  - id: 2f-app-DidNotStart-final
+    package: flutter3d_app
+    symbol: DidNotStart
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `DidNotStart` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-LevelLoadFailed-final
+    package: flutter3d_app
+    symbol: LevelLoadFailed
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LevelLoadFailed` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-LoadingScreen-final
+    package: flutter3d_app
+    symbol: LoadingScreen
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LoadingScreen` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-MemoryPressureRelease-final
+    package: flutter3d_app
+    symbol: MemoryPressureRelease
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `MemoryPressureRelease` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-RendererFailure-final
+    package: flutter3d_app
+    symbol: RendererFailure
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `RendererFailure` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-app-SceneSurface-final
+    package: flutter3d_app
+    symbol: SceneSurface
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `SceneSurface` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-stereo-LessonStereoView-final
+    package: flutter3d_stereo
+    symbol: LessonStereoView
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `LessonStereoView` is unchanged. A class that
+      extended it builds one instead.
+
+  - id: 2f-stereo-StereoSurface-final
+    package: flutter3d_stereo
+    symbol: StereoSurface
+    kind: none
+    wave: 2
+    reason: >-
+      The widget is a `final class`: a widget is composed, not subclassed,
+      so a build method that wraps a `StereoSurface` is unchanged. A class that
+      extended it builds one instead.

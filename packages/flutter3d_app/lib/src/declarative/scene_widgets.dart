@@ -147,7 +147,7 @@ final class Scene3DController {
 /// children built again on the device that came back, so every mesh is
 /// uploaded again; [materials] went with the old device and is the
 /// application's to load again in [onCreated]'s controller's place.
-class Scene3D extends StatefulWidget {
+final class Scene3D extends StatefulWidget {
   const Scene3D({
     super.key,
     this.children = const <Widget>[],
@@ -385,7 +385,7 @@ class _Scene3DScope extends InheritedWidget {
 /// [position], [rotation] and [scale] are applied on every build, and a
 /// property left null is left as the node has it, so a game may move a node
 /// imperatively and the widget will not put it back unless it says where.
-abstract class Spatial3D extends StatefulWidget {
+abstract base class Spatial3D extends StatefulWidget {
   const Spatial3D({
     super.key,
     this.position,
@@ -472,7 +472,7 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
 }
 
 /// A node with nothing of its own to draw: a group, a pivot.
-class Node3D extends Spatial3D {
+final class Node3D extends Spatial3D {
   const Node3D({
     super.key,
     super.position,
@@ -510,7 +510,7 @@ class _Node3DState extends _SpatialState<Node3D, SceneNode> {
 /// widget's: replaced by another upload, or with the widget gone, it goes
 /// back to the device once no frame in flight still draws it. A [geometry]
 /// handed in is the caller's and is left alone.
-class Mesh3D extends Spatial3D {
+final class Mesh3D extends Spatial3D {
   const Mesh3D({
     super.key,
     this.shape,
@@ -826,7 +826,7 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
 /// The [Camera3D] built last is the one drawn through; with none, the scene
 /// has a default five metres back looking at the origin. [target], when
 /// given, is looked at after [position] is applied.
-class Camera3D extends Spatial3D {
+final class Camera3D extends Spatial3D {
   const Camera3D({
     super.key,
     super.position,
@@ -884,7 +884,7 @@ abstract interface class _Animated {
 /// [source] or from [load] alike, and is disposed when the widget goes, or as
 /// it arrives when the widget went while it loaded; a loader that hands out
 /// an asset something else keeps instantiates it itself, under a [Node3D].
-class Model3D extends Spatial3D {
+final class Model3D extends Spatial3D {
   const Model3D({
     super.key,
     this.source,
