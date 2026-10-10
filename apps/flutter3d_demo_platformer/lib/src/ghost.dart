@@ -1,5 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show SharedMeshes;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game_kit/ghost.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart'
     show Runner, platformerSimulationVersion;
@@ -75,7 +76,7 @@ Iterable<BodyPose> runnerPoses(Runner runner) => <BodyPose>[
   BodyPose(
     runnerBody,
     runner.position.clone()..y -= runner.body.halfExtents.y,
-    Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), runner.yaw),
+    _turn(Vector3(0.0, 1.0, 0.0), runner.yaw),
   ),
 ];
 
@@ -112,4 +113,12 @@ Ghost runnerGhost(
       return box;
     },
   );
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

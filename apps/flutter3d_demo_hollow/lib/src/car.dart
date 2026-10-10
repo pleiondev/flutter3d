@@ -90,8 +90,8 @@ final class StoneCar {
       ..setPosition(_below.x, _below.y, _below.z);
     _bed = SceneNode(name: 'car')..add(frame);
     // A pole along y of [radius] and [length], turned to lie along x or z.
-    final lengthwise = Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2);
-    final across = Quaternion.axisAngle(Vector3(1, 0, 0), math.pi / 2);
+    final lengthwise = _turn(Vector3(0, 0, 1), math.pi / 2);
+    final across = _turn(Vector3(1, 0, 0), math.pi / 2);
     DeviceMesh pole(double radius, double length) => DeviceMesh.upload(
       device,
       CylinderShape(
@@ -253,7 +253,7 @@ final class StoneCar {
           repeat: Vector2(2.0, 1.0),
         ),
         name: 'roller',
-      )..setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2));
+      )..setRotation(_turn(Vector3(1.0, 0.0, 0.0), math.pi / 2));
       final node = SceneNode(name: 'wheel')..add(look);
       scene.add(node);
       _rollers.add(node);
@@ -320,7 +320,7 @@ final class StoneCar {
     final heading = f.length2 > 0 ? Portable.atan2(-f.z, f.x) : 0.0;
     _world
       ..setPosition(body, Vector3(p.x, p.y + 1.5, p.z))
-      ..setOrientation(body, Quaternion.axisAngle(Vector3(0, 1, 0), heading))
+      ..setOrientation(body, _turn(Vector3(0, 1, 0), heading))
       ..setVelocity(body, Vector3.zero())
       ..setAngularVelocity(body, Vector3.zero());
   }
@@ -345,11 +345,19 @@ final class StoneCar {
       final w = wheels[k];
       final turn =
           q *
-          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), w.steer) *
-          Quaternion.axisAngle(Vector3(0.0, 0.0, -1.0), w.rotation);
+          _turn(Vector3(0.0, 1.0, 0.0), w.steer) *
+          _turn(Vector3(0.0, 0.0, -1.0), w.rotation);
       _rollers[k]
         ..setPosition(w.center.x, w.center.y, w.center.z)
         ..setRotation(turn);
     }
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

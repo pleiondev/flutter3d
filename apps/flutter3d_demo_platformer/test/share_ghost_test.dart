@@ -15,7 +15,8 @@ import 'package:flutter3d_demo_platformer/src/ghost.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
-import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,7 +44,10 @@ Map<String, Object?> _document() =>
 /// runner's feet were at every step written down beside it.
 ({Demo demo, List<Vector3> feet}) _played(int steps) {
   final level = Level.fromJson(_document());
-  final world = CollisionWorld();
+  // On the physics the game runs, as a run a player shares was: recorded on
+  // another, `ghostOf` names the physics first and never reaches the
+  // question a test of the simulation asks.
+  final world = CollisionWorld(backend: usePhysics());
   level.addTo(world);
   final input = InputState();
   final staged = stage(level, world, input: input);
@@ -86,7 +90,7 @@ Map<String, Object?> _document() =>
       tape: recorder.tape,
       buildStamp: 'share-ghost-test',
       checkpoints: checkpoints,
-      physics: const DartPhysics().name,
+      physics: usePhysics().name,
     ),
     feet: at,
   );

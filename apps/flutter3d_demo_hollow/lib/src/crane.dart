@@ -40,7 +40,7 @@ final class DinoCrane {
     required double facing,
     required ModelAsset beast,
   }) {
-    final turn = Quaternion.axisAngle(Vector3(0, 1, 0), facing);
+    final turn = _turn(Vector3(0, 1, 0), facing);
     Vector3 local(double x, double y, double z) =>
         at + turn.asRotationMatrix().transformed(Vector3(x, y, z));
     // The legs and body: fixed, the multibody's root.
@@ -74,7 +74,7 @@ final class DinoCrane {
     );
     var root2 = local(1.2, 2.6, 0);
     var parent = _torso;
-    final tilt = Quaternion.axisAngle(side, rise) * turn;
+    final tilt = _turn(side, rise) * turn;
     for (var k = 0; k < _neckLinks; k++) {
       final middle = root2 + along * (0.5 * _neckLength);
       final link = _world.addBody(position: middle, mass: 220.0 - 30.0 * k);
@@ -87,10 +87,7 @@ final class DinoCrane {
           ),
         )
         // A capsule lies along y; turn it to lie along the neck.
-        ..setOrientation(
-          link,
-          Quaternion.fromTwoVectors(Vector3(0, 1, 0), along),
-        );
+        ..setOrientation(link, _between(Vector3(0, 1, 0), along));
       parent = _world.addLink(
         _crane,
         link,
@@ -260,9 +257,7 @@ final class DinoCrane {
       final length = span.length;
       _rope
         ..setPosition((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
-        ..setRotation(
-          Quaternion.fromTwoVectors(Vector3(0, 1, 0), span.normalized()),
-        )
+        ..setRotation(_between(Vector3(0, 1, 0), span.normalized()))
         ..setScale(1.0, length, 1.0);
     }
   }
@@ -392,7 +387,7 @@ final class _NeckPose {
     final last = tip - points[points.length - 2];
     final ahead = Vector3(last.x, 0.25 * last.y, last.z)..normalize();
     final headAlong = head.getColumn(1).xyz..normalize();
-    final turn = Quaternion.fromTwoVectors(headAlong, ahead);
+    final turn = _between(headAlong, ahead);
     _setWorld(
       _skin.joints[_head],
       _chain(<Matrix4>[
@@ -417,7 +412,7 @@ final class _NeckPose {
         pull.setEntry(r, c, pull.entry(r, c) + stretch * along[r] * along[c]);
       }
     }
-    final turn = Quaternion.fromTwoVectors(along, wanted.normalized());
+    final turn = _between(along, wanted.normalized());
     _setWorld(
       _skin.joints[k],
       _chain(<Matrix4>[
@@ -444,4 +439,39 @@ final class _NeckPose {
           : Matrix4.inverted(parent.worldMatrix).multiplied(world),
     );
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
+}
+
+/// The shortest turn taking [from] onto [to], as `Quaternion.fromTwoVectors`
+/// builds it, but with the half angle's sine and cosine taken from the
+/// angle's cosine c as √((1 − c)/2) and √((1 + c)/2) rather than through
+/// `acos`, which asks `dart:math`: a square root is rounded alike everywhere.
+Quaternion _between(Vector3 from, Vector3 to) {
+  final a = from.normalized();
+  final b = to.normalized();
+  final c = a.dot(b);
+  if ((1.0 - c).abs() < 0.0005) return Quaternion.identity();
+  if ((1.0 + c).abs() < 0.0005) {
+    // Half a turn, about any axis square to [from], picked as vector_math
+    // picks it.
+    final axis = a.cross(
+      a.x > a.y && a.x > a.z ? Vector3(0.0, 1.0, 0.0) : Vector3(1.0, 0.0, 0.0),
+    )..normalize();
+    return Quaternion(axis.x, axis.y, axis.z, 0.0);
+  }
+  final axis = a.cross(b)..normalize();
+  final s = math.sqrt(math.max(0.0, (1.0 - c) * 0.5));
+  return Quaternion(
+    axis.x * s,
+    axis.y * s,
+    axis.z * s,
+    math.sqrt(math.max(0.0, (1.0 + c) * 0.5)),
+  );
 }

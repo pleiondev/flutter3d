@@ -30,6 +30,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart'
     show Liquid, LiquidOptics;
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show Bed, Igniter, Solid;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -494,7 +495,7 @@ final class RunElements {
       final pool = pools.where((p) => p.name == a.pool).firstOrNull;
       if (pool == null) continue;
       // Turned a little each, so no two lie square to the pit.
-      final turn = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), 0.7 * k + 0.3);
+      final turn = _turn(Vector3(0.0, 1.0, 0.0), 0.7 * k + 0.3);
       final solid = a.raft
           // Pine at 450 kg/m³.
           ? Solid.compound(
@@ -798,4 +799,12 @@ const String elementsPart = 'elements';
 void stepElements(PlatformerSimulation sim, RunElements? elements, double dt) {
   if (elements == null || !sim.didMoveThisStep) return;
   elements.step(dt);
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

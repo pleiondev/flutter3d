@@ -325,6 +325,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
         loop: own,
         part: PlatformerPlugin.id,
         swapLevel: swapLevel,
+        simulation: platformerSimulationVersion,
       );
     } finally {
       // The run publishes onto the game's bus again, not this loop's.

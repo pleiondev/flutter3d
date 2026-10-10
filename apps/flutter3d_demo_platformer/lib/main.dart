@@ -21,6 +21,7 @@ import 'package:flutter/services.dart'
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart'
     show Elements, ElementsQuality, HearingScale, LiquidLook, PhysicsHearing;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
 import 'package:flutter3d_game_kit/reactions.dart' show ReactionsPlugin;
@@ -1624,12 +1625,12 @@ class _GameScreenState extends State<GameScreen> {
       ..setPosition(_scratch.x, feet, _scratch.z)
       ..setScale(scale.x, scale.y, scale.z)
       ..setRotation(
-        Quaternion.axisAngle(
+        _turn(
               Vector3(0.0, 1.0, 0.0),
               _drawnYaw.read(_loop.alpha) + _runnerVisuals.facing + _pose.spin,
             ) *
-            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), _pose.lean) *
-            Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), _pose.roll),
+            _turn(Vector3(1.0, 0.0, 0.0), _pose.lean) *
+            _turn(Vector3(0.0, 0.0, 1.0), _pose.roll),
       );
 
     // Speed widens the view a little, which is the cheapest way to make fast
@@ -1961,4 +1962,12 @@ class _GameScreenState extends State<GameScreen> {
     }
     return _devices.handleKeyEvent(event);
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show NativeMaterial;
 
@@ -41,18 +42,15 @@ final class Bonfire {
       for (final side in <double>[-0.4, 0.4]) {
         final y = fireGround + _logRadius * (1 + 2 * layer) + 0.01;
         // The cylinder stands along y; laid along the body's x.
-        final look =
-            MeshNode(
-              mesh,
-              RenderMaterial(
-                name: 'log',
-                baseColor: LinearColor.fromSrgb(0.42, 0.28, 0.16, 1.0),
-                roughness: 0.9,
-              ),
-              name: 'log',
-            )..setRotation(
-              Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), math.pi / 2),
-            );
+        final look = MeshNode(
+          mesh,
+          RenderMaterial(
+            name: 'log',
+            baseColor: LinearColor.fromSrgb(0.42, 0.28, 0.16, 1.0),
+            roughness: 0.9,
+          ),
+          name: 'log',
+        )..setRotation(_turn(Vector3(0.0, 0.0, 1.0), math.pi / 2));
         final node = SceneNode(name: 'log')..add(look);
         _elements.fireView.scene.add(node);
         // As it meets others, a bar along x rounded by two thirds of its
@@ -74,9 +72,7 @@ final class Bonfire {
           at: alongX
               ? Vector3(fireX, y, fireZ + side)
               : Vector3(fireX + side, y, fireZ),
-          turn: alongX
-              ? null
-              : Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+          turn: alongX ? null : _turn(Vector3(0.0, 1.0, 0.0), math.pi / 2),
           look: node,
           chars: look,
         );
@@ -115,4 +111,12 @@ final class Bonfire {
       }
     }
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

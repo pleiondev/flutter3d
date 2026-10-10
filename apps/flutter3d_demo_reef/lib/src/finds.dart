@@ -128,7 +128,7 @@ final class Finds {
       // Its hold full of sand: heavier than the water it displaces.
       60.0,
       _onFloor(50.0, 24.0, 0.15),
-      turn: Quaternion.axisAngle(Vector3(0, 0, 1), 1.3),
+      turn: _turn(Vector3(0, 0, 1), 1.3),
     );
   }
 
@@ -165,7 +165,7 @@ final class Finds {
     ).build().transformed(
       Matrix4.compose(
         Vector3(0, 0.2, 0),
-        Quaternion.axisAngle(Vector3(1, 0, 0), math.pi / 2),
+        _turn(Vector3(1, 0, 0), math.pi / 2),
         Vector3(1, 1, 1),
       ),
     ),
@@ -198,7 +198,7 @@ final class Finds {
       ).build().transformed(
         Matrix4.compose(
           Vector3(side * 0.075, 0.215, 0),
-          Quaternion.axisAngle(Vector3(1, 0, 0), math.pi / 2),
+          _turn(Vector3(1, 0, 0), math.pi / 2),
           Vector3(1.0, 1.0, 1.4),
         ),
       ),
@@ -344,4 +344,12 @@ final class LiftBag {
       ..setPosition(p.x, p.y, p.z)
       ..setScale(radius, radius * 1.15, radius);
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

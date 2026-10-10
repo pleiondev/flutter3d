@@ -7,6 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -52,13 +53,13 @@ final class Wreck {
       for (final x in <double>[-5.0, -1.0, 3.0])
         (Vector3(0.12, 0.12, wreckHalfBeam), Vector3(x, 2.3, 0.15), 0.0),
     ];
-    final turn = Quaternion.axisAngle(Vector3(0, 1, 0), -wreckHeading);
+    final turn = _turn(Vector3(0, 1, 0), -wreckHeading);
     final shape = world.createCompound(<NativeCompoundPart>[
       for (final (half, at, lean) in pieces)
         NativeCompoundPart(
           NativeShape.box(half),
           at: at,
-          turn: Quaternion.axisAngle(Vector3(1, 0, 0), lean),
+          turn: _turn(Vector3(1, 0, 0), lean),
         ),
     ]);
     final body = world.addBody(
@@ -106,7 +107,7 @@ final class Wreck {
               name: 'beam',
             )
             ..setPosition(at.x, at.y, at.z)
-            ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), lean)),
+            ..setRotation(_turn(Vector3(1, 0, 0), lean)),
         )
         ..add(
           MeshNode(
@@ -128,7 +129,7 @@ final class Wreck {
       type: NativeBodyType.fixed,
       mass: 0.0,
     );
-    final lying = turn * Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2);
+    final lying = turn * _turn(Vector3(0, 0, 1), math.pi / 2);
     world
       ..setShape(mast, const NativeShape.cylinder(0.2, 6.0))
       ..setOrientation(mast, lying);
@@ -153,7 +154,7 @@ final class Wreck {
               ).build().transformed(
                 Matrix4.compose(
                   Vector3(0.05, -6.1, 0),
-                  Quaternion.axisAngle(Vector3(1, 0, 0), math.pi),
+                  _turn(Vector3(1, 0, 0), math.pi),
                   Vector3(1.0, 1.0, 1.0),
                 ),
               ),
@@ -166,7 +167,7 @@ final class Wreck {
           name: 'mast',
         )
         ..setPosition(mastAt.x, mastAt.y - 0.08, mastAt.z)
-        ..setRotation(Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2)),
+        ..setRotation(_turn(Vector3(0, 0, 1), math.pi / 2)),
     );
     scene.add(ship);
   }
@@ -277,8 +278,7 @@ final class Boat {
     _drop();
     // Bow to the west, into the current, with the anchor's rope off her
     // stem: the way a boat lies at anchor in a stream.
-    look = launchLook(device)
-      ..setRotation(Quaternion.axisAngle(Vector3(0, 1, 0), math.pi));
+    look = launchLook(device)..setRotation(_turn(Vector3(0, 1, 0), math.pi));
     scene.add(look);
   }
 
@@ -368,4 +368,12 @@ final class Boat {
     final p = position;
     look.setPosition(p.x, p.y, p.z);
   }
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

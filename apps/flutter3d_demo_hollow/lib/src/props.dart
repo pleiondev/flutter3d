@@ -55,7 +55,7 @@ final class QuarryStones {
         ..setMaterial(body, NativeMaterial.stone());
       // Half turns only, about each axis, so the boulder still fills the
       // block's three sides; which half turn differs from block to block.
-      final flip = Quaternion.axisAngle(
+      final flip = _turn(
         <Vector3>[Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)][k % 3],
         k < 3 ? math.pi : 0.0,
       );
@@ -182,9 +182,7 @@ final class Rafts {
       node.add(
         MeshNode(_logMesh, _bark, name: 'log')
           ..setPosition(x, 0, 0)
-          ..setRotation(
-            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
-          ),
+          ..setRotation(_turn(Vector3(1.0, 0.0, 0.0), math.pi / 2)),
       );
     }
     _scene.add(node);
@@ -255,10 +253,7 @@ final class Trees {
       _world
         ..setCompound(body, shape)
         ..setMaterial(body, NativeMaterial.wood());
-      final turn = Quaternion.axisAngle(
-        Vector3(0, 1, 0),
-        random.nextDouble() * 2 * math.pi,
-      );
+      final turn = _turn(Vector3(0, 1, 0), random.nextDouble() * 2 * math.pi);
       final node = SceneNode(name: 'pine')
         ..setPosition(x, g, z)
         ..setRotation(turn);
@@ -581,7 +576,7 @@ final class Village {
           g,
           z + (_round + 0.02) * facing.cos,
         )
-        ..setRotation(Quaternion.axisAngle(Vector3(0, 1, 0), toYard))
+        ..setRotation(_turn(Vector3(0, 1, 0), toYard))
         ..add(
           MeshNode(
             doorway,
@@ -598,7 +593,7 @@ final class Village {
         ..add(
           MeshNode(lintel, frame, name: 'lintel')
             ..setPosition(0, 1.46, 0)
-            ..setRotation(Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2)),
+            ..setRotation(_turn(Vector3(0, 0, 1), math.pi / 2)),
         );
       scene
         ..add(wallLook)
@@ -907,4 +902,12 @@ final class Volcano {
   /// How far off its line the breach lets a bomb go, either way, rad: three
   /// degrees, the "few degrees" above.
   static const double _aim = 3.0 * math.pi / 180.0;
+}
+
+/// A turn of [angle] about the unit [axis], with `Portable`'s sine and
+/// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
+/// between the VM and a browser.
+Quaternion _turn(Vector3 axis, double angle) {
+  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }
