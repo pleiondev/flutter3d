@@ -102,6 +102,8 @@ extension _BatchedDraws on Renderer {
   bool _isBatchable(MeshNode node) =>
       node is! InstancedMeshNode &&
       !node.isTinted &&
+      // Its own parameter values, which one instanced draw cannot carry.
+      !node.overridesParameters &&
       // `A1.3`: part way through a level-of-detail cross-fade, which is a
       // pre-draw of its own.
       node.lodFade == 1.0 &&

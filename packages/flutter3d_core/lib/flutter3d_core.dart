@@ -105,6 +105,7 @@ export 'src/engine/render/fullscreen_effect.dart';
 export 'src/engine/render/key_sort.dart';
 export 'src/engine/render/lighting_model_addon.dart';
 export 'src/engine/render/material.dart' hide RenderMaterialInternals;
+export 'src/engine/render/material_parameters.dart';
 export 'src/engine/render/memory_report.dart';
 export 'src/engine/render/mesh_overlay.dart';
 export 'src/engine/render/mirror_view.dart';

@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../render/material.dart';
+import '../render/material_parameters.dart';
 import 'morph_state.dart';
 import 'scene.dart';
 import 'scene_node.dart';
@@ -117,6 +120,38 @@ base class MeshNode extends SceneNode {
   /// Whether [tint] changes anything.
   bool get isTinted =>
       tint.r != 1.0 || tint.g != 1.0 || tint.b != 1.0 || tint.a != 1.0;
+
+  /// This node's own values for its material's parameters, over the
+  /// material's: what a draw of this node binds is
+  /// `material.parameters` with these on top — [parametersFor]. Null, the
+  /// default, is the material as it is.
+  ///
+  /// **How a hundred rocks share one material and one glows**: the material
+  /// is one object, its uniforms one map, and the glowing rock says its own
+  /// glow here. Give it the material's schema to have its values checked:
+  /// `MaterialParameters(schema: schema)` starts at the defaults and so
+  /// overrides every parameter; an empty `MaterialParameters` overrides only
+  /// what is set on it. A node with overrides is drawn on its own, never
+  /// folded into an automatic batch.
+  MaterialParameters? parameters;
+
+  /// What a draw of this node through [material] binds as its parameters:
+  /// [material]'s own map when this node overrides nothing, and otherwise
+  /// that map with [parameters] on top, in a map this node keeps and fills
+  /// again on each call. The material's map is never written.
+  Map<String, Float32List> parametersFor(RenderMaterial material) {
+    final own = parameters;
+    if (own == null || own.isEmpty) return material.parameters;
+    return _mergedParameters
+      ..clear()
+      ..addAll(material.parameters)
+      ..addAll(own.uniforms);
+  }
+
+  final Map<String, Float32List> _mergedParameters = <String, Float32List>{};
+
+  /// Whether [parameters] overrides anything.
+  bool get overridesParameters => !(parameters?.isEmpty ?? true);
 
   /// How much of this node is drawn while its `LodGroup` cross-fades it
   /// with a neighbouring level — `A1.3`. One, the default, is all of it.

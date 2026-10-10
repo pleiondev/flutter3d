@@ -8,6 +8,21 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **A material's parameters are typed, checked and overridden per node.**
+  `ParameterKey<T>` names a parameter as its `.f3dmat` does, with the
+  `ParameterType` its value is laid out as (`float`, `vec2`–`vec4`,
+  `color`, `colorWithAlpha`, or a plugin's own) and the `Unit` it is in.
+  `MaterialParameters` sets and reads them by key from code (`set`, `get`)
+  and by name from data (`setNamed`, taking numbers, vectors, colors and
+  `Quantity`s converted into the declared unit), checked against a
+  `MaterialParameterSchema` — `fromProgram` for a parsed `.f3dmat`,
+  `BundledMaterials.schema` for a bundle's — and refusing an undeclared
+  name, another width or a compile-time `param` with a
+  `MaterialParameterException`. `MaterialParameters.over` types a
+  `RenderMaterial.parameters` map in place. `MeshNode.parameters` overrides
+  the material's values for that node alone, in every pass that draws it
+  (its shadows included); such a node is never folded into an automatic
+  batch.
 - **A resource cache streams: a budget, a queue, priorities and
   cancellation.** `MemoryBudget` holds limits per `MemoryCategory` and in
   all, is charged and refunded, and tells `onCrossed` each time a limit is
