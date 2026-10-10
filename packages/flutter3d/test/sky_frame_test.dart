@@ -104,7 +104,7 @@ Future<Uint8List> _draw(
       RenderView(
         camera: world.camera,
         // Black, so that anything not black in the frame was drawn.
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

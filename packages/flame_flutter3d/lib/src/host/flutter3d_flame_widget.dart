@@ -174,8 +174,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
 
   late RenderView _view = _viewFor();
 
-  RenderView _viewFor() =>
-      RenderView(camera: _camera, clearColorSrgb: _clearSrgb(Vector4.zero()));
+  RenderView _viewFor() => RenderView(camera: _camera, clearColor: _clear);
 
   static final LinearColor _defaultClear = LinearColor.fromSrgb(
     0.05,
@@ -183,13 +182,10 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
     0.07,
   );
 
-  /// The clear colour as it is now, encoded into [out] for the view's
-  /// `clearColorSrgb`: the widget's, the game's, or the default.
-  Vector4 _clearSrgb(Vector4 out) {
-    final linear = _config.clearColor ?? _owner?.clearColor ?? _defaultClear;
-    final (:r, :g, :b, :a) = linear.toSrgb();
-    return out..setValues(r, g, b, a);
-  }
+  /// The clear colour as it is now: the widget's, the game's, or the
+  /// default.
+  LinearColor get _clear =>
+      _config.clearColor ?? _owner?.clearColor ?? _defaultClear;
 
   /// The camera this state put in the scene, to take out again when a
   /// rebuild hands in another; a scene kept every camera it was ever given.
@@ -504,7 +500,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                     // Read every frame: a game assigns a new colour (a day
                     // turning, the next level's sky) rather than changing
                     // one in place.
-                    _clearSrgb(_view.clearColorSrgb);
+                    _view.clearColor = _clear;
                   },
                   presentFrame: presentFrame,
                 ),

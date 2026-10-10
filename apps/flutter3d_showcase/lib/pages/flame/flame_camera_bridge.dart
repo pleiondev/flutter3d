@@ -86,7 +86,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
           ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
     _view = RenderView(
       camera: _lens,
-      clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );
 
     _scene = Scene()

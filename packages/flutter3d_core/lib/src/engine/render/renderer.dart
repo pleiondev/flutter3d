@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColorVector;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -4324,7 +4326,7 @@ final class Renderer with RenderServices {
         this,
         scene: scene,
         shadowCaster: shadowCaster,
-        clearColor: ordered.first.clearColorSrgb,
+        clearColor: ordered.first.clearColor,
         enabled: settings.irradianceUpdates,
       ),
       probes: <_ReflectionProbeNode>[
@@ -4335,7 +4337,7 @@ final class Renderer with RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColorSrgb,
+            clearColor: ordered.first.clearColor,
             enabled: settings.reflectionProbes,
           ),
       ],
@@ -4946,7 +4948,7 @@ final class Renderer with RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColorSrgb,
+            clearColor: ordered.first.clearColor,
             enabled: settings.reflectionProbes,
           ),
       ];
@@ -4985,7 +4987,7 @@ final class Renderer with RenderServices {
           this,
           scene: scene,
           shadowCaster: shadowCaster,
-          clearColor: ordered.first.clearColorSrgb,
+          clearColor: ordered.first.clearColor,
           enabled: settings.irradianceUpdates,
         ),
         renderTextures: _RenderTextureNode(
@@ -5783,20 +5785,6 @@ final class Renderer with RenderServices {
         ..releaseTexture(first)
         ..releaseTexture(second);
     }
-  }
-
-  /// Converts a display-referred colour into the linear light the scene target
-  /// holds. Alpha is coverage, not light, so it passes through.
-  static vm.Vector4 _srgbToLinear(vm.Vector4 color) {
-    double channel(double c) => c <= 0.04045
-        ? c / 12.92
-        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
-    return vm.Vector4(
-      channel(color.x),
-      channel(color.y),
-      channel(color.z),
-      color.w,
-    );
   }
 
   /// Returns a pooled texture once the GPU can no longer be reading it.

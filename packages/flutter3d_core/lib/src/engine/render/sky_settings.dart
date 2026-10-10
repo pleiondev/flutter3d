@@ -29,8 +29,7 @@
 ///
 /// **Colours are linear and scene-referred.** They are multiplied by
 /// `RenderSettings.exposure` and pass through the tone curve like everything
-/// else, so they are not the numbers an eyedropper reads off a screenshot —
-/// unlike `RenderView.clearColorSrgb`, which the renderer decodes from sRGB. The
+/// else, so they are not the numbers an eyedropper reads off a screenshot. The
 /// first sky anybody writes will look too bright, and it will look wrong in a
 /// way that reads as a shader bug rather than as a units mismatch.
 library;

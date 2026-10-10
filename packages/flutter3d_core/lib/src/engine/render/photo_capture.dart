@@ -23,7 +23,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
-import 'package:vector_math/vector_math.dart' as vm;
 
 import '../../formats/srgb.dart';
 import '../scene/camera_node.dart';
@@ -371,7 +370,7 @@ Future<PhotoCaptureReport> capturePhoto({
   required FutureOr<void> Function(Uint8List rgba, int top, int rows) onRows,
   RenderSettings settings = const RenderSettings(),
   PhotoFilter filter = PhotoFilter.none,
-  vm.Vector4? clearColorSrgb,
+  LinearColor? clearColor,
   int layerMask = ~0,
   int tileWidth = 1024,
   int tileHeight = 1024,
@@ -418,7 +417,7 @@ Future<PhotoCaptureReport> capturePhoto({
           views: <RenderView>[
             RenderView(
               camera: camera,
-              clearColorSrgb: clearColorSrgb,
+              clearColor: clearColor,
               layerMask: layerMask,
               cut: true,
             ),

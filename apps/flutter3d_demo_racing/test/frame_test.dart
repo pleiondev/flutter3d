@@ -265,7 +265,7 @@ final class _Shown {
       views: <RenderView>[
         RenderView(
           camera: camera,
-          clearColorSrgb: Vector4(
+          clearColor: LinearColor.fromSrgb(
             background.x,
             background.y,
             background.z,

@@ -129,7 +129,10 @@ material ToonInstances {
       height: _probeHeight,
       scene: probe,
       views: <RenderView>[
-        RenderView(camera: eye, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: eye,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       // No dither and no bloom, so a band is one value from edge to edge.
       settings: const RenderSettings(

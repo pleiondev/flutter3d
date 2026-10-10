@@ -98,11 +98,9 @@ extension _ScenePasses on Renderer {
     final keeps = orderIndependent || split;
     final msaa = surfaceIsRead || keeps ? null : _hdrMsaa;
     final deferred = <_DeferredTransparency>[];
-    // The clear colour is authored the way a colour picker shows it, but the
-    // scene target holds linear light and the composite pass encodes on the way
-    // out. Clearing with the sRGB value directly would send it through the
-    // encode twice and wash the background out.
-    final clear = Renderer._srgbToLinear(ordered.first.clearColorSrgb);
+    // The clear colour is linear light, as the scene target holds, and the
+    // composite pass encodes it on the way out with everything else.
+    final clear = ordered.first.clearColor.toVector4();
     // `A2.8`: one convention for the frame's depth, which every pass that
     // loads it after this one reads back from the field.
     final reversed = _reversedFor(settings);

@@ -8,6 +8,12 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: an irradiance field takes and gives `LinearColor`s.**
+  `IrradianceField.writeIrradiance` and `writeIrradianceTexel` take one,
+  `readIrradiance` and `sample` answer one and no longer fill an `out`
+  vector. `Vector3(r, g, b)` is `LinearColor(r, g, b)`, or
+  `vector.toLinearColor()`; read `.r`, `.g`, `.b` where you read `.x`,
+  `.y`, `.z`.
 - **Breaking: seven sets that grow are open classes, not enums.**
   `ModelLightType`, `ShadowCastingMode`, `MaterialAlphaMode`,
   `AnimationBlend`, `DiffuseModel`, `SortMode` and `TangentMethod` are
@@ -510,16 +516,18 @@
   `LinearColor(0.1, 0.2, 0.5)`, or `vector.toLinearColor()`.
   `directionToSun` stays a `Vector3`, and `sample` still answers the
   radiance as one.
-- **Breaking: the clear colour says it is sRGB.** `RenderView.clearColor`
-  is `RenderView.clearColorSrgb`, in the constructor, in
-  `RenderView.texture` and as the field, and so is `capturePhoto`'s
-  `clearColor`: it is the one colour the engine takes sRGB-encoded, and a
-  colour that is not linear says so in its name. `dart fix` renames the
-  field and the parameters. `Atmosphere.applyTo` takes `clearColorSrgb:`
-  too and now encodes its linear sky into it, where it wrote the linear
-  numbers into the sRGB slot as they were; a clear colour set from an
-  atmosphere is lighter than before, and the colour the sky was meant to
-  be.
+- **Breaking: the clear colour is a `LinearColor`.** `RenderView.clearColor`
+  is linear light like every other colour the engine takes, in the
+  constructor, in `RenderView.texture` and as the field, where it was an
+  sRGB-encoded `Vector4` changed in place; so is `capturePhoto`'s
+  `clearColor`. `clearColor: Vector4(r, g, b, a)` is
+  `clearColor: LinearColor.fromSrgb(r, g, b, a)` and draws the same
+  picture, and `view.clearColor.setValues(...)` is an assignment.
+  `RenderView.defaultClearColor` is the slate a view clears to.
+  `Atmosphere.applyTo` takes the `RenderView` itself (`view:`) and puts its
+  sky on it as it is, where it wrote the linear numbers into the sRGB slot;
+  a clear colour set from an atmosphere is lighter than in 0.8, and the
+  colour the sky was meant to be.
 - **A `.fmat` is written in the envelope.** `writeFmat` starts with
   `{"format": "f3d.fmat", "version": 1, …}` and keeps `"fmat": 1` after it,
   because a material travels inside a `.f3d` bundle that a 0.8 reader still

@@ -64,7 +64,7 @@ Future<List<int>> _draw(
     views: <RenderView>[
       RenderView(
         camera: it.scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(bloom: BloomSettings(enabled: bloom)),

@@ -82,7 +82,10 @@ Future<Uint8List> _drawn({required bool stepped}) async {
     height: _height,
     scene: world,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(),
   );

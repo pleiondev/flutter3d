@@ -16,7 +16,7 @@ Future<RenderedFrame> drawOnce({
   required int width,
   required int height,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColorSrgb,
+  LinearColor? clearColor,
 }) async {
   final result = renderer.render(
     width: width,
@@ -25,7 +25,7 @@ Future<RenderedFrame> drawOnce({
     views: <RenderView>[
       RenderView(
         camera: subject.camera,
-        clearColorSrgb: clearColorSrgb ?? Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: clearColor ?? LinearColor.black,
       ),
     ],
     settings: settings,

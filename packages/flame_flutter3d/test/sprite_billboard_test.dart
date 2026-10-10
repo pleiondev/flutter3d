@@ -87,7 +87,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: game.camera3d,
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(

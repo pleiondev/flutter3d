@@ -315,7 +315,7 @@ void main() {
         camera: it.camera,
         width: _size,
         height: _size,
-        clearColorSrgb: Vector4(0.2, 0.4, 0.6, 1.0),
+        clearColor: LinearColor.fromSrgb(0.2, 0.4, 0.6, 1.0),
       );
       it.scene.addTextureView(texture);
       _render(it);

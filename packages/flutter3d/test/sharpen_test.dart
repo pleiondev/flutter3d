@@ -62,7 +62,12 @@ Future<List<int>> _edge({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(background, background, background, 1.0),
+        clearColor: LinearColor.fromSrgb(
+          background,
+          background,
+          background,
+          1.0,
+        ),
       ),
     ],
     // Undithered: the composite's dither is a pattern a flat frame carries

@@ -61,7 +61,7 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(shift, 0.0, 3.0),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(tonemap: false),
@@ -251,7 +251,10 @@ Future<Uint8List> _drawAt(WorldPosition? origin) async {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(tonemap: false),
   );

@@ -94,7 +94,7 @@ Future<_Shot> _shot({required double viewDistance}) async {
         camera: CameraNode()
           ..setPosition(0.0, 5.0, 8.0)
           ..lookAt(Vector3(0.0, 1.5, -60.0)),
-        clearColorSrgb: Vector4(0.05, 0.06, 0.08, 1.0),
+        clearColor: LinearColor.fromSrgb(0.05, 0.06, 0.08, 1.0),
       ),
     ],
     settings: RenderSettings(

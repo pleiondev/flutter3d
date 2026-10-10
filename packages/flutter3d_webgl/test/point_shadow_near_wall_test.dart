@@ -115,7 +115,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: camera,
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(bloom: BloomSettings(enabled: false)),

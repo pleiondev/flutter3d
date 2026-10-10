@@ -86,7 +86,7 @@ final class PhotoModeDemo extends ShowcaseDemo {
   static const RenderSettings _noBloom = RenderSettings(
     bloom: BloomSettings(enabled: false),
   );
-  static Vector4 get _clear => Vector4(0.05, 0.05, 0.07, 1.0);
+  static LinearColor get _clear => LinearColor.fromSrgb(0.05, 0.05, 0.07);
 
   @override
   void configureView(DemoContext context) {
@@ -201,7 +201,7 @@ final class PhotoModeDemo extends ShowcaseDemo {
       width: width,
       height: height,
       settings: _noBloom,
-      clearColorSrgb: _clear,
+      clearColor: _clear,
       tileWidth: 320,
       tileHeight: 180,
       margin: 16,
@@ -217,7 +217,7 @@ final class PhotoModeDemo extends ShowcaseDemo {
       width: width,
       height: height,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: _lens, clearColorSrgb: _clear)],
+      views: <RenderView>[RenderView(camera: _lens, clearColor: _clear)],
       settings: photoSettings(_noBloom, PhotoFilter.none, made.exposure).tile,
     );
     final ByteBuffer read = (await renderer.device.readback(

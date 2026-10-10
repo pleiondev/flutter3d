@@ -35,8 +35,9 @@
   `Flutter3dView.onListenerMoved` is handed a `ListenerPose` (position,
   forward, up and the scene's origin) where it took a position and a
   direction.
-- **Breaking: `savePhoto(clearColor:)` is `clearColorSrgb:`**, the same sRGB
-  `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **Breaking: `savePhoto(clearColor:)` takes a `LinearColor`**, linear as
+  `RenderView.clearColor` is, where it took an sRGB `Vector4`:
+  `LinearColor.fromSrgb(r, g, b, a)` draws the same picture.
 - **`Flutter3dView` builds the loop's `FormatRegistry` and `VmExtensions`**,
   so a plugin that registers a format or a VM extension has somewhere to
   put it. The registry holds `coreFormats`, `simFormats` and the view's new

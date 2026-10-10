@@ -55,7 +55,7 @@ final class RenderPostDemo extends ShowcaseDemo {
       ..add(eye);
     _sourceView = RenderView(
       camera: eye,
-      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     );
     // #endregion source
 

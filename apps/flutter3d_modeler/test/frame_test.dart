@@ -671,7 +671,7 @@ void main() {
           views: <RenderView>[
             RenderView(
               camera: stage.camera,
-              clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+              clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
             ),
           ],
           settings: const RenderSettings(
@@ -761,7 +761,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: stage.camera,
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
       );

@@ -120,7 +120,7 @@ Future<({List<int> pixels, int shadowDraws})> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(
@@ -169,7 +169,7 @@ Future<({List<int> pixels, int shadowDraws})> _pointFrame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),

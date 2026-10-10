@@ -73,7 +73,7 @@ Future<Uint8List> _draw({
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(0.0, 0.0, 5.0),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // **Bloom off, and that is not tidiness.** With it on, the lit quad's

@@ -219,7 +219,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.06, 0.07, 0.09, 1.0),
+    clearColor: LinearColor.fromSrgb(0.06, 0.07, 0.09, 1.0),
   );
 
   /// Draws the selection box, the gizmos and their models. Opened once a

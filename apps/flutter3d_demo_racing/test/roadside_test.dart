@@ -127,7 +127,10 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.3, 1.0)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.3, 1.0),
+        ),
       ],
     );
     final pixels = (await device.readback(result.frame)).buffer.asUint8List();

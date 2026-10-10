@@ -437,7 +437,12 @@ abstract final class GoldenStages {
           final probe = field.probeIndex(x, y, z);
           for (var ty = 0; ty < field.tile; ty++) {
             for (var tx = 0; tx < field.tile; tx++) {
-              field.writeIrradianceTexel(probe, tx, ty, colors[x]);
+              field.writeIrradianceTexel(
+                probe,
+                tx,
+                ty,
+                colors[x].toLinearColor(),
+              );
             }
           }
           // Far walls: nothing between any probe and any point.
@@ -2246,7 +2251,7 @@ abstract final class GoldenStages {
       camera: watcher,
       width: 128,
       height: 96,
-      clearColorSrgb: Vector4(0.35, 0.45, 0.6, 1.0),
+      clearColor: LinearColor.fromSrgb(0.35, 0.45, 0.6, 1.0),
     );
     // A plane stood up to face the eye: its v runs down the screen, the way
     // a picture's rows do. A box's sides run v up and would show it upside

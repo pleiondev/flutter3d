@@ -4,9 +4,9 @@ library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
-import 'package:vector_math/vector_math.dart';
 
 import '../render/render_settings.dart';
+import '../render/render_view.dart';
 import 'light_node.dart';
 import 'scene.dart';
 
@@ -98,12 +98,11 @@ final class Atmosphere {
     baseHeight: fogBaseHeight,
   );
 
-  /// Puts this atmosphere on [scene]'s ambient light and on [sun], and
-  /// writes the sky into [clearColorSrgb] if given (a view's
-  /// `RenderView.clearColorSrgb` is read every frame, so writing into it is
-  /// enough). The sky is linear and the clear colour is sRGB, so it is
-  /// encoded on the way.
-  void applyTo(Scene scene, {LightNode? sun, Vector4? clearColorSrgb}) {
+  /// Puts this atmosphere on [scene]'s ambient light and on [sun], and its
+  /// [sky] on [view]'s `RenderView.clearColor` if given (read every frame,
+  /// so setting it is enough). Both are linear, so the colour goes over as
+  /// it is.
+  void applyTo(Scene scene, {LightNode? sun, RenderView? view}) {
     scene
       ..ambientColor = ambientColor
       ..ambientIntensity = ambientIntensity;
@@ -112,8 +111,7 @@ final class Atmosphere {
         ..color = sunColor
         ..intensity = sunIntensity;
     }
-    final (:r, :g, :b, a: _) = sky.toSrgb();
-    clearColorSrgb?.setValues(r, g, b, 1.0);
+    view?.clearColor = sky.withAlpha(1.0);
   }
 }
 

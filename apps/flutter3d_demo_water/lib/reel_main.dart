@@ -198,7 +198,7 @@ Future<int> _shot(
       scene: scene,
       camera: camera,
       settings: _settings,
-      clearColorSrgb: Vector4(0.62, 0.76, 0.9, 1.0),
+      clearColor: LinearColor.fromSrgb(0.62, 0.76, 0.9, 1.0),
     );
   }
   return frames;

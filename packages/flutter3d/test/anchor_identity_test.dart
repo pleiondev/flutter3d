@@ -102,7 +102,7 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+        clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
       ),
     ],
     settings: settings,

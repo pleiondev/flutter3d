@@ -7,6 +7,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -54,7 +56,7 @@ double _middle(BlendState blend, Vector4 color) {
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: Vector4(_grey, _grey, _grey, 1.0),
+        clearColor: LinearColor.fromSrgb(_grey, _grey, _grey, 1.0),
       ),
     ],
     settings: const RenderSettings(

@@ -21,9 +21,10 @@
 - **Depends on `flutter3d_foundation` instead of the plugin API**, for the
   `CapabilityException` a render refusal extends.
 
-- **Breaking: `RenderPreset.clearColor` and `bakeImpostor(clearColor:)` are
-  `clearColorSrgb`**, the same sRGB `Vector4`, named as
-  `RenderView.clearColorSrgb` is.
+- **Breaking: `RenderPreset.clearColor` and `bakeImpostor(clearColor:)`
+  are `LinearColor`s**, linear as `RenderView.clearColor` is, where they
+  were sRGB `Vector4`s: `LinearColor.fromSrgb(r, g, b, a)` draws the same
+  picture.
 - **`.f3dproj` keeps the manifest keys it does not read.**
   `ModelProject.unknown` holds them, every edit carries them, and a save
   writes them back where they were, so a project a later minor wrote keeps

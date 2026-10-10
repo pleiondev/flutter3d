@@ -50,7 +50,10 @@ Float32List _render(RenderSettings settings, {RenderMaterial? material}) {
       ..add(light)
       ..add(camera),
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );

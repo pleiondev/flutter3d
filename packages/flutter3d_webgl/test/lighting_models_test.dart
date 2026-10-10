@@ -94,7 +94,7 @@ void main() {
             camera: built.camera,
             // Black, so "drew nothing" and "drew something" cannot be confused
             // by a background that is already bright.
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(

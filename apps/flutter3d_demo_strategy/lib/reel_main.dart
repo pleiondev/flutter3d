@@ -54,7 +54,7 @@ const double _warmUp = 4.0, _length = 9.0;
 /// The sun low in the west at dusk, and the blue of the sky after it.
 vm.Vector3 get _sunAlong => vm.Vector3(-0.85, -0.22, 0.35)..normalize();
 vm.Vector3 get _sunLight => vm.Vector3(1.0, 0.52, 0.28)..scale(0.35);
-final vm.Vector4 _dusk = vm.Vector4(0.05, 0.06, 0.11, 1.0);
+final LinearColor _dusk = LinearColor.fromSrgb(0.05, 0.06, 0.11);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -166,7 +166,7 @@ class _ReelState extends State<_Reel> {
         scene: scene,
         camera: camera,
         settings: _settings,
-        clearColorSrgb: _dusk,
+        clearColor: _dusk,
       );
     }
     stdout.writeln('fire: $frames frames in ${shot.folder}');

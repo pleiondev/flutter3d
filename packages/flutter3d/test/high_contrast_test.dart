@@ -130,7 +130,7 @@ Future<({Uint8List pixels, List<String> passes})> _frame(
     views: <RenderView>[
       RenderView(
         camera: stage.scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

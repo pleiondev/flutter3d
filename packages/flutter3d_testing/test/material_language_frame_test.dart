@@ -136,7 +136,7 @@ Future<Uint8List> _render(
                 ..lookAt(Vector3(0.0, -0.3, 0.0)))
             : (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
                 ..setPosition(1.6, 1.2, 2.4)),
-        clearColorSrgb: Vector4(0, 0, 0, 1),
+        clearColor: LinearColor.fromSrgb(0, 0, 0, 1),
       ),
     ],
   );

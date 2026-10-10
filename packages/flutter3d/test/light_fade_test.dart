@@ -168,7 +168,7 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
         camera: CameraNode()
           ..setPosition(at, 9.0, 0.01)
           ..lookAt(Vector3(at, 0.0, 0.0)),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Bloom off for the reason `light_channels_test` gives: its glow spreads a

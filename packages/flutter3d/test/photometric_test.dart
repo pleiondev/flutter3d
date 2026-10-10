@@ -68,7 +68,7 @@ Future<Uint8List> _draw(LightNode lamp) async {
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(0.0, 0.0, 9.0),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Every stage that would move a number between the shader and the pixel,

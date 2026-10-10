@@ -474,7 +474,7 @@ final class _ReflectionProbeNode extends RenderNode {
 
   /// What the primary view clears to: what a probe sees where nothing was
   /// drawn, so a reflection of the empty sky is the same colour the world's is.
-  final vm.Vector4 clearColor;
+  final LinearColor clearColor;
 
   /// Every face, in order: what a first capture and an invalidated one draw.
   static const List<int> _kWholeCube = <int>[0, 1, 2, 3, 4, 5];
@@ -1424,7 +1424,7 @@ final class _IrradianceUpdateNode extends RenderNode {
   final Renderer _renderer;
   final Scene scene;
   final int shadowCaster;
-  final vm.Vector4 clearColor;
+  final LinearColor clearColor;
 
   /// `RenderSettings.irradianceUpdates`. Off, the atlas keeps what earlier
   /// frames gathered, and the scene reads it as it would any frame this

@@ -112,7 +112,7 @@ List<_Frame> _render({
           views: <RenderView>[
             RenderView(
               camera: camera,
-              clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+              clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
             ),
           ],
           settings: RenderSettings(occlusion: occlusion),

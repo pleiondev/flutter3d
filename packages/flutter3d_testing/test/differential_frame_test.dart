@@ -100,7 +100,7 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
+        clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
       ),
     ],
     settings: const RenderSettings(

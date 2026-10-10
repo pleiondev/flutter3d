@@ -49,7 +49,7 @@ Future<({Uint8List rgba, int drawCalls})> _frame({
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: Vector4(0.27, 0.48, 0.78, 1.0),
+        clearColor: LinearColor.fromSrgb(0.27, 0.48, 0.78, 1.0),
       ),
     ],
     settings: const RenderSettings(),

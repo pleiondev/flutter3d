@@ -290,7 +290,7 @@ Future<int> _ford() async {
       scene: circuit.scene,
       camera: camera,
       settings: _settings(circuit.sky, gaze),
-      clearColorSrgb: Vector4(sky.x, sky.y, sky.z, 1.0),
+      clearColor: LinearColor.fromSrgb(sky.x, sky.y, sky.z, 1.0),
     );
   }
   return _frames;

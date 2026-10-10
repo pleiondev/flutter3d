@@ -15,7 +15,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Quaternion, Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 
 const int _width = 96;
 const int _height = 64;
@@ -74,7 +74,7 @@ Future<List<int>> _draw(_Staged it, RenderSettings settings) async {
     views: <RenderView>[
       RenderView(
         camera: it.camera,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,

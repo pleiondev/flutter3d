@@ -122,7 +122,10 @@ Future<Uint8List> forest(
     height: device.height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.6, 0.7, 0.9, 1)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.6, 0.7, 0.9, 1),
+      ),
     ],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );

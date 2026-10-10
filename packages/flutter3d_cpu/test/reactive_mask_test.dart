@@ -104,7 +104,7 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
     scene: scene,
     view: RenderView(
       camera: camera,
-      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
     probe: probe,
   );

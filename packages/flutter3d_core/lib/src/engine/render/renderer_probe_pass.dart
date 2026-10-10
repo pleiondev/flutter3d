@@ -211,7 +211,7 @@ extension _ProbePasses on Renderer {
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
-    required vm.Vector4 clearColor,
+    required LinearColor clearColor,
   }) => _captureCubeFace(
     resources: resources,
     scene: scene,
@@ -247,7 +247,7 @@ extension _ProbePasses on Renderer {
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
-    required vm.Vector4 clearColor,
+    required LinearColor clearColor,
   }) {
     final depth = resources.transient(
       RenderTargetDescriptor(
@@ -265,7 +265,7 @@ extension _ProbePasses on Renderer {
           ColorTarget(
             texture: color,
             face: face,
-            clearValue: Renderer._srgbToLinear(clearColor),
+            clearValue: clearColor.toVector4(),
           ),
           if (surface != null)
             ColorTarget(

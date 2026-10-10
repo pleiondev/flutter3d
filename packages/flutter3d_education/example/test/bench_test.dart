@@ -187,7 +187,7 @@ void main() {
       width: 960,
       height: 504,
       settings: benchSettings,
-      clearColorSrgb: Vector4(0.1, 0.11, 0.14, 1.0),
+      clearColor: LinearColor.fromSrgb(0.1, 0.11, 0.14, 1.0),
       build: (request) {
         final bench = Bench(request.device);
         final camera = CameraNode(name: 'eye')

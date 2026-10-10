@@ -16,6 +16,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -49,7 +51,10 @@ SplatCloud _one(Vector3 center, Vector3 scale) => SplatCloud(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(
       tonemap: false,

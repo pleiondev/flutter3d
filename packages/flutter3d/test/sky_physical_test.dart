@@ -106,7 +106,10 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       sky: sky,
@@ -593,7 +596,10 @@ Future<double> _wallMean(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       fog: fog.copyWith(color: LinearColor.black),

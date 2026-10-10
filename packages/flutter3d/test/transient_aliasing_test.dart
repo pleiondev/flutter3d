@@ -128,7 +128,7 @@ Future<_Shot> _draw({
     camera: CameraNode()
       ..setPosition(1.8, 1.2, 1.8)
       ..lookAt(Vector3(-0.6, -0.8, -0.6)),
-    clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+    clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
   );
 
   late FrameResult frame;

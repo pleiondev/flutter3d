@@ -135,7 +135,7 @@ class Scene3D extends StatefulWidget {
   final RenderSettings settings;
 
   /// The colour behind everything, in linear light; the view's default if
-  /// null. Encoded to sRGB once, for the view's `clearColorSrgb`.
+  /// null.
   final LinearColor? clearColor;
 
   /// The device to draw on, borrowed; one the view opens if null.
@@ -229,13 +229,7 @@ class _Scene3DState extends State<Scene3D> implements _SceneHost {
     }
     view?.dispose();
     _viewClear = clear;
-    final srgb = clear?.toSrgb();
-    return _view = RenderView(
-      camera: camera,
-      clearColorSrgb: srgb == null
-          ? null
-          : Vector4(srgb.r, srgb.g, srgb.b, srgb.a),
-    );
+    return _view = RenderView(camera: camera, clearColor: clear);
   }
 
   @override

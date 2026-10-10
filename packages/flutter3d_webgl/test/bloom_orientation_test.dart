@@ -94,7 +94,10 @@ void main() {
       views: <RenderView>[
         // Black, so "glowing" and "not glowing" cannot be confused by a
         // background that is already lit.
-        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       settings: const RenderSettings(
         // Low, so the sphere is nowhere near clipping and the glow around it

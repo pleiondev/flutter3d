@@ -69,7 +69,7 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(1, 0, 0, 1)),
+      RenderView(camera: camera, clearColor: LinearColor.fromSrgb(1, 0, 0, 1)),
     ],
     settings: const RenderSettings(),
   );

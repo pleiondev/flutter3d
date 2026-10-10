@@ -47,7 +47,10 @@ List<double> _center(SplatComposite composite, FogSettings fog) {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -124,7 +127,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: camera,
-            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: RenderSettings(

@@ -81,7 +81,7 @@ Future<_Shot> _corner({
         camera: CameraNode()
           ..setPosition(1.8, 1.5, 1.8)
           ..lookAt(Vector3(-0.6, -0.6, -0.6)),
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(

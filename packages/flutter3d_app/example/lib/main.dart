@@ -61,7 +61,7 @@ class _CubeScreenState extends State<CubeScreen> {
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
+    clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
   );
   late final OrbitController _orbit = OrbitController(
     _camera,

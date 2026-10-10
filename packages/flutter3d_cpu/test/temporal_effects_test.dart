@@ -13,7 +13,6 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _width = 64;
 const int _height = 48;
@@ -86,7 +85,7 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
     scene: scene,
     view: RenderView(
       camera: camera,
-      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
     probe: probe,
   );

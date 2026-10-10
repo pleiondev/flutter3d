@@ -54,7 +54,9 @@ final class AnimationBlend {
     additive,
   ];
 
-  @override
+  // No `@override` here: inside this class the word names the constant
+  // above, not the annotation.
+  // ignore: annotate_overrides
   String toString() => 'AnimationBlend.$name';
 }
 

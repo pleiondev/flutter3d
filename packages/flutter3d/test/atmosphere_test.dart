@@ -78,16 +78,17 @@ void main() {
       type: LightType.directional,
       intensity: 1.0 * Photometric.legacyUnit,
     );
-    final clear = Vector4.zero();
-    _night().applyTo(scene, sun: sun, clearColorSrgb: clear);
+    final view = RenderView(camera: CameraNode());
+    _night().applyTo(scene, sun: sun, view: view);
     expect(
       scene.ambientIntensity,
       closeTo(0.05 * Photometric.legacyUnit, 1e-6),
     );
     expect(sun.intensity, closeTo(0.2 * Photometric.legacyUnit, 1e-6));
-    // The sky is linear light; the clear colour is the same colour encoded.
-    // Mutation: write the linear channel into the sRGB slot as it is.
-    expect(clear.z, closeTo(LinearColor.linearToSrgb(0.1), 1e-6));
+    // The sky and the clear colour are both linear light, so the sky goes
+    // over as it is, opaque.
+    // Mutation: encode it to sRGB on the way, as the clear colour once was.
+    expect(view.clearColor, const LinearColor(0.0, 0.0, 0.1));
   });
 
   test('a group of lights dims together and comes back as it was', () {

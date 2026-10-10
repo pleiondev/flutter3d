@@ -1,6 +1,7 @@
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'reel_shelf_io.dart' if (dart.library.js_interop) 'reel_shelf_web.dart';
 
@@ -100,7 +101,7 @@ final class ReelShot {
     required Scene scene,
     required CameraNode camera,
     RenderSettings settings = const RenderSettings(),
-    Vector4? clearColorSrgb,
+    LinearColor? clearColor,
   }) async {
     final taken = await savePhoto(
       renderer: reel.renderer,
@@ -111,7 +112,7 @@ final class ReelShot {
       shelf: _shelf,
       name: reelFrameName(_frames),
       settings: settings,
-      clearColorSrgb: clearColorSrgb,
+      clearColor: clearColor,
       tileWidth: reel.tileWidth,
       tileHeight: reel.tileHeight,
     );

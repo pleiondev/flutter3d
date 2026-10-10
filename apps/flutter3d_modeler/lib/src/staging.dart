@@ -441,6 +441,13 @@ final class ModelerStage {
   /// the material preview and again with the LOD comparison — and because the
   /// renderer takes a list either way. One today.
   List<RenderView> views() => <RenderView>[
-    RenderView(camera: camera, clearColorSrgb: background),
+    RenderView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(
+        background.x,
+        background.y,
+        background.z,
+      ),
+    ),
   ];
 }

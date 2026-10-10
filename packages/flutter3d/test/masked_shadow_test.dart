@@ -112,7 +112,7 @@ Future<List<int>> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Undithered: the frames are compared byte for byte, a caster discarded

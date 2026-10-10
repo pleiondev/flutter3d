@@ -35,6 +35,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show meshWorkStaysHere;
 import 'package:vector_math/vector_math.dart';
@@ -97,7 +99,7 @@ final class RenderPreset {
     this.settings = const RenderSettings(),
     this.tilesX = 1,
     this.tilesY = 1,
-    this.clearColorSrgb,
+    this.clearColor,
   }) : assert(width > 0 && height > 0, 'width and height must be positive'),
        assert(
          ssaa == 1 || ssaa == 2,
@@ -139,9 +141,9 @@ final class RenderPreset {
   final int tilesX;
   final int tilesY;
 
-  /// The background, sRGB-encoded as `RenderView.clearColorSrgb` is; opaque
+  /// The background, linear as `RenderView.clearColor` is; opaque
   /// black when null.
-  final Vector4? clearColorSrgb;
+  final LinearColor? clearColor;
 }
 
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
@@ -711,7 +713,7 @@ Future<Uint8List> drawTile(
     views: <RenderView>[
       RenderView(
         camera: camera,
-        clearColorSrgb: preset.clearColorSrgb ?? Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: preset.clearColor ?? LinearColor.black,
       ),
     ],
     settings: preset.settings,

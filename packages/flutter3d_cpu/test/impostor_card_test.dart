@@ -36,6 +36,8 @@ import 'package:flutter3d_core/flutter3d_core.dart'
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Vector4Foundation;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show ParametricCuboid;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -259,7 +261,9 @@ Future<Uint8List> shot(
     width: side,
     height: side,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera, clearColorSrgb: kBackdrop)],
+    views: <RenderView>[
+      RenderView(camera: camera, clearColor: kBackdrop.toLinearColor()),
+    ],
     settings: const RenderSettings(),
   );
   return encodePng(

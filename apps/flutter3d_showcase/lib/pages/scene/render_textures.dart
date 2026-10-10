@@ -97,7 +97,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
       camera: _watcher,
       width: 160,
       height: 120,
-      clearColorSrgb: Vector4(0.35, 0.45, 0.6, 1.0),
+      clearColor: LinearColor.fromSrgb(0.35, 0.45, 0.6, 1.0),
     );
     // #endregion texture
 
